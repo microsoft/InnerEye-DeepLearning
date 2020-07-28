@@ -1,0 +1,156 @@
+### DATASETS
+/datasets/
+/logs/
+/model_inference_config.json
+## Results and Models
+result/
+Tests/logs
+Tests/ML/models/logs
+saved_models/
+Tests/ML/test_data/outputs
+azureml-models
+# Tests
+junit
+### MAC FOLDER
+__MACOSX/
+
+### PYTHON
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# other
+.vscode/
+
+/InnerEye/ML/src/aml_config
+*.exe
+*.suo
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/misc.xml
+.idea/mypy.xml
+.idea/InnerEye-DeepLearning.iml
+.idea/workspace.xml
+.idea/deployment.xml
+InnerEyeTestVariables.txt
+Tests/ML/test_outputs
+/test_outputs
+/run_outputs
+/.vs/VSWorkspaceState.json
+/.vs/slnx.sqlite
+/.vs/ProjectSettings.json
+/.idea/dictionaries
+/.idea/pylint.xml
+/.idea/InnerEye-DeepLearning.iml
+# Local test runs of Aria create their own log output
+aria.log*
+# Temp file that is generated if setup.py is run locally
+/package_version.txt
+# Test output from model registration
+/TestsOutsidePackage/azureml-models

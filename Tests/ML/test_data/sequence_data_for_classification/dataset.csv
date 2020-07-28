@@ -1,0 +1,28 @@
+﻿subject,VISIT,AGE,CAT0,CAT1,CAT2,NUM1,NUM2,NUM3,NUM4,IMG,Position,Label
+2137.00005,V1,92,Foo,category_1,category_A,362,,,71,img_1,0,
+2137.00005,V2,92,Foo,category_1,category_A,357,,,693,img_1,1,0
+2137.00005,V3,92,Foo,category_1,category_A,355,,,642,,2,0
+2137.00005,V5,92,Foo,category_1,category_A,355,,,63,,3,0
+2137.00005,V6,92,Foo,category_1,category_A,348,,,364,,4,0
+2137.00005,V7,92,Foo,category_1,category_A,316,,,638,,5,0
+2137.00005,V8,92,Foo,category_1,category_A,349,,,6448,,6,0
+2137.00005,V9,92,Foo,category_1,category_A,361,,,674,,7,0
+2137.00005,V10,92,Foo,category_1,category_A,350,,,8,,8,0
+2627.00001,V1,50,Bar,category_1,category_B,477,1,2,38,img_1,0,0
+2627.00001,V2,50,Bar,category_1,category_B,220,1,2,33,img_1,1,0
+2627.00001,VST 3,50,Bar,category_1,category_B,222,0.08,0.28,60,img_1,2,0
+2627.00001,V5,50,Bar,category_1,category_B,215,,,65,img_1,3,0
+2627.00001,V6,50,Bar,category_1,category_B,213,,,68,,4,0
+2627.00001,V7,50,Bar,category_1,category_B,217,,,59,,5,0
+2627.00001,V8,50,Bar,category_1,category_B,210,,,999,,6,0
+2627.00001,VST 9,50,Bar,category_1,category_B,217,0,0.01,153,img_2,7,0
+2627.00001,V10,50,Bar,category_1,category_B,224,,,93,,8,0
+3250.00005,VST 1,50,Bar,category_1,category_B,344,0,291.81,76,img_3,0,0
+3250.00005,VST 2,50,Bar,category_1,category_B,233,0,6.2,99,img_4,1,0
+3250.00005,VST 3,50,Bar,category_1,category_B,212,0,0,84,img_6,2,0
+3250.00005,VST 5,50,Bar,category_1,category_B,215,0,0,84,img_5,3,0
+3250.00005,VST 6,50,Bar,category_1,category_B,215,0,0,82,img_7,4,0
+3250.00005,VST 7,25,Bar,category_1,category_B,233,0,0,84,img_8,5,0
+3250.00005,VST 8,25,Bar,category_1,category_B,218,0,0,84,img_9,6,0
+3250.00005,VST 9,25,Bar,category_1,category_B,221,0,0,84,img_10,7,0
+3250.00005,VST 10,25,Bar,category_1,category_B,238,0,0.02,84,img_11,8,0

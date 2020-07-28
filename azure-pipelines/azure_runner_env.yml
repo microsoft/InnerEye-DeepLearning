@@ -1,0 +1,25 @@
+steps:
+  - checkout: self
+    lfs: true
+
+  - bash: |
+      echo "Adding this directory to PATH: $CONDA/bin"
+      echo "##vso[task.prependpath]$CONDA/bin"
+    displayName: Add conda to PATH
+
+  - bash: |
+      conda install conda=4.8.3 -y
+      conda --version
+      conda list
+    displayName: Print conda version and package list
+
+  # Linux only; not needed for Windows
+  - bash: |
+      sudo chown -R $USER /usr/share/miniconda
+    condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
+    displayName: Take ownership of conda installation
+
+  - bash: |
+      conda env create --file azure_runner.yml --name AzureRunner
+    failOnStderr: false
+    displayName: Create conda environment

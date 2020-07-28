@@ -1,0 +1,9 @@
+subjectID,channel,path,value,date
+1,image,im1.npy,,1970-01-01
+1,label,,False,
+2,image,im2.npy,,1970-01-01
+2,label,,False,
+3,image,im3.npy,,1970-01-01
+3,label,,True,
+4,image,im4.npy,,1970-01-01
+4,label,,True,

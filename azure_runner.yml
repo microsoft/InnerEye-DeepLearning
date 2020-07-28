@@ -1,0 +1,18 @@
+name: AzureRunner
+channels:
+  - defaults
+dependencies:
+  - pip=20.0.2
+  - python=3.7.3
+  - pip:
+      - azureml-sdk==1.5.0
+      - blobxfer==1.9.4
+      - numpy==1.16.4
+      - pandas==1.0.3
+      - param==1.9.3
+      - pytest==4.5.0
+      - pyyaml==5.3.1
+      - rpdb==0.1.6
+      - scikit-learn==0.21.1
+      - scipy==1.4.1
+      - stopit==1.1.2

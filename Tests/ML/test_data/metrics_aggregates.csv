@@ -1,0 +1,3 @@
+Structure,count,DiceNumeric_mean,DiceNumeric_std,DiceNumeric_min,DiceNumeric_max,HausdorffDistance_mm_mean,HausdorffDistance_mm_std,HausdorffDistance_mm_min,HausdorffDistance_mm_max,MeanDistance_mm_mean,MeanDistance_mm_std,MeanDistance_mm_min,MeanDistance_mm_max
+kidney,2.000,0.550,0.212,0.400,0.700,1.000,0.000,1.000,1.000,0.150,0.071,0.100,0.200
+liver,3.000,0.733,0.306,0.400,1.000,1.000,0.000,1.000,1.000,0.400,0.100,0.300,0.500

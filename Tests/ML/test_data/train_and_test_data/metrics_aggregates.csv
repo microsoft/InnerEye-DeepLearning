@@ -1,0 +1,2 @@
+Structure,count,DiceNumeric_mean,DiceNumeric_std,DiceNumeric_min,DiceNumeric_max,HausdorffDistance_mm_mean,HausdorffDistance_mm_std,HausdorffDistance_mm_min,HausdorffDistance_mm_max,MeanDistance_mm_mean,MeanDistance_mm_std,MeanDistance_mm_min,MeanDistance_mm_max
+region,2.000,0.666,0.000,0.666,0.666,1.866,0.190,1.732,2.000,18446742974197923840.000,0.000,18446742974197923840.000,18446742974197923840.000

@@ -1,0 +1,58 @@
+
+
+=== METRIC: Dice ===
+
+                                                                                                                               count  mean  min  max
+Patient Structure       seriesId                                                         institutionId                                              
+341     rectum          d41cb61517793f87f97d5d6c0cee9f91df94169c29701c10190723ff8ede419a 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    1.1   1.1  1.1
+366     rectum          f040ac05a1eeee9a064662adda21f703d7ba969b7dfc2787248b2c596ccf59a7 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.9   0.9  0.9
+411     rectum          6fa04f324339c532a7c06877d1129bfacd7504d9c0bf6277a393915e73e41d66 5a6ba8fe-65bc-43ec-b1fc-682c8c37e40c  1.0    0.9   0.9  0.9
+306     rectum          9e84c7f5b030cc48e867430e762e1bb7e756051e27468b4fa6a0472292bb59eb 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.8   0.8  0.8
+344     rectum          991648f92b04f05e316fe7c99b1aa748c2d556b1e873591ae9b9bbd2c319254a 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.8   0.8  0.8
+365     rectum          1deef6a1145f76617016a3e26288b009028e411ae4a236043afe7aa8cfbff6b4 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.7   0.7  0.7
+343     rectum          5f1573dbbf6a8335bcf8bf5eed74e9157d4e7ee9dae8d679d4d4d7118510d741 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.4   0.4  0.4
+409     rectum          776d594c55725ad79bf59df2e3e9b6e6ded64cd37a1df45b03847c1e54828246 5a6ba8fe-65bc-43ec-b1fc-682c8c37e40c  1.0    0.4   0.4  0.4
+320     rectum          4af0d32eb2c7b4d253b98530b8c6f5aac10602d51ff4097ab3c932331cf0d2a5 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.3   0.3  0.3
+374     rectum          4b6610b5b249fbc149eb0a47abe97d08df6b26b76ffcf59431271d057f722d14 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.2   0.2  0.2
+341     femur_r         d41cb61517793f87f97d5d6c0cee9f91df94169c29701c10190723ff8ede419a 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.1   0.1  0.1
+366     seminalvesicles f040ac05a1eeee9a064662adda21f703d7ba969b7dfc2787248b2c596ccf59a7 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.1   0.1  0.1
+306     bladder         9e84c7f5b030cc48e867430e762e1bb7e756051e27468b4fa6a0472292bb59eb 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        femur_r         9e84c7f5b030cc48e867430e762e1bb7e756051e27468b4fa6a0472292bb59eb 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        prostate        9e84c7f5b030cc48e867430e762e1bb7e756051e27468b4fa6a0472292bb59eb 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        seminalvesicles 9e84c7f5b030cc48e867430e762e1bb7e756051e27468b4fa6a0472292bb59eb 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+320     bladder         4af0d32eb2c7b4d253b98530b8c6f5aac10602d51ff4097ab3c932331cf0d2a5 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        femur_r         4af0d32eb2c7b4d253b98530b8c6f5aac10602d51ff4097ab3c932331cf0d2a5 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        prostate        4af0d32eb2c7b4d253b98530b8c6f5aac10602d51ff4097ab3c932331cf0d2a5 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        seminalvesicles 4af0d32eb2c7b4d253b98530b8c6f5aac10602d51ff4097ab3c932331cf0d2a5 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+341     bladder         d41cb61517793f87f97d5d6c0cee9f91df94169c29701c10190723ff8ede419a 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        prostate        d41cb61517793f87f97d5d6c0cee9f91df94169c29701c10190723ff8ede419a 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        seminalvesicles d41cb61517793f87f97d5d6c0cee9f91df94169c29701c10190723ff8ede419a 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+343     bladder         5f1573dbbf6a8335bcf8bf5eed74e9157d4e7ee9dae8d679d4d4d7118510d741 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        femur_r         5f1573dbbf6a8335bcf8bf5eed74e9157d4e7ee9dae8d679d4d4d7118510d741 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        prostate        5f1573dbbf6a8335bcf8bf5eed74e9157d4e7ee9dae8d679d4d4d7118510d741 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        seminalvesicles 5f1573dbbf6a8335bcf8bf5eed74e9157d4e7ee9dae8d679d4d4d7118510d741 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+344     bladder         991648f92b04f05e316fe7c99b1aa748c2d556b1e873591ae9b9bbd2c319254a 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        femur_r         991648f92b04f05e316fe7c99b1aa748c2d556b1e873591ae9b9bbd2c319254a 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        prostate        991648f92b04f05e316fe7c99b1aa748c2d556b1e873591ae9b9bbd2c319254a 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        seminalvesicles 991648f92b04f05e316fe7c99b1aa748c2d556b1e873591ae9b9bbd2c319254a 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+365     bladder         1deef6a1145f76617016a3e26288b009028e411ae4a236043afe7aa8cfbff6b4 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        femur_r         1deef6a1145f76617016a3e26288b009028e411ae4a236043afe7aa8cfbff6b4 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        prostate        1deef6a1145f76617016a3e26288b009028e411ae4a236043afe7aa8cfbff6b4 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        seminalvesicles 1deef6a1145f76617016a3e26288b009028e411ae4a236043afe7aa8cfbff6b4 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+366     bladder         f040ac05a1eeee9a064662adda21f703d7ba969b7dfc2787248b2c596ccf59a7 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        femur_r         f040ac05a1eeee9a064662adda21f703d7ba969b7dfc2787248b2c596ccf59a7 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        prostate        f040ac05a1eeee9a064662adda21f703d7ba969b7dfc2787248b2c596ccf59a7 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+374     bladder         4b6610b5b249fbc149eb0a47abe97d08df6b26b76ffcf59431271d057f722d14 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        femur_r         4b6610b5b249fbc149eb0a47abe97d08df6b26b76ffcf59431271d057f722d14 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        prostate        4b6610b5b249fbc149eb0a47abe97d08df6b26b76ffcf59431271d057f722d14 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+        seminalvesicles 4b6610b5b249fbc149eb0a47abe97d08df6b26b76ffcf59431271d057f722d14 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.0   0.0  0.0
+409     bladder         776d594c55725ad79bf59df2e3e9b6e6ded64cd37a1df45b03847c1e54828246 5a6ba8fe-65bc-43ec-b1fc-682c8c37e40c  1.0    0.0   0.0  0.0
+        femur_r         776d594c55725ad79bf59df2e3e9b6e6ded64cd37a1df45b03847c1e54828246 5a6ba8fe-65bc-43ec-b1fc-682c8c37e40c  1.0    0.0   0.0  0.0
+        prostate        776d594c55725ad79bf59df2e3e9b6e6ded64cd37a1df45b03847c1e54828246 5a6ba8fe-65bc-43ec-b1fc-682c8c37e40c  1.0    0.0   0.0  0.0
+        seminalvesicles 776d594c55725ad79bf59df2e3e9b6e6ded64cd37a1df45b03847c1e54828246 5a6ba8fe-65bc-43ec-b1fc-682c8c37e40c  1.0    0.0   0.0  0.0
+411     bladder         6fa04f324339c532a7c06877d1129bfacd7504d9c0bf6277a393915e73e41d66 5a6ba8fe-65bc-43ec-b1fc-682c8c37e40c  1.0    0.0   0.0  0.0
+        femur_r         6fa04f324339c532a7c06877d1129bfacd7504d9c0bf6277a393915e73e41d66 5a6ba8fe-65bc-43ec-b1fc-682c8c37e40c  1.0    0.0   0.0  0.0
+        prostate        6fa04f324339c532a7c06877d1129bfacd7504d9c0bf6277a393915e73e41d66 5a6ba8fe-65bc-43ec-b1fc-682c8c37e40c  1.0    0.0   0.0  0.0
+        seminalvesicles 6fa04f324339c532a7c06877d1129bfacd7504d9c0bf6277a393915e73e41d66 5a6ba8fe-65bc-43ec-b1fc-682c8c37e40c  1.0    0.0   0.0  0.0
+
+SELECT * FROM ROOT as r WHERE true AND (r.InstitutionId = "641eda02-90c3-45ed-b8b1-2651b6a5da6c" OR r.InstitutionId = "5a6ba8fe-65bc-43ec-b1fc-682c8c37e40c") AND (STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"9e84c7f5b030cc48e867430e762e1bb7e756051e27468b4fa6a0472292bb59eb") OR STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"4af0d32eb2c7b4d253b98530b8c6f5aac10602d51ff4097ab3c932331cf0d2a5") OR STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"d41cb61517793f87f97d5d6c0cee9f91df94169c29701c10190723ff8ede419a") OR STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"5f1573dbbf6a8335bcf8bf5eed74e9157d4e7ee9dae8d679d4d4d7118510d741") OR STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"991648f92b04f05e316fe7c99b1aa748c2d556b1e873591ae9b9bbd2c319254a") OR STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"1deef6a1145f76617016a3e26288b009028e411ae4a236043afe7aa8cfbff6b4") OR STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"f040ac05a1eeee9a064662adda21f703d7ba969b7dfc2787248b2c596ccf59a7") OR STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"4b6610b5b249fbc149eb0a47abe97d08df6b26b76ffcf59431271d057f722d14") OR STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"776d594c55725ad79bf59df2e3e9b6e6ded64cd37a1df45b03847c1e54828246") OR STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"6fa04f324339c532a7c06877d1129bfacd7504d9c0bf6277a393915e73e41d66"))

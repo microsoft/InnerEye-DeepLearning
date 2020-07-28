@@ -1,0 +1,9 @@
+FROM mcr.microsoft.com/azureml/base-gpu:intelmpi2018.3-cuda10.0-cudnn7-ubuntu16.04
+COPY environment.yml /data/environment.yml
+RUN sed -i "/jupyter/d" /data/environment.yml
+RUN sed -i "/tensorflow/d" /data/environment.yml
+RUN sed -i "/tensorboard/d" /data/environment.yml
+RUN apt-get update && apt-get install -y git gcc
+RUN conda env create -n InnerEye --file /data/environment.yml
+RUN echo "source activate InnerEye" > ~/.bashrc
+ENV PATH /opt/conda/envs/InnerEye/bin:${PATH}

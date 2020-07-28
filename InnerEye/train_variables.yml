@@ -1,0 +1,18 @@
+variables:
+  tenant_id: '72f988bf-86f1-41af-91ab-2d7cd011db47'
+  subscription_id: 'a85ceddd-892e-4637-ae4b-67d15ddf5f2b'
+  application_id: '6922e05b-b1be-431e-b5ea-eba146f9057a'
+  storage_account: '/subscriptions/a85ceddd-892e-4637-ae4b-67d15ddf5f2b/resourcegroups/InnerEye-DeepLearning/providers/Microsoft.Storage/storageAccounts/innereyedeeple9644860366'
+  datasets_storage_account: '/subscriptions/a85ceddd-892e-4637-ae4b-67d15ddf5f2b/resourcegroups/InnerEye-DeepLearning/providers/Microsoft.Storage/storageAccounts/innereyepublicdatasets'
+  storage_account_secret_name: 'STORAGEACCOUNTKEY'
+  datasets_storage_account_secret_name: 'DATASETSSTORAGEACCOUNTKEY'
+  datasets_container: 'datasets'
+  resource_group: 'InnerEye-DeepLearning'
+  docker_shm_size: '440g'
+  node_count: 1
+  workers_per_node: 1
+  workspace_region: 'West Europe'
+  workspace_name: 'InnerEye-DeepLearning'
+  gpu_cluster_name: 'training-nd24'
+  model_configs_namespace: ''
+  extra_code_directory: ''

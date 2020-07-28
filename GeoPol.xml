@@ -1,0 +1,29 @@
+<!--
+  ~ ------------------------------------------------------------------------------------------
+  ~ Copyright (c) Microsoft Corporation. All rights reserved.
+  ~ Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+  ~ ------------------------------------------------------------------------------------------
+  -->
+
+<!-- List of Include Files and folders and exception lists for this repo for GeoPolitical scanning. Contact Joerow for detail. -->
+<!-- This file is consumed by PowerShell scripts -->
+<!DOCTYPE varsdefined [
+        <!ENTITY GitReposFolder "C:\GITs\Repos">
+        <!ENTITY GitRepoName "InnerEye-DeepLearning">
+        ]>
+
+<GeoPol_Folders>
+    <!-- List of Folders to include for GeoPolitical scanning -->
+    <SourceGitFolder>&GitReposFolder;\github\&GitRepoName;</SourceGitFolder>
+    <GitRepoName>&GitRepoName;</GitRepoName>
+    <Component Include="List here folders to Include in a GeoPol Scan">
+        <!-- . means the entire repo -->
+        <IncludeFolder>.</IncludeFolder>
+    </Component>
+    <Component Exclude="List exceptions here to not be scanned, that have been included above">
+        <ExcludeFolder>.gitignore</ExcludeFolder>
+        <ExcludeFolder>THIRDPARTYNOTICES.md</ExcludeFolder>
+        <ExcludeFolder>GeoPol.xml</ExcludeFolder>
+        <ExcludeFolder>*.nii.gz</ExcludeFolder>
+    </Component>
+</GeoPol_Folders>
