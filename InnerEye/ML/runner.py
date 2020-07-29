@@ -29,7 +29,6 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
-from InnerEye.ML.utils.ml_util import RunRecovery
 
 LOG_FILE_NAME = "stdout.txt"
 
@@ -159,6 +158,8 @@ class Runner:
             logging.info(f"DBG: checkpoint path: {path}")
             if not path.is_dir():
                 raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
+        # Import only here in case of dependency issues in reduced environment
+        from InnerEye.ML.utils.run_recovery import RunRecovery
         run_recovery = RunRecovery(checkpoints_roots=checkpoint_paths)
         self.create_ml_runner().run_inference_and_register_model(run_recovery)
 

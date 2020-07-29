@@ -23,7 +23,7 @@ from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline
 from InnerEye.ML.utils import io_util
-from InnerEye.ML.utils.ml_util import RunRecovery
+from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers.plot_cross_validation import get_config_and_results_for_offline_runs
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel

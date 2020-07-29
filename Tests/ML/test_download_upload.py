@@ -18,7 +18,7 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.blobxfer_util import download_blobs, upload_blobs
-from InnerEye.ML.utils.ml_util import RunRecovery
+from InnerEye.ML.utils.run_recovery import RunRecovery
 from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
 from Tests.ML.util import get_default_azure_config
 from Tests.fixed_paths_for_tests import full_ml_test_data_path

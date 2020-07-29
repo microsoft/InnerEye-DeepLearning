@@ -32,7 +32,8 @@ from InnerEye.ML.model_training import model_train
 from InnerEye.ML.runner import ModelDeploymentHookSignature
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
-from InnerEye.ML.utils.ml_util import RunRecovery, make_pytorch_reproducible
+from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
+from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import PlotCrossValidationConfig, \
     get_config_and_results_for_offline_runs, plot_cross_validation, plot_cross_validation_from_files
