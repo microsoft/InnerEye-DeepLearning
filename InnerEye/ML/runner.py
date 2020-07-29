@@ -269,7 +269,7 @@ class Runner:
             exit(-1)
         return azure_run
 
-    def run_in_situ(self, checkpoint_paths: Optional[List[Path]] = None) -> None:
+    def run_in_situ(self) -> None:
         # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(self.azure_config.log_level)
@@ -284,7 +284,7 @@ class Runner:
         try:
             logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
             try:
-                self.create_ml_runner().run(checkpoint_paths)
+                self.create_ml_runner().run()
             except Exception as ex:
                 print_exception(ex, "Model training/testing failed.")
                 training_failed = True
