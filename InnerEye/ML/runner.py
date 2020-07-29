@@ -47,6 +47,18 @@ class ConfigurationsAndParserResults:
     parser_result: ParserResult
 
 
+def may_initialize_rpdb() -> None:
+    # rpdb signal trapping does not work on Windows, as there is no SIGTRAP:
+    if not is_linux():
+        return
+    import rpdb
+    rpdb_port = 4444
+    rpdb.handle_trap(port=rpdb_port)
+    # For some reason, os.getpid() does not return the ID of what appears to be the currently running process.
+    logging.info(f"rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
+                 f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}")
+
+
 class Runner:
     """
     :param post_cross_validation_hook: A function to call after waiting for completion of cross validation runs.
@@ -132,9 +144,15 @@ class Runner:
                     PARENT_RUN_CONTEXT.log(m.metric_name, m.metric_value)
             except Exception as ex:
                 print_exception(ex, "Unable to log metrics to Hyperdrive parent run.", logger_fn=logging.warning)
-        #run(project_root=azure_config.project_root,
-        #    yaml_config_file=)
+        self.create_ensemble_model()
         return cross_val_results_root
+
+    def create_ensemble_model(self) -> None:
+        self.azure_config.run_recovery_id = "SELF"
+        self.azure_config.hyperdrive = False
+        self.model_config.number_of_cross_validation_splits = 0
+        self.model_config.is_train = False
+        self.run_with_parsed_values()
 
     def parse_and_load_model(self) -> ParserResult:
         """
@@ -190,94 +208,97 @@ class Runner:
         # Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(logging.INFO)
-        # rpdb signal trapping does not work on Windows, as there is no SIGTRAP:
-        if is_linux():
-            import rpdb
-            rpdb_port = 4444
-            rpdb.handle_trap(port=rpdb_port)
-            # For some reason, os.getpid() does not return the ID of what appears to be the currently running process.
-            logging.info(f"rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
-                         f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}")
+        may_initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
+        return self.run_with_parsed_values()
+
+    def run_with_parsed_values(self) -> Tuple[ModelConfigBase, Optional[Run]]:
         if self.model_config.number_of_cross_validation_splits > 0:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
+        run_object: Optional[Run] = None
         if self.azure_config.submit_to_azureml:
-            # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
-            logging.getLogger('adal-python').setLevel(logging.WARNING)
-            if not self.model_config.azure_dataset_id:
-                raise ValueError(f"When running on AzureML, the 'azure_dataset_id' property must be set.")
-            model_config_overrides = str(self.model_config.overrides)
-            source_config = SourceConfig(
-                root_folder=str(self.project_root),
-                entry_script=os.path.abspath(sys.argv[0]),
-                conda_dependencies_file=self.project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
-                hyperdrive_config_func=lambda estimator: self.model_config.get_hyperdrive_config(estimator),
-                # For large jobs, upload of results times out frequently because of large
-                # checkpoint files. Default is 600
-                upload_timeout_seconds=86400
-            )
-            source_config.set_script_params_except_submit_flag()
-            assert self.model_config.azure_dataset_id is not None  # to stop mypy complaining about next line
-            azure_run = submit_to_azureml(self.azure_config, source_config, model_config_overrides,
-                                          self.model_config.azure_dataset_id)
-            logging.info("Job submission to AzureML done.")
-            if self.azure_config.pytest_mark:
-                # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
-                # A build step will pick up that file and publish it to Azure DevOps.
-                # If pytest_mark is set, this file must exist.
-                logging.info(f"Downloading pytest result file.")
-                download_pytest_result(self.azure_config, azure_run)
-            else:
-                logging.info("No pytest_mark present, hence not downloading the pytest result file.")
-            status = azure_run.get_status()
-            # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
-            # If a pytest failed, the runner has exited with code -1 (see below)
-            if self.azure_config.wait_for_completion and status != RunStatus.COMPLETED:
-                logging.error(f"Job completed with status {status}. Exiting.")
-                exit(-1)
-            return self.model_config, azure_run
+            run_object = self.submit_to_azureml()
         else:
-            # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
-            # build itself, but not the tons of debug information that AzureML submissions create.
-            logging_to_stdout(self.azure_config.log_level)
-            # Numba code generation is extremely talkative in DEBUG mode, disable that.
-            logging.getLogger('numba').setLevel(logging.WARNING)
-            pytest_failed = False
-            training_failed = False
-            pytest_passed = True
-            # Ensure that both model training and pytest both get executed in all cases, so that we see a full set of
-            # test results in each PR
-            outputs_folder = self.model_config.outputs_folder
+            self.run_in_situ()
+        return self.model_config, run_object
+
+    def submit_to_azureml(self) -> Run:
+        # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
+        logging.getLogger('adal-python').setLevel(logging.WARNING)
+        if not self.model_config.azure_dataset_id:
+            raise ValueError(f"When running on AzureML, the 'azure_dataset_id' property must be set.")
+        model_config_overrides = str(self.model_config.overrides)
+        source_config = SourceConfig(
+            root_folder=str(self.project_root),
+            entry_script=os.path.abspath(sys.argv[0]),
+            conda_dependencies_file=self.project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
+            hyperdrive_config_func=lambda estimator: self.model_config.get_hyperdrive_config(estimator),
+            # For large jobs, upload of results times out frequently because of large
+            # checkpoint files. Default is 600
+            upload_timeout_seconds=86400
+        )
+        source_config.set_script_params_except_submit_flag()
+        assert self.model_config.azure_dataset_id is not None  # to stop mypy complaining about next line
+        azure_run = submit_to_azureml(self.azure_config, source_config, model_config_overrides,
+                                      self.model_config.azure_dataset_id)
+        logging.info("Job submission to AzureML done.")
+        if self.azure_config.pytest_mark:
+            # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
+            # A build step will pick up that file and publish it to Azure DevOps.
+            # If pytest_mark is set, this file must exist.
+            logging.info(f"Downloading pytest result file.")
+            download_pytest_result(self.azure_config, azure_run)
+        else:
+            logging.info("No pytest_mark present, hence not downloading the pytest result file.")
+        status = azure_run.get_status()
+        # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
+        # If a pytest failed, the runner has exited with code -1 (see below)
+        if self.azure_config.wait_for_completion and status != RunStatus.COMPLETED:
+            logging.error(f"Job completed with status {status}. Exiting.")
+            exit(-1)
+        return azure_run
+
+    def run_in_situ(self) -> None:
+        # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
+        # build itself, but not the tons of debug information that AzureML submissions create.
+        logging_to_stdout(self.azure_config.log_level)
+        # Numba code generation is extremely talkative in DEBUG mode, disable that.
+        logging.getLogger('numba').setLevel(logging.WARNING)
+        pytest_failed = False
+        training_failed = False
+        pytest_passed = True
+        # Ensure that both model training and pytest both get executed in all cases, so that we see a full set of
+        # test results in each PR
+        outputs_folder = self.model_config.outputs_folder
+        try:
+            logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
             try:
-                logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
+                self.create_ml_runner().run()
+            except Exception as ex:
+                print_exception(ex, "Model training/testing failed.")
+                training_failed = True
+            if self.azure_config.pytest_mark:
                 try:
-                    self.create_ml_runner().run()
+                    pytest_passed, results_file_path = run_pytest(self.azure_config.pytest_mark, outputs_folder)
+                    if not pytest_passed:
+                        logging.error(
+                            f"Not all PyTest tests passed. See {results_file_path}")
                 except Exception as ex:
-                    print_exception(ex, "Model training/testing failed.")
-                    training_failed = True
-                if self.azure_config.pytest_mark:
-                    try:
-                        pytest_passed, results_file_path = run_pytest(self.azure_config.pytest_mark, outputs_folder)
-                        if not pytest_passed:
-                            logging.error(
-                                f"Not all PyTest tests passed. See {results_file_path}")
-                    except Exception as ex:
-                        print_exception(ex, "Unable to run PyTest.")
-                        pytest_failed = True
-            finally:
-                # Try/finally block to ensure that all run outputs, including test result file, are uploaded to Azure
-                self.azure_config.upload_outputs_to_run(outputs_folder, run=RUN_CONTEXT)
-                # wait for aggregation if required, and only if the training actually succeeded.
-                if not training_failed and self.model_config.should_wait_for_other_cross_val_child_runs:
-                    self.wait_for_cross_val_runs_to_finish_and_aggregate()
-                disable_logging_to_file()
-            if training_failed or pytest_failed or not pytest_passed:
-                # Terminate if pytest or model training has failed. This makes the smoke test in
-                # PR builds fail if pytest fails.
-                exit(-1)
-            return self.model_config, None
+                    print_exception(ex, "Unable to run PyTest.")
+                    pytest_failed = True
+        finally:
+            # Try/finally block to ensure that all run outputs, including test result file, are uploaded to Azure
+            self.azure_config.upload_outputs_to_run(outputs_folder, run=RUN_CONTEXT)
+            # wait for aggregation if required, and only if the training actually succeeded.
+            if not training_failed and self.model_config.should_wait_for_other_cross_val_child_runs:
+                self.wait_for_cross_val_runs_to_finish_and_aggregate()
+            disable_logging_to_file()
+        if training_failed or pytest_failed or not pytest_passed:
+            # Terminate if pytest or model training has failed. This makes the smoke test in
+            # PR builds fail if pytest fails.
+            exit(-1)
 
     def create_ml_runner(self) -> Any:
         # This import statement cannot be at the beginning of the file because it will cause import
