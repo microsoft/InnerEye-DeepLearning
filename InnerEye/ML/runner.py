@@ -37,17 +37,10 @@ ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Mod
                                         Tuple[Optional[Path], Optional[Any]]]
 
 
-@dataclass(frozen=True)
-class ConfigurationsAndParserResults:
-    """
-    Contains the parsed model configuration and the Azure-related configuration.
-    """
-    model_config: ModelConfigBase
-    azure_config: AzureConfig
-    parser_result: ParserResult
-
-
 def may_initialize_rpdb() -> None:
+    """
+    On Linux only, import and initialize rpdb, to enable remote debugging if necessary.
+    """
     # rpdb signal trapping does not work on Windows, as there is no SIGTRAP:
     if not is_linux():
         return
@@ -61,13 +54,12 @@ def may_initialize_rpdb() -> None:
 
 class Runner:
     """
-    :param post_cross_validation_hook: A function to call after waiting for completion of cross validation runs.
-    The function is called with the model configuration and the path to the downloaded and merged metrics files.
     :param project_root: The root folder that contains all of the source code that should be executed.
     :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.
+    :param post_cross_validation_hook: A function to call after waiting for completion of cross validation runs.
+    The function is called with the model configuration and the path to the downloaded and merged metrics files.
     :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
     If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
-    :param innereye_submodule_name: submodule name
     Model as arguments, and return an optional Path and a further object of any type.
     :param innereye_submodule_name: name of the InnerEye submodule if any; should be at top level.
     Suggested value is "innereye-deeplearning".
@@ -86,7 +78,8 @@ class Runner:
         self.model_deployment_hook = model_deployment_hook
         self.innereye_submodule_name = innereye_submodule_name
         self.command_line_args = command_line_args
-        # model_config and azure_config are placeholders for now, will be set when command line args are parsed.
+        # model_config and azure_config are placeholders for now, and are set properly when command line args are
+        # parsed.
         self.model_config: ModelConfigBase = ModelConfigBase(azure_dataset_id="")
         self.azure_config: AzureConfig = AzureConfig()
 
@@ -148,6 +141,11 @@ class Runner:
         return cross_val_results_root
 
     def create_ensemble_model(self, cross_val_results_root: Path) -> None:
+        """
+        Call MLRunner again after training cross-validation models, to create an ensemble model from them.
+        :param cross_val_results_root: directory that should contain subdirectories named 0, 1, ..., N-1,
+        one for each of the N child runs.
+        """
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
@@ -166,8 +164,7 @@ class Runner:
     def parse_and_load_model(self) -> ParserResult:
         """
         Parses the command line arguments, and creates configuration objects for the model itself, and for the
-        Azure-related parameters.
-        :return:
+        Azure-related parameters. Sets self.azure_config and self.model_config to their proper values.
         """
         # Create a parser that will understand only the args we need for an AzureConfig
         parser1 = create_runner_parser()
@@ -220,9 +217,6 @@ class Runner:
         may_initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
-        return self.run_with_parsed_values()
-
-    def run_with_parsed_values(self) -> Tuple[ModelConfigBase, Optional[Run]]:
         if self.model_config.number_of_cross_validation_splits > 0:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
@@ -234,6 +228,10 @@ class Runner:
         return self.model_config, run_object
 
     def submit_to_azureml(self) -> Run:
+        """
+        Submit a job to AzureML, returning the resulting Run object, or exiting if we were asked to wait for
+        completion and the Run did not succeed.
+        """
         # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
         logging.getLogger('adal-python').setLevel(logging.WARNING)
         if not self.model_config.azure_dataset_id:
@@ -270,6 +268,9 @@ class Runner:
         return azure_run
 
     def run_in_situ(self) -> None:
+        """
+        Actually run the AzureML job; this method will typically run on an Azure VM.
+        """
         # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(self.azure_config.log_level)
@@ -310,6 +311,9 @@ class Runner:
             exit(-1)
 
     def create_ml_runner(self) -> Any:
+        """
+        Create and return an ML runner using the attributes of this Runner object.
+        """
         # This import statement cannot be at the beginning of the file because it will cause import
         # of packages that are not available inside the azure_runner.yml environment: torch, blobxfer.
         # That is also why we specify the return type as Any rather than MLRunner.
@@ -347,7 +351,7 @@ def run(project_root: Path,
     The main entry point for training and testing models from the commandline. This chooses a model to train
     via a commandline argument, runs training or testing, and writes all required info to disk and logs.
     :return: If submitting to AzureML, returns the model configuration that was used for training,
-    including commandline overrides applied (if any).
+    including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
     runner = Runner(project_root, yaml_config_file, post_cross_validation_hook,
                     model_deployment_hook, innereye_submodule_name, command_line_args)
@@ -357,8 +361,7 @@ def run(project_root: Path,
 def main() -> None:
     run(project_root=fixed_paths.repository_root_directory(),
         yaml_config_file=fixed_paths.TRAIN_YAML_FILE,
-        post_cross_validation_hook=default_post_cross_validation_hook,
-        model_deployment_hook=None)
+        post_cross_validation_hook=default_post_cross_validation_hook)
 
 
 if __name__ == '__main__':
