@@ -12,7 +12,7 @@ from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_LOGS_DIR_NAME, RUN_OUTPUTS_DIR_NAME
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
-from InnerEye.ML.runner import parse_and_load_model
+from InnerEye.ML.runner import Runner
 
 
 @pytest.mark.parametrize("is_default_namespace", [True, False])
@@ -42,9 +42,10 @@ def test_create_ml_runner_args(is_default_namespace: bool,
 
     with mock.patch("sys.argv", [""] + args_list):
         with mock.patch("InnerEye.ML.deep_learning_config.is_offline_run_context", return_value=is_offline_run):
-            result = parse_and_load_model(project_root=project_root, yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
-            azure_config = result.azure_config
-            model_config = result.model_config
+            runner = Runner(project_root=project_root, yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
+            result = runner.parse_and_load_model()
+            azure_config = runner.azure_config
+            model_config = runner.model_config
     assert azure_config.storage_account == "hello_world"
     assert azure_config.model == model_name
     assert model_config.l_rate == 100.0
@@ -105,14 +106,16 @@ def test_read_yaml_file_into_args(test_output_dirs: TestOutputDirectories) -> No
     empty_yaml.write_text("variables:\n")
     with mock.patch("sys.argv", ["", "--model=Lung"]):
         # Default behaviour: Application ID (service principal) should be picked up from YAML
-        result1 = parse_and_load_model(project_root=fixed_paths.repository_root_directory(),
-                                       yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
-        assert result1.azure_config.application_id is not None
+        runner1 = Runner(project_root=fixed_paths.repository_root_directory(),
+                         yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
+        runner1.parse_and_load_model()
+        assert runner1.azure_config.application_id is not None
         # When specifying a dummy YAML file that does not contain the application ID, it should not
         # be set.
-        result2 = parse_and_load_model(project_root=fixed_paths.repository_root_directory(),
-                                       yaml_config_file=empty_yaml)
-        assert result2.azure_config.application_id is None
+        runner2 = Runner(project_root=fixed_paths.repository_root_directory(),
+                         yaml_config_file=empty_yaml)
+        runner2.parse_and_load_model()
+        assert runner2.azure_config.application_id is None
 
 
 def test_parsing_with_custom_yaml(test_output_dirs: TestOutputDirectories) -> None:
@@ -133,18 +136,19 @@ def test_parsing_with_custom_yaml(test_output_dirs: TestOutputDirectories) -> No
             "--num_epochs", "42",
             "--random_seed", "2"]
     with mock.patch("sys.argv", args):
-        loader_result = parse_and_load_model(project_root=fixed_paths.repository_root_directory(),
+        runner = Runner(project_root=fixed_paths.repository_root_directory(),
                                              yaml_config_file=yaml_file)
+        loader_result = runner.parse_and_load_model()
     assert loader_result is not None
-    assert loader_result.azure_config is not None
+    assert runner.azure_config is not None
     # This is only present in yaml
-    assert loader_result.azure_config.storage_account == "account"
+    assert runner.azure_config.storage_account == "account"
     # This is present in yaml and command line, and the latter should be used.
-    assert loader_result.azure_config.tenant_id == "bar"
+    assert runner.azure_config.tenant_id == "bar"
     # Settings in model config: start_epoch is only in yaml
-    assert loader_result.model_config.start_epoch == 7
+    assert runner.model_config.start_epoch == 7
     # Settings in model config: num_epochs is only on commandline
-    assert loader_result.model_config.num_epochs == 42
+    assert runner.model_config.num_epochs == 42
     # Settings in model config: random_seed is both in yaml and command line, the latter should be used
-    assert loader_result.model_config.random_seed == 2
-    assert loader_result.parser_result.overrides == {"num_epochs": 42, "random_seed": 2}
+    assert runner.model_config.random_seed == 2
+    assert loader_result.overrides == {"num_epochs": 42, "random_seed": 2}
