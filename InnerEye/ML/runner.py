@@ -8,7 +8,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 import pandas as pd
 import stopit
@@ -111,20 +111,23 @@ class ConfigurationsAndParserResults:
     parser_result: ParserResult
 
 
-def parse_and_load_model(project_root: Path, yaml_config_file: Path) -> ConfigurationsAndParserResults:
+def parse_and_load_model(project_root: Path, yaml_config_file: Path,
+                         args: Optional[List[str]] = None) -> ConfigurationsAndParserResults:
     """
     Parses the command line arguments, and creates configuration objects for the model itself, and for the
     Azure-related parameters.
     :param project_root: The root folder that contains all of the source code that should be executed.
     :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.
     If not supplied, use train.yaml at the repository root.
+    :param args: command-line arguments to use; if None, use sys.argv.
     :return:
     """
     # Create a parser that will understand only the args we need for an AzureConfig
     parser1 = create_runner_parser()
     parser1_result = parse_args_and_add_yaml_variables(parser1,
                                                        yaml_config_file=yaml_config_file,
-                                                       fail_on_unknown_args=False)
+                                                       fail_on_unknown_args=False,
+                                                       args=args)
     azure_config = AzureConfig(**parser1_result.args)
     azure_config.project_root = project_root
     model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser1_result.args)
@@ -164,7 +167,8 @@ def run(project_root: Path,
         yaml_config_file: Path,
         post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
         model_deployment_hook: Optional[ModelDeploymentHookSignature] = None,
-        innereye_submodule_name: Optional[str] = None) -> \
+        innereye_submodule_name: Optional[str] = None,
+        args: Optional[List[str]] = None) -> \
         Tuple[ModelConfigBase, Optional[Run]]:
     """
     The main entry point for training and testing models from the commandline. This chooses a model to train
@@ -179,6 +183,7 @@ def run(project_root: Path,
     Model as arguments, and return an optional Path and a further object of any type.
     :param innereye_submodule_name: name of the InnerEye submodule if any; should be at top level.
     Suggested value is "innereye-deeplearning".
+    :param args: command-line arguments to use; if None, use sys.argv.
     :return: If submitting to AzureML, returns the model configuration that was used for training,
     including commandline overrides applied (if any).
     """
@@ -194,7 +199,7 @@ def run(project_root: Path,
         logging.info(f"rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
                      f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}")
     user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
-    parse_and_load_result = parse_and_load_model(project_root, yaml_config_file=yaml_config_file)
+    parse_and_load_result = parse_and_load_model(project_root, yaml_config_file=yaml_config_file, args=args)
     model_config = parse_and_load_result.model_config
     azure_config = parse_and_load_result.azure_config
     if model_config.number_of_cross_validation_splits > 0:
