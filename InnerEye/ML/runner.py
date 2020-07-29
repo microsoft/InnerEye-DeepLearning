@@ -29,6 +29,7 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.ml_util import RunRecovery
 
 LOG_FILE_NAME = "stdout.txt"
 
@@ -144,15 +145,22 @@ class Runner:
                     PARENT_RUN_CONTEXT.log(m.metric_name, m.metric_value)
             except Exception as ex:
                 print_exception(ex, "Unable to log metrics to Hyperdrive parent run.", logger_fn=logging.warning)
-        self.create_ensemble_model()
+        self.create_ensemble_model(cross_val_results_root)
         return cross_val_results_root
 
-    def create_ensemble_model(self) -> None:
-        self.azure_config.run_recovery_id = "SELF"
+    def create_ensemble_model(self, cross_val_results_root: Path) -> None:
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
-        self.run_with_parsed_values()
+        checkpoint_paths = [cross_val_results_root / str(n)
+                            for n in range(self.model_config.number_of_cross_validation_splits)]
+        # Check paths are good, just in case
+        for path in checkpoint_paths:
+            logging.info(f"DBG: checkpoint path: {path}")
+            if not path.is_dir():
+                raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
+        run_recovery = RunRecovery(checkpoints_roots=checkpoint_paths)
+        self.create_ml_runner().run_inference_and_register_model(run_recovery)
 
     def parse_and_load_model(self) -> ParserResult:
         """
@@ -260,7 +268,7 @@ class Runner:
             exit(-1)
         return azure_run
 
-    def run_in_situ(self) -> None:
+    def run_in_situ(self, checkpoint_paths: Optional[List[Path]] = None) -> None:
         # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(self.azure_config.log_level)
@@ -275,7 +283,7 @@ class Runner:
         try:
             logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
             try:
-                self.create_ml_runner().run()
+                self.create_ml_runner().run(checkpoint_paths)
             except Exception as ex:
                 print_exception(ex, "Model training/testing failed.")
                 training_failed = True

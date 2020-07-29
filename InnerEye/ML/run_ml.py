@@ -144,7 +144,7 @@ class MLRunner:
     def run(self) -> None:
         """
         Driver function to run a ML experiment. If an offline cross validation run is requested, then
-        this function is recursively called for each cross valdation split.
+        this function is recursively called for each cross validation split.
         """
         if self.is_offline_cross_val_parent_run():
             if self.model_config.is_segmentation_model:
@@ -163,42 +163,46 @@ class MLRunner:
         # Set data loader start method
         self.set_multiprocessing_start_method()
 
-        # configure recover container if provided
+        # configure recovery container if provided
         run_recovery: Optional[RunRecovery] = None
         if self.azure_config.run_recovery_id:
             run_recovery = RunRecovery.download_checkpoints(self.azure_config, self.model_config, RUN_CONTEXT)
-            if self.azure_config.register_model_only_for_epoch is not None:
-                assert isinstance(self.model_config, SegmentationModelBase)  # for mypy
-                # Short circuit the actual model testing step and just register the model for the provided epoch.
-                self.register_model_for_epoch(RUN_CONTEXT, run_recovery,
-                                              self.azure_config.register_model_only_for_epoch, float("nan"))
-                return
+        # do training and inference, unless we're only registering
+        if self.azure_config.register_model_only_for_epoch is None or run_recovery is None:
+            # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
+            # and config.local_dataset was not already set.
+            self.mount_or_download_dataset()
+            self.model_config.write_args_file()
+            logging.info(str(self.model_config))
+            # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
+            make_pytorch_reproducible()
 
-        # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
-        # and config.local_dataset was not already set.
-        self.mount_or_download_dataset()
-        self.model_config.write_args_file()
-        logging.info(str(self.model_config))
-        # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
-        make_pytorch_reproducible()
+            # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
+            # loaded (typically only during tests)
+            if self.model_config.dataset_data_frame is None:
+                assert self.model_config.local_dataset is not None
+                ml_util.validate_dataset_paths(self.model_config.local_dataset)
 
-        # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
-        # loaded (typically only during tests)
-        if self.model_config.dataset_data_frame is None:
-            assert self.model_config.local_dataset is not None
-            ml_util.validate_dataset_paths(self.model_config.local_dataset)
+            # train a new model if required
+            if self.azure_config.is_train:
+                logging.info("Starting model training.")
+                model_train(self.model_config, run_recovery)
+            else:
+                self.model_config.write_dataset_files()
+                self.create_activation_maps()
 
-        # train a new model if required
-        if self.azure_config.is_train:
-            logging.info("Starting model training.")
-            model_train(self.model_config, run_recovery)
-        else:
-            self.model_config.write_dataset_files()
-            self.create_activation_maps()
+            # log the number of epochs used for model training
+            RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
 
-        # log the number of epochs used for model training
-        RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
+        self.run_inference_and_register_model(run_recovery)
 
+    def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery]) -> None:
+        if self.azure_config.register_model_only_for_epoch is not None and run_recovery is not None:
+            assert isinstance(self.model_config, SegmentationModelBase)  # for mypy
+            # Short circuit the actual model testing step and just register the model for the provided epoch.
+            self.register_model_for_epoch(RUN_CONTEXT, run_recovery,
+                                          self.azure_config.register_model_only_for_epoch, float("nan"))
+            return
         # run full image inference on existing or newly trained model on the training, and testing set
         test_metrics, val_metrics, _ = self.model_inference_train_and_test(RUN_CONTEXT, run_recovery)
         # register the generated model from the run
