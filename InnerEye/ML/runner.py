@@ -74,21 +74,21 @@ class Runner:
         self.model_deployment_hook = model_deployment_hook
         self.innereye_submodule_name = innereye_submodule_name
         self.command_line_args = command_line_args
-        self.model_config: Optional[ModelConfigBase] = None
-        self.azure_config: Optional[AzureConfig] = None
+        # model_config and azure_config are placeholders for now, will be set when command line args are parsed.
+        self.model_config: ModelConfigBase = ModelConfigBase(azure_dataset_id="")
+        self.azure_config: AzureConfig = AzureConfig()
 
     def wait_until_cross_val_splits_are_ready_for_aggregation(self) -> bool:
         """
         Checks if all child runs (except the current run) of the current run's parent are completed or failed.
         If this is the case, then we can aggregate the results of the other runs before terminating this run.
-        :return:
+        :return: whether we need to wait, i.e. whether some runs are still pending.
         """
         if (not self.model_config.is_offline_run) \
                 and (azure_util.is_cross_validation_child_run(RUN_CONTEXT)):
-            child_runs = azure_util.fetch_child_runs(
-                PARENT_RUN_CONTEXT,
-                expected_number_cross_validation_splits=
-                self.model_config.number_of_cross_validation_splits)
+            n_splits = self.model_config.number_of_cross_validation_splits
+            child_runs = azure_util.fetch_child_runs(PARENT_RUN_CONTEXT,
+                                                     expected_number_cross_validation_splits=n_splits)
             pending_runs = [x.id for x in child_runs
                             if (x.id != RUN_CONTEXT.id)
                             and (x.get_status() not in [RunStatus.COMPLETED, RunStatus.FAILED])]
@@ -134,7 +134,6 @@ class Runner:
                 print_exception(ex, "Unable to log metrics to Hyperdrive parent run.", logger_fn=logging.warning)
         #run(project_root=azure_config.project_root,
         #    yaml_config_file=)
-
         return cross_val_results_root
 
     def parse_and_load_model(self) -> ParserResult:
@@ -240,8 +239,6 @@ class Runner:
                 exit(-1)
             return self.model_config, azure_run
         else:
-            # This import statement cannot be at the beginning of the file because it will cause import
-            # of packages that are not available inside the azure_runner.yml environment: torch, blobxfer
             # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
             # build itself, but not the tons of debug information that AzureML submissions create.
             logging_to_stdout(self.azure_config.log_level)
@@ -282,7 +279,10 @@ class Runner:
                 exit(-1)
             return self.model_config, None
 
-    def create_ml_runner(self):
+    def create_ml_runner(self) -> Any:
+        # This import statement cannot be at the beginning of the file because it will cause import
+        # of packages that are not available inside the azure_runner.yml environment: torch, blobxfer.
+        # That is also why we specify the return type as Any rather than MLRunner.
         from InnerEye.ML.run_ml import MLRunner
         return MLRunner(
             self.model_config, self.azure_config, self.project_root,
