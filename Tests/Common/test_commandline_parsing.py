@@ -9,7 +9,7 @@ import pytest
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
-from InnerEye.Common.fixed_paths import DEFAULT_LOGS_DIR_NAME, RUN_OUTPUTS_DIR_NAME
+from InnerEye.Common.fixed_paths import DEFAULT_LOGS_DIR_NAME, DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
 from InnerEye.ML.runner import parse_and_load_model
@@ -57,7 +57,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
     else:
         # For runs inside AzureML, the output folder is the project root (the root of the folders that are
         # included in the snapshot). The "outputs_to" argument will be ignored.
-        assert model_config.outputs_folder == (project_root / RUN_OUTPUTS_DIR_NAME)
+        assert model_config.outputs_folder == (project_root / DEFAULT_AML_UPLOAD_DIR)
         assert model_config.logs_folder == (project_root / DEFAULT_LOGS_DIR_NAME)
 
     assert not hasattr(model_config, "storage_account")

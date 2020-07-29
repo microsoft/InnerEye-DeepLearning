@@ -16,7 +16,7 @@ from param import Parameterized
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
-from InnerEye.Common.fixed_paths import DEFAULT_LOGS_DIR_NAME, RUN_OUTPUTS_DIR_NAME
+from InnerEye.Common.fixed_paths import DEFAULT_LOGS_DIR_NAME, DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, create_unique_timestamp_id
@@ -108,7 +108,7 @@ class DeepLearningFileSystemConfig(Parameterized):
                 root = Path(output_to).absolute()
             else:
                 logging.info("All results will be written to a subfolder of the project root folder.")
-                root = project_root.absolute() / RUN_OUTPUTS_DIR_NAME
+                root = project_root.absolute() / DEFAULT_AML_UPLOAD_DIR
             timestamp = create_unique_timestamp_id()
             run_folder = root / f"{timestamp}_{model_name}"
             outputs_folder = run_folder
@@ -117,7 +117,7 @@ class DeepLearningFileSystemConfig(Parameterized):
             logging.info("Running inside AzureML.")
             logging.info("All results will be written to a subfolder of the project root folder.")
             run_folder = None
-            outputs_folder = project_root / RUN_OUTPUTS_DIR_NAME
+            outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
             logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
         logging.info(f"Run outputs folder: {outputs_folder}")
         logging.info(f"Logs folder: {logs_folder}")

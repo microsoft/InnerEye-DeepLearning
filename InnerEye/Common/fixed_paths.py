@@ -27,7 +27,9 @@ INNEREYE_PACKAGE_NAME = "InnerEye"
 # Child paths to include in a registered model that live outside InnerEye/.
 ENVIRONMENT_YAML_FILE_NAME = "environment.yml"
 
-RUN_OUTPUTS_DIR_NAME = "run_outputs"
+DEFAULT_AML_UPLOAD_DIR = "outputs"
+DEFAULT_AML_LOGS_DIR = "azureml-logs"
+
 DEFAULT_LOGS_DIR_NAME = "logs"
 DATASETS_DIR_NAME = "datasets"
 DATASETS_ACCOUNT_NAME = "innereyepublicdatasets"

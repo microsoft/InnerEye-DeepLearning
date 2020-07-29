@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-import uuid
 from pathlib import Path
 
 import pytest
@@ -15,13 +14,11 @@ from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.run_ml import MLRunner
-from InnerEye.ML.utils.blobxfer_util import download_blobs, upload_blobs
+from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import RunRecovery
 from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
 from Tests.ML.util import get_default_azure_config
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 logging_to_stdout(logging.DEBUG)
 
@@ -127,19 +124,3 @@ def test_download_blobs(test_output_dirs: TestOutputDirectories, is_file: bool, 
         assert otherfile.exists()
         assert otherfile.read_text().strip() == "folder1.txt"
         assert not folder2.exists()
-
-
-def test_upload_blobs(test_output_dirs: TestOutputDirectories, runner_config: AzureConfig) -> None:
-    """ Test for BlobXFer upload logic"""
-    src = full_ml_test_data_path() / CHECKPOINT_FOLDER
-    account_key = runner_config.get_storage_account_key()
-    outputs_container = "test-upload-container"
-    outputs_folder = str(uuid.uuid4().hex)
-    upload_blobs(runner_config.storage_account, account_key,
-                 f"{outputs_container}/{outputs_folder}/{CHECKPOINT_FOLDER}", src)
-
-    # download blobs to check if the files were uploaded
-    # (we will limit this check to simple file checks, since Blobxfer performs hash checks on upload)
-    root = Path(test_output_dirs.root_dir)
-    download_blobs(runner_config.storage_account, account_key, f"{outputs_container}/{outputs_folder}/", root)
-    assert (root / CHECKPOINT_FOLDER / f"1{CHECKPOINT_FILE_SUFFIX}").exists()
