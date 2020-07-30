@@ -19,7 +19,8 @@ from azureml.train.estimator import Estimator
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_ID_KEY_NAME, \
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME, \
+    RUN_RECOVERY_ID_KEY_NAME, \
     merge_conda_dependencies
 from InnerEye.Azure.secrets_handling import read_variables_from_yaml
 from InnerEye.Common.fixed_paths import AZUREML_DATASTORE_NAME, get_environment_yaml_file
@@ -109,7 +110,7 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
         "friendly_name": azure_config.user_friendly_name,
         "execution_mode": ModelExecutionMode.TRAIN.value if azure_config.is_train else ModelExecutionMode.TEST.value,
         RUN_RECOVERY_ID_KEY_NAME: azure_util.create_run_recovery_id(run=run),
-        "recovered_from": azure_config.run_recovery_id,
+        RUN_RECOVERY_FROM_ID_KEY_NAME: azure_config.run_recovery_id,
         "build_number": str(azure_config.build_number),
         "build_user": azure_config.build_user,
         "build_source_repository": azure_config.build_source_repository,

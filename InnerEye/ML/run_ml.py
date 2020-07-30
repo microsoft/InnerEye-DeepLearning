@@ -15,7 +15,8 @@ from azureml.core.model import Model
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import INPUT_DATA_KEY
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
-    IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, \
+    IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
+    RUN_RECOVERY_ID_KEY_NAME, \
     create_run_recovery_id, get_results_blob_path, has_input_datasets, storage_account_from_full_name, update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
@@ -130,7 +131,7 @@ class MLRunner:
             "model_name": run_tags_parent["model_name"],
             "execution_mode": run_tags_parent["execution_mode"],
             RUN_RECOVERY_ID_KEY_NAME: create_run_recovery_id(run=RUN_CONTEXT),
-            "recovered_from": run_tags_parent["recovered_from"],
+            RUN_RECOVERY_FROM_ID_KEY_NAME: run_tags_parent[RUN_RECOVERY_FROM_ID_KEY_NAME],
             "friendly_name": azure_config.user_friendly_name,
             "build_number": str(azure_config.build_number),
             "build_user": azure_config.build_user,
@@ -168,7 +169,8 @@ class MLRunner:
         run_recovery: Optional[RunRecovery] = None
         if self.azure_config.run_recovery_id:
             run_recovery = RunRecovery.download_checkpoints(self.azure_config, self.model_config, RUN_CONTEXT)
-        # do training and inference, unless we're only registering
+        # do training and inference, unless the "only register" switch is set (which requires a run_recovery
+        # to be valid).
         if self.azure_config.register_model_only_for_epoch is None or run_recovery is None:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
