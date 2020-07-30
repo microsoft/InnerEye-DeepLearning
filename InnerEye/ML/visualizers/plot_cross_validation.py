@@ -590,8 +590,7 @@ def save_outliers(config: PlotCrossValidationConfig,
 
                     f.write(f"\n\n=== METRIC: {metric_type} ===\n\n")
                     if len(outliers) > 0:
-                        outliers_summary = str(extract_outliers(df, config.outlier_range).drop([COL_SPLIT], axis=1)
-                                               .groupby(
+                        outliers_summary = str(outliers.groupby(
                             [MetricsFileColumns.Patient.value, MetricsFileColumns.Structure.value,
                              CSV_SERIES_HEADER, CSV_INSTITUTION_HEADER])
                                                .describe()[metric_type][stats_columns]
