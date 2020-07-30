@@ -54,13 +54,20 @@ class RunRecovery:
     def download_checkpoints_from_run(azure_config: AzureConfig,
                                       config: ModelConfigBase,
                                       run_context: Optional[Run],
-                                      run_to_recover: Run) -> RunRecovery:
+                                      run_to_recover: Run,
+                                      handle_crossval: bool = True) -> RunRecovery:
         child_runs: List[Run] = fetch_child_runs(run_to_recover)
+        logging.info(f"DBG: run_to_recover has ID {run_to_recover.id} and initial child runs are:")
+        for child_run in child_runs:
+            logging.info(f"DBG:     {child_run.id}")
         # handle recovery of a HyperDrive cross validation run
-        if is_cross_validation_child_run(run_context):
+        if handle_crossval and is_cross_validation_child_run(run_context):
             run_to_recover = next(x for x in child_runs if
                                   get_cross_validation_split_index(x) == get_cross_validation_split_index(run_context))
             child_runs = fetch_child_runs(run_to_recover)
+            logging.info(f"DBG: new run_to_recover has ID {run_to_recover.id} and adjusted child runs are:")
+            for child_run in child_runs:
+                logging.info(f"DBG:     {child_run.id}")
         root_output_dir = Path(config.checkpoint_folder) / run_to_recover.id
         # download checkpoints for the run
         azure_config.download_outputs_from_run(
