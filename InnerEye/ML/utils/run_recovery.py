@@ -48,23 +48,26 @@ class RunRecovery:
             raise ValueError("A valid run_recovery_id is required to download recovery checkpoints, found None")
 
         run_to_recover = fetch_run(workspace, azure_config.run_recovery_id.strip())
-        child_runs: List[Run] = fetch_child_runs(run_to_recover)
+        return RunRecovery.download_checkpoints_from_run(azure_config, config, run_context, run_to_recover)
 
+    @staticmethod
+    def download_checkpoints_from_run(azure_config: AzureConfig,
+                                      config: ModelConfigBase,
+                                      run_context: Optional[Run],
+                                      run_to_recover: Run) -> RunRecovery:
+        child_runs: List[Run] = fetch_child_runs(run_to_recover)
         # handle recovery of a HyperDrive cross validation run
         if is_cross_validation_child_run(run_context):
             run_to_recover = next(x for x in child_runs if
                                   get_cross_validation_split_index(x) == get_cross_validation_split_index(run_context))
             child_runs = fetch_child_runs(run_to_recover)
-
         root_output_dir = Path(config.checkpoint_folder) / run_to_recover.id
-
         # download checkpoints for the run
         azure_config.download_outputs_from_run(
             blobs_path=Path(CHECKPOINT_FOLDER),
             destination=root_output_dir,
             run=run_to_recover
         )
-
         if len(child_runs) > 0:
             # download checkpoints for the child runs in the root of the parent
             child_runs_checkpoints_roots: List[Path] = []

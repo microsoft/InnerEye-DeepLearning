@@ -136,27 +136,24 @@ class Runner:
                     PARENT_RUN_CONTEXT.log(m.metric_name, m.metric_value)
             except Exception as ex:
                 print_exception(ex, "Unable to log metrics to Hyperdrive parent run.", logger_fn=logging.warning)
-        self.create_ensemble_model(cross_val_results_root)
+        self.create_ensemble_model()
         return cross_val_results_root
 
-    def create_ensemble_model(self, cross_val_results_root: Path) -> None:
+    def create_ensemble_model(self) -> None:
         """
         Call MLRunner again after training cross-validation models, to create an ensemble model from them.
-        :param cross_val_results_root: directory that should contain subdirectories named 0, 1, ..., N-1,
-        one for each of the N child runs.
         """
-        checkpoint_paths = [cross_val_results_root / str(n)
-                            for n in range(self.model_config.number_of_cross_validation_splits)]
+        # Import only here in case of dependency issues in reduced environment
+        from InnerEye.ML.utils.run_recovery import RunRecovery
+        run_recovery = RunRecovery.download_checkpoints_from_run(
+            self.azure_config, self.model_config, RUN_CONTEXT, PARENT_RUN_CONTEXT)
         # Check paths are good, just in case
-        for path in checkpoint_paths:
+        for path in run_recovery.checkpoints_roots:
             logging.info(f"DBG: checkpoint path: {path}")
             if not path.is_dir():
                 raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
             for name in sorted(path.rglob("*")):
                 logging.info(f"DBG:   {name}")
-        # Import only here in case of dependency issues in reduced environment
-        from InnerEye.ML.utils.run_recovery import RunRecovery
-        run_recovery = RunRecovery(checkpoints_roots=checkpoint_paths)
         # Adjust parameters
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
