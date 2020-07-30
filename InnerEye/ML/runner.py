@@ -145,9 +145,6 @@ class Runner:
         :param cross_val_results_root: directory that should contain subdirectories named 0, 1, ..., N-1,
         one for each of the N child runs.
         """
-        self.azure_config.hyperdrive = False
-        self.model_config.number_of_cross_validation_splits = 0
-        self.model_config.is_train = False
         checkpoint_paths = [cross_val_results_root / str(n)
                             for n in range(self.model_config.number_of_cross_validation_splits)]
         # Check paths are good, just in case
@@ -158,6 +155,10 @@ class Runner:
         # Import only here in case of dependency issues in reduced environment
         from InnerEye.ML.utils.run_recovery import RunRecovery
         run_recovery = RunRecovery(checkpoints_roots=checkpoint_paths)
+        # Adjust parameters
+        self.azure_config.hyperdrive = False
+        self.model_config.number_of_cross_validation_splits = 0
+        self.model_config.is_train = False
         self.create_ml_runner().run_inference_and_register_model(run_recovery)
 
     def parse_and_load_model(self) -> ParserResult:
