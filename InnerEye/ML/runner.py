@@ -152,6 +152,8 @@ class Runner:
             logging.info(f"DBG: checkpoint path: {path}")
             if not path.is_dir():
                 raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
+            for name in sorted(path.rglob("*")):
+                logging.info(f"DBG:   {name}")
         # Import only here in case of dependency issues in reduced environment
         from InnerEye.ML.utils.run_recovery import RunRecovery
         run_recovery = RunRecovery(checkpoints_roots=checkpoint_paths)
