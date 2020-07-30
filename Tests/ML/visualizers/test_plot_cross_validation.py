@@ -13,7 +13,7 @@ from pandas.core.dtypes.common import is_string_dtype
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetch_run
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
     METRICS_FILE_NAME, logging_to_stdout
-from InnerEye.Common.fixed_paths import RUN_OUTPUTS_DIR_NAME
+from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.run_ml import MLRunner
@@ -363,7 +363,7 @@ def test_download_or_get_local_blobs(is_current_run: bool,
     assert test_config.run_recovery_id is not None
     run = Run.get_context() if is_current_run else fetch_run(azure_config.get_workspace(),
                                                              test_config.run_recovery_id)
-    run_outputs_dir = str(full_ml_test_data_path()) if is_current_run else RUN_OUTPUTS_DIR_NAME
+    run_outputs_dir = str(full_ml_test_data_path()) if is_current_run else DEFAULT_AML_UPLOAD_DIR
     test_config.outputs_directory = run_outputs_dir
     dst = test_config.download_or_get_local_file(
         blob_to_download="dataset.csv",

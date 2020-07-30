@@ -298,8 +298,6 @@ class Runner:
                     print_exception(ex, "Unable to run PyTest.")
                     pytest_failed = True
         finally:
-            # Try/finally block to ensure that all run outputs, including test result file, are uploaded to Azure
-            self.azure_config.upload_outputs_to_run(outputs_folder, run=RUN_CONTEXT)
             # wait for aggregation if required, and only if the training actually succeeded.
             if not training_failed and self.model_config.should_wait_for_other_cross_val_child_runs:
                 self.wait_for_cross_val_runs_to_finish_and_aggregate()

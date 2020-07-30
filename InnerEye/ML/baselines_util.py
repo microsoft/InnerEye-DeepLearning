@@ -10,12 +10,13 @@ from typing import Dict, Generator, List, Optional, Tuple
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from InnerEye.Azure.azure_config import AzureConfig, DEFAULT_AML_UPLOAD_DIR
+from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, fetch_run, strip_prefix
 from InnerEye.Common import common_util
 from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig
 from InnerEye.Common.common_util import EPOCH_FOLDER_NAME_PATTERN, FULL_METRICS_DATAFRAME_FILE, METRICS_FILE_NAME
+from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_directory
