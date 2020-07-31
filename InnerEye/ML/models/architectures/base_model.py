@@ -172,14 +172,15 @@ class BaseModel(DeviceAwareModule, ABC):
         if self.crop_size_constraints is not None:
             self.crop_size_constraints.validate(crop_size, message_prefix)
 
-    def generate_model_summary(self, crop_size: Optional[TupleInt3] = None) -> None:
+    def generate_model_summary(self, crop_size: Optional[TupleInt3] = None,
+                               log_models_to_files: bool = False) -> None:
         """
         Stores a model summary, containing information about layers, memory consumption and runtime
         in the model.summary field.
         When called again with the same crop_size, the summary is not created again.
         :param crop_size: The crop size for which the summary should be created. If not provided,
         the minimum allowed crop size is used.
-        :return:
+        :param log_models_to_files: whether to write the summary to a file
         """
         if crop_size is None:
             crop_size = self.crop_size_constraints.minimum_size  # type: ignore
@@ -188,7 +189,8 @@ class BaseModel(DeviceAwareModule, ABC):
         if self.summary is None or self.summary_crop_size != input_size:
             self.summarizer = ModelSummary(self)
             self.summary = self.summarizer.generate_summary(
-                input_sizes=[(self.input_channels, *crop_size)])
+                input_sizes=[(self.input_channels, *crop_size)],
+                log_models_to_files=log_models_to_files)
             self.summary_crop_size = crop_size
 
     @abc.abstractmethod

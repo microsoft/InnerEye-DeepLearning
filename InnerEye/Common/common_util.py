@@ -224,11 +224,14 @@ def disable_logging_to_file() -> None:
 def logging_only_to_file(file_path: Path, stdout_log_level: Union[str, int] = logging.ERROR):
     logging_to_file(file_path)
     global logging_stdout_handler
-    original_stdout_log_level = logging_stdout_handler.level
     stdout_log_level = standardize_log_level(stdout_log_level)
-    logging_stdout_handler.level = stdout_log_level
-    yield
-    logging_stdout_handler.level = original_stdout_log_level
+    if logging_stdout_handler is not None:
+        original_stdout_log_level = logging_stdout_handler.level
+        logging_stdout_handler.level = stdout_log_level
+        yield
+        logging_stdout_handler.level = original_stdout_log_level
+    else:
+        yield
     disable_logging_to_file()
 
 

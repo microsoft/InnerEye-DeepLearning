@@ -6,7 +6,6 @@ import copy
 import logging
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -15,7 +14,7 @@ import torchprof
 from torch.utils.hooks import RemovableHandle
 
 from InnerEye.Common.common_util import logging_only_to_file
-from InnerEye.Common.fixed_paths import DEFAULT_AML_LOGS_DIR
+from InnerEye.Common.fixed_paths import DEFAULT_MODEL_LOGS_DIR_PATH
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 
@@ -80,7 +79,7 @@ class ModelSummary:
         if not log_models_to_files:
             self._generate_summary(self.model, input_tensors)
         else:
-            model_log_directory = Path(DEFAULT_AML_LOGS_DIR) / "model_logs"
+            model_log_directory = DEFAULT_MODEL_LOGS_DIR_PATH
             model_log_directory.mkdir(parents=True, exist_ok=True)
             index = 1
             while True:
