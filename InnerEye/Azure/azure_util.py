@@ -151,7 +151,11 @@ def fetch_child_runs(run: Run, status: Optional[str] = None,
     retrieved by AML is lower than the expected number of splits, we try to retrieve them manually.
     """
     if is_ensemble_run(run):
-        run = fetch_run(run.experiment.workspace, run.get_tags()[RUN_RECOVERY_FROM_ID_KEY_NAME])
+        run_recovery_id = run.get_tags().get(RUN_RECOVERY_FROM_ID_KEY_NAME, None)
+        if run_recovery_id:
+            run = fetch_run(run.experiment.workspace, run_recovery_id)
+        elif PARENT_RUN_CONTEXT:
+            run = PARENT_RUN_CONTEXT
     children_runs = list(run.get_children(tags=RUN_RECOVERY_ID_KEY_NAME))
     if 0 < expected_number_cross_validation_splits != len(children_runs):
         logging.warning(
