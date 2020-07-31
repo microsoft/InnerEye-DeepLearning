@@ -220,7 +220,7 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
         if config.use_gpu:
             model_inputs = [x.float() for x in model_inputs]
         summary = ModelSummary(model)
-        summary.generate_summary(input_tensors=model_inputs)
+        summary.generate_summary(input_tensors=model_inputs, log_models_to_files=config.log_models_to_files)
     elif config.is_segmentation_model:
         summary_for_segmentation_models(config, model)
         assert model.summarizer

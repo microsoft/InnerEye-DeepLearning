@@ -295,6 +295,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                       doc="If True, drop the last incomplete batch during"
                                                           "training. If all batches are complete, no batch gets "
                                                           "dropped. If False, keep all batches.")
+    log_models_to_files: bool = param.Boolean(default=False,
+                                              doc="Whether to log model structures to files in logs/models")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__

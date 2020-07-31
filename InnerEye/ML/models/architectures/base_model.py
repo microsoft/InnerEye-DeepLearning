@@ -5,6 +5,7 @@
 import abc
 from abc import ABC
 from collections import OrderedDict
+from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
@@ -186,7 +187,8 @@ class BaseModel(DeviceAwareModule, ABC):
         input_size = [crop_size]
         if self.summary is None or self.summary_crop_size != input_size:
             self.summarizer = ModelSummary(self)
-            self.summary = self.summarizer.generate_summary(input_sizes=[(self.input_channels, *crop_size)])
+            self.summary = self.summarizer.generate_summary(
+                input_sizes=[(self.input_channels, *crop_size)])
             self.summary_crop_size = crop_size
 
     @abc.abstractmethod

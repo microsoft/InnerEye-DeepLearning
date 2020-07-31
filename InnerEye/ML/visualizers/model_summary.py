@@ -6,6 +6,7 @@ import copy
 import logging
 from collections import OrderedDict
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -13,6 +14,8 @@ import torch
 import torchprof
 from torch.utils.hooks import RemovableHandle
 
+from InnerEye.Common.common_util import logging_only_to_file
+from InnerEye.Common.fixed_paths import DEFAULT_AML_LOGS_DIR
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 
@@ -55,13 +58,15 @@ class ModelSummary:
 
     def generate_summary(self,
                          input_sizes: Optional[Sequence[Tuple]] = None,
-                         input_tensors: Optional[List[torch.Tensor]] = None) -> OrderedDict:
+                         input_tensors: Optional[List[torch.Tensor]] = None,
+                         log_models_to_files: bool = False) -> OrderedDict:
         """
         Produces a human readable summary of the model, and prints it via logging.info. The summary is computed by
         doing forward propagation through the model, with tensors of a given size or a given list of tensors.
         :param input_sizes: The list of sizes of the input tensors to the model. These sizes must be specifies
         without the leading batch dimension.
         :param input_tensors: The tensors to use in model forward propagation.
+        :param log_models_to_files: if True, write the summary to a new file under logs/models instead of stdout
         :return:
         """
         if input_sizes and not input_tensors:
@@ -72,7 +77,20 @@ class ModelSummary:
             pass
         else:
             raise ValueError("You need to specify exactly one of (input_sizes, input_tensors)")
-        self._generate_summary(self.model, input_tensors)
+        if not log_models_to_files:
+            self._generate_summary(self.model, input_tensors)
+        else:
+            model_log_directory = Path(DEFAULT_AML_LOGS_DIR) / "model_logs"
+            model_log_directory.mkdir(parents=True, exist_ok=True)
+            index = 1
+            while True:
+                log_file_path = model_log_directory / f"model_log{index:03d}.txt"
+                if not log_file_path.exists():
+                    break
+                index += 1
+            logging.info(f"Writing model summary to: {log_file_path}")
+            with logging_only_to_file(log_file_path):
+                self._generate_summary(self.model, input_tensors)
         return self.summary
 
     def _get_sizes_from_list(self, tensors: Union[List[torch.Tensor], torch.Tensor]) -> List[torch.Size]:

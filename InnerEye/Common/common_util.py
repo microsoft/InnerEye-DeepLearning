@@ -9,6 +9,7 @@ import shutil
 import sys
 import time
 import traceback
+from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Union
@@ -161,9 +162,7 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
     :param log_level: The logging level. All logging message with a level at or above this level will be written to
     stdout. log_level can be numeric, or one of the pre-defined logging strings (INFO, DEBUG, ...).
     """
-    if isinstance(log_level, str):
-        log_level = log_level.upper()
-        check_is_any_of("log_level", log_level, logging._nameToLevel.keys())
+    log_level = standardize_log_level(log_level)
     logger = logging.getLogger()
     # This function can be called multiple times, in particular in AzureML when we first run a training job and
     # then a couple of tests, which also often enable logging. This would then add multiple handlers, and repeated
@@ -180,6 +179,13 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
     print(f"Setting logging level to {log_level}")
     logging_stdout_handler.setLevel(log_level)
     logger.setLevel(log_level)
+
+
+def standardize_log_level(log_level: Union[int, str]) -> Union[int, str]:
+    if isinstance(log_level, str):
+        log_level = log_level.upper()
+        check_is_any_of("log_level", log_level, logging._nameToLevel.keys())
+    return log_level
 
 
 def logging_to_file(file_path: Path) -> None:
@@ -212,6 +218,18 @@ def disable_logging_to_file() -> None:
         logging_to_file_handler.close()
         logging.getLogger().removeHandler(logging_to_file_handler)
         logging_to_file_handler = None
+
+
+@contextmanager
+def logging_only_to_file(file_path: Path, stdout_log_level: Union[str, int] = logging.ERROR):
+    logging_to_file(file_path)
+    global logging_stdout_handler
+    original_stdout_log_level = logging_stdout_handler.level
+    stdout_log_level = standardize_log_level(stdout_log_level)
+    logging_stdout_handler.level = stdout_log_level
+    yield
+    logging_stdout_handler.level = original_stdout_log_level
+    disable_logging_to_file()
 
 
 def _add_formatter(handler: logging.StreamHandler) -> None:
