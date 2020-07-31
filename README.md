@@ -4,9 +4,47 @@
 
 ## Overview
 
-This is a medical imaging Deep-Learning library to train and deploy models on [Azure Machine Learning Services](https://docs.microsoft.com/en-gb/azure/machine-learning/) or [Azure Stack Hub](https://azure.microsoft.com/en-us/products/azure-stack/hub/).
+This is a deep learning toolbox to train models on medical images (or more generally, 3D images). 
+It integrates seamlessly with cloud computing in Azure.
+ 
+On the modelling side, this toolbox supports 
+- Segmentation models
+- Classification and regression models
+- Sequence models
 
-We support segmentation, classification and regression models. We enable users to take a dataset and train high performance models with ensembles in a few simple steps. These models can then be deployed on Azure Machine Learning Services or Azure Stack Hub.
+Classification, regression, and sequence models can be built with only images as inputs, or a combination of images
+and non-imaging data as input. This supports typical use cases on medical data where measurements, biomarkers, 
+or patient characteristics are often available in addition to images.
+
+On the user side, this toolbox focusses on enabling machine learning teams to achieve more. It is cloud-first, and
+relies on [Azure Machine Learning Services (AzureML)](https://docs.microsoft.com/en-gb/azure/machine-learning/) for execution,
+bookkeeping, and visualization. Taken together, this gives:
+- **Traceability**: AzureML keeps a full record of all experiments that were executed, including a snapshot of
+the code. Tags are added to the experiments automatically, that can later help filter and find old experiments.
+- **Transparency**: All team members have access to each other's experiments and results.
+- **Reproducibility**: Two model training runs using the same code and data will result in exactly the same metrics. All
+ sources of randomness like multithreading are controlled for.
+- **Cost reduction**: Using AzureML, all compute (virtual machines, VMs) is requested at the time of starting the 
+training job, and freed up at the end. Idle VMs will not incur costs. In addition, Azure low priority 
+nodes can be used to further reduce costs (up to 80% cheaper).
+- **Scale out**: Large numbers of VMs can be requested easily to cope with a burst in jobs.
+
+Despite the cloud focus, all training and model testing works just as well on local compute, which is important for
+model prototyping, debugging, and in cases where the cloud can't be used.
+
+In addition, our toolbox supports:
+ - Cross-validation using AzureML's built-in support, where the models for 
+individual folds are trained in parallel. This is particularly important for the long-running training jobs
+often seen with medical images. 
+- Hyperparameter tuning using
+[Hyperdrive](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters).
+- Building ensemble models.
+- Easy creation of new models via a configuration-based approach, and inheritance from an existing
+architecture.
+ 
+Once training in AzureML is done, the models can be deployed from within AzureML or via 
+[Azure Stack Hub](https://azure.microsoft.com/en-us/products/azure-stack/hub/).
+
 
 ## Getting started
 
