@@ -188,7 +188,7 @@ def summary_for_segmentation_models(config: ModelConfigBase, model: DeviceAwareM
     if isinstance(crop_size, int):
         crop_size = (crop_size, crop_size, crop_size)
     try:
-        model.generate_model_summary(crop_size)  # type: ignore
+        model.generate_model_summary(crop_size, log_models_to_files=config.log_models_to_files)  # type: ignore
     except AttributeError as e:
         logging.warning(f"summary_for_segmentation_models failed with exception {e}")
 
