@@ -14,7 +14,7 @@ import torchprof
 from torch.utils.hooks import RemovableHandle
 
 from InnerEye.Common.common_util import logging_only_to_file
-from InnerEye.Common.fixed_paths import DEFAULT_MODEL_LOGS_DIR_PATH
+from InnerEye.Common.fixed_paths import DEFAULT_MODEL_SUMMARIES_DIR_PATH
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 
@@ -58,14 +58,14 @@ class ModelSummary:
     def generate_summary(self,
                          input_sizes: Optional[Sequence[Tuple]] = None,
                          input_tensors: Optional[List[torch.Tensor]] = None,
-                         log_models_to_files: bool = False) -> OrderedDict:
+                         log_summaries_to_files: bool = False) -> OrderedDict:
         """
         Produces a human readable summary of the model, and prints it via logging.info. The summary is computed by
         doing forward propagation through the model, with tensors of a given size or a given list of tensors.
         :param input_sizes: The list of sizes of the input tensors to the model. These sizes must be specifies
         without the leading batch dimension.
         :param input_tensors: The tensors to use in model forward propagation.
-        :param log_models_to_files: if True, write the summary to a new file under logs/models instead of stdout
+        :param log_summaries_to_files: if True, write the summary to a new file under logs/models instead of stdout
         :return:
         """
         if input_sizes and not input_tensors:
@@ -76,10 +76,10 @@ class ModelSummary:
             pass
         else:
             raise ValueError("You need to specify exactly one of (input_sizes, input_tensors)")
-        if not log_models_to_files:
+        if not log_summaries_to_files:
             self._generate_summary(self.model, input_tensors)
         else:
-            model_log_directory = DEFAULT_MODEL_LOGS_DIR_PATH
+            model_log_directory = DEFAULT_MODEL_SUMMARIES_DIR_PATH
             model_log_directory.mkdir(parents=True, exist_ok=True)
             index = 1
             while True:
