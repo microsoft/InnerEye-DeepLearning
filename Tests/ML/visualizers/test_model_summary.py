@@ -88,6 +88,9 @@ def test_log_model_summary_to_file() -> None:
     assert expected_log_file.exists()
     with expected_log_file.open() as inpt:
         assert len(inpt.readlines()) >= 3
+    expected_log_file.unlink()
+    model.generate_model_summary(input_size, log_summaries_to_files=False)
+    assert not expected_log_file.exists()
 
 
 class MyFavModel(BaseModel, ABC):

@@ -76,23 +76,27 @@ class ModelSummary:
             pass
         else:
             raise ValueError("You need to specify exactly one of (input_sizes, input_tensors)")
-        if not log_summaries_to_files:
-            self._generate_summary(self.model, input_tensors)
+        if log_summaries_to_files:
+            self._log_summary_to_file(input_tensors)
         else:
-            model_log_directory = DEFAULT_MODEL_SUMMARIES_DIR_PATH
-            model_log_directory.mkdir(parents=True, exist_ok=True)
-            index = 1
-            while True:
-                log_file_path = model_log_directory / f"model_log{index:03d}.txt"
-                if not log_file_path.exists():
-                    break
-                index += 1
-            logging.info(f"Writing model summary to: {log_file_path}")
-            with logging_only_to_file(log_file_path):
-                self._generate_summary(self.model, input_tensors)
+            self._generate_summary(input_tensors)
         return self.summary
 
-    def _get_sizes_from_list(self, tensors: Union[List[torch.Tensor], torch.Tensor]) -> List[torch.Size]:
+    def _log_summary_to_file(self, input_tensors):
+        model_log_directory = DEFAULT_MODEL_SUMMARIES_DIR_PATH
+        model_log_directory.mkdir(parents=True, exist_ok=True)
+        index = 1
+        while True:
+            log_file_path = model_log_directory / f"model_log{index:03d}.txt"
+            if not log_file_path.exists():
+                break
+            index += 1
+        logging.info(f"Writing model summary to: {log_file_path}")
+        with logging_only_to_file(log_file_path):
+            self._generate_summary(input_tensors)
+
+    @staticmethod
+    def _get_sizes_from_list(tensors: Union[List[torch.Tensor], torch.Tensor]) -> List[torch.Size]:
         if isinstance(tensors, (list, tuple)):
             return [t.size() for t in tensors]
         else:
@@ -147,12 +151,11 @@ class ModelSummary:
         if has_no_children:
             self.hooks.append(submodule.register_forward_hook(hook))
 
-    def _generate_summary(self, module: torch.nn.Module, input_tensors: List[torch.Tensor]) -> None:
+    def _generate_summary(self, input_tensors: List[torch.Tensor]) -> None:
         """
         Creates a list of input torch tensors and registers forward pass hooks to the model,
         passes the inputs through the model, and collects model information such num of parameters
         and intermediate tensor size.
-        :param module: BaseModel object that is called to collect model summary.
         :param input_tensors: A list of tensors which are fed into the torch model.
         """
 
@@ -183,9 +186,9 @@ class ModelSummary:
             logging.info("-------------------------------------------------------------------------------")
 
         # Register the forward-pass hooks, profile the model, and restore its state
-        module.apply(self._register_hook)
-        with torchprof.Profile(module, use_cuda=self.use_gpu) as prof:
-            forward_preserve_state(module, input_tensors)  # type: ignore
+        self.model.apply(self._register_hook)
+        with torchprof.Profile(self.model, use_cuda=self.use_gpu) as prof:
+            forward_preserve_state(self.model, input_tensors)  # type: ignore
 
         # Log the model summary: tensor shapes, num of parameters, memory requirement, and forward pass time
         logging.info(self.model)

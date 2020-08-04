@@ -181,10 +181,15 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
     logger.setLevel(log_level)
 
 
-def standardize_log_level(log_level: Union[int, str]) -> Union[int, str]:
+def standardize_log_level(log_level: Union[int, str]) -> int:
+    """
+    :param log_level: integer or string (any casing) version of a log level, e.g. 20 or "INFO".
+    :return: integer version of the level; throws if the string does not name a level.
+    """
     if isinstance(log_level, str):
         log_level = log_level.upper()
         check_is_any_of("log_level", log_level, logging._nameToLevel.keys())
+        return logging._nameToLevel[log_level]
     return log_level
 
 
@@ -221,7 +226,15 @@ def disable_logging_to_file() -> None:
 
 
 @contextmanager
-def logging_only_to_file(file_path: Path, stdout_log_level: int = logging.ERROR) -> Generator:
+def logging_only_to_file(file_path: Path, stdout_log_level: Union[int, str] = logging.ERROR) -> Generator:
+    """
+    Redirects logging to the specified file, undoing that on exit. If logging is currently going
+    to stdout, messages at level stdout_log_level or higher (typically ERROR) are also sent to stdout.
+    Usage: with logging_only_to_file(my_log_path): do_stuff()
+    :param file_path: file to log to
+    :param stdout_log_level: mininum level for messages to also go to stdout
+    """
+    stdout_log_level: int = standardize_log_level(stdout_log_level)
     logging_to_file(file_path)
     global logging_stdout_handler
     if logging_stdout_handler is not None:
