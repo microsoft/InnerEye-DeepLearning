@@ -12,7 +12,7 @@ import traceback
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Union
 
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.Common.type_annotations import PathOrString
@@ -221,10 +221,9 @@ def disable_logging_to_file() -> None:
 
 
 @contextmanager
-def logging_only_to_file(file_path: Path, stdout_log_level: Union[str, int] = logging.ERROR):
+def logging_only_to_file(file_path: Path, stdout_log_level: int = logging.ERROR) -> Generator:
     logging_to_file(file_path)
     global logging_stdout_handler
-    stdout_log_level = standardize_log_level(stdout_log_level)
     if logging_stdout_handler is not None:
         original_stdout_log_level = logging_stdout_handler.level
         logging_stdout_handler.level = stdout_log_level
