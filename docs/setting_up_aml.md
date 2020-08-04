@@ -103,6 +103,9 @@ In order to be able to run experiments you will need to create a compute cluster
 to do so follow the steps described [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-set-up-training-targets#set-up-in-azure-machine-learning-studio).
 Note down the name of your compute target.
 
+We recommend using [low priority](https://docs.microsoft.com/en-us/azure/batch/batch-low-pri-vms) clusters, they only cost a fraction of the dedicated VMs.
+As a reference, the Prostate model and the Head and Neck model require VMs with 4 GPUs with at least 16GB of memory per GPU, for example Standard_ND24s, Standard_NC24s_v3 or Standard_NC24s_v2.
+
 ### Step 6: Create a datastore
 You will need to create a datastore in AzureML. Go to the `Datastores` tab in AML, and then click `+ New datastore`. 
 Create a datastore called `innereyedatasets`. In the fields for storage account, type in your dataset storage account name,
