@@ -557,7 +557,6 @@ def test_string_to_float(text: str, expected: float) -> None:
                          [
                              ("train_and_test_data/id1_mask.nii.gz", (75, 75, 75)),
                              ("hdf5_data/patient_hdf5s/4be9beed-5861-fdd2-72c2-8dd89aadc1ef.h5", (4, 5, 7)),
-                             ("numpy_images/Normal-000002-2009-10-28-OD.npy", (64, 128, 64)),
                          ])
 def test_load_image(file_path: str, expected_shape: Tuple) -> None:
     full_file_path = full_ml_test_data_path() / file_path
