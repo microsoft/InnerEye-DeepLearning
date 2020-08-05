@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 import argparse
 import logging
-import os
 import signal
 import sys
 from argparse import ArgumentError, ArgumentParser, Namespace
@@ -218,12 +217,14 @@ def create_pytorch_environment(workspace: Workspace,
     else:
         raise ValueError("No AzureML dataset was found.")
 
-    rel_entry_script = os.path.relpath(source_config.entry_script, source_config.root_folder)
-    logging.info(f"Entry script {rel_entry_script}, from {source_config.entry_script} and {source_config.root_folder}")
+    # AzureML seems to sometimes expect the entry script path in Linux format, hence convert to posix path
+    entry_script_relative_path = Path(source_config.entry_script).relative_to(source_config.root_folder).as_posix()
+    logging.info(f"Entry script {entry_script_relative_path} ({source_config.entry_script} relative to "
+                 f"source directory {source_config.root_folder}")
     # create Estimator environment
     estimator = Estimator(
         source_directory=source_config.root_folder,
-        entry_script=rel_entry_script,
+        entry_script=entry_script_relative_path,
         script_params=source_config.script_params,
         compute_target=azure_config.gpu_cluster_name,
         # Use blob storage for storing the source, rather than the FileShares section of the storage account.
