@@ -13,7 +13,8 @@ from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.dataset.sample import PatientDatasetSource, PatientMetadata
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
-from InnerEye.ML.utils.io_util import ImageHeader, is_nifti_file_path, is_numpy_file_path, load_numpy_image
+from InnerEye.ML.utils.io_util import ImageHeader, is_nifti_file_path, is_numpy_file_path, \
+    load_image_in_known_formats, load_numpy_image
 from Tests.ML.util import assert_file_contents
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -162,7 +163,14 @@ def test_is_numpy_file(input: Tuple[str, bool]) -> None:
     assert is_numpy_file_path(Path(file)) == expected
 
 
-def test_load_numpy_image() -> None:
-    path = full_ml_test_data_path() / "numpy_images" / "Normal-000002-2009-10-28-OD.npy"
-    image = load_numpy_image(path)
-    assert image.shape == (64, 128, 64)
+def test_load_numpy_image(test_output_dirs: TestOutputDirectories) -> None:
+    array_size = (20, 30, 40)
+    array = np.ones(array_size)
+    assert array.shape == array_size
+    npy_file = Path(test_output_dirs.root_dir) / "file.npy"
+    assert is_numpy_file_path(npy_file)
+    np.save(npy_file, array)
+    image = load_numpy_image(npy_file)
+    assert image.shape == array_size
+    image_and_segmentation = load_image_in_known_formats(npy_file, load_segmentation=False)
+    assert image_and_segmentation.images.shape == array_size
