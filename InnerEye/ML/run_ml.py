@@ -207,8 +207,11 @@ class MLRunner:
         """
         registration_epoch = self.decide_registration_epoch_without_evaluating()
         if registration_epoch is not None:
-            self.register_model_for_epoch(RUN_CONTEXT, run_recovery,
-                                          self.azure_config.register_model_only_for_epoch, float("nan"))
+            self.register_model_for_epoch(
+                RUN_CONTEXT,
+                run_recovery,
+                self.azure_config.register_model_only_for_epoch,  # type: ignore
+                float("nan"))
             if self.azure_config.register_model_only_for_epoch is not None:
                 return
         # run full image inference on existing or newly trained model on the training, and testing set
