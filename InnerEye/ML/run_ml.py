@@ -407,7 +407,7 @@ class MLRunner:
 
     @staticmethod
     def tags_with_run_information(run: Run, tags: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        extra_tags = {"experiment": run.experiment.id,
+        extra_tags = {"experiment_name": run.experiment.name,
                       "run_id": run.id,
                       "run_number": run.number}
         # Let values already in tags take priority:
