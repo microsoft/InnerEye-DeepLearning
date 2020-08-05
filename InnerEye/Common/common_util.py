@@ -234,12 +234,12 @@ def logging_only_to_file(file_path: Path, stdout_log_level: Union[int, str] = lo
     :param file_path: file to log to
     :param stdout_log_level: mininum level for messages to also go to stdout
     """
-    stdout_log_level: int = standardize_log_level(stdout_log_level)
+    stdout_log_level = standardize_log_level(stdout_log_level)
     logging_to_file(file_path)
     global logging_stdout_handler
     if logging_stdout_handler is not None:
         original_stdout_log_level = logging_stdout_handler.level
-        logging_stdout_handler.level = stdout_log_level
+        logging_stdout_handler.level = stdout_log_level  # type: ignore
         yield
         logging_stdout_handler.level = original_stdout_log_level
     else:

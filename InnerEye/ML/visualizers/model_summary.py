@@ -82,7 +82,7 @@ class ModelSummary:
             self._generate_summary(input_tensors)
         return self.summary
 
-    def _log_summary_to_file(self, input_tensors):
+    def _log_summary_to_file(self, input_tensors: Optional[List[torch.Tensor]]) -> None:
         model_log_directory = DEFAULT_MODEL_SUMMARIES_DIR_PATH
         model_log_directory.mkdir(parents=True, exist_ok=True)
         index = 1
