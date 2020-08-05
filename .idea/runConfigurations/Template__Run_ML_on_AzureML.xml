@@ -12,7 +12,11 @@
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <option name="SCRIPT_NAME" value="InnerEye/ML/runner.py" />
+<<<<<<< HEAD
     <option name="PARAMETERS" value="--submit_to_azureml=True --model=BasicModel2Epochs --is_train=True" />
+=======
+    <option name="PARAMETERS" value="--submit_to_azureml=True --model=GlaucomaPublic --is_train=True" />
+>>>>>>> bf71a00... Add everything
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

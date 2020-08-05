@@ -295,6 +295,7 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
     conda_packages_count = len(list(conda.conda_packages))
     pip_packages_count = len(list(conda.pip_packages))
     logging.info(f"{message_prefix}: {conda_packages_count} conda packages, {pip_packages_count} pip packages")
+<<<<<<< HEAD
 
 
 def merge_conda_dependencies(file1: Path, file2: Path) -> CondaDependencies:
@@ -314,3 +315,64 @@ def merge_conda_dependencies(file1: Path, file2: Path) -> CondaDependencies:
     conda_dependencies._merge_dependencies(conda2)
     _log_conda_dependencies_stats(conda_dependencies, "Merged Conda environment")
     return conda_dependencies
+=======
+    logging.debug("  Conda packages:")
+    for p in conda.conda_packages:
+        logging.debug(f"    {p}")
+    logging.debug("  Pip packages:")
+    for p in conda.pip_packages:
+        logging.debug(f"    {p}")
+
+
+def reorder_for_merging(files: List[Path]) -> List[Path]:
+    """
+    Workaround for bug in conda_dependencies.py in versions up to 1.11.0 of azureml-sdk: if any file has a
+    line containing "- pythonX" where the X character is not "=", put it first, as it will trigger
+    the bug if merged in. If there is more than one such file, we're out of luck.
+    """
+    # Remove duplicates, preserving order
+    unique_files = []
+    for file in files:
+        if file not in unique_files:
+            unique_files.append(file)
+    if len(unique_files) == 1:
+        return unique_files
+    # Detect files that could trigger the bug
+    indices = []
+    for i, file in enumerate(unique_files):
+        with file.open() as fp:
+            for line in fp.readlines():
+                if "- python" in line and "- python=" not in line:
+                    indices.append(i)
+                    break
+    if len(indices) == 0:
+        return unique_files
+    if len(indices) == 1:
+        index = indices[0]
+        return [unique_files[index]] + unique_files[:index] + unique_files[index + 1:]
+    raise ValueError("Multiple environment files contain bug-triggering pattern: "
+                     " ".join(str(unique_files[index]) for index in indices))
+
+
+def merge_conda_dependencies(files: List[Path]) -> CondaDependencies:
+    """
+    Creates a CondaDependencies object from the Conda environments specified in one or more files.
+    The resulting object contains the union of the Conda and pip packages in the files. If there are version
+    conflicts in pip packages, the contents of later files are given priority. If there are version
+    conflicts in Conda packages, all versions are retained, and conflict resolution is left to Conda.
+    :param files: The Conda environment files to read.
+    :return: A CondaDependencies object that contains packages from all the files.
+    """
+    merged_dependencies: Optional[CondaDependencies] = None
+
+    for file in reorder_for_merging(files):
+        conda_dependencies = CondaDependencies(file)
+        _log_conda_dependencies_stats(conda_dependencies, f"Conda environment in {file}")
+        if merged_dependencies is None:
+            merged_dependencies = conda_dependencies
+        else:
+            merged_dependencies._merge_dependencies(conda_dependencies)
+            _log_conda_dependencies_stats(merged_dependencies, "Merged Conda environment")
+    assert merged_dependencies is not None
+    return merged_dependencies
+>>>>>>> bf71a00... Add everything

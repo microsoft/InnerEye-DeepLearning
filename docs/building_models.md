@@ -40,7 +40,11 @@ are partially specified, and can be used by having other model configurations in
 parameter values: a dataset ID at least, and optionally other values. For example, a `Prostate` model might inherit
 very simply from `ProstateBase` by creating `Prostate.py` in the directory `InnerEyeLocal/ML/configs/segmentation` 
 with the following contents:
+<<<<<<< HEAD
 ```
+=======
+```python
+>>>>>>> bf71a00... Add everything
 from InnerEye.ML.configs.segmentation.ProstateBase import ProstateBase
 
 
@@ -58,10 +62,23 @@ is found by the runner.
 * Set up your model configuration as above.
 
 * Train a new model, for example `Prostate`:
+<<<<<<< HEAD
 ```
 python InnerEyeLocal/ML/runner.py --submit_to_azureml=True --model=Prostate --is_train=True
 ```
 
+=======
+```shell script
+python InnerEyeLocal/ML/runner.py --submit_to_azureml=True --model=Prostate --is_train=True
+```
+
+Alternatively, you can train the model on your current machine if it is powerful enough. In
+this case, you should specify `--submit_to_azureml=False`, and instead of specifying
+`azure_dataset_id` in the class constructor, you can instead use `local_dataset="my/data/folder"`,
+where the folder `my/data/folder` contains a `dataset.csv` file and subfolders `0`, `1`, `2`, ...,
+one for each image.
+
+>>>>>>> bf71a00... Add everything
 ### K-Fold Model Cross Validation
 
 As for training a new model, but add the switch `--number_of_cross_validation_splits=N`, for some `N` greater than
@@ -82,17 +99,35 @@ see an element `run_recovery_id`. It will look something like `foo_bar:foo_bar_1
 ### Testing an existing model
 
 As for continuing training, but set `--is_train` to `False`. Thus your command should look like this:
+<<<<<<< HEAD
 ```
+=======
+```shell script
+>>>>>>> bf71a00... Add everything
 python Inner/ML/runner.py --submit_to_azureml=True --model=Prostate --is_train=False --gpu_cluster_name=my_cluster_name \
    --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
 ```
 
+<<<<<<< HEAD
+=======
+Alternatively, to submit an AzureML run to apply a model to a single image on your local disc, 
+you can use the script `submit_for_inference.py`, with a command of this form:
+```shell script
+python InnerEye/Scripts/submit_for_inference.py --image_file ~/somewhere/ct.nii.gz --model_id Prostate:555 \
+  --yaml_file ../somewhere_else/train_variables.yml --download_folder ~/my_existing_folder
+```
+
+>>>>>>> bf71a00... Add everything
 ### Model Ensembles
 
 You can ensemble the results of any HyperDrive run with exactly the same command as testing an existing model, 
 but with `--run_recovery_id` referring to a cross-validation training run. You don't specify
 `--number_of_cross_validation_splits`. Thus:
+<<<<<<< HEAD
 ```
+=======
+```shell script
+>>>>>>> bf71a00... Add everything
 python Inner/ML/runner.py --submit_to_azureml=True --model=Prostate --is_train=False --gpu_cluster_name=my_cluster_name \
    --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
 ```
@@ -108,7 +143,11 @@ and the generated posteriors will be passed to the usual model testing downstrea
 
 Once your HyperDrive AzureML runs are completed, you can visualize the results by running the
 [`plot_cross_validation.py`](/InnerEye/ML/visualizers/plot_cross_validation.py) script locally:
+<<<<<<< HEAD
 ```
+=======
+```shell script
+>>>>>>> bf71a00... Add everything
 python InnerEye/ML/visualizers/plot_cross_validation.py --run_recovery_id ... --epoch ...
 ```
 filling in the run recovery ID of the parent run and the epoch number (one of the test epochs, e.g. the last epoch) 

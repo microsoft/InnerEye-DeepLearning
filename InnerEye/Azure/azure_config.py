@@ -240,8 +240,13 @@ class SourceConfig:
     """
     root_folder: str
     entry_script: str
+<<<<<<< HEAD
     script_params: Optional[Dict[str, str]] = None
     conda_dependencies_file: Optional[Path] = None
+=======
+    conda_dependencies_files: List[Path]
+    script_params: Optional[Dict[str, str]] = None
+>>>>>>> bf71a00... Add everything
     hyperdrive_config_func: Optional[Callable[[Estimator], HyperDriveConfig]] = None
     upload_timeout_seconds: int = 36000
     environment_variables: Optional[Dict[str, str]] = None
