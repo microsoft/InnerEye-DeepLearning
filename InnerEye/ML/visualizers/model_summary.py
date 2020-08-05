@@ -76,13 +76,14 @@ class ModelSummary:
             pass
         else:
             raise ValueError("You need to specify exactly one of (input_sizes, input_tensors)")
+        assert input_tensors is not None  # for mypy
         if log_summaries_to_files:
             self._log_summary_to_file(input_tensors)
         else:
             self._generate_summary(input_tensors)
         return self.summary
 
-    def _log_summary_to_file(self, input_tensors: Optional[List[torch.Tensor]]) -> None:
+    def _log_summary_to_file(self, input_tensors: List[torch.Tensor]) -> None:
         model_log_directory = DEFAULT_MODEL_SUMMARIES_DIR_PATH
         model_log_directory.mkdir(parents=True, exist_ok=True)
         index = 1
