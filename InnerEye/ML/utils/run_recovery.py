@@ -12,8 +12,7 @@ from typing import List, Optional
 from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import RUN_CONTEXT, fetch_child_runs, fetch_run, get_cross_validation_split_index, \
-    is_cross_validation_child_run
+from InnerEye.Azure.azure_util import RUN_CONTEXT, fetch_child_runs, fetch_run
 from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.ML.common import create_checkpoint_path
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
