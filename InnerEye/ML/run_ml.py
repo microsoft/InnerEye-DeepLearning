@@ -380,6 +380,9 @@ class MLRunner:
         full_path_to_config.write_text(model_inference_config.to_json(), encoding='utf-8')  # type: ignore
         relative_child_paths = self.get_child_paths(checkpoint_paths)
 
+        # Add experiment and run ID to tags
+        if run is not None:
+            tags = self.tags_with_run_information(run, tags)
         model = Model.register(
             workspace=workspace,
             model_path=str(self.project_root),
@@ -401,6 +404,14 @@ class MLRunner:
                 self.model_config, self.azure_config, model)
             return model, deployment_model_path, deployment_model_spec
         return model, None, None
+
+    @staticmethod
+    def tags_with_run_information(run: Run, tags: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        extra_tags = {"experiment": run.experiment.id,
+                      "run_id": run.id,
+                      "run_number": run.number}
+        # Let values already in tags take priority:
+        return {**extra_tags, **(tags or {})}
 
     def get_child_paths(self, checkpoint_paths: List[Path]) -> List[str]:
         """
