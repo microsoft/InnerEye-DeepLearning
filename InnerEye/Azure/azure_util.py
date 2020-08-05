@@ -295,27 +295,6 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
     conda_packages_count = len(list(conda.conda_packages))
     pip_packages_count = len(list(conda.pip_packages))
     logging.info(f"{message_prefix}: {conda_packages_count} conda packages, {pip_packages_count} pip packages")
-<<<<<<< HEAD
-
-
-def merge_conda_dependencies(file1: Path, file2: Path) -> CondaDependencies:
-    """
-    Creates a CondaDependencies object from the Conda environments specified in two files.
-    The resulting object contains the union of the Conda and pip packages in the two files. If there are version
-    conflicts in pip packages, the contents of file2 is given priority. If there are version conflicts in Conda
-    packages, both versions are retained, and conflict resolution is left to Conda.
-    :param file1: The first Conda environment file to read.
-    :param file2: The second Conda environment file to read.
-    :return: A CondaDependencies object that contains packages from both file1 and file2.
-    """
-    conda_dependencies = CondaDependencies(str(file1))
-    _log_conda_dependencies_stats(conda_dependencies, f"Conda environment in {file1}")
-    conda2 = CondaDependencies(str(file2))
-    _log_conda_dependencies_stats(conda2, f"Conda environment in {file2}")
-    conda_dependencies._merge_dependencies(conda2)
-    _log_conda_dependencies_stats(conda_dependencies, "Merged Conda environment")
-    return conda_dependencies
-=======
     logging.debug("  Conda packages:")
     for p in conda.conda_packages:
         logging.debug(f"    {p}")
@@ -375,4 +354,3 @@ def merge_conda_dependencies(files: List[Path]) -> CondaDependencies:
             _log_conda_dependencies_stats(merged_dependencies, "Merged Conda environment")
     assert merged_dependencies is not None
     return merged_dependencies
->>>>>>> bf71a00... Add everything
