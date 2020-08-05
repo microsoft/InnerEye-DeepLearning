@@ -200,19 +200,39 @@ class MLRunner:
         self.run_inference_and_register_model(run_recovery)
 
     def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery]) -> None:
-        if self.azure_config.register_model_only_for_epoch is not None and run_recovery is not None:
-            assert isinstance(self.model_config, SegmentationModelBase)  # for mypy
-            # Short circuit the actual model testing step and just register the model for the provided epoch.
+        """
+        Run inference as required, and register the model, but not necessarily in that order:
+        if we can identify the epoch to register at without running inference, we register first.
+        :param run_recovery: details of run specified by run_recovery_id
+        """
+        registration_epoch = self.decide_registration_epoch_without_evaluating()
+        if registration_epoch is not None:
             self.register_model_for_epoch(RUN_CONTEXT, run_recovery,
                                           self.azure_config.register_model_only_for_epoch, float("nan"))
-            return
+            if self.azure_config.register_model_only_for_epoch is not None:
+                return
         # run full image inference on existing or newly trained model on the training, and testing set
         test_metrics, val_metrics, _ = self.model_inference_train_and_test(RUN_CONTEXT, run_recovery)
-        # register the generated model from the run
+        # register the generated model from the run if we haven't already done so
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
-            self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics)
+            if registration_epoch is None:
+                self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics)
         else:
             logging.warning("Couldn't register model in offline mode")
+
+    def decide_registration_epoch_without_evaluating(self) -> Optional[int]:
+        """
+        In general we need to do evaluations to discover the best test epoch to register the model
+        for. But there are two exceptions, which allow us to register first: (1) the switch
+        register_model_only_for_epoch is set; (2) there is only one test epoch.
+        :return: the epoch to register, or None if it cannot be decided.
+        """
+        if self.azure_config.register_model_only_for_epoch is not None:
+            return self.azure_config.register_model_only_for_epoch
+        candidate_best_epochs = self.model_config.get_test_epochs()
+        if len(candidate_best_epochs) == 1:
+            return candidate_best_epochs[0]
+        return None
 
     def create_activation_maps(self) -> None:
         if self.model_config.is_segmentation_model and self.model_config.activation_map_layers is not None:
