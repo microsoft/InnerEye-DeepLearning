@@ -59,6 +59,7 @@ class TrainValidateParameters(param.Parameterized, Generic[M]):
       optimizer: optimizer
     """
     model: M = param.ClassSelector(class_=DeviceAwareModule, instantiate=False)
+    mean_teacher_model: M = param.ClassSelector(class_=DeviceAwareModule, instantiate=False, allow_None=True)
     data_loader: DataLoader = param.ClassSelector(class_=DataLoader, instantiate=False)
     epoch: int = param.Integer(None, bounds=(0, None))
     optimizer: Optimizer = param.ClassSelector(class_=Optimizer, instantiate=False)
@@ -245,6 +246,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         self.label_tensor_dtype = torch.float32
         super().__init__(config, train_val_params)
         self.metrics = create_metrics_dict_from_config(config)
+        self.compute_mean_teacher_model = self.model_config.compute_mean_teacher_model
         if self.model_config.compute_grad_cam:
             if not self.model_config.aggregation_type == AggregationType.Average:
                 self.model_config.max_batch_grad_cam = 0
@@ -292,6 +294,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         """
         start_time = time.time()
         model = self.train_val_params.model
+        mean_teacher_model = self.train_val_params.mean_teacher_model
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, model, sample)
 
         if self.in_training_mode:
@@ -309,6 +312,9 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         if self.in_training_mode:
             single_optimizer_step(self.model_config, loss, self.train_val_params.optimizer)
 
+        if self.model_config.compute_mean_teacher_model:
+            self.update_mean_teacher_parameters()
+
         if isinstance(model_output, list):
             # When using multiple GPUs, model_output is a list of tensors. Gather will concatenate them
             # across the first dimension, and move them to GPU0.
@@ -323,7 +329,17 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                                model_inputs_and_labels.model_inputs,
                                label_gpu)
         self.metrics.add_metric(MetricType.LOSS, loss.item())
-        self.update_metrics(model_inputs_and_labels.subject_ids, model_output, label_gpu)
+        if self.compute_mean_teacher_model:
+            mean_teacher_model.eval()
+            with torch.no_grad():
+                mean_teacher_model_output = mean_teacher_model.forward(*model_inputs_and_labels.model_inputs)
+            if isinstance(mean_teacher_model_output, list):
+                mean_teacher_model_output = torch.nn.parallel.gather(mean_teacher_model_output, target_device=0)
+            mean_teacher_model_output = self.model_config.get_post_loss_logits_normalization_function()(
+                mean_teacher_model_output)
+            self.update_metrics(model_inputs_and_labels.subject_ids, mean_teacher_model_output, label_gpu)
+        else:
+            self.update_metrics(model_inputs_and_labels.subject_ids, model_output, label_gpu)
         logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
         minibatch_time = time.time() - start_time
         self.metrics.add_metric(MetricType.SECONDS_PER_BATCH, minibatch_time)
@@ -400,6 +416,16 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         return self.model_config.is_regression_model \
                and (not self.in_training_mode) \
                and self.model_config.should_save_epoch(epoch)
+
+    def update_mean_teacher_parameters(self):
+        alpha = 0.99
+        mean_teacher_model = self.train_val_params.mean_teacher_model
+        model = self.train_val_params.model
+        if isinstance(mean_teacher_model, DataParallelModel):
+            mean_teacher_model = mean_teacher_model.module
+            model = model.module
+        for mean_teacher_param, param in zip(mean_teacher_model.parameters(), model.parameters()):
+            mean_teacher_param.data.mul_(alpha).add_(1 - alpha, param.data)
 
 
 class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[SequenceModelBase]):

@@ -87,6 +87,7 @@ class ToySequenceModel(SequenceModelBase):
             use_mixed_precision=True,
             label_smoothing_eps=0.05,
             drop_last_batch_in_training=True,
+            compute_mean_teacher_model=True,
             **kwargs
         )
         self.use_combined_model = use_combined_model

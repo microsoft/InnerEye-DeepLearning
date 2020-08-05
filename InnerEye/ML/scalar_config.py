@@ -173,6 +173,7 @@ class ScalarModelBase(ModelConfigBase):
                                                                              instantiate=False,
                                                                              doc="The aggregation method to use when"
                                                                                  "testing ensemble models.")
+    compute_mean_teacher_model: bool = param.Boolean(default=False, doc="If True compute the mean teacher model.")
 
     def __init__(self, num_dataset_reader_workers: int = 0, **params: Any) -> None:
         super().__init__(**params)

@@ -81,6 +81,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # Create model.
     model = config.create_model()
+    if config.compute_mean_teacher_model:
+        mean_teacher_model = config.create_model()
 
     # Create the optimizer_type and loss criterion
     optimizer: Optional[Optimizer] = model_util.create_optimizer(config, model)
@@ -107,6 +109,10 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     # Enable mixed precision training and data parallelization.
     # This relies on the information generated in the model summary.
     model, optimizer = model_util.update_model_for_mixed_precision_and_parallel(model, config, optimizer)
+    if config.compute_mean_teacher_model:
+        mean_teacher_model, _ = model_util.update_model_for_mixed_precision_and_parallel(mean_teacher_model, config)
+    else:
+        mean_teacher_model = None
 
     # Create the SummaryWriters for Tensorboard
     writers = create_summary_writers(config)
@@ -136,6 +142,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         train_val_params: TrainValidateParameters = \
             TrainValidateParameters(data_loader=data_loaders[ModelExecutionMode.TRAIN],
                                     model=model,
+                                    mean_teacher_model=mean_teacher_model,
                                     epoch=epoch,
                                     optimizer=optimizer,
                                     epoch_learning_rate=epoch_lrs,
@@ -157,7 +164,10 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                                        val_epoch_results)
 
         if config.should_save_epoch(epoch) and optimizer is not None:
-            save_checkpoint(model, optimizer, epoch, config)
+            if config.compute_mean_teacher_model:
+                save_checkpoint(mean_teacher_model, optimizer, epoch, config)
+            else:
+                save_checkpoint(model, optimizer, epoch, config)
 
         # Updating the learning rate should happen at the end of the training loop, so that the
         # initial learning rate will be used for the very first epoch.
