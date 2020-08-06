@@ -311,9 +311,8 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
 
         if self.in_training_mode:
             single_optimizer_step(self.model_config, loss, self.train_val_params.optimizer)
-
-        if self.model_config.compute_mean_teacher_model:
-            self.update_mean_teacher_parameters()
+            if self.model_config.compute_mean_teacher_model:
+                self.update_mean_teacher_parameters()
 
         if isinstance(model_output, list):
             # When using multiple GPUs, model_output is a list of tensors. Gather will concatenate them
@@ -418,14 +417,19 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                and self.model_config.should_save_epoch(epoch)
 
     def update_mean_teacher_parameters(self):
-        alpha = 0.99
+        """
+        Updates the mean teacher model parameters as per the update formula
+        mean_teacher_model_weight = alpha * (mean_teacher_model_weight) + (1-alpha) * (student_model_weight)
+        see https://arxiv.org/abs/1703.01780
+        """
         mean_teacher_model = self.train_val_params.mean_teacher_model
         model = self.train_val_params.model
         if isinstance(mean_teacher_model, DataParallelModel):
             mean_teacher_model = mean_teacher_model.module
             model = model.module
         for mean_teacher_param, param in zip(mean_teacher_model.parameters(), model.parameters()):
-            mean_teacher_param.data.mul_(alpha).add_(1 - alpha, param.data)
+            mean_teacher_param.data.mul_(self.model_config.mean_teacher_alpha).add_(
+                1 - self.model_config.mean_teacher_alpha, param.data)
 
 
 class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[SequenceModelBase]):
