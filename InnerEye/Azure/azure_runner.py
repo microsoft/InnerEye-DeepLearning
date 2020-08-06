@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 import argparse
 import logging
-import os
 import signal
 import sys
 from argparse import ArgumentError, ArgumentParser, Namespace
