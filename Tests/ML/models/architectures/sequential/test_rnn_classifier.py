@@ -456,7 +456,7 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: TestOutputDire
 
 
 @pytest.mark.parametrize("combine_hidden_states", [True, False])
-def test_pad_input_to_required_length(combine_hidden_states: bool) -> None:
+def test_pad_gru_output(combine_hidden_states: bool) -> None:
     """
     Test to make sure if model output does not cover the target indices then it is padded
     """
@@ -468,12 +468,12 @@ def test_pad_input_to_required_length(combine_hidden_states: bool) -> None:
     model: RNNClassifier = config.create_model()
     # base case where no padding is required
     test_input = torch.rand(max(config.get_target_indices()) + 1, 1)
-    padded = model.pad_input_to_required_length(test_input)
+    padded = model.pad_gru_output(test_input)
     assert torch.equal(test_input, padded)
     # case when padding is required
     test_input = torch.rand(min(config.get_target_indices()) - 1, 1)
     expected = torch.cat([test_input, test_input.new_full((4, 1), fill_value=0)], dim=0)
-    padded = model.pad_input_to_required_length(test_input)
+    padded = model.pad_gru_output(test_input)
     assert torch.allclose(expected, padded)
 
 
