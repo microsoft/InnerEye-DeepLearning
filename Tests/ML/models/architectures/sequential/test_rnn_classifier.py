@@ -62,6 +62,7 @@ class ToySequenceModel(SequenceModelBase):
                  combine_hidden_states: bool = False,
                  use_encoder_layer_norm: bool = False,
                  sequence_target_positions: Optional[List[int]] = None,
+                 use_mean_teacher_model: bool = False,
                  **kwargs: Any) -> None:
         num_epochs = 3
         sequence_target_positions = [2] if sequence_target_positions is None else sequence_target_positions
@@ -87,7 +88,7 @@ class ToySequenceModel(SequenceModelBase):
             use_mixed_precision=True,
             label_smoothing_eps=0.05,
             drop_last_batch_in_training=True,
-            compute_mean_teacher_model=True,
+            compute_mean_teacher_model=use_mean_teacher_model,
             **kwargs
         )
         self.use_combined_model = use_combined_model
@@ -183,11 +184,13 @@ def _get_mock_sequence_dataset(dataset_contents: Optional[str] = None) -> pd.Dat
                           (True, ImagingFeatureType.ImageAndSegmentation)])
 @pytest.mark.parametrize("combine_hidden_state", (True, False))
 @pytest.mark.parametrize("use_encoder_layer_norm", (True, False))
+@pytest.mark.parametrize("use_mean_teacher_model", (True, False))
 @pytest.mark.gpu
 def test_rnn_classifier_via_config_1(use_combined_model: bool,
                                      imaging_feature_type: ImagingFeatureType,
                                      combine_hidden_state: bool,
                                      use_encoder_layer_norm: bool,
+                                     use_mean_teacher_model: bool,
                                      test_output_dirs: TestOutputDirectories) -> None:
     """
     Test if we can build a simple RNN model that only feeds off non-image features.
@@ -198,6 +201,7 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
                               imaging_feature_type=imaging_feature_type,
                               combine_hidden_states=combine_hidden_state,
                               use_encoder_layer_norm=use_encoder_layer_norm,
+                              use_mean_teacher_model=use_mean_teacher_model,
                               should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
