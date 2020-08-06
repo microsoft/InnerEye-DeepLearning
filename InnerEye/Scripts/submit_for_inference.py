@@ -86,15 +86,14 @@ def download_conda_dependency_files(model: Model, dir_path: Path) -> List[Path]:
     downloaded: List[Path] = []
     for path, url in url_dict.items():
         if Path(path).name == ENVIRONMENT_YAML_FILE_NAME:
-            tgt_path = dir_path / f"tmp_environment_{len(downloaded) + 1:03d}.yml"
-            with tgt_path.open('wb') as out:
-                out.write(requests.get(url, allow_redirects=True).content)
+            target_path = dir_path / f"tmp_environment_{len(downloaded) + 1:03d}.yml"
+            target_path.write_bytes(requests.get(url, allow_redirects=True).content)
             # Remove additional information from the URL to make it more legible
             index = url.find("?")
             if index > 0:
                 url = url[:index]
-            logging.info(f"Downloaded {tgt_path} from {url}")
-            downloaded.append(tgt_path)
+            logging.info(f"Downloaded {target_path} from {url}")
+            downloaded.append(target_path)
     if not downloaded:
         logging.warning(f"No {ENVIRONMENT_YAML_FILE_NAME} files found in the model!")
     return downloaded
