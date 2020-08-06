@@ -28,9 +28,9 @@ class RunRecovery:
     checkpoints_roots: List[Path]
 
     @staticmethod
-    def download_checkpoints(azure_config: AzureConfig,
-                             config: ModelConfigBase,
-                             run_context: Optional[Run] = None) -> RunRecovery:
+    def download_checkpoints_from_recovery_run(azure_config: AzureConfig,
+                                               config: ModelConfigBase,
+                                               run_context: Optional[Run] = None) -> RunRecovery:
         """
         Downloads checkpoints of run corresponding to the run_recovery_id in azure_config, and any
         checkpoints of the child runs if they exist.
@@ -43,36 +43,42 @@ class RunRecovery:
         run_context = run_context or RUN_CONTEXT
         workspace = azure_config.get_workspace()
 
-        # find the run to recover in AML workspace
+        # Find the run to recover in AML workspace
         if not azure_config.run_recovery_id:
             raise ValueError("A valid run_recovery_id is required to download recovery checkpoints, found None")
 
         run_to_recover = fetch_run(workspace, azure_config.run_recovery_id.strip())
-        child_runs: List[Run] = fetch_child_runs(run_to_recover)
-
-        # handle recovery of a HyperDrive cross validation run
+        # Handle recovery of a HyperDrive cross validation run (from within a successor HyperDrive run,
+        # not in ensemble creation). In this case, run_recovery_id refers to the parent prior run, so we
+        # need to set run_to_recover to the child of that run whose split index is the same as that of
+        # the current (child) run.
         if is_cross_validation_child_run(run_context):
-            run_to_recover = next(x for x in child_runs if
+            run_to_recover = next(x for x in fetch_child_runs(run_to_recover) if
                                   get_cross_validation_split_index(x) == get_cross_validation_split_index(run_context))
-            child_runs = fetch_child_runs(run_to_recover)
 
-        run_to_recover = fetch_run(workspace, azure_config.run_recovery_id.strip())
         return RunRecovery.download_checkpoints_from_run(azure_config, config, run_to_recover)
 
     @staticmethod
     def download_checkpoints_from_run(azure_config: AzureConfig,
                                       config: ModelConfigBase,
-                                      run_to_recover: Run) -> RunRecovery:
-        child_runs: List[Run] = fetch_child_runs(run_to_recover)
-        logging.info(f"DBG: run_to_recover has ID {run_to_recover.id} and initial child runs are:")
+                                      run: Run) -> RunRecovery:
+        """
+        Downloads checkpoints of the provided run or, if applicable, its children.
+        :param azure_config: Azure related configs.
+        :param config: Model related configs.
+        :param run: Run whose checkpoints should be recovered
+        :return: run recovery information
+        """
+        child_runs: List[Run] = fetch_child_runs(run)
+        logging.info(f"DBG: run has ID {run.id} and initial child runs are:")
         for child_run in child_runs:
             logging.info(f"DBG:     {child_run.id}")
-        root_output_dir = Path(config.checkpoint_folder) / run_to_recover.id
+        root_output_dir = Path(config.checkpoint_folder) / run.id
         # download checkpoints for the run
         azure_config.download_outputs_from_run(
             blobs_path=Path(CHECKPOINT_FOLDER),
             destination=root_output_dir,
-            run=run_to_recover
+            run=run
         )
         if len(child_runs) > 0:
             # download checkpoints for the child runs in the root of the parent

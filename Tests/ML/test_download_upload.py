@@ -47,7 +47,7 @@ def test_download_checkpoints(test_output_dirs: TestOutputDirectories, is_ensemb
     config.set_output_to(output_dir)
 
     runner_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID if is_ensemble else DEFAULT_RUN_RECOVERY_ID
-    run_recovery = RunRecovery.download_checkpoints(runner_config, config)
+    run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config)
     run_to_recover = fetch_run(workspace=runner_config.get_workspace(), run_recovery_id=runner_config.run_recovery_id)
     expected_checkpoint_file = "1" + CHECKPOINT_FILE_SUFFIX
     if is_ensemble:
@@ -82,7 +82,7 @@ def test_download_checkpoints_hyperdrive_run(test_output_dirs: TestOutputDirecto
     expected_checkpoint_file = "1" + CHECKPOINT_FILE_SUFFIX
     for child in child_runs:
         expected_files = [Path(config.checkpoint_folder) / child.id / expected_checkpoint_file]
-        run_recovery = RunRecovery.download_checkpoints(runner_config, config, child)
+        run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config, child)
         assert all([x in expected_files for x in run_recovery.get_checkpoint_paths(epoch=1)])
         assert all([expected_file.exists() for expected_file in expected_files])
 

@@ -168,7 +168,7 @@ class MLRunner:
         # configure recovery container if provided
         run_recovery: Optional[RunRecovery] = None
         if self.azure_config.run_recovery_id:
-            run_recovery = RunRecovery.download_checkpoints(self.azure_config, self.model_config, RUN_CONTEXT)
+            run_recovery = RunRecovery.download_checkpoints_from_recovery_run(self.azure_config, self.model_config, RUN_CONTEXT)
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
         if self.azure_config.register_model_only_for_epoch is None or run_recovery is None:
