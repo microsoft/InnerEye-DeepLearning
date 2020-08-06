@@ -207,7 +207,7 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
         model_train(config)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
+@pytest.mark.skipif(False, reason="Has issues on windows build")
 @pytest.mark.parametrize(["use_combined_model", "imaging_feature_type"],
                          [(False, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Image),
@@ -220,11 +220,17 @@ def test_run_ml_with_sequence_model(use_combined_model: bool,
     Test training and testing of sequence models, when it is started together via run_ml.
     """
     logging_to_stdout()
-    config = ToySequenceModel(use_combined_model, imaging_feature_type, should_validate=False)
+    config = ToySequenceModel(use_combined_model, imaging_feature_type,
+                              should_validate=False, sequence_target_positions=[2, 10])
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     config.num_epochs = 1
     config.max_batch_grad_cam = 1
+
+    # make sure we are testing with at least one sequence position that will not exist
+    # to ensure correct handling of sequences that do not contain all the expected target positions
+    assert max(config.sequence_target_positions) > config.dataset_data_frame[config.sequence_column].astype(float).max()
+
     # Patch the load_images function that will be called once we access a dataset item
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, SCAN_SIZE),
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
