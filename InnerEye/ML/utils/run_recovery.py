@@ -12,7 +12,8 @@ from typing import List, Optional
 from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import RUN_CONTEXT, fetch_child_runs, fetch_run
+from InnerEye.Azure.azure_util import RUN_CONTEXT, fetch_child_runs, fetch_run, get_cross_validation_split_index, \
+    is_cross_validation_child_run
 from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.ML.common import create_checkpoint_path
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
@@ -41,6 +42,13 @@ class RunRecovery:
         """
         run_context = run_context or RUN_CONTEXT
         workspace = azure_config.get_workspace()
+
+        child_runs = fetch_child_runs(run_to_recover)
+        # handle recovery of a HyperDrive cross validation run
+        if is_cross_validation_child_run(run_context):
+            run_to_recover = next(x for x in child_runs if
+                                  get_cross_validation_split_index(x) == get_cross_validation_split_index(run_context))
+            child_runs = fetch_child_runs(run_to_recover)
 
         # find the run to recover in AML workspace
         if not azure_config.run_recovery_id:
