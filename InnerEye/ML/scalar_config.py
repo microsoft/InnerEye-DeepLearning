@@ -173,7 +173,18 @@ class ScalarModelBase(ModelConfigBase):
                                                                              instantiate=False,
                                                                              doc="The aggregation method to use when"
                                                                                  "testing ensemble models.")
-    compute_mean_teacher_model: bool = param.Boolean(default=False, doc="If True compute the mean teacher model.")
+    compute_mean_teacher_model: bool = param.Boolean(default=False,
+                                                     doc="If True compute the mean teacher model. In this case, "
+                                                         "we only report metrics and cross-validation results for the "
+                                                         "mean teacher model. Likewise the model saved to checkpoint "
+                                                         "is the mean teacher model. The student model is only used "
+                                                         "for training.")
+    mean_teacher_alpha: float = param.Number(default=0.99,
+                                             doc="The momentum term for weight updates of the mean teacher model. "
+                                                 "Only used if compute_mean_teacher_model is set to True. After each "
+                                                 "training step the mean teacher model weights are updated using "
+                                                 "mean_teacher_weight = alpha * (mean_teacher_weight) "
+                                                 " + (1-alpha) * (current_student_weights).")
 
     def __init__(self, num_dataset_reader_workers: int = 0, **params: Any) -> None:
         super().__init__(**params)
