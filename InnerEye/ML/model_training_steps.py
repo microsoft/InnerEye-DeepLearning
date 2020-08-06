@@ -416,7 +416,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                and (not self.in_training_mode) \
                and self.model_config.should_save_epoch(epoch)
 
-    def update_mean_teacher_parameters(self):
+    def update_mean_teacher_parameters(self) -> None:
         """
         Updates the mean teacher model parameters as per the update formula
         mean_teacher_model_weight = alpha * (mean_teacher_model_weight) + (1-alpha) * (student_model_weight)
@@ -427,9 +427,9 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         if isinstance(mean_teacher_model, DataParallelModel):
             mean_teacher_model = mean_teacher_model.module
             model = model.module
-        for mean_teacher_param, param in zip(mean_teacher_model.parameters(), model.parameters()):
+        for mean_teacher_param, student_param in zip(mean_teacher_model.parameters(), model.parameters()):
             mean_teacher_param.data.mul_(self.model_config.mean_teacher_alpha).add_(
-                1 - self.model_config.mean_teacher_alpha, param.data)
+                1 - self.model_config.mean_teacher_alpha, student_param.data)
 
 
 class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[SequenceModelBase]):

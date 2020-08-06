@@ -7,7 +7,6 @@ from typing import Any, List, Optional, Union
 import numpy as np
 import pytest
 import torch
-from torch import nn
 
 from InnerEye.Common import common_util
 from InnerEye.ML.common import ModelExecutionMode
@@ -191,7 +190,7 @@ def test_use_gpu_flag(use_gpu_override: bool) -> None:
 
 
 @pytest.mark.gpu
-def test_mean_teacher_model():
+def test_mean_teacher_model() -> None:
     """
     Test training and weight updates of the mean teacher model computation.
     """
