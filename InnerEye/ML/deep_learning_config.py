@@ -295,6 +295,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                       doc="If True, drop the last incomplete batch during"
                                                           "training. If all batches are complete, no batch gets "
                                                           "dropped. If False, keep all batches.")
+    log_summaries_to_files: bool = param.Boolean(
+        default=True,
+        doc="If True, model summaries are logged to files in logs/model_summaries; "
+            "if False, to stdout or driver log")
     compute_mean_teacher_model: bool = param.Boolean(default=False,
                                                      doc="If True compute the mean teacher model. In this case, "
                                                          "we only report metrics and cross-validation results for the "

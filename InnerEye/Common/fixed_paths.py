@@ -31,6 +31,7 @@ DEFAULT_AML_UPLOAD_DIR = "outputs"
 DEFAULT_AML_LOGS_DIR = "azureml-logs"
 
 DEFAULT_LOGS_DIR_NAME = "logs"
+DEFAULT_MODEL_SUMMARIES_DIR_PATH = Path(DEFAULT_LOGS_DIR_NAME) / "model_summaries"
 DATASETS_DIR_NAME = "datasets"
 DATASETS_ACCOUNT_NAME = "innereyepublicdatasets"
 # Inside of the AzureML workspace, a Datastore has to be created manually. That Datastore
