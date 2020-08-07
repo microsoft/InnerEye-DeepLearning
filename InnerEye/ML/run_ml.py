@@ -123,23 +123,24 @@ class MLRunner:
         """
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run."
         run_tags_parent = PARENT_RUN_CONTEXT.get_tags()
-        azure_config = self.azure_config
-        RUN_CONTEXT.set_tags({
-            "tag": run_tags_parent["tag"],
-            "model_name": run_tags_parent["model_name"],
-            "execution_mode": run_tags_parent["execution_mode"],
-            RUN_RECOVERY_ID_KEY_NAME: create_run_recovery_id(run=RUN_CONTEXT),
-            "recovered_from": run_tags_parent["recovered_from"],
-            "friendly_name": azure_config.user_friendly_name,
-            "build_number": str(azure_config.build_number),
-            "build_user": azure_config.build_user,
-            "build_source_repository": azure_config.build_source_repository,
-            "build_source_branch": azure_config.build_branch,
-            "build_source_id": azure_config.build_source_id,
-            "build_source_message": azure_config.build_source_message,
-            "build_build_source_author": azure_config.build_source_author,
-            CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: str(self.model_config.cross_validation_split_index),
-        })
+        tags_to_copy = [
+            "tag",
+            "model_name",
+            "execution_mode",
+            "recovered_from",
+            "friendly_name",
+            "build_number",
+            "build_user",
+            "build_source_repository",
+            "build_source_branch",
+            "build_source_id",
+            "build_source_message",
+            "build_build_source_author",
+        ]
+        new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
+        new_tags[RUN_RECOVERY_ID_KEY_NAME] = create_run_recovery_id(run=RUN_CONTEXT)
+        new_tags[CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY] = str(self.model_config.cross_validation_split_index)
+        RUN_CONTEXT.set_tags(new_tags)
 
     def run(self) -> None:
         """
@@ -453,7 +454,7 @@ class MLRunner:
 
         # log the metrics to AzureML experiment if possible
         if config.is_segmentation_model and run_context is not None:
-            log_metrics(val_metrics=val_metrics, test_metrics=test_metrics,    # type: ignore
+            log_metrics(val_metrics=val_metrics, test_metrics=test_metrics,  # type: ignore
                         train_metrics=train_metrics, run_context=run_context)  # type: ignore
 
         return test_metrics, val_metrics, train_metrics  # type: ignore
