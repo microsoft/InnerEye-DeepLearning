@@ -85,8 +85,8 @@ class RunRecovery:
         else:
             return RunRecovery(checkpoints_roots=[root_output_dir])
 
-    def get_checkpoint_paths(self, epoch: int) -> List[Path]:
-        return [create_checkpoint_path(x, epoch) for x in self.checkpoints_roots]
+    def get_checkpoint_paths(self, epoch: int, for_mean_teacher_model: bool = False) -> List[Path]:
+        return [create_checkpoint_path(x, epoch, for_mean_teacher_model) for x in self.checkpoints_roots]
 
     def _validate(self) -> None:
         check_properties_are_not_none(self)

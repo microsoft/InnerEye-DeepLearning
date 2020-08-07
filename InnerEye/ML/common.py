@@ -10,7 +10,7 @@ from typing import Any, Dict, List
 
 DATASET_CSV_FILE_NAME = "dataset.csv"
 CHECKPOINT_FILE_SUFFIX = "_checkpoint.pth.tar"
-
+MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX = "_mean_teacher_checkpoint.pth.tar"
 
 @unique
 class ModelExecutionMode(Enum):
@@ -57,14 +57,17 @@ class TrackedMetrics(Enum):
     Val_Loss = "Val_Loss"
 
 
-def create_checkpoint_path(path: Path, epoch: int) -> Path:
-    """Given a path and checkpoint, formats a path based on the checkpoint file name format."""
-    return path / "{}{}".format(epoch, CHECKPOINT_FILE_SUFFIX)
+def create_checkpoint_path(path: Path, epoch: int, for_mean_teacher_model: bool = False) -> Path:
+    """
+    Given a path and checkpoint, formats a path based on the checkpoint file name format.
+    """
+    filename = MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX if for_mean_teacher_model else CHECKPOINT_FILE_SUFFIX
+    return path / "{}{}".format(epoch, filename)
 
 
 def create_unique_timestamp_id() -> str:
     """
-    creates a unique string using the current time in UTC, up to seconds precision, with characters that
+    Creates a unique string using the current time in UTC, up to seconds precision, with characters that
     are suitable for use in filenames. For example, on 31 Dec 2019 at 11:59:59pm UTC, the result would be
     2019-12-31T235959Z.
     """

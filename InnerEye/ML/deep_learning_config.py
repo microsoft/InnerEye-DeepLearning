@@ -19,7 +19,8 @@ from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_LOGS_DIR_NAME, DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, create_unique_timestamp_id
+from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, \
+    create_unique_timestamp_id
 
 VISUALIZATION_FOLDER = "Visualizations"
 CHECKPOINT_FOLDER = "checkpoints"
@@ -299,18 +300,16 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         default=True,
         doc="If True, model summaries are logged to files in logs/model_summaries; "
             "if False, to stdout or driver log")
-    compute_mean_teacher_model: bool = param.Boolean(default=False,
-                                                     doc="If True compute the mean teacher model. In this case, "
-                                                         "we only report metrics and cross-validation results for the "
-                                                         "mean teacher model. Likewise the model saved to checkpoint "
-                                                         "is the mean teacher model. The student model is only used "
-                                                         "for training.")
-    mean_teacher_alpha: float = param.Number(default=0.99,
-                                             doc="The momentum term for weight updates of the mean teacher model. "
-                                                 "Only used if compute_mean_teacher_model is set to True. After each "
-                                                 "training step the mean teacher model weights are updated using "
-                                                 "mean_teacher_weight = alpha * (mean_teacher_weight) "
-                                                 " + (1-alpha) * (current_student_weights).")
+    mean_teacher_alpha: float = param.Number(bounds=(0, 1), allow_None=True, default=None,
+                                             doc="If this value is set, the mean teacher model will be computed. "
+                                                 "Currently only supported for scalar models. In this case, we only "
+                                                 "report metrics and cross-validation results for "
+                                                 "the mean teacher model. Likewise the model used for inference "
+                                                 "is the mean teacher model. The student model is only used for "
+                                                 "training. Alpha is the momentum term for weight updates of the mean "
+                                                 "teacher model. After each training step the mean teacher model weights "
+                                                 "are updated using mean_teacher_weight = alpha * (mean_teacher_weight) "
+                                                 " + (1-alpha) * (current_student_weights). ")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
@@ -505,15 +504,16 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                 test_epochs.add(epoch)
         return sorted(test_epochs)
 
-    def get_path_to_checkpoint(self, epoch: int) -> Path:
+    def get_path_to_checkpoint(self, epoch: int, for_mean_teacher_model: bool = False) -> Path:
         """
         Returns full path to a checkpoint given an epoch
         :param epoch: the epoch number
         :return: path to a checkpoint given an epoch
         """
+        filename = MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX if for_mean_teacher_model else CHECKPOINT_FILE_SUFFIX
         return fixed_paths.repository_root_directory() \
                / self.checkpoint_folder \
-               / f"{epoch}{CHECKPOINT_FILE_SUFFIX}"
+               / f"{epoch}{filename}"
 
     @property  # type: ignore
     def use_gpu(self) -> bool:  # type: ignore
@@ -572,6 +572,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         Returns True if the run is executing outside AzureML, or False if inside AzureML.
         """
         return is_offline_run_context(RUN_CONTEXT)
+
+    @property
+    def compute_mean_teacher_model(self) -> bool:
+        return self.mean_teacher_alpha is not None
 
     def __str__(self) -> str:
         """Returns a string describing the present object, as a list of key == value pairs."""
