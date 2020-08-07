@@ -425,11 +425,11 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         mean_teacher_model = self.train_val_params.mean_teacher_model
         model = self.train_val_params.model
         if isinstance(mean_teacher_model, DataParallelModel):
-            mean_teacher_model = mean_teacher_model.module
-            model = model.module
+            mean_teacher_model = mean_teacher_model.module  # type: ignore
+            model = model.module  # type: ignore
         for mean_teacher_param, student_param in zip(mean_teacher_model.parameters(), model.parameters()):
-            mean_teacher_param.data.mul_(self.model_config.mean_teacher_alpha).add_(
-                1 - self.model_config.mean_teacher_alpha, student_param.data)
+            mean_teacher_param.data = self.model_config.mean_teacher_alpha * mean_teacher_param.data \
+                                      + (1 - self.model_config.mean_teacher_alpha) * student_param.data
 
 
 class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[SequenceModelBase]):
