@@ -220,11 +220,17 @@ def test_run_ml_with_sequence_model(use_combined_model: bool,
     Test training and testing of sequence models, when it is started together via run_ml.
     """
     logging_to_stdout()
-    config = ToySequenceModel(use_combined_model, imaging_feature_type, should_validate=False)
+    config = ToySequenceModel(use_combined_model, imaging_feature_type,
+                              should_validate=False, sequence_target_positions=[2, 10])
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     config.num_epochs = 1
     config.max_batch_grad_cam = 1
+
+    # make sure we are testing with at least one sequence position that will not exist
+    # to ensure correct handling of sequences that do not contain all the expected target positions
+    assert max(config.sequence_target_positions) > config.dataset_data_frame[config.sequence_column].astype(float).max()
+
     # Patch the load_images function that will be called once we access a dataset item
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, SCAN_SIZE),
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
@@ -456,7 +462,7 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: TestOutputDire
 
 
 @pytest.mark.parametrize("combine_hidden_states", [True, False])
-def test_pad_input_to_required_length(combine_hidden_states: bool) -> None:
+def test_pad_gru_output(combine_hidden_states: bool) -> None:
     """
     Test to make sure if model output does not cover the target indices then it is padded
     """
@@ -468,12 +474,12 @@ def test_pad_input_to_required_length(combine_hidden_states: bool) -> None:
     model: RNNClassifier = config.create_model()
     # base case where no padding is required
     test_input = torch.rand(max(config.get_target_indices()) + 1, 1)
-    padded = model.pad_input_to_required_length(test_input)
+    padded = model.pad_gru_output(test_input)
     assert torch.equal(test_input, padded)
     # case when padding is required
     test_input = torch.rand(min(config.get_target_indices()) - 1, 1)
     expected = torch.cat([test_input, test_input.new_full((4, 1), fill_value=0)], dim=0)
-    padded = model.pad_input_to_required_length(test_input)
+    padded = model.pad_gru_output(test_input)
     assert torch.allclose(expected, padded)
 
 
