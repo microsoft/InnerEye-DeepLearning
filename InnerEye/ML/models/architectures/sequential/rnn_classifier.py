@@ -75,6 +75,9 @@ class RNNClassifier(DeviceAwareModule[List[ClassificationItemSequence], torch.Te
         # GRU forward pass and linear mapping from hidden state to the output space.
         # gru_out of shape [batch_size, seq_length, hidden_dim]
         gru_out: torch.Tensor = self.gru(input_seq[0], self.h0.repeat(1, batch_size, 1))
+        # pad the gru output if required to ensure values for each target index
+        gru_out = self.pad_gru_output(gru_out)
+
         if self.ref_indices is None:
             return self.hidden2class(gru_out[:, self.target_indices, :])
         else:
@@ -84,9 +87,9 @@ class RNNClassifier(DeviceAwareModule[List[ClassificationItemSequence], torch.Te
                 predictions.append(self.hidden2class(input_to_classifier))
             return torch.stack(predictions, dim=1)
 
-    def pad_input_to_required_length(self, input: torch.Tensor) -> torch.Tensor:
+    def pad_gru_output(self, input: torch.Tensor) -> torch.Tensor:
         """
-        Pad the input if required to make sure to make sure to produce an output for each target index
+        Pad the GRU output with zeros if required to make sure to make sure there is a value for each target index
         this RNN classifier is initialized with.
         """
         current_sequence_length = len(range(input.shape[0]))
@@ -106,7 +109,7 @@ class RNNClassifier(DeviceAwareModule[List[ClassificationItemSequence], torch.Te
         """
         Returns the input tensors as a List where the first element corresponds to the non-imaging features.
         """
-        seq_flattened = [self.pad_input_to_required_length(torch.stack([i.get_all_non_imaging_features() for i in seq.items], dim=0))
+        seq_flattened = [torch.stack([i.get_all_non_imaging_features() for i in seq.items], dim=0)
                          for seq in sequences]
         return [sequences_to_padded_tensor(seq_flattened)]
 
