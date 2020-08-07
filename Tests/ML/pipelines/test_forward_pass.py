@@ -213,8 +213,9 @@ def test_mean_teacher_model() -> None:
 
     # Retrieve the weight after one epoch
     model = config.create_model()
+    print(config.get_path_to_checkpoint(1))
     _ = model_util.load_checkpoint(model, config.get_path_to_checkpoint(1))
-    student_model_weight = next(_get_parameters_of_model(model))
+    model_weight = next(_get_parameters_of_model(model))
 
     # Get the starting weight of the mean teacher model
     ml_util.set_random_seed(config.random_seed)
@@ -223,13 +224,21 @@ def test_mean_teacher_model() -> None:
     initial_weight_mean_teacher_model = next(_get_parameters_of_model(mean_teach_model))
 
     # Now train with mean teacher and check the update of the weight
-    config.compute_mean_teacher_model = True
+    alpha = 0.999
+    config.mean_teacher_alpha = alpha
     model_train(config)
 
     # Retrieve weight of mean teacher model saved in the checkpoint
     mean_teacher_model = config.create_model()
-    _ = model_util.load_checkpoint(mean_teacher_model, config.get_path_to_checkpoint(1))
+    _ = model_util.load_checkpoint(mean_teacher_model, config.get_path_to_checkpoint(1, for_mean_teacher_model=True))
     result_weight = next(_get_parameters_of_model(mean_teacher_model))
+    # Retrieve the associated student weight
+    _ = model_util.load_checkpoint(model, config.get_path_to_checkpoint(1))
+    student_model_weight = next(_get_parameters_of_model(model))
 
-    alpha = config.mean_teacher_alpha
+    # Assert that the student weight corresponds to the weight of a simple training without mean teacher
+    # computation
+    assert student_model_weight.allclose(model_weight)
+
+    # Check the update of the parameters
     assert torch.all(alpha * initial_weight_mean_teacher_model + (1 - alpha) * student_model_weight == result_weight)
