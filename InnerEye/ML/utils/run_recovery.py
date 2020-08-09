@@ -70,9 +70,9 @@ class RunRecovery:
         :return: run recovery information
         """
         child_runs: List[Run] = fetch_child_runs(run)
-        logging.info(f"DBG: run has ID {run.id} and initial child runs are:")
+        logging.debug(f"Run has ID {run.id} and initial child runs are:")
         for child_run in child_runs:
-            logging.info(f"DBG:     {child_run.id}")
+            logging.debug(f"     {child_run.id}")
         root_output_dir = Path(config.checkpoint_folder) / run.id
         # download checkpoints for the run
         azure_config.download_outputs_from_run(

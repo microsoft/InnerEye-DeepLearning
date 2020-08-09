@@ -149,11 +149,11 @@ class Runner:
             self.azure_config, self.model_config, PARENT_RUN_CONTEXT)
         # Check paths are good, just in case
         for path in run_recovery.checkpoints_roots:
-            logging.info(f"DBG: checkpoint path: {path}")
+            logging.debug(f"Checkpoint path: {path}")
             if not path.is_dir():
                 raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
             for name in sorted(path.rglob("*")):
-                logging.info(f"DBG:   {name}")
+                logging.debug(f"   {name}")
         # Adjust parameters
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
