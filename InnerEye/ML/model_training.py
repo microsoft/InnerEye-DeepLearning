@@ -81,8 +81,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # Create model.
     model = config.create_model()
-    if config.compute_mean_teacher_model:
-        mean_teacher_model = config.create_model()
+    mean_teacher_model = config.create_model() if config.compute_mean_teacher_model else None
 
     # Create the optimizer_type and loss criterion
     optimizer: Optional[Optimizer] = model_util.create_optimizer(config, model)
@@ -115,8 +114,6 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     model, optimizer = model_util.update_model_for_mixed_precision_and_parallel(model, config, optimizer)
     if config.compute_mean_teacher_model:
         mean_teacher_model, _ = model_util.update_model_for_mixed_precision_and_parallel(mean_teacher_model, config)
-    else:
-        mean_teacher_model = None
 
     # Create the SummaryWriters for Tensorboard
     writers = create_summary_writers(config)
