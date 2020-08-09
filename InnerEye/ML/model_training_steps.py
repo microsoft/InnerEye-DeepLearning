@@ -288,7 +288,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         return self.model_config.get_gpu_tensor_if_possible(labels)
 
     def get_logits_and_outputs(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
-            -> Tuple[Union[List[torch.Tensor], torch.Tensor], torch.Tensor]:
+            -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns a Tuple containing the logits and the final model output. Note that the logits might be
         distributed over multiple GPU if the model is an instance of DataParallel. In this case, the model outputs on
@@ -304,10 +304,10 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         else:
             logits = self.train_val_params.model(*model_inputs)
         if isinstance(logits, list):
-            # When using multiple GPUs, model_output is a list of tensors. Gather will concatenate them
+            # When using multiple GPUs, logits is a list of tensors. Gather will concatenate them
             # across the first dimension, and move them to GPU0.
-            logits = torch.nn.parallel.gather(logits, target_device=0)
-        model_output = self.model_config.get_post_loss_logits_normalization_function()(logits)
+            model_output = torch.nn.parallel.gather(logits, target_device=0)
+        model_output = self.model_config.get_post_loss_logits_normalization_function()(model_output)
         return logits, model_output
 
     def forward_and_backward_minibatch(self, sample: Dict[str, Any], batch_index: int, epoch: int) -> float:
