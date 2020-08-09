@@ -210,7 +210,7 @@ class MLRunner:
             self.register_model_for_epoch(
                 RUN_CONTEXT,
                 run_recovery,
-                self.azure_config.register_model_only_for_epoch,  # type: ignore
+                registration_epoch,
                 float("nan"))
             if self.azure_config.register_model_only_for_epoch is not None:
                 return
