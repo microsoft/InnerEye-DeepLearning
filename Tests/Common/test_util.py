@@ -17,6 +17,8 @@ DEFAULT_RUN_RECOVERY_ID = "melanibe_setup_branch_mock:melanibe_setup_branch_mock
 DEFAULT_ENSEMBLE_RUN_RECOVERY_ID_NUMERIC = "mebernha_local_branch:5"
 DEFAULT_RUN_RECOVERY_ID_NUMERIC = "melanibe_setup_branch_mock:1"
 
+DEFAULT_MODEL_ID_NUMERIC = "BasicModel2Epochs:36"
+
 
 def test_get_items_from_string() -> None:
     """

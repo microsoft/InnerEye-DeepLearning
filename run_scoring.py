@@ -66,10 +66,9 @@ def write_script(parser: argparse.ArgumentParser, script_path: Path, project_roo
         submodule_abs = project_root / INNEREYE_SUBMODULE_NAME
         components = [project_root, submodule_abs]
         # These lines can be uncommented for diagnostics:
-        # echo(f"Listing {project_root}")
-        # run(f"ls -o {project_root}")
-        # echo(f"Listing {submodule_abs}")
-        # run(f"ls -o {submodule_abs}")
+        for c in components:
+            echo(f"Listing path component {c}")
+            run(f"ls -oR {c}")
         pythonpath = ":".join(str(c) for c in components if c.exists())
         run(f"export {PYTHONPATH_ENVIRONMENT_VARIABLE_NAME}={pythonpath}")
         if os.environ.get('CONDA_DEFAULT_ENV', None):
