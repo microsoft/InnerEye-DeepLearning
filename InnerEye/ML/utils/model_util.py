@@ -268,7 +268,7 @@ def load_checkpoint(model: torch.nn.DataParallel,
 
 
 def save_checkpoint(model: torch.nn.DataParallel, optimizer: Optimizer, epoch: int,
-                    args: ModelConfigBase) -> None:
+                    args: ModelConfigBase, mean_teacher_model: bool = False) -> None:
     """
     Saves a checkpoint of the current model and optimizer_type parameters in the specified folder
     and uploads it to the output blob storage of the current run context.
@@ -278,11 +278,12 @@ def save_checkpoint(model: torch.nn.DataParallel, optimizer: Optimizer, epoch: i
     :param optimizer: The optimizer_type used for training.
     :param epoch: The last epoch used to train the model.
     :param args:
+    :param mean_teacher_model: If True save to the mean teacher model checkpoint path.
     """
     logging.getLogger().disabled = True
 
     model_state_dict = model.module.state_dict() if isinstance(model, torch.nn.DataParallel) else model.state_dict()
-    checkpoint_file_path = args.get_path_to_checkpoint(epoch)
+    checkpoint_file_path = args.get_path_to_checkpoint(epoch, mean_teacher_model)
     info_to_store = {
         'epoch': epoch,
         'state_dict': model_state_dict,

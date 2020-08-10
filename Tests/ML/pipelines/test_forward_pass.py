@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 
 import numpy as np
 import pytest
@@ -11,10 +11,13 @@ import torch
 from InnerEye.Common import common_util
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
+from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
-from InnerEye.ML.utils import model_util
+from InnerEye.ML.utils import ml_util, model_util
 from InnerEye.ML.utils.io_util import ImageDataType
 from Tests.ML.util import machine_has_gpu, no_gpu_available
 
@@ -184,3 +187,58 @@ def test_use_gpu_flag(use_gpu_override: bool) -> None:
         else:
             config.use_gpu = use_gpu_override
             assert config.use_gpu == use_gpu_override
+
+
+@pytest.mark.gpu
+def test_mean_teacher_model() -> None:
+    """
+    Test training and weight updates of the mean teacher model computation.
+    """
+    def _get_parameters_of_model(model: Union[torch.nn.Module, DataParallelModel]) -> Any:
+        """
+        Returns the iterator of model parameters
+        """
+        if isinstance(model, DataParallelModel):
+            return model.module.parameters()
+        else:
+            return model.parameters()
+
+    config = DummyClassification()
+    config.num_epochs = 1
+    # Set train batch size to be arbitrary big to ensure we have only one training step
+    # i.e. one mean teacher update.
+    config.train_batch_size = 100
+    # Train without mean teacher
+    model_train(config)
+
+    # Retrieve the weight after one epoch
+    model = config.create_model()
+    print(config.get_path_to_checkpoint(1))
+    _ = model_util.load_checkpoint(model, config.get_path_to_checkpoint(1))
+    model_weight = next(_get_parameters_of_model(model))
+
+    # Get the starting weight of the mean teacher model
+    ml_util.set_random_seed(config.random_seed)
+    _ = config.create_model()
+    mean_teach_model = config.create_model()
+    initial_weight_mean_teacher_model = next(_get_parameters_of_model(mean_teach_model))
+
+    # Now train with mean teacher and check the update of the weight
+    alpha = 0.999
+    config.mean_teacher_alpha = alpha
+    model_train(config)
+
+    # Retrieve weight of mean teacher model saved in the checkpoint
+    mean_teacher_model = config.create_model()
+    _ = model_util.load_checkpoint(mean_teacher_model, config.get_path_to_checkpoint(1, for_mean_teacher_model=True))
+    result_weight = next(_get_parameters_of_model(mean_teacher_model))
+    # Retrieve the associated student weight
+    _ = model_util.load_checkpoint(model, config.get_path_to_checkpoint(1))
+    student_model_weight = next(_get_parameters_of_model(model))
+
+    # Assert that the student weight corresponds to the weight of a simple training without mean teacher
+    # computation
+    assert student_model_weight.allclose(model_weight)
+
+    # Check the update of the parameters
+    assert torch.all(alpha * initial_weight_mean_teacher_model + (1 - alpha) * student_model_weight == result_weight)

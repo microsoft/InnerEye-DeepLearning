@@ -81,18 +81,23 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # Create model.
     model = config.create_model()
+    mean_teacher_model = config.create_model() if config.compute_mean_teacher_model else None
 
     # Create the optimizer_type and loss criterion
     optimizer: Optional[Optimizer] = model_util.create_optimizer(config, model)
 
     # If continuing from a previous run at a specific epoch, then load the previous model
     if config.should_load_checkpoint_for_training():
-        checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch)[0] \
-            if run_recovery else config.get_path_to_checkpoint(config.start_epoch)
-        checkpoint_epoch = model_util.load_checkpoint(model, checkpoint_path, optimizer=optimizer)
-        if checkpoint_epoch is None:
-            raise ValueError("There was no checkpoint file available for the given start_epoch {}"
-                             .format(config.start_epoch))
+        def load_checkpoint(for_mean_teacher_model: bool = False) -> None:
+            checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch, for_mean_teacher_model)[0] \
+                if run_recovery else config.get_path_to_checkpoint(config.start_epoch, for_mean_teacher_model)
+            checkpoint_epoch = model_util.load_checkpoint(model, checkpoint_path, optimizer=optimizer)
+            if checkpoint_epoch is None:
+                raise ValueError("There was no checkpoint file available for the given start_epoch {}"
+                                 .format(config.start_epoch))
+        load_checkpoint()
+        if config.compute_mean_teacher_model:
+            load_checkpoint(for_mean_teacher_model=True)
 
     # Otherwise, create checkpoint directory for this run
     else:
@@ -107,6 +112,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     # Enable mixed precision training and data parallelization.
     # This relies on the information generated in the model summary.
     model, optimizer = model_util.update_model_for_mixed_precision_and_parallel(model, config, optimizer)
+    if config.compute_mean_teacher_model:
+        mean_teacher_model, _ = model_util.update_model_for_mixed_precision_and_parallel(mean_teacher_model, config)
 
     # Create the SummaryWriters for Tensorboard
     writers = create_summary_writers(config)
@@ -136,6 +143,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         train_val_params: TrainValidateParameters = \
             TrainValidateParameters(data_loader=data_loaders[ModelExecutionMode.TRAIN],
                                     model=model,
+                                    mean_teacher_model=mean_teacher_model,
                                     epoch=epoch,
                                     optimizer=optimizer,
                                     epoch_learning_rate=epoch_lrs,
@@ -158,6 +166,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
         if config.should_save_epoch(epoch) and optimizer is not None:
             save_checkpoint(model, optimizer, epoch, config)
+            if config.compute_mean_teacher_model:
+                save_checkpoint(mean_teacher_model, optimizer, epoch, config, mean_teacher_model=True)
 
         # Updating the learning rate should happen at the end of the training loop, so that the
         # initial learning rate will be used for the very first epoch.
