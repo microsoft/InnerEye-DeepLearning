@@ -5,8 +5,7 @@ channels:
 dependencies:
   - pip=20.0.2
   - python=3.7.3
-  - pytorch=1.3.0 #= 1.6.0
-  # - python-blosc==1.9.1
+  - pytorch=1.5.0
   - pip:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - git+https://github.com/ptrblck/apex.git@4ad9b3b#egg=apex
@@ -19,21 +18,16 @@ dependencies:
       - gputil==1.4.0
       - h5py==2.10.0
       - joblib==0.16.0
-      # - jupyter==1.0.0
       - matplotlib==3.3.0
-      # - mlflow==1.10.0
-      # - mock==4.0.2
-      - mypy==0.782
+      - mypy==0.770
       - mypy-extensions==0.4.3
       - numpy==1.19.1
-      # - options==1.4.10
       - pandas==1.1.0
       - papermill==2.1.2
       - param==1.9.3
       - pillow==7.2.0
       - psutil==5.7.2
       - PyYAML==5.3.1
-      # - pyflakes==2.2.0
       - pytest==6.0.1
       - pytest-cov==2.10.0
       - pytest-forked==1.3.0
@@ -49,6 +43,5 @@ dependencies:
       - stopit==1.1.2
       - tabulate==0.8.7
       - tensorboardX==2.1
-      # - tensorboard==2.3.0
       - torchprof==1.1.1
-      - torchvision==0.7.0
+      - torchvision==0.6.0
