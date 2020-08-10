@@ -508,6 +508,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         Returns full path to a checkpoint given an epoch
         :param epoch: the epoch number
+        :param for_mean_teacher_model: if True looking returns path to the mean teacher checkpoint. Else returns the
+        path to the (main / student) model checkpoint.
         :return: path to a checkpoint given an epoch
         """
         filename = MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX if for_mean_teacher_model else CHECKPOINT_FILE_SUFFIX
@@ -575,6 +577,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     @property
     def compute_mean_teacher_model(self) -> bool:
+        """
+        Returns True if the mean teacher model should be computed.
+        """
         return self.mean_teacher_alpha is not None
 
     def __str__(self) -> str:

@@ -60,6 +60,11 @@ class TrackedMetrics(Enum):
 def create_checkpoint_path(path: Path, epoch: int, for_mean_teacher_model: bool = False) -> Path:
     """
     Given a path and checkpoint, formats a path based on the checkpoint file name format.
+
+    :param path to checkpoint folder
+    :param epoch
+    :param for_mean_teacher_model: if True use the MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX to save the checkpoint. Else use
+    the CHECKPOINT_FILE_SUFFIX.
     """
     filename = MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX if for_mean_teacher_model else CHECKPOINT_FILE_SUFFIX
     return path / "{}{}".format(epoch, filename)
