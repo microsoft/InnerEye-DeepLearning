@@ -18,6 +18,7 @@ def test_submit_for_inference():
             "--yaml_file", "InnerEye/train_variables.yml",
             "--download_folder", "."]
     seg_path = Path(DEFAULT_RESULT_IMAGE_NAME)
-    seg_path.unlink(missing_ok=True)
+    if seg_path.exists():
+        seg_path.unlink()
     main(args)
     assert seg_path.exists()
