@@ -509,6 +509,9 @@ class SegmentationModelBase(ModelConfigBase):
             raise ValueError("len(ground_truth_ids_display_names)!=len(colours)")
         if len(self.ground_truth_ids_display_names) != len(self.fill_holes):
             raise ValueError("len(ground_truth_ids_display_names)!=len(fill_holes)")
+        if self.mean_teacher_alpha is not None:
+            raise ValueError("Mean teacher model is currently only supported for ScalarModels."
+                             "Please reset mean_teacher_alpha to None.")
 
     @staticmethod
     def validate_class_weights(class_weights: List[float]) -> None:

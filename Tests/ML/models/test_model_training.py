@@ -15,10 +15,11 @@ from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML import metrics, model_training
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
+from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import TRAIN_STATS_FILE
-from InnerEye.ML.model_training import ModelTrainingResult
+from InnerEye.ML.model_training import ModelTrainingResult, model_train
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForSegmentation
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from Tests.ML.configs.DummyModel import DummyModel
@@ -212,3 +213,22 @@ def test_construct_loss_function() -> None:
     assert len(loss_fn.components) == len(weights)
     assert loss_fn.components[0][0] == weights[0] / sum(weights)
     assert loss_fn.components[1][0] == weights[1] / sum(weights)
+
+
+def test_recover_training_mean_teacher_model() -> None:
+    """
+    Tests that training can be recovered from a previous checkpoint.
+    """
+    config = DummyClassification()
+    config.mean_teacher_alpha = 0.999
+
+    # First round of training
+    config.num_epochs = 2
+    model_train(config)
+    assert len(os.listdir(config.checkpoint_folder)) == 2
+
+    # Restart training from previous run
+    config.start_epoch = 2
+    config.num_epochs = 3
+    model_train(config)
+    assert len(os.listdir(config.checkpoint_folder)) == 4

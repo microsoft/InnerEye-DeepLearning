@@ -6,7 +6,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Generic, List, Optional, TypeVar, Union
+from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import param
@@ -59,6 +59,7 @@ class TrainValidateParameters(param.Parameterized, Generic[M]):
       optimizer: optimizer
     """
     model: M = param.ClassSelector(class_=DeviceAwareModule, instantiate=False)
+    mean_teacher_model: M = param.ClassSelector(class_=DeviceAwareModule, instantiate=False, allow_None=True)
     data_loader: DataLoader = param.ClassSelector(class_=DataLoader, instantiate=False)
     epoch: int = param.Integer(None, bounds=(0, None))
     optimizer: Optimizer = param.ClassSelector(class_=Optimizer, instantiate=False)
@@ -245,13 +246,16 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         self.label_tensor_dtype = torch.float32
         super().__init__(config, train_val_params)
         self.metrics = create_metrics_dict_from_config(config)
+        self.compute_mean_teacher_model = self.model_config.compute_mean_teacher_model
         if self.model_config.compute_grad_cam:
             if not self.model_config.aggregation_type == AggregationType.Average:
                 self.model_config.max_batch_grad_cam = 0
                 logging.warning("GradCam computation is not implemented for this aggregation type."
                                 "Ignoring computation.")
             else:
-                self.guided_grad_cam = VisualizationMaps(self.train_val_params.model, self.model_config)
+                model_to_evaluate = self.train_val_params.mean_teacher_model if \
+                    self.model_config.compute_mean_teacher_model else self.train_val_params.model
+                self.guided_grad_cam = VisualizationMaps(model_to_evaluate, self.model_config)
                 self.model_config.visualization_folder.mkdir(exist_ok=True)
 
     def create_loss_function(self) -> torch.nn.Module:
@@ -283,6 +287,31 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             raise ValueError(f"Unable to convert tensor {labels} to data type {self.label_tensor_dtype}: {str(ex)}")
         return self.model_config.get_gpu_tensor_if_possible(labels)
 
+    def get_logits_and_outputs(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
+            -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Returns a Tuple containing the logits and the final model output. Note that the logits might be
+        distributed over multiple GPU if the model is an instance of DataParallel. In this case, the model outputs on
+        the other hand will be gathered to GPU_0.
+
+        :param model_inputs: input to evaluate the model on
+        :param use_mean_teacher_model: If True, logits and outputs are produced for the mean teacher model. Else
+        logits and outputs are produced for the standard (student) model.
+        :return: Tuple (logits, model_output).
+        """
+        if use_mean_teacher_model:
+            logits = self.train_val_params.mean_teacher_model(*model_inputs)
+        else:
+            logits = self.train_val_params.model(*model_inputs)
+        if isinstance(logits, list):
+            # When using multiple GPUs, logits is a list of tensors. Gather will concatenate them
+            # across the first dimension, and move them to GPU0.
+            model_output = torch.nn.parallel.gather(logits, target_device=0)
+        else:
+            model_output = logits
+        model_output = self.model_config.get_post_loss_logits_normalization_function()(model_output)
+        return logits, model_output
+
     def forward_and_backward_minibatch(self, sample: Dict[str, Any], batch_index: int, epoch: int) -> float:
         """
         Runs training for a single minibatch of training data, and computes all metrics.
@@ -292,36 +321,40 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         """
         start_time = time.time()
         model = self.train_val_params.model
+        mean_teacher_model = self.train_val_params.mean_teacher_model
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, model, sample)
 
         if self.in_training_mode:
             model.train()
-            model_output = model.forward(*model_inputs_and_labels.model_inputs)
+            logits, model_output = self.get_logits_and_outputs(*model_inputs_and_labels.model_inputs)
         else:
             model.eval()
             with torch.no_grad():
-                model_output = model.forward(*model_inputs_and_labels.model_inputs)
+                logits, model_output = self.get_logits_and_outputs(*model_inputs_and_labels.model_inputs)
             model.train()
 
         label_gpu = self.get_label_tensor(model_inputs_and_labels.labels)
-        loss = self.compute_loss(model_output, label_gpu)
+        loss = self.compute_loss(logits, label_gpu)
 
         if self.in_training_mode:
             single_optimizer_step(self.model_config, loss, self.train_val_params.optimizer)
+            if self.model_config.compute_mean_teacher_model:
+                self.update_mean_teacher_parameters()
 
-        if isinstance(model_output, list):
-            # When using multiple GPUs, model_output is a list of tensors. Gather will concatenate them
-            # across the first dimension, and move them to GPU0.
-            model_output = torch.nn.parallel.gather(model_output, target_device=0)
-
-        # Apply any post loss normalization to logits
-        model_output = self.model_config.get_post_loss_logits_normalization_function()(model_output)
+        if self.compute_mean_teacher_model:
+            # If the mean teacher model is computed, use the output of the mean teacher for the metrics report
+            # instead of the output of the student model.
+            mean_teacher_model.eval()
+            with torch.no_grad():
+                _, model_output = self.get_logits_and_outputs(*model_inputs_and_labels.model_inputs,
+                                                              use_mean_teacher_model=True)
 
         if self._should_save_grad_cam_output(epoch=epoch, batch_index=batch_index):
             self.save_grad_cam(epoch, model_inputs_and_labels.subject_ids,
                                model_inputs_and_labels.data_item,
                                model_inputs_and_labels.model_inputs,
                                label_gpu)
+
         self.metrics.add_metric(MetricType.LOSS, loss.item())
         self.update_metrics(model_inputs_and_labels.subject_ids, model_output, label_gpu)
         logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
@@ -400,6 +433,21 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         return self.model_config.is_regression_model \
                and (not self.in_training_mode) \
                and self.model_config.should_save_epoch(epoch)
+
+    def update_mean_teacher_parameters(self) -> None:
+        """
+        Updates the mean teacher model parameters as per the update formula
+        mean_teacher_model_weight = alpha * (mean_teacher_model_weight) + (1-alpha) * (student_model_weight)
+        see https://arxiv.org/abs/1703.01780
+        """
+        mean_teacher_model = self.train_val_params.mean_teacher_model
+        model = self.train_val_params.model
+        if isinstance(mean_teacher_model, DataParallelModel):
+            mean_teacher_model = mean_teacher_model.module  # type: ignore
+            model = model.module  # type: ignore
+        for mean_teacher_param, student_param in zip(mean_teacher_model.parameters(), model.parameters()):
+            mean_teacher_param.data = self.model_config.mean_teacher_alpha * mean_teacher_param.data \
+                                      + (1 - self.model_config.mean_teacher_alpha) * student_param.data
 
 
 class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[SequenceModelBase]):
