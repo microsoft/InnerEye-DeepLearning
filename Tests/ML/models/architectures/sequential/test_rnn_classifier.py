@@ -65,6 +65,7 @@ class ToySequenceModel(SequenceModelBase):
                  use_mean_teacher_model: bool = False,
                  **kwargs: Any) -> None:
         num_epochs = 3
+        mean_teacher_alpha = 0.999 if use_mean_teacher_model else None
         sequence_target_positions = [2] if sequence_target_positions is None else sequence_target_positions
         image_column = "image" if use_combined_model else None
         categorical_feature_encoder = CategoricalToOneHotEncoder.create_from_dataframe(
@@ -88,7 +89,7 @@ class ToySequenceModel(SequenceModelBase):
             use_mixed_precision=True,
             label_smoothing_eps=0.05,
             drop_last_batch_in_training=True,
-            compute_mean_teacher_model=use_mean_teacher_model,
+            mean_teacher_alpha=mean_teacher_alpha,
             **kwargs
         )
         self.use_combined_model = use_combined_model
