@@ -79,7 +79,7 @@ steps:
   # hence don't set PYTHONPATH
   - bash: |
       source activate InnerEye
-      pytest ./Tests/ --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html -n 3 --dist=loadscope --verbose
+      pytest ./Tests/ --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html -n 2 --dist=loadscope --verbose
     env:
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
     failOnStderr: false
