@@ -4,14 +4,16 @@
 #  ------------------------------------------------------------------------------------------
 
 
-# import pytest
+import pytest
 from pathlib import Path
 
+from InnerEye.Common import common_util
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from Tests.Common.test_util import DEFAULT_MODEL_ID_NUMERIC
 from InnerEye.Scripts.submit_for_inference import main
 
 
+@pytest.mark.skipif(common_util.is_windows(), reason="Testing on Linux is enough")
 def test_submit_for_inference() -> None:
     args = ["--image_file", "Tests/ML/test_data/train_and_test_data/id1_channel1.nii.gz",
             "--model_id", DEFAULT_MODEL_ID_NUMERIC,
