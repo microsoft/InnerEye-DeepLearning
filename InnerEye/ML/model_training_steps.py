@@ -307,6 +307,8 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             # When using multiple GPUs, logits is a list of tensors. Gather will concatenate them
             # across the first dimension, and move them to GPU0.
             model_output = torch.nn.parallel.gather(logits, target_device=0)
+        else:
+            model_output = logits
         model_output = self.model_config.get_post_loss_logits_normalization_function()(model_output)
         return logits, model_output
 
