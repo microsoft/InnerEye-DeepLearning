@@ -12,7 +12,7 @@ from Tests.Common.test_util import DEFAULT_MODEL_ID_NUMERIC
 from InnerEye.Scripts.submit_for_inference import main
 
 
-def test_submit_for_inference():
+def test_submit_for_inference() -> None:
     args = ["--image_file", "Tests/ML/test_data/train_and_test_data/id1_channel1.nii.gz",
             "--model_id", DEFAULT_MODEL_ID_NUMERIC,
             "--yaml_file", "InnerEye/train_variables.yml",
