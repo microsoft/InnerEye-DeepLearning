@@ -217,10 +217,10 @@ class AzureConfig(GenericConfig):
         :return: Destination root to the downloaded files
         """
         if self.storage_account is None:
-            raise ValueError(f'self.storage_account cannot be None')
+            raise ValueError("self.storage_account cannot be None")
         key = self.get_storage_account_key()
         if key is None:
-            raise ValueError(f'self.storage_account_key cannot be None')
+            raise ValueError("self.storage_account_key cannot be None")
         return download_blobs(
             account=self.storage_account,
             account_key=key,
