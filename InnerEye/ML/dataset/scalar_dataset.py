@@ -642,7 +642,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
                 raise ValueError("Unable to load dataset because no `local_dataset` property is set.")
             logging.info(f"Starting to traverse folder {args.local_dataset} to locate image files.")
             self.file_to_full_path = files_by_stem(args.local_dataset)
-            logging.info(f"Finished traversing folder.")
+            logging.info("Finished traversing folder.")
 
     def load_all_data_sources(self) -> List[T]:
         """

@@ -152,7 +152,7 @@ def parse_and_load_model(project_root: Path, yaml_config_file: Path) -> Configur
         exist = "exists" if Path(azure_config.extra_code_directory).exists() else "does not exist"
         logging.info(f"extra_code_directory is {azure_config.extra_code_directory}, which {exist}")
     else:
-        logging.info(f"extra_code_directory is unset")
+        logging.info("extra_code_directory is unset")
     return ConfigurationsAndParserResults(
         model_config=model_config,
         azure_config=azure_config,
@@ -204,7 +204,7 @@ def run(project_root: Path,
         # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
         logging.getLogger('adal-python').setLevel(logging.WARNING)
         if not model_config.azure_dataset_id:
-            raise ValueError(f"When running on AzureML, the 'azure_dataset_id' property must be set.")
+            raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
         model_config_overrides = str(model_config.overrides)
         source_config = SourceConfig(
             root_folder=str(project_root),
@@ -223,7 +223,7 @@ def run(project_root: Path,
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
             # A build step will pick up that file and publish it to Azure DevOps.
             # If pytest_mark is set, this file must exist.
-            logging.info(f"Downloading pytest result file.")
+            logging.info("Downloading pytest result file.")
             download_pytest_result(azure_config, azure_run)
         else:
             logging.info("No pytest_mark present, hence not downloading the pytest result file.")

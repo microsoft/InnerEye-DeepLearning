@@ -204,14 +204,14 @@ def create_pytorch_environment(workspace: Workspace,
         logging.info(f"Dataset does not yet exist, creating a new one from data in folder '{azure_dataset_id}'")
         # See WARNING above before changing the from_files call!
         azureml_dataset = Dataset.File.from_files([(datastore, azure_dataset_id)])
-        logging.info(f"Registering the dataset for future use.")
+        logging.info("Registering the dataset for future use.")
         azureml_dataset.register(workspace, name=azure_dataset_id)
     if azureml_dataset:
         if azure_config.use_dataset_mount:
-            logging.info(f"Inside AzureML, the dataset will be provided as a mounted folder.")
+            logging.info("Inside AzureML, the dataset will be provided as a mounted folder.")
             estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_mount()]
         else:
-            logging.info(f"Inside AzureML, the dataset will be downloaded before training starts.")
+            logging.info("Inside AzureML, the dataset will be downloaded before training starts.")
             estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_download()]
     else:
         raise ValueError("No AzureML dataset was found.")
@@ -246,7 +246,7 @@ def create_pytorch_environment(workspace: Workspace,
         # This is necessary if we need to consume packages from extra-index that clash with names of packages on
         # pypi
         conda_dependencies.set_pip_option(f"--index-url {azure_config.pip_extra_index_url}")
-        conda_dependencies.set_pip_option(f"--extra-index-url https://pypi.org/simple")
+        conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
 
     estimator.run_config.environment.python.conda_dependencies = conda_dependencies
 

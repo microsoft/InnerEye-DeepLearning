@@ -596,7 +596,7 @@ def save_outliers(config: PlotCrossValidationConfig,
                                                .describe()[metric_type][stats_columns]
                                                .sort_values(stats_columns, ascending=False))
                         f.write(outliers_summary)
-                        f.write(f"\n\n")
+                        f.write("\n\n")
                         f.write(create_portal_query_for_outliers(outliers))
                     else:
                         f.write("No outliers found")

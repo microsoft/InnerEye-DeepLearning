@@ -20,8 +20,8 @@ class HotFixedTensorBoard(Tensorboard):
 
     def _wait_for_url(self, timeout: int = 60) -> None:
         def enqueue_output(out: Any, q: Any) -> None:
-            for l in iter(out.readline, b''):
-                q.put(l)
+            for line in iter(out.readline, b''):
+                q.put(line)
 
         queue: Queue = Queue()
         thread = Thread(target=enqueue_output, args=(self._tb_proc.stderr, queue))

@@ -73,7 +73,7 @@ def write_script(parser: argparse.ArgumentParser, script_path: Path, project_roo
         # We need to explicitly uninstall apex and radio because when given an explicit git+https URL,
         # pip does not check that the package is up to date, only that some version is already installed.
         echo("Uninstalling apex and radio")
-        run(f"pip uninstall --yes apex radio")
+        run("pip uninstall --yes apex radio")
         # Update the current conda environment (so no need to activate it afterwards, despite the message
         # given by conda). If we have an environment.yml file in both the top level and the submodule,
         # merge them.
