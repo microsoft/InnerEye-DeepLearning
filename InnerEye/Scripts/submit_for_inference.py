@@ -34,7 +34,8 @@ class SubmitForInferenceConfig(GenericConfig):
     yaml_file: Path = param.ClassSelector(
         class_=Path, doc="File containing subscription details, typically your train_variables.yml")
     download_folder: Optional[Path] = param.ClassSelector(default=None,
-        class_=Path, doc="Folder into which to download the segmentation result")
+                                                          class_=Path,
+                                                          doc="Folder into which to download the segmentation result")
     keep_upload_folder: bool = param.Boolean(
         default=False, doc="Whether to keep the temporary upload folder after the inference run is submitted")
 
@@ -169,12 +170,12 @@ def submit_for_inference(args: SubmitForInferenceConfig) -> Optional[Path]:
     return download_path
 
 
-def main() -> None:
+def main(args: Optional[List[str]] = None) -> None:
     """
     Main function.
     """
     logging_to_stdout()
-    submit_for_inference(SubmitForInferenceConfig.parse_args())
+    submit_for_inference(SubmitForInferenceConfig.parse_args(args))
 
 
 if __name__ == '__main__':
