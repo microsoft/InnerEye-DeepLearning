@@ -213,7 +213,7 @@ class MLRunner:
                 RUN_CONTEXT,
                 run_recovery,
                 registration_epoch,
-                float("nan"))
+                np.nan)
             if self.azure_config.register_model_only_for_epoch is not None:
                 return
         # run full image inference on existing or newly trained model on the training, and testing set
