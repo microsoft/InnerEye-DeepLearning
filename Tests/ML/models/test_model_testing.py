@@ -128,8 +128,13 @@ def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
 @pytest.mark.parametrize("with_run_recovery", [False, True])
 @pytest.mark.parametrize(("config", "checkpoint_folder", "inference_type", "ensemble_type"),
                          [(DummyModel(), "checkpoints", InferencePipeline, EnsemblePipeline),
-                          (ClassificationModelForTesting(), "classification_data_generated_random/checkpoints",
-                           ScalarInferencePipeline, ScalarEnsemblePipeline)])
+                          (ClassificationModelForTesting(mean_teacher_model=False),
+                           "classification_data_generated_random/checkpoints",
+                           ScalarInferencePipeline, ScalarEnsemblePipeline),
+                          (ClassificationModelForTesting(mean_teacher_model=True),
+                           "classification_data_generated_random/checkpoints",
+                           ScalarInferencePipeline, ScalarEnsemblePipeline)
+                          ])
 def test_create_inference_pipeline(with_run_recovery: bool,
                                    config: ModelConfigBase,
                                    checkpoint_folder: str,

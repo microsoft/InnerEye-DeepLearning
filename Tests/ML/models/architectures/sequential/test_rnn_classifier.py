@@ -62,8 +62,10 @@ class ToySequenceModel(SequenceModelBase):
                  combine_hidden_states: bool = False,
                  use_encoder_layer_norm: bool = False,
                  sequence_target_positions: Optional[List[int]] = None,
+                 use_mean_teacher_model: bool = False,
                  **kwargs: Any) -> None:
         num_epochs = 3
+        mean_teacher_alpha = 0.999 if use_mean_teacher_model else None
         sequence_target_positions = [2] if sequence_target_positions is None else sequence_target_positions
         image_column = "image" if use_combined_model else None
         categorical_feature_encoder = CategoricalToOneHotEncoder.create_from_dataframe(
@@ -87,6 +89,7 @@ class ToySequenceModel(SequenceModelBase):
             use_mixed_precision=True,
             label_smoothing_eps=0.05,
             drop_last_batch_in_training=True,
+            mean_teacher_alpha=mean_teacher_alpha,
             **kwargs
         )
         self.use_combined_model = use_combined_model
@@ -182,11 +185,13 @@ def _get_mock_sequence_dataset(dataset_contents: Optional[str] = None) -> pd.Dat
                           (True, ImagingFeatureType.ImageAndSegmentation)])
 @pytest.mark.parametrize("combine_hidden_state", (True, False))
 @pytest.mark.parametrize("use_encoder_layer_norm", (True, False))
+@pytest.mark.parametrize("use_mean_teacher_model", (True, False))
 @pytest.mark.gpu
 def test_rnn_classifier_via_config_1(use_combined_model: bool,
                                      imaging_feature_type: ImagingFeatureType,
                                      combine_hidden_state: bool,
                                      use_encoder_layer_norm: bool,
+                                     use_mean_teacher_model: bool,
                                      test_output_dirs: TestOutputDirectories) -> None:
     """
     Test if we can build a simple RNN model that only feeds off non-image features.
@@ -197,6 +202,7 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
                               imaging_feature_type=imaging_feature_type,
                               combine_hidden_states=combine_hidden_state,
                               use_encoder_layer_norm=use_encoder_layer_norm,
+                              use_mean_teacher_model=use_mean_teacher_model,
                               should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
@@ -220,11 +226,17 @@ def test_run_ml_with_sequence_model(use_combined_model: bool,
     Test training and testing of sequence models, when it is started together via run_ml.
     """
     logging_to_stdout()
-    config = ToySequenceModel(use_combined_model, imaging_feature_type, should_validate=False)
+    config = ToySequenceModel(use_combined_model, imaging_feature_type,
+                              should_validate=False, sequence_target_positions=[2, 10])
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     config.num_epochs = 1
     config.max_batch_grad_cam = 1
+
+    # make sure we are testing with at least one sequence position that will not exist
+    # to ensure correct handling of sequences that do not contain all the expected target positions
+    assert max(config.sequence_target_positions) > config.dataset_data_frame[config.sequence_column].astype(float).max()
+
     # Patch the load_images function that will be called once we access a dataset item
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, SCAN_SIZE),
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
@@ -456,7 +468,7 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: TestOutputDire
 
 
 @pytest.mark.parametrize("combine_hidden_states", [True, False])
-def test_pad_input_to_required_length(combine_hidden_states: bool) -> None:
+def test_pad_gru_output(combine_hidden_states: bool) -> None:
     """
     Test to make sure if model output does not cover the target indices then it is padded
     """
@@ -468,12 +480,12 @@ def test_pad_input_to_required_length(combine_hidden_states: bool) -> None:
     model: RNNClassifier = config.create_model()
     # base case where no padding is required
     test_input = torch.rand(max(config.get_target_indices()) + 1, 1)
-    padded = model.pad_input_to_required_length(test_input)
+    padded = model.pad_gru_output(test_input)
     assert torch.equal(test_input, padded)
     # case when padding is required
     test_input = torch.rand(min(config.get_target_indices()) - 1, 1)
     expected = torch.cat([test_input, test_input.new_full((4, 1), fill_value=0)], dim=0)
-    padded = model.pad_input_to_required_length(test_input)
+    padded = model.pad_gru_output(test_input)
     assert torch.allclose(expected, padded)
 
 
