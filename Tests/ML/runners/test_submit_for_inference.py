@@ -14,6 +14,9 @@ from InnerEye.Scripts.submit_for_inference import main
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Testing on Linux is enough")
+# Test does not actually need GPU, but we put it in the GPU set as it takes a while to run
+# and we don't want to make the main set even longer.
+@pytest.mark.gpu
 def test_submit_for_inference() -> None:
     args = ["--image_file", "Tests/ML/test_data/train_and_test_data/id1_channel1.nii.gz",
             "--model_id", DEFAULT_MODEL_ID_NUMERIC,
