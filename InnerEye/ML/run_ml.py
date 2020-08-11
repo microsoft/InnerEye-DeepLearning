@@ -353,7 +353,8 @@ class MLRunner:
                                     checkpoint_paths: List[Path],
                                     run: Optional[Run] = None,
                                     workspace: Optional[Workspace] = None,
-                                    tags: Optional[Dict[str, str]] = None) -> Tuple[Model, Optional[Path], Any]:
+                                    tags: Optional[Dict[str, str]] = None) -> \
+            Tuple[Optional[Model], Optional[Path], Any]:
         """
         Registers a new model in the workspace's model registry to be deployed further,
         and creates a model zip for portal deployment (if required). This model, is the
@@ -367,10 +368,14 @@ class MLRunner:
         :param tags: If provided, then these will be used instead of the tags found in the provided run.
         :returns AML model object, the path to the specially-deployed model if any, and a further object
         relating to model deployment; if model_deployment_hook is None, the last two are also None.
+        However if a model cannot be registered because the run is an _OfflineRun, None is returned
+        instead of a model.
         """
         if (run is None) == (workspace is None):
             raise ValueError("Either a run or a workspace must be provided but not both")
         elif run:
+            if not hasattr(run, 'experiment'):
+                return None, None, None
             workspace = run.experiment.workspace
             tags = run.get_tags()
 

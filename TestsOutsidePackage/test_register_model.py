@@ -94,6 +94,7 @@ def test_register_and_score_model(is_ensemble: bool,
                 best_epoch=0,
                 best_epoch_dice=0,
                 checkpoint_paths=checkpoints)
+            assert model is not None
             model_path = Path(model.get_model_path(model.name, model.version, ws))
             assert (model_path / fixed_paths.ENVIRONMENT_YAML_FILE_NAME).exists()
             assert (model_path / Path("InnerEye/ML/runner.py")).exists()
