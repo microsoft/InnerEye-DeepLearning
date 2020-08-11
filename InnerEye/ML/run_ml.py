@@ -375,6 +375,7 @@ class MLRunner:
             raise ValueError("Either a run or a workspace must be provided but not both")
         elif run:
             if not hasattr(run, 'experiment'):
+                logging.warning("Not registering a model, because the run has no associated experiment")
                 return None, None, None
             workspace = run.experiment.workspace
             tags = run.get_tags()
