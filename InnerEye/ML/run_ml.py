@@ -368,9 +368,12 @@ class MLRunner:
         :param tags: If provided, then these will be used instead of the tags found in the provided run.
         :returns AML model object, the path to the specially-deployed model if any, and a further object
         relating to model deployment; if model_deployment_hook is None, the last two are also None.
-        However if a model cannot be registered because the run is an _OfflineRun, None is returned
-        instead of a model.
+        However if a model cannot be registered because the run is an _OfflineRun, or the model_config is not
+        for a segmentation model, None is returned instead of a model.
         """
+        if not isinstance(self.model_config, SegmentationModelBase):
+            logging.warning("Non-segmentation models cannot be registered")
+            return None, None, None
         if (run is None) == (workspace is None):
             raise ValueError("Either a run or a workspace must be provided but not both")
         elif run:
