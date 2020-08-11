@@ -20,6 +20,7 @@ dependencies:
       - h5py==2.10.0
       - joblib==0.16.0
       - matplotlib==3.3.0
+      - mlflow==1.8.0
       - mypy==0.770
       - mypy-extensions==0.4.3
       - numpy==1.19.1
