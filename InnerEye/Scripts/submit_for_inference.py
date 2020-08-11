@@ -25,7 +25,7 @@ class SubmitForInferenceConfig(GenericConfig):
     """
     Command line parameter class.
     """
-    experiment_name: str = param.String(default=f"model_inference",
+    experiment_name: str = param.String(default="model_inference",
                                         doc="Name of experiment the run should belong to")
     model_name: Optional[str] = param.String(default=None, doc="Name of model, e.g. Prostate")
     model_version: Optional[int] = param.Number(default=None, doc="Version of model, e.g. 123")
