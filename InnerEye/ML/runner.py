@@ -24,6 +24,7 @@ from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
     disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout, print_exception
+from InnerEye.Common.fixed_paths import get_environment_yaml_file
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -239,11 +240,12 @@ class Runner:
         source_config = SourceConfig(
             root_folder=str(self.project_root),
             entry_script=os.path.abspath(sys.argv[0]),
-            conda_dependencies_file=self.project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
+
+            conda_dependencies_files=[get_environment_yaml_file(),
+                                      self.project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME],
             hyperdrive_config_func=lambda estimator: self.model_config.get_hyperdrive_config(estimator),
-            # For large jobs, upload of results times out frequently because of large
-            # checkpoint files. Default is 600
-            upload_timeout_seconds=86400
+            # For large jobs, upload of results times out frequently because of large checkpoint files. Default is 600
+            upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
         assert self.model_config.azure_dataset_id is not None  # to stop mypy complaining about next line

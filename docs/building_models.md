@@ -40,7 +40,7 @@ are partially specified, and can be used by having other model configurations in
 parameter values: a dataset ID at least, and optionally other values. For example, a `Prostate` model might inherit
 very simply from `ProstateBase` by creating `Prostate.py` in the directory `InnerEyeLocal/ML/configs/segmentation` 
 with the following contents:
-```
+```python
 from InnerEye.ML.configs.segmentation.ProstateBase import ProstateBase
 
 
@@ -58,9 +58,15 @@ is found by the runner.
 * Set up your model configuration as above.
 
 * Train a new model, for example `Prostate`:
-```
+```shell script
 python InnerEyeLocal/ML/runner.py --submit_to_azureml=True --model=Prostate --is_train=True
 ```
+
+Alternatively, you can train the model on your current machine if it is powerful enough. In
+this case, you should specify `--submit_to_azureml=False`, and instead of specifying
+`azure_dataset_id` in the class constructor, you can instead use `local_dataset="my/data/folder"`,
+where the folder `my/data/folder` contains a `dataset.csv` file and subfolders `0`, `1`, `2`, ...,
+one for each image.
 
 ### K-Fold Model Cross Validation
 
@@ -82,9 +88,16 @@ see an element `run_recovery_id`. It will look something like `foo_bar:foo_bar_1
 ### Testing an existing model
 
 As for continuing training, but set `--is_train` to `False`. Thus your command should look like this:
-```
+```shell script
 python Inner/ML/runner.py --submit_to_azureml=True --model=Prostate --is_train=False --gpu_cluster_name=my_cluster_name \
    --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
+```
+
+Alternatively, to submit an AzureML run to apply a model to a single image on your local disc, 
+you can use the script `submit_for_inference.py`, with a command of this form:
+```shell script
+python InnerEye/Scripts/submit_for_inference.py --image_file ~/somewhere/ct.nii.gz --model_id Prostate:555 \
+  --yaml_file ../somewhere_else/train_variables.yml --download_folder ~/my_existing_folder
 ```
 
 ### Model Ensembles
@@ -105,11 +118,12 @@ and the generated posteriors are passed to the usual model testing downstream pi
 
 Once your HyperDrive AzureML runs are completed, you can visualize the results by running the
 [`plot_cross_validation.py`](/InnerEye/ML/visualizers/plot_cross_validation.py) script locally:
-```
+```shell script
 python InnerEye/ML/visualizers/plot_cross_validation.py --run_recovery_id ... --epoch ...
 ```
 filling in the run recovery ID of the parent run and the epoch number (one of the test epochs, e.g. the last epoch) 
-for which you want results plotted. The script will also output several `..._outliers.txt` file with all of the outliers across the splits and a portal query to 
+for which you want results plotted. The script will also output several `..._outliers.txt` file with all of the outliers
+across the splits and a portal query to 
 find them in the production portal, and run statistical tests to compute the significance of differences between scores
 across the splits and with respect to other runs that you specify. Details of the tests can be found
 in [`wilcoxon_signed_rank_test.py`](/InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py)

@@ -154,7 +154,7 @@ def test_source_config_set_params() -> None:
     Check that commandline arguments are set correctly when submitting the script to AzureML.
     In particular, the submit_to_azureml flag should be omitted, irrespective of how the argument is written.
     """
-    s = SourceConfig(root_folder="", entry_script="something.py")
+    s = SourceConfig(root_folder="", entry_script="something.py", conda_dependencies_files=[])
 
     def assert_has_params(expected_args: str) -> None:
         assert s.script_params is not None
