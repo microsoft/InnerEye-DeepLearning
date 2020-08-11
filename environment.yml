@@ -3,9 +3,10 @@ channels:
   - defaults
   - pytorch
 dependencies:
-  - pip=20.0.2
+  - pip=20.2.1
   - python=3.7.3
-  - pytorch=1.4.0
+  - pytorch=1.6.0
+  - torchvision=0.7.0
   - pip:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - git+https://github.com/ptrblck/apex.git@4ad9b3b#egg=apex
@@ -45,4 +46,3 @@ dependencies:
       - tabulate==0.8.7
       - tensorboardX==2.1
       - torchprof==1.1.1
-      - torchvision==0.5.0
