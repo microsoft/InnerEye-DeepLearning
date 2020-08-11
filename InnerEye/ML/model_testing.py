@@ -344,13 +344,13 @@ def create_inference_pipeline(config: ModelConfigBase,
     :return: FullImageInferencePipelineBase or ScalarInferencePipelineBase
     """
     if run_recovery:
-        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch)
+        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, config.compute_mean_teacher_model)
         pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
         if pipeline is not None:
             # We found the checkpoint(s) in the run being recovered. If we didn't, it's probably because the epoch
             # is from the current run, which has been doing more training, so we look for it there.
             return pipeline
-    checkpoint_paths = [config.get_path_to_checkpoint(epoch)]
+    checkpoint_paths = [config.get_path_to_checkpoint(epoch, config.compute_mean_teacher_model)]
     return create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
 
 

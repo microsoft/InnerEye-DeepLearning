@@ -54,7 +54,7 @@ class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
 
 
 class ClassificationModelForTesting(ScalarModelBase):
-    def __init__(self, conv_in_3d: bool = True) -> None:
+    def __init__(self, conv_in_3d: bool = True, mean_teacher_model: bool = False) -> None:
         num_epochs = 4
         super().__init__(
             local_dataset=full_ml_test_data_path("classification_data"),
@@ -69,6 +69,7 @@ class ClassificationModelForTesting(ScalarModelBase):
             num_dataload_workers=0,
             test_start_epoch=num_epochs,
             subject_column="subjectID",
+            compute_mean_teacher_model=mean_teacher_model
         )
         self.expected_image_size_zyx = (4, 5, 7)
         self.conv_in_3d = conv_in_3d
