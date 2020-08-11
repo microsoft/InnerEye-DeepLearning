@@ -8,6 +8,7 @@ from pathlib import Path
 from timeit import default_timer as timer
 from typing import Any, Dict, List, Optional, Tuple
 
+import numpy as np
 import torch.multiprocessing
 from azureml.core import Run, Workspace  # , Dataset
 from azureml.core.model import Model
