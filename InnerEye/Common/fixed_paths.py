@@ -28,6 +28,7 @@ INNEREYE_PACKAGE_NAME = "InnerEye"
 ENVIRONMENT_YAML_FILE_NAME = "environment.yml"
 
 DEFAULT_AML_UPLOAD_DIR = "outputs"
+DEFAULT_RESULT_IMAGE_NAME = "segmentation.nii.gz"
 DEFAULT_AML_LOGS_DIR = "azureml-logs"
 
 DEFAULT_LOGS_DIR_NAME = "logs"

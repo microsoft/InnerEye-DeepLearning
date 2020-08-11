@@ -96,7 +96,7 @@ dependencies:
     file1.write_text(env1)
     file2 = Path(test_output_dirs.root_dir) / "env2.yml"
     file2.write_text(env2)
-    conda_dep = merge_conda_dependencies(file1, file2)
+    conda_dep = merge_conda_dependencies([file1, file2])
     # We expect to see the union of channels.
     assert list(conda_dep.conda_channels) == ["defaults", "pytorch"]
     # Conda package version conflicts are not resolved, but both versions are retained.

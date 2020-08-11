@@ -25,6 +25,7 @@ from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
     disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout, print_exception
+from InnerEye.Common.fixed_paths import get_environment_yaml_file
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -209,7 +210,8 @@ def run(project_root: Path,
         source_config = SourceConfig(
             root_folder=str(project_root),
             entry_script=os.path.abspath(sys.argv[0]),
-            conda_dependencies_file=project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
+            conda_dependencies_files=[get_environment_yaml_file(),
+                                      project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME],
             hyperdrive_config_func=lambda estimator: model_config.get_hyperdrive_config(estimator),
             # For large jobs, upload of results times out frequently because of large checkpoint files. Default is 600
             upload_timeout_seconds=86400,

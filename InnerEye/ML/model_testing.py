@@ -15,6 +15,7 @@ import numpy as np
 
 from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, empty_string_to_none, \
     get_epoch_results_path, is_linux, string_to_path
+from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config
 from InnerEye.ML import metrics, plotting
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
@@ -39,7 +40,6 @@ from InnerEye.ML.utils.ml_util import RunRecovery
 
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
-DEFAULT_RESULT_IMAGE_NAME = "segmentation.nii.gz"
 
 
 def model_test(config: ModelConfigBase,

@@ -13,6 +13,7 @@ This is an executable that is called by the python_wrapper.py which handles infe
 https://docs.microsoft.com/en-us/python/api/overview/azureml-sdk/?view=azure-ml-py).
 """
 
+import logging
 import os
 import sys
 from distutils.dir_util import copy_tree
@@ -59,7 +60,6 @@ def init_from_model_inference_json(model_path: Path, use_gpu: bool = True) -> Tu
     Loads the config and inference pipeline from the current directory using fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
     :return: Tuple[InferencePipeline, Config]
     """
-    import logging
     logging.info('Python version: ' + sys.version)
     path_to_model_inference_config = model_path / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
     logging.info(f'path_to_model_inference_config: {path_to_model_inference_config}')
@@ -84,7 +84,7 @@ def create_inference_pipeline(model_config: SegmentationModelBase,
     :param use_gpu: If GPU should be used or not.
     """
     model_config.use_gpu = use_gpu
-    print('test_config: ' + model_config.model_name)
+    logging.info('test_config: ' + model_config.model_name)
 
     inference_pipeline: Optional[FullImageInferencePipelineBase]
     if len(full_path_to_checkpoints) == 1:
@@ -149,14 +149,15 @@ def score_image(args: ScorePipelineConfig) -> Path:
     :param args:
     :return:
     """
+    logging.getLogger().setLevel(logging.INFO)
     project_root = Path(args.project_root)
 
     # copy the model to the current directory
     copy_tree(args.data_root, str(project_root))
-    print(f'Copied contents of data_root: {args.data_root} to {project_root}')
+    logging.info(f'Copied contents of data_root: {args.data_root} to {project_root}')
 
     run_context = Run.get_context()
-    print(f"Run context={run_context.id}")
+    logging.info(f"Run context={run_context.id}")
 
     images = [load_nifti_image(project_root / DEFAULT_DATA_FOLDER / x) for x in args.test_image_channels]
     inference_pipeline, config = init_from_model_inference_json(project_root, args.use_gpu)
@@ -166,11 +167,15 @@ def score_image(args: ScorePipelineConfig) -> Path:
     result_dst = store_as_ubyte_nifti(segmentation, images[0].header, segmentation_file_name)
     if not is_offline_run_context(run_context):
         run_context.upload_file(args.result_image_name, segmentation_file_name)
-    print(f"Segmentation completed: {result_dst}")
+    logging.info(f"Segmentation completed: {result_dst}")
 
     return Path(result_dst)
 
 
-if __name__ == "__main__":
+def main() -> None:
     print(f"{PYTHONPATH_ENVIRONMENT_VARIABLE_NAME}: {os.environ.get(PYTHONPATH_ENVIRONMENT_VARIABLE_NAME)}")
     score_image(ScorePipelineConfig.parse_args())
+
+
+if __name__ == "__main__":
+    main()
