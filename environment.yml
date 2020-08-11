@@ -9,7 +9,7 @@ dependencies:
   - pip:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - git+https://github.com/ptrblck/apex.git@4ad9b3b#egg=apex
-      - azureml-mlflow==1.10.0
+      - azureml-mlflow==1.11.0
       - azureml-sdk==1.11.0
       - azureml-tensorboard==1.11.0
       - blobxfer==1.9.4
