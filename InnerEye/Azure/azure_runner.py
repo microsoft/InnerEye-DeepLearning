@@ -248,6 +248,8 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
         shm_size=azure_config.docker_shm_size,
         use_docker=True,
         use_gpu=True,
+        # Might need another format
+        custom_docker_image="openmpi3.1.2-cuda10.1-cudnn7-ubuntu18.04"
     )
     # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not be
     # necessary if the innereye package is installed. It is necessary when working with an outer project and
