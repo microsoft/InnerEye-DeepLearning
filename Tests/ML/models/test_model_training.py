@@ -19,9 +19,10 @@ from InnerEye.ML.configs.classification.DummyClassification import DummyClassifi
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import TRAIN_STATS_FILE
-from InnerEye.ML.model_training import ModelTrainingResults, model_train
+from InnerEye.ML.model_training import model_train
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForSegmentation
 from InnerEye.ML.models.losses.mixture import MixtureLoss
+from InnerEye.ML.utils.training_util import ModelTrainingResults
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contents
 from Tests.fixed_paths_for_tests import full_ml_test_data_path

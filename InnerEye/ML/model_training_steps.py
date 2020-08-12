@@ -28,7 +28,6 @@ from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import AzureAndTensorboardLogger, AzureMLLogger, compute_scalar_metrics
-from InnerEye.ML.model_training import ModelTrainingResults
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.models.losses.cross_entropy import CrossEntropyLoss
 from InnerEye.ML.models.losses.mixture import MixtureLoss
@@ -43,19 +42,13 @@ from InnerEye.ML.utils.image_util import NumpyOrTorch
 from InnerEye.ML.utils.metrics_util import SummaryWriters
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
 from InnerEye.ML.utils.supervised_criterion import BinaryCrossEntropyWithLogitsLoss, SupervisedLearningCriterion
+from InnerEye.ML.utils.training_util import ModelForwardAndBackwardsOutputs, ModelTrainingResults
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from InnerEye.ML.visualizers.regression_visualization import plot_variation_error_prediction
 
 C = TypeVar('C', bound=DeepLearningConfig)
 M = TypeVar('M', bound=DeviceAwareModule)
 E = TypeVar('E', List[ClassificationItemSequence[ScalarItem]], ScalarItem)
-
-
-@dataclass
-class ModelForwardAndBackwardsOutputs:
-    loss: float
-    logits: torch.Tensor
-    labels: torch.Tensor
 
 
 class TrainValidateParameters(param.Parameterized, Generic[M]):
@@ -68,7 +61,6 @@ class TrainValidateParameters(param.Parameterized, Generic[M]):
     """
     model: M = param.ClassSelector(class_=DeviceAwareModule, instantiate=False)
     mean_teacher_model: M = param.ClassSelector(class_=DeviceAwareModule, instantiate=False, allow_None=True)
-    temperature_scale_model: M = param.ClassSelector(class_=DeviceAwareModule, instantiate=False, allow_None=True)
     data_loader: DataLoader = param.ClassSelector(class_=DataLoader, instantiate=False)
     epoch: int = param.Integer(None, bounds=(0, None))
     optimizer: Optimizer = param.ClassSelector(class_=Optimizer, instantiate=False)
@@ -263,7 +255,6 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         super().__init__(config, train_val_params)
         self.metrics = create_metrics_dict_from_config(config)
         self.compute_mean_teacher_model = self.model_config.compute_mean_teacher_model
-        self.temperature_scale_model = self.train_val_params.temperature_scale_model
 
         if self.model_config.compute_grad_cam:
             if not self.model_config.aggregation_type == AggregationType.Average:
@@ -374,11 +365,12 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                                model_inputs_and_labels.model_inputs,
                                label_gpu)
 
-        self.metrics.add_metric(MetricType.LOSS, loss.item())
-        self.update_metrics(model_inputs_and_labels.subject_ids, model_output, label_gpu)
-        logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
-        minibatch_time = time.time() - start_time
-        self.metrics.add_metric(MetricType.SECONDS_PER_BATCH, minibatch_time)
+        if not self.model_config.should_save_epoch(self.train_val_params.epoch):
+            self.metrics.add_metric(MetricType.LOSS, loss.item())
+            self.update_metrics(model_inputs_and_labels.subject_ids, model_output, label_gpu)
+            logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
+            minibatch_time = time.time() - start_time
+            self.metrics.add_metric(MetricType.SECONDS_PER_BATCH, minibatch_time)
 
         return ModelForwardAndBackwardsOutputs(
             loss=loss.item(),
@@ -439,13 +431,13 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                       model_inputs: List[torch.Tensor],
                       labels: torch.Tensor) -> None:
         filenames = [f"{epoch}_viz_{id}" for id in subject_ids]
-        self.guided_grad_cam.save_visualizations_in_notebook(
-            classification_item,  # type: ignore
-            model_inputs,
-            filenames,
-            ground_truth_labels=labels.cpu().numpy(),
-            gradcam_dir=self.model_config.visualization_folder
-        )
+        # self.guided_grad_cam.save_visualizations_in_notebook(
+        #     classification_item,  # type: ignore
+        #     model_inputs,
+        #     filenames,
+        #     ground_truth_labels=labels.cpu().numpy(),
+        #     gradcam_dir=self.model_config.visualization_folder
+        # )
 
     def update_mean_teacher_parameters(self) -> None:
         """
@@ -461,18 +453,6 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         for mean_teacher_param, student_param in zip(mean_teacher_model.parameters(), model.parameters()):
             mean_teacher_param.data = self.model_config.mean_teacher_alpha * mean_teacher_param.data \
                                       + (1 - self.model_config.mean_teacher_alpha) * student_param.data
-
-    def perform_post_training_steps(self, model_training_results: ModelTrainingResults) -> None:
-
-
-    def calibrate_logits(self) -> None:
-
-    def set_temperature(self, val_loader: DataLoader) -> None:
-        if self.temperature_scale_model and self.train_val_params.in_training_mode:
-            raise ValueError("set_temperature must be called in Validation mode")
-        for minibatch in self.train_val_params.data_loader:
-            inputs = get_scalar_model_inputs_and_labels(self.model_config, self.train_val_params.model, minibatch)
-            logits, _ = self.get_logits_and_outputs(inputs)
 
     def _should_save_grad_cam_output(self, epoch: int, batch_index: int) -> bool:
         return self.model_config.is_classification_model \
@@ -514,6 +494,25 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
             criterion = self.criterion
 
         return criterion(masked_model_outputs_and_labels.model_outputs, masked_model_outputs_and_labels.labels)
+
+    def perform_post_training_steps(self, model_training_results: ModelTrainingResults) -> None:
+        if self.model_config.perform_calibration:
+            self.perform_calibration(model_training_results)
+
+    def perform_calibration(self, model_training_results: ModelTrainingResults) -> None:
+        masked_model_outputs_and_labels = get_masked_model_outputs_and_labels(
+            model_output=model_training_results.get_logits(training=False),
+            labels=model_training_results.get_labels(training=False)
+        )
+        activation_fn = self.model_config.get_post_loss_logits_normalization_function()
+        _model = self.train_val_params.model
+        if isinstance(self.train_val_params.model, DataParallelModel):
+            _model = _model.module
+
+        _model.set_temperature(
+            logits=activation_fn(masked_model_outputs_and_labels.model_outputs.data.unsqueeze(dim=0)),
+            labels=masked_model_outputs_and_labels.labels.data.unsqueeze(dim=0)
+        )
 
 
 class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModelBase, DeviceAwareModule]):

@@ -101,10 +101,6 @@ class LabelTransformation(Enum):
 
 
 class ScalarModelBase(ModelConfigBase):
-    calibrate_logits: bool = param.Boolean(default=True,
-                                           doc="If True then learn a parameter using the validation"
-                                               " set that maximizes the reliability curve of the model"
-                                               " by temparature scaling it's logits.")
     aggregation_type: AggregationType = param.ClassSelector(default=AggregationType.Average, class_=AggregationType,
                                                             doc="The type of global pooling aggregation to use between"
                                                                 " the encoder and the classifier.")

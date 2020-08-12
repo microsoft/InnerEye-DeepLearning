@@ -5,23 +5,20 @@
 import argparse
 import logging
 import os
-from dataclasses import dataclass
 from time import time
-from typing import List, Optional, TypeVar
+from typing import Optional, TypeVar
 
 from torch.optim.optimizer import Optimizer
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
-from InnerEye.Common import common_util
 from InnerEye.Common.common_util import empty_string_to_none
-from InnerEye.Common.metrics_dict import MetricsDict
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML import metrics
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.model_training_steps import ModelForwardAndBackwardsOutputs, ModelTrainingStepsBase, \
+from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
     ModelTrainingStepsForScalarModel, ModelTrainingStepsForSegmentation, ModelTrainingStepsForSequenceModel, \
     TrainValidateParameters
 from InnerEye.ML.scalar_config import ScalarModelBase
@@ -30,41 +27,16 @@ from InnerEye.ML.utils import ml_util, model_util
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import LRScheduler
 from InnerEye.ML.utils.metrics_util import create_summary_writers
-from InnerEye.ML.utils.ml_util import RandomStateSnapshot, RunRecovery
+from InnerEye.ML.utils.ml_util import RandomStateSnapshot, \
+    RunRecovery
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary, save_checkpoint
-from InnerEye.ML.utils.temperature_scaling import TemperatureScaleModel
+from InnerEye.ML.utils.temperature_scaling import ClassificationModelWithTemperature
+from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
 
 T = TypeVar('T')
-
-
-@dataclass
-class ModelOutputsAndMetricsForEpoch:
-    metrics: MetricsDict
-    model_outputs: List[ModelForwardAndBackwardsOutputs]
-    is_train: bool
-
-
-@dataclass(frozen=True)
-class ModelTrainingResults:
-    """
-    Stores the results from training, with the results on training and validation data for each training epoch.
-    """
-    train_results_per_epoch: List[ModelOutputsAndMetricsForEpoch]
-    val_results_per_epoch: List[ModelOutputsAndMetricsForEpoch]
-    learning_rates_per_epoch: List[List[float]]
-
-    def __post_init__(self) -> None:
-        common_util.check_properties_are_not_none(self)
-
-        if len(self.train_results_per_epoch) != len(self.val_results_per_epoch) != len(self.learning_rates_per_epoch):
-            raise Exception("train_results_per_epoch must be the same length as val_results_per_epoch found "
-                            "and learning_rates_per_epoch, found: train_metrics_per_epoch={}, "
-                            "val_metrics_per_epoch={}, learning_rates_per_epoch={}"
-                            .format(len(self.train_results_per_epoch), len(self.val_results_per_epoch),
-                                    len(self.learning_rates_per_epoch)))
 
 
 def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResults:
@@ -89,7 +61,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     data_loaders = config.create_data_loaders()
 
     # Create model.
-    model = config.create_model()
+    model = ClassificationModelWithTemperature(config.create_model())
     mean_teacher_model = config.create_model() if config.compute_mean_teacher_model else None
 
     # Create the optimizer_type and loss criterion
@@ -125,8 +97,6 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     if config.compute_mean_teacher_model:
         mean_teacher_model, _ = model_util.update_model_for_mixed_precision_and_parallel(mean_teacher_model, config)
 
-    temperature_scale_model = TemperatureScaleModel() if config.perform_temperature_scaling else None
-
     # Create the SummaryWriters for Tensorboard
     writers = create_summary_writers(config)
     config.create_dataframe_loggers()
@@ -157,7 +127,6 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
             TrainValidateParameters(data_loader=data_loaders[ModelExecutionMode.TRAIN],
                                     model=model,
                                     mean_teacher_model=mean_teacher_model,
-                                    temperature_scale_model=temperature_scale_model,
                                     epoch=epoch,
                                     optimizer=optimizer,
                                     epoch_learning_rate=epoch_lrs,
@@ -180,6 +149,17 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                                        val_epoch_results.metrics)
 
         if config.should_save_epoch(epoch) and optimizer is not None:
+            model_training_results = ModelTrainingResults(
+                train_results_per_epoch=train_results_per_epoch,
+                val_results_per_epoch=val_results_per_epoch,
+                learning_rates_per_epoch=learning_rates_per_epoch
+            )
+            train_val_params.data_loader = config.create_data_loaders()[ModelExecutionMode.VAL]
+            create_model_training_steps(config, train_val_params).perform_post_training_steps(model_training_results)
+            val_epoch_results = train_or_validate_epoch(config, train_val_params)
+            val_results_per_epoch.pop()
+            val_results_per_epoch.append(val_epoch_results)
+
             save_checkpoint(model, optimizer, epoch, config)
             if config.compute_mean_teacher_model:
                 save_checkpoint(mean_teacher_model, optimizer, epoch, config, mean_teacher_model=True)
@@ -194,10 +174,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         learning_rates_per_epoch=learning_rates_per_epoch
     )
 
-    logging.info("Finished training, performing post-training steps")
-    assert train_val_params is not None
-    train_val_params.in_training_mode = False
-    create_model_training_steps(config, train_val_params).perform_post_training_steps(model_training_results)
+    logging.info("Finished training")
 
     # Upload visualization directory to AML run context to be able to see it
     # in the Azure UI.
@@ -281,7 +258,7 @@ def train_or_validate_epoch(config: ModelConfigBase,
 
     return ModelOutputsAndMetricsForEpoch(
         metrics=training_steps.get_epoch_results_and_store(epoch_time_seconds),
-        model_outputs_epoch=model_outputs_epoch,
+        model_outputs=model_outputs_epoch,
         is_train=train_val_params.in_training_mode
     )
 
