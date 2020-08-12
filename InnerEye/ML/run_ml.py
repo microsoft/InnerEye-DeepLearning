@@ -210,11 +210,7 @@ class MLRunner:
         """
         registration_epoch = self.decide_registration_epoch_without_evaluating()
         if registration_epoch is not None:
-            self.register_model_for_epoch(
-                RUN_CONTEXT,
-                run_recovery,
-                registration_epoch,
-                np.nan)
+            self.register_model_for_epoch(RUN_CONTEXT, run_recovery, registration_epoch, np.nan)
             if self.azure_config.register_model_only_for_epoch is not None:
                 return
         # run full image inference on existing or newly trained model on the training, and testing set
@@ -223,6 +219,7 @@ class MLRunner:
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
             if registration_epoch is None:
                 self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics)
+            self.may_compare_scores_against_baselines()
         else:
             logging.warning("Couldn't register model in offline mode")
 
@@ -272,11 +269,7 @@ class MLRunner:
             best_epoch_dice = 0.0  # dummy value
         assert isinstance(self.model_config, SegmentationModelBase)
         self.register_model_for_epoch(RUN_CONTEXT, run_recovery, best_epoch, best_epoch_dice)
-        try:
-            from InnerEye.ML.baselines_util import compare_scores_against_baselines
-            compare_scores_against_baselines(self.model_config, self.azure_config)
-        except Exception as ex:
-            print_exception(ex, "Model baseline comparison failed.")
+        self.may_compare_scores_against_baselines()
 
     def save_build_info_for_dotnet_consumers(self) -> None:
         results_container = storage_account_from_full_name(self.azure_config.storage_account) \
@@ -347,6 +340,18 @@ class MLRunner:
                 )
                 cross_val_config._azure_config = self.azure_config
                 plot_cross_validation(cross_val_config)
+
+    def may_compare_scores_against_baselines(self) -> None:
+        """
+        Attempt comparison of scores against baseline scores and scatterplot creation if possible.
+        """
+        if not isinstance(self.model_config, SegmentationModelBase):  # keep type checker happy
+            return
+        try:
+            from InnerEye.ML.baselines_util import compare_scores_against_baselines
+            compare_scores_against_baselines(self.model_config, self.azure_config)
+        except Exception as ex:
+            print_exception(ex, "Model baseline comparison failed.")
 
     def register_segmentation_model(self,
                                     best_epoch: int,
