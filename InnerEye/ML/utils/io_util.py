@@ -243,7 +243,8 @@ class ImageAndSegmentations(Generic[TensorOrNumpyArray]):
 
 def load_3d_images_and_stack(files: Iterable[Path],
                              load_segmentation: bool,
-                             center_crop_size: Optional[TupleInt3] = None) -> ImageAndSegmentations[torch.Tensor]:
+                             center_crop_size: Optional[TupleInt3] = None,
+                             image_size: Optional[TupleInt3] = None) -> ImageAndSegmentations[torch.Tensor]:
     """
     Attempts to load a set of files, all of which are expected to contain 3D images of the same size (Z, X, Y)
     They are all stacked along dimension 0 and returned as a torch tensor of size (B, Z, X, Y)
@@ -254,14 +255,17 @@ def load_3d_images_and_stack(files: Iterable[Path],
     supported for loading from HDF5 files.
     :param center_crop_size: If supplied, all loaded images will be cropped to the size given here. The crop will be
     taken from the center of the image.
+    :param image_size: If supplied, all loaded images will be resized immediately after loading.
     :return: A wrapper class that contains the loaded images, and if load_segmentation is True, also the segmentations
     that were present in the files.
     """
     images = []
     segmentations = []
 
-    def from_numpy_and_crop(array: np.ndarray) -> torch.Tensor:
+    def from_numpy_crop_and_resize(array: np.ndarray) -> torch.Tensor:
         t = torch.from_numpy(array)
+        if image_size:
+            t = torch.nn.functional.interpolate(t, size=image_size)
         if center_crop_size:
             return get_center_crop(t, center_crop_size)
         return t
@@ -273,11 +277,11 @@ def load_3d_images_and_stack(files: Iterable[Path],
             image_numpy = image_numpy.squeeze(axis=0)
         elif image_numpy.ndim != 3:
             raise ValueError(f"Image {file_path} has unsupported shape: {image_numpy.shape}")
-        images.append(from_numpy_and_crop(image_numpy))
+        images.append(from_numpy_crop_and_resize(image_numpy))
         if load_segmentation:
             # Segmentations are loaded as UInt8. Convert to one-hot encoding as late as possible,
             # that is only before feeding into the model
-            segmentations.append(from_numpy_and_crop(image_and_segmentation.segmentations))
+            segmentations.append(from_numpy_crop_and_resize(image_and_segmentation.segmentations))
 
     image_tensor = torch.stack(images, dim=0) if len(images) > 0 else torch.empty(0)
     segmentation_tensor = torch.stack(segmentations, dim=0) if len(segmentations) > 0 else torch.empty(0)

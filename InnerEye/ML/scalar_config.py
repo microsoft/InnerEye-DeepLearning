@@ -157,6 +157,11 @@ class ScalarModelBase(ModelConfigBase):
                            doc="If given, the loaded images and segmentations will be cropped to the given size."
                                "Size is given in pixels. The crop will be taken from the center of the image.")
 
+    image_size: Optional[TupleInt3] = \
+        param.NumericTuple(default=None, allow_None=True, length=3,
+                           doc="If given, images will be resized to these dimensions immediately after loading from"
+                               "file.")
+
     categorical_feature_encoder: Optional[OneHotEncoderBase] = param.ClassSelector(OneHotEncoderBase,
                                                                                    allow_None=True,
                                                                                    instantiate=False,

@@ -686,7 +686,8 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             root_path=self.args.local_dataset,
             file_mapping=self.file_to_full_path,
             load_segmentation=self.args.load_segmentation,
-            center_crop_size=self.args.center_crop_size)
+            center_crop_size=self.args.center_crop_size,
+            image_size=self.args.image_size)
 
         return Compose3D.apply(self.transforms, sample)
 
