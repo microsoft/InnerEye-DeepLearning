@@ -8,6 +8,7 @@ import getpass
 import logging
 import sys
 from dataclasses import dataclass
+from datetime import date
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
@@ -86,7 +87,7 @@ class AzureConfig(GenericConfig):
                                    doc="The user to associate this experiment with.")
     build_source_repository: str = param.String("InnerEye-DeepLearning",
                                                 doc="The name of the repository this source belongs to.")
-    build_branch: str = param.String(getpass.getuser() + "_local_branch",
+    build_branch: str = param.String(getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}",
                                      doc="The branch this experiment has been triggered from.")
     build_source_id: str = param.String("local_commit",
                                         doc="The git commit that was used to create this build.")
