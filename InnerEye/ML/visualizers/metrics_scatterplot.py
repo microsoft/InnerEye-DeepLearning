@@ -12,6 +12,8 @@ import param
 
 from InnerEye.Common.generic_parsing import GenericConfig
 
+SCATTERPLOTS_SUBDIR_NAME = "scatterplots"
+
 
 class MetricsScatterplotConfig(GenericConfig):
     """
@@ -209,7 +211,7 @@ def write_to_scatterplot_directory(root_folder: Path, plots: Dict[str, plt.Figur
     """
     if not plots:
         return
-    scatterplot_dir = root_folder / "scatterplots"
+    scatterplot_dir = root_folder / SCATTERPLOTS_SUBDIR_NAME
     scatterplot_dir.mkdir(parents=True, exist_ok=True)
     for basename, fig in plots.items():
         fig.savefig(scatterplot_dir / f"{basename}.jpg")

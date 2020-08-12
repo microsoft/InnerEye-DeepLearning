@@ -23,12 +23,14 @@ from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOV
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout, print_exception
+    disable_logging_to_file, is_linux, logging_section, logging_to_file, logging_to_stdout, print_exception
 from InnerEye.Common.fixed_paths import get_environment_yaml_file
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
+
+SIBLING_RUNS_SUBDIR_NAME = "SIBLING_RUNS"
 
 LOG_FILE_NAME = "stdout.txt"
 
@@ -99,7 +101,7 @@ class Runner:
                             and (x.get_status() not in [RunStatus.COMPLETED, RunStatus.FAILED])]
             should_wait = len(pending_runs) > 0
             if should_wait:
-                logging.info(f"Waiting for child runs to finish: {pending_runs}")
+                logging.info(f"Waiting for sibling run(s) to finish: {pending_runs}")
             return should_wait
         else:
             raise NotImplementedError("cross_val_splits_are_ready_for_aggregation is implemented for online "
@@ -112,8 +114,9 @@ class Runner:
         :param delay: How long to wait between polls to AML to get status of child runs
         :return: Path to the aggregated results.
         """
-        while self.wait_until_cross_val_splits_are_ready_for_aggregation():
-            time.sleep(delay)
+        with logging_section("waiting for sibling runs"):
+            while self.wait_until_cross_val_splits_are_ready_for_aggregation():
+                time.sleep(delay)
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
         return self.create_ensemble_model()
 
@@ -147,15 +150,16 @@ class Runner:
         """
         # Import only here in case of dependency issues in reduced environment
         from InnerEye.ML.utils.run_recovery import RunRecovery
-        run_recovery = RunRecovery.download_checkpoints_from_run(
-            self.azure_config, self.model_config, PARENT_RUN_CONTEXT, output_subdir_name="SIBLING_RUNS")
-        # Check paths are good, just in case
-        for path in run_recovery.checkpoints_roots:
-            logging.info(f"DBG: Checkpoint path: {path}")
-            if not path.is_dir():
-                raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
-            for name in sorted(path.rglob("*")):
-                logging.info(f"DBG:   {name}")
+        with logging_section("downloading checkpoints from sibling runs"):
+            run_recovery = RunRecovery.download_checkpoints_from_run(
+                self.azure_config, self.model_config, PARENT_RUN_CONTEXT, output_subdir_name=SIBLING_RUNS_SUBDIR_NAME)
+            # Check paths are good, just in case
+            for path in run_recovery.checkpoints_roots:
+                logging.info(f"DBG: Checkpoint path: {path}")
+                if not path.is_dir():
+                    raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
+                for name in sorted(path.rglob("*")):
+                    logging.info(f"DBG:   {name}")
         # Adjust parameters
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0

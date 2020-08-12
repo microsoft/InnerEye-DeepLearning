@@ -18,7 +18,8 @@ from InnerEye.Azure.azure_runner import INPUT_DATA_KEY
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
     IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
     RUN_RECOVERY_ID_KEY_NAME, \
-    create_run_recovery_id, get_results_blob_path, has_input_datasets, storage_account_from_full_name, update_run_tags
+    create_run_recovery_id, get_results_blob_path, has_input_datasets, is_ensemble_run, storage_account_from_full_name, \
+    update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import is_windows, logging_section, print_exception
@@ -37,8 +38,8 @@ from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers import activation_maps
-from InnerEye.ML.visualizers.plot_cross_validation import PlotCrossValidationConfig, \
-    get_config_and_results_for_offline_runs, plot_cross_validation, plot_cross_validation_from_files
+from InnerEye.ML.visualizers.plot_cross_validation import \
+    get_config_and_results_for_offline_runs, plot_cross_validation_from_files
 
 
 def try_to_mount_input_dataset(run_context: Any) -> Optional[Path]:
@@ -256,7 +257,8 @@ class MLRunner:
 
     def register_model_for_best_epoch(self, run_recovery: Optional[RunRecovery],
                                       test_metrics: Optional[InferenceMetricsForSegmentation],
-                                      val_metrics: Optional[InferenceMetricsForSegmentation]) -> None:
+                                      val_metrics: Optional[InferenceMetricsForSegmentation],
+                                      is_ensemble: bool) -> None:
         if val_metrics is not None:
             best_epoch = val_metrics.get_best_epoch()
         elif test_metrics is not None:
@@ -323,7 +325,8 @@ class MLRunner:
             logging.warning("Abandoning model registration - no valid checkpoint paths found")
             return
         try:
-            with logging_section("registering model"):
+            model_type = "ensemble" if is_ensemble else "single"
+            with logging_section(f"registering {model_type} model"):
                 self.register_segmentation_model(
                     run=run_context,
                     best_epoch=best_epoch,

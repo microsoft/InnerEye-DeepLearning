@@ -59,6 +59,19 @@ class RunRecovery:
         return RunRecovery.download_checkpoints_from_run(azure_config, config, run_to_recover)
 
     @staticmethod
+    def tag_values_all_distinct(runs: List[Run], tag: str) -> bool:
+        """
+        Returns True iff the runs all have the specified tag and all the values are different.
+        """
+        seen = set()
+        for run in runs:
+            value = run.get_tags().get(tag, None)
+            if value is None or value in seen:
+                return False
+            seen.add(value)
+        return True
+
+    @staticmethod
     def download_checkpoints_from_run(azure_config: AzureConfig,
                                       config: ModelConfigBase,
                                       run: Run,
@@ -82,10 +95,13 @@ class RunRecovery:
             run=run
         )
         if len(child_runs) > 0:
+            tag_to_use = 'cross_validation_split_index'
+            can_use_split_indices = RunRecovery.tag_values_all_distinct(child_runs, tag_to_use)
             # download checkpoints for the child runs in the root of the parent
             child_runs_checkpoints_roots: List[Path] = []
             for child in child_runs:
-                child_dst = root_output_dir / str(child.number)
+                subdir = str(child.tags[tag_to_use] if can_use_split_indices else child.number)
+                child_dst = root_output_dir / subdir
                 azure_config.download_outputs_from_run(
                     blobs_path=Path(CHECKPOINT_FOLDER),
                     destination=child_dst,

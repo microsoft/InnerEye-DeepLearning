@@ -62,7 +62,8 @@ def model_test(config: ModelConfigBase,
         logging.warning("Not performing any inference because avoid_process_spawn_in_data_loaders is set "
                         "and additional data loaders are likely to block.")
         return None
-    with logging_section(f"running inference on {data_split.name} set"):
+    model_type = "ensemble" if len(run_recovery.checkpoints_roots) > 0 else "single"
+    with logging_section(f"running {model_type} model on {data_split.name.lower()} set"):
         if isinstance(config, SegmentationModelBase):
             return segmentation_model_test(config, data_split, run_recovery)
         if isinstance(config, ScalarModelBase):
