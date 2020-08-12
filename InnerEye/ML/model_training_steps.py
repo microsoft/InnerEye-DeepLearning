@@ -372,9 +372,16 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             minibatch_time = time.time() - start_time
             self.metrics.add_metric(MetricType.SECONDS_PER_BATCH, minibatch_time)
 
+        if isinstance(logits, list):
+            # When using multiple GPUs, logits is a list of tensors. Gather will concatenate them
+            # across the first dimension, and move them to GPU0.
+            model_output = torch.nn.parallel.gather(logits, target_device=0)
+        else:
+            model_output = logits
+
         return ModelForwardAndBackwardsOutputs(
             loss=loss.item(),
-            logits=logits.detach().cpu(),
+            logits=model_output.detach().cpu(),
             labels=model_inputs_and_labels.labels
         )
 
