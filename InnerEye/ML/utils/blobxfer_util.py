@@ -142,7 +142,7 @@ def download_blobs(account: str, account_key: str, blobs_root_path: str, destina
 
     start_time = time.time()
     # the account name can be an Azure Resource ID so extract the name from it if this is the case
-    logging.info(f"Downloading '{blobs_root_path}' from storage account {config.account_name} to ${destination}")
+    logging.info(f"Downloading '{blobs_root_path}' from storage account {config.account_name} to {destination}")
     blobs_root_path = to_azure_friendly_container_path(Path(blobs_root_path))
     if not (blobs_root_path.endswith("/") or is_file):
         blobs_root_path += "/"
