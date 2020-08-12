@@ -8,6 +8,7 @@ from pathlib import Path
 from timeit import default_timer as timer
 from typing import Any, Dict, List, Optional, Tuple
 
+import numpy as np
 import torch.multiprocessing
 from azureml.core import Run, Workspace  # , Dataset
 from azureml.core.model import Model
@@ -15,7 +16,8 @@ from azureml.core.model import Model
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import INPUT_DATA_KEY
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
-    IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, \
+    IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
+    RUN_RECOVERY_ID_KEY_NAME, \
     create_run_recovery_id, get_results_blob_path, has_input_datasets, storage_account_from_full_name, update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
@@ -32,7 +34,8 @@ from InnerEye.ML.model_training import model_train
 from InnerEye.ML.runner import ModelDeploymentHookSignature
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
-from InnerEye.ML.utils.ml_util import RunRecovery, make_pytorch_reproducible
+from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
+from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import PlotCrossValidationConfig, \
     get_config_and_results_for_offline_runs, plot_cross_validation, plot_cross_validation_from_files
@@ -136,6 +139,7 @@ class MLRunner:
             "build_source_id",
             "build_source_message",
             "build_build_source_author",
+            RUN_RECOVERY_FROM_ID_KEY_NAME
         ]
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
         new_tags[RUN_RECOVERY_ID_KEY_NAME] = create_run_recovery_id(run=RUN_CONTEXT)
@@ -145,7 +149,7 @@ class MLRunner:
     def run(self) -> None:
         """
         Driver function to run a ML experiment. If an offline cross validation run is requested, then
-        this function is recursively called for each cross valdation split.
+        this function is recursively called for each cross validation split.
         """
         if self.is_offline_cross_val_parent_run():
             if self.model_config.is_segmentation_model:
@@ -164,49 +168,77 @@ class MLRunner:
         # Set data loader start method
         self.set_multiprocessing_start_method()
 
-        # configure recover container if provided
+        # configure recovery container if provided
         run_recovery: Optional[RunRecovery] = None
         if self.azure_config.run_recovery_id:
-            run_recovery = RunRecovery.download_checkpoints(self.azure_config, self.model_config, RUN_CONTEXT)
+            run_recovery = RunRecovery.download_checkpoints_from_recovery_run(self.azure_config, self.model_config, RUN_CONTEXT)
+        # do training and inference, unless the "only register" switch is set (which requires a run_recovery
+        # to be valid).
+        if self.azure_config.register_model_only_for_epoch is None or run_recovery is None:
+            # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
+            # and config.local_dataset was not already set.
+            self.mount_or_download_dataset()
+            self.model_config.write_args_file()
+            logging.info(str(self.model_config))
+            # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
+            make_pytorch_reproducible()
+
+            # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
+            # loaded (typically only during tests)
+            if self.model_config.dataset_data_frame is None:
+                assert self.model_config.local_dataset is not None
+                ml_util.validate_dataset_paths(self.model_config.local_dataset)
+
+            # train a new model if required
+            if self.azure_config.is_train:
+                logging.info("Starting model training.")
+                model_train(self.model_config, run_recovery)
+            else:
+                self.model_config.write_dataset_files()
+                self.create_activation_maps()
+
+            # log the number of epochs used for model training
+            RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
+
+        self.run_inference_and_register_model(run_recovery)
+
+    def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery]) -> None:
+        """
+        Run inference as required, and register the model, but not necessarily in that order:
+        if we can identify the epoch to register at without running inference, we register first.
+        :param run_recovery: details of run specified by run_recovery_id
+        """
+        registration_epoch = self.decide_registration_epoch_without_evaluating()
+        if registration_epoch is not None:
+            self.register_model_for_epoch(
+                RUN_CONTEXT,
+                run_recovery,
+                registration_epoch,
+                np.nan)
             if self.azure_config.register_model_only_for_epoch is not None:
-                assert isinstance(self.model_config, SegmentationModelBase)  # for mypy
-                # Short circuit the actual model testing step and just register the model for the provided epoch.
-                self.register_model_for_epoch(RUN_CONTEXT, run_recovery,
-                                              self.azure_config.register_model_only_for_epoch, float("nan"))
                 return
-
-        # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
-        # and config.local_dataset was not already set.
-        self.mount_or_download_dataset()
-        self.model_config.write_args_file()
-        logging.info(str(self.model_config))
-        # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
-        make_pytorch_reproducible()
-
-        # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
-        # loaded (typically only during tests)
-        if self.model_config.dataset_data_frame is None:
-            assert self.model_config.local_dataset is not None
-            ml_util.validate_dataset_paths(self.model_config.local_dataset)
-
-        # train a new model if required
-        if self.azure_config.is_train:
-            logging.info("Starting model training.")
-            model_train(self.model_config, run_recovery)
-        else:
-            self.model_config.write_dataset_files()
-            self.create_activation_maps()
-
-        # log the number of epochs used for model training
-        RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
-
         # run full image inference on existing or newly trained model on the training, and testing set
         test_metrics, val_metrics, _ = self.model_inference_train_and_test(RUN_CONTEXT, run_recovery)
-        # register the generated model from the run
+        # register the generated model from the run if we haven't already done so
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
-            self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics)
+            if registration_epoch is None:
+                self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics)
         else:
             logging.warning("Couldn't register model in offline mode")
+
+    def decide_registration_epoch_without_evaluating(self) -> Optional[int]:
+        """
+        In general we need to do evaluations to discover the best test epoch to register the model
+        for. But there are two exceptions, which allow us to register first: (1) the switch
+        register_model_only_for_epoch is set; (2) there is only one test epoch.
+        :return: the epoch to register, or None if it cannot be decided.
+        """
+        if self.azure_config.register_model_only_for_epoch is not None:
+            return self.azure_config.register_model_only_for_epoch
+        candidate_best_epochs = self.model_config.get_test_epochs()
+        if len(candidate_best_epochs) == 1:
+            return candidate_best_epochs[0]
+        return None
 
     def create_activation_maps(self) -> None:
         if self.model_config.is_segmentation_model and self.model_config.activation_map_layers is not None:
@@ -284,7 +316,8 @@ class MLRunner:
             else run_recovery.get_checkpoint_paths(best_epoch)
         # update run tags to denote if it was an ensemble run or not
         is_ensemble = len(checkpoint_paths) > 1
-        update_run_tags(run_context, {IS_ENSEMBLE_KEY_NAME: is_ensemble})
+        if not self.model_config.is_offline_run:
+            update_run_tags(run_context, {IS_ENSEMBLE_KEY_NAME: is_ensemble})
         # Discard any checkpoint paths that do not exist - they will make registration fail. This can happen
         # when some child runs fail; it may still be worth registering the model.
         valid_checkpoint_paths = []
@@ -321,7 +354,8 @@ class MLRunner:
                                     checkpoint_paths: List[Path],
                                     run: Optional[Run] = None,
                                     workspace: Optional[Workspace] = None,
-                                    tags: Optional[Dict[str, str]] = None) -> Tuple[Model, Optional[Path], Any]:
+                                    tags: Optional[Dict[str, str]] = None) -> \
+            Tuple[Optional[Model], Optional[Path], Any]:
         """
         Registers a new model in the workspace's model registry to be deployed further,
         and creates a model zip for portal deployment (if required). This model, is the
@@ -335,10 +369,18 @@ class MLRunner:
         :param tags: If provided, then these will be used instead of the tags found in the provided run.
         :returns AML model object, the path to the specially-deployed model if any, and a further object
         relating to model deployment; if model_deployment_hook is None, the last two are also None.
+        However if a model cannot be registered because the run is an _OfflineRun, or the model_config is not
+        for a segmentation model, None is returned instead of a model.
         """
+        if not isinstance(self.model_config, SegmentationModelBase):
+            logging.warning("Non-segmentation models cannot be registered")
+            return None, None, None
         if (run is None) == (workspace is None):
             raise ValueError("Either a run or a workspace must be provided but not both")
         elif run:
+            if not hasattr(run, 'experiment'):
+                logging.warning("Not registering a model, because the run has no associated experiment")
+                return None, None, None
             workspace = run.experiment.workspace
             tags = run.get_tags()
 
@@ -354,6 +396,9 @@ class MLRunner:
         full_path_to_config.write_text(model_inference_config.to_json(), encoding='utf-8')  # type: ignore
         relative_child_paths = self.get_child_paths(checkpoint_paths)
 
+        # Add experiment and run ID to tags
+        if run is not None:
+            tags = self.tags_with_run_information(run, tags)
         model = Model.register(
             workspace=workspace,
             model_path=str(self.project_root),
@@ -375,6 +420,14 @@ class MLRunner:
                 self.model_config, self.azure_config, model)
             return model, deployment_model_path, deployment_model_spec
         return model, None, None
+
+    @staticmethod
+    def tags_with_run_information(run: Run, tags: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        extra_tags = {"experiment_name": run.experiment.name,
+                      "run_id": run.id,
+                      "run_number": run.number}
+        # Let values already in tags take priority:
+        return {**extra_tags, **(tags or {})}
 
     def get_child_paths(self, checkpoint_paths: List[Path]) -> List[str]:
         """
