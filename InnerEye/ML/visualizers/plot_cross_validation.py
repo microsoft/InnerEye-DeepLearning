@@ -35,7 +35,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetc
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, DataframeLogger, FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_AGGREGATES_FILE, delete_and_remake_directory, logging_to_stdout
+    METRICS_AGGREGATES_FILE, delete_and_remake_directory, logging_section, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, ScalarMetricsDict
 from InnerEye.Common.type_annotations import PathOrString
@@ -788,10 +788,12 @@ def plot_cross_validation(config: PlotCrossValidationConfig) -> Path:
     :return:
     """
     logging_to_stdout(logging.INFO)
-    result_files, root_folder = download_crossval_result_files(config)
+    with logging_section("downloading cross-validation results"):
+        result_files, root_folder = download_crossval_result_files(config)
     logging.info(f"DBG: plot_cross_validation: root_folder is {root_folder}")
     config_and_files = OfflineCrossvalConfigAndFiles(config=config, files=result_files)
-    plot_cross_validation_from_files(config_and_files, root_folder)
+    with logging_section("plotting cross-validation results"):
+        plot_cross_validation_from_files(config_and_files, root_folder)
     return root_folder
 
 

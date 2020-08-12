@@ -258,6 +258,21 @@ def _add_formatter(handler: logging.StreamHandler) -> None:
     handler.setFormatter(formatter)
 
 
+@contextmanager
+def logging_section(name: str) -> Generator:
+    from time import time
+    logging.info("")
+    msg = f"**** STARTING:  {name}"
+    logging.info(msg + " " + (119 - len(msg)) * "*")
+    logging.info("")
+    start_time = time()
+    yield
+    elapsed = time() - start_time
+    logging.info("")
+    msg = f"**** FINISHING: {name} after {elapsed:6.3f} seconds"
+    logging.info(msg + " " + (119 - len(msg)) * "*")
+
+
 def delete_and_remake_directory(folder: Union[str, Path]) -> None:
     """
     Delete the folder if it exists, and remakes it.

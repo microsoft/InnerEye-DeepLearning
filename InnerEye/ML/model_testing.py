@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, empty_string_to_none, \
-    get_epoch_results_path, is_linux, string_to_path
+    get_epoch_results_path, is_linux, logging_section, string_to_path
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config
 from InnerEye.ML import metrics, plotting
@@ -62,10 +62,11 @@ def model_test(config: ModelConfigBase,
         logging.warning("Not performing any inference because avoid_process_spawn_in_data_loaders is set "
                         "and additional data loaders are likely to block.")
         return None
-    if isinstance(config, SegmentationModelBase):
-        return segmentation_model_test(config, data_split, run_recovery)
-    if isinstance(config, ScalarModelBase):
-        return classification_model_test(config=config, data_split=data_split, run_recovery=run_recovery)
+    with logging_section(f"running inference on {data_split.name} set"):
+        if isinstance(config, SegmentationModelBase):
+            return segmentation_model_test(config, data_split, run_recovery)
+        if isinstance(config, ScalarModelBase):
+            return classification_model_test(config=config, data_split=data_split, run_recovery=run_recovery)
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 

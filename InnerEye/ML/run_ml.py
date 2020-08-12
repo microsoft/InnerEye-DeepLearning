@@ -21,7 +21,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFA
     create_run_recovery_id, get_results_blob_path, has_input_datasets, storage_account_from_full_name, update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
-from InnerEye.Common.common_util import is_windows, print_exception
+from InnerEye.Common.common_util import is_windows, logging_section, print_exception
 from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PACKAGE_NAME
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -191,8 +191,8 @@ class MLRunner:
 
             # train a new model if required
             if self.azure_config.is_train:
-                logging.info("Starting model training.")
-                model_train(self.model_config, run_recovery)
+                with logging_section("model training"):
+                    model_train(self.model_config, run_recovery)
             else:
                 self.model_config.write_dataset_files()
                 self.create_activation_maps()
@@ -323,14 +323,17 @@ class MLRunner:
             logging.warning("Abandoning model registration - no valid checkpoint paths found")
             return
         try:
-            self.register_segmentation_model(
-                run=run_context,
-                best_epoch=best_epoch,
-                best_epoch_dice=best_epoch_dice,
-                checkpoint_paths=valid_checkpoint_paths)
+            with logging_section("registering model"):
+                self.register_segmentation_model(
+                    run=run_context,
+                    best_epoch=best_epoch,
+                    best_epoch_dice=best_epoch_dice,
+                    checkpoint_paths=valid_checkpoint_paths)
         finally:
             # create model comparison charts if the model was an ensemble; we want this to happen even if
             # registration fails for some reason.
+            pass
+            """
             if is_ensemble:
                 cross_val_config = PlotCrossValidationConfig(
                     run_recovery_id=run_context.tags[RUN_RECOVERY_ID_KEY_NAME],
@@ -339,6 +342,7 @@ class MLRunner:
                 )
                 cross_val_config._azure_config = self.azure_config
                 plot_cross_validation(cross_val_config)
+            """
 
     def may_compare_scores_against_baselines(self) -> None:
         """
@@ -348,7 +352,8 @@ class MLRunner:
             return
         try:
             from InnerEye.ML.baselines_util import compare_scores_against_baselines
-            compare_scores_against_baselines(self.model_config, self.azure_config)
+            with logging_section("comparing scores against baselines"):
+                compare_scores_against_baselines(self.model_config, self.azure_config)
         except Exception as ex:
             print_exception(ex, "Model baseline comparison failed.")
 
