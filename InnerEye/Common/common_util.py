@@ -262,14 +262,20 @@ def _add_formatter(handler: logging.StreamHandler) -> None:
 def logging_section(name: str) -> Generator:
     from time import time
     logging.info("")
-    msg = f"**** STARTING:  {name} "
+    msg = f"**** STARTING: {name} "
     logging.info(msg + (200 - len(msg)) * "*")
     logging.info("")
     start_time = time()
     yield
     elapsed = time() - start_time
     logging.info("")
-    msg = f"**** FINISHING: {name} after {elapsed:6.3f} seconds "
+    if elapsed >= 3600:
+        time_expr = f"{elapsed/3600:5.3f} hours"
+    elif elapsed >= 60:
+        time_expr = f"{elapsed/60:5.3f} minutes"
+    else:
+        time_expr = f"{elapsed:5.3f} seconds"
+    msg = f"**** FINISHED: {name} after {time_expr} "
     logging.info(msg + (200 - len(msg)) * "*")
     logging.info("")
 

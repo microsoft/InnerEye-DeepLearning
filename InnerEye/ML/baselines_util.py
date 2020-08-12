@@ -89,6 +89,18 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
     write_to_scatterplot_directory(outputs_path, comparison_result.plots)
 
 
+def remove_directory(pth: Path) -> None:
+    """
+    Remove a directory and its contents.
+    """
+    for child in pth.glob('*'):
+        if child.is_file():
+            child.unlink()
+        else:
+            remove_directory(child)
+    pth.rmdir()
+
+
 def download_and_compare_scores(outputs_folder: Path, azure_config: AzureConfig,
                                 comparison_blob_storage_paths: List[Tuple[str, str]], model_dataset_df: pd.DataFrame,
                                 model_metrics_df: pd.DataFrame) -> DiceScoreComparisonResult:
@@ -103,16 +115,23 @@ def download_and_compare_scores(outputs_folder: Path, azure_config: AzureConfig,
     file.
     """
     comparison_data = get_comparison_data(outputs_folder, azure_config, comparison_blob_storage_paths)
-    return perform_score_comparisons(model_dataset_df, model_metrics_df, comparison_data)
+    result = perform_score_comparisons(model_dataset_df, model_metrics_df, comparison_data)
+    for tup in comparison_data:
+        run_rec_id = tup[-1]
+        run_rec_path = outputs_folder / run_rec_id
+        if run_rec_path.exists():
+            logging.info(f"Removing directory {run_rec_path}")
+            remove_directory(run_rec_path)
+    return result
 
 
 def perform_score_comparisons(model_dataset_df: pd.DataFrame, model_metrics_df: pd.DataFrame,
-                              comparison_data: List[Tuple[str, pd.DataFrame, pd.DataFrame]]) -> \
+                              comparison_data: List[Tuple[str, pd.DataFrame, pd.DataFrame, str]]) -> \
         DiceScoreComparisonResult:
     all_runs_df = convert_rows_for_comparisons('CURRENT', model_dataset_df, model_metrics_df)
     if not comparison_data:
         return DiceScoreComparisonResult(all_runs_df, False, [], {})
-    for comparison_name, comparison_dataset_df, comparison_metrics_df in comparison_data:
+    for comparison_name, comparison_dataset_df, comparison_metrics_df, comparison_run_rec_id in comparison_data:
         to_compare = convert_rows_for_comparisons(comparison_name, comparison_dataset_df, comparison_metrics_df)
         all_runs_df = all_runs_df.append(to_compare)
     config = WilcoxonTestConfig(data=all_runs_df, with_scatterplots=True, against=['CURRENT'])
@@ -122,7 +141,7 @@ def perform_score_comparisons(model_dataset_df: pd.DataFrame, model_metrics_df: 
 
 def get_comparison_data(outputs_folder: Path, azure_config: AzureConfig,
                         comparison_blob_storage_paths: List[Tuple[str, str]]) -> \
-        List[Tuple[str, pd.DataFrame, pd.DataFrame]]:
+        List[Tuple[str, pd.DataFrame, pd.DataFrame, str]]:
     workspace = azure_config.get_workspace()
     comparison_data = []
     for (comparison_name, comparison_path) in comparison_blob_storage_paths:
@@ -163,7 +182,7 @@ def get_comparison_data(outputs_folder: Path, azure_config: AzureConfig,
                 comparison_dataset_path.exists() and comparison_metrics_path.exists():
             comparison_dataset_df = pd.read_csv(comparison_dataset_path)
             comparison_metrics_df = pd.read_csv(comparison_metrics_path)
-            comparison_data.append((comparison_name, comparison_dataset_df, comparison_metrics_df))
+            comparison_data.append((comparison_name, comparison_dataset_df, comparison_metrics_df, run_rec_id))
         else:
             logging.warning(f"could not find comparison data for run {run_rec_id}")
             for key, path in ("dataset", comparison_dataset_path), ("metrics", comparison_metrics_path):

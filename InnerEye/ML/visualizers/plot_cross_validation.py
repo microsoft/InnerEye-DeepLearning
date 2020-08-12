@@ -364,6 +364,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         for run in runs_to_evaluate:
             tags = run.get_tags()
             split_index = get_split_id(tags, config.is_zero_index)
+            # TODO: is_ensemble_run wrongly returns True on run 0. runs_to_evaluate should include parent and all children.
             split_suffix = ENSEMBLE_SPLIT_NAME if is_ensemble_run(run) else split_index
             # Value to put in the "Split" column in the result.
             run_recovery_id = tags[RUN_RECOVERY_ID_KEY]
