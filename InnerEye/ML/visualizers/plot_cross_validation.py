@@ -346,6 +346,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         delete_and_remake_directory(download_to_folder)  # type: ignore
     start_time = time.time()
     logging.info(f"Starting to download files for cross validation analysis to: {download_to_folder}")
+    logging.info(f"DBG: run_recovery_id = {run_recovery_id}, splits_to_evaluate = {splits_to_evaluate}")
     assert download_to_folder is not None
     result: List[RunResultFiles] = []
     loop_over: List[Tuple[Optional[Run], str, str, Optional[str]]]
@@ -374,6 +375,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
             # download metrics.csv file for each split. metrics_file can be None if the file does not exist
             # (for example, if no output was written for execution mode Test)
             metrics_file = download_metrics_file(config, run, folder_for_run, epoch, mode)
+            logging.info(f"DBG: download_metrics_file gave {metrics_file}")
             if metrics_file:
                 result.append(RunResultFiles(execution_mode=mode,
                                              dataset_csv_file=dataset_file,
@@ -787,6 +789,7 @@ def plot_cross_validation(config: PlotCrossValidationConfig) -> Path:
     """
     logging_to_stdout(logging.INFO)
     result_files, root_folder = download_crossval_result_files(config)
+    logging.info(f"DBG: plot_cross_validation: root_folder is {root_folder}")
     config_and_files = OfflineCrossvalConfigAndFiles(config=config, files=result_files)
     plot_cross_validation_from_files(config_and_files, root_folder)
     return root_folder

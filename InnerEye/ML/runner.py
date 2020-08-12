@@ -150,15 +150,16 @@ class Runner:
             self.azure_config, self.model_config, PARENT_RUN_CONTEXT)
         # Check paths are good, just in case
         for path in run_recovery.checkpoints_roots:
-            logging.debug(f"Checkpoint path: {path}")
+            logging.info(f"DBG: Checkpoint path: {path}")
             if not path.is_dir():
                 raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
             for name in sorted(path.rglob("*")):
-                logging.debug(f"   {name}")
+                logging.info(f"DBG:   {name}")
         # Adjust parameters
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
+        logging.info("DBG: calling run_inference_and_register_model from create_ensemble_model")
         self.create_ml_runner().run_inference_and_register_model(run_recovery)
 
     def parse_and_load_model(self) -> ParserResult:
