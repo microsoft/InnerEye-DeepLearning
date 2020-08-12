@@ -321,11 +321,15 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
     :return: The dataframe with all of the downloaded results grouped by execution mode (Test or Val)
      and directory where the epoch results were downloaded to.
     """
+    logging.info(f"DBG: download_crossval_result_files: run_recovery_id={run_recovery_id}, epoch={epoch}")
+    logging.info(f"DBG: download_crossval_result_files: download_to_folder={download_to_folder}, "
+                 f"splits_to_evaluate={splits_to_evaluate}")
     splits_to_evaluate = splits_to_evaluate or []
     if run_recovery_id is None:
         run_recovery_id = config.run_recovery_id
     if epoch is None:
         epoch = config.epoch
+    logging.info(f"DBG: download_crossval_result_files: new run_recovery_id={run_recovery_id}, epoch={epoch}")
     parent = None
     if run_recovery_id:
         workspace = config.azure_config.get_workspace()
@@ -354,6 +358,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         loop_over = [
             (None, split, split, "") for split in splits_to_evaluate
         ]
+        logging.info("DBG: loop_over is set from splits_to_evaluate")
     else:
         loop_over = []
         for run in runs_to_evaluate:
@@ -363,6 +368,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
             # Value to put in the "Split" column in the result.
             run_recovery_id = tags[RUN_RECOVERY_ID_KEY]
             loop_over.append((run, split_index, split_suffix, run_recovery_id))
+            logging.info(f"DBG: loop_over gets {run.id}, {split_index}, {split_suffix}, {run_recovery_id}")
     for run, split_index, split_suffix, run_recovery_id in loop_over:
         config.local_run_result_split_suffix = split_suffix
         folder_for_run = download_to_folder / split_suffix
