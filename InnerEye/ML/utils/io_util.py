@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import torch
 from tabulate import tabulate
+from pydicom import read_file
 
 from InnerEye.Common import common_util
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat3, TupleInt3
@@ -65,9 +66,17 @@ class HDF5FileType(Enum):
     HDF5_COMPRESSED_SZ = ".h5.sz"
 
 
+class DicomFileType(Enum):
+    """
+    Supported file extensions that indicate Dicom data.
+    """
+    Dicom = ".dcm"
+
+
 VALID_NIFTI_EXTENSIONS_TUPLE = tuple([f.value for f in MedicalImageFileType])
 VALID_HDF5_EXTENSIONS_TUPLE = tuple([f.value for f in HDF5FileType])
 VALID_NUMPY_EXTENSIONS_TUPLE = tuple([f.value for f in NumpyFile])
+VALID_DICOM_EXTENSIONS_TUPLE = tuple([f.value for f in DicomFileType])
 
 
 def _file_matches_extension(file: PathOrString, valid_extensions: Iterable[str]) -> bool:
@@ -114,6 +123,17 @@ def is_hdf5_file_path(file: PathOrString) -> bool:
     :return: True if the file name indicates a HDF5 file.
     """
     return _file_matches_extension(file, VALID_HDF5_EXTENSIONS_TUPLE)
+
+
+def is_dicom_file_path(file: PathOrString) -> bool:
+    """
+    Returns true if the given file name appears to belong to a Dicom file.
+    This is done based on extensions only. The file does not need to exist.
+
+    :param file: The file name to check.
+    :return: True if the file name indicates a Dicom file.
+    """
+    return _file_matches_extension(file, VALID_DICOM_EXTENSIONS_TUPLE)
 
 
 def read_image_as_array_with_header(file_path: Path) -> Tuple[np.ndarray, ImageHeader]:
@@ -177,6 +197,17 @@ def load_numpy_image(path: PathOrString) -> np.ndarray:
     :param path: The path to the numpy file.
     """
     return np.load(path)
+
+
+def load_dicom_image(path: PathOrString) -> np.ndarray:
+    """
+    Loads an array from a numpy file.
+    :param path: The path to the numpy file.
+    """
+    pix_array = read_file(path).pixel_array
+    if pix_array.ndim == 2:
+        pix_array = pix_array[:, :, None]
+    return pix_array
 
 
 def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) -> HDF5Object:
@@ -269,6 +300,8 @@ def load_image_in_known_formats(file: Path, load_segmentation: bool) -> ImageAnd
         return ImageAndSegmentations(images=load_nifti_image(file).image)
     elif is_numpy_file_path(file):
         return ImageAndSegmentations(images=load_numpy_image(file))
+    elif is_dicom_file_path(file):
+        return ImageAndSegmentations(images=load_dicom_image(file))
     else:
         raise ValueError(f"Unsupported image file type for path {file}")
 

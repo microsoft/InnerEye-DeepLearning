@@ -5,6 +5,8 @@
 import os
 from pathlib import Path
 from typing import Any, Optional, Tuple
+from pydicom import Dataset
+from pydicom.dataset import FileMetaDataset, FileDataset
 
 import numpy as np
 import pytest
@@ -14,7 +16,7 @@ from InnerEye.ML.dataset.sample import PatientDatasetSource, PatientMetadata
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
 from InnerEye.ML.utils.io_util import ImageHeader, is_nifti_file_path, is_numpy_file_path, \
-    load_image_in_known_formats, load_numpy_image
+    load_image_in_known_formats, load_numpy_image, is_dicom_file_path, load_dicom_image
 from Tests.ML.util import assert_file_contents
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -174,3 +176,54 @@ def test_load_numpy_image(test_output_dirs: TestOutputDirectories) -> None:
     assert image.shape == array_size
     image_and_segmentation = load_image_in_known_formats(npy_file, load_segmentation=False)
     assert image_and_segmentation.images.shape == array_size
+
+
+@pytest.mark.parametrize("input", [("foo.dcm", True),
+                                   ("foo.mdcm", False),
+                                   ("dcm", False),
+                                   ("foo.txt", False),
+                                   ])
+def test_is_dicom_file(input: Tuple[str, bool]) -> None:
+    file, expected = input
+    assert is_dicom_file_path(file) == expected
+    assert is_dicom_file_path(Path(file)) == expected
+
+
+def write_test_dicom(array: np.ndarray, path: Path):
+    """
+    This saves the input array as a Dicom file.
+    This function DOES NOT create a usable dicom file and is meant only for testing: tags are set to
+    random/default values so that pydicom does not complain when reading the file.
+    """
+    dicom_dataset = Dataset()
+    dicom_metadata = FileMetaDataset()
+    dicom_metadata.TransferSyntaxUID = "1.2.840.10008.1.2"
+    dicom = FileDataset(path, dicom_dataset, preamble=b"\0"*128, file_meta=dicom_metadata)
+    dicom.BitsAllocated = 8
+    dicom.Rows = array.shape[0]
+    dicom.Columns = array.shape[1]
+    dicom.PixelRepresentation = 1
+    dicom.SamplesPerPixel = 1
+    dicom.PhotometricInterpretation = "MONOCHROME1"
+    dicom.PixelData = array
+    dicom.save_as(path)
+
+
+def test_load_dicom_image(test_output_dirs: TestOutputDirectories) -> None:
+    array_size = (20, 30)
+    array = np.ones(array_size, dtype='uint8')
+    array[::2] = 0
+    assert array.shape == array_size
+
+    dcm_file = Path(test_output_dirs.root_dir) / "file.dcm"
+    assert is_dicom_file_path(dcm_file)
+    write_test_dicom(array, dcm_file)
+
+    image = load_dicom_image(dcm_file)
+    assert image.ndim == 3 and image.shape[:2] == array_size and image.shape[2] == 1
+    assert np.array_equal(image[:, :, 0], array)
+
+    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
+    assert image_and_segmentation.images.ndim == 3 and image_and_segmentation.images.shape[:2] == array_size \
+            and image_and_segmentation.images.shape[2] == 1
+    assert np.array_equal(image_and_segmentation.images[:, :, 0], array)
