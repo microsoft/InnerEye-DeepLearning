@@ -207,7 +207,7 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
     pix_array = read_file(path).pixel_array
     if pix_array.ndim == 2:
         pix_array = pix_array[:, :, None]
-    return pix_array
+    return pix_array.astype(np.int)
 
 
 def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) -> HDF5Object:
