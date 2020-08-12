@@ -269,7 +269,6 @@ class MLRunner:
             best_epoch_dice = 0.0  # dummy value
         assert isinstance(self.model_config, SegmentationModelBase)
         self.register_model_for_epoch(RUN_CONTEXT, run_recovery, best_epoch, best_epoch_dice)
-        self.may_compare_scores_against_baselines()
 
     def save_build_info_for_dotnet_consumers(self) -> None:
         results_container = storage_account_from_full_name(self.azure_config.storage_account) \

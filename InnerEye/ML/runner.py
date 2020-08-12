@@ -112,12 +112,14 @@ class Runner:
         :param delay: How long to wait between polls to AML to get status of child runs
         :return: Path to the aggregated results.
         """
-        from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
-            plot_cross_validation, unroll_aggregate_metrics
         while self.wait_until_cross_val_splits_are_ready_for_aggregation():
             time.sleep(delay)
-
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
+        return self.create_ensemble_model()
+
+    def plot_cross_validation_and_upload_results(self) -> Path:
+        from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
+            plot_cross_validation, unroll_aggregate_metrics
         # perform aggregation as cross val splits are now ready
         plot_crossval_config = crossval_config_from_model_config(self.model_config)
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
@@ -137,17 +139,16 @@ class Runner:
                     PARENT_RUN_CONTEXT.log(m.metric_name, m.metric_value)
             except Exception as ex:
                 print_exception(ex, "Unable to log metrics to Hyperdrive parent run.", logger_fn=logging.warning)
-        self.create_ensemble_model()
         return cross_val_results_root
 
-    def create_ensemble_model(self) -> None:
+    def create_ensemble_model(self) -> Path:
         """
         Call MLRunner again after training cross-validation models, to create an ensemble model from them.
         """
         # Import only here in case of dependency issues in reduced environment
         from InnerEye.ML.utils.run_recovery import RunRecovery
         run_recovery = RunRecovery.download_checkpoints_from_run(
-            self.azure_config, self.model_config, PARENT_RUN_CONTEXT)
+            self.azure_config, self.model_config, PARENT_RUN_CONTEXT, output_subdir_name="SIBLING_RUNS")
         # Check paths are good, just in case
         for path in run_recovery.checkpoints_roots:
             logging.info(f"DBG: Checkpoint path: {path}")
@@ -161,6 +162,7 @@ class Runner:
         self.model_config.is_train = False
         logging.info("DBG: calling run_inference_and_register_model from create_ensemble_model")
         self.create_ml_runner().run_inference_and_register_model(run_recovery)
+        return self.plot_cross_validation_and_upload_results()
 
     def parse_and_load_model(self) -> ParserResult:
         """
@@ -284,6 +286,7 @@ class Runner:
         # Ensure that both model training and pytest both get executed in all cases, so that we see a full set of
         # test results in each PR
         outputs_folder = self.model_config.outputs_folder
+        logging.info(f"DBG: run_in_situ: outputs_folder = {outputs_folder}")
         try:
             logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
             try:

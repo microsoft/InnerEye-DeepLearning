@@ -61,7 +61,8 @@ class RunRecovery:
     @staticmethod
     def download_checkpoints_from_run(azure_config: AzureConfig,
                                       config: ModelConfigBase,
-                                      run: Run) -> RunRecovery:
+                                      run: Run,
+                                      output_subdir_name: Optional[str] = None) -> RunRecovery:
         """
         Downloads checkpoints of the provided run or, if applicable, its children.
         :param azure_config: Azure related configs.
@@ -73,7 +74,7 @@ class RunRecovery:
         logging.debug(f"Run has ID {run.id} and initial child runs are:")
         for child_run in child_runs:
             logging.debug(f"     {child_run.id}")
-        root_output_dir = Path(config.checkpoint_folder) / run.id
+        root_output_dir = Path(config.checkpoint_folder) / (output_subdir_name or run.id)
         # download checkpoints for the run
         azure_config.download_outputs_from_run(
             blobs_path=Path(CHECKPOINT_FOLDER),

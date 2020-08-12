@@ -56,6 +56,7 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
     if not comparison_blob_storage_paths:
         return
     outputs_path = model_config.outputs_folder
+    logging.info(f"DBG: compare_scores_against_baselines: outputs_path = {outputs_path}")
     model_epoch_paths = sorted(outputs_path.glob(EPOCH_FOLDER_NAME_PATTERN))
     if not model_epoch_paths:
         logging.warning("Cannot compare scores against baselines: no matches found for "
