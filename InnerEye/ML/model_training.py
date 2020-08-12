@@ -21,8 +21,9 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, ModelTrainingStepsForScalarModel, \
-    ModelTrainingStepsForSegmentation, ModelTrainingStepsForSequenceModel, TrainValidateParameters
+from InnerEye.ML.model_training_steps import ModelForwardAndBackwardsOutputs, ModelTrainingStepsBase, \
+    ModelTrainingStepsForScalarModel, ModelTrainingStepsForSegmentation, ModelTrainingStepsForSequenceModel, \
+    TrainValidateParameters
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util, model_util
@@ -31,6 +32,7 @@ from InnerEye.ML.utils.lr_scheduler import LRScheduler
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, RunRecovery
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary, save_checkpoint
+from InnerEye.ML.utils.temperature_scaling import TemperatureScaleModel
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -38,13 +40,20 @@ MAX_LOAD_TIME_WARNINGS = 3
 T = TypeVar('T')
 
 
+@dataclass
+class ModelOutputsAndMetricsForEpoch:
+    metrics: MetricsDict
+    model_outputs: List[ModelForwardAndBackwardsOutputs]
+    is_train: bool
+
+
 @dataclass(frozen=True)
-class ModelTrainingResult:
+class ModelTrainingResults:
     """
     Stores the results from training, with the results on training and validation data for each training epoch.
     """
-    train_results_per_epoch: List[MetricsDict]
-    val_results_per_epoch: List[MetricsDict]
+    train_results_per_epoch: List[ModelOutputsAndMetricsForEpoch]
+    val_results_per_epoch: List[ModelOutputsAndMetricsForEpoch]
     learning_rates_per_epoch: List[List[float]]
 
     def __post_init__(self) -> None:
@@ -58,7 +67,7 @@ class ModelTrainingResult:
                                     len(self.learning_rates_per_epoch)))
 
 
-def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResult:
+def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResults:
     """
     The main training loop. It creates the model, dataset, optimizer_type, and criterion, then proceeds
     to train the model. If a checkpoint was specified, then it loads the checkpoint before resuming training.
@@ -95,6 +104,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
             if checkpoint_epoch is None:
                 raise ValueError("There was no checkpoint file available for the given start_epoch {}"
                                  .format(config.start_epoch))
+
         load_checkpoint()
         if config.compute_mean_teacher_model:
             load_checkpoint(for_mean_teacher_model=True)
@@ -115,6 +125,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     if config.compute_mean_teacher_model:
         mean_teacher_model, _ = model_util.update_model_for_mixed_precision_and_parallel(mean_teacher_model, config)
 
+    temperature_scale_model = TemperatureScaleModel() if config.perform_temperature_scaling else None
+
     # Create the SummaryWriters for Tensorboard
     writers = create_summary_writers(config)
     config.create_dataframe_loggers()
@@ -134,16 +146,18 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                            tb_log_file_path=str(config.logs_folder / "diagnostics"))
         resource_monitor.start()
 
+    train_val_params = None
     for epoch in range(config.start_epoch + 1, last_epoch):
         logging.info("Starting epoch {}".format(epoch))
         # store the learning rates used for each epoch
         epoch_lrs = l_rate_scheduler.get_last_lr()
         learning_rates_per_epoch.append(epoch_lrs)
 
-        train_val_params: TrainValidateParameters = \
+        train_val_params = \
             TrainValidateParameters(data_loader=data_loaders[ModelExecutionMode.TRAIN],
                                     model=model,
                                     mean_teacher_model=mean_teacher_model,
+                                    temperature_scale_model=temperature_scale_model,
                                     epoch=epoch,
                                     optimizer=optimizer,
                                     epoch_learning_rate=epoch_lrs,
@@ -161,8 +175,9 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         val_results_per_epoch.append(val_epoch_results)
 
         if config.is_segmentation_model:
-            metrics.store_epoch_stats_for_segmentation(config.outputs_folder, epoch, epoch_lrs, train_epoch_results,
-                                                       val_epoch_results)
+            metrics.store_epoch_stats_for_segmentation(config.outputs_folder, epoch, epoch_lrs,
+                                                       train_epoch_results.metrics,
+                                                       val_epoch_results.metrics)
 
         if config.should_save_epoch(epoch) and optimizer is not None:
             save_checkpoint(model, optimizer, epoch, config)
@@ -173,7 +188,16 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         # initial learning rate will be used for the very first epoch.
         l_rate_scheduler.step()
 
-    logging.info("Finished training")
+    model_training_results = ModelTrainingResults(
+        train_results_per_epoch=train_results_per_epoch,
+        val_results_per_epoch=val_results_per_epoch,
+        learning_rates_per_epoch=learning_rates_per_epoch
+    )
+
+    logging.info("Finished training, performing post-training steps")
+    assert train_val_params is not None
+    train_val_params.in_training_mode = False
+    create_model_training_steps(config, train_val_params).perform_post_training_steps(model_training_results)
 
     # Upload visualization directory to AML run context to be able to see it
     # in the Azure UI.
@@ -186,15 +210,11 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         # stop the resource monitoring process
         resource_monitor.kill()
 
-    return ModelTrainingResult(
-        train_results_per_epoch=train_results_per_epoch,
-        val_results_per_epoch=val_results_per_epoch,
-        learning_rates_per_epoch=learning_rates_per_epoch
-    )
+    return model_training_results
 
 
 def train_or_validate_epoch(config: ModelConfigBase,
-                            train_val_params: TrainValidateParameters) -> MetricsDict:
+                            train_val_params: TrainValidateParameters) -> ModelOutputsAndMetricsForEpoch:
     """
     Trains or validates the model for one epoch.
     :param config: The arguments object, which contains useful information for training
@@ -208,23 +228,17 @@ def train_or_validate_epoch(config: ModelConfigBase,
         training_random_state = RandomStateSnapshot.snapshot_random_state()
         # reset the random state for validation
         ml_util.set_random_seed(config.random_seed)
-    forward_pass: ModelTrainingStepsBase
-    if isinstance(config, SegmentationModelBase):
-        forward_pass = ModelTrainingStepsForSegmentation(config, train_val_params)
-    elif isinstance(config, ScalarModelBase):
-        if isinstance(config, SequenceModelBase):
-            forward_pass = ModelTrainingStepsForSequenceModel(config, train_val_params)
-        else:
-            forward_pass = ModelTrainingStepsForScalarModel(config, train_val_params)
-    else:
-        raise NotImplementedError(f"There is no forward pass defined for config type {type(config)}")
+
+    training_steps = create_model_training_steps(config, train_val_params)
 
     status_string = "training" if train_val_params.in_training_mode else "validation"
     item_start_time = time()
     num_load_time_warnings = 0
     num_load_time_exceeded = 0
     num_batches = 0
-    total_extra_load_time = 0.0
+    total_extra_load_time = 0.
+
+    model_outputs_epoch = []
     for batch_index, sample in enumerate(train_val_params.data_loader):
         item_finish_time = time()
         item_load_time = item_finish_time - item_start_time
@@ -242,11 +256,14 @@ def train_or_validate_epoch(config: ModelConfigBase,
                                 f"performance problem in loading. This warning will be printed at most "
                                 f"{MAX_LOAD_TIME_WARNINGS} times.")
                 num_load_time_warnings += 1
-        loss = forward_pass.forward_and_backward_minibatch(sample, batch_index, train_val_params.epoch)
+        model_outputs_minibatch = training_steps.forward_and_backward_minibatch(
+            sample, batch_index, train_val_params.epoch)
+        model_outputs_epoch.append(model_outputs_minibatch)
         train_finish_time = time()
         logging.debug(f"Epoch {train_val_params.epoch} {status_string} batch {batch_index}: "
                       f"Loaded in {item_load_time:0.2f}sec, "
-                      f"{status_string} in {(train_finish_time - item_finish_time):0.2f}sec. Loss = {loss}")
+                      f"{status_string} in {(train_finish_time - item_finish_time):0.2f}sec. "
+                      f"Loss = {model_outputs_minibatch.loss}")
         num_batches += 1
         item_start_time = time()
 
@@ -261,7 +278,31 @@ def train_or_validate_epoch(config: ModelConfigBase,
                         f"{MAX_ITEM_LOAD_TIME_SEC}sec.")
         logging.warning(f"In this epoch, {num_load_time_exceeded} out of {num_batches} batches exceeded the load time "
                         f"threshold. The total loading time for the slow batches was {total_extra_load_time:0.2f}sec.")
-    return forward_pass.get_epoch_results_and_store(epoch_time_seconds)
+
+    return ModelOutputsAndMetricsForEpoch(
+        metrics=training_steps.get_epoch_results_and_store(epoch_time_seconds),
+        model_outputs_epoch=model_outputs_epoch,
+        is_train=train_val_params.in_training_mode
+    )
+
+
+def create_model_training_steps(model_config: ModelConfigBase,
+                                train_val_params: TrainValidateParameters) -> ModelTrainingStepsBase:
+    """
+    Create model training steps based on the model config and train/val parameters
+    :param model_config: Model configs to use
+    :param train_val_params: Train/Val parameters to use
+    :return:
+    """
+    if isinstance(model_config, SegmentationModelBase):
+        return ModelTrainingStepsForSegmentation(model_config, train_val_params)
+    elif isinstance(model_config, ScalarModelBase):
+        if isinstance(model_config, SequenceModelBase):
+            return ModelTrainingStepsForSequenceModel(model_config, train_val_params)
+        else:
+            return ModelTrainingStepsForScalarModel(model_config, train_val_params)
+    else:
+        raise NotImplementedError(f"There are no model training steps defined for config type {type(model_config)}")
 
 
 def main() -> None:

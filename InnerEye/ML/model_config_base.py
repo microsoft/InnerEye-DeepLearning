@@ -239,6 +239,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         pass
 
 
+
 class ModelTransformsPerExecutionMode:
     """
     This is a container class used to store transformations

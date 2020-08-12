@@ -1,54 +1,48 @@
 """
 Copyright (c) Microsoft Corporation. All rights reserved.
 """
+from typing import Optional
 
 import torch
-from torch import nn
 from torch.optim import LBFGS
 
 from InnerEye.ML.models.losses.ece import ECELoss
-from ipda.models.loss.nll_multi_step import NLLMultiStepLoss
 
 
-class ModelWithTemperature(nn.Module):
+class TemperatureScaleModel(torch.nn.Module):
     """
     Torch nn module to wrap a model with temperature scaling.
     model (nn.Module):
         A classification neural network, output of the neural network should be the classification logits.
     """
-    def __init__(self, model):
-        super(ModelWithTemperature, self).__init__()
-        self.act = model.act
-        self.model = model
-        self.model_device = next(model.parameters()).device
-        self.temperature = nn.Parameter(torch.ones(1, device=self.model_device) * 1.0, requires_grad=True)
+    def __init__(self, device: Optional[torch.device] = None):
+        super().__init__()
+        self.temperature = torch.nn.Parameter(torch.ones(1, device=device) * 1.0, requires_grad=True)
 
-    def forward(self, input):
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         logits = self.model(input)
         return self.temperature_scale(logits)
 
-    def temperature_scale(self, logits):
+    def temperature_scale(self, logits: torch.Tensor):
         """
         Perform temperature scaling on logits
         """
         # Expand temperature to match the size of logits
         return logits / self.temperature
 
-    def set_temperature(self, valid_loader):
+    def set_temperature(self):
         """
-        Tune the tempearature of the model (using the validation set).
-        We're going to set it to optimize NLL.
-        valid_loader (DataLoader): validation set loader
+        Tune the temperature of the model (using the validation set).
         """
         self.cuda()
-        nll_criterion = NLLMultiStepLoss(reduction='mean', smoothing_eps=0.05, normalisation_fn=self.model.log_act)
         ece_criterion = ECELoss().cuda()
 
         # First: collect all the logits and labels for the validation set
         logits_list = []
         labels_list = []
         with torch.no_grad():
-            for minibatch in valid_loader:
+            for minibatch in self.validation_data_loader:
+                get_scalar_model_inputs_and_labels(self.model_config, model, sample)
                 input = minibatch["features"].cuda()
                 labels = minibatch["labels"]
                 if len(labels.size()) == 0: continue
@@ -66,7 +60,7 @@ class ModelWithTemperature(nn.Module):
         # Next: optimize the temperature w.r.t. NLL
         optimizer = LBFGS([self.temperature], lr=0.002, max_iter=50)
 
-        def eval():
+        def eval() -> torch.Tensor:
             loss = nll_criterion(self.temperature_scale(logits), labels)
             loss.backward()
             return loss

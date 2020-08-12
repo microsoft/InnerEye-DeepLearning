@@ -28,6 +28,7 @@ from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import AzureAndTensorboardLogger, AzureMLLogger, compute_scalar_metrics
+from InnerEye.ML.model_training import ModelTrainingResults
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.models.losses.cross_entropy import CrossEntropyLoss
 from InnerEye.ML.models.losses.mixture import MixtureLoss
@@ -50,6 +51,13 @@ M = TypeVar('M', bound=DeviceAwareModule)
 E = TypeVar('E', List[ClassificationItemSequence[ScalarItem]], ScalarItem)
 
 
+@dataclass
+class ModelForwardAndBackwardsOutputs:
+    loss: float
+    logits: torch.Tensor
+    labels: torch.Tensor
+
+
 class TrainValidateParameters(param.Parameterized, Generic[M]):
     """
     Bundles parameters needed for training and validation.
@@ -60,6 +68,7 @@ class TrainValidateParameters(param.Parameterized, Generic[M]):
     """
     model: M = param.ClassSelector(class_=DeviceAwareModule, instantiate=False)
     mean_teacher_model: M = param.ClassSelector(class_=DeviceAwareModule, instantiate=False, allow_None=True)
+    temperature_scale_model: M = param.ClassSelector(class_=DeviceAwareModule, instantiate=False, allow_None=True)
     data_loader: DataLoader = param.ClassSelector(class_=DataLoader, instantiate=False)
     epoch: int = param.Integer(None, bounds=(0, None))
     optimizer: Optimizer = param.ClassSelector(class_=Optimizer, instantiate=False)
@@ -104,7 +113,8 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         return self.train_val_params.in_training_mode
 
     @abstractmethod
-    def forward_and_backward_minibatch(self, sample: Dict[str, Any], batch_index: int, epoch: int) -> float:
+    def forward_and_backward_minibatch(self, sample: Dict[str, Any],
+                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and returns the loss.
         :param sample: The batched sample on which the model should be trained.
@@ -165,6 +175,12 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         :return: loss tensor.
         """
         return self.criterion(model_output, labels)
+
+    def perform_post_training_steps(self, model_training_results: ModelTrainingResults) -> None:
+        """
+        Post training operations to perform.
+        """
+        pass
 
 
 @dataclass
@@ -247,6 +263,8 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         super().__init__(config, train_val_params)
         self.metrics = create_metrics_dict_from_config(config)
         self.compute_mean_teacher_model = self.model_config.compute_mean_teacher_model
+        self.temperature_scale_model = self.train_val_params.temperature_scale_model
+
         if self.model_config.compute_grad_cam:
             if not self.model_config.aggregation_type == AggregationType.Average:
                 self.model_config.max_batch_grad_cam = 0
@@ -288,7 +306,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         return self.model_config.get_gpu_tensor_if_possible(labels)
 
     def get_logits_and_outputs(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
-            -> Tuple[torch.Tensor, torch.Tensor]:
+        -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns a Tuple containing the logits and the final model output. Note that the logits might be
         distributed over multiple GPU if the model is an instance of DataParallel. In this case, the model outputs on
@@ -312,7 +330,8 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         model_output = self.model_config.get_post_loss_logits_normalization_function()(model_output)
         return logits, model_output
 
-    def forward_and_backward_minibatch(self, sample: Dict[str, Any], batch_index: int, epoch: int) -> float:
+    def forward_and_backward_minibatch(self, sample: Dict[str, Any],
+                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and computes all metrics.
         :param sample: The batched sample on which the model should be trained.
@@ -360,7 +379,12 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
         minibatch_time = time.time() - start_time
         self.metrics.add_metric(MetricType.SECONDS_PER_BATCH, minibatch_time)
-        return loss.item()
+
+        return ModelForwardAndBackwardsOutputs(
+            loss=loss.item(),
+            logits=logits.detach().cpu(),
+            labels=model_inputs_and_labels.labels
+        )
 
     def get_epoch_results_and_store(self, epoch_time_seconds: float) -> MetricsDict:
         """
@@ -423,17 +447,6 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             gradcam_dir=self.model_config.visualization_folder
         )
 
-    def _should_save_grad_cam_output(self, epoch: int, batch_index: int) -> bool:
-        return self.model_config.is_classification_model \
-               and (not self.in_training_mode) \
-               and self.model_config.should_save_epoch(epoch) \
-               and (batch_index < self.model_config.max_batch_grad_cam)
-
-    def _should_save_regression_error_plot(self, epoch: int) -> bool:
-        return self.model_config.is_regression_model \
-               and (not self.in_training_mode) \
-               and self.model_config.should_save_epoch(epoch)
-
     def update_mean_teacher_parameters(self) -> None:
         """
         Updates the mean teacher model parameters as per the update formula
@@ -448,6 +461,29 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         for mean_teacher_param, student_param in zip(mean_teacher_model.parameters(), model.parameters()):
             mean_teacher_param.data = self.model_config.mean_teacher_alpha * mean_teacher_param.data \
                                       + (1 - self.model_config.mean_teacher_alpha) * student_param.data
+
+    def perform_post_training_steps(self, model_training_results: ModelTrainingResults) -> None:
+
+
+    def calibrate_logits(self) -> None:
+
+    def set_temperature(self, val_loader: DataLoader) -> None:
+        if self.temperature_scale_model and self.train_val_params.in_training_mode:
+            raise ValueError("set_temperature must be called in Validation mode")
+        for minibatch in self.train_val_params.data_loader:
+            inputs = get_scalar_model_inputs_and_labels(self.model_config, self.train_val_params.model, minibatch)
+            logits, _ = self.get_logits_and_outputs(inputs)
+
+    def _should_save_grad_cam_output(self, epoch: int, batch_index: int) -> bool:
+        return self.model_config.is_classification_model \
+               and (not self.in_training_mode) \
+               and self.model_config.should_save_epoch(epoch) \
+               and (batch_index < self.model_config.max_batch_grad_cam)
+
+    def _should_save_regression_error_plot(self, epoch: int) -> bool:
+        return self.model_config.is_regression_model \
+               and (not self.in_training_mode) \
+               and self.model_config.should_save_epoch(epoch)
 
 
 class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[SequenceModelBase]):
@@ -552,7 +588,8 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
         else:
             raise NotImplementedError("Loss type {} is not implemented".format(loss_type))
 
-    def forward_and_backward_minibatch(self, sample: Dict[str, Any], batch_index: int, epoch: int) -> float:
+    def forward_and_backward_minibatch(self, sample: Dict[str, Any],
+                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and computes all metrics.
         :param sample: The batched sample on which the model should be trained.

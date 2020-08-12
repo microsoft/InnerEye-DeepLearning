@@ -19,7 +19,7 @@ from InnerEye.ML.configs.classification.DummyClassification import DummyClassifi
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import TRAIN_STATS_FILE
-from InnerEye.ML.model_training import ModelTrainingResult, model_train
+from InnerEye.ML.model_training import ModelTrainingResults, model_train
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForSegmentation
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from Tests.ML.configs.DummyModel import DummyModel
@@ -121,15 +121,17 @@ def _test_model_train(output_dirs: TestOutputDirectories,
 
     loss_absolute_tolerance = 1e-3
     model_training_result = model_training.model_train(train_config)
-    assert isinstance(model_training_result, ModelTrainingResult)
+    assert isinstance(model_training_result, ModelTrainingResults)
 
     # check to make sure training batches are NOT all the same across epochs
-    _check_patch_centers(model_training_result.train_results_per_epoch, should_equal=False)
+    _check_patch_centers([x.metrics for x in model_training_result.train_results_per_epoch], should_equal=False)
     # check to make sure validation batches are all the same across epochs
-    _check_patch_centers(model_training_result.val_results_per_epoch, should_equal=True)
+    _check_patch_centers([x.metrics for x in model_training_result.val_results_per_epoch], should_equal=True)
     assert isinstance(model_training_result.train_results_per_epoch[0], MetricsDict)
-    actual_train_losses = [m.get_single_metric(MetricType.LOSS) for m in model_training_result.train_results_per_epoch]
-    actual_val_losses = [m.get_single_metric(MetricType.LOSS) for m in model_training_result.val_results_per_epoch]
+    actual_train_losses = [m.metrics.get_single_metric(MetricType.LOSS)
+                           for m in model_training_result.train_results_per_epoch]
+    actual_val_losses = [m.metrics.get_single_metric(MetricType.LOSS)
+                         for m in model_training_result.val_results_per_epoch]
     print("actual_train_losses = {}".format(actual_train_losses))
     print("actual_val_losses = {}".format(actual_val_losses))
     assert np.allclose(actual_train_losses, expected_train_losses, atol=loss_absolute_tolerance)
