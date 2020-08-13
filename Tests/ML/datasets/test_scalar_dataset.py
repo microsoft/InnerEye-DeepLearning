@@ -8,7 +8,6 @@ from collections import Counter
 from io import StringIO
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple, Union
-from unittest import mock
 
 import numpy as np
 import pandas as pd
@@ -553,72 +552,6 @@ def test_string_to_float(text: str, expected: float) -> None:
         assert actual == expected
 
 
-@pytest.mark.parametrize(["file_path", "expected_shape"],
-                         [
-                             ("train_and_test_data/id1_mask.nii.gz", (75, 75, 75)),
-                             ("hdf5_data/patient_hdf5s/4be9beed-5861-fdd2-72c2-8dd89aadc1ef.h5", (4, 5, 7)),
-                         ])
-def test_load_image(file_path: str, expected_shape: Tuple) -> None:
-    full_file_path = full_ml_test_data_path() / file_path
-    image_and_segmentation = load_image_in_known_formats(full_file_path, load_segmentation=False)
-    assert image_and_segmentation.images.shape == expected_shape
-
-
-@pytest.mark.parametrize(["file_path_str", "expected_shape"],
-                         [
-                             ("train_and_test_data/id1_mask.nii.gz", (75, 75, 75)),
-                             ("hdf5_data/patient_hdf5s/4be9beed-5861-fdd2-72c2-8dd89aadc1ef.h5", (4, 5, 7)),
-                         ])
-def test_load_and_stack(file_path_str: str, expected_shape: Tuple) -> None:
-    file_path = Path(file_path_str)
-    files = [full_ml_test_data_path() / f for f in [file_path, file_path]]
-    stacked = load_3d_images_and_stack(files, load_segmentation=False)
-    assert torch.is_tensor(stacked.segmentations)
-    assert stacked.segmentations is not None
-    assert stacked.segmentations.shape == (0,)
-    assert torch.is_tensor(stacked.images)
-    assert stacked.images.shape == (2,) + expected_shape
-
-
-def test_load_and_stack_with_segmentation() -> None:
-    expected_shape = (4, 5, 7)
-    file_path = full_ml_test_data_path() / "hdf5_data/patient_hdf5s/4be9beed-5861-fdd2-72c2-8dd89aadc1ef.h5"
-    files = [file_path, file_path]
-    stacked = load_3d_images_and_stack(files, load_segmentation=True)
-    assert stacked.segmentations is not None
-    assert torch.is_tensor(stacked.segmentations)
-    assert stacked.segmentations.dtype == torch.uint8
-    assert stacked.segmentations.shape == (2,) + expected_shape
-    assert torch.is_tensor(stacked.images)
-    assert stacked.images.dtype == torch.float16
-    assert stacked.images.shape == (2,) + expected_shape
-
-
-def test_load_and_stack_with_crop() -> None:
-    image_size = (10, 12, 14)
-    crop_shape = (4, 6, 8)
-    center_start = (3, 3, 3)
-    assert np.allclose(np.array(center_start) * 2 + np.array(crop_shape), np.array(image_size))
-    # Create a fake image that is all zeros apart from ones in the center, right where we expect the
-    # center crop to be taken from. We can later assert that the right crop was taken by checking that only
-    # values of 1.0 are in the image
-    image = np.zeros(image_size)
-    image[center_start[0]:center_start[0] + crop_shape[0],
-    center_start[1]:center_start[1] + crop_shape[1],
-    center_start[2]:center_start[2] + crop_shape[2]] = 1
-    segmentation = image * 2
-    mock_return = ImageAndSegmentations(image, segmentation)
-    with mock.patch("InnerEye.ML.utils.io_util.load_image_in_known_formats", return_value=mock_return):
-        stacked = load_3d_images_and_stack([Path("doesnotmatter")], load_segmentation=True, center_crop_size=crop_shape)
-        assert torch.is_tensor(stacked.images)
-        assert stacked.images.shape == (1,) + crop_shape
-        assert torch.all(stacked.images == 1.0)
-        assert torch.is_tensor(stacked.segmentations)
-        assert stacked.segmentations is not None
-        assert stacked.segmentations.shape == (1,) + crop_shape
-        assert torch.all(stacked.segmentations == 2.0)
-
-
 def test_files_by_stem(test_output_dirs: TestOutputDirectories) -> None:
     """
     Test enumeration of files recursively.
@@ -799,13 +732,6 @@ def test_item_is_valid(channel_files: List[Optional[str]],
                          label=torch.empty(0),
                          metadata=GeneralSampleMetadata(id="foo"))
     assert c.is_valid() == is_valid
-
-
-def test_load_images_when_empty() -> None:
-    stacked = load_3d_images_and_stack([], load_segmentation=False)
-    assert stacked.images.shape == (0,)
-    assert stacked.segmentations is not None
-    assert stacked.segmentations.shape == (0,)
 
 
 def test_is_index_valid() -> None:

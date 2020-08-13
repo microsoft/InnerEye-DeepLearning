@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Generic, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+from skimage.transform import resize
 
 import SimpleITK as sitk
 import numpy as np
@@ -207,7 +208,8 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
     pix_array = read_file(path).pixel_array
     if pix_array.ndim == 2:
         pix_array = pix_array[:, :, None]
-    return pix_array.astype(np.int)
+    # Return a float array, we may resize this in load_3d_images_and_stack, and interpolation will not work on int
+    return pix_array.astype(np.float)
 
 
 def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) -> HDF5Object:
@@ -263,9 +265,9 @@ def load_3d_images_and_stack(files: Iterable[Path],
     segmentations = []
 
     def from_numpy_crop_and_resize(array: np.ndarray) -> torch.Tensor:
-        t = torch.from_numpy(array)
         if image_size:
-            t = torch.nn.functional.interpolate(t, size=image_size)
+            array = resize(array, image_size)
+        t = torch.from_numpy(array)
         if center_crop_size:
             return get_center_crop(t, center_crop_size)
         return t
