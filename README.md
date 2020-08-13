@@ -65,6 +65,7 @@ Once training in AzureML is done, the models can be deployed from within AzureML
 ## Licensing
 
 [MIT License](LICENSE)
+
 **You are responsible for the performance and any necessary testing or regulatory clearances for any models generated**
 
 ## References
