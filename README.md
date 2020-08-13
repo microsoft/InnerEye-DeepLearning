@@ -62,6 +62,11 @@ Once training in AzureML is done, the models can be deployed from within AzureML
 1. [How to do pull requests](docs/pull_requests.md)
 1. [Contributing](docs/contributing.md)
 
+## Licensing
+
+[MIT License](LICENSE.md)
+**You are responsible for the performance and any necessary testing or regulatory clearances for any models generated**
+
 ## References
 
 Please cite the following references if you find the image segmentation framework useful in your research:
