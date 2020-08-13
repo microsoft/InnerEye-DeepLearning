@@ -27,9 +27,9 @@ from InnerEye.ML.utils import ml_util, model_util
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import LRScheduler
 from InnerEye.ML.utils.metrics_util import create_summary_writers
-from InnerEye.ML.utils.ml_util import RandomStateSnapshot, \
-    RunRecovery
+from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary, save_checkpoint
+from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.temperature_scaling import ClassificationModelWithTemperature
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 

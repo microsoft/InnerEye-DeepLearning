@@ -102,20 +102,17 @@ python InnerEye/Scripts/submit_for_inference.py --image_file ~/somewhere/ct.nii.
 
 ### Model Ensembles
 
-You can ensemble the results of any HyperDrive run with exactly the same command as testing an existing model, 
-but with `--run_recovery_id` referring to a cross-validation training run. You don't specify
-`--number_of_cross_validation_splits`. Thus:
-```shell script
-python Inner/ML/runner.py --submit_to_azureml=True --model=Prostate --is_train=False --gpu_cluster_name=my_cluster_name \
-   --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
-```
-This will download the checkpoints for model
-testing based on the model config you have provided in the branch you are running from, and run the inference pipeline
-for each image through each of the checkpoints of the child runs. It will also register the ensemble in the
-AzureML model registry.
+An ensemble model should be created automatically and registered in the AzureML model registry whenever cross-validation
+models are trained. The ensemble model
+creation is done by the child whose `cross_validation_split_index` is 0; you can identify this child by looking
+at the "Child Runs" tab in the parent run page in AzureML. To find the ID of the ensemble model, look in the
+driver log for the child run and search for the string "Registered model". There should be exactly two occurrences of
+this string. The first is for the child model itself (each child run in fact registers one of these) and the
+second is for the ensemble. 
 
-The results will then be aggregated based on the `ensemble_aggregation_type` value in the model config,
-and the generated posteriors will be passed to the usual model testing downstream pipelines, e.g. metrics computation.
+As well as registering the model, the child run runs it on the validation and test sets. The results are aggregated 
+based on the `ensemble_aggregation_type` value in the model config,
+and the generated posteriors are passed to the usual model testing downstream pipelines, e.g. metrics computation.
 
 ##### Interpreting results
 
@@ -125,7 +122,8 @@ Once your HyperDrive AzureML runs are completed, you can visualize the results b
 python InnerEye/ML/visualizers/plot_cross_validation.py --run_recovery_id ... --epoch ...
 ```
 filling in the run recovery ID of the parent run and the epoch number (one of the test epochs, e.g. the last epoch) 
-for which you want results plotted. The script will also output several `..._outliers.txt` file with all of the outliers across the splits and a portal query to 
+for which you want results plotted. The script will also output several `..._outliers.txt` file with all of the outliers
+across the splits and a portal query to 
 find them in the production portal, and run statistical tests to compute the significance of differences between scores
 across the splits and with respect to other runs that you specify. Details of the tests can be found
 in [`wilcoxon_signed_rank_test.py`](/InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py)
