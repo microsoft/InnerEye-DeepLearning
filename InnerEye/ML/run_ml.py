@@ -308,10 +308,13 @@ class MLRunner:
                                  best_epoch_dice: float) -> None:
         checkpoint_paths = [self.model_config.get_path_to_checkpoint(best_epoch)] if not run_recovery \
             else run_recovery.get_checkpoint_paths(best_epoch)
-        # update run tags to denote if it was an ensemble run or not
+        # Update run tags to denote if it was an ensemble run or not. A genuine ensemble run will have
+        # a cross_validation_split_index of -1, but a child-zero run doing ensembling will not.
         is_ensemble = len(checkpoint_paths) > 1
         if not self.model_config.is_offline_run:
-            update_run_tags(run_context, {IS_ENSEMBLE_KEY_NAME: is_ensemble})
+            split_index = run_context.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
+            if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
+                update_run_tags(run_context, {IS_ENSEMBLE_KEY_NAME: is_ensemble})
         # Discard any checkpoint paths that do not exist - they will make registration fail. This can happen
         # when some child runs fail; it may still be worth registering the model.
         valid_checkpoint_paths = []

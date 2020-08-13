@@ -336,9 +336,8 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         parent = fetch_run(workspace, run_recovery_id)
         runs_to_evaluate = fetch_child_runs(
             run=parent, expected_number_cross_validation_splits=config.number_of_cross_validation_splits)
-        if is_ensemble_run(parent) or len(runs_to_evaluate) == 0:
-            logging.info("Adding parent run to the list of runs to evaluate.")
-            runs_to_evaluate.append(parent)
+        logging.info("Adding parent run to the list of runs to evaluate.")
+        runs_to_evaluate.append(parent)
         logging.info(f"Will evaluate results for runs: {[x.id for x in runs_to_evaluate]}")
     else:
         runs_to_evaluate = []
@@ -364,18 +363,25 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         for run in runs_to_evaluate:
             tags = run.get_tags()
             split_index = get_split_id(tags, config.is_zero_index)
-            # TODO: is_ensemble_run wrongly returns True on run 0. runs_to_evaluate should include parent and all children.
             split_suffix = ENSEMBLE_SPLIT_NAME if is_ensemble_run(run) else split_index
             # Value to put in the "Split" column in the result.
             run_recovery_id = tags[RUN_RECOVERY_ID_KEY]
             loop_over.append((run, split_index, split_suffix, run_recovery_id))
             logging.info(f"DBG: loop_over gets {run.id}, {split_index}, {split_suffix}, {run_recovery_id}")
+
+    logging.info(f"DBG: files in {config.outputs_directory} (with parent.id = {parent.id}):")
+    import os
+    top_root = str(config.outputs_directory)
+    for root, dirs, files in os.walk(top_root):
+        rel_root = root[len(top_root):].strip('/')
+        for file in files:
+            logging.info(f"DBG:   {rel_root}/{file}")
+
     for run, split_index, split_suffix, run_recovery_id in loop_over:
         config.local_run_result_split_suffix = split_suffix
         folder_for_run = download_to_folder / split_suffix
-        dataset_file = config.download_or_get_local_file(run,
-                                                         DATASET_CSV_FILE_NAME,
-                                                         folder_for_run)
+        logging.info(f"DBG: processing loop_over item {run.id}, {split_index}, {split_suffix}, {run_recovery_id}")
+        dataset_file = config.download_or_get_local_file(run, DATASET_CSV_FILE_NAME, folder_for_run)
         if config.is_segmentation and not dataset_file:
             raise ValueError(f"Dataset file must be present for segmentation models, but is missing for run {run.id}")
         for mode in EXECUTION_MODES_TO_DOWNLOAD:
