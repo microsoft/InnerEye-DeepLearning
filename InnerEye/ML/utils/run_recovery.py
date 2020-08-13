@@ -109,7 +109,7 @@ class RunRecovery:
             for child in child_runs:
                 if child.id == RUN_CONTEXT.id:
                     # We expect to find the file(s) we need in config.checkpoint_folder
-                    child_dst = config.checkpoint_folder
+                    child_dst = Path(config.checkpoint_folder)
                 else:
                     subdir = str(child.tags[tag_to_use] if can_use_split_indices else child.number)
                     child_dst = root_output_dir / subdir
