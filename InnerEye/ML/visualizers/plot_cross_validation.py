@@ -531,6 +531,19 @@ def convert_rows_for_comparisons(split_column_value: Optional[str],
     return df
 
 
+def shorten_split_names(metrics: pd.DataFrame) -> None:
+    """
+    Replaces values in metrics[COL_SPLIT] by shortened versions consisting of the first 3 and last
+    3 characters, separated by "..", when that string is shorter.
+    :param metrics: data frame with a column named COL_SPLIT
+    """
+    def shorten(name: str) -> str:
+        if len(name) <= 8:
+            return name
+        return f"{name[:3]}..{name[-3:]}"
+    metrics[COL_SPLIT] = metrics[COL_SPLIT].apply(shorten)
+
+
 def plot_metrics(config: PlotCrossValidationConfig,
                  dataset_split_metrics: Dict[ModelExecutionMode, pd.DataFrame], root: Path) -> None:
     """
@@ -546,7 +559,7 @@ def plot_metrics(config: PlotCrossValidationConfig,
             metrics: pd.DataFrame = pd.melt(df, id_vars=[COL_SPLIT, MetricsFileColumns.Structure.value],
                                             value_vars=[metric_type]) \
                 .sort_values(by=[COL_SPLIT, MetricsFileColumns.Structure.value])
-
+            shorten_split_names(metrics)
             # create plot for the dataframe
             fig, ax = pyplot.subplots(figsize=(15.7, 8.27))
             ax = seaborn.boxplot(x='split', y='value',
