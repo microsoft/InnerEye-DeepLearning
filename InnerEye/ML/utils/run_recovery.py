@@ -88,13 +88,15 @@ class RunRecovery:
         for child_run in child_runs:
             logging.debug(f"     {child_run.id}")
         if output_subdir_name:
-            # From e.g. parent_dir/checkpoints we want parent_dir/output_subdir_name/checkpoints
+            # From e.g. parent_dir/checkpoints we want parent_dir/output_subdir_name, to which we will
+            # append split_index / checkpoints below to create child_dst.
             checkpoint_path = Path(config.checkpoint_folder)
             parent_path = checkpoint_path.parent
             checkpoint_subdir_name = checkpoint_path.name
-            root_output_dir = parent_path / output_subdir_name / checkpoint_subdir_name
+            root_output_dir = parent_path / output_subdir_name
         else:
             root_output_dir = Path(config.checkpoint_folder) / run.id
+            checkpoint_subdir_name = None
         # download checkpoints for the run
         azure_config.download_outputs_from_run(
             blobs_path=Path(CHECKPOINT_FOLDER),
@@ -112,7 +114,10 @@ class RunRecovery:
                     child_dst = Path(config.checkpoint_folder)
                 else:
                     subdir = str(child.tags[tag_to_use] if can_use_split_indices else child.number)
-                    child_dst = root_output_dir / subdir
+                    if checkpoint_subdir_name:
+                        child_dst = root_output_dir / subdir / checkpoint_subdir_name
+                    else:
+                        child_dst = root_output_dir / subdir
                     azure_config.download_outputs_from_run(
                         blobs_path=Path(CHECKPOINT_FOLDER),
                         destination=child_dst,
