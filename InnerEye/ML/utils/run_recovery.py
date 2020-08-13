@@ -107,13 +107,17 @@ class RunRecovery:
             # download checkpoints for the child runs in the root of the parent
             child_runs_checkpoints_roots: List[Path] = []
             for child in child_runs:
-                subdir = str(child.tags[tag_to_use] if can_use_split_indices else child.number)
-                child_dst = root_output_dir / subdir
-                azure_config.download_outputs_from_run(
-                    blobs_path=Path(CHECKPOINT_FOLDER),
-                    destination=child_dst,
-                    run=child
-                )
+                if child.id == RUN_CONTEXT.id:
+                    # We expect to find the file(s) we need in config.checkpoint_folder
+                    child_dst = config.checkpoint_folder
+                else:
+                    subdir = str(child.tags[tag_to_use] if can_use_split_indices else child.number)
+                    child_dst = root_output_dir / subdir
+                    azure_config.download_outputs_from_run(
+                        blobs_path=Path(CHECKPOINT_FOLDER),
+                        destination=child_dst,
+                        run=child
+                    )
                 child_runs_checkpoints_roots.append(child_dst)
             return RunRecovery(checkpoints_roots=child_runs_checkpoints_roots)
         else:

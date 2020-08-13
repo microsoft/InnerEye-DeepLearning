@@ -164,7 +164,7 @@ class Runner:
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
         logging.info("DBG: calling run_inference_and_register_model from create_ensemble_model")
-        self.create_ml_runner().run_inference_and_register_model(run_recovery)
+        self.create_ml_runner().run_inference_and_register_model(run_recovery, is_ensemble=True)
         return self.plot_cross_validation_and_upload_results()
 
     def parse_and_load_model(self) -> ParserResult:
