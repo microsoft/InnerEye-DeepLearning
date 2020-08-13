@@ -29,14 +29,15 @@ from matplotlib import pyplot
 
 import InnerEye.Common.Statistics.mann_whitney_test as mann_whitney
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetch_child_runs, fetch_run, \
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, PARENT_RUN_CONTEXT, fetch_child_runs, \
+    fetch_run, \
     is_ensemble_run, \
     is_offline_run_context
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, DataframeLogger, ENSEMBLE_SPLIT_NAME, \
     FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_AGGREGATES_FILE, delete_and_remake_directory, logging_section, logging_to_stdout
+    METRICS_AGGREGATES_FILE, OTHER_RUNS_SUBDIR_NAME, delete_and_remake_directory, logging_section, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, ScalarMetricsDict
 from InnerEye.Common.type_annotations import PathOrString
@@ -300,6 +301,10 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     )
 
 
+def is_parent_run(run: Run) -> bool:
+    return PARENT_RUN_CONTEXT and run.id == PARENT_RUN_CONTEXT.id
+
+
 def download_crossval_result_files(config: PlotCrossValidationConfig,
                                    run_recovery_id: Optional[str] = None,
                                    epoch: Optional[int] = None,
@@ -379,9 +384,14 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
 
     for run, split_index, split_suffix, run_recovery_id in loop_over:
         config.local_run_result_split_suffix = split_suffix
-        folder_for_run = download_to_folder / split_suffix
+
         logging.info(f"DBG: processing loop_over item {run.id}, {split_index}, {split_suffix}, {run_recovery_id}")
         # When run is the parent run, we need to look on the local disc.
+        if is_parent_run(run):
+            folder_for_run = Path(config.outputs_directory) / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME
+        else:
+            folder_for_run = download_to_folder / split_suffix
+        logging.info(f"DBG: is_parent_run is {is_parent_run(run)}, so folder_for_run is {folder_for_run}")
         dataset_file = config.download_or_get_local_file(run, DATASET_CSV_FILE_NAME, folder_for_run)
         if config.is_segmentation and not dataset_file:
             raise ValueError(f"Dataset file must be present for segmentation models, but is missing for run {run.id}")
