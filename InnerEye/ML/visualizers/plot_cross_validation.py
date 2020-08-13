@@ -34,7 +34,8 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetc
     is_offline_run_context
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
-from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, DataframeLogger, FULL_METRICS_DATAFRAME_FILE, \
+from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, DataframeLogger, ENSEMBLE_SPLIT_NAME, \
+    FULL_METRICS_DATAFRAME_FILE, \
     METRICS_AGGREGATES_FILE, delete_and_remake_directory, logging_section, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, ScalarMetricsDict
@@ -58,8 +59,6 @@ METRICS_BY_MODE_FILE = "ResultsByMode.csv"
 COL_SPLIT = "split"
 COL_MODE = "mode"
 FLOAT_FORMAT = "%.3f"
-
-ENSEMBLE_SPLIT_NAME = "ENSEMBLE"
 
 EXECUTION_MODES_TO_DOWNLOAD = [ModelExecutionMode.TEST, ModelExecutionMode.VAL]
 
@@ -118,7 +117,8 @@ class PlotCrossValidationConfig(GenericConfig):
                                             doc="List of the subject ids to ignore from the results")
     is_zero_index: bool = param.Boolean(True, doc="If True, start cross validation split indices from 0 otherwise 1")
     train_yaml_path: str = param.String(default=str(fixed_paths.TRAIN_YAML_FILE),
-                                        doc="Path to train yaml with the azure config for the workspace")
+                                        doc="Path to train_variables.yml file containing the Azure configuration "
+                                            "for the workspace")
     _azure_config: Optional[AzureConfig] = \
         param.ClassSelector(class_=AzureConfig, allow_None=True,
                             doc="Azure-related options created from YAML file.")
@@ -180,10 +180,10 @@ class PlotCrossValidationConfig(GenericConfig):
             destination = destination / blob_parent
         downloaded_file = destination / blob_path.name
         # If we've already downloaded the data, leave it as it is
-        logging.info(f"Downloading '{blob_path}' -> '{downloaded_file}'")
         if downloaded_file.exists():
-            print(f"Already downloaded: {downloaded_file}")
+            logging.info(f"Download of '{blob_path}' to '{downloaded_file}: not needed, already exists'")
             return downloaded_file
+        logging.info(f"Download of '{blob_path}' to '{downloaded_file}: proceeding'")
         # if the provided run is the current run, then nothing to download
         # just copy the provided path in the outputs directory to the destination
         if not destination.exists():
@@ -369,7 +369,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
             loop_over.append((run, split_index, split_suffix, run_recovery_id))
             logging.info(f"DBG: loop_over gets {run.id}, {split_index}, {split_suffix}, {run_recovery_id}")
 
-    logging.info(f"DBG: files in {config.outputs_directory} (with parent.id = {parent.id}):")
+    logging.info(f"DBG: files in {config.outputs_directory} (with parent.id = {parent.id if parent else None}):")
     import os
     top_root = str(config.outputs_directory)
     for root, dirs, files in os.walk(top_root):
@@ -381,6 +381,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         config.local_run_result_split_suffix = split_suffix
         folder_for_run = download_to_folder / split_suffix
         logging.info(f"DBG: processing loop_over item {run.id}, {split_index}, {split_suffix}, {run_recovery_id}")
+        # When run is the parent run, we need to look on the local disc.
         dataset_file = config.download_or_get_local_file(run, DATASET_CSV_FILE_NAME, folder_for_run)
         if config.is_segmentation and not dataset_file:
             raise ValueError(f"Dataset file must be present for segmentation models, but is missing for run {run.id}")

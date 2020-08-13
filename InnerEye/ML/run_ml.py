@@ -18,7 +18,7 @@ from InnerEye.Azure.azure_runner import INPUT_DATA_KEY
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
     IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
     RUN_RECOVERY_ID_KEY_NAME, \
-    create_run_recovery_id, get_results_blob_path, has_input_datasets, is_ensemble_run, storage_account_from_full_name, \
+    create_run_recovery_id, get_results_blob_path, has_input_datasets, storage_account_from_full_name, \
     update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
@@ -201,9 +201,9 @@ class MLRunner:
             # log the number of epochs used for model training
             RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
 
-        self.run_inference_and_register_model(run_recovery)
+        self.run_inference_and_register_model(run_recovery, is_ensemble=False)
 
-    def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery]) -> None:
+    def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery], is_ensemble: bool) -> None:
         """
         Run inference as required, and register the model, but not necessarily in that order:
         if we can identify the epoch to register at without running inference, we register first.
@@ -211,7 +211,7 @@ class MLRunner:
         """
         registration_epoch = self.decide_registration_epoch_without_evaluating()
         if registration_epoch is not None:
-            self.register_model_for_epoch(RUN_CONTEXT, run_recovery, registration_epoch, np.nan)
+            self.register_model_for_epoch(RUN_CONTEXT, run_recovery, registration_epoch, np.nan, is_ensemble)
             if self.azure_config.register_model_only_for_epoch is not None:
                 return
         # run full image inference on existing or newly trained model on the training, and testing set
@@ -219,7 +219,7 @@ class MLRunner:
         # register the generated model from the run if we haven't already done so
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
             if registration_epoch is None:
-                self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics)
+                self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics, is_ensemble)
             self.may_compare_scores_against_baselines()
         else:
             logging.warning("Couldn't register model in offline mode")
@@ -270,7 +270,7 @@ class MLRunner:
         else:
             best_epoch_dice = 0.0  # dummy value
         assert isinstance(self.model_config, SegmentationModelBase)
-        self.register_model_for_epoch(RUN_CONTEXT, run_recovery, best_epoch, best_epoch_dice)
+        self.register_model_for_epoch(RUN_CONTEXT, run_recovery, best_epoch, best_epoch_dice, is_ensemble)
 
     def save_build_info_for_dotnet_consumers(self) -> None:
         results_container = storage_account_from_full_name(self.azure_config.storage_account) \
@@ -305,12 +305,10 @@ class MLRunner:
                                  run_context: Run,
                                  run_recovery: Optional[RunRecovery],
                                  best_epoch: int,
-                                 best_epoch_dice: float) -> None:
+                                 best_epoch_dice: float,
+                                 is_ensemble: bool) -> None:
         checkpoint_paths = [self.model_config.get_path_to_checkpoint(best_epoch)] if not run_recovery \
             else run_recovery.get_checkpoint_paths(best_epoch)
-        # Update run tags to denote if it was an ensemble run or not. A genuine ensemble run will have
-        # a cross_validation_split_index of -1, but a child-zero run doing ensembling will not.
-        is_ensemble = len(checkpoint_paths) > 1
         if not self.model_config.is_offline_run:
             split_index = run_context.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
             if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
@@ -334,21 +332,12 @@ class MLRunner:
                     run=run_context,
                     best_epoch=best_epoch,
                     best_epoch_dice=best_epoch_dice,
-                    checkpoint_paths=valid_checkpoint_paths)
+                    checkpoint_paths=valid_checkpoint_paths,
+                    is_ensemble=is_ensemble)
         finally:
             # create model comparison charts if the model was an ensemble; we want this to happen even if
             # registration fails for some reason.
             pass
-            """
-            if is_ensemble:
-                cross_val_config = PlotCrossValidationConfig(
-                    run_recovery_id=run_context.tags[RUN_RECOVERY_ID_KEY_NAME],
-                    epoch=best_epoch,
-                    outputs_directory=str(self.model_config.outputs_folder)
-                )
-                cross_val_config._azure_config = self.azure_config
-                plot_cross_validation(cross_val_config)
-            """
 
     def may_compare_scores_against_baselines(self) -> None:
         """
@@ -367,6 +356,7 @@ class MLRunner:
                                     best_epoch: int,
                                     best_epoch_dice: float,
                                     checkpoint_paths: List[Path],
+                                    is_ensemble: bool,
                                     run: Optional[Run] = None,
                                     workspace: Optional[Workspace] = None,
                                     tags: Optional[Dict[str, str]] = None) -> \
@@ -422,7 +412,8 @@ class MLRunner:
             tags=tags,
             description="Best epoch: {}, Accuracy : {}".format(best_epoch, best_epoch_dice)
         )
-        logging.info("Registered model: {}, with Id: {}".format(model.name, model.id))
+        model_type = "ensemble" if is_ensemble else "single"
+        logging.info(f"Registered {model_type} model: {model.name}, with Id: {model.id}")
 
         # update the run's tags with the registered model information
         if not self.model_config.is_offline_run:
@@ -432,7 +423,7 @@ class MLRunner:
         if self.model_deployment_hook is not None:
             assert isinstance(self.model_config, SegmentationModelBase)
             deployment_model_path, deployment_model_spec = self.model_deployment_hook(
-                self.model_config, self.azure_config, model)
+                self.model_config, self.azure_config, model, is_ensemble)
             return model, deployment_model_path, deployment_model_spec
         return model, None, None
 

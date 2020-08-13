@@ -87,7 +87,14 @@ class RunRecovery:
         logging.debug(f"Run has ID {run.id} and initial child runs are:")
         for child_run in child_runs:
             logging.debug(f"     {child_run.id}")
-        root_output_dir = Path(config.checkpoint_folder) / (output_subdir_name or run.id)
+        if output_subdir_name:
+            # From e.g. parent_dir/checkpoints we want parent_dir/output_subdir_name/checkpoints
+            checkpoint_path = Path(config.checkpoint_folder)
+            parent_path = checkpoint_path.parent
+            checkpoint_subdir_name = checkpoint_path.name
+            root_output_dir = parent_path / output_subdir_name / checkpoint_subdir_name
+        else:
+            root_output_dir = Path(config.checkpoint_folder) / run.id
         # download checkpoints for the run
         azure_config.download_outputs_from_run(
             blobs_path=Path(CHECKPOINT_FOLDER),

@@ -33,6 +33,9 @@ METRICS_AGGREGATES_FILE = "metrics_aggregates.csv"
 CROSSVAL_RESULTS_FOLDER = "CrossValResults"
 FULL_METRICS_DATAFRAME_FILE = "MetricsAcrossAllRuns.csv"
 
+OTHER_RUNS_SUBDIR_NAME = "OTHER_RUNS"
+ENSEMBLE_SPLIT_NAME = "ENSEMBLE"
+
 
 class DataframeLogger:
     """

@@ -23,19 +23,18 @@ from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOV
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    disable_logging_to_file, is_linux, logging_section, logging_to_file, logging_to_stdout, print_exception
+    OTHER_RUNS_SUBDIR_NAME, disable_logging_to_file, is_linux, logging_section, logging_to_file, logging_to_stdout, \
+    print_exception
 from InnerEye.Common.fixed_paths import get_environment_yaml_file
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 
-SIBLING_RUNS_SUBDIR_NAME = "SIBLING_RUNS"
-
 LOG_FILE_NAME = "stdout.txt"
 
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
-ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model],
+ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, bool],
                                         Tuple[Optional[Path], Optional[Any]]]
 
 
@@ -152,7 +151,7 @@ class Runner:
         from InnerEye.ML.utils.run_recovery import RunRecovery
         with logging_section("downloading checkpoints from sibling runs"):
             run_recovery = RunRecovery.download_checkpoints_from_run(
-                self.azure_config, self.model_config, PARENT_RUN_CONTEXT, output_subdir_name=SIBLING_RUNS_SUBDIR_NAME)
+                self.azure_config, self.model_config, PARENT_RUN_CONTEXT, output_subdir_name=OTHER_RUNS_SUBDIR_NAME)
             # Check paths are good, just in case
             for path in run_recovery.checkpoints_roots:
                 logging.info(f"DBG: Checkpoint path: {path}")
