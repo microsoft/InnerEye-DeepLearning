@@ -174,34 +174,28 @@ the `metrics.csv` files of the current run and the comparison run(s).
   Dice scores).
 
 Ensemble models are created by the zero'th child (with `cross_validation_split_index=0`) in each
-cross-validation run. They have two additional directories:
-
-* `OTHER_RUNS` contains a subdirectory for every _other_ child run (with positive indices) and one
-named `ENSEMBLE`. The child-run subdirectories each contain a `checkpoints` directory with one or more
-checkpoint files, downloaded from their respective runs. The `ENSEMBLE` subdirectory contains
-`epoch_NNN` subdirectories with scores for the ensemble model on the validation and test set.
-* `CrossValResults` (which is also uploaded to the outputs/ directory of the parent run) 
-contains the following:
-  * Subdirectories named 0, 1, 2, ... for all the child runs including the zero'th one, as well
+cross-validation run. The results (scores, plots etc) from individual child runs are uploaded
+to the parent run, in the `CrossValResults` directory. This contains:
+* Subdirectories named 0, 1, 2, ... for all the child runs including the zero'th one, as well
  as `ENSEMBLE`, containing their respective `epoch_NNN` directories.
-  * A subdirectory named `scatterplots`, containing a `jpg` file for every pairing of component models
-    and the ensemble model. Each one is named `AAA_vs_BBB.jpg`, where `AAA` and `BBB` are the run IDs
-    of the two models. Each plot shows the Dice scores on the test set for the models.
-    *TODO*: also has all-against-all for ensemble and each child model. Check for baseline
-    comparisons when big models done.
-  * A file `CrossValidationWilcoxonSignedRankTestResults.txt`, comprising the results of the Wilcoxon
-    signed rank test applied to those Dice scores. Each paragraph of that file compares two models and
-    indicates, for each structure, when the Dice scores for the second model are significantly better 
-    or worse than the first. For full details, see the 
-    [source code](../InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py).
-  * Files `Dice_Test_Splits.jpg` and `Dice_Val_Splits.jpg`, containing box plots of the Dice scores
-    on those datasets for each structure and each (component and ensemble) model. These give a visual
-    overview of the results in the `metrics.csv` files detailed above.
-  * Similarly, `HausdorffDistance_mm_Test_splits.jpg` and `HausdorffDistance_mm_Val_splits.jpg` contain
-    box plots of Hausdorff distances.
-  * `MetricsAcrossAllRuns.csv` combines the data from all the `metrics.csv` files.
-  * `Test_outliers.txt` and `Val_outliers.txt` highlight particular outlier scores (both Dice and
-    Hausdorff) in the test and validation sets respectively.
+* A subdirectory named `scatterplots`, containing a `jpg` file for every pairing of component models
+  and the ensemble model. Each one is named `AAA_vs_BBB.jpg`, where `AAA` and `BBB` are the run IDs
+  of the two models. Each plot shows the Dice scores on the test set for the models.
+  *TODO*: also has all-against-all for ensemble and each child model. Check for baseline
+  comparisons when big models done.
+* A file `CrossValidationWilcoxonSignedRankTestResults.txt`, comprising the results of the Wilcoxon
+  signed rank test applied to those Dice scores. Each paragraph of that file compares two models and
+  indicates, for each structure, when the Dice scores for the second model are significantly better 
+  or worse than the first. For full details, see the 
+  [source code](../InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py).
+* Files `Dice_Test_Splits.jpg` and `Dice_Val_Splits.jpg`, containing box plots of the Dice scores
+  on those datasets for each structure and each (component and ensemble) model. These give a visual
+  overview of the results in the `metrics.csv` files detailed above.
+* Similarly, `HausdorffDistance_mm_Test_splits.jpg` and `HausdorffDistance_mm_Val_splits.jpg` contain
+  box plots of Hausdorff distances.
+* `MetricsAcrossAllRuns.csv` combines the data from all the `metrics.csv` files.
+* `Test_outliers.txt` and `Val_outliers.txt` highlight particular outlier scores (both Dice and
+  Hausdorff) in the test and validation sets respectively.
 
 ### Using Tensorboard
 
