@@ -301,7 +301,7 @@ def download_metrics_file(config: PlotCrossValidationConfig,
         src = Path(mode.value) / METRICS_FILE_NAME
 
     # download (or copy from local disc) subject level metrics for the given epoch
-    local_src_subdir = OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME if is_parent_run(run) else None
+    local_src_subdir = Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME if is_parent_run(run) else None
     return config.download_or_get_local_file(
         blob_to_download=src,
         destination=destination,
