@@ -30,9 +30,7 @@ from matplotlib import pyplot
 import InnerEye.Common.Statistics.mann_whitney_test as mann_whitney
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, PARENT_RUN_CONTEXT, fetch_child_runs, \
-    fetch_run, \
-    is_ensemble_run, \
-    is_offline_run_context
+    fetch_run, is_offline_run_context
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, DataframeLogger, ENSEMBLE_SPLIT_NAME, \
@@ -394,7 +392,8 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
     for run, split_index, split_suffix, run_recovery_id in loop_over:
         config.local_run_result_split_suffix = split_suffix
 
-        logging.info(f"DBG: processing loop_over item {run.id}, {split_index}, {split_suffix}, {run_recovery_id}")
+        logging.info(f"DBG: processing loop_over item {run.id if run else None}, {split_index}, {split_suffix}, "
+                     f"{run_recovery_id}")
         # When run is the parent run, we need to look on the local disc.
         # If (as expected) dataset.csv is not already present, we copy it from the top of the outputs directory.
         folder_for_run = download_to_folder / split_suffix
