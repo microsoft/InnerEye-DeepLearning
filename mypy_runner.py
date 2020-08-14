@@ -57,7 +57,7 @@ def main() -> int:
         submodule_name = "innereye-deeplearning"
         files = set(current_dir.glob('*.py'))
         for path in current_dir.glob('*'):
-            if path != submodule_name:
+            if path.name != submodule_name:
                 files.update(path.rglob('*.py'))
     return run_mypy(sorted(str(file) for file in files))
 
