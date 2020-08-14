@@ -34,6 +34,11 @@ class EnsembleAggregationType(Enum):
     Average = "Average"
 
 
+class ImageDimension(Enum):
+    Image_2D = 0
+    Image_3D = 1
+
+
 @unique
 class ScalarLoss(Enum):
     BinaryCrossEntropyWithLogits = "BinaryCrossEntropyWithLogits"
@@ -178,6 +183,11 @@ class ScalarModelBase(ModelConfigBase):
                                                                              instantiate=False,
                                                                              doc="The aggregation method to use when"
                                                                                  "testing ensemble models.")
+
+    image_dimensions: ImageDimension = param.ClassSelector(default=ImageDimension.Image_3D,
+                                                           class_=ImageDimension,
+                                                           instantiate=False,
+                                                           doc="Whether the input data images are 2D or 3D")
 
     def __init__(self, num_dataset_reader_workers: int = 0, **params: Any) -> None:
         super().__init__(**params)
@@ -329,13 +339,17 @@ class ScalarModelBase(ModelConfigBase):
 
     def create_torch_datasets(self, dataset_splits: DatasetSplits) -> Dict[ModelExecutionMode, Any]:
         from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
+        image_dimension = self.image_dimensions
         image_transforms = self.get_image_sample_transforms()
-        train = ScalarDataset(self, dataset_splits.train,
-                              name="training", sample_transforms=image_transforms.train)  # type: ignore
-        val = ScalarDataset(self, dataset_splits.val, feature_statistics=train.feature_statistics,
-                            name="validation", sample_transforms=image_transforms.val)  # type: ignore
-        test = ScalarDataset(self, dataset_splits.test, feature_statistics=train.feature_statistics,
-                             name="test", sample_transforms=image_transforms.test)  # type: ignore
+        train = ScalarDataset(args=self, data_frame=dataset_splits.train,
+                              name="training", sample_transforms=image_transforms.train,  # type: ignore
+                              image_dimension=image_dimension)
+        val = ScalarDataset(args=self, data_frame=dataset_splits.val, feature_statistics=train.feature_statistics,
+                            name="validation", sample_transforms=image_transforms.val,  # type: ignore
+                            image_dimension=image_dimension)
+        test = ScalarDataset(args=self, data_frame=dataset_splits.test, feature_statistics=train.feature_statistics,
+                             name="test", sample_transforms=image_transforms.test,  # type: ignore
+                             image_dimension=image_dimension)
 
         return {
             ModelExecutionMode.TRAIN: train,

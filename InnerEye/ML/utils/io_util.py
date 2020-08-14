@@ -20,6 +20,7 @@ from InnerEye.Common import common_util
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat3, TupleInt3
 from InnerEye.ML.config import DEFAULT_POSTERIOR_VALUE_RANGE, PhotometricNormalizationMethod, \
     SegmentationModelBase
+from InnerEye.ML.scalar_config import ImageDimension
 from InnerEye.ML.dataset.sample import PatientDatasetSource, Sample
 from InnerEye.ML.utils.hdf5_util import HDF5Object
 from InnerEye.ML.utils.image_util import ImageDataType, ImageHeader, check_array_range, get_center_crop, is_binary_array
@@ -155,13 +156,15 @@ def read_image_as_array_with_header(file_path: Path) -> Tuple[np.ndarray, ImageH
     return img, ImageHeader(origin=origin, direction=direction, spacing=spacing)
 
 
-def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageWithHeader:
+def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float,
+                     image_dimension: ImageDimension = ImageDimension.Image_3D) -> ImageWithHeader:
     """
     Loads a single .nii, or .nii.gz image from disk. The image to load must be 3D.
 
     :param path: The path to the image to load.
     :return: A numpy array of the image and header data if applicable.
     :param image_type: The type to load the image in, set to None to not cast, default is float
+    :param image_dimension: Indicates if the input image is 2D or 3D
     :raises ValueError: If the path is invalid or the image is not 3D.
     """
 
@@ -174,6 +177,9 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
         if _path.is_file():
             return is_nifti_file_path(_path)
         return False
+
+    if image_dimension != ImageDimension.Image_3D:
+        raise ValueError("Only loading of 3D Nifti images supported")
 
     if isinstance(path, str):
         path = Path(path)
@@ -192,32 +198,43 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
     return ImageWithHeader(image=img, header=header)
 
 
-def load_numpy_image(path: PathOrString) -> np.ndarray:
+def load_numpy_image(path: PathOrString, image_dimension: ImageDimension = ImageDimension.Image_3D) -> np.ndarray:
     """
     Loads an array from a numpy file.
     :param path: The path to the numpy file.
+    :param image_dimension: Indicates if the input image is 2D or 3D
     """
-    return np.load(path)
+    image = np.load(path)
+    if image_dimension == ImageDimension.Image_3D and image.ndim != 3:
+        raise ValueError(f"Expected image with 3 dimensions, got image with {image.ndim} dimensions")
+    elif image_dimension == ImageDimension.Image_2D and image.ndim != 2:
+        raise ValueError(f"Expected image with 2 dimensions, got image with {image.ndim} dimensions")
+    return image
 
 
-def load_dicom_image(path: PathOrString) -> np.ndarray:
+def load_dicom_image(path: PathOrString, image_dimension: ImageDimension = ImageDimension.Image_3D) -> np.ndarray:
     """
     Loads an array from a numpy file.
     :param path: The path to the numpy file.
+    :param image_dimension: Indicates if the input image is 2D or 3D
     """
     pix_array = read_file(path).pixel_array
-    if pix_array.ndim == 2:
-        pix_array = pix_array[:, :, None]
+    if image_dimension == ImageDimension.Image_3D and pix_array.ndim != 3:
+        raise ValueError(f"Expected image with 3 dimensions, got image with {pix_array.ndim} dimensions")
+    elif image_dimension == ImageDimension.Image_2D and pix_array.ndim != 2:
+        raise ValueError(f"Expected image with 2 dimensions, got image with {pix_array.ndim} dimensions")
     # Return a float array, we may resize this in load_3d_images_and_stack, and interpolation will not work on int
     return pix_array.astype(np.float)
 
 
-def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) -> HDF5Object:
+def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False,
+                   image_dimension: ImageDimension = ImageDimension.Image_3D) -> HDF5Object:
     """
     Loads a single HDF5 file.
     :param path_str: The path of the HDF5 file that should be loaded.
     :param load_segmentation: If True, the `segmentation` field of the result object will be populated. If
     False, the field will be set to None.
+    :param image_dimension: Indicates if the input image is 2D or 3D
     :return: numpy array
     """
 
@@ -228,6 +245,9 @@ def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) 
         :return:
         """
         return _path.is_file() and is_hdf5_file_path(_path)
+
+    if image_dimension != ImageDimension.Image_3D:
+        raise ValueError("Only loading of 3D HDF5 images supported")
 
     path = Path(path_str)
 
@@ -243,8 +263,9 @@ class ImageAndSegmentations(Generic[TensorOrNumpyArray]):
     segmentations: Optional[TensorOrNumpyArray] = None
 
 
-def load_3d_images_and_stack(files: Iterable[Path],
+def load_images_and_stack(files: Iterable[Path],
                              load_segmentation: bool,
+                             image_dimension: ImageDimension,
                              center_crop_size: Optional[TupleInt3] = None,
                              image_size: Optional[TupleInt3] = None) -> ImageAndSegmentations[torch.Tensor]:
     """
@@ -258,6 +279,7 @@ def load_3d_images_and_stack(files: Iterable[Path],
     :param center_crop_size: If supplied, all loaded images will be cropped to the size given here. The crop will be
     taken from the center of the image.
     :param image_size: If supplied, all loaded images will be resized immediately after loading.
+    :param image_dimension: Indicates if the input image is 2D or 3D
     :return: A wrapper class that contains the loaded images, and if load_segmentation is True, also the segmentations
     that were present in the files.
     """
@@ -273,12 +295,18 @@ def load_3d_images_and_stack(files: Iterable[Path],
         return t
 
     for file_path in files:
-        image_and_segmentation = load_image_in_known_formats(file_path, load_segmentation)
+        image_and_segmentation = load_image_in_known_formats(file_path, load_segmentation, image_dimension)
         image_numpy = image_and_segmentation.images
-        if image_numpy.ndim == 4 and image_numpy.shape[0] == 1:
-            image_numpy = image_numpy.squeeze(axis=0)
-        elif image_numpy.ndim != 3:
-            raise ValueError(f"Image {file_path} has unsupported shape: {image_numpy.shape}")
+        if image_dimension == ImageDimension.Image_3D:
+            if image_numpy.ndim == 4 and image_numpy.shape[0] == 1:
+                image_numpy = image_numpy.squeeze(axis=0)
+            elif image_numpy.ndim != 3:
+                raise ValueError(f"Image {file_path} has unsupported shape: {image_numpy.shape}")
+        elif image_dimension == ImageDimension.Image_2D:
+            if image_numpy.ndim == 3 and image_numpy.shape[0] == 1:
+                image_numpy = image_numpy.squeeze(axis=0)
+            elif image_numpy.ndim != 2:
+                raise ValueError(f"Image {file_path} has unsupported shape: {image_numpy.shape}")
         images.append(from_numpy_crop_and_resize(image_numpy))
         if load_segmentation:
             # Segmentations are loaded as UInt8. Convert to one-hot encoding as late as possible,
@@ -290,24 +318,32 @@ def load_3d_images_and_stack(files: Iterable[Path],
     return ImageAndSegmentations(images=image_tensor, segmentations=segmentation_tensor)
 
 
-def load_image_in_known_formats(file: Path, load_segmentation: bool) -> ImageAndSegmentations[np.ndarray]:
+def load_image_in_known_formats(file: Path,
+                                load_segmentation: bool,
+                                image_dimension: ImageDimension) -> ImageAndSegmentations[np.ndarray]:
     """
     Loads an image from a file in the given path. At the moment, this supports Nifti, HDF5, and numpy files.
 
     :param file: The path of the file to load.
     :param load_segmentation: If True it loads segmentation if present on the same file as the image.
+    :param image_dimension: Indicates if the input image is 2D or 3D
     :return: a wrapper class that contains the images and segmentation if present
     """
     if is_hdf5_file_path(file):
-        hdf5_object = load_hdf5_file(file, load_segmentation)
+        hdf5_object = load_hdf5_file(path_str=file,
+                                     load_segmentation=load_segmentation,
+                                     image_dimension=image_dimension)
         return ImageAndSegmentations(images=hdf5_object.volume,
                                      segmentations=hdf5_object.segmentation if load_segmentation else None)
     elif is_nifti_file_path(file):
-        return ImageAndSegmentations(images=load_nifti_image(file).image)
+        return ImageAndSegmentations(images=load_nifti_image(path=file,
+                                                             image_dimension=image_dimension).image)
     elif is_numpy_file_path(file):
-        return ImageAndSegmentations(images=load_numpy_image(file))
+        return ImageAndSegmentations(images=load_numpy_image(path=file,
+                                                             image_dimension=image_dimension))
     elif is_dicom_file_path(file):
-        return ImageAndSegmentations(images=load_dicom_image(file))
+        return ImageAndSegmentations(images=load_dicom_image(path=file,
+                                                             image_dimension=image_dimension))
     else:
         raise ValueError(f"Unsupported image file type for path {file}")
 

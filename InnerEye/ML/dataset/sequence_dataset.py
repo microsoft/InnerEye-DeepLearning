@@ -18,6 +18,7 @@ from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence, List
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.features_util import FeatureStatistics
 from InnerEye.ML.utils.transforms import Compose3D, Transform3D
+from InnerEye.ML.scalar_config import ImageDimension
 
 
 def get_longest_contiguous_sequence(items: List[SequenceDataSource],
@@ -214,7 +215,8 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
                  feature_statistics: Optional[
                      FeatureStatistics[ClassificationItemSequence[SequenceDataSource]]] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None):
+                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None,
+                 image_dimension = ImageDimension.Image_3D):
         """
         Creates a new sequence dataset from a dataframe.
         :param args: The model configuration object.
@@ -224,7 +226,12 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
         from the values provided. If None, the normalization factor is computed from the data in the present dataset.
         :param name: Name of the dataset, used for logging
         """
-        super().__init__(args, data_frame, feature_statistics, name, sample_transforms)
+        super().__init__(args=args,
+                         data_frame=data_frame,
+                         feature_statistics=feature_statistics,
+                         name=name,
+                         sample_transforms=sample_transforms,
+                         image_dimension=image_dimension)
         if self.args.sequence_column is None:
             raise ValueError("This class requires a value in the `sequence_column`, specifying where the "
                              "sequence index should be read from.")

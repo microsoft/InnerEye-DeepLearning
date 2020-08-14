@@ -21,7 +21,7 @@ from rich.progress import track
 from InnerEye.ML.dataset.full_image_dataset import GeneralDataset
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
 from InnerEye.ML.dataset.scalar_sample import ScalarDataSource, ScalarItem, SequenceDataSource
-from InnerEye.ML.scalar_config import LabelTransformation, ScalarModelBase
+from InnerEye.ML.scalar_config import LabelTransformation, ScalarModelBase, ImageDimension
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
@@ -625,7 +625,8 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None):
+                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None,
+                 image_dimension: ImageDimension = ImageDimension.Image_3D):
         """
         High level class for the scalar dataset designed to be inherited for specific behaviour
         :param args: The model configuration object.
@@ -636,6 +637,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
         super().__init__(args, data_frame, name)
         self.transforms = sample_transforms
         self.feature_statistics = feature_statistics
+        self.image_dimension = image_dimension
         self.file_to_full_path: Optional[Dict[str, Path]] = None
         if args.traverse_dirs_when_loading:
             if args.local_dataset is None:
@@ -687,7 +689,8 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             file_mapping=self.file_to_full_path,
             load_segmentation=self.args.load_segmentation,
             center_crop_size=self.args.center_crop_size,
-            image_size=self.args.image_size)
+            image_size=self.args.image_size,
+            image_dimension=self.image_dimension)
 
         return Compose3D.apply(self.transforms, sample)
 
@@ -706,10 +709,12 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
     A dataset class that can read CSV files with a flexible schema, and extract image file paths and non-image features.
     """
 
-    def __init__(self, args: ScalarModelBase, data_frame: Optional[pd.DataFrame] = None,
+    def __init__(self, args: ScalarModelBase,
+                 data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics[ScalarDataSource]] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None):
+                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None,
+                 image_dimension: ImageDimension = ImageDimension.Image_3D):
         """
         Creates a new scalar dataset from a dataframe.
         :param args: The model configuration object.
@@ -719,7 +724,12 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
         :param sample_transforms: Sample transforms that should be applied.
         :param name: Name of the dataset, used for diagnostics logging
         """
-        super().__init__(args, data_frame, feature_statistics, name, sample_transforms)
+        super().__init__(args,
+                         data_frame=data_frame,
+                         feature_statistics=feature_statistics,
+                         name=name,
+                         sample_transforms=sample_transforms,
+                         image_dimension=image_dimension)
         self.items = self.load_all_data_sources()
         self.normalize_non_image_features()
 

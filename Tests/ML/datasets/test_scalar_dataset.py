@@ -25,7 +25,6 @@ from InnerEye.ML.dataset.scalar_dataset import DataSourceReader, ScalarDataSourc
 from InnerEye.ML.photometric_normalization import WindowNormalizationForScalarItem, mri_window
 from InnerEye.ML.scalar_config import LabelTransformation, ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
-from InnerEye.ML.utils.io_util import ImageAndSegmentations, load_3d_images_and_stack, load_image_in_known_formats
 from Tests.ML.util import create_dataset_csv_file
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
