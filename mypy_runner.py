@@ -59,7 +59,7 @@ def main() -> int:
         for path in current_dir.glob('*'):
             if path != submodule_name:
                 files.update(path.rglob('*.py'))
-    return run_mypy([str(file) for file in files])
+    return run_mypy(sorted(str(file) for file in files))
 
 
 if __name__ == "__main__":
