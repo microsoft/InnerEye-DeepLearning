@@ -428,3 +428,15 @@ def get_namespace_root(namespace: str) -> Optional[Path]:
         if path.exists() or path_py.exists():
             return Path(root)
     return None
+
+
+def remove_directory(pth: Path) -> None:
+    """
+    Remove a directory and its contents.
+    """
+    for child in pth.glob('*'):
+        if child.is_file():
+            child.unlink()
+        else:
+            remove_directory(child)
+    pth.rmdir()

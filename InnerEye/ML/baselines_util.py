@@ -15,7 +15,8 @@ from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, fetch_run, stri
 from InnerEye.Common import common_util
 from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig
-from InnerEye.Common.common_util import EPOCH_FOLDER_NAME_PATTERN, FULL_METRICS_DATAFRAME_FILE, METRICS_FILE_NAME
+from InnerEye.Common.common_util import EPOCH_FOLDER_NAME_PATTERN, FULL_METRICS_DATAFRAME_FILE, METRICS_FILE_NAME, \
+    remove_directory
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -87,18 +88,6 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
         logging.info("End of Wilcoxon test results")
         may_write_lines_to_file(comparison_result.wilcoxon_lines, wilcoxon_path)
     write_to_scatterplot_directory(outputs_path, comparison_result.plots)
-
-
-def remove_directory(pth: Path) -> None:
-    """
-    Remove a directory and its contents.
-    """
-    for child in pth.glob('*'):
-        if child.is_file():
-            child.unlink()
-        else:
-            remove_directory(child)
-    pth.rmdir()
 
 
 def download_and_compare_scores(outputs_folder: Path, azure_config: AzureConfig,
