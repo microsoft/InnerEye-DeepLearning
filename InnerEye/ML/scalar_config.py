@@ -199,6 +199,26 @@ class ScalarModelBase(ModelConfigBase):
         else:
             self.num_dataset_reader_workers = num_dataset_reader_workers
 
+    def validate(self) -> None:
+        """
+        Validates the parameters stored in the present object.
+        """
+        super().validate()
+        if self.image_dimensions == ImageDimension.Image_2D:
+            if len(self.center_crop_size) != 2:
+                raise ValueError(f"center_crop_size must be 2 for a 2D image, "
+                                 f"got {len(self.center_crop_size)} dimensions")
+            if len(self.image_size) != 2:
+                raise ValueError(f"image_size must be 2 for a 2D image, "
+                                 f"got {len(self.image_size)} dimensions")
+        if self.image_dimensions == ImageDimension.Image_3D:
+            if len(self.center_crop_size) != 3:
+                raise ValueError(f"center_crop_size must be 3 for a 3D image, "
+                                 f"got {len(self.center_crop_size)} dimensions")
+            if len(self.image_size) != 3:
+                raise ValueError(f"image_size must be 3 for a 3D image, "
+                                 f"got {len(self.image_size)} dimensions")
+
     @property
     def is_classification_model(self) -> bool:
         """
