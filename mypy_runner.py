@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -54,6 +53,9 @@ def main() -> int:
     if sys.argv[1:]:
         file_list = [Path(arg) for arg in sys.argv[1:]]
     else:
+        # We don't want to check the files in the submodule if any, partly because they should already have
+        # been checked in the original repo, and partly because we don't want the module name clashes mypy would
+        # otherwise report.
         submodule_name = "innereye-deeplearning"
         files = set(current_dir.glob('*.py'))
         for path in current_dir.glob('*'):
