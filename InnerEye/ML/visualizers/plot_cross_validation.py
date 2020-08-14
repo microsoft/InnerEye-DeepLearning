@@ -184,7 +184,7 @@ class PlotCrossValidationConfig(GenericConfig):
         if downloaded_file.exists():
             logging.info(f"Download of '{blob_path}' to '{downloaded_file}: not needed, already exists'")
             return downloaded_file
-        logging.info(f"Download of '{blob_path}' to '{downloaded_file}: proceeding'")
+        logging.info(f"Download of '{blob_path}' to '{downloaded_file}': proceeding")
         # if the provided run is the current run, then nothing to download
         # just copy the provided path in the outputs directory to the destination
         if not destination.exists():
@@ -386,13 +386,18 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         config.local_run_result_split_suffix = split_suffix
 
         logging.info(f"DBG: processing loop_over item {run.id}, {split_index}, {split_suffix}, {run_recovery_id}")
-        # When run is the parent run, we need to look on the local disc.
+        # When run is the parent run, we need to look on the local disc. If (as expected) dataset.csv is not
+        # already present, we copy it from the top of the outputs directory.
         if is_parent_run(run):
             folder_for_run = Path(config.outputs_directory) / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME
+            folder_for_run.mkdir(parents=True, exist_ok=True)
+            dataset_file = folder_for_run / DATASET_CSV_FILE_NAME
+            if not dataset_file.exists():
+                shutil.copy(str(Path(config.outputs_directory) / DATASET_CSV_FILE_NAME), str(dataset_file))
         else:
             folder_for_run = download_to_folder / split_suffix
-        logging.info(f"DBG: is_parent_run is {is_parent_run(run)}, so folder_for_run is {folder_for_run}")
-        dataset_file = config.download_or_get_local_file(run, DATASET_CSV_FILE_NAME, folder_for_run)
+            logging.info(f"DBG: is_parent_run is {is_parent_run(run)}, so folder_for_run is {folder_for_run}")
+            dataset_file = config.download_or_get_local_file(run, DATASET_CSV_FILE_NAME, folder_for_run)
         if config.is_segmentation and not dataset_file:
             raise ValueError(f"Dataset file must be present for segmentation models, but is missing for run {run.id}")
         for mode in EXECUTION_MODES_TO_DOWNLOAD:
