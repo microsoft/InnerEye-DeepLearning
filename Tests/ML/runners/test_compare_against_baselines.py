@@ -28,8 +28,9 @@ def test_perform_score_comparisons() -> None:
     comparison_metrics_df['Structure'] = ['appendix'] * 10
     comparison_metrics_df['Dice'] = [0.51 + i * 0.02 for i in range(10)]
     comparison_name = "DefaultName"
+    comparison_run_rec_id = "DefaultRunRecId"
     result = perform_score_comparisons(
-        dataset_df, metrics_df, [(comparison_name, dataset_df, comparison_metrics_df)])
+        dataset_df, metrics_df, [(comparison_name, dataset_df, comparison_metrics_df, comparison_run_rec_id)])
     assert result.did_comparisons
     assert len(result.wilcoxon_lines) == 5
     assert result.wilcoxon_lines[0] == f"Build 1: {comparison_name}"
