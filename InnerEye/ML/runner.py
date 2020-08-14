@@ -26,6 +26,7 @@ from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DA
     OTHER_RUNS_SUBDIR_NAME, disable_logging_to_file, is_linux, logging_section, logging_to_file, logging_to_stdout, \
     print_exception
 from InnerEye.Common.fixed_paths import get_environment_yaml_file
+from InnerEye.ML.baselines_util import remove_directory
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -107,17 +108,16 @@ class Runner:
                                       "cross validation runs only")
 
     @stopit.threading_timeoutable()
-    def wait_for_cross_val_runs_to_finish_and_aggregate(self, delay: int = 60) -> Path:
+    def wait_for_cross_val_runs_to_finish_and_aggregate(self, delay: int = 60) -> None:
         """
         Wait for cross val runs (apart from the current one) to finish and then aggregate results of all.
         :param delay: How long to wait between polls to AML to get status of child runs
-        :return: Path to the aggregated results.
         """
         with logging_section("waiting for sibling runs"):
             while self.wait_until_cross_val_splits_are_ready_for_aggregation():
                 time.sleep(delay)
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
-        return self.create_ensemble_model()
+        self.create_ensemble_model()
 
     def plot_cross_validation_and_upload_results(self) -> Path:
         from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
@@ -143,7 +143,7 @@ class Runner:
                 print_exception(ex, "Unable to log metrics to Hyperdrive parent run.", logger_fn=logging.warning)
         return cross_val_results_root
 
-    def create_ensemble_model(self) -> Path:
+    def create_ensemble_model(self) -> None:
         """
         Call MLRunner again after training cross-validation models, to create an ensemble model from them.
         """
@@ -165,7 +165,15 @@ class Runner:
         self.model_config.is_train = False
         logging.info("DBG: calling run_inference_and_register_model from create_ensemble_model")
         self.create_ml_runner().run_inference_and_register_model(run_recovery, is_ensemble=True)
-        return self.plot_cross_validation_and_upload_results()
+        crossval_dir = self.plot_cross_validation_and_upload_results()
+        # CrossValResults should have been uploaded to the parent run, so we don't need it here.
+        logging.info(f"DBG: cleaning up: removing {crossval_dir}")
+        remove_directory(crossval_dir)
+        # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files
+        # available elsewhere.
+        other_runs_dir = self.model_config.outputs_folder / OTHER_RUNS_SUBDIR_NAME
+        logging.info(f"DBG: cleaning up: removing {other_runs_dir}")
+        remove_directory(other_runs_dir)
 
     def parse_and_load_model(self) -> ParserResult:
         """

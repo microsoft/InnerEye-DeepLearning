@@ -146,8 +146,7 @@ and [`mann_whitney_test.py`](/InnerEye/Common/Statistics/mann_whitney_test.py).
   storage account in Azure. In the blade, click on "Files" and, navigate through to `azureml/azureml/my_run_id`. This 
   will show all files that are mounted as the working directory on the compute VM.
 
-The organization of the `outputs` directory differs between single and ensemble models. For single
-models, the structure is as follows:
+The organization of the `outputs` directory is as follows:
 
 * A `checkpoints` directory containing the checkpointed model file(s).
 * For each test epoch `NNN`, a directory `epoch_NNN`, each of whose subdirectories `Test` and `Val`
@@ -160,7 +159,7 @@ contains the following:
   * Various files identifying the dataset and structure names.
   * A `thumbnails` directory, containing an image file for the maximal predicted slice for each
     structure of each test or validation subject.
-  * For test or validation subject, a directory containing a Nifti file for each predicted structure.
+  * For each test or validation subject, a directory containing a Nifti file for each predicted structure.
 * If there are comparison runs (specified by the config parameter `comparison_blob_storage_paths`),
 there will be a subdirectory named after each of those runs, each containing its own `epoch_NNN` subdirectory,
 and there will be a file `MetricsAcrossAllRuns.csv` directly under `outputs`, combining the data from
@@ -174,20 +173,22 @@ the `metrics.csv` files of the current run and the comparison run(s).
   * `train_stats.csv`, containing summary statistics for each training epoch (learning rate, losses and
   Dice scores).
 
-For ensemble models, the structure is more complex:
+Ensemble models are created by the zero'th child (with `cross_validation_split_index=0`) in each
+cross-validation run. They have two additional directories:
 
-* The `checkpoints` directory contains a single subdirectory whose name is the run ID of the
-  cross-validation run from which the ensemble was created. Inside that, there is a subdirectory for each
-  of the component runs, containing its checkpointed model(s).
-* The `epoch_NNN` directory/ies are as for a single run, and contain results for the ensemble model.
-* A directory whose name is the run ID of the current (ensemble) run, containing scores. Within this:
-  * There is one subdirectory for each of the component models (numbered from 0), and one named
-    `ENSEMBLE` for the ensemble model itself. Within each of these, there is an `epoch_NNN` subdirectory,
-    containing `Test` and `Val` subdirectories in turn, as for a single model but containing only
-    the `metrics.csv` file.
+* `OTHER_RUNS` contains a subdirectory for every _other_ child run (with positive indices) and one
+named `ENSEMBLE`. The child-run subdirectories each contain a `checkpoints` directory with one or more
+checkpoint files, downloaded from their respective runs. The `ENSEMBLE` subdirectory contains
+`epoch_NNN` subdirectories with scores for the ensemble model on the validation and test set.
+* `CrossValResults` (which is also uploaded to the outputs/ directory of the parent run) 
+contains the following:
+  * Subdirectories named 0, 1, 2, ... for all the child runs including the zero'th one, as well
+ as `ENSEMBLE`, containing their respective `epoch_NNN` directories.
   * A subdirectory named `scatterplots`, containing a `jpg` file for every pairing of component models
     and the ensemble model. Each one is named `AAA_vs_BBB.jpg`, where `AAA` and `BBB` are the run IDs
     of the two models. Each plot shows the Dice scores on the test set for the models.
+    *TODO*: also has all-against-all for ensemble and each child model. Check for baseline
+    comparisons when big models done.
   * A file `CrossValidationWilcoxonSignedRankTestResults.txt`, comprising the results of the Wilcoxon
     signed rank test applied to those Dice scores. Each paragraph of that file compares two models and
     indicates, for each structure, when the Dice scores for the second model are significantly better 
@@ -201,7 +202,6 @@ For ensemble models, the structure is more complex:
   * `MetricsAcrossAllRuns.csv` combines the data from all the `metrics.csv` files.
   * `Test_outliers.txt` and `Val_outliers.txt` highlight particular outlier scores (both Dice and
     Hausdorff) in the test and validation sets respectively.
-* The same "additional files" as for a single model, except that there is no `train_stats.csv`.
 
 ### Using Tensorboard
 
