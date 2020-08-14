@@ -30,7 +30,7 @@ from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
-from InnerEye.ML.model_testing import model_test
+from InnerEye.ML.model_testing import ModelTestResultType, model_test
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.runner import ModelDeploymentHookSignature
 from InnerEye.ML.utils import ml_util
@@ -215,7 +215,7 @@ class MLRunner:
             if self.azure_config.register_model_only_for_epoch is not None:
                 return
         # run full image inference on existing or newly trained model on the training, and testing set
-        test_metrics, val_metrics, _ = self.model_inference_train_and_test(RUN_CONTEXT, run_recovery)
+        test_metrics, val_metrics, _ = self.model_inference_train_and_test(RUN_CONTEXT, run_recovery, is_ensemble)
         # register the generated model from the run if we haven't already done so
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
             if registration_epoch is None:
@@ -486,7 +486,8 @@ class MLRunner:
         return relative_child_path_names
 
     def model_inference_train_and_test(self, run_context: Optional[Run] = None,
-                                       run_recovery: Optional[RunRecovery] = None) -> \
+                                       run_recovery: Optional[RunRecovery] = None,
+                                       is_ensemble: bool = False) -> \
             Tuple[Optional[InferenceMetricsForSegmentation],
                   Optional[InferenceMetricsForSegmentation],
                   Optional[InferenceMetricsForSegmentation]]:
@@ -495,21 +496,19 @@ class MLRunner:
         test_metrics = None
 
         config = self.model_config
+
+        def run_model_test(data_split: ModelExecutionMode) -> ModelTestResultType:
+            return model_test(config, data_split=data_split, run_recovery=run_recovery, is_ensemble=is_ensemble)
+
         if config.perform_validation_and_test_set_inference:
             # perform inference on test set
-            test_metrics = model_test(config,
-                                      data_split=ModelExecutionMode.TEST,
-                                      run_recovery=run_recovery)
+            test_metrics = run_model_test(ModelExecutionMode.TEST)
             # perform inference on validation set
-            val_metrics = model_test(config,
-                                     data_split=ModelExecutionMode.VAL,
-                                     run_recovery=run_recovery)
+            val_metrics = run_model_test(ModelExecutionMode.VAL)
 
         if config.perform_training_set_inference:
             # perform inference on training set if required
-            train_metrics = model_test(config,
-                                       data_split=ModelExecutionMode.TRAIN,
-                                       run_recovery=run_recovery)
+            train_metrics = run_model_test(ModelExecutionMode.TRAIN)
 
         # log the metrics to AzureML experiment if possible
         if config.is_segmentation_model and run_context is not None:

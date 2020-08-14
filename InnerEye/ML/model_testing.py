@@ -41,11 +41,13 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
 
+ModelTestResultType = Optional[Union[InferenceMetricsForSegmentation, InferenceMetricsForClassification]]
+
 
 def model_test(config: ModelConfigBase,
                data_split: ModelExecutionMode,
-               run_recovery: Optional[RunRecovery] = None
-               ) -> Optional[Union[InferenceMetricsForSegmentation, InferenceMetricsForClassification]]:
+               run_recovery: Optional[RunRecovery] = None,
+               is_ensemble: bool = False) -> ModelTestResultType:
     """
     Runs model inference on segmentation or classification models, using a given dataset (that could be training,
     test or validation set). The inference results and metrics will be stored and logged in a way that may
@@ -65,15 +67,16 @@ def model_test(config: ModelConfigBase,
     model_type = "ensemble" if run_recovery is not None and len(run_recovery.checkpoints_roots) > 0 else "single"
     with logging_section(f"running {model_type} model on {data_split.name.lower()} set"):
         if isinstance(config, SegmentationModelBase):
-            return segmentation_model_test(config, data_split, run_recovery)
+            return segmentation_model_test(config, data_split, run_recovery, is_ensemble)
         if isinstance(config, ScalarModelBase):
-            return classification_model_test(config=config, data_split=data_split, run_recovery=run_recovery)
+            return classification_model_test(config, data_split, run_recovery, is_ensemble)
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 
 def segmentation_model_test(config: SegmentationModelBase,
                             data_split: ModelExecutionMode,
-                            run_recovery: Optional[RunRecovery] = None) -> InferenceMetricsForSegmentation:
+                            run_recovery: Optional[RunRecovery] = None,
+                            is_ensemble: bool = False) -> InferenceMetricsForSegmentation:
     """
     The main testing loop for segmentation models.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
@@ -84,7 +87,7 @@ def segmentation_model_test(config: SegmentationModelBase,
     """
     results: Dict[int, float] = {}
     for epoch in config.get_test_epochs():
-        epoch_results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split)
+        epoch_results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, is_ensemble)
         # save the datasets csv used
         config.write_dataset_files(root=epoch_results_folder)
         epoch_and_split = "epoch {} {} set".format(epoch, data_split.value)
@@ -387,7 +390,8 @@ def create_pipeline_from_checkpoint_paths(config: ModelConfigBase,
 
 def classification_model_test(config: ScalarModelBase,
                               data_split: ModelExecutionMode,
-                              run_recovery: Optional[RunRecovery]) -> InferenceMetricsForClassification:
+                              run_recovery: Optional[RunRecovery],
+                              is_ensemble: bool) -> InferenceMetricsForClassification:
     """
     The main testing loop for classification models. It runs a loop over all epochs for which testing should be done.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
@@ -436,7 +440,8 @@ def classification_model_test(config: ScalarModelBase,
             logging.warning("There is no checkpoint file for epoch {}".format(epoch))
         else:
             results[epoch] = epoch_result
-            results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split)
+            # TODO: sort out when this folder gets written to!
+            results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, is_ensemble)
             results_folder.mkdir(exist_ok=True, parents=True)
 
     if len(results) == 0:

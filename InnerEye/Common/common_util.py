@@ -100,14 +100,18 @@ def epoch_folder_name(epoch: int) -> str:
     return "epoch_{0:03d}".format(epoch)
 
 
-def get_epoch_results_path(epoch: int, mode: ModelExecutionMode) -> str:
+def get_epoch_results_path(epoch: int, mode: ModelExecutionMode, is_ensemble: bool = False) -> str:
     """
     For a given model execution mode, and an epoch index, creates the relative results path
     in the form epoch_x/(Train, Test or Val)
     :param epoch: epoch number
     :param mode: model execution mode
     """
-    return Path(epoch_folder_name(epoch)) / mode.value
+    subpath = Path(epoch_folder_name(epoch)) / mode.value
+    if is_ensemble:
+        return Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME / subpath
+    else:
+        return subpath
 
 
 def any_smaller_or_equal_than(items: Iterable[Any], scalar: float) -> bool:
