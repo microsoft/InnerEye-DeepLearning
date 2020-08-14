@@ -52,12 +52,14 @@ def main() -> int:
     """
     exclude: List[str] = []
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    if os.path.basename(current_dir) == "innereye-deeplearning":
+    submodule_name = "innereye-deeplearning"
+    if os.path.basename(current_dir) == submodule_name:
         current_dir = os.path.dirname(current_dir)
     if sys.argv[1:]:
         files = [Path(arg) for arg in sys.argv[1:]]
     else:
         files = sorted(map(lambda x: x.relative_to(current_dir), Path.cwd().rglob('*.py')))
+        files = [file for file in files if submodule_name not in file.parts]
     files = list(filter(lambda x: not any([str(Path(ele)) in str(x) for ele in exclude]), files))
     return run_mypy([str(file) for file in files])
 
