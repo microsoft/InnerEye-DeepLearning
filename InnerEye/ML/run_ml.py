@@ -336,10 +336,6 @@ class MLRunner:
                     best_epoch_dice=best_epoch_dice,
                     checkpoint_paths=valid_checkpoint_paths,
                     is_ensemble=is_ensemble)
-        finally:
-            # create model comparison charts if the model was an ensemble; we want this to happen even if
-            # registration fails for some reason.
-            pass
 
     def may_compare_scores_against_baselines(self) -> None:
         """
