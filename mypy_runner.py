@@ -58,7 +58,7 @@ def main() -> int:
         files = set(current_dir.glob('*.py'))
         for path in current_dir.glob('*'):
             if path != submodule_name:
-                files += path.rglob('*.py')
+                files.update(path.rglob('*.py'))
     return run_mypy([str(file) for file in files])
 
 
