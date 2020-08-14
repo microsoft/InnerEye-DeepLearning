@@ -327,15 +327,15 @@ class MLRunner:
             # No point continuing
             logging.warning("Abandoning model registration - no valid checkpoint paths found")
             return
-        try:
-            model_type = "ensemble" if is_ensemble else "single"
-            with logging_section(f"registering {model_type} model"):
-                self.register_segmentation_model(
-                    run=run_context,
-                    best_epoch=best_epoch,
-                    best_epoch_dice=best_epoch_dice,
-                    checkpoint_paths=valid_checkpoint_paths,
-                    is_ensemble=is_ensemble)
+        model_type = "ensemble" if is_ensemble else "single"
+        with logging_section(f"registering {model_type} model"):
+            self.register_segmentation_model(
+                run=run_context,
+                best_epoch=best_epoch,
+                best_epoch_dice=best_epoch_dice,
+                checkpoint_paths=valid_checkpoint_paths,
+                is_ensemble=is_ensemble
+            )
 
     def may_compare_scores_against_baselines(self) -> None:
         """
