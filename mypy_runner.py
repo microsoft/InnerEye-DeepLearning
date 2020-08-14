@@ -50,17 +50,15 @@ def main() -> int:
     """
     Runs mypy on the files in the argument list, or every *.py file under the current directory if there are none.
     """
-    exclude: List[str] = []
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    submodule_name = "innereye-deeplearning"
-    if os.path.basename(current_dir) == submodule_name:
-        current_dir = os.path.dirname(current_dir)
+    current_dir = Path.cwd()
     if sys.argv[1:]:
         files = [Path(arg) for arg in sys.argv[1:]]
     else:
-        files = sorted(map(lambda x: x.relative_to(current_dir), Path.cwd().rglob('*.py')))
-        files = [file for file in files if submodule_name not in file.parts]
-    files = list(filter(lambda x: not any([str(Path(ele)) in str(x) for ele in exclude]), files))
+        submodule_name = "innereye-deeplearning"
+        files = set(current_dir.glob('*.py'))
+        for path in current_dir.glob('*'):
+            if path != submodule_name:
+                files += path.rglob('*.py')
     return run_mypy([str(file) for file in files])
 
 
