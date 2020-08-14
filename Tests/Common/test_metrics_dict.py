@@ -506,16 +506,16 @@ def test_get_single_metric() -> None:
     m.add_metric(m2, v2)
     assert m.get_single_metric(m1, h1) == v1
     assert m.get_single_metric(m2) == v2
-    with pytest.raises(KeyError) as ex:
+    with pytest.raises(KeyError) as ex1:
         m.get_single_metric(m1, "no such hue")
-    assert "no such hue" in str(ex)
-    with pytest.raises(KeyError) as ex:
+    assert "no such hue" in str(ex1)
+    with pytest.raises(KeyError) as ex2:
         m.get_single_metric("no such metric", h1)
-    assert "no such metric" in str(ex)
+    assert "no such metric" in str(ex2)
     m.add_metric(m2, v2)
-    with pytest.raises(ValueError) as ex:
+    with pytest.raises(ValueError) as ex3:
         m.get_single_metric(m2)
-    assert "Expected a single entry" in str(ex)
+    assert "Expected a single entry" in str(ex3)
 
 
 def test_aggregate_segmentation_metrics() -> None:
