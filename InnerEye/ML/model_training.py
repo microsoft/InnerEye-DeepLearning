@@ -226,10 +226,7 @@ def train_or_validate_epoch(config: ModelConfigBase,
     num_load_time_exceeded = 0
     num_batches = 0
     total_extra_load_time = 0.0
-    # Total time spent loading
     total_load_time = 0.0
-    # Total time spent training, excluding loading
-    total_train_time = 0.0
     for batch_index, sample in enumerate(train_val_params.data_loader):
         item_finish_time = time()
         item_load_time = item_finish_time - item_start_time
@@ -253,7 +250,6 @@ def train_or_validate_epoch(config: ModelConfigBase,
                       f"Loaded in {item_load_time:0.2f}sec, "
                       f"{status_string} in {(train_finish_time - item_finish_time):0.2f}sec. Loss = {loss}")
         total_load_time += item_finish_time - item_start_time
-        total_train_time += train_finish_time - item_finish_time
         num_batches += 1
         item_start_time = time()
 
@@ -262,9 +258,8 @@ def train_or_validate_epoch(config: ModelConfigBase,
         training_random_state.restore_random_state()
 
     epoch_time_seconds = time() - epoch_start_time
-    logging.debug(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f}sec")
-    logging.debug(f"Total loading time {total_load_time:0.2f}sec, "
-                  f"total {status_string} time {total_train_time:0.2f}sec")
+    logging.info(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f} sec "
+                 f"of which data loading took {total_load_time} sec")
     if num_load_time_exceeded > 0:
         logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
                         f"{MAX_ITEM_LOAD_TIME_SEC}sec.")

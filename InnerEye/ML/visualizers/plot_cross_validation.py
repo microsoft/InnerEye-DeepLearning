@@ -51,6 +51,7 @@ from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_dir
 
 DRIVER_LOG_BASENAME = "70_driver_log.txt"
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
+# noinspection SQL
 PORTAL_QUERY_TEMPLATE = "SELECT * FROM ROOT as r WHERE true AND ({}) AND ({})"
 WILCOXON_RESULTS_FILE = "CrossValidationWilcoxonSignedRankTestResults.txt"
 MANN_WHITNEY_RESULTS_FILE = "CrossValidationMannWhitneyTestResults.txt"
@@ -163,7 +164,8 @@ class PlotCrossValidationConfig(GenericConfig):
     def download_or_get_local_file(self,
                                    run: Optional[Run],
                                    blob_to_download: PathOrString,
-                                   destination: Path) -> Optional[Path]:
+                                   destination: Path,
+                                   local_src_subdir: Optional[Path] = None) -> Optional[Path]:
         """
         Downloads a file from the results folder of an AzureML run, or copies it from a local results folder.
         Returns the path to the downloaded file if it exists, or None if the file was not found.
@@ -173,6 +175,8 @@ class PlotCrossValidationConfig(GenericConfig):
         :param blob_to_download: path of data to download within the run
         :param destination: directory to write to
         :param run: The AzureML run to download from.
+        :param local_src_subdir: if not None, then if we copy from a local results folder, that folder is
+        self.outputs_directory/local_src_subdir/blob_to_download instead of self.outputs_directory/blob_to_download
         :return: The path to the downloaded file, or None if the file was not found.
         """
         blob_path = Path(blob_to_download)
@@ -185,11 +189,11 @@ class PlotCrossValidationConfig(GenericConfig):
             logging.info(f"Download of '{blob_path}' to '{downloaded_file}: not needed, already exists'")
             return downloaded_file
         logging.info(f"Download of '{blob_path}' to '{downloaded_file}': proceeding")
-        # if the provided run is the current run, then nothing to download
-        # just copy the provided path in the outputs directory to the destination
+        # If the provided run is the current run, then there is nothing to download.
+        # Just copy the provided path in the outputs directory to the destination.
         if not destination.exists():
             destination.mkdir(parents=True)
-        if run is None or Run.get_context().id == run.id or is_offline_run_context(run):
+        if run is None or Run.get_context().id == run.id or is_parent_run(run) or is_offline_run_context(run):
             if run is None:
                 assert self.local_run_results is not None, "Local run results must be set in unit testing"
                 local_src = Path(self.local_run_results)
@@ -197,8 +201,11 @@ class PlotCrossValidationConfig(GenericConfig):
                     local_src = local_src / self.local_run_result_split_suffix
             else:
                 local_src = Path(self.outputs_directory)
+            if local_src_subdir is not None:
+                local_src = local_src / local_src_subdir
             local_src = local_src / blob_path
             if local_src.exists():
+                logging.info(f"Copying files from {local_src} to {destination}")
                 return Path(shutil.copy(local_src, destination))
             return None
         else:
@@ -293,12 +300,13 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     else:
         src = Path(mode.value) / METRICS_FILE_NAME
 
-    # download subject level metrics for the given epoch
+    # download (or copy from local disc) subject level metrics for the given epoch
+    local_src_subdir = OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME if is_parent_run(run) else None
     return config.download_or_get_local_file(
         blob_to_download=src,
         destination=destination,
         run=run,
-    )
+        local_src_subdir=local_src_subdir)
 
 
 def is_parent_run(run: Run) -> bool:
@@ -348,9 +356,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         runs_to_evaluate = []
     # create the root path to store the outputs
     if not download_to_folder:
-        if parent is None:
-            raise ValueError("When not supplying a run ID, you must specify the download folder.")
-        download_to_folder = Path(config.outputs_directory) / parent.id
+        download_to_folder = Path(config.outputs_directory) / CROSSVAL_RESULTS_FOLDER
         delete_and_remake_directory(download_to_folder)  # type: ignore
     start_time = time.time()
     logging.info(f"Starting to download files for cross validation analysis to: {download_to_folder}")
@@ -386,20 +392,21 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         config.local_run_result_split_suffix = split_suffix
 
         logging.info(f"DBG: processing loop_over item {run.id}, {split_index}, {split_suffix}, {run_recovery_id}")
-        # When run is the parent run, we need to look on the local disc. If (as expected) dataset.csv is not
-        # already present, we copy it from the top of the outputs directory.
+        # When run is the parent run, we need to look on the local disc.
+        # If (as expected) dataset.csv is not already present, we copy it from the top of the outputs directory.
+        folder_for_run = download_to_folder / split_suffix
+        dataset_file: Optional[Path]
         if is_parent_run(run):
-            folder_for_run = Path(config.outputs_directory) / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME
             folder_for_run.mkdir(parents=True, exist_ok=True)
             dataset_file = folder_for_run / DATASET_CSV_FILE_NAME
-            if not dataset_file.exists():
-                shutil.copy(str(Path(config.outputs_directory) / DATASET_CSV_FILE_NAME), str(dataset_file))
+            # Copy the run-0 dataset.csv, which should be the same, as the parent run won't have one.
+            shutil.copy(str(Path(config.outputs_directory) / DATASET_CSV_FILE_NAME), str(dataset_file))
         else:
-            folder_for_run = download_to_folder / split_suffix
             logging.info(f"DBG: is_parent_run is {is_parent_run(run)}, so folder_for_run is {folder_for_run}")
             dataset_file = config.download_or_get_local_file(run, DATASET_CSV_FILE_NAME, folder_for_run)
         if config.is_segmentation and not dataset_file:
             raise ValueError(f"Dataset file must be present for segmentation models, but is missing for run {run.id}")
+        # Get metrics files.
         for mode in EXECUTION_MODES_TO_DOWNLOAD:
             # download metrics.csv file for each split. metrics_file can be None if the file does not exist
             # (for example, if no output was written for execution mode Test)

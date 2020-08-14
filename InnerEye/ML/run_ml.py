@@ -208,6 +208,8 @@ class MLRunner:
         Run inference as required, and register the model, but not necessarily in that order:
         if we can identify the epoch to register at without running inference, we register first.
         :param run_recovery: details of run specified by run_recovery_id
+        :param is_ensemble: whether we are running an ensemble model. If we are, then outputs will be
+        written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
         """
         registration_epoch = self.decide_registration_epoch_without_evaluating()
         if registration_epoch is not None:

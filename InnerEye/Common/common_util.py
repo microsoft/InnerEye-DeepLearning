@@ -106,6 +106,8 @@ def get_epoch_results_path(epoch: int, mode: ModelExecutionMode, is_ensemble: bo
     in the form epoch_x/(Train, Test or Val)
     :param epoch: epoch number
     :param mode: model execution mode
+    :param is_ensemble: whether this is for an ensemble model. If so, we return a different path
+    to avoid colliding with the results from the single model that may have been created earlier in the same run.
     """
     subpath = Path(epoch_folder_name(epoch)) / mode.value
     if is_ensemble:

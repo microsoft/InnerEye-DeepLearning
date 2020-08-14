@@ -55,6 +55,7 @@ def model_test(config: ModelConfigBase,
     :param config: The configuration of the model
     :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
     :param run_recovery: Run recovery data if applicable.
+    :param is_ensemble: whether we are testing an ensemble model; this affects where results are written.
     :return: The metrics that the model achieved on the given data set, or None if the data set is empty.
     """
     if len(config.get_dataset_splits()[data_split]) == 0:
@@ -83,6 +84,7 @@ def segmentation_model_test(config: SegmentationModelBase,
     :param config: The arguments object which has a valid random seed attribute.
     :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
     :param run_recovery: Run recovery data if applicable.
+    :param is_ensemble: whether we are testing an ensemble model
     :return: InferenceMetric object that contains metrics related for all of the checkpoint epochs.
     """
     results: Dict[int, float] = {}
@@ -399,6 +401,7 @@ def classification_model_test(config: ScalarModelBase,
     :param data_split: The name of the folder to store the results inside each epoch folder in the outputs_dir,
                        used mainly in model evaluation using different dataset splits.
     :param run_recovery: RunRecovery data if applicable
+    :param is_ensemble: whether we are testing an ensemble model
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
 
