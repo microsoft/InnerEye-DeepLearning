@@ -52,14 +52,15 @@ def main() -> int:
     """
     current_dir = Path.cwd()
     if sys.argv[1:]:
-        files = [Path(arg) for arg in sys.argv[1:]]
+        file_list = [Path(arg) for arg in sys.argv[1:]]
     else:
         submodule_name = "innereye-deeplearning"
         files = set(current_dir.glob('*.py'))
         for path in current_dir.glob('*'):
             if path.name != submodule_name:
                 files.update(path.rglob('*.py'))
-    return run_mypy(sorted(str(file) for file in files))
+        file_list = list(files)
+    return run_mypy(sorted(str(file) for file in file_list))
 
 
 if __name__ == "__main__":
