@@ -17,7 +17,7 @@ from tabulate import tabulate
 from pydicom import read_file
 
 from InnerEye.Common import common_util
-from InnerEye.Common.type_annotations import PathOrString, TupleFloat3, TupleInt3
+from InnerEye.Common.type_annotations import PathOrString, TupleFloat3, TupleInt2Or3
 from InnerEye.ML.config import DEFAULT_POSTERIOR_VALUE_RANGE, PhotometricNormalizationMethod, \
     SegmentationModelBase
 from InnerEye.ML.scalar_config import ImageDimension
@@ -266,8 +266,8 @@ class ImageAndSegmentations(Generic[TensorOrNumpyArray]):
 def load_images_and_stack(files: Iterable[Path],
                              load_segmentation: bool,
                              image_dimension: ImageDimension,
-                             center_crop_size: Optional[TupleInt3] = None,
-                             image_size: Optional[TupleInt3] = None) -> ImageAndSegmentations[torch.Tensor]:
+                             center_crop_size: Optional[TupleInt2Or3] = None,
+                             image_size: Optional[TupleInt2Or3] = None) -> ImageAndSegmentations[torch.Tensor]:
     """
     Attempts to load a set of files, all of which are expected to contain 3D images of the same size (Z, X, Y)
     They are all stacked along dimension 0 and returned as a torch tensor of size (B, Z, X, Y)

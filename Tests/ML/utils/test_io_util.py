@@ -269,7 +269,7 @@ def test_is_dicom_file(input: Tuple[str, bool]) -> None:
     assert is_dicom_file_path(Path(file)) == expected
 
 
-def write_test_dicom(array: np.ndarray, path: Path):
+def write_test_dicom(array: np.ndarray, path: Path) -> None:
     """
     This saves the input array as a Dicom file.
     This function DOES NOT create a usable dicom file and is meant only for testing: tags are set to
@@ -319,13 +319,13 @@ def test_load_images_and_stack_2d(test_output_dirs: TestOutputDirectories) -> No
     array = np.ones((30, 10), dtype='uint8')
     write_test_dicom(array, Path(test_output_dirs.root_dir) / "file3.dcm")
 
-    file_list = [Path(test_output_dirs.root_dir) / f"file{i}.dcm" for i in range(1,4)]
+    file_list = [Path(test_output_dirs.root_dir) / f"file{i}.dcm" for i in range(1, 4)]
     imaging_data = load_images_and_stack(file_list,
                                             load_segmentation=False,
                                             image_dimension=ImageDimension.Image_2D,
                                             image_size=image_size)
 
-    assert imaging_data.images.ndim == 3
+    assert len(imaging_data.images.shape) == 3
     assert imaging_data.images.shape[0] == 3
     assert imaging_data.images.shape[1:] == image_size
     expected_tensor = torch.from_numpy(np.ones((3,) + image_size))

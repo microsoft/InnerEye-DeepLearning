@@ -12,7 +12,7 @@ from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from InnerEye.Common.generic_parsing import ListOrDictParam
-from InnerEye.Common.type_annotations import TupleInt2, TupleInt3
+from InnerEye.Common.type_annotations import TupleInt2Or3
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, OneHotEncoderBase
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
@@ -157,14 +157,14 @@ class ScalarModelBase(ModelConfigBase):
     load_segmentation: bool = \
         param.Boolean(default=False, doc="If True the segmentations from hdf5 files will be loaded. If False, only"
                                          "the images will be loaded.")
-    center_crop_size: Union[None, TupleInt2, TupleInt3] = \
+    center_crop_size: Optional[TupleInt2Or3] = \
         param.ClassSelector(default=None, allow_None=True,
                             class_=tuple,
                             instantiate=False,
                             doc="If given, the loaded images and segmentations will be cropped to the given size."
                                "Size is given in pixels. The crop will be taken from the center of the image.")
 
-    image_size: Union[None, TupleInt2, TupleInt3] = \
+    image_size: Optional[TupleInt2Or3] = \
         param.ClassSelector(default=None, allow_None=True,
                             class_=tuple,
                             instantiate=False,
@@ -364,13 +364,13 @@ class ScalarModelBase(ModelConfigBase):
         image_transforms = self.get_image_sample_transforms()
         train = ScalarDataset(args=self, data_frame=dataset_splits.train,
                               name="training", sample_transforms=image_transforms.train,  # type: ignore
-                              image_dimension=image_dimension)
+                              image_dimension=image_dimension)  # type: ignore
         val = ScalarDataset(args=self, data_frame=dataset_splits.val, feature_statistics=train.feature_statistics,
                             name="validation", sample_transforms=image_transforms.val,  # type: ignore
-                            image_dimension=image_dimension)
+                            image_dimension=image_dimension)  # type: ignore
         test = ScalarDataset(args=self, data_frame=dataset_splits.test, feature_statistics=train.feature_statistics,
                              name="test", sample_transforms=image_transforms.test,  # type: ignore
-                             image_dimension=image_dimension)
+                             image_dimension=image_dimension)  # type: ignore
 
         return {
             ModelExecutionMode.TRAIN: train,

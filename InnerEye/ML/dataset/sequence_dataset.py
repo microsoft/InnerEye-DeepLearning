@@ -216,7 +216,7 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
                      FeatureStatistics[ClassificationItemSequence[SequenceDataSource]]] = None,
                  name: Optional[str] = None,
                  sample_transforms: Optional[Union[ComposeTransforms[ScalarItem], Transform3D[ScalarItem]]] = None,
-                 image_dimension = ImageDimension.Image_3D):
+                 image_dimension: ImageDimension = ImageDimension.Image_3D):
         """
         Creates a new sequence dataset from a dataframe.
         :param args: The model configuration object.
