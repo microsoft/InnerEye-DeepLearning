@@ -259,7 +259,7 @@ def train_or_validate_epoch(config: ModelConfigBase,
 
     epoch_time_seconds = time() - epoch_start_time
     logging.info(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f} sec "
-                 f"of which data loading took {total_load_time} sec")
+                 f"of which data loading took {total_load_time:0.2f} sec")
     if num_load_time_exceeded > 0:
         logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
                         f"{MAX_ITEM_LOAD_TIME_SEC}sec.")

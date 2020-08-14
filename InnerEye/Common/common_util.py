@@ -268,10 +268,17 @@ def _add_formatter(handler: logging.StreamHandler) -> None:
 
 
 @contextmanager
-def logging_section(name: str) -> Generator:
+def logging_section(gerund: str) -> Generator:
+    """
+    Context manager to print "**** STARTING: ..." and "**** FINISHED: ..." lines around sections of the log,
+    to help people locate particular sections. Usage:
+    with logging_section("doing this and that"):
+       do_this_and_that()
+    :param gerund: string expressing what happens in this section of the log.
+    """
     from time import time
     logging.info("")
-    msg = f"**** STARTING: {name} "
+    msg = f"**** STARTING: {gerund} "
     logging.info(msg + (200 - len(msg)) * "*")
     logging.info("")
     start_time = time()
@@ -279,12 +286,12 @@ def logging_section(name: str) -> Generator:
     elapsed = time() - start_time
     logging.info("")
     if elapsed >= 3600:
-        time_expr = f"{elapsed/3600:5.3f} hours"
+        time_expr = f"{elapsed/3600:0.2f} hours"
     elif elapsed >= 60:
-        time_expr = f"{elapsed/60:5.3f} minutes"
+        time_expr = f"{elapsed/60:0.2f} minutes"
     else:
-        time_expr = f"{elapsed:5.3f} seconds"
-    msg = f"**** FINISHED: {name} after {time_expr} "
+        time_expr = f"{elapsed:0.2f} seconds"
+    msg = f"**** FINISHED: {gerund} after {time_expr} "
     logging.info(msg + (200 - len(msg)) * "*")
     logging.info("")
 
