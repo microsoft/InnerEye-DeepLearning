@@ -108,7 +108,7 @@ class PlotCrossValidationConfig(GenericConfig):
                                                   doc="If set, include comparisons of comparison runs against "
                                                       "each other")
     outputs_directory: str = param.String(default=".", doc="The path to store results and get results "
-                                                           "if plotting results for the current run")
+                                                           "of plotting results for the current run")
     outlier_range: float = param.Number(3.0, doc="Number of standard deviations away from the mean to "
                                                  "use for outlier range")
     wilcoxon_test_p_value: float = param.Number(0.05, doc="Threshold for statistical tests")
@@ -355,7 +355,8 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
     # create the root path to store the outputs
     if not download_to_folder:
         download_to_folder = Path(config.outputs_directory) / CROSSVAL_RESULTS_FOLDER
-        delete_and_remake_directory(download_to_folder)  # type: ignore
+        # Make the folder if it doesn't exist, but preserve any existing contents.
+        download_to_folder.mkdir(parents=True, exist_ok=True)
     start_time = time.time()
     logging.info(f"Starting to download files for cross validation analysis to: {download_to_folder}")
     logging.info(f"DBG: run_recovery_id = {run_recovery_id}, splits_to_evaluate = {splits_to_evaluate}")
