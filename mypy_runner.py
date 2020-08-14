@@ -24,8 +24,10 @@ def run_mypy(files: List[str]) -> int:
     while files:
         print(f"Iteration {iteration}: running mypy on {len(files)}{' remaining' if iteration > 1 else ''} files")
         command = ["mypy", "--config=mypy.ini", "--verbose"] + files
-        # Only stderr is piped, so stdout (containing the output we want) should be printed as normal.
-        process = subprocess.run(command, stderr=subprocess.PIPE, text=True)
+        # We pipe stdout and then print it, otherwise lines can appear in the wrong order in builds.
+        process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        for line in process.stdout.split("\n"):
+            print(line)
         # Set of files we are hoping to see mentioned in the mypy log.
         files_to_do = set(files)
         # Remove from files_to_do everything that's mentioned in the log.
@@ -41,10 +43,6 @@ def run_mypy(files: List[str]) -> int:
         files = sorted(files_to_do)
         return_code = max(return_code, process.returncode)
         iteration += 1
-    if return_code == 0:
-        print("mypy SUCCEEDED")
-    else:
-        print("mypy FAILED")
     return return_code
 
 
