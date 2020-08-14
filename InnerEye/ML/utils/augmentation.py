@@ -430,7 +430,7 @@ class ScalarItemAugmentation(Transform3D[ScalarItem]):
     to a ScalarItem input and return the transformed sample. Applies the
     transformation either to the images or the segmentation maps depending on the
     defined transformation to apply. Several objects of this class can be applied
-    in a row inside a Compose3D object.
+    in a row inside a ComposeTransforms object.
     """
 
     # noinspection PyMissingConstructor

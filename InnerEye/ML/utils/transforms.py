@@ -33,7 +33,7 @@ class Transform3D(CudaAwareConfig[T], abc.ABC, metaclass=Transform3DBaseMeta):
         raise Exception("__call__ function must be implemented by subclasses")
 
 
-class Compose3D(Generic[T]):
+class ComposeTransforms(Generic[T]):
     """
     Class that allows chaining multiple transform functions together, and applying them to a sample
     """
@@ -47,7 +47,7 @@ class Compose3D(Generic[T]):
         return reduce(lambda x, f: f(x), self._transforms, sample)
 
     @staticmethod
-    def apply(compose: Optional[Compose3D[T]], sample: T) -> T:
+    def apply(compose: Optional[ComposeTransforms[T]], sample: T) -> T:
         """
         Apply a composition of transfer functions to the provided sample
         :param compose: A composition of transfer functions

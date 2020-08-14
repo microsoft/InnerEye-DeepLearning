@@ -7,7 +7,7 @@ import torch
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import is_gpu_tensor
-from InnerEye.ML.utils.transforms import Compose3D, Transform3D
+from InnerEye.ML.utils.transforms import ComposeTransforms, Transform3D
 from Tests.ML.util import no_gpu_available
 
 
@@ -32,13 +32,13 @@ def test_transform_compose(use_gpu: bool = False) -> None:
         a = a.cuda()
 
     # test that composition of multiple identity operations holds
-    identity_compose = Compose3D([Identity(use_gpu=use_gpu)] * 3)
+    identity_compose = ComposeTransforms([Identity(use_gpu=use_gpu)] * 3)
     a_t = identity_compose(a)
-    assert torch.equal(Compose3D.apply(identity_compose, a), a_t)
+    assert torch.equal(ComposeTransforms.apply(identity_compose, a), a_t)
     assert torch.equal(a_t, a)
     assert is_gpu_tensor(a_t) == use_gpu
 
     # test that composition of multiple square operations holds
-    square_compose = Compose3D([Square(use_gpu=use_gpu)] * 3)
+    square_compose = ComposeTransforms([Square(use_gpu=use_gpu)] * 3)
     assert torch.equal(square_compose(a), a ** 8)
-    assert torch.equal(Compose3D.apply(square_compose, a), a ** 8)
+    assert torch.equal(ComposeTransforms.apply(square_compose, a), a ** 8)

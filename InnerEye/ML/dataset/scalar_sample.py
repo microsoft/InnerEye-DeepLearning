@@ -137,10 +137,10 @@ class ScalarDataSource(ScalarItemBase):
                 raise ValueError("One of the arguments 'file_mapping' or 'root_path' must be given.")
 
         imaging_data = load_images_and_stack(files=full_channel_files,
-                                                load_segmentation=load_segmentation,
-                                                image_dimension=image_dimension,
-                                                center_crop_size=center_crop_size,
-                                                image_size=image_size)
+                                             load_segmentation=load_segmentation,
+                                             image_dimension=image_dimension,
+                                             center_crop_size=center_crop_size,
+                                             image_size=image_size)
         return ScalarItem(
             label=self.label,
             numerical_non_image_features=self.numerical_non_image_features,

@@ -16,7 +16,7 @@ from InnerEye.ML.dataset.sample import CroppedSample, Sample
 from InnerEye.ML.utils import augmentation, image_util
 from InnerEye.ML.utils.image_util import pad_images
 from InnerEye.ML.utils.io_util import ImageDataType
-from InnerEye.ML.utils.transforms import Compose3D
+from InnerEye.ML.utils.transforms import ComposeTransforms
 
 
 class CroppingDataset(FullImageDataset):
@@ -28,8 +28,8 @@ class CroppingDataset(FullImageDataset):
     """
 
     def __init__(self, args: SegmentationModelBase, data_frame: pd.DataFrame,
-                 cropped_sample_transforms: Optional[Compose3D[CroppedSample]] = None,
-                 full_image_sample_transforms: Optional[Compose3D[Sample]] = None):
+                 cropped_sample_transforms: Optional[ComposeTransforms[CroppedSample]] = None,
+                 full_image_sample_transforms: Optional[ComposeTransforms[Sample]] = None):
         super().__init__(args, data_frame, full_image_sample_transforms)
         self.cropped_sample_transforms = cropped_sample_transforms
 
@@ -47,7 +47,7 @@ class CroppingDataset(FullImageDataset):
             class_weights=self.args.class_weights
         )
 
-        return Compose3D.apply(self.cropped_sample_transforms, sample).get_dict()
+        return ComposeTransforms.apply(self.cropped_sample_transforms, sample).get_dict()
 
     @staticmethod
     def create_possibly_padded_sample_for_cropping(sample: Sample,

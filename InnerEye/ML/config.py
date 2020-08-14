@@ -736,10 +736,10 @@ class SegmentationModelBase(ModelConfigBase):
         Get transforms to perform on full image samples for each model execution mode.
         By default only PhotometricNormalization is performed.
         """
-        from InnerEye.ML.utils.transforms import Compose3D
+        from InnerEye.ML.utils.transforms import ComposeTransforms
         from InnerEye.ML.photometric_normalization import PhotometricNormalization
 
-        photometric_transformation = Compose3D(transforms=[PhotometricNormalization(self, use_gpu=False)])
+        photometric_transformation = ComposeTransforms(transforms=[PhotometricNormalization(self, use_gpu=False)])
         return ModelTransformsPerExecutionMode(train=photometric_transformation,
                                                val=photometric_transformation,
                                                test=photometric_transformation)

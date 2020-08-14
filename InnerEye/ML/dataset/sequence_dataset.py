@@ -17,7 +17,7 @@ from InnerEye.ML.dataset.scalar_sample import ScalarItem, SequenceDataSource
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence, ListOfSequences
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.features_util import FeatureStatistics
-from InnerEye.ML.utils.transforms import Compose3D, Transform3D
+from InnerEye.ML.utils.transforms import ComposeTransforms, Transform3D
 from InnerEye.ML.scalar_config import ImageDimension
 
 
@@ -215,7 +215,7 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
                  feature_statistics: Optional[
                      FeatureStatistics[ClassificationItemSequence[SequenceDataSource]]] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None,
+                 sample_transforms: Optional[Union[ComposeTransforms[ScalarItem], Transform3D[ScalarItem]]] = None,
                  image_dimension = ImageDimension.Image_3D):
         """
         Creates a new sequence dataset from a dataframe.

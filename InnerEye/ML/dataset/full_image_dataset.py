@@ -23,7 +23,7 @@ from InnerEye.ML.utils import io_util, ml_util
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_PATH_HEADER, \
     CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.io_util import is_nifti_file_path
-from InnerEye.ML.utils.transforms import Compose3D
+from InnerEye.ML.utils.transforms import ComposeTransforms
 
 COMPRESSION_EXTENSIONS = ['sz', 'gz']
 
@@ -224,7 +224,7 @@ class FullImageDataset(GeneralDataset):
     """
 
     def __init__(self, args: SegmentationModelBase, data_frame: pd.DataFrame,
-                 full_image_sample_transforms: Optional[Compose3D[Sample]] = None):
+                 full_image_sample_transforms: Optional[ComposeTransforms[Sample]] = None):
         super().__init__(args, data_frame)
         self.full_image_sample_transforms = full_image_sample_transforms
 
@@ -285,7 +285,7 @@ class FullImageDataset(GeneralDataset):
                              + self.file_extension)
         ds = self.dataset_sources[self.dataset_indices[index]]
         samples = [io_util.load_images_from_dataset_source(dataset_source=ds)]  # type: ignore
-        return [Compose3D.apply(self.full_image_sample_transforms, x) for x in samples]
+        return [ComposeTransforms.apply(self.full_image_sample_transforms, x) for x in samples]
 
     def _load_dataset_sources(self) -> Dict[int, PatientDatasetSource]:
         assert self.args.local_dataset is not None

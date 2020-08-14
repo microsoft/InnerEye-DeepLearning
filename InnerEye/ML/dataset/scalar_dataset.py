@@ -26,7 +26,7 @@ from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.features_util import FeatureStatistics
-from InnerEye.ML.utils.transforms import Compose3D, Transform3D
+from InnerEye.ML.utils.transforms import ComposeTransforms, Transform3D
 
 
 T = TypeVar('T', bound=ScalarDataSource)
@@ -625,7 +625,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None,
+                 sample_transforms: Optional[Union[ComposeTransforms[ScalarItem], Transform3D[ScalarItem]]] = None,
                  image_dimension: ImageDimension = ImageDimension.Image_3D):
         """
         High level class for the scalar dataset designed to be inherited for specific behaviour
@@ -692,7 +692,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             image_size=self.args.image_size,
             image_dimension=self.image_dimension)
 
-        return Compose3D.apply(self.transforms, sample)
+        return ComposeTransforms.apply(self.transforms, sample)
 
     def create_status_string(self, items: List[T]) -> str:
         """
@@ -713,7 +713,7 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics[ScalarDataSource]] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None,
+                 sample_transforms: Optional[Union[ComposeTransforms[ScalarItem], Transform3D[ScalarItem]]] = None,
                  image_dimension: ImageDimension = ImageDimension.Image_3D):
         """
         Creates a new scalar dataset from a dataframe.
