@@ -1,13 +1,12 @@
 """
 Copyright (c) Microsoft Corporation. All rights reserved.
 """
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import torch
 from torch.optim import LBFGS
 
 from InnerEye.Common.type_annotations import T
-from InnerEye.ML.models.layers.identity import Identity
 from InnerEye.ML.models.losses.ece import ECELoss
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule, E
 
@@ -38,28 +37,32 @@ class ClassificationModelWithTemperature(DeviceAwareModule):
         # Expand temperature to match the size of logits
         return logits / self.temperature
 
-    def set_temperature(self, logits: torch.Tensor, labels: torch.Tensor) -> None:
+    def set_temperature(self, logits: torch.Tensor, labels: torch.Tensor, forward_criterion: Callable) -> None:
         """
         Tune the temperature of the model (using the validation set).
         """
         self.cuda()
-        ece_criterion = ECELoss(activation=Identity()).cuda()
+        ece_criterion = ECELoss().cuda()
         logits = logits.cuda()
         labels = labels.cuda()
 
         # Calculate ECE before temperature scaling
-        before_temperature_ece = ece_criterion(logits, labels).item()
-        print('Before temperature - ECE: %.3f' % before_temperature_ece)
+        before_temperature_nll, before_temperature_ece = forward_criterion(logits, labels)
+        print('Before temperature - NLL: %.3f ECE: %.3f' % (before_temperature_nll, before_temperature_ece))
 
         # Next: optimize the temperature w.r.t. NLL
-        optimizer = LBFGS([self.temperature], lr=0.002, max_iter=50)
+        optimizer = LBFGS([self.temperature], lr=0.002, max_iter=100)
 
         def eval_criterion() -> torch.Tensor:
-            loss = torch.nn.functional.binary_cross_entropy(self.temperature_scale(logits), labels)
-            loss.backward()
-            return loss
+            scaled = self.temperature_scale(logits)
+            # print(scaled, scaled.shape)
+            # print(labels, labels.shape)
+            nll, ece = forward_criterion(scaled, labels)
+            nll.backward()
+            return nll
 
         optimizer.step(eval_criterion)
-        after_temperature_ece = ece_criterion(self.temperature_scale(logits), labels).item()
+
+        after_temperature_nll, after_temperature_ece = forward_criterion(self.temperature_scale(logits), labels)
         print('Optimal temperature: %.3f' % self.temperature.item())
-        print('After temperature - ECE: %.3f' % after_temperature_ece)
+        print('After temperature - NLL: %.3f ECE: %.3f' % (after_temperature_nll, after_temperature_ece))

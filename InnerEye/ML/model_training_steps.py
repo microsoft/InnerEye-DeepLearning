@@ -30,6 +30,7 @@ from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import AzureAndTensorboardLogger, AzureMLLogger, compute_scalar_metrics
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.models.losses.cross_entropy import CrossEntropyLoss
+from InnerEye.ML.models.losses.ece import ECELoss
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion, DataParallelModel
@@ -106,7 +107,7 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
 
     @abstractmethod
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
-                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
+                                       batch_index: int, epoch: int, save_metrics: bool = True) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and returns the loss.
         :param sample: The batched sample on which the model should be trained.
@@ -322,7 +323,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         return logits, model_output
 
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
-                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
+                                       batch_index: int, epoch: int, save_metrics: bool = True) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and computes all metrics.
         :param sample: The batched sample on which the model should be trained.
@@ -365,7 +366,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                                model_inputs_and_labels.model_inputs,
                                label_gpu)
 
-        if not self.model_config.should_save_epoch(self.train_val_params.epoch):
+        if save_metrics:
             self.metrics.add_metric(MetricType.LOSS, loss.item())
             self.update_metrics(model_inputs_and_labels.subject_ids, model_output, label_gpu)
             logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
@@ -507,18 +508,24 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
             self.perform_calibration(model_training_results)
 
     def perform_calibration(self, model_training_results: ModelTrainingResults) -> None:
-        masked_model_outputs_and_labels = get_masked_model_outputs_and_labels(
-            model_output=model_training_results.get_logits(training=False),
-            labels=model_training_results.get_labels(training=False)
-        )
-        activation_fn = self.model_config.get_post_loss_logits_normalization_function()
+        logits = model_training_results.get_logits(training=False)
+        labels = model_training_results.get_labels(training=False)
         _model = self.train_val_params.model
+        ece_criterion = ECELoss().cuda()
         if isinstance(self.train_val_params.model, DataParallelModel):
             _model = _model.module
 
+        def _forward_criterion(_logits, _labels) -> Tuple[torch.Tensor, torch.Tensor]:
+            nll = self.forward_criterion(_logits, _labels)
+            masked_model_outputs_and_labels = get_masked_model_outputs_and_labels(_logits, _labels)
+            ece = ece_criterion(masked_model_outputs_and_labels.model_outputs.data.unsqueeze(dim=0),
+                                masked_model_outputs_and_labels.labels.data.unsqueeze(dim=0))
+            return nll, ece
+
         _model.set_temperature(
-            logits=activation_fn(masked_model_outputs_and_labels.model_outputs.data.unsqueeze(dim=0)),
-            labels=masked_model_outputs_and_labels.labels.data.unsqueeze(dim=0)
+            logits=logits,
+            labels=labels,
+            forward_criterion=_forward_criterion
         )
 
 

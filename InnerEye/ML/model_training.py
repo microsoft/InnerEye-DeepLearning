@@ -140,7 +140,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         # Run without adjusting weights on the validation set
         train_val_params.in_training_mode = False
         train_val_params.data_loader = data_loaders[ModelExecutionMode.VAL]
-        val_epoch_results = train_or_validate_epoch(config, train_val_params)
+        save_metrics = not config.should_save_epoch(epoch)
+        val_epoch_results = train_or_validate_epoch(config, train_val_params, save_metrics)
         val_results_per_epoch.append(val_epoch_results)
 
         if config.is_segmentation_model:
@@ -154,7 +155,6 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                 val_results_per_epoch=val_results_per_epoch,
                 learning_rates_per_epoch=learning_rates_per_epoch
             )
-            train_val_params.data_loader = config.create_data_loaders()[ModelExecutionMode.VAL]
             create_model_training_steps(config, train_val_params).perform_post_training_steps(model_training_results)
             val_epoch_results = train_or_validate_epoch(config, train_val_params)
             val_results_per_epoch.pop()
@@ -191,7 +191,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
 
 def train_or_validate_epoch(config: ModelConfigBase,
-                            train_val_params: TrainValidateParameters) -> ModelOutputsAndMetricsForEpoch:
+                            train_val_params: TrainValidateParameters, save_metrics: bool = True) -> ModelOutputsAndMetricsForEpoch:
     """
     Trains or validates the model for one epoch.
     :param config: The arguments object, which contains useful information for training
@@ -234,7 +234,7 @@ def train_or_validate_epoch(config: ModelConfigBase,
                                 f"{MAX_LOAD_TIME_WARNINGS} times.")
                 num_load_time_warnings += 1
         model_outputs_minibatch = training_steps.forward_and_backward_minibatch(
-            sample, batch_index, train_val_params.epoch)
+            sample, batch_index, train_val_params.epoch, save_metrics)
         model_outputs_epoch.append(model_outputs_minibatch)
         train_finish_time = time()
         logging.debug(f"Epoch {train_val_params.epoch} {status_string} batch {batch_index}: "
@@ -256,8 +256,9 @@ def train_or_validate_epoch(config: ModelConfigBase,
         logging.warning(f"In this epoch, {num_load_time_exceeded} out of {num_batches} batches exceeded the load time "
                         f"threshold. The total loading time for the slow batches was {total_extra_load_time:0.2f}sec.")
 
+    _metrics = training_steps.get_epoch_results_and_store(epoch_time_seconds) if save_metrics else None
     return ModelOutputsAndMetricsForEpoch(
-        metrics=training_steps.get_epoch_results_and_store(epoch_time_seconds),
+        metrics=_metrics,
         model_outputs=model_outputs_epoch,
         is_train=train_val_params.in_training_mode
     )
