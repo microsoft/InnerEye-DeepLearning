@@ -52,6 +52,8 @@ def main() -> int:
     """
     exclude: List[str] = []
     current_dir = os.path.dirname(os.path.abspath(__file__))
+    if os.path.basename(current_dir) == "innereye-deeplearning":
+        current_dir = os.path.dirname(current_dir)
     if sys.argv[1:]:
         files = [Path(arg) for arg in sys.argv[1:]]
     else:
