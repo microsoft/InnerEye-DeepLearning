@@ -87,6 +87,7 @@ class RunRecovery:
         logging.debug(f"Run has ID {run.id} and initial child runs are:")
         for child_run in child_runs:
             logging.debug(f"     {child_run.id}")
+        checkpoint_subdir_name: Optional[str]
         if output_subdir_name:
             # From e.g. parent_dir/checkpoints we want parent_dir/output_subdir_name, to which we will
             # append split_index / checkpoints below to create child_dst.
