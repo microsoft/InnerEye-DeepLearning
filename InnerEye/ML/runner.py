@@ -153,25 +153,19 @@ class Runner:
                 self.azure_config, self.model_config, PARENT_RUN_CONTEXT, output_subdir_name=OTHER_RUNS_SUBDIR_NAME)
             # Check paths are good, just in case
             for path in run_recovery.checkpoints_roots:
-                logging.info(f"DBG: Checkpoint path: {path}")
                 if not path.is_dir():
                     raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
-                for name in sorted(path.rglob("*")):
-                    logging.info(f"DBG:   {name}")
         # Adjust parameters
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
-        logging.info("DBG: calling run_inference_and_register_model from create_ensemble_model")
         self.create_ml_runner().run_inference_and_register_model(run_recovery, is_ensemble=True)
         crossval_dir = self.plot_cross_validation_and_upload_results()
         # CrossValResults should have been uploaded to the parent run, so we don't need it here.
-        logging.info(f"DBG: cleaning up: removing {crossval_dir}")
         remove_directory(crossval_dir)
         # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files
         # available elsewhere.
         other_runs_dir = self.model_config.outputs_folder / OTHER_RUNS_SUBDIR_NAME
-        logging.info(f"DBG: cleaning up: removing {other_runs_dir}")
         remove_directory(other_runs_dir)
 
     def parse_and_load_model(self) -> ParserResult:
@@ -296,7 +290,6 @@ class Runner:
         # Ensure that both model training and pytest both get executed in all cases, so that we see a full set of
         # test results in each PR
         outputs_folder = self.model_config.outputs_folder
-        logging.info(f"DBG: run_in_situ: outputs_folder = {outputs_folder}")
         try:
             logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
             try:

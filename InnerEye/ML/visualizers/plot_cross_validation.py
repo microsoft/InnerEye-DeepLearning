@@ -332,15 +332,11 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
     :return: The dataframe with all of the downloaded results grouped by execution mode (Test or Val)
      and directory where the epoch results were downloaded to.
     """
-    logging.info(f"DBG: download_crossval_result_files: run_recovery_id={run_recovery_id}, epoch={epoch}")
-    logging.info(f"DBG: download_crossval_result_files: download_to_folder={download_to_folder}, "
-                 f"splits_to_evaluate={splits_to_evaluate}")
     splits_to_evaluate = splits_to_evaluate or []
     if run_recovery_id is None:
         run_recovery_id = config.run_recovery_id
     if epoch is None:
         epoch = config.epoch
-    logging.info(f"DBG: download_crossval_result_files: new run_recovery_id={run_recovery_id}, epoch={epoch}")
     parent = None
     if run_recovery_id:
         workspace = config.azure_config.get_workspace()
@@ -359,15 +355,11 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         download_to_folder.mkdir(parents=True, exist_ok=True)
     start_time = time.time()
     logging.info(f"Starting to download files for cross validation analysis to: {download_to_folder}")
-    logging.info(f"DBG: run_recovery_id = {run_recovery_id}, splits_to_evaluate = {splits_to_evaluate}")
     assert download_to_folder is not None
     result: List[RunResultFiles] = []
     loop_over: List[Tuple[Optional[Run], str, str, Optional[str]]]
     if splits_to_evaluate:
-        loop_over = [
-            (None, split, split, "") for split in splits_to_evaluate
-        ]
-        logging.info("DBG: loop_over is set from splits_to_evaluate")
+        loop_over = [(None, split, split, "") for split in splits_to_evaluate]
     else:
         loop_over = []
         for run in runs_to_evaluate:
@@ -380,21 +372,9 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
             # Value to put in the "Split" column in the result.
             run_recovery_id = tags[RUN_RECOVERY_ID_KEY]
             loop_over.append((run, split_index, split_suffix, run_recovery_id))
-            logging.info(f"DBG: loop_over gets {run.id}, {split_index}, {split_suffix}, {run_recovery_id}")
-
-    logging.info(f"DBG: files in {config.outputs_directory} (with parent.id = {parent.id if parent else None}):")
-    import os
-    top_root = str(config.outputs_directory)
-    for root, dirs, files in os.walk(top_root):
-        rel_root = root[len(top_root):].strip('/')
-        for file in files:
-            logging.info(f"DBG:   {rel_root}/{file}")
 
     for run, split_index, split_suffix, run_recovery_id in loop_over:
         config.local_run_result_split_suffix = split_suffix
-
-        logging.info(f"DBG: processing loop_over item {run.id if run else None}, {split_index}, {split_suffix}, "
-                     f"{run_recovery_id}")
         # When run is the parent run, we need to look on the local disc.
         # If (as expected) dataset.csv is not already present, we copy it from the top of the outputs directory.
         folder_for_run = download_to_folder / split_suffix
@@ -405,7 +385,6 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
             # Copy the run-0 dataset.csv, which should be the same, as the parent run won't have one.
             shutil.copy(str(Path(config.outputs_directory) / DATASET_CSV_FILE_NAME), str(dataset_file))
         else:
-            logging.info(f"DBG: is_parent_run is {is_parent_run(run)}, so folder_for_run is {folder_for_run}")
             dataset_file = config.download_or_get_local_file(run, DATASET_CSV_FILE_NAME, folder_for_run)
         if config.is_segmentation and not dataset_file:
             raise ValueError(f"Dataset file must be present for segmentation models, but is missing for run {run.id}")
@@ -414,7 +393,6 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
             # download metrics.csv file for each split. metrics_file can be None if the file does not exist
             # (for example, if no output was written for execution mode Test)
             metrics_file = download_metrics_file(config, run, folder_for_run, epoch, mode)
-            logging.info(f"DBG: download_metrics_file gave {metrics_file}")
             if metrics_file:
                 result.append(RunResultFiles(execution_mode=mode,
                                              dataset_csv_file=dataset_file,
@@ -842,7 +820,6 @@ def plot_cross_validation(config: PlotCrossValidationConfig) -> Path:
     logging_to_stdout(logging.INFO)
     with logging_section("downloading cross-validation results"):
         result_files, root_folder = download_crossval_result_files(config)
-    logging.info(f"DBG: plot_cross_validation: root_folder is {root_folder}")
     config_and_files = OfflineCrossvalConfigAndFiles(config=config, files=result_files)
     with logging_section("plotting cross-validation results"):
         plot_cross_validation_from_files(config_and_files, root_folder)
