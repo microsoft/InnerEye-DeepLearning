@@ -90,8 +90,7 @@ def segmentation_model_test(config: SegmentationModelBase,
     """
     results: Dict[int, float] = {}
     for epoch in config.get_test_epochs():
-        relative_epoch_results_path = get_epoch_results_path(epoch, data_split, is_ensemble)
-        epoch_results_folder = config.outputs_folder / relative_epoch_results_path
+        epoch_results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, is_ensemble)
         # save the datasets.csv used
         config.write_dataset_files(root=epoch_results_folder)
         epoch_and_split = "epoch {} {} set".format(epoch, data_split.value)
@@ -108,7 +107,9 @@ def segmentation_model_test(config: SegmentationModelBase,
             results[epoch] = epoch_average_dice
             logging.info("Epoch: {:3} | Mean Dice: {:4f}".format(epoch, epoch_average_dice))
             if is_ensemble:
-                PARENT_RUN_CONTEXT.upload_folder(name=str(relative_epoch_results_path), path=str(epoch_results_folder))
+                # For the upload, we want the path without the "OTHER_RUNS/ENSEMBLE" prefix.
+                name = str(get_epoch_results_path(epoch, data_split, is_ensemble=False))
+                PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
     if len(results) == 0:
         raise ValueError("There was no single checkpoint file available for model testing.")
     return InferenceMetricsForSegmentation(data_split=data_split, epochs=results)
