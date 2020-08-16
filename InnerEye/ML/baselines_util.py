@@ -24,7 +24,7 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_directory
 from InnerEye.ML.visualizers.plot_cross_validation import convert_rows_for_comparisons, may_write_lines_to_file
 
-WILCOXON_RESULTS_FILE = "BaselineComparisonWilcoxonSignedRankTestResults.txt"
+BASELINE_WILCOXON_RESULTS_FILE = "BaselineComparisonWilcoxonSignedRankTestResults.txt"
 
 
 @dataclass
@@ -85,7 +85,7 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
     comparison_result.dataframe.to_csv(full_metrics_path)
     model_type = "ensemble" if is_ensemble else "single"
     if comparison_result.did_comparisons:
-        wilcoxon_path = outputs_path / WILCOXON_RESULTS_FILE
+        wilcoxon_path = outputs_path / BASELINE_WILCOXON_RESULTS_FILE
         logging.info(f"Wilcoxon tests of current {model_type} model against baseline(s), written to {wilcoxon_path}:")
         for line in comparison_result.wilcoxon_lines:
             logging.info(line)
