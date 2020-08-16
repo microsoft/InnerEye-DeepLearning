@@ -174,8 +174,10 @@ the `metrics.csv` files of the current run and the comparison run(s).
   Dice scores).
 
 Ensemble models are created by the zero'th child (with `cross_validation_split_index=0`) in each
-cross-validation run. The results (scores, plots etc) from individual child runs are uploaded
-to the parent run, in the `CrossValResults` directory. This contains:
+cross-validation run. Results from inference on the test and validation sets are uploaded to the
+parent run, and can be found in `epoch_NNN` directories as above.
+In additional, various scores and plots from the ensemble and from individual child 
+runs are uploaded to the parent run, in the `CrossValResults` directory. This contains:
 * Subdirectories named 0, 1, 2, ... for all the child runs including the zero'th one, as well
  as `ENSEMBLE`, containing their respective `epoch_NNN` directories.
 * A subdirectory named `scatterplots`, containing a `jpg` file for every pairing of component models

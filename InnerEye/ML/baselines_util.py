@@ -15,8 +15,9 @@ from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, fetch_run, stri
 from InnerEye.Common import common_util
 from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig
-from InnerEye.Common.common_util import EPOCH_FOLDER_NAME_PATTERN, FULL_METRICS_DATAFRAME_FILE, METRICS_FILE_NAME, \
-    remove_directory
+from InnerEye.Common.common_util import ENSEMBLE_SPLIT_NAME, EPOCH_FOLDER_NAME_PATTERN, FULL_METRICS_DATAFRAME_FILE, \
+    METRICS_FILE_NAME, \
+    OTHER_RUNS_SUBDIR_NAME, remove_directory
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -44,7 +45,8 @@ class DiceScoreComparisonResult:
         common_util.check_properties_are_not_none(self)
 
 
-def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_config: AzureConfig) -> None:
+def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_config: AzureConfig,
+                                     is_ensemble: bool) -> None:
     """
     If the model config has any baselines to compare against, loads the metrics.csv file that should just have
     been written for the last epoch of the current run, and its dataset.csv. Do the same for all the baselines,
@@ -57,6 +59,8 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
     if not comparison_blob_storage_paths:
         return
     outputs_path = model_config.outputs_folder
+    if is_ensemble:
+        outputs_path = outputs_path / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME
     model_epoch_paths = sorted(outputs_path.glob(EPOCH_FOLDER_NAME_PATTERN))
     if not model_epoch_paths:
         logging.warning("Cannot compare scores against baselines: no matches found for "
@@ -79,9 +83,10 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
                                                     model_metrics_df)
     full_metrics_path = str(outputs_path / FULL_METRICS_DATAFRAME_FILE)
     comparison_result.dataframe.to_csv(full_metrics_path)
+    model_type = "ensemble" if is_ensemble else "single"
     if comparison_result.did_comparisons:
         wilcoxon_path = outputs_path / WILCOXON_RESULTS_FILE
-        logging.info(f"Wilcoxon tests of current run against baseline(s), written to {wilcoxon_path}:")
+        logging.info(f"Wilcoxon tests of current {model_type} model against baseline(s), written to {wilcoxon_path}:")
         for line in comparison_result.wilcoxon_lines:
             logging.info(line)
         logging.info("End of Wilcoxon test results")

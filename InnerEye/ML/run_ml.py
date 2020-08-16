@@ -222,7 +222,7 @@ class MLRunner:
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
             if registration_epoch is None:
                 self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics, is_ensemble)
-            self.may_compare_scores_against_baselines()
+            self.may_compare_scores_against_baselines(is_ensemble)
         else:
             logging.warning("Couldn't register model in offline mode")
 
@@ -337,7 +337,7 @@ class MLRunner:
                 is_ensemble=is_ensemble
             )
 
-    def may_compare_scores_against_baselines(self) -> None:
+    def may_compare_scores_against_baselines(self, is_ensemble: bool) -> None:
         """
         Attempt comparison of scores against baseline scores and scatterplot creation if possible.
         """
@@ -346,7 +346,7 @@ class MLRunner:
         try:
             from InnerEye.ML.baselines_util import compare_scores_against_baselines
             with logging_section("comparing scores against baselines"):
-                compare_scores_against_baselines(self.model_config, self.azure_config)
+                compare_scores_against_baselines(self.model_config, self.azure_config, is_ensemble)
         except Exception as ex:
             print_exception(ex, "Model baseline comparison failed.")
 
