@@ -100,7 +100,7 @@ def epoch_folder_name(epoch: int) -> str:
     return "epoch_{0:03d}".format(epoch)
 
 
-def get_epoch_results_path(epoch: int, mode: ModelExecutionMode, is_ensemble: bool = False) -> str:
+def get_epoch_results_path(epoch: int, mode: ModelExecutionMode, is_ensemble: bool = False) -> Path:
     """
     For a given model execution mode, and an epoch index, creates the relative results path
     in the form epoch_x/(Train, Test or Val)
