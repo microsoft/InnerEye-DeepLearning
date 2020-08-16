@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 
+from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
 from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, empty_string_to_none, \
     get_epoch_results_path, is_linux, logging_section, string_to_path
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
@@ -89,8 +90,9 @@ def segmentation_model_test(config: SegmentationModelBase,
     """
     results: Dict[int, float] = {}
     for epoch in config.get_test_epochs():
-        epoch_results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, is_ensemble)
-        # save the datasets csv used
+        relative_epoch_results_path = get_epoch_results_path(epoch, data_split, is_ensemble)
+        epoch_results_folder = config.outputs_folder / relative_epoch_results_path
+        # save the datasets.csv used
         config.write_dataset_files(root=epoch_results_folder)
         epoch_and_split = "epoch {} {} set".format(epoch, data_split.value)
         epoch_dice_per_image = segmentation_model_test_epoch(config=copy.deepcopy(config),
@@ -105,6 +107,8 @@ def segmentation_model_test(config: SegmentationModelBase,
             epoch_average_dice: float = np.mean(epoch_dice_per_image) if len(epoch_dice_per_image) > 0 else 0
             results[epoch] = epoch_average_dice
             logging.info("Epoch: {:3} | Mean Dice: {:4f}".format(epoch, epoch_average_dice))
+            if is_ensemble:
+                PARENT_RUN_CONTEXT.upload_folder(name=relative_epoch_results_path, path=str(epoch_results_folder))
     if len(results) == 0:
         raise ValueError("There was no single checkpoint file available for model testing.")
     return InferenceMetricsForSegmentation(data_split=data_split, epochs=results)

@@ -35,7 +35,7 @@ from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, DataframeLogger, ENSEMBLE_SPLIT_NAME, \
     FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_AGGREGATES_FILE, OTHER_RUNS_SUBDIR_NAME, delete_and_remake_directory, logging_section, logging_to_stdout
+    METRICS_AGGREGATES_FILE, OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, ScalarMetricsDict
 from InnerEye.Common.type_annotations import PathOrString
