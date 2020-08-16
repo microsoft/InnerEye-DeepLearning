@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from InnerEye.Common import common_util
-from InnerEye.ML.baselines_util import get_comparison_data, perform_score_comparisons
+from InnerEye.ML.baselines_util import get_comparison_baselines, perform_score_comparisons
 from Tests.Common.test_util import DEFAULT_RUN_RECOVERY_ID
 from Tests.ML.util import get_default_azure_config
 
@@ -43,6 +43,6 @@ def test_get_comparison_data() -> None:
     azure_config = get_default_azure_config()
     comparison_name = "DefaultName"
     comparison_path = DEFAULT_RUN_RECOVERY_ID + "/outputs/epoch_002/Test"
-    tuples = get_comparison_data(Path("outputs"), azure_config, [(comparison_name, comparison_path)])
+    tuples = get_comparison_baselines(Path("outputs"), azure_config, [(comparison_name, comparison_path)])
     assert len(tuples) == 1
     assert tuples[0][0] == comparison_name
