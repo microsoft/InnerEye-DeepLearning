@@ -108,7 +108,7 @@ def segmentation_model_test(config: SegmentationModelBase,
             results[epoch] = epoch_average_dice
             logging.info("Epoch: {:3} | Mean Dice: {:4f}".format(epoch, epoch_average_dice))
             if is_ensemble:
-                PARENT_RUN_CONTEXT.upload_folder(name=relative_epoch_results_path, path=str(epoch_results_folder))
+                PARENT_RUN_CONTEXT.upload_folder(name="InferenceResults", path=str(epoch_results_folder))
     if len(results) == 0:
         raise ValueError("There was no single checkpoint file available for model testing.")
     return InferenceMetricsForSegmentation(data_split=data_split, epochs=results)
