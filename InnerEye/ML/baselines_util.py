@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Dict, Generator, List, Optional, Tuple
 
@@ -27,6 +28,11 @@ from InnerEye.ML.visualizers.plot_cross_validation import convert_rows_for_compa
 BASELINE_WILCOXON_RESULTS_FILE = "BaselineComparisonWilcoxonSignedRankTestResults.txt"
 
 
+class ModelType(Enum):
+    SINGLE = 'single'
+    ENSEMBLE = 'ensemble'
+
+
 @dataclass
 class DiceScoreComparisonResult:
     """
@@ -46,7 +52,7 @@ class DiceScoreComparisonResult:
 
 
 def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_config: AzureConfig,
-                                     is_ensemble: bool) -> None:
+                                     model_type: ModelType) -> None:
     """
     If the model config has any baselines to compare against, loads the metrics.csv file that should just have
     been written for the last epoch of the current run, and its dataset.csv. Do the same for all the baselines,
@@ -59,7 +65,7 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
     if not comparison_blob_storage_paths:
         return
     outputs_path = model_config.outputs_folder
-    if is_ensemble:
+    if model_type == ModelType.ENSEMBLE:
         outputs_path = outputs_path / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME
     model_epoch_paths = sorted(outputs_path.glob(EPOCH_FOLDER_NAME_PATTERN))
     if not model_epoch_paths:
@@ -83,10 +89,11 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
                                                     model_metrics_df)
     full_metrics_path = str(outputs_path / FULL_METRICS_DATAFRAME_FILE)
     comparison_result.dataframe.to_csv(full_metrics_path)
-    model_type = "ensemble" if is_ensemble else "single"
     if comparison_result.did_comparisons:
         wilcoxon_path = outputs_path / BASELINE_WILCOXON_RESULTS_FILE
-        logging.info(f"Wilcoxon tests of current {model_type} model against baseline(s), written to {wilcoxon_path}:")
+        logging.info(
+            f"Wilcoxon tests of current {model_type.value} model against baseline(s), "
+            f"written to {wilcoxon_path}:")
         for line in comparison_result.wilcoxon_lines:
             logging.info(line)
         logging.info("End of Wilcoxon test results")
@@ -130,6 +137,9 @@ class ComparisonBaseline:
     dataset_df: pd.DataFrame
     metrics_df: pd.DataFrame
     run_recovery_id: str
+
+    def __post_init__(self) -> None:
+        common_util.check_properties_are_not_none(self)
 
 
 def perform_score_comparisons(model_dataset_df: pd.DataFrame, model_metrics_df: pd.DataFrame,

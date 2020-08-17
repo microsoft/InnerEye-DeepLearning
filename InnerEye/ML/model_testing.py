@@ -19,6 +19,7 @@ from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NA
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config
 from InnerEye.ML import metrics, plotting
+from InnerEye.ML.baselines_util import ModelType, model_type_value
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
@@ -48,7 +49,7 @@ ModelTestResultType = Optional[Union[InferenceMetricsForSegmentation, InferenceM
 def model_test(config: ModelConfigBase,
                data_split: ModelExecutionMode,
                run_recovery: Optional[RunRecovery] = None,
-               is_ensemble: bool = False) -> ModelTestResultType:
+               model_type: ModelType = ModelType.SINGLE) -> ModelTestResultType:
     """
     Runs model inference on segmentation or classification models, using a given dataset (that could be training,
     test or validation set). The inference results and metrics will be stored and logged in a way that may
@@ -56,7 +57,7 @@ def model_test(config: ModelConfigBase,
     :param config: The configuration of the model
     :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
     :param run_recovery: Run recovery data if applicable.
-    :param is_ensemble: whether we are testing an ensemble model; this affects where results are written.
+    :param model_type: whether we are testing an ensemble or single model; this affects where results are written.
     :return: The metrics that the model achieved on the given data set, or None if the data set is empty.
     """
     if len(config.get_dataset_splits()[data_split]) == 0:
@@ -66,31 +67,31 @@ def model_test(config: ModelConfigBase,
         logging.warning("Not performing any inference because avoid_process_spawn_in_data_loaders is set "
                         "and additional data loaders are likely to block.")
         return None
-    model_type = "ensemble" if run_recovery is not None and len(run_recovery.checkpoints_roots) > 0 else "single"
+    model_type = model_type_value(run_recovery is not None and len(run_recovery.checkpoints_roots) > 0)
     with logging_section(f"running {model_type} model on {data_split.name.lower()} set"):
         if isinstance(config, SegmentationModelBase):
-            return segmentation_model_test(config, data_split, run_recovery, is_ensemble)
+            return segmentation_model_test(config, data_split, run_recovery, model_type)
         if isinstance(config, ScalarModelBase):
-            return classification_model_test(config, data_split, run_recovery, is_ensemble)
+            return classification_model_test(config, data_split, run_recovery, model_type)
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 
 def segmentation_model_test(config: SegmentationModelBase,
                             data_split: ModelExecutionMode,
                             run_recovery: Optional[RunRecovery] = None,
-                            is_ensemble: bool = False) -> InferenceMetricsForSegmentation:
+                            model_type: ModelType = ModelType.SINGLE) -> InferenceMetricsForSegmentation:
     """
     The main testing loop for segmentation models.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
     :param config: The arguments object which has a valid random seed attribute.
     :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
     :param run_recovery: Run recovery data if applicable.
-    :param is_ensemble: whether we are testing an ensemble model
+    :param model_type: whether we are testing an ensemble or single model
     :return: InferenceMetric object that contains metrics related for all of the checkpoint epochs.
     """
     results: Dict[int, float] = {}
     for epoch in config.get_test_epochs():
-        epoch_results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, is_ensemble)
+        epoch_results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_type)
         # save the datasets.csv used
         config.write_dataset_files(root=epoch_results_folder)
         epoch_and_split = "epoch {} {} set".format(epoch, data_split.value)
@@ -106,9 +107,9 @@ def segmentation_model_test(config: SegmentationModelBase,
             epoch_average_dice: float = np.mean(epoch_dice_per_image) if len(epoch_dice_per_image) > 0 else 0
             results[epoch] = epoch_average_dice
             logging.info("Epoch: {:3} | Mean Dice: {:4f}".format(epoch, epoch_average_dice))
-            if is_ensemble:
+            if model_type == ModelType.ENSEMBLE:
                 # For the upload, we want the path without the "OTHER_RUNS/ENSEMBLE" prefix.
-                name = str(get_epoch_results_path(epoch, data_split, is_ensemble=False))
+                name = str(get_epoch_results_path(epoch, data_split, ModelType.SINGLE))
                 PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
     if len(results) == 0:
         raise ValueError("There was no single checkpoint file available for model testing.")
@@ -398,7 +399,7 @@ def create_pipeline_from_checkpoint_paths(config: ModelConfigBase,
 def classification_model_test(config: ScalarModelBase,
                               data_split: ModelExecutionMode,
                               run_recovery: Optional[RunRecovery],
-                              is_ensemble: bool) -> InferenceMetricsForClassification:
+                              model_type: ModelType) -> InferenceMetricsForClassification:
     """
     The main testing loop for classification models. It runs a loop over all epochs for which testing should be done.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
@@ -406,7 +407,7 @@ def classification_model_test(config: ScalarModelBase,
     :param data_split: The name of the folder to store the results inside each epoch folder in the outputs_dir,
                        used mainly in model evaluation using different dataset splits.
     :param run_recovery: RunRecovery data if applicable
-    :param is_ensemble: whether we are testing an ensemble model
+    :param model_type: whether we are testing an ensemble or single model
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
 
@@ -449,7 +450,7 @@ def classification_model_test(config: ScalarModelBase,
         else:
             results[epoch] = epoch_result
             # TODO: sort out when this folder gets written to!
-            results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, is_ensemble)
+            results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_type)
             results_folder.mkdir(exist_ok=True, parents=True)
 
     if len(results) == 0:

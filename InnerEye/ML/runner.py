@@ -26,6 +26,7 @@ from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DA
     OTHER_RUNS_SUBDIR_NAME, disable_logging_to_file, is_linux, logging_section, logging_to_file, logging_to_stdout, \
     print_exception, remove_directory
 from InnerEye.Common.fixed_paths import get_environment_yaml_file
+from InnerEye.ML.baselines_util import ModelType
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -159,7 +160,7 @@ class Runner:
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
-        self.create_ml_runner().run_inference_and_register_model(run_recovery, is_ensemble=True)
+        self.create_ml_runner().run_inference_and_register_model(run_recovery, model_type=ModelType.ENSEMBLE)
         crossval_dir = self.plot_cross_validation_and_upload_results()
         # CrossValResults should have been uploaded to the parent run, so we don't need it here.
         remove_directory(crossval_dir)

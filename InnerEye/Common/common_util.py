@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Uni
 
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.Common.type_annotations import PathOrString
+from InnerEye.ML.baselines_util import ModelType
 from InnerEye.ML.common import ModelExecutionMode
 
 MAX_PATH_LENGTH = 260
@@ -100,17 +101,17 @@ def epoch_folder_name(epoch: int) -> str:
     return "epoch_{0:03d}".format(epoch)
 
 
-def get_epoch_results_path(epoch: int, mode: ModelExecutionMode, is_ensemble: bool = False) -> Path:
+def get_epoch_results_path(epoch: int, mode: ModelExecutionMode, model_type: ModelType = ModelType.SINGLE) -> Path:
     """
     For a given model execution mode, and an epoch index, creates the relative results path
     in the form epoch_x/(Train, Test or Val)
     :param epoch: epoch number
     :param mode: model execution mode
-    :param is_ensemble: whether this is for an ensemble model. If so, we return a different path
+    :param model_type: whether this is for an ensemble or single model. If ensemble, we return a different path
     to avoid colliding with the results from the single model that may have been created earlier in the same run.
     """
     subpath = Path(epoch_folder_name(epoch)) / mode.value
-    if is_ensemble:
+    if model_type == ModelType.ENSEMBLE:
         return Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME / subpath
     else:
         return subpath

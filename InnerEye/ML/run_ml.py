@@ -24,6 +24,7 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import is_windows, logging_section, print_exception
 from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PACKAGE_NAME
+from InnerEye.ML.baselines_util import ModelType
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod
@@ -201,7 +202,7 @@ class MLRunner:
             # log the number of epochs used for model training
             RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
 
-        self.run_inference_and_register_model(run_recovery, is_ensemble=False)
+        self.run_inference_and_register_model(run_recovery, ModelType.SINGLE)
 
     def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery], is_ensemble: bool) -> None:
         """
@@ -308,13 +309,13 @@ class MLRunner:
                                  run_recovery: Optional[RunRecovery],
                                  best_epoch: int,
                                  best_epoch_dice: float,
-                                 is_ensemble: bool) -> None:
+                                 model_type: ModelType) -> None:
         checkpoint_paths = [self.model_config.get_path_to_checkpoint(best_epoch)] if not run_recovery \
             else run_recovery.get_checkpoint_paths(best_epoch)
         if not self.model_config.is_offline_run:
             split_index = run_context.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
             if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-                update_run_tags(run_context, {IS_ENSEMBLE_KEY_NAME: is_ensemble})
+                update_run_tags(run_context, {IS_ENSEMBLE_KEY_NAME: model_type == ModelType.ENSEMBLE})
         # Discard any checkpoint paths that do not exist - they will make registration fail. This can happen
         # when some child runs fail; it may still be worth registering the model.
         valid_checkpoint_paths = []
@@ -327,17 +328,15 @@ class MLRunner:
             # No point continuing
             logging.warning("Abandoning model registration - no valid checkpoint paths found")
             return
-        model_type = "ensemble" if is_ensemble else "single"
-        with logging_section(f"registering {model_type} model"):
+        with logging_section(f"registering {model_type.value} model"):
             self.register_segmentation_model(
                 run=run_context,
                 best_epoch=best_epoch,
                 best_epoch_dice=best_epoch_dice,
                 checkpoint_paths=valid_checkpoint_paths,
-                is_ensemble=is_ensemble
-            )
+                model_type=model_type)
 
-    def may_compare_scores_against_baselines(self, is_ensemble: bool) -> None:
+    def may_compare_scores_against_baselines(self, model_type: ModelType) -> None:
         """
         Attempt comparison of scores against baseline scores and scatterplot creation if possible.
         """
@@ -346,7 +345,7 @@ class MLRunner:
         try:
             from InnerEye.ML.baselines_util import compare_scores_against_baselines
             with logging_section("comparing scores against baselines"):
-                compare_scores_against_baselines(self.model_config, self.azure_config, is_ensemble)
+                compare_scores_against_baselines(self.model_config, self.azure_config, model_type)
         except Exception as ex:
             print_exception(ex, "Model baseline comparison failed.")
 
@@ -354,7 +353,7 @@ class MLRunner:
                                     best_epoch: int,
                                     best_epoch_dice: float,
                                     checkpoint_paths: List[Path],
-                                    is_ensemble: bool,
+                                    model_type: ModelType,
                                     run: Optional[Run] = None,
                                     workspace: Optional[Workspace] = None,
                                     tags: Optional[Dict[str, str]] = None) -> \
@@ -363,9 +362,10 @@ class MLRunner:
         Registers a new model in the workspace's model registry to be deployed further,
         and creates a model zip for portal deployment (if required). This model, is the
         model checkpoint with the highest test accuracy.
-        :param checkpoint_paths: Checkpoint paths to use to upload model checkpoints to AML.
         :param best_epoch: The training epoch that resulted in the highest validation score.
         :param best_epoch_dice: Dice metric for the best epoch
+        :param checkpoint_paths: Checkpoint paths to use to upload model checkpoints to AML.
+        :param model_type: whether it's a single or ensemble model.
         :param run: If provided then the run's workspace and tags will be used to register the model.
         :param workspace: If provided, then this workspace will be used to register the model instead of the
         workspace associated with the provided run.
@@ -410,8 +410,7 @@ class MLRunner:
             tags=tags,
             description="Best epoch: {}, Accuracy : {}".format(best_epoch, best_epoch_dice)
         )
-        model_type = "ensemble" if is_ensemble else "single"
-        logging.info(f"Registered {model_type} model: {model.name}, with Id: {model.id}")
+        logging.info(f"Registered {model_type.value} model: {model.name}, with Id: {model.id}")
 
         # update the run's tags with the registered model information
         if not self.model_config.is_offline_run:
@@ -421,7 +420,7 @@ class MLRunner:
         if self.model_deployment_hook is not None:
             assert isinstance(self.model_config, SegmentationModelBase)
             deployment_model_path, deployment_model_spec = self.model_deployment_hook(
-                self.model_config, self.azure_config, model, is_ensemble)
+                self.model_config, self.azure_config, model, model_type)
             return model, deployment_model_path, deployment_model_spec
         return model, None, None
 
@@ -485,7 +484,7 @@ class MLRunner:
 
     def model_inference_train_and_test(self, run_context: Optional[Run] = None,
                                        run_recovery: Optional[RunRecovery] = None,
-                                       is_ensemble: bool = False) -> \
+                                       model_type: ModelType = ModelType.SINGLE) -> \
             Tuple[Optional[InferenceMetricsForSegmentation],
                   Optional[InferenceMetricsForSegmentation],
                   Optional[InferenceMetricsForSegmentation]]:
@@ -496,7 +495,7 @@ class MLRunner:
         config = self.model_config
 
         def run_model_test(data_split: ModelExecutionMode) -> ModelTestResultType:
-            return model_test(config, data_split=data_split, run_recovery=run_recovery, is_ensemble=is_ensemble)
+            return model_test(config, data_split=data_split, run_recovery=run_recovery, model_type=model_type)
 
         if config.perform_validation_and_test_set_inference:
             # perform inference on test set
