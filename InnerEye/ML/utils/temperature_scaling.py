@@ -45,13 +45,12 @@ class ClassificationModelWithTemperature(DeviceAwareModule):
         ece_criterion = ECELoss().cuda()
         logits = logits.cuda()
         labels = labels.cuda()
-
         # Calculate ECE before temperature scaling
         before_temperature_nll, before_temperature_ece = forward_criterion(logits, labels)
         print('Before temperature - NLL: %.3f ECE: %.3f' % (before_temperature_nll, before_temperature_ece))
 
         # Next: optimize the temperature w.r.t. NLL
-        optimizer = LBFGS([self.temperature], lr=0.002, max_iter=100)
+        optimizer = LBFGS([self.temperature], lr=0.2, max_iter=500)
 
         def eval_criterion() -> torch.Tensor:
             scaled = self.temperature_scale(logits)
