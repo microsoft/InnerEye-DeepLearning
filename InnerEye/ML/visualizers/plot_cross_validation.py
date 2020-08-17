@@ -29,8 +29,8 @@ from matplotlib import pyplot
 
 import InnerEye.Common.Statistics.mann_whitney_test as mann_whitney
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, PARENT_RUN_CONTEXT, fetch_child_runs, \
-    fetch_run, is_offline_run_context
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetch_child_runs, \
+    fetch_run, is_offline_run_context, is_parent_run
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, DataframeLogger, ENSEMBLE_SPLIT_NAME, \
@@ -307,10 +307,6 @@ def download_metrics_file(config: PlotCrossValidationConfig,
         destination=destination,
         run=run,
         local_src_subdir=local_src_subdir)
-
-
-def is_parent_run(run: Run) -> bool:
-    return PARENT_RUN_CONTEXT and run.id == PARENT_RUN_CONTEXT.id
 
 
 def download_crossval_result_files(config: PlotCrossValidationConfig,

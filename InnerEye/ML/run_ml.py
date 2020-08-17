@@ -16,7 +16,8 @@ from azureml.core.model import Model
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import INPUT_DATA_KEY
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
-    IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
+    IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, \
+    RUN_RECOVERY_FROM_ID_KEY_NAME, \
     RUN_RECOVERY_ID_KEY_NAME, \
     create_run_recovery_id, get_results_blob_path, has_input_datasets, storage_account_from_full_name, \
     update_run_tags
@@ -223,7 +224,7 @@ class MLRunner:
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
             if registration_epoch is None:
                 self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics, is_ensemble)
-            self.may_compare_scores_against_baselines(is_ensemble)
+            self.try_compare_scores_against_baselines(is_ensemble)
         else:
             logging.warning("Couldn't register model in offline mode")
 
@@ -316,6 +317,8 @@ class MLRunner:
             split_index = run_context.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
             if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
                 update_run_tags(run_context, {IS_ENSEMBLE_KEY_NAME: model_type == ModelType.ENSEMBLE})
+            elif PARENT_RUN_CONTEXT is not None:
+                update_run_tags(run_context, {PARENT_RUN_ID_KEY_NAME: PARENT_RUN_CONTEXT.id})
         # Discard any checkpoint paths that do not exist - they will make registration fail. This can happen
         # when some child runs fail; it may still be worth registering the model.
         valid_checkpoint_paths = []
@@ -336,7 +339,7 @@ class MLRunner:
                 checkpoint_paths=valid_checkpoint_paths,
                 model_type=model_type)
 
-    def may_compare_scores_against_baselines(self, model_type: ModelType) -> None:
+    def try_compare_scores_against_baselines(self, model_type: ModelType) -> None:
         """
         Attempt comparison of scores against baseline scores and scatterplot creation if possible.
         """
