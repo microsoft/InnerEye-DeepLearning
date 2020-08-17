@@ -5,9 +5,11 @@ channels:
 dependencies:
   - pip=20.1.1
   - python=3.7.3
+  # pytorch and cudatoolkit versions must be compatible with each other and correspond to an available AzureML
+  # Docker image. See https://pytorch.org/get-started/previous-versions/ and
   - pytorch=1.5.0
-  - torchvision=0.6.0
   - cudatoolkit=10.1
+  - torchvision=0.6.0
   - pip:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - git+https://github.com/ptrblck/apex.git@4ad9b3b#egg=apex
