@@ -21,6 +21,7 @@ IS_ENSEMBLE_KEY_NAME = "is_ensemble"
 MODEL_ID_KEY_NAME = "model_id"
 # The name of the key used to store the cross validation index of the dataset for the run
 CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY = "cross_validation_split_index"
+PARENT_RUN_ID_KEY_NAME = "parent_run_id"
 
 # This is the folder structure that AzureML generates to store all results for an experiment run.
 # azureml is the name of the container
@@ -375,6 +376,3 @@ def tag_values_all_distinct(runs: List[Run], tag: str) -> bool:
 
 def is_parent_run(run: Run) -> bool:
     return PARENT_RUN_CONTEXT and run.id == PARENT_RUN_CONTEXT.id
-
-
-PARENT_RUN_ID_KEY_NAME = "parent_run_id"
