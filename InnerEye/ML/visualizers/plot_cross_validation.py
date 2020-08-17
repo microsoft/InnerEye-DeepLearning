@@ -131,6 +131,8 @@ class PlotCrossValidationConfig(GenericConfig):
     number_of_cross_validation_splits: int = param.Integer(default=0,
                                                            doc="The expected number of splits in the"
                                                                "cross-validation run")
+    create_plots: bool = param.Boolean(default=True, doc="Whether to create plots; if False, just find outliers "
+                                                         "and do statistical tests")
 
     def __init__(self, **params: Any):
         super().__init__(**params)
@@ -698,7 +700,7 @@ def run_statistical_tests_on_file(root_folder: Path, full_csv_file: Path, option
     :param options: config options.
     """
     against = None if options.compare_all_against_all else focus_splits
-    config = WilcoxonTestConfig(csv_file=str(full_csv_file), with_scatterplots=True, against=against,
+    config = WilcoxonTestConfig(csv_file=str(full_csv_file), with_scatterplots=options.create_plots, against=against,
                                 subset=options.evaluation_set_name, exclude='')
     wilcoxon_lines, plots = wilcoxon_signed_rank_test(config)
     write_to_scatterplot_directory(root_folder, plots)
@@ -747,7 +749,8 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
     full_csv_file = root_folder / FULL_METRICS_DATAFRAME_FILE
     initial_metrics = pd.concat(list(metrics_dfs.values()))
     if config.is_segmentation:
-        plot_metrics(config, metrics_dfs, root_folder)
+        if config.create_plots:
+            plot_metrics(config, metrics_dfs, root_folder)
         save_outliers(config, metrics_dfs, root_folder)
         all_metrics, focus_splits = add_comparison_data(config, initial_metrics)
         all_metrics.to_csv(full_csv_file, index=False)
