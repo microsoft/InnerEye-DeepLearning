@@ -16,7 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import param
 from azureml.core import Keyvault, Run, Workspace
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
-from azureml.train.estimator import Estimator
+from azureml.train.estimator import MMLBaseEstimator
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from InnerEye.Azure.azure_util import get_results_blob_path, get_run_id, \
@@ -243,7 +243,7 @@ class SourceConfig:
     entry_script: str
     conda_dependencies_files: List[Path]
     script_params: Optional[Dict[str, str]] = None
-    hyperdrive_config_func: Optional[Callable[[Estimator], HyperDriveConfig]] = None
+    hyperdrive_config_func: Optional[Callable[[MMLBaseEstimator], HyperDriveConfig]] = None
     upload_timeout_seconds: int = 36000
     environment_variables: Optional[Dict[str, str]] = None
 
