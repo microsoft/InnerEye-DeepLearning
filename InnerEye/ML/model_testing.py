@@ -19,7 +19,6 @@ from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NA
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config
 from InnerEye.ML import metrics, plotting
-from InnerEye.ML.baselines_util import model_type_value
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
@@ -67,7 +66,7 @@ def model_test(config: ModelConfigBase,
         logging.warning("Not performing any inference because avoid_process_spawn_in_data_loaders is set "
                         "and additional data loaders are likely to block.")
         return None
-    model_type = model_type_value(run_recovery is not None and len(run_recovery.checkpoints_roots) > 0)
+    # model_type = model_type_value(run_recovery is not None and len(run_recovery.checkpoints_roots) > 0)
     with logging_section(f"running {model_type} model on {data_split.name.lower()} set"):
         if isinstance(config, SegmentationModelBase):
             return segmentation_model_test(config, data_split, run_recovery, model_type)
