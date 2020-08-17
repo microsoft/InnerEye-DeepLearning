@@ -17,7 +17,7 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import TestOutputDirectories
-from InnerEye.ML.baselines_util import ModelType
+from InnerEye.Common.common_util import ModelType
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig

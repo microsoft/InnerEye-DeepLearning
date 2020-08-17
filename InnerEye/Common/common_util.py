@@ -10,13 +10,13 @@ import sys
 import time
 import traceback
 from contextlib import contextmanager
+from enum import Enum
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Union
 
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.Common.type_annotations import PathOrString
-from InnerEye.ML.baselines_util import ModelType
 from InnerEye.ML.common import ModelExecutionMode
 
 MAX_PATH_LENGTH = 260
@@ -99,6 +99,11 @@ def epoch_folder_name(epoch: int) -> str:
     Returns a formatted name for the a given epoch number, padded with zeros to 3 digits.
     """
     return "epoch_{0:03d}".format(epoch)
+
+
+class ModelType(Enum):
+    SINGLE = 'single'
+    ENSEMBLE = 'ensemble'
 
 
 def get_epoch_results_path(epoch: int, mode: ModelExecutionMode, model_type: ModelType = ModelType.SINGLE) -> Path:

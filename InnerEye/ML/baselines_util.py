@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
 from typing import Dict, Generator, List, Optional, Tuple
 
@@ -18,7 +17,7 @@ from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig
 from InnerEye.Common.common_util import ENSEMBLE_SPLIT_NAME, EPOCH_FOLDER_NAME_PATTERN, FULL_METRICS_DATAFRAME_FILE, \
     METRICS_FILE_NAME, \
-    OTHER_RUNS_SUBDIR_NAME, remove_directory
+    ModelType, OTHER_RUNS_SUBDIR_NAME, remove_directory
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -26,11 +25,6 @@ from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_dir
 from InnerEye.ML.visualizers.plot_cross_validation import convert_rows_for_comparisons, may_write_lines_to_file
 
 BASELINE_WILCOXON_RESULTS_FILE = "BaselineComparisonWilcoxonSignedRankTestResults.txt"
-
-
-class ModelType(Enum):
-    SINGLE = 'single'
-    ENSEMBLE = 'ensemble'
 
 
 @dataclass
