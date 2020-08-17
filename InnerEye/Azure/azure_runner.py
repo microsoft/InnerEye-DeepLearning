@@ -17,7 +17,6 @@ from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.exceptions import WorkspaceException
 from azureml.train.dnn import PyTorch
-from azureml.train.estimator import Estimator
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
