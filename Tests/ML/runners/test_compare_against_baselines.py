@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from InnerEye.Common import common_util
-from InnerEye.ML.baselines_util import get_comparison_baselines, perform_score_comparisons
+from InnerEye.ML.baselines_util import ComparisonBaseline, get_comparison_baselines, perform_score_comparisons
 from Tests.Common.test_util import DEFAULT_RUN_RECOVERY_ID
 from Tests.ML.util import get_default_azure_config
 
@@ -29,8 +29,8 @@ def test_perform_score_comparisons() -> None:
     comparison_metrics_df['Dice'] = [0.51 + i * 0.02 for i in range(10)]
     comparison_name = "DefaultName"
     comparison_run_rec_id = "DefaultRunRecId"
-    result = perform_score_comparisons(
-        dataset_df, metrics_df, [(comparison_name, dataset_df, comparison_metrics_df, comparison_run_rec_id)])
+    baseline = ComparisonBaseline(comparison_name, dataset_df, comparison_metrics_df, comparison_run_rec_id)
+    result = perform_score_comparisons(dataset_df, metrics_df, [baseline])
     assert result.did_comparisons
     assert len(result.wilcoxon_lines) == 5
     assert result.wilcoxon_lines[0] == f"Build 1: {comparison_name}"
@@ -43,6 +43,6 @@ def test_get_comparison_data() -> None:
     azure_config = get_default_azure_config()
     comparison_name = "DefaultName"
     comparison_path = DEFAULT_RUN_RECOVERY_ID + "/outputs/epoch_002/Test"
-    tuples = get_comparison_baselines(Path("outputs"), azure_config, [(comparison_name, comparison_path)])
-    assert len(tuples) == 1
-    assert tuples[0][0] == comparison_name
+    baselines = get_comparison_baselines(Path("outputs"), azure_config, [(comparison_name, comparison_path)])
+    assert len(baselines) == 1
+    assert baselines[0].name == comparison_name
