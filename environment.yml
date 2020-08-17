@@ -7,6 +7,7 @@ dependencies:
   - python=3.7.3
   - pytorch=1.5.0
   - torchvision=0.6.0
+  - cudatoolkit=10.1
   - pip:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - git+https://github.com/ptrblck/apex.git@4ad9b3b#egg=apex
