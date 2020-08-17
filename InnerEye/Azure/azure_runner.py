@@ -11,10 +11,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from azureml.core import Dataset, Experiment, Run, Workspace
+from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.datastore import Datastore
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.exceptions import WorkspaceException
+from azureml.train.dnn import PyTorch
 from azureml.train.estimator import Estimator
 
 from InnerEye.Azure import azure_util
@@ -165,7 +167,7 @@ def create_and_submit_experiment(
 def create_pytorch_environment(workspace: Workspace,
                                azure_config: AzureConfig,
                                source_config: SourceConfig,
-                               azure_dataset_id: str) -> Estimator:
+                               azure_dataset_id: str) -> PyTorch:
     """
     Creates an Estimator environment required for model execution
 
@@ -218,8 +220,24 @@ def create_pytorch_environment(workspace: Workspace,
     return create_estimator_from_configs(workspace, azure_config, source_config, estimator_inputs)
 
 
+def pytorch_version_from_conda_dependencies(conda_dependencies: CondaDependencies) -> Optional[str]:
+    """
+    Given a CondaDependencies object, look for a spec of the form "pytorch=...", and return a
+    whichever supported version is compatible with the value, or None if there isn't one.
+    """
+    supported_versions = PyTorch.get_supported_versions()
+    for spec in conda_dependencies.conda_packages:
+        components = spec.split("=")
+        if len(components) == 2 and components[0] == "pytorch":
+            version = components[1]
+            for supported in supported_versions:
+                if version.startswith(supported) or supported.startswith(version):
+                    return supported
+    return None
+
+
 def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfig, source_config: SourceConfig,
-                                  estimator_inputs: List[DatasetConsumptionConfig]) -> Estimator:
+                                  estimator_inputs: List[DatasetConsumptionConfig]) -> PyTorch:
     """
     Create an return an Estimator from the provided configuration information.
     :param workspace: workspace that should contain a datastore named "workspaceblobstore", for storing source
@@ -236,20 +254,6 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
         "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": str(source_config.upload_timeout_seconds),
         **(source_config.environment_variables or {})
     }
-    # create Estimator environment
-    estimator = Estimator(
-        source_directory=source_config.root_folder,
-        entry_script=entry_script_relative_path,
-        script_params=source_config.script_params,
-        compute_target=azure_config.gpu_cluster_name,
-        # Use blob storage for storing the source, rather than the FileShares section of the storage account.
-        source_directory_data_store=workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME),
-        inputs=estimator_inputs,
-        environment_variables=environment_variables,
-        shm_size=azure_config.docker_shm_size,
-        use_docker=True,
-        use_gpu=True
-    )
     # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not be
     # necessary if the innereye package is installed. It is necessary when working with an outer project and
     # InnerEye as a git submodule and submitting jobs from the local machine.
@@ -261,6 +265,21 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
         # pypi
         conda_dependencies.set_pip_option(f"--index-url {azure_config.pip_extra_index_url}")
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
+    # create Estimator environment
+    estimator = PyTorch(
+        source_directory=source_config.root_folder,
+        entry_script=entry_script_relative_path,
+        script_params=source_config.script_params,
+        compute_target=azure_config.gpu_cluster_name,
+        # Use blob storage for storing the source, rather than the FileShares section of the storage account.
+        source_directory_data_store=workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME),
+        inputs=estimator_inputs,
+        environment_variables=environment_variables,
+        shm_size=azure_config.docker_shm_size,
+        use_docker=True,
+        use_gpu=True,
+        framework_version=pytorch_version_from_conda_dependencies(conda_dependencies)
+    )
     estimator.run_config.environment.python.conda_dependencies = conda_dependencies
     # We'd like to log the estimator config, but conversion to string fails when the Estimator has some inputs.
     # logging.info(azure_util.estimator_to_string(estimator))
