@@ -6,7 +6,6 @@ dependencies:
   - pip=20.0.2
   - python=3.7.3
   - pytorch=1.3.0
-  - python-blosc==1.7.0
   - pip:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - git+https://github.com/ptrblck/apex.git@4ad9b3b#egg=apex
@@ -19,14 +18,11 @@ dependencies:
       - gputil==1.4.0
       - h5py==2.10.0
       - joblib==0.13.2
-      - jupyter==1.0.0
       - matplotlib==3.1.0
       - mlflow==1.8.0
-      - mock==3.0.5
       - mypy==0.770
       - mypy-extensions==0.4.3
       - numpy==1.18.1
-      - options==1.4.10
       - pandas==1.0.5
       - papermill==2.1.2
       - param==1.9.3
@@ -49,6 +45,5 @@ dependencies:
       - stopit==1.1.2
       - tabulate==0.8.7
       - tensorboardX==2.1
-      - tensorboard==2.2.2
       - torchprof==1.1.1
       - torchvision==0.4.1
