@@ -27,7 +27,8 @@ dependencies:
       - pandas==1.1.0
       - papermill==2.1.2
       - param==1.9.3
-      - pillow==7.2.0
+        # pillow 7.2.0 seems internally inconsistent:
+      - pillow==7.1.2
       - psutil==5.7.2
       - pyflakes==2.2.0
       - PyYAML==5.3.1
