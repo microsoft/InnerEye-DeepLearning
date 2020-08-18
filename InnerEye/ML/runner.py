@@ -23,7 +23,9 @@ from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOV
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout, print_exception
+    ModelType, OTHER_RUNS_SUBDIR_NAME, disable_logging_to_file, is_linux, logging_section, logging_to_file, \
+    logging_to_stdout, \
+    print_exception, remove_directory
 from InnerEye.Common.fixed_paths import get_environment_yaml_file
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
@@ -33,7 +35,7 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 LOG_FILE_NAME = "stdout.txt"
 
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
-ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model],
+ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, bool],
                                         Tuple[Optional[Path], Optional[Any]]]
 
 
@@ -99,25 +101,27 @@ class Runner:
                             and (x.get_status() not in [RunStatus.COMPLETED, RunStatus.FAILED])]
             should_wait = len(pending_runs) > 0
             if should_wait:
-                logging.info(f"Waiting for child runs to finish: {pending_runs}")
+                logging.info(f"Waiting for sibling run(s) to finish: {pending_runs}")
             return should_wait
         else:
             raise NotImplementedError("cross_val_splits_are_ready_for_aggregation is implemented for online "
                                       "cross validation runs only")
 
     @stopit.threading_timeoutable()
-    def wait_for_cross_val_runs_to_finish_and_aggregate(self, delay: int = 60) -> Path:
+    def wait_for_cross_val_runs_to_finish_and_aggregate(self, delay: int = 60) -> None:
         """
         Wait for cross val runs (apart from the current one) to finish and then aggregate results of all.
         :param delay: How long to wait between polls to AML to get status of child runs
-        :return: Path to the aggregated results.
         """
+        with logging_section("waiting for sibling runs"):
+            while self.wait_until_cross_val_splits_are_ready_for_aggregation():
+                time.sleep(delay)
+        assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
+        self.create_ensemble_model()
+
+    def plot_cross_validation_and_upload_results(self) -> Path:
         from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
             plot_cross_validation, unroll_aggregate_metrics
-        while self.wait_until_cross_val_splits_are_ready_for_aggregation():
-            time.sleep(delay)
-
-        assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
         # perform aggregation as cross val splits are now ready
         plot_crossval_config = crossval_config_from_model_config(self.model_config)
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
@@ -137,7 +141,6 @@ class Runner:
                     PARENT_RUN_CONTEXT.log(m.metric_name, m.metric_value)
             except Exception as ex:
                 print_exception(ex, "Unable to log metrics to Hyperdrive parent run.", logger_fn=logging.warning)
-        self.create_ensemble_model()
         return cross_val_results_root
 
     def create_ensemble_model(self) -> None:
@@ -146,20 +149,25 @@ class Runner:
         """
         # Import only here in case of dependency issues in reduced environment
         from InnerEye.ML.utils.run_recovery import RunRecovery
-        run_recovery = RunRecovery.download_checkpoints_from_run(
-            self.azure_config, self.model_config, PARENT_RUN_CONTEXT)
-        # Check paths are good, just in case
-        for path in run_recovery.checkpoints_roots:
-            logging.debug(f"Checkpoint path: {path}")
-            if not path.is_dir():
-                raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
-            for name in sorted(path.rglob("*")):
-                logging.debug(f"   {name}")
+        with logging_section("downloading checkpoints from sibling runs"):
+            run_recovery = RunRecovery.download_checkpoints_from_run(
+                self.azure_config, self.model_config, PARENT_RUN_CONTEXT, output_subdir_name=OTHER_RUNS_SUBDIR_NAME)
+            # Check paths are good, just in case
+            for path in run_recovery.checkpoints_roots:
+                if not path.is_dir():
+                    raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
         # Adjust parameters
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
-        self.create_ml_runner().run_inference_and_register_model(run_recovery)
+        self.create_ml_runner().run_inference_and_register_model(run_recovery, model_type=ModelType.ENSEMBLE)
+        crossval_dir = self.plot_cross_validation_and_upload_results()
+        # CrossValResults should have been uploaded to the parent run, so we don't need it here.
+        remove_directory(crossval_dir)
+        # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files
+        # available elsewhere.
+        other_runs_dir = self.model_config.outputs_folder / OTHER_RUNS_SUBDIR_NAME
+        remove_directory(other_runs_dir)
 
     def parse_and_load_model(self) -> ParserResult:
         """
