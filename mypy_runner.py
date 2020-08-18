@@ -45,7 +45,7 @@ def run_mypy(files: List[str]) -> int:
                     name = tokens[-1]
                 if name is None:
                     continue
-                if name.startswith("./"):
+                if name.startswith("./") or name.startswith(".\\"):
                     name = name[2:]
                 files_to_do.discard(name)
         # If we didn't manage to discard any files, there's no point continuing. This should not occur, but if
