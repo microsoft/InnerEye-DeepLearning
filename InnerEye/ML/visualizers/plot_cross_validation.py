@@ -29,13 +29,13 @@ from matplotlib import pyplot
 
 import InnerEye.Common.Statistics.mann_whitney_test as mann_whitney
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetch_child_runs, fetch_run, \
-    is_ensemble_run, \
-    is_offline_run_context
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetch_child_runs, \
+    fetch_run, is_offline_run_context, is_parent_run
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
-from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, DataframeLogger, FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_AGGREGATES_FILE, delete_and_remake_directory, logging_to_stdout
+from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, DataframeLogger, ENSEMBLE_SPLIT_NAME, \
+    FULL_METRICS_DATAFRAME_FILE, \
+    METRICS_AGGREGATES_FILE, OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, ScalarMetricsDict
 from InnerEye.Common.type_annotations import PathOrString
@@ -49,6 +49,7 @@ from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_dir
 
 DRIVER_LOG_BASENAME = "70_driver_log.txt"
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
+# noinspection SQL
 PORTAL_QUERY_TEMPLATE = "SELECT * FROM ROOT as r WHERE true AND ({}) AND ({})"
 WILCOXON_RESULTS_FILE = "CrossValidationWilcoxonSignedRankTestResults.txt"
 MANN_WHITNEY_RESULTS_FILE = "CrossValidationMannWhitneyTestResults.txt"
@@ -58,8 +59,6 @@ METRICS_BY_MODE_FILE = "ResultsByMode.csv"
 COL_SPLIT = "split"
 COL_MODE = "mode"
 FLOAT_FORMAT = "%.3f"
-
-ENSEMBLE_SPLIT_NAME = "ENSEMBLE"
 
 EXECUTION_MODES_TO_DOWNLOAD = [ModelExecutionMode.TEST, ModelExecutionMode.VAL]
 
@@ -109,7 +108,7 @@ class PlotCrossValidationConfig(GenericConfig):
                                                   doc="If set, include comparisons of comparison runs against "
                                                       "each other")
     outputs_directory: str = param.String(default=".", doc="The path to store results and get results "
-                                                           "if plotting results for the current run")
+                                                           "of plotting results for the current run")
     outlier_range: float = param.Number(3.0, doc="Number of standard deviations away from the mean to "
                                                  "use for outlier range")
     wilcoxon_test_p_value: float = param.Number(0.05, doc="Threshold for statistical tests")
@@ -118,7 +117,8 @@ class PlotCrossValidationConfig(GenericConfig):
                                             doc="List of the subject ids to ignore from the results")
     is_zero_index: bool = param.Boolean(True, doc="If True, start cross validation split indices from 0 otherwise 1")
     train_yaml_path: str = param.String(default=str(fixed_paths.TRAIN_YAML_FILE),
-                                        doc="Path to train yaml with the azure config for the workspace")
+                                        doc="Path to train_variables.yml file containing the Azure configuration "
+                                            "for the workspace")
     _azure_config: Optional[AzureConfig] = \
         param.ClassSelector(class_=AzureConfig, allow_None=True,
                             doc="Azure-related options created from YAML file.")
@@ -131,6 +131,8 @@ class PlotCrossValidationConfig(GenericConfig):
     number_of_cross_validation_splits: int = param.Integer(default=0,
                                                            doc="The expected number of splits in the"
                                                                "cross-validation run")
+    create_plots: bool = param.Boolean(default=True, doc="Whether to create plots; if False, just find outliers "
+                                                         "and do statistical tests")
 
     def __init__(self, **params: Any):
         super().__init__(**params)
@@ -162,7 +164,8 @@ class PlotCrossValidationConfig(GenericConfig):
     def download_or_get_local_file(self,
                                    run: Optional[Run],
                                    blob_to_download: PathOrString,
-                                   destination: Path) -> Optional[Path]:
+                                   destination: Path,
+                                   local_src_subdir: Optional[Path] = None) -> Optional[Path]:
         """
         Downloads a file from the results folder of an AzureML run, or copies it from a local results folder.
         Returns the path to the downloaded file if it exists, or None if the file was not found.
@@ -172,6 +175,8 @@ class PlotCrossValidationConfig(GenericConfig):
         :param blob_to_download: path of data to download within the run
         :param destination: directory to write to
         :param run: The AzureML run to download from.
+        :param local_src_subdir: if not None, then if we copy from a local results folder, that folder is
+        self.outputs_directory/local_src_subdir/blob_to_download instead of self.outputs_directory/blob_to_download
         :return: The path to the downloaded file, or None if the file was not found.
         """
         blob_path = Path(blob_to_download)
@@ -180,15 +185,15 @@ class PlotCrossValidationConfig(GenericConfig):
             destination = destination / blob_parent
         downloaded_file = destination / blob_path.name
         # If we've already downloaded the data, leave it as it is
-        logging.info(f"Downloading '{blob_path}' -> '{downloaded_file}'")
         if downloaded_file.exists():
-            print(f"Already downloaded: {downloaded_file}")
+            logging.info(f"Download of '{blob_path}' to '{downloaded_file}: not needed, already exists'")
             return downloaded_file
-        # if the provided run is the current run, then nothing to download
-        # just copy the provided path in the outputs directory to the destination
+        logging.info(f"Download of '{blob_path}' to '{downloaded_file}': proceeding")
+        # If the provided run is the current run, then there is nothing to download.
+        # Just copy the provided path in the outputs directory to the destination.
         if not destination.exists():
             destination.mkdir(parents=True)
-        if run is None or Run.get_context().id == run.id or is_offline_run_context(run):
+        if run is None or Run.get_context().id == run.id or is_parent_run(run) or is_offline_run_context(run):
             if run is None:
                 assert self.local_run_results is not None, "Local run results must be set in unit testing"
                 local_src = Path(self.local_run_results)
@@ -196,8 +201,11 @@ class PlotCrossValidationConfig(GenericConfig):
                     local_src = local_src / self.local_run_result_split_suffix
             else:
                 local_src = Path(self.outputs_directory)
+            if local_src_subdir is not None:
+                local_src = local_src / local_src_subdir
             local_src = local_src / blob_path
             if local_src.exists():
+                logging.info(f"Copying files from {local_src} to {destination}")
                 return Path(shutil.copy(local_src, destination))
             return None
         else:
@@ -288,16 +296,17 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     if config.is_segmentation:
         if epoch is None:
             raise ValueError("Epoch must be provided in segmentation runs")
-        src = Path(get_epoch_results_path(epoch, mode)) / METRICS_FILE_NAME
+        src = get_epoch_results_path(epoch, mode) / METRICS_FILE_NAME
     else:
         src = Path(mode.value) / METRICS_FILE_NAME
 
-    # download subject level metrics for the given epoch
+    # download (or copy from local disc) subject level metrics for the given epoch
+    local_src_subdir = Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME if is_parent_run(run) else None
     return config.download_or_get_local_file(
         blob_to_download=src,
         destination=destination,
         run=run,
-    )
+        local_src_subdir=local_src_subdir)
 
 
 def download_crossval_result_files(config: PlotCrossValidationConfig,
@@ -332,44 +341,52 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         parent = fetch_run(workspace, run_recovery_id)
         runs_to_evaluate = fetch_child_runs(
             run=parent, expected_number_cross_validation_splits=config.number_of_cross_validation_splits)
-        if is_ensemble_run(parent) or len(runs_to_evaluate) == 0:
-            logging.info("Adding parent run to the list of runs to evaluate.")
-            runs_to_evaluate.append(parent)
+        logging.info("Adding parent run to the list of runs to evaluate.")
+        runs_to_evaluate.append(parent)
         logging.info(f"Will evaluate results for runs: {[x.id for x in runs_to_evaluate]}")
     else:
         runs_to_evaluate = []
     # create the root path to store the outputs
     if not download_to_folder:
-        if parent is None:
-            raise ValueError("When not supplying a run ID, you must specify the download folder.")
-        download_to_folder = Path(config.outputs_directory) / parent.id
-        delete_and_remake_directory(download_to_folder)  # type: ignore
+        download_to_folder = Path(config.outputs_directory) / CROSSVAL_RESULTS_FOLDER
+        # Make the folder if it doesn't exist, but preserve any existing contents.
+        download_to_folder.mkdir(parents=True, exist_ok=True)
     start_time = time.time()
     logging.info(f"Starting to download files for cross validation analysis to: {download_to_folder}")
     assert download_to_folder is not None
     result: List[RunResultFiles] = []
     loop_over: List[Tuple[Optional[Run], str, str, Optional[str]]]
     if splits_to_evaluate:
-        loop_over = [
-            (None, split, split, "") for split in splits_to_evaluate
-        ]
+        loop_over = [(None, split, split, "") for split in splits_to_evaluate]
     else:
         loop_over = []
         for run in runs_to_evaluate:
             tags = run.get_tags()
-            split_index = get_split_id(tags, config.is_zero_index)
-            split_suffix = ENSEMBLE_SPLIT_NAME if is_ensemble_run(run) else split_index
+            if is_parent_run(run):
+                split_index = ENSEMBLE_SPLIT_NAME
+            else:
+                split_index = get_split_id(tags, config.is_zero_index)
+            split_suffix = split_index
             # Value to put in the "Split" column in the result.
             run_recovery_id = tags[RUN_RECOVERY_ID_KEY]
             loop_over.append((run, split_index, split_suffix, run_recovery_id))
+
     for run, split_index, split_suffix, run_recovery_id in loop_over:
         config.local_run_result_split_suffix = split_suffix
+        # When run is the parent run, we need to look on the local disc.
+        # If (as expected) dataset.csv is not already present, we copy it from the top of the outputs directory.
         folder_for_run = download_to_folder / split_suffix
-        dataset_file = config.download_or_get_local_file(run,
-                                                         DATASET_CSV_FILE_NAME,
-                                                         folder_for_run)
+        dataset_file: Optional[Path]
+        if is_parent_run(run):
+            folder_for_run.mkdir(parents=True, exist_ok=True)
+            dataset_file = folder_for_run / DATASET_CSV_FILE_NAME
+            # Copy the run-0 dataset.csv, which should be the same, as the parent run won't have one.
+            shutil.copy(str(Path(config.outputs_directory) / DATASET_CSV_FILE_NAME), str(dataset_file))
+        else:
+            dataset_file = config.download_or_get_local_file(run, DATASET_CSV_FILE_NAME, folder_for_run)
         if config.is_segmentation and not dataset_file:
             raise ValueError(f"Dataset file must be present for segmentation models, but is missing for run {run.id}")
+        # Get metrics files.
         for mode in EXECUTION_MODES_TO_DOWNLOAD:
             # download metrics.csv file for each split. metrics_file can be None if the file does not exist
             # (for example, if no output was written for execution mode Test)
@@ -515,6 +532,19 @@ def convert_rows_for_comparisons(split_column_value: Optional[str],
     return df
 
 
+def shorten_split_names(metrics: pd.DataFrame) -> None:
+    """
+    Replaces values in metrics[COL_SPLIT] by shortened versions consisting of the first 3 and last
+    3 characters, separated by "..", when that string is shorter.
+    :param metrics: data frame with a column named COL_SPLIT
+    """
+    def shorten(name: str) -> str:
+        if len(name) <= 8:
+            return name
+        return f"{name[:3]}..{name[-3:]}"
+    metrics[COL_SPLIT] = metrics[COL_SPLIT].apply(shorten)
+
+
 def plot_metrics(config: PlotCrossValidationConfig,
                  dataset_split_metrics: Dict[ModelExecutionMode, pd.DataFrame], root: Path) -> None:
     """
@@ -530,7 +560,7 @@ def plot_metrics(config: PlotCrossValidationConfig,
             metrics: pd.DataFrame = pd.melt(df, id_vars=[COL_SPLIT, MetricsFileColumns.Structure.value],
                                             value_vars=[metric_type]) \
                 .sort_values(by=[COL_SPLIT, MetricsFileColumns.Structure.value])
-
+            shorten_split_names(metrics)
             # create plot for the dataframe
             fig, ax = pyplot.subplots(figsize=(15.7, 8.27))
             ax = seaborn.boxplot(x='split', y='value',
@@ -666,7 +696,7 @@ def run_statistical_tests_on_file(root_folder: Path, full_csv_file: Path, option
     :param options: config options.
     """
     against = None if options.compare_all_against_all else focus_splits
-    config = WilcoxonTestConfig(csv_file=str(full_csv_file), with_scatterplots=True, against=against,
+    config = WilcoxonTestConfig(csv_file=str(full_csv_file), with_scatterplots=options.create_plots, against=against,
                                 subset=options.evaluation_set_name, exclude='')
     wilcoxon_lines, plots = wilcoxon_signed_rank_test(config)
     write_to_scatterplot_directory(root_folder, plots)
@@ -715,7 +745,8 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
     full_csv_file = root_folder / FULL_METRICS_DATAFRAME_FILE
     initial_metrics = pd.concat(list(metrics_dfs.values()))
     if config.is_segmentation:
-        plot_metrics(config, metrics_dfs, root_folder)
+        if config.create_plots:
+            plot_metrics(config, metrics_dfs, root_folder)
         save_outliers(config, metrics_dfs, root_folder)
         all_metrics, focus_splits = add_comparison_data(config, initial_metrics)
         all_metrics.to_csv(full_csv_file, index=False)
@@ -786,9 +817,11 @@ def plot_cross_validation(config: PlotCrossValidationConfig) -> Path:
     :return:
     """
     logging_to_stdout(logging.INFO)
-    result_files, root_folder = download_crossval_result_files(config)
+    with logging_section("downloading cross-validation results"):
+        result_files, root_folder = download_crossval_result_files(config)
     config_and_files = OfflineCrossvalConfigAndFiles(config=config, files=result_files)
-    plot_cross_validation_from_files(config_and_files, root_folder)
+    with logging_section("plotting cross-validation results"):
+        plot_cross_validation_from_files(config_and_files, root_folder)
     return root_folder
 
 

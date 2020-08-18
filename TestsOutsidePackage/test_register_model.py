@@ -17,6 +17,7 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.common_util import ModelType
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -86,14 +87,15 @@ def test_register_and_score_model(is_ensemble: bool,
             azure_config = get_default_azure_config()
             if model_outside_package:
                 azure_config.extra_code_directory = "Tests"  # contains DummyModel
-            deployment_hook = lambda cfg, azure_cfg, mdl: (Path(cfg.model_name), azure_cfg.docker_shm_size)
+            deployment_hook = lambda cfg, azure_cfg, mdl, is_ens: (Path(cfg.model_name), azure_cfg.docker_shm_size)
             ml_runner = MLRunner(config, azure_config, model_deployment_hook=deployment_hook)
             model, deployment_path, deployment_details = ml_runner.register_segmentation_model(
                 workspace=ws,
                 tags=tags,
                 best_epoch=0,
                 best_epoch_dice=0,
-                checkpoint_paths=checkpoints)
+                checkpoint_paths=checkpoints,
+                model_type=ModelType.SINGLE)
             assert model is not None
             model_path = Path(model.get_model_path(model.name, model.version, ws))
             assert (model_path / fixed_paths.ENVIRONMENT_YAML_FILE_NAME).exists()
@@ -161,14 +163,16 @@ def test_register_model_invalid() -> None:
             workspace=ws,
             best_epoch=0,
             best_epoch_dice=0,
-            checkpoint_paths=checkpoint_paths
+            checkpoint_paths=checkpoint_paths,
+            model_type=ModelType.SINGLE
         )
     with pytest.raises(Exception):
         ml_runner = MLRunner(config, get_default_azure_config())
         ml_runner.register_segmentation_model(
             best_epoch=0,
             best_epoch_dice=0,
-            checkpoint_paths=checkpoint_paths
+            checkpoint_paths=checkpoint_paths,
+            model_type=ModelType.SINGLE
         )
 
 

@@ -53,7 +53,8 @@ def test_download_checkpoints(test_output_dirs: TestOutputDirectories, is_ensemb
     if is_ensemble:
         child_runs = fetch_child_runs(run_to_recover)
         expected_files = [Path(config.checkpoint_folder) / run_to_recover.id
-                          / str(x.number) / expected_checkpoint_file for x in child_runs]
+                          / str(x.get_tags()['cross_validation_split_index']) / expected_checkpoint_file
+                          for x in child_runs]
     else:
         expected_files = [Path(config.checkpoint_folder) / run_to_recover.id / expected_checkpoint_file]
 
