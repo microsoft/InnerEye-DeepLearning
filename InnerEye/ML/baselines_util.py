@@ -15,14 +15,16 @@ from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, fetch_run, stri
 from InnerEye.Common import common_util
 from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig
-from InnerEye.Common.common_util import EPOCH_FOLDER_NAME_PATTERN, FULL_METRICS_DATAFRAME_FILE, METRICS_FILE_NAME
+from InnerEye.Common.common_util import ENSEMBLE_SPLIT_NAME, EPOCH_FOLDER_NAME_PATTERN, FULL_METRICS_DATAFRAME_FILE, \
+    METRICS_FILE_NAME, \
+    ModelType, OTHER_RUNS_SUBDIR_NAME, remove_directory
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_directory
 from InnerEye.ML.visualizers.plot_cross_validation import convert_rows_for_comparisons, may_write_lines_to_file
 
-WILCOXON_RESULTS_FILE = "BaselineComparisonWilcoxonSignedRankTestResults.txt"
+BASELINE_WILCOXON_RESULTS_FILE = "BaselineComparisonWilcoxonSignedRankTestResults.txt"
 
 
 @dataclass
@@ -43,7 +45,8 @@ class DiceScoreComparisonResult:
         common_util.check_properties_are_not_none(self)
 
 
-def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_config: AzureConfig) -> None:
+def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_config: AzureConfig,
+                                     model_type: ModelType) -> None:
     """
     If the model config has any baselines to compare against, loads the metrics.csv file that should just have
     been written for the last epoch of the current run, and its dataset.csv. Do the same for all the baselines,
@@ -56,6 +59,8 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
     if not comparison_blob_storage_paths:
         return
     outputs_path = model_config.outputs_folder
+    if model_type == ModelType.ENSEMBLE:
+        outputs_path = outputs_path / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME
     model_epoch_paths = sorted(outputs_path.glob(EPOCH_FOLDER_NAME_PATTERN))
     if not model_epoch_paths:
         logging.warning("Cannot compare scores against baselines: no matches found for "
@@ -79,8 +84,10 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
     full_metrics_path = str(outputs_path / FULL_METRICS_DATAFRAME_FILE)
     comparison_result.dataframe.to_csv(full_metrics_path)
     if comparison_result.did_comparisons:
-        wilcoxon_path = outputs_path / WILCOXON_RESULTS_FILE
-        logging.info(f"Wilcoxon tests of current run against baseline(s), written to {wilcoxon_path}:")
+        wilcoxon_path = outputs_path / BASELINE_WILCOXON_RESULTS_FILE
+        logging.info(
+            f"Wilcoxon tests of current {model_type.value} model against baseline(s), "
+            f"written to {wilcoxon_path}:")
         for line in comparison_result.wilcoxon_lines:
             logging.info(line)
         logging.info("End of Wilcoxon test results")
@@ -101,29 +108,53 @@ def download_and_compare_scores(outputs_folder: Path, azure_config: AzureConfig,
     done, i.e. whether a valid baseline was found; and the text lines to be written to the Wilcoxon results
     file.
     """
-    comparison_data = get_comparison_data(outputs_folder, azure_config, comparison_blob_storage_paths)
-    return perform_score_comparisons(model_dataset_df, model_metrics_df, comparison_data)
+    comparison_baselines = get_comparison_baselines(outputs_folder, azure_config, comparison_blob_storage_paths)
+    result = perform_score_comparisons(model_dataset_df, model_metrics_df, comparison_baselines)
+    for baseline in comparison_baselines:
+        run_rec_path = outputs_folder / baseline.run_recovery_id
+        if run_rec_path.exists():
+            logging.info(f"Removing directory {run_rec_path}")
+            remove_directory(run_rec_path)
+    return result
+
+
+@dataclass
+class ComparisonBaseline:
+    """
+    Structure to represent baseline data to compare the current run against.
+    name: short name as given in the first item of each member of comparison_blob_storage_paths
+    dataset_df: in-core copy of dataset.csv of the baseline
+    metrics_df: in-core copy of metrics.csv of the baseline
+    run_recovery_id: run-rec ID of the baseline run
+    """
+    name: str
+    dataset_df: pd.DataFrame
+    metrics_df: pd.DataFrame
+    run_recovery_id: str
+
+    def __post_init__(self) -> None:
+        common_util.check_properties_are_not_none(self)
 
 
 def perform_score_comparisons(model_dataset_df: pd.DataFrame, model_metrics_df: pd.DataFrame,
-                              comparison_data: List[Tuple[str, pd.DataFrame, pd.DataFrame]]) -> \
+                              comparison_baselines: List[ComparisonBaseline]) -> \
         DiceScoreComparisonResult:
     all_runs_df = convert_rows_for_comparisons('CURRENT', model_dataset_df, model_metrics_df)
-    if not comparison_data:
+    if not comparison_baselines:
         return DiceScoreComparisonResult(all_runs_df, False, [], {})
-    for comparison_name, comparison_dataset_df, comparison_metrics_df in comparison_data:
-        to_compare = convert_rows_for_comparisons(comparison_name, comparison_dataset_df, comparison_metrics_df)
+    for baseline in comparison_baselines:
+        to_compare = convert_rows_for_comparisons(baseline.name, baseline.dataset_df, baseline.metrics_df)
         all_runs_df = all_runs_df.append(to_compare)
     config = WilcoxonTestConfig(data=all_runs_df, with_scatterplots=True, against=['CURRENT'])
     wilcoxon_lines, plots = wilcoxon_signed_rank_test.wilcoxon_signed_rank_test(config)
     return DiceScoreComparisonResult(all_runs_df, True, wilcoxon_lines, plots)
 
 
-def get_comparison_data(outputs_folder: Path, azure_config: AzureConfig,
-                        comparison_blob_storage_paths: List[Tuple[str, str]]) -> \
-        List[Tuple[str, pd.DataFrame, pd.DataFrame]]:
+def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
+                             comparison_blob_storage_paths: List[Tuple[str, str]]) -> \
+        List[ComparisonBaseline]:
     workspace = azure_config.get_workspace()
-    comparison_data = []
+    comparison_baselines = []
     for (comparison_name, comparison_path) in comparison_blob_storage_paths:
         # Discard the experiment part of the run rec ID, if any.
         comparison_path = comparison_path.split(":")[-1]
@@ -160,9 +191,11 @@ def get_comparison_data(outputs_folder: Path, azure_config: AzureConfig,
         # add a tuple to the comparison data.
         if comparison_dataset_path is not None and comparison_metrics_path is not None and \
                 comparison_dataset_path.exists() and comparison_metrics_path.exists():
-            comparison_dataset_df = pd.read_csv(comparison_dataset_path)
-            comparison_metrics_df = pd.read_csv(comparison_metrics_path)
-            comparison_data.append((comparison_name, comparison_dataset_df, comparison_metrics_df))
+            comparison_baselines.append(ComparisonBaseline(
+                comparison_name,
+                pd.read_csv(comparison_dataset_path),
+                pd.read_csv(comparison_metrics_path),
+                run_rec_id))
         else:
             logging.warning(f"could not find comparison data for run {run_rec_id}")
             for key, path in ("dataset", comparison_dataset_path), ("metrics", comparison_metrics_path):
@@ -170,7 +203,7 @@ def get_comparison_data(outputs_folder: Path, azure_config: AzureConfig,
                 # noinspection PyUnresolvedReferences
                 if path is not None and not path.exists():
                     logging.warning("    ... but it does not exist")
-    return comparison_data
+    return comparison_baselines
 
 
 def step_up_directories(path: Path) -> Generator[Path, None, None]:

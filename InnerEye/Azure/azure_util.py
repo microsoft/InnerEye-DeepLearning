@@ -21,6 +21,7 @@ IS_ENSEMBLE_KEY_NAME = "is_ensemble"
 MODEL_ID_KEY_NAME = "model_id"
 # The name of the key used to store the cross validation index of the dataset for the run
 CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY = "cross_validation_split_index"
+PARENT_RUN_ID_KEY_NAME = "parent_run_id"
 
 # This is the folder structure that AzureML generates to store all results for an experiment run.
 # azureml is the name of the container
@@ -358,3 +359,20 @@ def merge_conda_dependencies(files: List[Path]) -> CondaDependencies:
             _log_conda_dependencies_stats(merged_dependencies, "Merged Conda environment")
     assert merged_dependencies is not None
     return merged_dependencies
+
+
+def tag_values_all_distinct(runs: List[Run], tag: str) -> bool:
+    """
+    Returns True iff the runs all have the specified tag and all the values are different.
+    """
+    seen = set()
+    for run in runs:
+        value = run.get_tags().get(tag, None)
+        if value is None or value in seen:
+            return False
+        seen.add(value)
+    return True
+
+
+def is_parent_run(run: Run) -> bool:
+    return PARENT_RUN_CONTEXT and run.id == PARENT_RUN_CONTEXT.id

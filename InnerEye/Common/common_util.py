@@ -10,6 +10,7 @@ import sys
 import time
 import traceback
 from contextlib import contextmanager
+from enum import Enum
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Union
@@ -32,6 +33,9 @@ EPOCH_METRICS_FILE_NAME = "epoch_metrics.csv"
 METRICS_AGGREGATES_FILE = "metrics_aggregates.csv"
 CROSSVAL_RESULTS_FOLDER = "CrossValResults"
 FULL_METRICS_DATAFRAME_FILE = "MetricsAcrossAllRuns.csv"
+
+OTHER_RUNS_SUBDIR_NAME = "OTHER_RUNS"
+ENSEMBLE_SPLIT_NAME = "ENSEMBLE"
 
 
 class DataframeLogger:
@@ -97,14 +101,25 @@ def epoch_folder_name(epoch: int) -> str:
     return "epoch_{0:03d}".format(epoch)
 
 
-def get_epoch_results_path(epoch: int, mode: ModelExecutionMode) -> str:
+class ModelType(Enum):
+    SINGLE = 'single'
+    ENSEMBLE = 'ensemble'
+
+
+def get_epoch_results_path(epoch: int, mode: ModelExecutionMode, model_type: ModelType = ModelType.SINGLE) -> Path:
     """
     For a given model execution mode, and an epoch index, creates the relative results path
     in the form epoch_x/(Train, Test or Val)
     :param epoch: epoch number
     :param mode: model execution mode
+    :param model_type: whether this is for an ensemble or single model. If ensemble, we return a different path
+    to avoid colliding with the results from the single model that may have been created earlier in the same run.
     """
-    return Path(epoch_folder_name(epoch)) / mode.value
+    subpath = Path(epoch_folder_name(epoch)) / mode.value
+    if model_type == ModelType.ENSEMBLE:
+        return Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME / subpath
+    else:
+        return subpath
 
 
 def any_smaller_or_equal_than(items: Iterable[Any], scalar: float) -> bool:
@@ -258,6 +273,35 @@ def _add_formatter(handler: logging.StreamHandler) -> None:
     handler.setFormatter(formatter)
 
 
+@contextmanager
+def logging_section(gerund: str) -> Generator:
+    """
+    Context manager to print "**** STARTING: ..." and "**** FINISHED: ..." lines around sections of the log,
+    to help people locate particular sections. Usage:
+    with logging_section("doing this and that"):
+       do_this_and_that()
+    :param gerund: string expressing what happens in this section of the log.
+    """
+    from time import time
+    logging.info("")
+    msg = f"**** STARTING: {gerund} "
+    logging.info(msg + (200 - len(msg)) * "*")
+    logging.info("")
+    start_time = time()
+    yield
+    elapsed = time() - start_time
+    logging.info("")
+    if elapsed >= 3600:
+        time_expr = f"{elapsed/3600:0.2f} hours"
+    elif elapsed >= 60:
+        time_expr = f"{elapsed/60:0.2f} minutes"
+    else:
+        time_expr = f"{elapsed:0.2f} seconds"
+    msg = f"**** FINISHED: {gerund} after {time_expr} "
+    logging.info(msg + (200 - len(msg)) * "*")
+    logging.info("")
+
+
 def delete_and_remake_directory(folder: Union[str, Path]) -> None:
     """
     Delete the folder if it exists, and remakes it.
@@ -390,3 +434,15 @@ def get_namespace_root(namespace: str) -> Optional[Path]:
         if path.exists() or path_py.exists():
             return Path(root)
     return None
+
+
+def remove_directory(pth: Path) -> None:
+    """
+    Remove a directory and its contents.
+    """
+    for child in pth.glob('*'):
+        if child.is_file():
+            child.unlink()
+        else:
+            remove_directory(child)
+    pth.rmdir()
