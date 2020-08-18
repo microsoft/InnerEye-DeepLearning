@@ -204,26 +204,26 @@ class MLRunner:
 
         self.run_inference_and_register_model(run_recovery, ModelType.SINGLE)
 
-    def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery], is_ensemble: bool) -> None:
+    def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery], model_type: ModelType) -> None:
         """
         Run inference as required, and register the model, but not necessarily in that order:
         if we can identify the epoch to register at without running inference, we register first.
         :param run_recovery: details of run specified by run_recovery_id
-        :param is_ensemble: whether we are running an ensemble model. If we are, then outputs will be
+        :param model_type: whether we are running an ensemble model. If we are, then outputs will be
         written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
         """
         registration_epoch = self.decide_registration_epoch_without_evaluating()
         if registration_epoch is not None:
-            self.register_model_for_epoch(RUN_CONTEXT, run_recovery, registration_epoch, np.nan, is_ensemble)
+            self.register_model_for_epoch(RUN_CONTEXT, run_recovery, registration_epoch, np.nan, model_type)
             if self.azure_config.register_model_only_for_epoch is not None:
                 return
         # run full image inference on existing or newly trained model on the training, and testing set
-        test_metrics, val_metrics, _ = self.model_inference_train_and_test(RUN_CONTEXT, run_recovery, is_ensemble)
+        test_metrics, val_metrics, _ = self.model_inference_train_and_test(RUN_CONTEXT, run_recovery, model_type)
         # register the generated model from the run if we haven't already done so
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
             if registration_epoch is None:
-                self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics, is_ensemble)
-            self.try_compare_scores_against_baselines(is_ensemble)
+                self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics, model_type)
+            self.try_compare_scores_against_baselines(model_type)
         else:
             logging.warning("Couldn't register model in offline mode")
 
@@ -261,7 +261,7 @@ class MLRunner:
     def register_model_for_best_epoch(self, run_recovery: Optional[RunRecovery],
                                       test_metrics: Optional[InferenceMetricsForSegmentation],
                                       val_metrics: Optional[InferenceMetricsForSegmentation],
-                                      is_ensemble: bool) -> None:
+                                      model_type: ModelType) -> None:
         if val_metrics is not None:
             best_epoch = val_metrics.get_best_epoch()
         elif test_metrics is not None:
@@ -273,7 +273,7 @@ class MLRunner:
         else:
             best_epoch_dice = 0.0  # dummy value
         assert isinstance(self.model_config, SegmentationModelBase)
-        self.register_model_for_epoch(RUN_CONTEXT, run_recovery, best_epoch, best_epoch_dice, is_ensemble)
+        self.register_model_for_epoch(RUN_CONTEXT, run_recovery, best_epoch, best_epoch_dice, model_type)
 
     def save_build_info_for_dotnet_consumers(self) -> None:
         results_container = storage_account_from_full_name(self.azure_config.storage_account) \

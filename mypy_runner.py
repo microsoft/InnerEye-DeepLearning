@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -21,26 +22,41 @@ def run_mypy(files: List[str]) -> int:
     return_code = 0
     iteration = 1
     while files:
-        print(f"Iteration {iteration}: running mypy on {len(files)}{' remaining' if iteration > 1 else ''} files")
-        command = ["mypy", "--config=mypy.ini", "--verbose"] + files
-        # We pipe stdout and then print it, otherwise lines can appear in the wrong order in builds.
-        process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        for line in process.stdout.split("\n"):
-            print(line)
+        dirs = sorted(set(os.path.dirname(file) or "." for file in files))
+        print(f"Iteration {iteration}: running mypy on {len(files)} files mypy in {len(dirs)} directories")
         # Set of files we are hoping to see mentioned in the mypy log.
         files_to_do = set(files)
-        # Remove from files_to_do everything that's mentioned in the log.
-        for line in process.stderr.split("\n"):
-            for token in line.split():
-                files_to_do.discard(token)
+        for index, dir in enumerate(dirs, 1):
+            command = ["mypy", "--config=mypy.ini", "--verbose", dir]
+            print(f"Processing directory {index:2d} of {len(dirs)}: {dir}")
+            # We pipe stdout and then print it, otherwise lines can appear in the wrong order in builds.
+            process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            return_code = max(return_code, process.returncode)
+            for line in process.stdout.split("\n"):
+                if line and not line.startswith("Success: "):
+                    print(line)
+            # Remove from files_to_do everything that's mentioned in the log.
+            for line in process.stderr.split("\n"):
+                tokens = line.split()
+                name = None
+                if len(tokens) == 4 and tokens[0] == "LOG:" and tokens[1] == "Parsing" and tokens[2].endswith(".py"):
+                    name = tokens[2]
+                if len(tokens) == 7 and tokens[:4] == ["LOG:", "Metadata", "fresh", "for"] and tokens[-1].endswith(".py"):
+                    name = tokens[-1]
+                if name is None:
+                    continue
+                if name.startswith("./"):
+                    name = name[2:]
+                files_to_do.discard(name)
         # If we didn't manage to discard any files, there's no point continuing. This should not occur, but if
         # it does, we don't want to continue indefinitely.
         if len(files_to_do) == len(files):
-            print("No further files appear to have been checked!")
+            print("No further files appear to have been checked! Unchecked files are:")
+            for file in sorted(files_to_do):
+                print(f"  {file}")
             return_code = max(return_code, 1)
             break
         files = sorted(files_to_do)
-        return_code = max(return_code, process.returncode)
         iteration += 1
     return return_code
 
@@ -49,7 +65,7 @@ def main() -> int:
     """
     Runs mypy on the files in the argument list, or every *.py file under the current directory if there are none.
     """
-    current_dir = Path.cwd()
+    current_dir = Path(".")
     if sys.argv[1:]:
         file_list = [Path(arg) for arg in sys.argv[1:]]
     else:
