@@ -5,7 +5,7 @@ dependencies:
   - pip=20.0.2
   - python=3.7.3
   - pip:
-      - azureml-sdk==1.9.0
+      - azureml-sdk==1.11.0
       - blobxfer==1.9.4
       - numpy==1.18.1
       - pandas==1.0.5
