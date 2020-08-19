@@ -202,7 +202,8 @@ class MLRunner:
             # log the number of epochs used for model training
             RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
 
-        self.run_inference_and_register_model(run_recovery, ModelType.SINGLE)
+        model_type = ModelType.ENSEMBLE if run_recovery else ModelType.SINGLE
+        self.run_inference_and_register_model(run_recovery, model_type)
 
     def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery], model_type: ModelType) -> None:
         """
