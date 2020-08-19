@@ -6,6 +6,7 @@ from typing import Callable, List, Optional
 import torch
 from torch.optim import LBFGS
 
+from InnerEye.Common.metrics_dict import MetricsDict
 from InnerEye.Common.type_annotations import T
 from InnerEye.ML.models.losses.ece import ECELoss
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule, E
@@ -37,7 +38,8 @@ class ClassificationModelWithTemperature(DeviceAwareModule):
         # Expand temperature to match the size of logits
         return logits / self.temperature
 
-    def set_temperature(self, logits: torch.Tensor, labels: torch.Tensor, forward_criterion: Callable) -> None:
+    def set_temperature(self, logits: torch.Tensor, labels: torch.Tensor, forward_criterion: Callable,
+                        metrics: MetricsDict) -> None:
         """
         Tune the temperature of the model (using the validation set).
         """
@@ -54,9 +56,9 @@ class ClassificationModelWithTemperature(DeviceAwareModule):
 
         def eval_criterion() -> torch.Tensor:
             scaled = self.temperature_scale(logits)
-            # print(scaled, scaled.shape)
-            # print(labels, labels.shape)
             nll, ece = forward_criterion(scaled, labels)
+            metrics.add_metric("Temp_Scale_NLL", nll.item())
+            metrics.add_metric("Temp_Scale_ECE", ece.item())
             nll.backward()
             return nll
 
