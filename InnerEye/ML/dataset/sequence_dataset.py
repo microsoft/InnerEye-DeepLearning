@@ -215,8 +215,7 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
                  feature_statistics: Optional[
                      FeatureStatistics[ClassificationItemSequence[SequenceDataSource]]] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[ComposeTransforms[ScalarItem], Transform3D[ScalarItem]]] = None,
-                 image_dimension: ImageDimension = ImageDimension.Image_3D):
+                 sample_transforms: Optional[Union[ComposeTransforms[ScalarItem], Transform3D[ScalarItem]]] = None):
         """
         Creates a new sequence dataset from a dataframe.
         :param args: The model configuration object.
@@ -230,8 +229,7 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
                          data_frame=data_frame,
                          feature_statistics=feature_statistics,
                          name=name,
-                         sample_transforms=sample_transforms,
-                         image_dimension=image_dimension)
+                         sample_transforms=sample_transforms)
         if self.args.sequence_column is None:
             raise ValueError("This class requires a value in the `sequence_column`, specifying where the "
                              "sequence index should be read from.")

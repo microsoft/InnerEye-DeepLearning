@@ -288,7 +288,9 @@ def load_images_and_stack(files: Iterable[Path],
 
     def from_numpy_crop_and_resize(array: np.ndarray) -> torch.Tensor:
         if image_size:
-            array = resize(array, image_size)
+            if not issubclass(array.dtype.type, np.floating):
+                raise ValueError("Array must be of type float.")
+            array = resize(array, image_size, anti_aliasing=True)
         t = torch.from_numpy(array)
         if center_crop_size:
             return get_center_crop(t, center_crop_size)

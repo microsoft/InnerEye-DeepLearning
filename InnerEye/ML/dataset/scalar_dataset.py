@@ -625,8 +625,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[ComposeTransforms[ScalarItem], Transform3D[ScalarItem]]] = None,
-                 image_dimension: ImageDimension = ImageDimension.Image_3D):
+                 sample_transforms: Optional[Union[ComposeTransforms[ScalarItem], Transform3D[ScalarItem]]] = None):
         """
         High level class for the scalar dataset designed to be inherited for specific behaviour
         :param args: The model configuration object.
@@ -637,7 +636,6 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
         super().__init__(args, data_frame, name)
         self.transforms = sample_transforms
         self.feature_statistics = feature_statistics
-        self.image_dimension = image_dimension
         self.file_to_full_path: Optional[Dict[str, Path]] = None
         if args.traverse_dirs_when_loading:
             if args.local_dataset is None:
@@ -690,7 +688,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             load_segmentation=self.args.load_segmentation,
             center_crop_size=self.args.center_crop_size,
             image_size=self.args.image_size,
-            image_dimension=self.image_dimension)
+            image_dimension=self.args.image_dimensions)
 
         return ComposeTransforms.apply(self.transforms, sample)
 
@@ -713,8 +711,7 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics[ScalarDataSource]] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[ComposeTransforms[ScalarItem], Transform3D[ScalarItem]]] = None,
-                 image_dimension: ImageDimension = ImageDimension.Image_3D):
+                 sample_transforms: Optional[Union[ComposeTransforms[ScalarItem], Transform3D[ScalarItem]]] = None):
         """
         Creates a new scalar dataset from a dataframe.
         :param args: The model configuration object.
@@ -728,8 +725,7 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
                          data_frame=data_frame,
                          feature_statistics=feature_statistics,
                          name=name,
-                         sample_transforms=sample_transforms,
-                         image_dimension=image_dimension)
+                         sample_transforms=sample_transforms)
         self.items = self.load_all_data_sources()
         self.normalize_non_image_features()
 

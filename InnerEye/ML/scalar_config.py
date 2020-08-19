@@ -363,14 +363,11 @@ class ScalarModelBase(ModelConfigBase):
         image_dimension = self.image_dimensions
         image_transforms = self.get_image_sample_transforms()
         train = ScalarDataset(args=self, data_frame=dataset_splits.train,
-                              name="training", sample_transforms=image_transforms.train,  # type: ignore
-                              image_dimension=image_dimension)  # type: ignore
+                              name="training", sample_transforms=image_transforms.train)  # type: ignore
         val = ScalarDataset(args=self, data_frame=dataset_splits.val, feature_statistics=train.feature_statistics,
-                            name="validation", sample_transforms=image_transforms.val,  # type: ignore
-                            image_dimension=image_dimension)  # type: ignore
+                            name="validation", sample_transforms=image_transforms.val)  # type: ignore
         test = ScalarDataset(args=self, data_frame=dataset_splits.test, feature_statistics=train.feature_statistics,
-                             name="test", sample_transforms=image_transforms.test,  # type: ignore
-                             image_dimension=image_dimension)  # type: ignore
+                             name="test", sample_transforms=image_transforms.test)  # type: ignore
 
         return {
             ModelExecutionMode.TRAIN: train,
