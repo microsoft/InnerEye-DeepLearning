@@ -327,7 +327,7 @@ class InferenceBatch(CTImagesMaskedBatch):
         # There may be cases where the test image is smaller than the test_crop_size. Adjust crop_size
         # to always fit into image. If test_crop_size is smaller than the image, crop will remain unchanged.
         image_size = image_channels.shape[1:]
-        model: Union[torch.nn.Module[Any], torch.nn.DataParallel] = \
+        model: Union[torch.nn.Module, torch.nn.DataParallel] = \
             self.pipeline.get_variable(InferencePipeline.Variables.Model)
         if isinstance(model, torch.nn.DataParallel):
             model = model.module

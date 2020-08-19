@@ -140,6 +140,7 @@ class SegmentationForwardPass:
         if self.in_training_mode:
             if loss is None:
                 raise ValueError("When running training, the labels must be present for loss computation.")
+            assert self.optimizer is not None  # for mypy
             single_optimizer_step(self.config, loss, self.optimizer)
 
         # Aggregate data parallel logits if multiple hardware are used in forward pass
