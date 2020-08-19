@@ -102,6 +102,30 @@ def epoch_folder_name(epoch: int) -> str:
 
 
 class ModelType(Enum):
+    """
+    Enum used in model training and inference, used to decide where to put files and what logging messages to
+    print, NOT what kind of processing to do. The meanings of the values are:
+      ENSEMBLE: we are processing an ensemble model from within the child run with cross-validation index 0 of the
+        HyperDrive run that created this model.
+      SINGLE: any other situation, *including* where the model is an ensemble model created by an earlier run
+        (so the current run is standalone, not part of a HyperDrive run).
+    There are three scenarios:
+    (1) Training and inference on a single model in a single (non-Hyperdrive) run.
+    (2) Training and inference on a single model that is part of an ensemble, in Hyperdrive child run.
+    (3) Inference on an ensemble model taking place in a Hyperdrive child run whose cross validation index is 0.
+    (4) Inference on a single or ensemble model created in an another run specified by the value of run_recovery_id.
+    * Scenario (1) happens when we train a model (is_train=True) with number_of_cross_validation_splits=0. In this
+    case, the value of ModelType passed around is SINGLE.
+    * Scenario (2) happens when we train a model (is_train=True) with number_of_cross_validation_splits>0. In this
+    case, the value of ModelType passed around is SINGLE in each of the child runs while training and running
+    inference on its own single model. However, the child run whose cross validation index is 0 then goes on to
+    Scenario (3), and does more processing with ModelType value ENSEMBLE, to create and register the ensemble model
+    and run inference on it.
+    * Scenario (4) happens when a do an inference-only run (is_train=False) and necessarily
+    number_of_cross_validation_splits=0, and specify an existing model with run_recovery_id. This model may be
+    either a single one or an ensemble one; in both cases, a ModelType value of SINGLE is used, because the
+    code that uses ModelType treats it as if it were a single model.
+    """
     SINGLE = 'single'
     ENSEMBLE = 'ensemble'
 

@@ -173,7 +173,8 @@ class MLRunner:
         # configure recovery container if provided
         run_recovery: Optional[RunRecovery] = None
         if self.azure_config.run_recovery_id:
-            run_recovery = RunRecovery.download_checkpoints_from_recovery_run(self.azure_config, self.model_config, RUN_CONTEXT)
+            run_recovery = RunRecovery.download_checkpoints_from_recovery_run(
+                self.azure_config, self.model_config, RUN_CONTEXT)
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
         if self.azure_config.register_model_only_for_epoch is None or run_recovery is None:
@@ -202,16 +203,17 @@ class MLRunner:
             # log the number of epochs used for model training
             RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
 
-        model_type = ModelType.ENSEMBLE if run_recovery else ModelType.SINGLE
-        self.run_inference_and_register_model(run_recovery, model_type)
+        # We specify the ModelType as SINGLE here even if the run_recovery points to an ensemble run, because
+        # the current run is a single one. See the documentation of ModelType for more details.
+        self.run_inference_and_register_model(run_recovery, ModelType.SINGLE)
 
     def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery], model_type: ModelType) -> None:
         """
         Run inference as required, and register the model, but not necessarily in that order:
         if we can identify the epoch to register at without running inference, we register first.
         :param run_recovery: details of run specified by run_recovery_id
-        :param model_type: whether we are running an ensemble model. If we are, then outputs will be
-        written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
+        :param model_type: whether we are running an ensemble model from within a child run with index 0. If we are,
+        then outputs will be written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
         """
         registration_epoch = self.decide_registration_epoch_without_evaluating()
         if registration_epoch is not None:
