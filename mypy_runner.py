@@ -35,19 +35,19 @@ def run_mypy(files: List[str]) -> int:
             for line in process.stdout.split("\n"):
                 if line and not line.startswith("Success: "):
                     print(line)
-            # Remove from files_to_do everything that's mentioned in the log.
+            # Remove from files_to_do every Python file that's reported as processed in the log.
             for line in process.stderr.split("\n"):
                 tokens = line.split()
-                name = None
-                if len(tokens) == 4 and tokens[0] == "LOG:" and tokens[1] == "Parsing" and tokens[2].endswith(".py"):
+                if len(tokens) == 4 and tokens[0] == "LOG:" and tokens[1] == "Parsing":
                     name = tokens[2]
-                if len(tokens) == 7 and tokens[:4] == ["LOG:", "Metadata", "fresh", "for"] and tokens[-1].endswith(".py"):
+                elif len(tokens) == 7 and tokens[:4] == ["LOG:", "Metadata", "fresh", "for"]:
                     name = tokens[-1]
-                if name is None:
+                else:
                     continue
-                if name.startswith("./") or name.startswith(".\\"):
-                    name = name[2:]
-                files_to_do.discard(name)
+                if name.endswith(".py"):
+                    if name.startswith("./") or name.startswith(".\\"):
+                        name = name[2:]
+                    files_to_do.discard(name)
         # If we didn't manage to discard any files, there's no point continuing. This should not occur, but if
         # it does, we don't want to continue indefinitely.
         if len(files_to_do) == len(files):
