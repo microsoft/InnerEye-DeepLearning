@@ -89,7 +89,7 @@ class DatasetSplits:
                 return df, df[:0]
             keep = ids[:count]
             drop = ids[count:]
-            return df[df[self.subject_column].isin(keep)], df[not df[self.subject_column].isin(drop)]
+            return df[df[self.subject_column].isin(keep)], df[df[self.subject_column].isin(drop)]
 
         train, train_drop = restrict(self.train, n_train)
         test, test_drop = restrict(self.test, n_test)
