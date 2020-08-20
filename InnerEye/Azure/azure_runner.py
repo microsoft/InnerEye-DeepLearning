@@ -238,7 +238,7 @@ def pytorch_version_from_conda_dependencies(conda_dependencies: CondaDependencie
 def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfig, source_config: SourceConfig,
                                   estimator_inputs: List[DatasetConsumptionConfig]) -> PyTorch:
     """
-    Create an return an Estimator from the provided configuration information.
+    Create an return a PyTorch estimator from the provided configuration information.
     :param workspace: workspace that should contain a datastore named "workspaceblobstore", for storing source
     :param azure_config: Azure configuration, used to store various values for the job to be submitted
     :param source_config: source configutation, for other needed values
