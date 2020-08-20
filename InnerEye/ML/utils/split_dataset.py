@@ -8,7 +8,7 @@ import logging
 import random
 import sys
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 import numpy as np
 import pandas as pd
@@ -32,9 +32,7 @@ class DatasetSplits:
     def __post_init__(self) -> None:
         common_util.check_properties_are_not_none(self)
         # perform dataset split validity assertions
-        unique_train, unique_test, unique_val = self.train[self.subject_column].unique(), \
-                                                self.test[self.subject_column].unique(), \
-                                                self.val[self.subject_column].unique()
+        unique_train, unique_test, unique_val = self.unique_subjects()
         intersection = set.intersection(set(unique_train), set(unique_test), set(unique_val))
 
         if len(intersection) != 0:
@@ -45,11 +43,18 @@ class DatasetSplits:
                              .format(len(unique_train), len(unique_val)))
 
     def __str__(self) -> str:
-        unique_train, unique_test, unique_val = self.train[self.subject_column].unique(), \
-                                                self.test[self.subject_column].unique(), \
-                                                self.val[self.subject_column].unique()
+        unique_train, unique_test, unique_val = self.unique_subjects
         return f'Train: {len(unique_train)}, Test: {len(unique_test)}, and Val: {len(unique_val)}. ' \
                f'Total subjects: {len(unique_train) + len(unique_test) + len(unique_val)}'
+
+    def unique_subjects(self) -> Tuple[Any, Any, Any]:
+        return (self.train[self.subject_column].unique(),
+                self.test[self.subject_column].unique(),
+                self.val[self.subject_column].unique())
+
+    def number_of_subjects(self):
+        unique_train, unique_test, unique_val = self.unique_subjects
+        return len(unique_train) + len(unique_test) + len(unique_val)
 
     def __getitem__(self, mode: ModelExecutionMode) -> pd.DataFrame:
         if mode == ModelExecutionMode.TRAIN:
