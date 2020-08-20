@@ -9,9 +9,6 @@ from InnerEye.Common.metrics_dict import MetricsDict
 
 @dataclass
 class ModelForwardAndBackwardsOutputs:
-    """
-    Dataclass to store the forward and backwards outputs from a model.
-    """
     loss: float
     logits: torch.Tensor
     labels: torch.Tensor
@@ -19,9 +16,6 @@ class ModelForwardAndBackwardsOutputs:
 
 @dataclass
 class ModelOutputsAndMetricsForEpoch:
-    """
-    Dataclass to store the model outputs and metrics from a single epoch
-    """
     metrics: MetricsDict
     model_outputs: List[ModelForwardAndBackwardsOutputs]
     is_train: bool
