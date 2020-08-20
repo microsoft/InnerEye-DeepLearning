@@ -43,7 +43,7 @@ class DatasetSplits:
                              .format(len(unique_train), len(unique_val)))
 
     def __str__(self) -> str:
-        unique_train, unique_test, unique_val = self.unique_subjects
+        unique_train, unique_test, unique_val = self.unique_subjects()
         return f'Train: {len(unique_train)}, Test: {len(unique_test)}, and Val: {len(unique_val)}. ' \
                f'Total subjects: {len(unique_train) + len(unique_test) + len(unique_val)}'
 
