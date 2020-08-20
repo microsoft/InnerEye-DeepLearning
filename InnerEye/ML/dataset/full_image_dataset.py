@@ -180,7 +180,7 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
         num_dataload_workers = num_dataload_workers or self.args.num_dataload_workers
         batch_size = batch_size or self.args.train_batch_size
         if self.args.avoid_process_spawn_in_data_loaders:
-            max_repeats = (self.args.num_epochs - self.args.start_epoch) + 1
+            max_repeats = self.args.num_epochs - self.args.start_epoch
             return RepeatDataLoader(
                 self,
                 max_repeats=max_repeats,

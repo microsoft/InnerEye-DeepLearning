@@ -46,6 +46,9 @@ class ModelWithTemperature(DeviceAwareModule):
                                                Tuple[torch.Tensor, torch.Tensor]]) -> None:
         """
         Tune the temperature of the model using the provided logits and labels.
+        :param logits: logits to use to learn the temperature parameters
+        :param labels: labels to use to learn the temperature parameters
+        :param criterion_fn: a criterion function which returns both the loss and ECE loss
         """
         if torch.cuda.is_available():
             logits = logits.cuda()

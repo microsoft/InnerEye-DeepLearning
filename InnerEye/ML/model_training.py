@@ -119,7 +119,6 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                            tb_log_file_path=str(config.logs_folder / "diagnostics"))
         resource_monitor.start()
 
-    train_val_params = None
     for epoch in range(config.start_epoch + 1, last_epoch):
         logging.info("Starting epoch {}".format(epoch))
         # store the learning rates used for each epoch
@@ -143,8 +142,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         # Run without adjusting weights on the validation set
         train_val_params.in_training_mode = False
         train_val_params.data_loader = data_loaders[ModelExecutionMode.VAL]
-        save_metrics = not config.should_save_epoch(epoch)
-        val_epoch_results = train_or_validate_epoch(config, train_val_params, save_metrics)
+        val_epoch_results = train_or_validate_epoch(config, train_val_params)
         val_results_per_epoch.append(val_epoch_results)
 
         if config.is_segmentation_model:
@@ -153,16 +151,6 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                                        val_epoch_results.metrics)
 
         if config.should_save_epoch(epoch) and optimizer is not None:
-            model_training_results = ModelTrainingResults(
-                train_results_per_epoch=train_results_per_epoch,
-                val_results_per_epoch=val_results_per_epoch,
-                learning_rates_per_epoch=learning_rates_per_epoch
-            )
-            create_model_training_steps(config, train_val_params).perform_post_training_steps(model_training_results)
-            val_epoch_results = train_or_validate_epoch(config, train_val_params)
-            val_results_per_epoch.pop()
-            val_results_per_epoch.append(val_epoch_results)
-
             save_checkpoint(model, optimizer, epoch, config)
             if config.compute_mean_teacher_model:
                 save_checkpoint(mean_teacher_model, optimizer, epoch, config, mean_teacher_model=True)
@@ -170,12 +158,6 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         # Updating the learning rate should happen at the end of the training loop, so that the
         # initial learning rate will be used for the very first epoch.
         l_rate_scheduler.step()
-
-    model_training_results = ModelTrainingResults(
-        train_results_per_epoch=train_results_per_epoch,
-        val_results_per_epoch=val_results_per_epoch,
-        learning_rates_per_epoch=learning_rates_per_epoch
-    )
 
     logging.info("Finished training")
 
@@ -190,11 +172,15 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         # stop the resource monitoring process
         resource_monitor.kill()
 
-    return model_training_results
+    return ModelTrainingResults(
+        train_results_per_epoch=train_results_per_epoch,
+        val_results_per_epoch=val_results_per_epoch,
+        learning_rates_per_epoch=learning_rates_per_epoch
+    )
 
 
 def train_or_validate_epoch(config: ModelConfigBase,
-                            train_val_params: TrainValidateParameters, save_metrics: bool = True) -> ModelOutputsAndMetricsForEpoch:
+                            train_val_params: TrainValidateParameters) -> MetricsDict:
     """
     Trains or validates the model for one epoch.
     :param config: The arguments object, which contains useful information for training
@@ -217,7 +203,7 @@ def train_or_validate_epoch(config: ModelConfigBase,
     num_load_time_exceeded = 0
     num_batches = 0
     total_extra_load_time = 0.0
-    total_load_time = 0.0
+    model_outputs_epoch = []
     for batch_index, sample in enumerate(train_val_params.data_loader):
         item_finish_time = time()
         item_load_time = item_finish_time - item_start_time
@@ -241,9 +227,7 @@ def train_or_validate_epoch(config: ModelConfigBase,
         train_finish_time = time()
         logging.debug(f"Epoch {train_val_params.epoch} {status_string} batch {batch_index}: "
                       f"Loaded in {item_load_time:0.2f}sec, "
-                      f"{status_string} in {(train_finish_time - item_finish_time):0.2f}sec. "
-                      f"Loss = {model_outputs_minibatch.loss}")
-        total_load_time += item_finish_time - item_start_time
+                      f"{status_string} in {(train_finish_time - item_finish_time):0.2f}sec. Loss = {loss}")
         num_batches += 1
         item_start_time = time()
 
@@ -252,8 +236,7 @@ def train_or_validate_epoch(config: ModelConfigBase,
         training_random_state.restore_random_state()
 
     epoch_time_seconds = time() - epoch_start_time
-    logging.info(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f} sec "
-                 f"of which data loading took {total_load_time:0.2f} sec")
+    logging.debug(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f}sec")
     if num_load_time_exceeded > 0:
         logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
                         f"{MAX_ITEM_LOAD_TIME_SEC}sec.")
