@@ -1,6 +1,11 @@
 """
 Copyright (c) Microsoft Corporation. All rights reserved.
 """
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 from typing import Callable, List, Tuple
 
 import torch
@@ -41,7 +46,8 @@ class ModelWithTemperature(DeviceAwareModule):
         temperature = self.temperature.unsqueeze(1).expand(logits.size(0), logits.size(1))
         return logits / temperature
 
-    def set_temperature(self, logits: torch.Tensor, labels: torch.Tensor,
+    def set_temperature(self, logits: torch.Tensor,
+                        labels: torch.Tensor,
                         criterion_fn: Callable[[torch.Tensor, torch.Tensor],
                                                Tuple[torch.Tensor, torch.Tensor]]) -> None:
         """
