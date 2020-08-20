@@ -132,9 +132,10 @@ class DatasetSplits:
             # It makes no sense to try to move everything to two different sets.
             raise ValueError("restrict_pattern cannot be just '+' or contain more "
                              f"than one '+' field: {restriction_pattern}")
-        if sys.maxsize in result and 0 not in result:
+        if sys.maxsize in result and all(x is None or x == sys.maxsize for x in result):
             # It makes no sense to move images to a set when there is no set to move them from.
-            raise ValueError(f"restrict_pattern cannot contain '+' unless it also contains '0': {restriction_pattern}")
+            raise ValueError(
+                f"restrict_pattern cannot contain '+' unless it also contains a number: {restriction_pattern}")
         return result
 
     @staticmethod
