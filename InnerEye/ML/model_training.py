@@ -7,7 +7,7 @@ import logging
 import os
 from dataclasses import dataclass
 from time import time
-from typing import List, Optional, TypeVar
+from typing import Any, List, Optional, Tuple, TypeVar
 
 from torch.optim.optimizer import Optimizer
 
@@ -89,16 +89,18 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # If continuing from a previous run at a specific epoch, then load the previous model
     if config.should_load_checkpoint_for_training():
-        def load_checkpoint(for_mean_teacher_model: bool = False) -> None:
+        def load_checkpoint(for_mean_teacher_model: bool = False) -> Tuple[Any, Optional[Optimizer]]:
             checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch, for_mean_teacher_model)[0] \
                 if run_recovery else config.get_path_to_checkpoint(config.start_epoch, for_mean_teacher_model)
-            checkpoint_epoch = model_util.load_checkpoint(model, checkpoint_path, optimizer=optimizer)
+            adjusted_model, adjusted_optimizer, checkpoint_epoch = model_util.load_from_checkpoint_and_adjust(
+                config, checkpoint_path, optimizer=optimizer, existing_model=model)
             if checkpoint_epoch is None:
                 raise ValueError("There was no checkpoint file available for the given start_epoch {}"
                                  .format(config.start_epoch))
-        load_checkpoint()
+            return adjusted_model, adjusted_optimizer
+        model, optimizer = load_checkpoint()
         if config.compute_mean_teacher_model:
-            load_checkpoint(for_mean_teacher_model=True)
+            model, optimizer = load_checkpoint(for_mean_teacher_model=True)
 
     # Otherwise, create checkpoint directory for this run
     else:

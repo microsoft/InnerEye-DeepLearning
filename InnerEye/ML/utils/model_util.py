@@ -5,7 +5,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import torch
 from apex import amp
@@ -170,7 +170,7 @@ def create_optimizer(args: ModelConfigBase, model: torch.nn.Module) -> Optimizer
                                weight_decay=args.weight_decay)
     elif args.optimizer_type == OptimizerType.RMSprop:
         return RMSprop(model.parameters(), args.l_rate, args.rms_alpha, args.opt_eps,
-                                   args.weight_decay, args.momentum)
+                       args.weight_decay, args.momentum)
     else:
         raise NotImplementedError(f"Optimizer type {args.optimizer_type.value} is not implemented")
 
@@ -233,7 +233,7 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
 
 def load_checkpoint(model: torch.nn.DataParallel,
                     path_to_checkpoint: Path,
-                    optimizer: Optimizer = None) -> Optional[int]:
+                    optimizer: Optional[Optimizer] = None) -> Optional[int]:
     """
     Loads a checkpoint of a model.
     The epoch of the stored model and the epoch provided as argument must match.
@@ -295,30 +295,35 @@ def save_checkpoint(model: torch.nn.DataParallel, optimizer: Optimizer, epoch: i
 
 
 def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
-                                    path_to_checkpoint: Path) -> Optional[Tuple[BaseModelOrDataParallelModel, int]]:
+                                    path_to_checkpoint: Path,
+                                    optimizer: Optional[Optimizer] = None,
+                                    existing_model: Optional[Any] = None) -> \
+        Tuple[BaseModelOrDataParallelModel, Optional[Optimizer], Optional[int]]:
     """
     Creates a model as per the configuration, and loads the parameters from the given checkpoint path.
     The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
 
-    :param model_config: The configuration from which an empty model will be created.
+    :param model_config: The configuration from which an empty model will be created (if existing_model is None)
     :param path_to_checkpoint: The path to the checkpoint file.
-    :return: The model with all loaded parameters, and the epoch in which the model was saved. If the result is None,
-    there is no model file at the given path.
+    :param optimizer: optional optimizer to hand on to load_checkpoint.
+    :param existing_model: model to use, instead of creating from config.
+    :return: The model with all loaded parameters, the (adjusted) optimizer, and the epoch in which the model was saved.
+    If the checkpoint_epoch is None, there is no model file at the given path.
     """
-    # Create model
-    model = model_config.create_model()
+    # Create model if necessary
+    model = existing_model or model_config.create_model()
     # Load the stored model. If there is not checkpoint present, return immediately.
     checkpoint_epoch = load_checkpoint(model=model,
                                        path_to_checkpoint=path_to_checkpoint,
-                                       optimizer=None)
+                                       optimizer=optimizer)
     if checkpoint_epoch is None:
-        return None
+        return model, optimizer, None
     # Enable data/model parallelization
     if model_config.is_segmentation_model:
         # Generate the model summary, which is required for model partitioning across GPUs.
         summary_for_segmentation_models(model_config, model)
-    model, _ = update_model_for_mixed_precision_and_parallel(model,
-                                                             args=model_config,
-                                                             optimizer=None,
-                                                             execution_mode=ModelExecutionMode.TEST)
-    return model, checkpoint_epoch
+    model, optimizer = update_model_for_mixed_precision_and_parallel(model,
+                                                                     args=model_config,
+                                                                     optimizer=optimizer,
+                                                                     execution_mode=ModelExecutionMode.TEST)
+    return model, optimizer, checkpoint_epoch
