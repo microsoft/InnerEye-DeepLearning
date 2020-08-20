@@ -297,7 +297,8 @@ def save_checkpoint(model: torch.nn.DataParallel, optimizer: Optimizer, epoch: i
 def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
                                     path_to_checkpoint: Path,
                                     optimizer: Optional[Optimizer] = None,
-                                    existing_model: Optional[Any] = None) -> \
+                                    existing_model: Optional[Any] = None,
+                                    adjust_optimizer: bool = True) -> \
         Tuple[BaseModelOrDataParallelModel, Optional[Optimizer], Optional[int]]:
     """
     Creates a model as per the configuration, and loads the parameters from the given checkpoint path.
@@ -307,6 +308,7 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     :param path_to_checkpoint: The path to the checkpoint file.
     :param optimizer: optional optimizer to hand on to load_checkpoint.
     :param existing_model: model to use, instead of creating from config.
+    :param adjust_optimizer: whether to pass the optimizer, as well as the model, for adjustment.
     :return: The model with all loaded parameters, the (adjusted) optimizer, and the epoch in which the model was saved.
     If the checkpoint_epoch is None, there is no model file at the given path.
     """
@@ -322,8 +324,10 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     if model_config.is_segmentation_model:
         # Generate the model summary, which is required for model partitioning across GPUs.
         summary_for_segmentation_models(model_config, model)
-    model, optimizer = update_model_for_mixed_precision_and_parallel(model,
-                                                                     args=model_config,
-                                                                     optimizer=optimizer,
-                                                                     execution_mode=ModelExecutionMode.TEST)
+    if adjust_optimizer:
+        model, optimizer = update_model_for_mixed_precision_and_parallel(
+            model, args=model_config, optimizer=optimizer, execution_mode=ModelExecutionMode.TEST)
+    else:
+        model, _ = update_model_for_mixed_precision_and_parallel(
+            model, args=model_config, optimizer=None, execution_mode=ModelExecutionMode.TEST)
     return model, optimizer, checkpoint_epoch

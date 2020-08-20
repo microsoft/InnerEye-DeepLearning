@@ -93,7 +93,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
             checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch, for_mean_teacher_model)[0] \
                 if run_recovery else config.get_path_to_checkpoint(config.start_epoch, for_mean_teacher_model)
             adjusted_model, adjusted_optimizer, checkpoint_epoch = model_util.load_from_checkpoint_and_adjust(
-                config, checkpoint_path, optimizer=optimizer, existing_model=model)
+                config, checkpoint_path, optimizer=optimizer, existing_model=model,
+                adjust_optimizer=not for_mean_teacher_model)
             if checkpoint_epoch is None:
                 raise ValueError("There was no checkpoint file available for the given start_epoch {}"
                                  .format(config.start_epoch))
@@ -114,9 +115,12 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # Enable mixed precision training and data parallelization.
     # This relies on the information generated in the model summary.
-    model, optimizer = model_util.update_model_for_mixed_precision_and_parallel(model, config, optimizer)
-    if config.compute_mean_teacher_model:
-        mean_teacher_model, _ = model_util.update_model_for_mixed_precision_and_parallel(mean_teacher_model, config)
+    # We only want to do this if we didn't call load_checkpoint above, because attempting updating twic
+    # causes an error.
+    if not config.should_load_checkpoint_for_training():
+        model, optimizer = model_util.update_model_for_mixed_precision_and_parallel(model, config, optimizer)
+        if config.compute_mean_teacher_model:
+            mean_teacher_model, _ = model_util.update_model_for_mixed_precision_and_parallel(mean_teacher_model, config)
 
     # Create the SummaryWriters for Tensorboard
     writers = create_summary_writers(config)
