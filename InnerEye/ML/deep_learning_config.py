@@ -68,6 +68,14 @@ class MultiprocessingStartMethod(Enum):
     spawn = "spawn"
 
 
+class TemperatureScalingConfig(Parameterized):
+    """High level config to encapsulate temperature scaling parameters"""
+    lr = param.Number(default=0.02, doc="The learning rate to use for the optimizer used to learn the "
+                                        "temperature scaling parameter")
+    max_iter = param.Number(default=50, doc="The maximum number of optimization iterations to use in order to "
+                                            "use when learning the temperature scaling parameter")
+
+
 class DeepLearningFileSystemConfig(Parameterized):
     """High level config to abstract the file system related configs for deep learning models"""
     outputs_folder: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
@@ -158,6 +166,13 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                          doc="The high-level model category described by this config.")
     _model_name: str = param.String(None, doc="The human readable name of the model (for example, Liver). This is "
                                               "usually set from the class name.")
+    temperature_scaling_config: Optional[TemperatureScalingConfig] = param.ClassSelector(
+        class_=TemperatureScalingConfig,
+        allow_None=True,
+        default=None,
+        doc="If a config is provided then it will be used to learn a temperature scaling parameter using the "
+            "validation set to calibrate the model logits see: https://arxiv.org/abs/1706.04599")
+
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     azure_dataset_id: Optional[str] = param.String(None, allow_None=True,
                                                    doc="The ID of the dataset to use. This dataset must exist as a "
@@ -307,8 +322,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "the mean teacher model. Likewise the model used for inference "
                                                  "is the mean teacher model. The student model is only used for "
                                                  "training. Alpha is the momentum term for weight updates of the mean "
-                                                 "teacher model. After each training step the mean teacher model weights "
-                                                 "are updated using mean_teacher_weight = alpha * (mean_teacher_weight) "
+                                                 "teacher model. After each training step the mean teacher model "
+                                                 "weights "
+                                                 "are updated using mean_teacher_weight = alpha * ("
+                                                 "mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
 
     def __init__(self, **params: Any) -> None:

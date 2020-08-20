@@ -504,7 +504,7 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
         return criterion(masked_model_outputs_and_labels.model_outputs, masked_model_outputs_and_labels.labels)
 
     def perform_post_training_steps(self, model_training_results: ModelTrainingResults) -> None:
-        if self.model_config.perform_calibration:
+        if self.model_config.temperature_scaling_config:
             self.perform_calibration(model_training_results)
 
     def perform_calibration(self, model_training_results: ModelTrainingResults) -> None:

@@ -14,11 +14,6 @@ SEQUENCE_POSITION_HUE_NAME_PREFIX = "Seq_pos"
 
 
 class SequenceModelBase(ScalarModelBase):
-    perform_calibration: bool = param.Boolean(default=True,
-                                              doc="If True then learn a parameter using the validation"
-                                               " set that maximizes the reliability curve of the model"
-                                               " by temparature scaling it's logits. "
-                                               "https://geoffpleiss.com/nn_calibration")
     sequence_column: Optional[str] = \
         param.String(allow_None=True, default=None,
                      doc="If provided, create a sequence dataset, ordering by the column given here. The value in that "

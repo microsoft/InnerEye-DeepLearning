@@ -29,7 +29,7 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, is_gpu_available
-from InnerEye.ML.utils.temperature_scaling import ClassificationModelWithTemperature
+from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 
 BaseModelOrDataParallelModel = Union[BaseModel, DataParallelModel]
@@ -307,7 +307,11 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     there is no model file at the given path.
     """
     # Create model
-    model = ClassificationModelWithTemperature(model_config.create_model())
+    model = model_config.create_model()
+    # wrap it around a temperature scaling model if required
+    if model_config.temperature_scaling_config:
+        model = ModelWithTemperature(model, model_config.temperature_scaling_config)
+
     # Load the stored model. If there is not checkpoint present, return immediately.
     checkpoint_epoch = load_checkpoint(model=model,
                                        path_to_checkpoint=path_to_checkpoint,
