@@ -53,7 +53,7 @@ class DatasetSplits:
                 self.val[self.subject_column].unique())
 
     def number_of_subjects(self):
-        unique_train, unique_test, unique_val = self.unique_subjects
+        unique_train, unique_test, unique_val = self.unique_subjects()
         return len(unique_train) + len(unique_test) + len(unique_val)
 
     def __getitem__(self, mode: ModelExecutionMode) -> pd.DataFrame:
