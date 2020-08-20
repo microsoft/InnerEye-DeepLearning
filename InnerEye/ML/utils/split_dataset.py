@@ -73,36 +73,33 @@ class DatasetSplits:
         :param restriction_pattern: a string containing zero or two commas, and otherwise digits or "+". An empty
         substring will result in no restriction for the corresponding dataset. Thus "20,,3" means "restrict to 20
         training images and 3 test images, with no restriction on validation". A "+" value means "reassign all
-        images from the set(s) labelled '0' (there must be at least one) to this set". Thus ",0,+" means "leave
-        the training set alone, but move all validation images to the test set", and "0,0,+" means "move
-        everything to the test set".
+        images from the set(s) with a numeric count (there must be at least one) to this set". Thus ",0,+" means "leave
+        the training set alone, but move all validation images to the test set", and "0,2,+" means "move
+        all training images and all but 2 validation images to the test set".
         :return: A new dataset split object with (at most) the numbers of subjects specified by restrict_pattern
         """
 
         n_train, n_val, n_test = self.parse_restriction_pattern(restriction_pattern)
 
-        def restrict(df: pd.DataFrame, count: Optional[int]) -> pd.DataFrame:
-            if count is None:
-                return df
+        def restrict(df: pd.DataFrame, count: Optional[int]) -> Tuple[pd.DataFrame, pd.DataFrame]:
+            if count is None:  # Not specified: keep everything
+                return df, df[:0]
             ids = df[self.subject_column].unique()
-            if count >= len(ids):
-                return df
-            ids = ids[:count] if count > 0 else []
-            return df[df[self.subject_column].isin(ids)]
+            if count >= len(ids):  # "+", or a large number specified
+                return df, df[:0]
+            keep = ids[:count]
+            drop = ids[count:]
+            return df[df[self.subject_column].isin(keep)], df[not df[self.subject_column].isin(drop)]
 
-        train = restrict(self.train, n_train)
-        test = restrict(self.test, n_test)
-        val = restrict(self.val, n_val)
+        train, train_drop = restrict(self.train, n_train)
+        test, test_drop = restrict(self.test, n_test)
+        val, val_drop = restrict(self.val, n_val)
         if n_train == sys.maxsize:
-            if n_val == 0:
-                train = train.append(self.val)
-            if n_test == 0:
-                train = train.append(self.test)
+            train = train.append(val_drop).append(test_drop)
         elif n_test == sys.maxsize:
-            if n_train == 0:
-                test = test.append(self.train)
-            if n_val == 0:
-                test = test.append(self.val)
+            test = test.append(train_drop).append(val_drop)
+        elif n_val == sys.maxsize:
+            val = val.append(train_drop).append(test_drop)
 
         return DatasetSplits(train=train, test=test, val=val, subject_column=self.subject_column, allow_empty=True)
 
