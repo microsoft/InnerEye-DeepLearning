@@ -265,6 +265,8 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
         conda_dependencies.set_pip_option(f"--index-url {azure_config.pip_extra_index_url}")
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
     # create Estimator environment
+    framework_version = pytorch_version_from_conda_dependencies(conda_dependencies)
+    logging.info(f"PyTorch framework version: {framework_version}")
     estimator = PyTorch(
         source_directory=source_config.root_folder,
         entry_script=entry_script_relative_path,
@@ -277,7 +279,7 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
         shm_size=azure_config.docker_shm_size,
         use_docker=True,
         use_gpu=True,
-        framework_version=pytorch_version_from_conda_dependencies(conda_dependencies)
+        framework_version=framework_version
     )
     estimator.run_config.environment.python.conda_dependencies = conda_dependencies
     # We'd like to log the estimator config, but conversion to string fails when the Estimator has some inputs.
