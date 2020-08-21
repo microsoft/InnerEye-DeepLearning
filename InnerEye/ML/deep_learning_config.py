@@ -503,6 +503,12 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         is_last_epoch = epoch == self.num_epochs
         return should_save_epoch or is_last_epoch
 
+    def get_total_number_of_save_epochs(self) -> int:
+        return len(list(filter(self.should_save_epoch, range(1, self.num_epochs + 1))))
+
+    def get_total_number_of_execution_epochs(self) -> int:
+        return self.args.num_epochs - self.args.start_epoch
+
     def get_test_epochs(self) -> List[int]:
         """
         Returns the list of epochs for which the model should be evaluated on full images in the test set.
