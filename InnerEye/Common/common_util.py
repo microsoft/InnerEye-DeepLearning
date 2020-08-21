@@ -104,7 +104,7 @@ def epoch_folder_name(epoch: int) -> str:
 class ModelProcessing(Enum):
     """
     Enum used in model training and inference, used to decide where to put files and what logging messages to
-    print, NOT what kind of processing to do. The meanings of the values are:
+    print. The meanings of the values are:
       ENSEMBLE_CREATION: we are creating and processing an ensemble model from within the child run with
         cross-validation index 0 of the HyperDrive run that created this model.
       DEFAULT: any other situation, *including* where the model is an ensemble model created by an earlier run
@@ -125,7 +125,7 @@ class ModelProcessing(Enum):
     * Scenario (4) happens when we do an inference-only run (is_train=False), and specify an existing model with
     run_recovery_id (and necessarily number_of_cross_validation_splits=0, even if the recovered run was a HyperDrive
     one). This model may be either a single one or an ensemble one; in both cases, a ModelProcessing value of DEFAULT is
-    used, because the code that uses ModelProcessing treats it as if it were a single model.
+    used.
     """
     DEFAULT = 'default'
     ENSEMBLE_CREATION = 'ensemble_creation'

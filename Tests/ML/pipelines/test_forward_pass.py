@@ -138,8 +138,8 @@ def test_amp_activated(use_model_parallel: bool,
     model_and_info = ModelAndInfo(model, optimizer)
     try:
         model_and_info_amp = model_util.update_model_for_mixed_precision_and_parallel(model_and_info,
-                                                                                     model_config,
-                                                                                     execution_mode)
+                                                                                      model_config,
+                                                                                      execution_mode)
     except NotImplementedError as ex:
         if use_model_parallel:
             # The SimpleModel does not implement model partitioning, and should hence fail at this step.
