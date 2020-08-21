@@ -120,7 +120,7 @@ def submit_for_inference(args: SubmitForInferenceConfig) -> Optional[Path]:
     logging.info("Getting workspace")
     workspace = azure_config.get_workspace()
     logging.info("Identifying model")
-    model = Model(workspace=workspace, name=args.model_name, version=args.model_version, id=args.model_id)
+    model = Model(workspace=workspace, id=args.model_id)
     model_id = model.id
     logging.info(f"Identified model {model_id}")
     source_directory = tempfile.TemporaryDirectory()

@@ -27,7 +27,9 @@ def run_mypy(files: List[str]) -> int:
         # Set of files we are hoping to see mentioned in the mypy log.
         files_to_do = set(files)
         for index, dir in enumerate(dirs, 1):
-            command = ["mypy", "--config=mypy.ini", "--no-site-packages", "--verbose", dir]
+            # Adding "--no-site-packages" might be necessary if there are errors in site packages,
+            # but it may stop inconsistencies with site packages being spotted.
+            command = ["mypy", "--config=mypy.ini", "--verbose", dir]
             print(f"Processing directory {index:2d} of {len(dirs)}: {dir}")
             # We pipe stdout and then print it, otherwise lines can appear in the wrong order in builds.
             process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
