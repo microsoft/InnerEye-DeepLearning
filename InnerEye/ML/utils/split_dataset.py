@@ -52,7 +52,7 @@ class DatasetSplits:
                 self.test[self.subject_column].unique(),
                 self.val[self.subject_column].unique())
 
-    def number_of_subjects(self):
+    def number_of_subjects(self) -> int:
         unique_train, unique_test, unique_val = self.unique_subjects()
         return len(unique_train) + len(unique_test) + len(unique_val)
 

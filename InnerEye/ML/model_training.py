@@ -30,7 +30,7 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import LRScheduler
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
-from InnerEye.ML.utils.model_util import generate_and_print_model_summary, save_checkpoint
+from InnerEye.ML.utils.model_util import ModelAndOptimizer, generate_and_print_model_summary, save_checkpoint
 from InnerEye.ML.utils.run_recovery import RunRecovery
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
@@ -59,6 +59,20 @@ class ModelTrainingResult:
                                     len(self.learning_rates_per_epoch)))
 
 
+def load_checkpoint(run_recovery: RunRecovery, config: ModelConfigBase,
+                    model_and_opt: ModelAndOptimizer) -> ModelAndOptimizer:
+    model = model_and_opt.model
+    optimizer = model_and_opt.optimizer
+    is_mean_teacher = model_and_opt.is_mean_teacher
+    checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch, is_mean_teacher)[0] \
+        if run_recovery else config.get_path_to_checkpoint(config.start_epoch, is_mean_teacher)
+    result = model_util.load_from_checkpoint_and_adjust(config, checkpoint_path, model_and_opt)
+    if result.checkpoint_epoch is None:
+        raise ValueError("There was no checkpoint file available for the given start_epoch {}"
+                         .format(config.start_epoch))
+    return result
+
+
 def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResult:
     """
     The main training loop. It creates the model, dataset, optimizer_type, and criterion, then proceeds
@@ -80,51 +94,39 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     # Create the train loader and validation loader to load images from the dataset
     data_loaders = config.create_data_loaders()
 
-    # Create model.
+    # Create models, optimizers, and whether is_mean_teacher
     model = config.create_model()
-    mean_teacher_model = config.create_model() if config.compute_mean_teacher_model else None
-
-    # Create the optimizer_type and loss criterion
-    optimizer: Optional[Optimizer] = model_util.create_optimizer(config, model)
+    models_and_optimizers = [ModelAndOptimizer(model, model_util.create_optimizer(config, model))]
+    if config.compute_mean_teacher_model:
+        models_and_optimizers.append(ModelAndOptimizer(config.create_model(), is_mean_teacher=True))
 
     # If continuing from a previous run at a specific epoch, then load the previous model
     if config.should_load_checkpoint_for_training():
-        def load_checkpoint(for_mean_teacher_model: bool = False) -> Tuple[Any, Optional[Optimizer]]:
-            checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch, for_mean_teacher_model)[0] \
-                if run_recovery else config.get_path_to_checkpoint(config.start_epoch, for_mean_teacher_model)
-            adjusted_model, adjusted_optimizer, checkpoint_epoch = model_util.load_from_checkpoint_and_adjust(
-                config, checkpoint_path, optimizer=optimizer, existing_model=model,
-                adjust_optimizer=not for_mean_teacher_model)
-            if checkpoint_epoch is None:
-                raise ValueError("There was no checkpoint file available for the given start_epoch {}"
-                                 .format(config.start_epoch))
-            return adjusted_model, adjusted_optimizer
-        model, optimizer = load_checkpoint()
-        if config.compute_mean_teacher_model:
-            model, optimizer = load_checkpoint(for_mean_teacher_model=True)
-
+        assert run_recovery is not None
+        models_and_optimizers = [load_checkpoint(run_recovery, config, model_and_opt)
+                                 for model_and_opt in models_and_optimizers]
     # Otherwise, create checkpoint directory for this run
     else:
         logging.info("Models are saved at {}".format(config.checkpoint_folder))
-
         if not os.path.isdir(config.checkpoint_folder):
             os.makedirs(config.checkpoint_folder)
 
     # Print out a detailed breakdown of layers, memory consumption and time.
     generate_and_print_model_summary(config, model)
 
-    # Enable mixed precision training and data parallelization.
+    # Enable mixed precision training and data parallelization (no-op if already done).
     # This relies on the information generated in the model summary.
     # We only want to do this if we didn't call load_checkpoint above, because attempting updating twic
     # causes an error.
-    if not config.should_load_checkpoint_for_training():
-        model, optimizer = model_util.update_model_for_mixed_precision_and_parallel(model, config, optimizer)
-        if config.compute_mean_teacher_model:
-            mean_teacher_model, _ = model_util.update_model_for_mixed_precision_and_parallel(mean_teacher_model, config)
-
+    models_and_optimizers = [model_util.update_model_for_mixed_precision_and_parallel(model_and_opt, config)
+                             for model_and_opt in models_and_optimizers]
     # Create the SummaryWriters for Tensorboard
     writers = create_summary_writers(config)
     config.create_dataframe_loggers()
+
+    model = models_and_optimizers[0].model
+    optimizer = models_and_optimizers[0].optimizer
+    mean_teacher_model = models_and_optimizers[1].model if len(models_and_optimizers) > 1 else None
 
     # Create LR scheduler
     l_rate_scheduler = LRScheduler(config, optimizer)  # type: ignore

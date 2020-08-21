@@ -23,11 +23,11 @@ def run_mypy(files: List[str]) -> int:
     iteration = 1
     while files:
         dirs = sorted(set(os.path.dirname(file) or "." for file in files))
-        print(f"Iteration {iteration}: running mypy on {len(files)} files mypy in {len(dirs)} directories")
+        print(f"Iteration {iteration}: running mypy on {len(files)} files in {len(dirs)} directories")
         # Set of files we are hoping to see mentioned in the mypy log.
         files_to_do = set(files)
         for index, dir in enumerate(dirs, 1):
-            command = ["mypy", "--config=mypy.ini", "--verbose", dir]
+            command = ["mypy", "--config=mypy.ini", "--no-site-packages", "--verbose", dir]
             print(f"Processing directory {index:2d} of {len(dirs)}: {dir}")
             # We pipe stdout and then print it, otherwise lines can appear in the wrong order in builds.
             process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -67,7 +67,7 @@ def main() -> int:
     """
     current_dir = Path(".")
     if sys.argv[1:]:
-        file_list = [Path(arg) for arg in sys.argv[1:]]
+        file_list = [Path(arg) for arg in sys.argv[1:] if arg.endswith(".py")]
     else:
         # We don't want to check the files in the submodule if any, partly because they should already have
         # been checked in the original repo, and partly because we don't want the module name clashes mypy would

@@ -212,16 +212,15 @@ class InferencePipeline(FullImageInferencePipelineBase):
         :return InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint
         file for this epoch.
         """
-        model_and_checkpoint_epoch = model_util.load_from_checkpoint_and_adjust(model_config, path_to_checkpoint)
-        if model_and_checkpoint_epoch is None:
+        model_and_opt = model_util.load_from_checkpoint_and_adjust(model_config, path_to_checkpoint)
+        if model_and_opt.checkpoint_epoch is None or model_and_opt.model is None:
             return None
-        model, checkpoint_epoch = model_and_checkpoint_epoch
-        for name, param in model.named_parameters():
+        for name, param in model_and_opt.model.named_parameters():
             param_numpy = param.clone().cpu().data.numpy()
             image_util.check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
 
-        return InferencePipeline(model=model, model_config=model_config,
-                                 epoch=checkpoint_epoch, pipeline_id=pipeline_id)
+        return InferencePipeline(model=model_and_opt.model, model_config=model_config,
+                                 epoch=model_and_opt.checkpoint_epoch, pipeline_id=pipeline_id)
 
     def predict_whole_image(self, image_channels: np.ndarray,
                             voxel_spacing_mm: TupleFloat3,

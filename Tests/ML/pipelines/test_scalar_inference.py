@@ -16,7 +16,7 @@ from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline, \
     ScalarInferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType
-from InnerEye.ML.utils.model_util import update_model_for_mixed_precision_and_parallel
+from InnerEye.ML.utils.model_util import ModelAndOptimizer, update_model_for_mixed_precision_and_parallel
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -107,10 +107,9 @@ def test_predict_non_ensemble(batch_size: int) -> None:
 
     config = ClassificationModelForTesting()
     model: Any = ScalarOnesModel(config.expected_image_size_zyx, 1.)
-    model, _ = update_model_for_mixed_precision_and_parallel(model,
-                                                             args=config,
-                                                             optimizer=None,
-                                                             execution_mode=ModelExecutionMode.TEST)
+    update_model_for_mixed_precision_and_parallel(ModelAndOptimizer(model),
+                                                  args=config,
+                                                  execution_mode=ModelExecutionMode.TEST)
     pipeline = ScalarInferencePipeline(model, config, 0, 0)
     data = {"metadata": [GeneralSampleMetadata(id='2')] * batch_size,
             "label": torch.zeros((batch_size, 1)),
@@ -133,14 +132,14 @@ def test_predict_ensemble(batch_size: int) -> None:
     config = ClassificationModelForTesting()
     model_returns_0: Any = ScalarOnesModel(config.expected_image_size_zyx, 0.)
     model_returns_1: Any = ScalarOnesModel(config.expected_image_size_zyx, 1.)
-    model_returns_0, _ = update_model_for_mixed_precision_and_parallel(model_returns_0,
-                                                                       args=config,
-                                                                       optimizer=None,
-                                                                       execution_mode=ModelExecutionMode.TEST)
-    model_returns_1, _ = update_model_for_mixed_precision_and_parallel(model_returns_1,
-                                                                       args=config,
-                                                                       optimizer=None,
-                                                                       execution_mode=ModelExecutionMode.TEST)
+    model_and_opt_0 = update_model_for_mixed_precision_and_parallel(ModelAndOptimizer(model_returns_0),
+                                                                    args=config,
+                                                                    execution_mode=ModelExecutionMode.TEST)
+    model_returns_0 = model_and_opt_0.model
+    model_and_opt_1 = update_model_for_mixed_precision_and_parallel(ModelAndOptimizer(model_returns_1),
+                                                                    args=config,
+                                                                    execution_mode=ModelExecutionMode.TEST)
+    model_returns_1 = model_and_opt_1.model
     pipeline_0 = ScalarInferencePipeline(model_returns_0, config, 0, 0)
     pipeline_1 = ScalarInferencePipeline(model_returns_0, config, 0, 1)
     pipeline_2 = ScalarInferencePipeline(model_returns_0, config, 0, 2)
