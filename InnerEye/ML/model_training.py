@@ -8,6 +8,7 @@ import os
 from time import time
 from typing import Optional, TypeVar
 
+import torch
 from torch.optim.optimizer import Optimizer
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
@@ -119,9 +120,10 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                            tb_log_file_path=str(config.logs_folder / "diagnostics"))
         resource_monitor.start()
 
-    train_val_params = None
     for epoch in range(config.start_epoch + 1, last_epoch):
         logging.info("Starting epoch {}".format(epoch))
+        save_epoch = config.should_save_epoch(epoch) and optimizer is not None
+
         # store the learning rates used for each epoch
         epoch_lrs = l_rate_scheduler.get_last_lr()
         learning_rates_per_epoch.append(epoch_lrs)
@@ -136,15 +138,20 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                     summary_writers=writers,
                                     dataframe_loggers=config.metrics_data_frame_loggers,
                                     in_training_mode=True)
-        train_epoch_results = train_or_validate_epoch(config, train_val_params)
+        training_steps = create_model_training_steps(config, train_val_params)
+        train_epoch_results = train_or_validate_epoch(training_steps)
         train_results_per_epoch.append(train_epoch_results)
 
         metrics.validate_and_store_model_parameters(writers.train, epoch, model)
         # Run without adjusting weights on the validation set
         train_val_params.in_training_mode = False
         train_val_params.data_loader = data_loaders[ModelExecutionMode.VAL]
-        save_metrics = not config.should_save_epoch(epoch)
-        val_epoch_results = train_or_validate_epoch(config, train_val_params, save_metrics)
+
+        # if temperature scaling is enabled then do not save validation metrics for the checkpoint epochs
+        # as these will be re-computed after performing temperature scaling on the validation set.
+        save_validation_metrics = not (save_epoch and config.temperature_scaling_config)
+        training_steps = create_model_training_steps(config, train_val_params)
+        val_epoch_results = train_or_validate_epoch(training_steps, save_validation_metrics)
         val_results_per_epoch.append(val_epoch_results)
 
         if config.is_segmentation_model:
@@ -152,16 +159,16 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                                        train_epoch_results.metrics,
                                                        val_epoch_results.metrics)
 
-        if config.should_save_epoch(epoch) and optimizer is not None:
-            model_training_results = ModelTrainingResults(
-                train_results_per_epoch=train_results_per_epoch,
-                val_results_per_epoch=val_results_per_epoch,
-                learning_rates_per_epoch=learning_rates_per_epoch
-            )
-            create_model_training_steps(config, train_val_params).perform_post_training_steps(model_training_results)
-            val_epoch_results = train_or_validate_epoch(config, train_val_params)
-            val_results_per_epoch.pop()
-            val_results_per_epoch.append(val_epoch_results)
+        if save_epoch:
+            if config.temperature_scaling_config:
+                # perform temperature scaling
+                logits = torch.cat([x.get_logits() for x in val_results_per_epoch])
+                labels = torch.cat([x.get_labels() for x in val_results_per_epoch])
+                training_steps.perform_calibration(logits, labels)
+                # recompute the validation set results for the temperature scaled model
+                val_epoch_results = train_or_validate_epoch(training_steps)
+                # overwrite the metrics for the epoch with the metrics from the temperature scaled model
+                val_results_per_epoch[-1] = val_epoch_results
 
             save_checkpoint(model, optimizer, epoch, config)
             if config.compute_mean_teacher_model:
@@ -193,8 +200,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     return model_training_results
 
 
-def train_or_validate_epoch(config: ModelConfigBase,
-                            train_val_params: TrainValidateParameters, save_metrics: bool = True) -> ModelOutputsAndMetricsForEpoch:
+def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutputsAndMetricsForEpoch:
     """
     Trains or validates the model for one epoch.
     :param config: The arguments object, which contains useful information for training
@@ -203,13 +209,13 @@ def train_or_validate_epoch(config: ModelConfigBase,
     """
     epoch_start_time = time()
     training_random_state = None
+    train_val_params = training_steps.train_val_params
+    config = training_steps.model_config
     if not train_val_params.in_training_mode:
         # take the snapshot of the existing random state
         training_random_state = RandomStateSnapshot.snapshot_random_state()
         # reset the random state for validation
         ml_util.set_random_seed(config.random_seed)
-
-    training_steps = create_model_training_steps(config, train_val_params)
 
     status_string = "training" if train_val_params.in_training_mode else "validation"
     item_start_time = time()
@@ -218,6 +224,7 @@ def train_or_validate_epoch(config: ModelConfigBase,
     num_batches = 0
     total_extra_load_time = 0.0
     total_load_time = 0.0
+    model_outputs_epoch = []
     for batch_index, sample in enumerate(train_val_params.data_loader):
         item_finish_time = time()
         item_load_time = item_finish_time - item_start_time
@@ -236,7 +243,7 @@ def train_or_validate_epoch(config: ModelConfigBase,
                                 f"{MAX_LOAD_TIME_WARNINGS} times.")
                 num_load_time_warnings += 1
         model_outputs_minibatch = training_steps.forward_and_backward_minibatch(
-            sample, batch_index, train_val_params.epoch, save_metrics)
+            sample, batch_index, train_val_params.epoch, train_val_params.save_metrics)
         model_outputs_epoch.append(model_outputs_minibatch)
         train_finish_time = time()
         logging.debug(f"Epoch {train_val_params.epoch} {status_string} batch {batch_index}: "
@@ -260,7 +267,8 @@ def train_or_validate_epoch(config: ModelConfigBase,
         logging.warning(f"In this epoch, {num_load_time_exceeded} out of {num_batches} batches exceeded the load time "
                         f"threshold. The total loading time for the slow batches was {total_extra_load_time:0.2f}sec.")
 
-    _metrics = training_steps.get_epoch_results_and_store(epoch_time_seconds) if save_metrics else None
+    _metrics = training_steps.get_epoch_results_and_store(epoch_time_seconds) \
+        if train_val_params.save_metrics else None
     return ModelOutputsAndMetricsForEpoch(
         metrics=_metrics,
         model_outputs=model_outputs_epoch,

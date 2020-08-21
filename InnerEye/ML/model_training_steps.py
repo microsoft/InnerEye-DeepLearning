@@ -43,7 +43,7 @@ from InnerEye.ML.utils.image_util import NumpyOrTorch
 from InnerEye.ML.utils.metrics_util import SummaryWriters
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
 from InnerEye.ML.utils.supervised_criterion import BinaryCrossEntropyWithLogitsLoss, SupervisedLearningCriterion
-from InnerEye.ML.utils.training_util import ModelForwardAndBackwardsOutputs, ModelTrainingResults
+from InnerEye.ML.utils.training_util import ModelForwardAndBackwardsOutputs
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from InnerEye.ML.visualizers.regression_visualization import plot_variation_error_prediction
 
@@ -69,6 +69,7 @@ class TrainValidateParameters(param.Parameterized, Generic[M]):
     summary_writers: SummaryWriters = param.ClassSelector(class_=SummaryWriters, instantiate=False)
     in_training_mode: bool = param.Boolean(default=True)
     dataframe_loggers: MetricsDataframeLoggers = param.ClassSelector(class_=MetricsDataframeLoggers, instantiate=False)
+    save_metrics: bool = param.Boolean(default=True)
 
 
 class ModelTrainingStepsBase(Generic[C, M], ABC):
@@ -107,7 +108,7 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
 
     @abstractmethod
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
-                                       batch_index: int, epoch: int, save_metrics: bool = True) -> ModelForwardAndBackwardsOutputs:
+                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and returns the loss.
         :param sample: The batched sample on which the model should be trained.
@@ -169,10 +170,7 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         """
         return self.criterion(model_output, labels)
 
-    def perform_post_training_steps(self, model_training_results: ModelTrainingResults) -> None:
-        """
-        Post training operations to perform.
-        """
+    def perform_calibration(self, logits: torch.Tensor, labels: torch.Tensor) -> None:
         pass
 
 
@@ -323,7 +321,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         return logits, model_output
 
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
-                                       batch_index: int, epoch: int, save_metrics: bool = True) -> ModelForwardAndBackwardsOutputs:
+                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and computes all metrics.
         :param sample: The batched sample on which the model should be trained.
@@ -366,7 +364,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                                model_inputs_and_labels.model_inputs,
                                label_gpu)
 
-        if save_metrics:
+        if self.train_val_params.save_metrics:
             self.metrics.add_metric(MetricType.LOSS, loss.item())
             self.update_metrics(model_inputs_and_labels.subject_ids, model_output, label_gpu)
             logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
@@ -503,15 +501,11 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
 
         return criterion(masked_model_outputs_and_labels.model_outputs, masked_model_outputs_and_labels.labels)
 
-    def perform_post_training_steps(self, model_training_results: ModelTrainingResults) -> None:
-        if self.model_config.temperature_scaling_config:
-            self.perform_calibration(model_training_results)
-
-    def perform_calibration(self, model_training_results: ModelTrainingResults) -> None:
-        logits = model_training_results.get_logits(training=False)
-        labels = model_training_results.get_labels(training=False)
+    def perform_calibration(self, logits: torch.Tensor, labels: torch.Tensor) -> None:
         _model = self.train_val_params.model
-        ece_criterion = ECELoss().cuda()
+        ece_criterion: ECELoss = ECELoss()
+        if torch.cuda.is_available():
+            ece_criterion = ece_criterion.cuda()
         if isinstance(self.train_val_params.model, DataParallelModel):
             _model = _model.module
 

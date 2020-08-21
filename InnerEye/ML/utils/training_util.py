@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 import torch
 
@@ -16,7 +16,7 @@ class ModelForwardAndBackwardsOutputs:
 
 @dataclass
 class ModelOutputsAndMetricsForEpoch:
-    metrics: MetricsDict
+    metrics: Optional[MetricsDict]
     model_outputs: List[ModelForwardAndBackwardsOutputs]
     is_train: bool
 
