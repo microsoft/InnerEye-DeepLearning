@@ -7,9 +7,7 @@ import logging
 import os
 from dataclasses import dataclass
 from time import time
-from typing import Any, List, Optional, Tuple, TypeVar
-
-from torch.optim.optimizer import Optimizer
+from typing import List, Optional, TypeVar
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common import common_util
