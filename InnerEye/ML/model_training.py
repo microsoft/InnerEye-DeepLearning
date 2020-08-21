@@ -59,8 +59,6 @@ class ModelTrainingResult:
 
 def load_checkpoint(run_recovery: RunRecovery, config: ModelConfigBase,
                     model_and_info: ModelAndInfo) -> ModelAndInfo:
-    model = model_and_info.model
-    optimizer = model_and_info.optimizer
     is_mean_teacher = model_and_info.is_mean_teacher
     checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch, is_mean_teacher)[0] \
         if run_recovery else config.get_path_to_checkpoint(config.start_epoch, is_mean_teacher)

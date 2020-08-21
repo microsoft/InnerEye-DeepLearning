@@ -43,7 +43,7 @@ class SubmitForInferenceConfig(GenericConfig):
         assert self.yaml_file is not None
         if self.model_id is None:
             # We need at least a model name to identify a model
-            assert self.model_name is not None
+            assert self.model_name is not None, "you must supply either --model_id or --model_name"
         elif self.model_name is not None and self.model_version is not None:
             # If all three parameters are set, they must be consistent
             assert self.model_id == f"{self.model_name}:{self.model_version}"
