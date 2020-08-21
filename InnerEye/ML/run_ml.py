@@ -225,18 +225,29 @@ class MLRunner:
         # register the generated model from the run if we haven't already done so
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
             if registration_epoch is None:
-                self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics, model_proc)
+                if self.should_register_model():
+                    self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics, model_proc)
             self.try_compare_scores_against_baselines(model_proc)
         else:
             logging.warning("Couldn't register model in offline mode")
+
+    def should_register_model(self) -> bool:
+        """
+        Whether we should register a model at all. If no training has taken place, an equivalent
+        model (from the run we recovered) should already have been registered, so we should only
+        do so if this run is specifically for that purpose.
+        """
+        return self.azure_config.is_train or self.azure_config.register_model_only_for_epoch is not None
 
     def decide_registration_epoch_without_evaluating(self) -> Optional[int]:
         """
         In general we need to do evaluations to discover the best test epoch to register the model
         for. But there are two exceptions, which allow us to register first: (1) the switch
         register_model_only_for_epoch is set; (2) there is only one test epoch.
-        :return: the epoch to register, or None if it cannot be decided.
+        :return: the epoch to register, or None if it cannot be decided or if registration is not needed.
         """
+        if not self.should_register_model():
+            return None
         if self.azure_config.register_model_only_for_epoch is not None:
             return self.azure_config.register_model_only_for_epoch
         candidate_best_epochs = self.model_config.get_test_epochs()
