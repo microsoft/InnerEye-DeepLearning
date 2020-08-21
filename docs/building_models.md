@@ -85,6 +85,17 @@ queued as a "Run" inside of an "Experiment". The experiment will be given a name
 example, branch `foo/bar` will queue a run in experiment `foo_bar`. Inside the "Tags" section of your run, you should
 see an element `run_recovery_id`. It will look something like `foo_bar:foo_bar_12345_abcd`.
 
+If you are recovering a HyperDrive run, the value of `--run_recovery_id` should for the parent,
+and `--number_of_cross_validation_splits` should have the same value as in the recovered run. 
+For example:
+```
+--run_recovery_id=foo_bar:HD_55d4beef-7be9-45d7-89a5-1acf1f99078a --start_epoch=120 --number_of_cross_validation_splits=5
+```
+
+The run recovery ID of a parent HyperDrive run is currently not displayed in the "Details" section
+of the AzureML UI. The easiest way to get it is to go to any of the child runs and use its
+run recovery ID without the final underscore and digit.
+
 ### Testing an existing model
 
 As for continuing training, but set `--is_train` to `False`. Thus your command should look like this:
@@ -113,6 +124,7 @@ second is for the ensemble.
 As well as registering the model, the child run runs it on the validation and test sets. The results are aggregated 
 based on the `ensemble_aggregation_type` value in the model config,
 and the generated posteriors are passed to the usual model testing downstream pipelines, e.g. metrics computation.
+
 
 ##### Interpreting results
 
