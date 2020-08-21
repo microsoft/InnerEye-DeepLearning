@@ -136,9 +136,9 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
     perform full volume inference. Additionally, mixed precision training (amp) is utilised on both the model and
     optimizer instances to improve the training performance.
 
-    :param model: The torch module object representing the network.
+    :param model_and_info: The torch module object representing the network, and more
     :param args: The arguments object with attributes used to enable amp training and create the parallel model.
-    :param optimizer: The torch optimizer that should be used for training.
+    :param execution_mode: mode, i.e. train or test
     :return: Updated torch model and optimizer.
     """
     if model_and_info.is_adjusted:
@@ -333,6 +333,7 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
 
     :param model_config: The configuration from which an empty model will be created (if existing_model is None)
     :param path_to_checkpoint: The path to the checkpoint file.
+    :param model_and_info: optional model and associated info; created from model_config if None
     :return: The model with all loaded parameters, the (adjusted) optimizer, and the epoch in which the model was saved.
     If the checkpoint_epoch is None, there is no model file at the given path.
     """
@@ -340,10 +341,10 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     if model_and_info is None:
         model_and_info = ModelAndInfo(model_config.create_model())
     # Load the stored model. If there is not checkpoint present, return immediately.
-    checkpoint_epoch = load_checkpoint(model=model_and_info.model,
-                                       path_to_checkpoint=path_to_checkpoint,
-                                       optimizer=model_and_info.optimizer)
-    if checkpoint_epoch is None:
+    model_and_info.checkpoint_epoch = load_checkpoint(model=model_and_info.model,
+                                                      path_to_checkpoint=path_to_checkpoint,
+                                                      optimizer=model_and_info.optimizer)
+    if model_and_info.checkpoint_epoch is None:
         return model_and_info
     # Enable data/model parallelization
     if model_config.is_segmentation_model:
