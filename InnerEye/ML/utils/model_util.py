@@ -143,7 +143,6 @@ def update_model_for_mixed_precision_and_parallel(model_and_opt: ModelAndOptimiz
         if args.use_model_parallel:
             devices = args.get_cuda_devices()
             assert devices is not None  # for mypy
-            assert model_and_opt.model is not None  # for mypy
             model_and_opt.model.partition_model(devices=devices)
 
         # This is required to support sigmoid function
@@ -341,7 +340,6 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     # Enable data/model parallelization
     if model_config.is_segmentation_model:
         # Generate the model summary, which is required for model partitioning across GPUs.
-        assert model_and_opt.model is not None
         summary_for_segmentation_models(model_config, model_and_opt.model)
     return update_model_for_mixed_precision_and_parallel(
         model_and_opt, args=model_config, execution_mode=ModelExecutionMode.TEST)
