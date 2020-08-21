@@ -101,47 +101,47 @@ def epoch_folder_name(epoch: int) -> str:
     return "epoch_{0:03d}".format(epoch)
 
 
-class ModelType(Enum):
+class ModelProcessing(Enum):
     """
     Enum used in model training and inference, used to decide where to put files and what logging messages to
     print, NOT what kind of processing to do. The meanings of the values are:
-      ENSEMBLE: we are processing an ensemble model from within the child run with cross-validation index 0 of the
-        HyperDrive run that created this model.
-      SINGLE: any other situation, *including* where the model is an ensemble model created by an earlier run
+      ENSEMBLE_CREATION: we are creating and processing an ensemble model from within the child run with
+        cross-validation index 0 of the HyperDrive run that created this model.
+      DEFAULT: any other situation, *including* where the model is an ensemble model created by an earlier run
         (so the current run is standalone, not part of a HyperDrive run).
-    There are four scenarios, only one of which uses ModelType.ENSEMBLE.
+    There are four scenarios, only one of which uses ModelProcessing.ENSEMBLE_CREATION.
     (1) Training and inference on a single model in a single (non-HyperDrive) run.
     (2) Training and inference on a single model that is part of an ensemble, in HyperDrive child run.
     (3) Inference on an ensemble model taking place in a HyperDrive child run that trained one of the component
     models of the ensemble and whose cross validation index is 0.
     (4) Inference on a single or ensemble model created in an another run specified by the value of run_recovery_id.
     * Scenario (1) happens when we train a model (is_train=True) with number_of_cross_validation_splits=0. In this
-    case, the value of ModelType passed around is SINGLE.
+    case, the value of ModelProcessing passed around is DEFAULT.
     * Scenario (2) happens when we train a model (is_train=True) with number_of_cross_validation_splits>0. In this
-    case, the value of ModelType passed around is SINGLE in each of the child runs while training and running
+    case, the value of ModelProcessing passed around is DEFAULT in each of the child runs while training and running
     inference on its own single model. However, the child run whose cross validation index is 0 then goes on to
-    carry out Scenario (3), and does more processing with ModelType value ENSEMBLE, to create and register the
-    ensemble model, run inference on it, and upload information about the ensemble model to the parent run.
+    carry out Scenario (3), and does more processing with ModelProcessing value ENSEMBLE_CREATION, to create and
+    register the ensemble model, run inference on it, and upload information about the ensemble model to the parent run.
     * Scenario (4) happens when we do an inference-only run (is_train=False), and specify an existing model with
     run_recovery_id (and necessarily number_of_cross_validation_splits=0, even if the recovered run was a HyperDrive
-    one). This model may be either a single one or an ensemble one; in both cases, a ModelType value of SINGLE is
-    used, because the code that uses ModelType treats it as if it were a single model.
+    one). This model may be either a single one or an ensemble one; in both cases, a ModelProcessing value of DEFAULT is
+    used, because the code that uses ModelProcessing treats it as if it were a single model.
     """
-    SINGLE = 'single'
-    ENSEMBLE = 'ensemble'
+    DEFAULT = 'default'
+    ENSEMBLE_CREATION = 'ensemble_creation'
 
 
-def get_epoch_results_path(epoch: int, mode: ModelExecutionMode, model_type: ModelType = ModelType.SINGLE) -> Path:
+def get_epoch_results_path(epoch: int, mode: ModelExecutionMode, model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Path:
     """
     For a given model execution mode, and an epoch index, creates the relative results path
     in the form epoch_x/(Train, Test or Val)
     :param epoch: epoch number
     :param mode: model execution mode
-    :param model_type: whether this is for an ensemble or single model. If ensemble, we return a different path
+    :param model_proc: whether this is for an ensemble or single model. If ensemble, we return a different path
     to avoid colliding with the results from the single model that may have been created earlier in the same run.
     """
     subpath = Path(epoch_folder_name(epoch)) / mode.value
-    if model_type == ModelType.ENSEMBLE:
+    if model_proc == ModelProcessing.ENSEMBLE_CREATION:
         return Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME / subpath
     else:
         return subpath
