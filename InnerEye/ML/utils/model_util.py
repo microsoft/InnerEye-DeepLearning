@@ -36,7 +36,15 @@ BaseModelOrDataParallelModel = Union[BaseModel, DataParallelModel]
 
 
 @dataclass
-class ModelAndOptimizer:
+class ModelAndInfo:
+    """
+    A holder for a model and, optionally, associated information.
+      model: any model
+      optimizer: associated optimizer if any
+      is_mean_teacher: whether this is (intended to be) a mean teacher model
+      is_adjusted: whether model adjustments (which cannot be done twice) have been applied
+      checkpoint_epoch: the training epoch this model was created, if loaded from disk
+    """
     model: BaseModelOrDataParallelModel
     optimizer: Optional[Optimizer] = None
     is_mean_teacher: bool = False
@@ -118,10 +126,10 @@ def build_net(args: SegmentationModelBase) -> BaseModel:  # type: ignore
     return network
 
 
-def update_model_for_mixed_precision_and_parallel(model_and_opt: ModelAndOptimizer,
+def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
                                                   args: ModelConfigBase,
                                                   execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
-        ModelAndOptimizer:
+        ModelAndInfo:
     """
     Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
     multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
@@ -133,31 +141,31 @@ def update_model_for_mixed_precision_and_parallel(model_and_opt: ModelAndOptimiz
     :param optimizer: The torch optimizer that should be used for training.
     :return: Updated torch model and optimizer.
     """
-    if model_and_opt.is_adjusted:
-        return model_and_opt
+    if model_and_info.is_adjusted:
+        return model_and_info
     if args.use_gpu:
         # In the normal training codepath, the model should already be on the GPU, but in some tests not.
-        model_and_opt.cuda()
+        model_and_info.cuda()
         logging.info("Adjusting the model to use mixed precision training.")
         # If model parallel is set to True, then partition the network across all available gpus.
         if args.use_model_parallel:
             devices = args.get_cuda_devices()
             assert devices is not None  # for mypy
-            model_and_opt.model.partition_model(devices=devices)
+            model_and_info.model.partition_model(devices=devices)
 
         # This is required to support sigmoid function
         amp.register_float_function(torch, 'sigmoid')
 
         # Activate automatic mixed precision
         # With optimization GEMMs and convolutions are performed in FP16, see https://nvidia.github.io/apex/amp.html
-        amp_output = amp.initialize(model_and_opt.model, model_and_opt.optimizer, enabled=args.use_mixed_precision,
+        amp_output = amp.initialize(model_and_info.model, model_and_info.optimizer, enabled=args.use_mixed_precision,
                                     opt_level="O1", keep_batchnorm_fp32=None, loss_scale="dynamic", num_losses=1)
-        model_and_opt.apply_amp_output(amp_output)
+        model_and_info.apply_amp_output(amp_output)
     else:
         logging.info("Making no adjustments to the model because no GPU was found.")
 
     # Update model related config attributes (After AMP & Model Parallel Activated)
-    args.adjust_after_mixed_precision_and_parallel(model_and_opt.model)
+    args.adjust_after_mixed_precision_and_parallel(model_and_info.model)
 
     # DataParallel enables running the model with multiple gpus by splitting samples across GPUs
     # If the model is used in training mode, data parallel is activated by default.
@@ -168,11 +176,11 @@ def update_model_for_mixed_precision_and_parallel(model_and_opt: ModelAndOptimiz
         # Move all layers to the default GPU before activating data parallel.
         # This needs to happen even though we put the model to the GPU at the beginning of the method,
         # but we may have spread it across multiple GPUs later.
-        model_and_opt.cuda()
-        model_and_opt.set_data_parallel(device_ids=args.get_cuda_devices())
+        model_and_info.cuda()
+        model_and_info.set_data_parallel(device_ids=args.get_cuda_devices())
 
-    model_and_opt.is_adjusted = True
-    return model_and_opt
+    model_and_info.is_adjusted = True
+    return model_and_info
 
 
 def create_optimizer(args: ModelConfigBase, model: torch.nn.Module) -> Optimizer:
@@ -318,7 +326,7 @@ def save_checkpoint(model: torch.nn.DataParallel, optimizer: Optimizer, epoch: i
 
 def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
                                     path_to_checkpoint: Path,
-                                    model_and_opt: Optional[ModelAndOptimizer] = None) -> ModelAndOptimizer:
+                                    model_and_info: Optional[ModelAndInfo] = None) -> ModelAndInfo:
     """
     Creates a model as per the configuration, and loads the parameters from the given checkpoint path.
     The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
@@ -329,18 +337,18 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     If the checkpoint_epoch is None, there is no model file at the given path.
     """
     # Create model if necessary
-    if model_and_opt is None:
-        model_and_opt = ModelAndOptimizer(model_config.create_model())
+    if model_and_info is None:
+        model_and_info = ModelAndInfo(model_config.create_model())
     # Load the stored model. If there is not checkpoint present, return immediately.
-    checkpoint_epoch = load_checkpoint(model=model_and_opt.model,
+    checkpoint_epoch = load_checkpoint(model=model_and_info.model,
                                        path_to_checkpoint=path_to_checkpoint,
-                                       optimizer=model_and_opt.optimizer)
+                                       optimizer=model_and_info.optimizer)
     if checkpoint_epoch is None:
-        return model_and_opt
+        return model_and_info
     # Enable data/model parallelization
     if model_config.is_segmentation_model:
         # Generate the model summary, which is required for model partitioning across GPUs.
-        summary_for_segmentation_models(model_config, model_and_opt.model)
+        summary_for_segmentation_models(model_config, model_and_info.model)
     return update_model_for_mixed_precision_and_parallel(
-        model_and_opt, args=model_config, execution_mode=ModelExecutionMode.TEST)
+        model_and_info, args=model_config, execution_mode=ModelExecutionMode.TEST)
 
