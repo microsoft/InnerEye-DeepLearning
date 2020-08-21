@@ -57,7 +57,7 @@ class ModelTrainingResult:
                                     len(self.learning_rates_per_epoch)))
 
 
-def load_checkpoint(run_recovery: RunRecovery, config: ModelConfigBase,
+def load_checkpoint(run_recovery: Optional[RunRecovery], config: ModelConfigBase,
                     model_and_info: ModelAndInfo) -> ModelAndInfo:
     is_mean_teacher = model_and_info.is_mean_teacher
     checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch, is_mean_teacher)[0] \
@@ -98,7 +98,6 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # If continuing from a previous run at a specific epoch, then load the previous model
     if config.should_load_checkpoint_for_training():
-        assert run_recovery is not None
         models_and_optimizers = [load_checkpoint(run_recovery, config, model_and_info)
                                  for model_and_info in models_and_optimizers]
     # Otherwise, create checkpoint directory for this run
