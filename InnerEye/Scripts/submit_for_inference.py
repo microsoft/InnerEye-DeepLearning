@@ -27,9 +27,7 @@ class SubmitForInferenceConfig(GenericConfig):
     """
     experiment_name: str = param.String(default=f"model_inference",
                                         doc="Name of experiment the run should belong to")
-    model_name: Optional[str] = param.String(default=None, doc="Name of model, e.g. Prostate")
-    model_version: Optional[int] = param.Number(default=None, doc="Version of model, e.g. 123")
-    model_id: Optional[str] = param.String(default=None, doc="Id of model, e.g. Prostate:123")
+    model_id: str = param.String(doc="Id of model, e.g. Prostate:123")
     image_file: Path = param.ClassSelector(class_=Path, doc="Image file to segment, ending in .nii.gz")
     yaml_file: Path = param.ClassSelector(
         class_=Path, doc="File containing subscription details, typically your train_variables.yml")
@@ -41,12 +39,6 @@ class SubmitForInferenceConfig(GenericConfig):
 
     def validate(self) -> None:
         assert self.yaml_file is not None
-        if self.model_id is None:
-            # We need at least a model name to identify a model
-            assert self.model_name is not None, "you must supply either --model_id or --model_name"
-        elif self.model_name is not None and self.model_version is not None:
-            # If all three parameters are set, they must be consistent
-            assert self.model_id == f"{self.model_name}:{self.model_version}"
         # The image file must be specified, must exist, and must end in .nii.gz, i.e. be
         # a compressed Nifti file.
         assert self.image_file is not None
