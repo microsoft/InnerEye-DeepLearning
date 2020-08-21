@@ -146,12 +146,12 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         # Run without adjusting weights on the validation set
         train_val_params.in_training_mode = False
         train_val_params.data_loader = data_loaders[ModelExecutionMode.VAL]
-
         # if temperature scaling is enabled then do not save validation metrics for the checkpoint epochs
         # as these will be re-computed after performing temperature scaling on the validation set.
-        save_validation_metrics = not (save_epoch and config.temperature_scaling_config)
+        train_val_params.save_metrics = not (save_epoch and config.temperature_scaling_config)
+
         training_steps = create_model_training_steps(config, train_val_params)
-        val_epoch_results = train_or_validate_epoch(training_steps, save_validation_metrics)
+        val_epoch_results = train_or_validate_epoch(training_steps)
         val_results_per_epoch.append(val_epoch_results)
 
         if config.is_segmentation_model:
@@ -243,7 +243,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutp
                                 f"{MAX_LOAD_TIME_WARNINGS} times.")
                 num_load_time_warnings += 1
         model_outputs_minibatch = training_steps.forward_and_backward_minibatch(
-            sample, batch_index, train_val_params.epoch, train_val_params.save_metrics)
+            sample, batch_index, train_val_params.epoch)
         model_outputs_epoch.append(model_outputs_minibatch)
         train_finish_time = time()
         logging.debug(f"Epoch {train_val_params.epoch} {status_string} batch {batch_index}: "
