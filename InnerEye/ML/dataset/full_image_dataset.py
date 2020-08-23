@@ -182,7 +182,7 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
         batch_size = batch_size or self.args.train_batch_size
         if self.args.avoid_process_spawn_in_data_loaders:
             if max_repeats is None:
-                max_repeats = self.args.get_total_number_of_execution_epochs()
+                max_repeats = self.args.get_total_number_of_training_epochs()
             return RepeatDataLoader(
                 self,
                 max_repeats=max_repeats,

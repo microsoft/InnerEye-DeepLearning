@@ -64,7 +64,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     # Create model.
     model = config.create_model()
     # wrap the model around a temperature scaling model if required
-    if config.temperature_scaling_config:
+    if isinstance(config, ScalarModelBase) and config.temperature_scaling_config:
         model = ModelWithTemperature(model, config.temperature_scaling_config)
     mean_teacher_model = config.create_model() if config.compute_mean_teacher_model else None
 
@@ -148,7 +148,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         train_val_params.data_loader = data_loaders[ModelExecutionMode.VAL]
         # if temperature scaling is enabled then do not save validation metrics for the checkpoint epochs
         # as these will be re-computed after performing temperature scaling on the validation set.
-        train_val_params.save_metrics = not (save_epoch and config.temperature_scaling_config)
+        if isinstance(config, ScalarModelBase):
+            train_val_params.save_metrics = not (save_epoch and config.temperature_scaling_config)
 
         training_steps = create_model_training_steps(config, train_val_params)
         val_epoch_results = train_or_validate_epoch(training_steps)
@@ -160,7 +161,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                                        val_epoch_results.metrics)
 
         if save_epoch:
-            if config.temperature_scaling_config:
+            if isinstance(config, ScalarModelBase) and config.temperature_scaling_config:
                 # perform temperature scaling
                 logits = torch.cat([x.get_logits() for x in val_results_per_epoch])
                 labels = torch.cat([x.get_labels() for x in val_results_per_epoch])

@@ -308,8 +308,8 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     """
     # Create model
     model = model_config.create_model()
-    # wrap it around a temperature scaling model if required
-    if model_config.temperature_scaling_config:
+    # wrap the model around a temperature scaling model if required
+    if isinstance(model_config, ScalarModelBase) and model_config.temperature_scaling_config:
         model = ModelWithTemperature(model, model_config.temperature_scaling_config)
 
     # Load the stored model. If there is not checkpoint present, return immediately.

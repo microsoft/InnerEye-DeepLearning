@@ -166,12 +166,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                          doc="The high-level model category described by this config.")
     _model_name: str = param.String(None, doc="The human readable name of the model (for example, Liver). This is "
                                               "usually set from the class name.")
-    temperature_scaling_config: Optional[TemperatureScalingConfig] = param.ClassSelector(
-        class_=TemperatureScalingConfig,
-        allow_None=True,
-        default=None,
-        doc="If a config is provided then it will be used to learn a temperature scaling parameter using the "
-            "validation set to calibrate the model logits see: https://arxiv.org/abs/1706.04599")
 
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     azure_dataset_id: Optional[str] = param.String(None, allow_None=True,
@@ -504,10 +498,25 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         return should_save_epoch or is_last_epoch
 
     def get_total_number_of_save_epochs(self) -> int:
+        """
+        Returns the number of epochs for which a model checkpoint will be saved.
+        :return:
+        """
         return len(list(filter(self.should_save_epoch, range(1, self.num_epochs + 1))))
 
-    def get_total_number_of_execution_epochs(self) -> int:
+    def get_total_number_of_training_epochs(self) -> int:
+        """
+        Returns the number of epochs for which a model will be trained.
+        :return:
+        """
         return self.args.num_epochs - self.args.start_epoch
+
+    def get_total_number_of_validation_epochs(self) -> int:
+        """
+        Returns the number of epochs for which a model will be validated.
+        :return:
+        """
+        return self.get_total_number_of_training_epochs()
 
     def get_test_epochs(self) -> List[int]:
         """
