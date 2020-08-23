@@ -6,13 +6,14 @@ Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Callable, List, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import torch
 from torch.optim import LBFGS
 
 from InnerEye.Common.type_annotations import T
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
+from InnerEye.ML.metrics import AzureAndTensorboardLogger
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule, E
 
 
@@ -49,7 +50,8 @@ class ModelWithTemperature(DeviceAwareModule):
     def set_temperature(self, logits: torch.Tensor,
                         labels: torch.Tensor,
                         criterion_fn: Callable[[torch.Tensor, torch.Tensor],
-                                               Tuple[torch.Tensor, torch.Tensor]]) -> None:
+                                               Tuple[torch.Tensor, torch.Tensor]],
+                        logger: Optional[AzureAndTensorboardLogger] = None) -> None:
         """
         Tune the temperature of the model using the provided logits and labels.
         """
@@ -59,7 +61,7 @@ class ModelWithTemperature(DeviceAwareModule):
 
         # Calculate loss values before scaling
         before_temperature_loss, before_temperature_ece = criterion_fn(logits, labels)
-        print('Before temperature scaling - LOSS: {:.3f} {:.3f}'
+        print('Before temperature scaling - LOSS: {:.3f} ECE: {:.3f}'
               .format(before_temperature_loss.item(), before_temperature_ece.item()))
 
         # Next: optimize the temperature w.r.t. the provided criterion function
@@ -68,6 +70,9 @@ class ModelWithTemperature(DeviceAwareModule):
 
         def eval_criterion() -> torch.Tensor:
             loss, ece = criterion_fn(self.temperature_scale(logits), labels)
+            if logger:
+                logger.log_to_azure_and_tensorboard("Temp_Scale_LOSS", loss.item())
+                logger.log_to_azure_and_tensorboard("Temp_Scale_ECE", ece.item())
             loss.backward()
             return loss
 
@@ -75,5 +80,5 @@ class ModelWithTemperature(DeviceAwareModule):
 
         after_temperature_loss, after_temperature_ece = criterion_fn(self.temperature_scale(logits), labels)
         print('Optimal temperature: {:.3f}'.format(self.temperature.item()))
-        print('After temperature scaling - LOSS: {:.3f} {:.3f}'
+        print('After temperature scaling - LOSS: {:.3f} ECE: {:.3f}'
               .format(after_temperature_loss.item(), after_temperature_ece.item()))

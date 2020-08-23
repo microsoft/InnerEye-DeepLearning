@@ -519,7 +519,8 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
         _model.set_temperature(
             logits=logits,
             labels=labels,
-            criterion_fn=_forward_criterion
+            criterion_fn=_forward_criterion,
+            logger=self.azure_and_tensorboard_logger
         )
 
 
