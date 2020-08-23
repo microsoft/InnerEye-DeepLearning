@@ -509,7 +509,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         Returns the number of epochs for which a model will be trained.
         :return:
         """
-        return self.args.num_epochs - self.args.start_epoch
+        return self.num_epochs - self.start_epoch
 
     def get_total_number_of_validation_epochs(self) -> int:
         """

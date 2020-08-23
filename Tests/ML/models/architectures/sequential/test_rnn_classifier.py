@@ -422,7 +422,7 @@ class ToyMultiLabelSequenceModel(SequenceModelBase):
                              target_indices=self.get_target_indices())
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
+@pytest.mark.skipif(not common_util.is_windows(), reason="Has issues on windows build")
 def test_run_ml_with_multi_label_sequence_model(test_output_dirs: TestOutputDirectories) -> None:
     """
     Test training and testing of sequence models that predicts at multiple time points,
