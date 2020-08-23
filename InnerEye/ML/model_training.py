@@ -29,9 +29,9 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import LRScheduler
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
-from InnerEye.ML.utils.model_util import generate_and_print_model_summary, save_checkpoint
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, generate_and_print_model_summary, \
+    save_checkpoint
 from InnerEye.ML.utils.run_recovery import RunRecovery
-from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
@@ -62,10 +62,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     data_loaders = config.create_data_loaders()
 
     # Create model.
-    model = config.create_model()
-    # wrap the model around a temperature scaling model if required
-    if isinstance(config, ScalarModelBase) and config.temperature_scaling_config:
-        model = ModelWithTemperature(model, config.temperature_scaling_config)
+    model = create_model_with_temperature_scaling(config)
+
     mean_teacher_model = config.create_model() if config.compute_mean_teacher_model else None
 
     # Create the optimizer_type and loss criterion

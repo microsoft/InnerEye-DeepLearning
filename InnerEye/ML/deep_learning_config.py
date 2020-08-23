@@ -70,9 +70,9 @@ class MultiprocessingStartMethod(Enum):
 
 class TemperatureScalingConfig(Parameterized):
     """High level config to encapsulate temperature scaling parameters"""
-    lr = param.Number(default=0.02, doc="The learning rate to use for the optimizer used to learn the "
+    lr: float = param.Number(default=0.02, doc="The learning rate to use for the optimizer used to learn the "
                                         "temperature scaling parameter")
-    max_iter = param.Number(default=50, doc="The maximum number of optimization iterations to use in order to "
+    max_iter: int = param.Number(default=50, doc="The maximum number of optimization iterations to use in order to "
                                             "use when learning the temperature scaling parameter")
 
 

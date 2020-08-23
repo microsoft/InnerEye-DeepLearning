@@ -5,7 +5,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import torch
 from apex import amp
@@ -99,7 +99,7 @@ def update_model_for_mixed_precision_and_parallel(model: BaseModel,
                                                   args: ModelConfigBase,
                                                   optimizer: Optional[Optimizer] = None,
                                                   execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
-        Tuple[BaseModelOrDataParallelModel, Optional[Optimizer]]:
+    Tuple[BaseModelOrDataParallelModel, Optional[Optimizer]]:
     """
     Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
     multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
@@ -171,7 +171,7 @@ def create_optimizer(args: ModelConfigBase, model: torch.nn.Module) -> Optimizer
                                weight_decay=args.weight_decay)
     elif args.optimizer_type == OptimizerType.RMSprop:
         return RMSprop(model.parameters(), args.l_rate, args.rms_alpha, args.opt_eps,
-                                   args.weight_decay, args.momentum)
+                       args.weight_decay, args.momentum)
     else:
         raise NotImplementedError(f"Optimizer type {args.optimizer_type.value} is not implemented")
 
@@ -209,8 +209,7 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
     # Hence, move the model to the GPU before doing model summary.
     if config.use_gpu:
         model = model.cuda()
-    if config.is_scalar_model:
-        assert isinstance(config, ScalarModelBase)
+    if isinstance(config, ScalarModelBase):
         # To generate the model summary, read the first item of the dataset. Then use the model's own
         # get_model_input function to convert the dataset item to input tensors, and feed them through the model.
         train_dataset = config.get_torch_dataset_for_inference(ModelExecutionMode.TRAIN)
@@ -307,10 +306,7 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     there is no model file at the given path.
     """
     # Create model
-    model = model_config.create_model()
-    # wrap the model around a temperature scaling model if required
-    if isinstance(model_config, ScalarModelBase) and model_config.temperature_scaling_config:
-        model = ModelWithTemperature(model, model_config.temperature_scaling_config)
+    model = create_model_with_temperature_scaling(model_config)
 
     # Load the stored model. If there is not checkpoint present, return immediately.
     checkpoint_epoch = load_checkpoint(model=model,
@@ -327,3 +323,15 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
                                                              optimizer=None,
                                                              execution_mode=ModelExecutionMode.TEST)
     return model, checkpoint_epoch
+
+
+def create_model_with_temperature_scaling(config: ModelConfigBase) -> Any:
+    """
+    Create a model with temperature scaling by wrapping the result of config.create_model with ModelWithTemperature,
+    if temperature scaling config has been provided, otherwise return the result of config.create_model
+    """
+    # wrap the model around a temperature scaling model if required
+    model = config.create_model()
+    if isinstance(config, ScalarModelBase) and config.temperature_scaling_config:
+        model = ModelWithTemperature(model, config.temperature_scaling_config)
+    return model

@@ -30,6 +30,7 @@ from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES, segmentation_to_one_hot
 from InnerEye.ML.utils.io_util import ImageAndSegmentations, NumpyFile
 from InnerEye.ML.utils.ml_util import is_gpu_available, set_random_seed
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from InnerEye.ML.visualizers.model_summary import ModelSummary
@@ -191,7 +192,7 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
 
     config.set_output_to(test_output_dirs.root_dir)
     config.max_batch_grad_cam = 1
-    model = config.create_model()
+    model = create_model_with_temperature_scaling(config)
     input_size: List[Tuple] = [(len(config.image_channels), *scan_size)]
     if use_non_imaging_features:
         input_size.append((config.get_total_number_of_non_imaging_features(),))
@@ -345,7 +346,7 @@ def test_visualization_with_scalar_model(use_non_imaging_features: bool,
 
     config.set_output_to(test_output_dirs.root_dir)
     config.num_epochs = 1
-    model = config.create_model()
+    model = create_model_with_temperature_scaling(config)
     # Patch the load_images function that will be called once we access a dataset item
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, (6, 64, 60)),
                                                       segmentations=np.random.randint(0, 2, (6, 64, 60)))

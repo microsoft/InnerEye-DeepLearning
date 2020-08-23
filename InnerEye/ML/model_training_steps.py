@@ -519,8 +519,7 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
         _model.set_temperature(
             logits=logits,
             labels=labels,
-            forward_criterion=_forward_criterion,
-            metrics=self.metrics
+            criterion_fn=_forward_criterion
         )
 
 

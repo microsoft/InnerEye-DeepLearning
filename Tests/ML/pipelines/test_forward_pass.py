@@ -19,6 +19,7 @@ from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util, model_util
 from InnerEye.ML.utils.io_util import ImageDataType
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from Tests.ML.util import machine_has_gpu, no_gpu_available
 
 
@@ -212,14 +213,14 @@ def test_mean_teacher_model() -> None:
     model_train(config)
 
     # Retrieve the weight after one epoch
-    model = config.create_model()
+    model = create_model_with_temperature_scaling(config)
     print(config.get_path_to_checkpoint(1))
     _ = model_util.load_checkpoint(model, config.get_path_to_checkpoint(1))
     model_weight = next(_get_parameters_of_model(model))
 
     # Get the starting weight of the mean teacher model
     ml_util.set_random_seed(config.random_seed)
-    _ = config.create_model()
+    _ = create_model_with_temperature_scaling(config)
     mean_teach_model = config.create_model()
     initial_weight_mean_teacher_model = next(_get_parameters_of_model(mean_teach_model))
 

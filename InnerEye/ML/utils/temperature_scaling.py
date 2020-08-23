@@ -43,7 +43,7 @@ class ModelWithTemperature(DeviceAwareModule):
         Perform temperature scaling on logits
         """
         # Expand temperature to match the size of logits
-        temperature = self.temperature.unsqueeze(1).expand(logits.size(0), logits.size(1))
+        temperature = self.temperature.expand(logits.shape)
         return logits / temperature
 
     def set_temperature(self, logits: torch.Tensor,
@@ -59,7 +59,7 @@ class ModelWithTemperature(DeviceAwareModule):
 
         # Calculate loss values before scaling
         before_temperature_loss, before_temperature_ece = criterion_fn(logits, labels)
-        print('Before temperature scaling - LOSS: {.3f} {.3f}'
+        print('Before temperature scaling - LOSS: {:.3f} {:.3f}'
               .format(before_temperature_loss.item(), before_temperature_ece.item()))
 
         # Next: optimize the temperature w.r.t. the provided criterion function
@@ -74,6 +74,6 @@ class ModelWithTemperature(DeviceAwareModule):
         optimizer.step(eval_criterion)
 
         after_temperature_loss, after_temperature_ece = criterion_fn(self.temperature_scale(logits), labels)
-        print('Optimal temperature: {.3f}'.format(self.temperature.item()))
-        print('After temperature scaling - LOSS: {.3f} {.3f}'
+        print('Optimal temperature: {:.3f}'.format(self.temperature.item()))
+        print('After temperature scaling - LOSS: {:.3f} {:.3f}'
               .format(after_temperature_loss.item(), after_temperature_ece.item()))

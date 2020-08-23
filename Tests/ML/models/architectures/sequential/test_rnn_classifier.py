@@ -17,6 +17,7 @@ from InnerEye.Common.common_util import METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, SequenceMetricsDict
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
+from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
@@ -30,6 +31,7 @@ from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentat
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.io_util import ImageAndSegmentations
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from Tests.ML.util import get_default_azure_config
@@ -259,7 +261,7 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     config.num_epochs = 1
-    model = config.create_model()
+    model = create_model_with_temperature_scaling(config)
     dataloader = SequenceDataset(config,
                                  data_frame=config.dataset_data_frame).as_data_loader(shuffle=False,
                                                                                       batch_size=2)
@@ -430,6 +432,7 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: TestOutputDire
     """
     logging_to_stdout()
     config = ToyMultiLabelSequenceModel(should_validate=False)
+    config.temperature_scaling_config = TemperatureScalingConfig()
     assert config.get_target_indices() == [1, 2, 3]
     expected_prediction_targets = [f"{SEQUENCE_POSITION_HUE_NAME_PREFIX} {x}"
                                    for x in ["01", "02", "03"]]
@@ -498,7 +501,7 @@ def test_visualization_for_different_target_weeks(test_output_dirs: TestOutputDi
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_multi_label_sequence_dataframe()
     config.pre_process_dataset_dataframe()
-    model = config.create_model()
+    model = create_model_with_temperature_scaling(config)
     dataloader = SequenceDataset(config,
                                  data_frame=config.dataset_data_frame).as_data_loader(shuffle=False,
                                                                                       batch_size=2)
