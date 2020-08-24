@@ -186,6 +186,9 @@ class ScalarModelBase(ModelConfigBase):
 
     def __init__(self, num_dataset_reader_workers: int = 0, **params: Any) -> None:
         super().__init__(**params)
+        if self.temperature_scaling_config:
+            logging.info(f"Temperature scaling will be performed on the "
+                         f"validation set using the config: {self.temperature_scaling_config}")
         self._model_category = ModelCategory.Scalar
         if not self.is_offline_run:
             self.num_dataset_reader_workers = 0
