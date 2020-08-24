@@ -2,14 +2,14 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from time import time
-
 import argparse
 import logging
 import os
+from time import time
+from typing import Optional, TypeVar
+
 import torch
 from torch.optim.optimizer import Optimizer
-from typing import Optional, TypeVar
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common.common_util import empty_string_to_none
@@ -164,6 +164,9 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                 # perform temperature scaling
                 logits = torch.cat([x.get_logits() for x in val_results_per_epoch])
                 labels = torch.cat([x.get_labels() for x in val_results_per_epoch])
+                # re-create the training steps for the repeat pass, but with metrics saving enabled
+                train_val_params.save_metrics = True
+                training_steps = create_model_training_steps(config, train_val_params)
                 training_steps.perform_calibration(logits, labels)
                 # recompute the validation set results for the temperature scaled model
                 val_epoch_results = train_or_validate_epoch(training_steps)

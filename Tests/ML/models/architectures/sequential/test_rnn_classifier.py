@@ -2,22 +2,21 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from io import StringIO
+from typing import Any, List, Optional, Tuple
 from unittest import mock
 
 import numpy as np
 import pandas as pd
 import pytest
 import torch
-from io import StringIO
 from torch.cuda import device_count
-from typing import Any, List, Optional, Tuple
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, SequenceMetricsDict
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
-from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
@@ -432,7 +431,6 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: TestOutputDire
     """
     logging_to_stdout()
     config = ToyMultiLabelSequenceModel(should_validate=False)
-    config.temperature_scaling_config = TemperatureScalingConfig()
     assert config.get_target_indices() == [1, 2, 3]
     expected_prediction_targets = [f"{SEQUENCE_POSITION_HUE_NAME_PREFIX} {x}"
                                    for x in ["01", "02", "03"]]

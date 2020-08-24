@@ -179,10 +179,10 @@ class ScalarModelBase(ModelConfigBase):
     temperature_scaling_config: Optional[TemperatureScalingConfig] = param.ClassSelector(
         class_=TemperatureScalingConfig,
         allow_None=True,
-        default=None,
+        default=TemperatureScalingConfig(),
         doc="If a config is provided then it will be used to learn a temperature scaling parameter using the "
             "validation set to calibrate the model logits see: https://arxiv.org/abs/1706.04599 for each "
-            "epoch that requires a checkpoint to be saved.")
+            "epoch that requires a checkpoint to be saved. Turned on by default.")
 
     def __init__(self, num_dataset_reader_workers: int = 0, **params: Any) -> None:
         super().__init__(**params)
