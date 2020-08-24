@@ -4,8 +4,9 @@
 #  ------------------------------------------------------------------------------------------
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Union
 
+import numpy as np
 import torch
 
 from InnerEye.Common import common_util
@@ -15,8 +16,8 @@ from InnerEye.Common.metrics_dict import MetricsDict
 @dataclass
 class ModelForwardAndBackwardsOutputs:
     loss: float
-    non_normalized_logits: torch.Tensor
-    labels: torch.Tensor
+    non_normalized_logits: Union[torch.Tensor, np.ndarray]
+    labels: Union[torch.Tensor, np.ndarray]
 
 
 @dataclass

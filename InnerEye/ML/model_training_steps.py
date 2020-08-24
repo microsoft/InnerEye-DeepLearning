@@ -647,7 +647,12 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
             if batch_index == self.example_to_save and self.model_config.store_dataset_sample:
                 _store_dataset_sample(self.model_config, self.train_val_params.epoch, forward_pass_result,
                                       cropped_sample)
-        return loss
+
+        return ModelForwardAndBackwardsOutputs(
+            loss=loss,
+            non_normalized_logits=forward_pass_result.posteriors,
+            labels=forward_pass_result.segmentations
+        )
 
     def get_epoch_results_and_store(self, epoch_time_seconds: float) -> MetricsDict:
         """
