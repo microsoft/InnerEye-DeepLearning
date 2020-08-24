@@ -28,10 +28,10 @@ from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PAC
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod
-from InnerEye.ML.metrics import InferenceMetricsForSegmentation
+from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
-from InnerEye.ML.model_testing import ModelTestResultType, model_test
+from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.runner import ModelDeploymentHookSignature
 from InnerEye.ML.utils import ml_util
@@ -501,16 +501,14 @@ class MLRunner:
     def model_inference_train_and_test(self, run_context: Optional[Run] = None,
                                        run_recovery: Optional[RunRecovery] = None,
                                        model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> \
-            Tuple[Optional[InferenceMetricsForSegmentation],
-                  Optional[InferenceMetricsForSegmentation],
-                  Optional[InferenceMetricsForSegmentation]]:
+            Tuple[Optional[InferenceMetrics], Optional[InferenceMetrics], Optional[InferenceMetrics]]:
         train_metrics = None
         val_metrics = None
         test_metrics = None
 
         config = self.model_config
 
-        def run_model_test(data_split: ModelExecutionMode) -> ModelTestResultType:
+        def run_model_test(data_split: ModelExecutionMode) -> Optional[InferenceMetrics]:
             return model_test(config, data_split=data_split, run_recovery=run_recovery, model_proc=model_proc)
 
         if config.perform_validation_and_test_set_inference:
@@ -528,7 +526,7 @@ class MLRunner:
             log_metrics(val_metrics=val_metrics, test_metrics=test_metrics,  # type: ignore
                         train_metrics=train_metrics, run_context=run_context)  # type: ignore
 
-        return test_metrics, val_metrics, train_metrics  # type: ignore
+        return test_metrics, val_metrics, train_metrics
 
     def download_dataset(self, run_context: Optional[Run] = None,
                          dataset_path: Path = Path.cwd()) -> Optional[Path]:

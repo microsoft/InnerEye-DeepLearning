@@ -23,7 +23,7 @@ from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
-from InnerEye.ML.metrics import InferenceMetricsForClassification, InferenceMetricsForSegmentation, \
+from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForClassification, InferenceMetricsForSegmentation, \
     compute_scalar_metrics
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
@@ -42,13 +42,11 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
 
-ModelTestResultType = Optional[Union[InferenceMetricsForSegmentation, InferenceMetricsForClassification]]
-
 
 def model_test(config: ModelConfigBase,
                data_split: ModelExecutionMode,
                run_recovery: Optional[RunRecovery] = None,
-               model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> ModelTestResultType:
+               model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Optional[InferenceMetrics]:
     """
     Runs model inference on segmentation or classification models, using a given dataset (that could be training,
     test or validation set). The inference results and metrics will be stored and logged in a way that may
@@ -447,9 +445,6 @@ def classification_model_test(config: ScalarModelBase,
             logging.warning("There is no checkpoint file for epoch {}".format(epoch))
         else:
             results[epoch] = epoch_result
-            # TODO: sort out when this folder gets written to!
-            results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc)
-            results_folder.mkdir(exist_ok=True, parents=True)
 
     if len(results) == 0:
         raise ValueError("There was no single checkpoint file available for model testing.")

@@ -40,7 +40,15 @@ TRAIN_STATS_FILE = "train_stats.csv"
 
 
 @dataclass(frozen=True)
-class InferenceMetricsForClassification:
+class InferenceMetrics:
+    """
+    Defined purely to serve as a superclass.
+    """
+    pass
+
+
+@dataclass(frozen=True)
+class InferenceMetricsForClassification(InferenceMetrics):
     """
     Stores a dictionary mapping from epoch number to the metrics that were achieved in that epoch.
     """
@@ -48,7 +56,7 @@ class InferenceMetricsForClassification:
 
 
 @dataclass(frozen=True)
-class InferenceMetricsForSegmentation:
+class InferenceMetricsForSegmentation(InferenceMetrics):
     """
     Stores metrics for segmentation models, per execution mode and epoch.
     """
