@@ -94,6 +94,7 @@ class WilcoxonTestConfig(GenericConfig):
                                  doc='csv file, typically created by plot_validation.py')
     data: Optional[pd.DataFrame] = param.DataFrame(default=None, doc='data, as pandas dataframe')
     with_scatterplots: bool = param.Boolean(default=False, doc='whether to generate scatterplots')
+    short_names: Dict[str, str] = param.Dict(doc='mapping from long to short names')
 
 
 def calculate_statistics(dist1: Dict[str, float], dist2: Dict[str, float], factor: float) -> Dict[str, float]:
@@ -250,6 +251,9 @@ def wilcoxon_signed_rank_test(args: WilcoxonTestConfig) -> Tuple[List[str], Dict
         data = convert_data(args.data)
     else:
         data = read_data(args.csv_file, args.subset, args.exclude.split(','))
+    # data has expt:run form keys
+    if args.short_names:
+        data = dict((args.short_names.get(key.split(':')[-1], key), val) for (key, val) in data.items())
     lines = run_wilcoxon_test_on_data(data, args.against, args.threshold, args.raw)
     plots = create_scatterplots(data, args.against) if args.with_scatterplots else {}
     return lines, plots

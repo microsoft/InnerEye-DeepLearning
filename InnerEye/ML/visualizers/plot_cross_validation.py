@@ -133,8 +133,13 @@ class PlotCrossValidationConfig(GenericConfig):
                                                                "cross-validation run")
     create_plots: bool = param.Boolean(default=True, doc="Whether to create plots; if False, just find outliers "
                                                          "and do statistical tests")
+    main_run_short_name: str = param.String(default="CURRENT", doc="Short name, to use in graphs, for main run")
+    comparison_run_short_names: List[str] = param.List(default=None, class_=str,
+                                                       doc="Short names, to use in graphs, for comparison runs")
 
     def __init__(self, **params: Any):
+        # Mapping from run IDs to short names used in graphs
+        self.short_names = {}
         super().__init__(**params)
 
     def validate(self) -> None:
@@ -142,7 +147,12 @@ class PlotCrossValidationConfig(GenericConfig):
             raise ValueError("--run_recovery_id is a mandatory parameter.")
         if self.is_segmentation and self.epoch is None:
             raise ValueError("When working on segmentation models, --epoch is a mandatory parameter.")
+        self.short_names[self.run_recovery_id] = self.main_run_short_name
+        for n in range(self.number_of_cross_validation_splits):
+            self.short_names[f"{self.run_recovery_id}_{n}"] = f"child_{n}"
         if self.comparison_run_recovery_ids is not None:
+            if self.comparison_run_short_names is None:
+                self.comparison_run_short_names = []
             # Extend comparison_epochs to be the same length as comparison_run_recovery_ids, using
             # the value of --epoch as the default if no value at all is given
             if self.comparison_epochs is None:
@@ -150,6 +160,12 @@ class PlotCrossValidationConfig(GenericConfig):
             n_needed = len(self.comparison_run_recovery_ids) - len(self.comparison_epochs)
             if n_needed > 0:
                 self.comparison_epochs.extend([self.comparison_epochs[-1]] * n_needed)
+            for idx, name in enumerate(self.comparison_run_recovery_ids):
+                if len(self.comparison_run_short_names) > idx:
+                    short_name = self.comparison_run_short_names[idx]
+                else:
+                    short_name = f"comparison_{idx}"
+                self.short_names[name] = short_name
 
     @property
     def azure_config(self) -> AzureConfig:
@@ -532,17 +548,14 @@ def convert_rows_for_comparisons(split_column_value: Optional[str],
     return df
 
 
-def shorten_split_names(metrics: pd.DataFrame) -> None:
+def shorten_split_names(config: PlotCrossValidationConfig, metrics: pd.DataFrame) -> None:
     """
     Replaces values in metrics[COL_SPLIT] by shortened versions consisting of the first 3 and last
     3 characters, separated by "..", when that string is shorter.
+    :param config: for finding short names
     :param metrics: data frame with a column named COL_SPLIT
     """
-    def shorten(name: str) -> str:
-        if len(name) <= 8:
-            return name
-        return f"{name[:3]}..{name[-3:]}"
-    metrics[COL_SPLIT] = metrics[COL_SPLIT].apply(shorten)
+    metrics[COL_SPLIT] = metrics[COL_SPLIT].apply(lambda name: config.short_names.get(name, name))
 
 
 def plot_metrics(config: PlotCrossValidationConfig,
@@ -560,7 +573,7 @@ def plot_metrics(config: PlotCrossValidationConfig,
             metrics: pd.DataFrame = pd.melt(df, id_vars=[COL_SPLIT, MetricsFileColumns.Structure.value],
                                             value_vars=[metric_type]) \
                 .sort_values(by=[COL_SPLIT, MetricsFileColumns.Structure.value])
-            shorten_split_names(metrics)
+            shorten_split_names(config, metrics)
             # create plot for the dataframe
             fig, ax = pyplot.subplots(figsize=(15.7, 8.27))
             ax = seaborn.boxplot(x='split', y='value',
@@ -697,7 +710,8 @@ def run_statistical_tests_on_file(root_folder: Path, full_csv_file: Path, option
     """
     against = None if options.compare_all_against_all else focus_splits
     config = WilcoxonTestConfig(csv_file=str(full_csv_file), with_scatterplots=options.create_plots, against=against,
-                                subset=options.evaluation_set_name, exclude='')
+                                subset=options.evaluation_set_name, exclude='',
+                                short_names=options.short_names)
     wilcoxon_lines, plots = wilcoxon_signed_rank_test(config)
     write_to_scatterplot_directory(root_folder, plots)
     may_write_lines_to_file(wilcoxon_lines, root_folder / WILCOXON_RESULTS_FILE)
