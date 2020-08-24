@@ -64,7 +64,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     # Create model.
     model = create_model_with_temperature_scaling(config)
 
-    mean_teacher_model = config.create_model() if config.compute_mean_teacher_model else None
+    mean_teacher_model = create_model_with_temperature_scaling(config) if config.compute_mean_teacher_model else None
 
     # Create the optimizer_type and loss criterion
     optimizer: Optional[Optimizer] = model_util.create_optimizer(config, model)

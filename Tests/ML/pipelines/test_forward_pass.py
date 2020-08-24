@@ -221,7 +221,7 @@ def test_mean_teacher_model() -> None:
     # Get the starting weight of the mean teacher model
     ml_util.set_random_seed(config.random_seed)
     _ = create_model_with_temperature_scaling(config)
-    mean_teach_model = config.create_model()
+    mean_teach_model = create_model_with_temperature_scaling(config)
     initial_weight_mean_teacher_model = next(_get_parameters_of_model(mean_teach_model))
 
     # Now train with mean teacher and check the update of the weight
@@ -230,7 +230,7 @@ def test_mean_teacher_model() -> None:
     model_train(config)
 
     # Retrieve weight of mean teacher model saved in the checkpoint
-    mean_teacher_model = config.create_model()
+    mean_teacher_model = create_model_with_temperature_scaling(config)
     _ = model_util.load_checkpoint(mean_teacher_model, config.get_path_to_checkpoint(1, for_mean_teacher_model=True))
     result_weight = next(_get_parameters_of_model(mean_teacher_model))
     # Retrieve the associated student weight
