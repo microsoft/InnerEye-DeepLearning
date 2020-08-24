@@ -19,7 +19,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import pandas as pd
 import param
@@ -133,9 +133,6 @@ class PlotCrossValidationConfig(GenericConfig):
                                                                "cross-validation run")
     create_plots: bool = param.Boolean(default=True, doc="Whether to create plots; if False, just find outliers "
                                                          "and do statistical tests")
-    main_run_short_name: str = param.String(default="CURRENT", doc="Short name, to use in graphs, for main run")
-    comparison_run_short_names: List[str] = param.List(default=None, class_=str,
-                                                       doc="Short names, to use in graphs, for comparison runs")
 
     def __init__(self, **params: Any):
         # Mapping from run IDs to short names used in graphs
@@ -147,12 +144,7 @@ class PlotCrossValidationConfig(GenericConfig):
             raise ValueError("--run_recovery_id is a mandatory parameter.")
         if self.is_segmentation and self.epoch is None:
             raise ValueError("When working on segmentation models, --epoch is a mandatory parameter.")
-        self.short_names[self.run_recovery_id] = self.main_run_short_name
-        for n in range(self.number_of_cross_validation_splits):
-            self.short_names[f"{self.run_recovery_id}_{n}"] = f"child_{n}"
         if self.comparison_run_recovery_ids is not None:
-            if self.comparison_run_short_names is None:
-                self.comparison_run_short_names = []
             # Extend comparison_epochs to be the same length as comparison_run_recovery_ids, using
             # the value of --epoch as the default if no value at all is given
             if self.comparison_epochs is None:
@@ -160,12 +152,17 @@ class PlotCrossValidationConfig(GenericConfig):
             n_needed = len(self.comparison_run_recovery_ids) - len(self.comparison_epochs)
             if n_needed > 0:
                 self.comparison_epochs.extend([self.comparison_epochs[-1]] * n_needed)
-            for idx, name in enumerate(self.comparison_run_recovery_ids):
-                if len(self.comparison_run_short_names) > idx:
-                    short_name = self.comparison_run_short_names[idx]
-                else:
-                    short_name = f"comparison_{idx}"
-                self.short_names[name] = short_name
+
+    def get_short_name(self, run_or_id: Union[Run, str]) -> str:
+        if isinstance(run_or_id, Run):
+            run_id = run_or_id.id
+            if run_id not in self.short_names:
+                self.short_names[run_id] = f"{run_or_id.experiment.name}:{run_or_id.number}"
+        else:
+            run_id = run_or_id.split(":")[-1]
+            if run_id not in self.short_names:
+                self.short_names[run_or_id] = run_id
+        return self.short_names[run_id]
 
     @property
     def azure_config(self) -> AzureConfig:
@@ -351,7 +348,6 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         run_recovery_id = config.run_recovery_id
     if epoch is None:
         epoch = config.epoch
-    parent = None
     if run_recovery_id:
         workspace = config.azure_config.get_workspace()
         parent = fetch_run(workspace, run_recovery_id)
@@ -388,6 +384,8 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
             loop_over.append((run, split_index, split_suffix, run_recovery_id))
 
     for run, split_index, split_suffix, run_recovery_id in loop_over:
+        if run is not None:
+            config.get_short_name(run)
         config.local_run_result_split_suffix = split_suffix
         # When run is the parent run, we need to look on the local disc.
         # If (as expected) dataset.csv is not already present, we copy it from the top of the outputs directory.
@@ -555,7 +553,7 @@ def shorten_split_names(config: PlotCrossValidationConfig, metrics: pd.DataFrame
     :param config: for finding short names
     :param metrics: data frame with a column named COL_SPLIT
     """
-    metrics[COL_SPLIT] = metrics[COL_SPLIT].apply(lambda name: config.short_names.get(name, name))
+    metrics[COL_SPLIT] = metrics[COL_SPLIT].apply(config.get_short_name)
 
 
 def plot_metrics(config: PlotCrossValidationConfig,
@@ -710,9 +708,8 @@ def run_statistical_tests_on_file(root_folder: Path, full_csv_file: Path, option
     """
     against = None if options.compare_all_against_all else focus_splits
     config = WilcoxonTestConfig(csv_file=str(full_csv_file), with_scatterplots=options.create_plots, against=against,
-                                subset=options.evaluation_set_name, exclude='',
-                                short_names=options.short_names)
-    wilcoxon_lines, plots = wilcoxon_signed_rank_test(config)
+                                subset=options.evaluation_set_name, exclude='')
+    wilcoxon_lines, plots = wilcoxon_signed_rank_test(config, name_shortener=options.get_short_name)
     write_to_scatterplot_directory(root_folder, plots)
     may_write_lines_to_file(wilcoxon_lines, root_folder / WILCOXON_RESULTS_FILE)
     mann_whitney_lines = mann_whitney.compare_scores_across_institutions(
