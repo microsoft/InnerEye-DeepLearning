@@ -15,7 +15,6 @@ from InnerEye.ML.models.architectures.base_model import BaseModel
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.utils import image_util
-from InnerEye.ML.utils.model_util import BaseModelOrDataParallelModel
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -83,7 +82,7 @@ def test_inference_identity(image_size: Any,
         expected_segmentation = largest_component
 
     # instantiate the model
-    model: BaseModelOrDataParallelModel = PyTorchMockModel(shrink_by)
+    model: torch.nn.Module = PyTorchMockModel(shrink_by)
     model_config.adjust_after_mixed_precision_and_parallel(model)
 
     # create single or ensemble inference pipeline

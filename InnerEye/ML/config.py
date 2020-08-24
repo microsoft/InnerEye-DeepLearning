@@ -22,6 +22,7 @@ from InnerEye.Common.type_annotations import TupleFloat2, TupleFloat3, TupleInt3
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
+from InnerEye.ML.models.architectures.base_model import BaseModel
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 DATASET_ID_FILE = "dataset_id.txt"
@@ -721,13 +722,13 @@ class SegmentationModelBase(ModelConfigBase):
                 for mode in ModelExecutionMode if len(dataset_splits[mode]) > 0
             }
 
-    def create_model(self) -> Any:
+    def create_model(self) -> BaseModel:
         """
         Creates a PyTorch model from the settings stored in the present object.
 
         :return: The network model as a torch.nn.Module object
         """
-        # Use a local import here to avoid reliance on pytorch too early
+        # Use a local import here to avoid reliance on pytorch too early.
         from InnerEye.ML.utils.model_util import build_net
         return build_net(self)
 

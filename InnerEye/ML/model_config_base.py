@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 import pandas as pd
+import torch
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 from pandas import DataFrame
@@ -15,6 +16,7 @@ from pandas import DataFrame
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES, TrackedMetrics
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.models.architectures.base_model import BaseModel
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 
@@ -136,7 +138,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
             ModelExecutionMode.VAL: val_loader
         }
 
-    def create_model(self) -> Any:
+    def create_model(self) -> BaseModel:
         """
         Creates a torch model from the provided arguments and returns a torch.nn.Module object.
         This is an abstract method that each model class (segmentation, regression) should override.

@@ -32,8 +32,6 @@ from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, is_gpu_available
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 
-BaseModelOrDataParallelModel = Union[BaseModel, DataParallelModel]
-
 
 @dataclass
 class ModelAndInfo:
@@ -45,7 +43,7 @@ class ModelAndInfo:
       is_adjusted: whether model adjustments (which cannot be done twice) have been applied
       checkpoint_epoch: the training epoch this model was created, if loaded from disk
     """
-    model: BaseModelOrDataParallelModel
+    model: BaseModel
     optimizer: Optional[Optimizer] = None
     is_mean_teacher: bool = False
     is_adjusted: bool = False
@@ -261,7 +259,7 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
     random_state.restore_random_state()
 
 
-def load_checkpoint(model: torch.nn.DataParallel,
+def load_checkpoint(model: torch.nn.Module,
                     path_to_checkpoint: Path,
                     optimizer: Optional[Optimizer] = None) -> Optional[int]:
     """
@@ -340,7 +338,7 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     # Create model if necessary
     if model_and_info is None:
         model_and_info = ModelAndInfo(model_config.create_model())
-    # Load the stored model. If there is not checkpoint present, return immediately.
+    # Load the stored model. If there is no checkpoint present, return immediately.
     model_and_info.checkpoint_epoch = load_checkpoint(model=model_and_info.model,
                                                       path_to_checkpoint=path_to_checkpoint,
                                                       optimizer=model_and_info.optimizer)

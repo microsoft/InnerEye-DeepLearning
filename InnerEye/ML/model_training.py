@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from time import time
 from typing import List, Optional, TypeVar
 
+from torch.nn import DataParallel
+
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import empty_string_to_none
@@ -57,8 +59,8 @@ class ModelTrainingResult:
                                     len(self.learning_rates_per_epoch)))
 
 
-def load_checkpoint(run_recovery: Optional[RunRecovery], config: ModelConfigBase,
-                    model_and_info: ModelAndInfo) -> ModelAndInfo:
+def load_checkpoint_from_model_and_info(run_recovery: Optional[RunRecovery], config: ModelConfigBase,
+                                        model_and_info: ModelAndInfo) -> ModelAndInfo:
     is_mean_teacher = model_and_info.is_mean_teacher
     checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch, is_mean_teacher)[0] \
         if run_recovery else config.get_path_to_checkpoint(config.start_epoch, is_mean_teacher)
@@ -98,7 +100,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # If continuing from a previous run at a specific epoch, then load the previous model
     if config.should_load_checkpoint_for_training():
-        models_and_optimizers = [load_checkpoint(run_recovery, config, model_and_info)
+        models_and_optimizers = [load_checkpoint_from_model_and_info(run_recovery, config, model_and_info)
                                  for model_and_info in models_and_optimizers]
     # Otherwise, create checkpoint directory for this run
     else:
@@ -120,6 +122,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     config.create_dataframe_loggers()
 
     model = models_and_optimizers[0].model
+    assert isinstance(model, DataParallel)  # for mypy, later
     optimizer = models_and_optimizers[0].optimizer
     mean_teacher_model = models_and_optimizers[1].model if len(models_and_optimizers) > 1 else None
 
@@ -171,6 +174,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         if config.should_save_epoch(epoch) and optimizer is not None:
             save_checkpoint(model, optimizer, epoch, config)
             if config.compute_mean_teacher_model:
+                assert mean_teacher_model is not None
                 save_checkpoint(mean_teacher_model, optimizer, epoch, config, mean_teacher_model=True)
 
         # Updating the learning rate should happen at the end of the training loop, so that the
