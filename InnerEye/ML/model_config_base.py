@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 import pandas as pd
-import torch
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 from pandas import DataFrame
@@ -138,7 +137,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
             ModelExecutionMode.VAL: val_loader
         }
 
-    def create_model(self) -> BaseModel:
+    def create_model(self) -> "BaseModel":
         """
         Creates a torch model from the provided arguments and returns a torch.nn.Module object.
         This is an abstract method that each model class (segmentation, regression) should override.
