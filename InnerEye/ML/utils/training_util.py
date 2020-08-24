@@ -16,7 +16,7 @@ from InnerEye.Common.metrics_dict import MetricsDict
 @dataclass
 class ModelForwardAndBackwardsOutputs:
     loss: float
-    non_normalized_logits: Union[torch.Tensor, np.ndarray]
+    logits: Union[torch.Tensor, np.ndarray]
     labels: Union[torch.Tensor, np.ndarray]
 
 
@@ -26,8 +26,8 @@ class ModelOutputsAndMetricsForEpoch:
     model_outputs: List[ModelForwardAndBackwardsOutputs]
     is_train: bool
 
-    def get_non_normalized_logits(self) -> torch.Tensor:
-        return torch.cat([x.non_normalized_logits for x in self.model_outputs])
+    def logits(self) -> torch.Tensor:
+        return torch.cat([x.logits for x in self.model_outputs])
 
     def get_labels(self) -> torch.Tensor:
         return torch.cat([x.labels for x in self.model_outputs])
@@ -43,7 +43,7 @@ class ModelTrainingResults:
     learning_rates_per_epoch: List[List[float]]
 
     def get_logits(self, training: bool) -> torch.Tensor:
-        return torch.cat([x.get_non_normalized_logits() for x in
+        return torch.cat([x.logits() for x in
                           (self.train_results_per_epoch if training else self.val_results_per_epoch)])
 
     def get_labels(self, training: bool) -> torch.Tensor:
