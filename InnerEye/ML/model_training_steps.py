@@ -2,19 +2,19 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
 import time
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
 
+import logging
 import numpy as np
 import param
 import torch.cuda
 import torch.utils.data
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from torch.nn import MSELoss
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
+from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import MetricsDataframeLoggers
@@ -383,7 +383,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
 
         return ModelForwardAndBackwardsOutputs(
             loss=loss.item(),
-            non_normalized_logits=model_output.detach().cpu(),
+            logits=model_output.detach().cpu(),
             labels=model_inputs_and_labels.labels
         )
 
@@ -440,13 +440,13 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                       model_inputs: List[torch.Tensor],
                       labels: torch.Tensor) -> None:
         filenames = [f"{epoch}_viz_{id}" for id in subject_ids]
-        # self.guided_grad_cam.save_visualizations_in_notebook(
-        #     classification_item,  # type: ignore
-        #     model_inputs,
-        #     filenames,
-        #     ground_truth_labels=labels.cpu().numpy(),
-        #     gradcam_dir=self.model_config.visualization_folder
-        # )
+        self.guided_grad_cam.save_visualizations_in_notebook(
+            classification_item,  # type: ignore
+            model_inputs,
+            filenames,
+            ground_truth_labels=labels.cpu().numpy(),
+            gradcam_dir=self.model_config.visualization_folder
+        )
 
     def update_mean_teacher_parameters(self) -> None:
         """
@@ -505,18 +505,20 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
         return criterion(masked_model_outputs_and_labels.model_outputs, masked_model_outputs_and_labels.labels)
 
     def perform_calibration(self, logits: torch.Tensor, labels: torch.Tensor) -> None:
-        _model = self.train_val_params.model
+        _model: Union[DeviceAwareModule, DataParallelModel] = self.train_val_params.model
+        assert self.model_config.temperature_scaling_config is not None
         ece_criterion: ECELoss = ECELoss(activation=self.model_config.get_post_loss_logits_normalization_function(),
                                          n_bins=self.model_config.temperature_scaling_config.ece_num_bins)
 
         if torch.cuda.is_available():
             ece_criterion = ece_criterion.cuda()
-        if isinstance(self.train_val_params.model, DataParallelModel):
-            _model = _model.module
+        if isinstance(_model, DataParallelModel):
+            _model = _model.get_module()
 
         def _forward_criterion(_logits: torch.Tensor, _labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
             loss = self.forward_criterion(_logits, _labels)
             masked_model_outputs_and_labels = get_masked_model_outputs_and_labels(_logits, _labels)
+            assert masked_model_outputs_and_labels is not None
             ece = ece_criterion(masked_model_outputs_and_labels.model_outputs.data.unsqueeze(dim=0),
                                 masked_model_outputs_and_labels.labels.data.unsqueeze(dim=0))
             return loss, ece
@@ -650,7 +652,7 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
 
         return ModelForwardAndBackwardsOutputs(
             loss=loss,
-            non_normalized_logits=forward_pass_result.posteriors,
+            logits=forward_pass_result.posteriors,
             labels=forward_pass_result.segmentations
         )
 

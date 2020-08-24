@@ -6,10 +6,8 @@ Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Callable, List, Optional, Tuple
-
 import torch
-from torch.optim import LBFGS
+from typing import Callable, List, Optional, Tuple
 
 from InnerEye.Common.type_annotations import T
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
@@ -31,7 +29,7 @@ class ModelWithTemperature(DeviceAwareModule):
         self.temperature = torch.nn.Parameter(torch.ones(1, device=next(model.parameters()).device) * 1.0,
                                               requires_grad=True)
 
-    def forward(self, *x: torch.Tensor) -> torch.Tensor:
+    def forward(self, *x: torch.Tensor) -> torch.Tensor:  # type: ignore
         logits = self.model(*x)
         return self.temperature_scale(logits)
 
@@ -65,8 +63,8 @@ class ModelWithTemperature(DeviceAwareModule):
               .format(before_temperature_loss.item(), before_temperature_ece.item()))
 
         # Next: optimize the temperature w.r.t. the provided criterion function
-        optimizer = LBFGS([self.temperature], lr=self.temperature_scaling_config.lr,
-                          max_iter=self.temperature_scaling_config.max_iter)
+        optimizer = torch.optim.LBFGS([self.temperature], lr=self.temperature_scaling_config.lr,
+                                      max_iter=self.temperature_scaling_config.max_iter)  # type: ignore
 
         def eval_criterion() -> torch.Tensor:
             loss, ece = criterion_fn(self.temperature_scale(logits), labels)

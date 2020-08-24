@@ -3,11 +3,10 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from dataclasses import dataclass
-from typing import List, Optional, Union
-
 import numpy as np
 import torch
+from dataclasses import dataclass
+from typing import List, Union
 
 from InnerEye.Common import common_util
 from InnerEye.Common.metrics_dict import MetricsDict
@@ -15,6 +14,9 @@ from InnerEye.Common.metrics_dict import MetricsDict
 
 @dataclass
 class ModelForwardAndBackwardsOutputs:
+    """
+    Dataclass to store results from a single model forward and backwards pass.
+    """
     loss: float
     logits: Union[torch.Tensor, np.ndarray]
     labels: Union[torch.Tensor, np.ndarray]
@@ -22,11 +24,17 @@ class ModelForwardAndBackwardsOutputs:
 
 @dataclass
 class ModelOutputsAndMetricsForEpoch:
-    metrics: Optional[MetricsDict]
+    """
+    Dataclass to store results from a single epoch.
+    """
+    metrics: MetricsDict
     model_outputs: List[ModelForwardAndBackwardsOutputs]
     is_train: bool
 
-    def logits(self) -> torch.Tensor:
+    def __post_init__(self) -> None:
+        common_util.check_properties_are_not_none(self, ignore=["metrics"])
+
+    def get_logits(self) -> torch.Tensor:
         return torch.cat([x.logits for x in self.model_outputs])
 
     def get_labels(self) -> torch.Tensor:
@@ -43,7 +51,7 @@ class ModelTrainingResults:
     learning_rates_per_epoch: List[List[float]]
 
     def get_logits(self, training: bool) -> torch.Tensor:
-        return torch.cat([x.logits() for x in
+        return torch.cat([x.get_logits() for x in
                           (self.train_results_per_epoch if training else self.val_results_per_epoch)])
 
     def get_labels(self, training: bool) -> torch.Tensor:

@@ -2,17 +2,18 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from time import time
+
 import argparse
 import logging
 import os
-from time import time
-from typing import Optional, TypeVar
-
 import torch
 from torch.optim.optimizer import Optimizer
+from typing import Optional, TypeVar
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common.common_util import empty_string_to_none
+from InnerEye.Common.metrics_dict import MetricsDict
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML import metrics
 from InnerEye.ML.common import ModelExecutionMode
@@ -126,7 +127,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         epoch_lrs = l_rate_scheduler.get_last_lr()
         learning_rates_per_epoch.append(epoch_lrs)
 
-        train_val_params = \
+        train_val_params: TrainValidateParameters = \
             TrainValidateParameters(data_loader=data_loaders[ModelExecutionMode.TRAIN],
                                     model=model,
                                     mean_teacher_model=mean_teacher_model,
@@ -161,7 +162,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         if save_epoch:
             if isinstance(config, ScalarModelBase) and config.temperature_scaling_config:
                 # perform temperature scaling
-                logits = torch.cat([x.logits() for x in val_results_per_epoch])
+                logits = torch.cat([x.get_logits() for x in val_results_per_epoch])
                 labels = torch.cat([x.get_labels() for x in val_results_per_epoch])
                 training_steps.perform_calibration(logits, labels)
                 # recompute the validation set results for the temperature scaled model
@@ -169,6 +170,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                 # overwrite the metrics for the epoch with the metrics from the temperature scaled model
                 val_results_per_epoch[-1] = val_epoch_results
 
+            assert optimizer is not None
             save_checkpoint(model, optimizer, epoch, config)
             if config.compute_mean_teacher_model:
                 save_checkpoint(mean_teacher_model, optimizer, epoch, config, mean_teacher_model=True)
@@ -202,8 +204,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutputsAndMetricsForEpoch:
     """
     Trains or validates the model for one epoch.
-    :param config: The arguments object, which contains useful information for training
-    :param train_val_params: The TrainValidateParameters object defining the network and data
+    :param training_steps: Training pipeline to use.
     :returns: The results for training or validation. Result type depends on the type of model that is trained.
     """
     epoch_start_time = time()
@@ -267,7 +268,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutp
                         f"threshold. The total loading time for the slow batches was {total_extra_load_time:0.2f}sec.")
 
     _metrics = training_steps.get_epoch_results_and_store(epoch_time_seconds) \
-        if train_val_params.save_metrics else None
+        if train_val_params.save_metrics else MetricsDict()
     return ModelOutputsAndMetricsForEpoch(
         metrics=_metrics,
         model_outputs=model_outputs_epoch,

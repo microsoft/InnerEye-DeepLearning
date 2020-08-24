@@ -2,15 +2,15 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from io import StringIO
-from typing import Any, List, Optional, Tuple
 from unittest import mock
 
 import numpy as np
 import pandas as pd
 import pytest
 import torch
+from io import StringIO
 from torch.cuda import device_count
+from typing import Any, List, Optional, Tuple
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import METRICS_FILE_NAME, logging_to_stdout
@@ -380,8 +380,8 @@ def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) ->
 
     # Verify that the loss values for both training and validation sets are below target range.
     # In the future, please do not fix these loss values to a fixed number as the models can be improved over time.
-    actual_train_loss = results.train_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
-    actual_val_loss = results.val_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
+    actual_train_loss = results.train_results_per_epoch[-1].metrics.values()[MetricType.LOSS.value][0]
+    actual_val_loss = results.val_results_per_epoch[-1].metrics.values()[MetricType.LOSS.value][0]
     print(f"Training loss after {config.num_epochs} epochs: {actual_train_loss}")
     print(f"Validation loss after {config.num_epochs} epochs: {actual_val_loss}")
     assert actual_train_loss <= expected_max_train_loss, "Training loss too high"
