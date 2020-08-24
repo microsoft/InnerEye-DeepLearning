@@ -226,6 +226,8 @@ class MLRunner:
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
             if registration_epoch is None:
                 if self.should_register_model():
+                    assert test_metrics is None or isinstance(test_metrics, InferenceMetricsForSegmentation)
+                    assert val_metrics is None or isinstance(val_metrics, InferenceMetricsForSegmentation)
                     self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics, model_proc)
             self.try_compare_scores_against_baselines(model_proc)
         else:
