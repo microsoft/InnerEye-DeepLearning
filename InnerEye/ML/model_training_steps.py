@@ -2,19 +2,19 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import time
-
 import logging
+import time
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
+
 import numpy as np
 import param
 import torch.cuda
 import torch.utils.data
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from torch.nn import MSELoss
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
-from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import MetricsDataframeLoggers
@@ -170,8 +170,6 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         """
         return self.criterion(model_output, labels)
 
-    def perform_calibration(self, logits: torch.Tensor, labels: torch.Tensor) -> None:
-        pass
 
 
 @dataclass
@@ -504,7 +502,12 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
 
         return criterion(masked_model_outputs_and_labels.model_outputs, masked_model_outputs_and_labels.labels)
 
-    def perform_calibration(self, logits: torch.Tensor, labels: torch.Tensor) -> None:
+    def learn_temperature_scale_parameter(self, logits: torch.Tensor, labels: torch.Tensor) -> None:
+        """
+        Uses the provided logits and labels to learn a temperature scale parameter.
+        :param logits: Logits to use in order to learn a temperature scale parameter
+        :param labels: Labels to use in order to learn a temperature scale parameter
+        """
         _model: Union[DeviceAwareModule, DataParallelModel] = self.train_val_params.model
         assert self.model_config.temperature_scaling_config is not None
         ece_criterion: ECELoss = ECELoss(activation=self.model_config.get_post_loss_logits_normalization_function(),

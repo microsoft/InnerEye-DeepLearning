@@ -1,13 +1,11 @@
-"""
-Copyright (c) Microsoft Corporation. All rights reserved.
-"""
 #  ------------------------------------------------------------------------------------------
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import torch
 from typing import Callable, List, Optional, Tuple
+
+import torch
 
 from InnerEye.Common.type_annotations import T
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
@@ -17,16 +15,14 @@ from InnerEye.ML.utils.device_aware_module import DeviceAwareModule, E
 
 class ModelWithTemperature(DeviceAwareModule):
     """
-    Torch nn module to wrap a model with temperature scaling.
-    model (nn.Module):
-        A classification neural network, output of the neural network should be the classification logits.
+    Torch module to wrap a model with temperature scaling.
     """
 
     def __init__(self, model: DeviceAwareModule, temperature_scaling_config: TemperatureScalingConfig):
         super().__init__()
         self.model = model
         self.temperature_scaling_config = temperature_scaling_config
-        self.temperature = torch.nn.Parameter(torch.ones(1, device=next(model.parameters()).device) * 1.0,
+        self.temperature = torch.nn.Parameter(torch.ones(1, device=next(model.parameters()).device) * 1.5,
                                               requires_grad=True)
 
     def forward(self, *x: torch.Tensor) -> torch.Tensor:  # type: ignore
@@ -52,6 +48,10 @@ class ModelWithTemperature(DeviceAwareModule):
                         logger: Optional[AzureAndTensorboardLogger] = None) -> None:
         """
         Tune the temperature of the model using the provided logits and labels.
+        :param logits: Logits to use to learn the temperature parameter
+        :param labels: Labels to use to learn the temperature parameter
+        :param criterion_fn: A criterion function s.t: (logits, labels) => (loss, ECE)
+        :param logger: If provided, the intermediate loss and ECE values in the optimization will be reported
         """
         if torch.cuda.is_available():
             logits = logits.cuda()

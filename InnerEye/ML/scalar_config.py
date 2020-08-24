@@ -14,7 +14,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, OneHotEncoderBase
-from InnerEye.ML.deep_learning_config import ModelCategory, TemperatureScalingConfig
+from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.split_dataset import DatasetSplits
@@ -176,19 +176,9 @@ class ScalarModelBase(ModelConfigBase):
                                                                              instantiate=False,
                                                                              doc="The aggregation method to use when"
                                                                                  "testing ensemble models.")
-    temperature_scaling_config: Optional[TemperatureScalingConfig] = param.ClassSelector(
-        class_=TemperatureScalingConfig,
-        allow_None=True,
-        default=TemperatureScalingConfig(),
-        doc="If a config is provided then it will be used to learn a temperature scaling parameter using the "
-            "validation set to calibrate the model logits see: https://arxiv.org/abs/1706.04599 for each "
-            "epoch that requires a checkpoint to be saved. Turned on by default.")
 
     def __init__(self, num_dataset_reader_workers: int = 0, **params: Any) -> None:
         super().__init__(**params)
-        if self.temperature_scaling_config:
-            logging.info(f"Temperature scaling will be performed on the "
-                         f"validation set using the config: {self.temperature_scaling_config}")
         self._model_category = ModelCategory.Scalar
         if not self.is_offline_run:
             self.num_dataset_reader_workers = 0

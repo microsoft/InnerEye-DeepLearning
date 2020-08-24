@@ -2,11 +2,13 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 from typing import Any, Dict, List, Optional
 
 import param
 
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
@@ -39,10 +41,21 @@ class SequenceModelBase(ScalarModelBase):
                        "with positions [2, 3, 4, 5], and sequence_target_position==[2,5], the model would be evaluated "
                        "on the first and last sequence elements.")
 
+    temperature_scaling_config: Optional[TemperatureScalingConfig] = param.ClassSelector(
+        class_=TemperatureScalingConfig,
+        allow_None=True,
+        default=TemperatureScalingConfig(),
+        doc="If a config is provided then it will be used to learn a temperature scaling parameter using the "
+            "validation set to calibrate the model logits see: https://arxiv.org/abs/1706.04599 for each "
+            "epoch that requires a checkpoint to be saved. Turned on by default.")
+
     def __init__(self, **params: Any):
         super().__init__(**params)
         if len(self.sequence_target_positions) == 0:
             raise ValueError("sequence_target_positions must not be empty")
+        if self.temperature_scaling_config:
+            logging.info(f"Temperature scaling will be performed on the "
+                         f"validation set using the config: {self.temperature_scaling_config}")
 
     def get_target_indices(self) -> List[int]:
         """

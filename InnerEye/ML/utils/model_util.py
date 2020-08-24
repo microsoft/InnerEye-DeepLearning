@@ -26,6 +26,7 @@ from InnerEye.ML.models.architectures.unet_3d import UNet3D
 from InnerEye.ML.models.layers.basic import BasicLayer
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, is_gpu_available
@@ -332,6 +333,6 @@ def create_model_with_temperature_scaling(config: ModelConfigBase) -> Any:
     """
     # wrap the model around a temperature scaling model if required
     model = config.create_model()
-    if isinstance(config, ScalarModelBase) and config.temperature_scaling_config:
+    if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
         model = ModelWithTemperature(model, config.temperature_scaling_config)
     return model
