@@ -506,18 +506,18 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
 
     def perform_calibration(self, logits: torch.Tensor, labels: torch.Tensor) -> None:
         _model = self.train_val_params.model
-        ece_criterion: ECELoss = ECELoss()
+        ece_criterion: ECELoss = ECELoss(activation=self.model_config.get_post_loss_logits_normalization_function())
         if torch.cuda.is_available():
             ece_criterion = ece_criterion.cuda()
         if isinstance(self.train_val_params.model, DataParallelModel):
             _model = _model.module
 
         def _forward_criterion(_logits, _labels) -> Tuple[torch.Tensor, torch.Tensor]:
-            nll = self.forward_criterion(_logits, _labels)
+            loss = self.forward_criterion(_logits, _labels)
             masked_model_outputs_and_labels = get_masked_model_outputs_and_labels(_logits, _labels)
             ece = ece_criterion(masked_model_outputs_and_labels.model_outputs.data.unsqueeze(dim=0),
                                 masked_model_outputs_and_labels.labels.data.unsqueeze(dim=0))
-            return nll, ece
+            return loss, ece
 
         _model.set_temperature(
             logits=logits,
