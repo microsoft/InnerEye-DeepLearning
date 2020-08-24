@@ -5,14 +5,15 @@ channels:
   - conda-forge
 dependencies:
   - cudatoolkit=10.2
-  - nvidia-apex=0.1
+  # - nvidia-apex=0.1
   - pip=20.1.1
   - python=3.7.3
   - pytorch=1.6.0
   - python-blosc=1.7.0
   - torchvision=0.7.0
   - pip:
-      - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radi
+      - git+https://github.com/ptrblck/apex.git@4ad9b3b#egg=apex
+      - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - azureml-mlflow==1.12.0
       - azureml-sdk==1.12.0
       - azureml-tensorboard==1.12.0

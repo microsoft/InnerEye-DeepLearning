@@ -135,7 +135,6 @@ def test_amp_activated(use_model_parallel: bool,
     model = model.cuda()
 
     optimizer = model_util.create_optimizer(model_config, model)
-    model_amp = optimizer_amp = None
     try:
         model_amp, optimizer_amp = model_util.update_model_for_mixed_precision_and_parallel(model,
                                                                                             model_config,
