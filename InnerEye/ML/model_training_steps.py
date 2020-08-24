@@ -305,7 +305,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         :param model_inputs: input to evaluate the model on
         :param use_mean_teacher_model: If True, logits and outputs are produced for the mean teacher model. Else
         logits and outputs are produced for the standard (student) model.
-        :return: Tuple (logits, model_output).
+        :return: Tuple (logits, model_output, model_output_normalized).
         """
         if use_mean_teacher_model:
             logits = self.train_val_params.mean_teacher_model(*model_inputs)
