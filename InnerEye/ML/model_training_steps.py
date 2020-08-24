@@ -296,7 +296,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         return self.model_config.get_gpu_tensor_if_possible(labels)
 
     def get_logits_and_outputs(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
-        -> Tuple[torch.Tensor, torch.Tensor]:
+        -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Returns a Tuple containing the logits and the final model output. Note that the logits might be
         distributed over multiple GPU if the model is an instance of DataParallel. In this case, the model outputs on
@@ -317,8 +317,8 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             model_output = torch.nn.parallel.gather(logits, target_device=0)
         else:
             model_output = logits
-        model_output = self.model_config.get_post_loss_logits_normalization_function()(model_output)
-        return logits, model_output
+        model_output_normalized = self.model_config.get_post_loss_logits_normalization_function()(model_output)
+        return logits, model_output, model_output_normalized
 
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
                                        batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
@@ -335,11 +335,13 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
 
         if self.in_training_mode:
             model.train()
-            logits, model_output = self.get_logits_and_outputs(*model_inputs_and_labels.model_inputs)
+            logits, model_output, model_output_normalized = \
+                self.get_logits_and_outputs(*model_inputs_and_labels.model_inputs)
         else:
             model.eval()
             with torch.no_grad():
-                logits, model_output = self.get_logits_and_outputs(*model_inputs_and_labels.model_inputs)
+                logits, model_output, model_output_normalized = \
+                    self.get_logits_and_outputs(*model_inputs_and_labels.model_inputs)
             model.train()
 
         label_gpu = self.get_label_tensor(model_inputs_and_labels.labels)
@@ -355,8 +357,9 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             # instead of the output of the student model.
             mean_teacher_model.eval()
             with torch.no_grad():
-                _, model_output = self.get_logits_and_outputs(*model_inputs_and_labels.model_inputs,
-                                                              use_mean_teacher_model=True)
+                _, model_output, model_output_normalized = self.get_logits_and_outputs(
+                    *model_inputs_and_labels.model_inputs,
+                    use_mean_teacher_model=True)
 
         if self._should_save_grad_cam_output(epoch=epoch, batch_index=batch_index):
             self.save_grad_cam(epoch, model_inputs_and_labels.subject_ids,
@@ -366,7 +369,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
 
         if self.train_val_params.save_metrics:
             self.metrics.add_metric(MetricType.LOSS, loss.item())
-            self.update_metrics(model_inputs_and_labels.subject_ids, model_output, label_gpu)
+            self.update_metrics(model_inputs_and_labels.subject_ids, model_output_normalized, label_gpu)
             logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
             minibatch_time = time.time() - start_time
             self.metrics.add_metric(MetricType.SECONDS_PER_BATCH, minibatch_time)
@@ -380,7 +383,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
 
         return ModelForwardAndBackwardsOutputs(
             loss=loss.item(),
-            logits=model_output.detach().cpu(),
+            non_normalized_logits=model_output.detach().cpu(),
             labels=model_inputs_and_labels.labels
         )
 

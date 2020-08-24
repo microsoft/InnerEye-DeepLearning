@@ -161,7 +161,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         if save_epoch:
             if isinstance(config, ScalarModelBase) and config.temperature_scaling_config:
                 # perform temperature scaling
-                logits = torch.cat([x.get_logits() for x in val_results_per_epoch])
+                logits = torch.cat([x.get_non_normalized_logits() for x in val_results_per_epoch])
                 labels = torch.cat([x.get_labels() for x in val_results_per_epoch])
                 training_steps.perform_calibration(logits, labels)
                 # recompute the validation set results for the temperature scaled model
