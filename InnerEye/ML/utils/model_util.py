@@ -140,6 +140,7 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
     :return: Updated torch model and optimizer.
     """
     if model_and_info.is_adjusted:
+        logging.info("DBG: model_and_info.is_adjusted is already True")
         return model_and_info
     if args.use_gpu:
         # In the normal training codepath, the model should already be on the GPU, but in some tests not.
@@ -178,6 +179,7 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
         model_and_info.set_data_parallel(device_ids=args.get_cuda_devices())
 
     model_and_info.is_adjusted = True
+    logging.info("DBG: model_and_info.is_adjusted set to True")
     return model_and_info
 
 
