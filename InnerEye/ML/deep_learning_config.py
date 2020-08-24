@@ -71,9 +71,11 @@ class MultiprocessingStartMethod(Enum):
 class TemperatureScalingConfig(Parameterized):
     """High level config to encapsulate temperature scaling parameters"""
     lr: float = param.Number(default=0.02, doc="The learning rate to use for the optimizer used to learn the "
-                                        "temperature scaling parameter")
+                                               "temperature scaling parameter")
     max_iter: int = param.Number(default=50, doc="The maximum number of optimization iterations to use in order to "
-                                            "use when learning the temperature scaling parameter")
+                                                 "use when learning the temperature scaling parameter")
+    ece_num_bins: int = param.Number(default=15, doc="Number of bins to use when computing the "
+                                                     "Expected Calibration Error")
 
 
 class DeepLearningFileSystemConfig(Parameterized):
@@ -528,7 +530,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         test_epochs = {self.num_epochs}
         if self.test_diff_epochs is not None and self.test_start_epoch is not None and \
-            self.test_step_epochs is not None:
+                self.test_step_epochs is not None:
             for j in range(self.test_diff_epochs):
                 epoch = self.test_start_epoch + self.test_step_epochs * j
                 if epoch > self.num_epochs:
