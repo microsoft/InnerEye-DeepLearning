@@ -35,7 +35,7 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 LOG_FILE_NAME = "stdout.txt"
 
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
-ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, bool],
+ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, ModelType],
                                         Tuple[Optional[Path], Optional[Any]]]
 
 
