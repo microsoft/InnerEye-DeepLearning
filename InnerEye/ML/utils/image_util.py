@@ -362,10 +362,10 @@ def get_center_crop(image: NumpyOrTorch, crop_shape: Tuple) -> NumpyOrTorch:
     if image is None or crop_shape is None:
         raise Exception("image and crop_shape must not be None")
 
-    if image.ndim != len(crop_shape):
+    if image.ndim != len(crop_shape):  # type: ignore
         raise Exception("image and crop_shape must have the same number of  dimensions, "
                         "found dimensions: image={}, crop_shape={}"
-                        .format(image.ndim, len(crop_shape)))
+                        .format(image.ndim, len(crop_shape)))  # type: ignore
 
     if any(np.asarray(crop_shape) > np.asarray(image.shape)):
         raise Exception("crop_shape must be <= to image shape in all dimensions, found shapes: image={}, crop_shape={}"
