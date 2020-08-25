@@ -17,7 +17,6 @@ from InnerEye.Common.common_util import METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, SequenceMetricsDict
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
-from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
@@ -73,7 +72,6 @@ class ToySequenceModel(SequenceModelBase):
         categorical_feature_encoder = CategoricalToOneHotEncoder.create_from_dataframe(
             dataframe=_get_mock_sequence_dataset(), columns=["cat1"])
         super().__init__(
-            temperature_scaling_config=TemperatureScalingConfig(),
             local_dataset=full_ml_test_data_path("sequence_data_for_classification"),
             label_value_column="label",
             numerical_columns=["numerical1", "numerical2"],
@@ -311,7 +309,6 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
 class ToySequenceModel2(SequenceModelBase):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(
-            temperature_scaling_config=TemperatureScalingConfig(),
             local_dataset=full_ml_test_data_path("sequence_data_for_classification"),
             label_value_column="label",
             numerical_columns=["feature"],
@@ -394,7 +391,6 @@ class ToyMultiLabelSequenceModel(SequenceModelBase):
     def __init__(self, **kwargs: Any) -> None:
         num_epochs = 3
         super().__init__(
-            temperature_scaling_config=TemperatureScalingConfig(),
             label_value_column="Label",
             numerical_columns=["NUM1", "NUM2"],
             sequence_column="Position",
