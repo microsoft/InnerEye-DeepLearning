@@ -251,6 +251,7 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
                  f"source directory {source_config.root_folder})")
     environment_variables = {
         "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": str(source_config.upload_timeout_seconds),
+        "MKL_SERVICE_FORCE_INTEL": "1",
         **(source_config.environment_variables or {})
     }
     # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not be
