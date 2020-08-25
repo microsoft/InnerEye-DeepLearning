@@ -211,7 +211,9 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, SCAN_SIZE),
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
-        model_train(config)
+        results = model_train(config)
+        assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
+               == config.get_total_number_of_save_epochs()
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
@@ -342,7 +344,7 @@ class ToySequenceModel2(SequenceModelBase):
 
 
 # Only test the non-combined model because otherwise the build takes too much time.
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
+@pytest.mark.skipif(not common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.gpu
 def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) -> None:
     """
@@ -385,6 +387,8 @@ def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) ->
     print(f"Validation loss after {config.num_epochs} epochs: {actual_val_loss}")
     assert actual_train_loss <= expected_max_train_loss, "Training loss too high"
     assert actual_val_loss <= expected_max_val_loss, "Validation loss too high"
+    assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
+           == config.get_total_number_of_save_epochs()
 
 
 class ToyMultiLabelSequenceModel(SequenceModelBase):

@@ -3,10 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+from dataclasses import dataclass, field
+from typing import List, Union
+
 import numpy as np
 import torch
-from dataclasses import dataclass
-from typing import List, Union
 
 from InnerEye.Common import common_util
 from InnerEye.Common.metrics_dict import MetricsDict
@@ -49,6 +50,7 @@ class ModelTrainingResults:
     train_results_per_epoch: List[ModelOutputsAndMetricsForEpoch]
     val_results_per_epoch: List[ModelOutputsAndMetricsForEpoch]
     learning_rates_per_epoch: List[List[float]]
+    optimal_temperature_scale_values_per_checkpoint_epoch: List[float] = field(default_factory=list)
 
     def get_logits(self, training: bool) -> torch.Tensor:
         return torch.cat([x.get_logits() for x in

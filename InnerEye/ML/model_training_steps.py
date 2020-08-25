@@ -502,11 +502,12 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
 
         return criterion(masked_model_outputs_and_labels.model_outputs, masked_model_outputs_and_labels.labels)
 
-    def learn_temperature_scale_parameter(self, logits: torch.Tensor, labels: torch.Tensor) -> None:
+    def learn_temperature_scale_parameter(self, logits: torch.Tensor, labels: torch.Tensor) -> float:
         """
         Uses the provided logits and labels to learn a temperature scale parameter.
         :param logits: Logits to use in order to learn a temperature scale parameter
         :param labels: Labels to use in order to learn a temperature scale parameter
+        :return Optimal temperature value
         """
         _model: Union[DeviceAwareModule, DataParallelModel, ModelWithTemperature] = self.train_val_params.model
         assert self.model_config.temperature_scaling_config is not None
@@ -527,7 +528,7 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
             return loss, ece
 
         assert isinstance(_model, ModelWithTemperature)
-        _model.set_temperature(
+        return _model.set_temperature(
             logits=logits,
             labels=labels,
             criterion_fn=_forward_criterion,

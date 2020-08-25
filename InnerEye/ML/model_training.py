@@ -119,6 +119,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                            tb_log_file_path=str(config.logs_folder / "diagnostics"))
         resource_monitor.start()
 
+    optimal_temperature_scale_values = []
     for epoch in range(config.start_epoch + 1, last_epoch):
         logging.info("Starting epoch {}".format(epoch))
         save_epoch = config.should_save_epoch(epoch) and optimizer is not None
@@ -162,18 +163,18 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         if save_epoch:
             if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
                 training_steps = create_model_training_steps(config, train_val_params)
-                if isinstance(training_steps, ModelTrainingStepsForSequenceModel):
-                    # perform temperature scaling
-                    logits = torch.cat([x.get_logits() for x in val_results_per_epoch])
-                    labels = torch.cat([x.get_labels() for x in val_results_per_epoch])
-                    # re-create the training steps for the repeat pass, but with metrics saving enabled
-                    train_val_params.save_metrics = True
-                    assert isinstance(training_steps, ModelTrainingStepsForSequenceModel)
-                    training_steps.learn_temperature_scale_parameter(logits, labels)
-                    # recompute the validation set results for the temperature scaled model
-                    val_epoch_results = train_or_validate_epoch(training_steps)
-                    # overwrite the metrics for the epoch with the metrics from the temperature scaled model
-                    val_results_per_epoch[-1] = val_epoch_results
+                assert isinstance(training_steps, ModelTrainingStepsForSequenceModel)
+                # perform temperature scaling
+                logits = torch.cat([x.get_logits() for x in val_results_per_epoch])
+                labels = torch.cat([x.get_labels() for x in val_results_per_epoch])
+                # re-create the training steps for the repeat pass, but with metrics saving enabled
+                train_val_params.save_metrics = True
+                temperature_value = training_steps.learn_temperature_scale_parameter(logits, labels)
+                optimal_temperature_scale_values.append(temperature_value)
+                # recompute the validation set results for the temperature scaled model
+                val_epoch_results = train_or_validate_epoch(training_steps)
+                # overwrite the metrics for the epoch with the metrics from the temperature scaled model
+                val_results_per_epoch[-1] = val_epoch_results
 
             assert optimizer is not None
             save_checkpoint(model, optimizer, epoch, config)
@@ -187,7 +188,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     model_training_results = ModelTrainingResults(
         train_results_per_epoch=train_results_per_epoch,
         val_results_per_epoch=val_results_per_epoch,
-        learning_rates_per_epoch=learning_rates_per_epoch
+        learning_rates_per_epoch=learning_rates_per_epoch,
+        optimal_temperature_scale_values_per_checkpoint_epoch=optimal_temperature_scale_values
     )
 
     logging.info("Finished training")

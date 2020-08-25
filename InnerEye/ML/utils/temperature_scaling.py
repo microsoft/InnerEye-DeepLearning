@@ -46,13 +46,14 @@ class ModelWithTemperature(DeviceAwareModule):
                         labels: torch.Tensor,
                         criterion_fn: Callable[[torch.Tensor, torch.Tensor],
                                                Tuple[torch.Tensor, torch.Tensor]],
-                        logger: Optional[AzureAndTensorboardLogger] = None) -> None:
+                        logger: Optional[AzureAndTensorboardLogger] = None) -> float:
         """
         Tune the temperature of the model using the provided logits and labels.
         :param logits: Logits to use to learn the temperature parameter
         :param labels: Labels to use to learn the temperature parameter
         :param criterion_fn: A criterion function s.t: (logits, labels) => (loss, ECE)
         :param logger: If provided, the intermediate loss and ECE values in the optimization will be reported
+        :return Optimal temperature value
         """
         if torch.cuda.is_available():
             logits = logits.cuda()
@@ -81,3 +82,4 @@ class ModelWithTemperature(DeviceAwareModule):
         print('Optimal temperature: {:.3f}'.format(self.temperature.item()))
         print('After temperature scaling - LOSS: {:.3f} ECE: {:.3f}'
               .format(after_temperature_loss.item(), after_temperature_ece.item()))
+        return self.temperature.item()
