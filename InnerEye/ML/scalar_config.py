@@ -392,13 +392,6 @@ class ScalarModelBase(ModelConfigBase):
         """
         return ModelTransformsPerExecutionMode()
 
-    def get_total_number_of_validation_epochs(self) -> int:
-        num_val_epochs = super().get_total_number_of_validation_epochs()
-        if self.temperature_scaling_config:
-            # as temperature scaling will be performed for each checkpoint epoch
-            # make sure this is accounted for in the allowed repeats of the validation data loader
-            num_val_epochs += self.get_total_number_of_save_epochs()
-        return num_val_epochs
 
 
 def get_non_image_features_dict(default_channels: List[str],

@@ -507,7 +507,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         Returns the number of epochs for which a model checkpoint will be saved.
         :return:
         """
-        return len(list(filter(self.should_save_epoch, range(1, self.num_epochs + 1))))
+        return len(list(filter(self.should_save_epoch, range(self.start_epoch, self.num_epochs + 1))))
 
     def get_total_number_of_training_epochs(self) -> int:
         """
