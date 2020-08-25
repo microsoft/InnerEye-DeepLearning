@@ -189,7 +189,6 @@ def is_gpu_available() -> bool:
     """
     Returns True if a GPU with at least 1 device is available.
     """
-    logging.info(f"DBG: is_available={torch.cuda.is_available()}, device_count={torch.cuda.device_count()}")
     return torch.cuda.is_available() and torch.cuda.device_count() > 0
 
 
