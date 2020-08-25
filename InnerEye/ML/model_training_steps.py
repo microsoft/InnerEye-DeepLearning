@@ -184,7 +184,7 @@ class ScalarModelInputsAndLabels(Generic[E, T]):
 
 
 def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
-                                       model: DeviceAwareModule,
+                                       model: torch.nn.Module,
                                        sample: Dict[str, Any]) -> ScalarModelInputsAndLabels:
     """
     For a model that predicts scalars, gets the model input tensors from a sample returned by the data loader.

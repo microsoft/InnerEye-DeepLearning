@@ -297,7 +297,7 @@ def load_checkpoint(model: torch.nn.Module,
     return checkpoint['epoch']
 
 
-def save_checkpoint(model: torch.nn.DataParallel, optimizer: Optimizer, epoch: int,
+def save_checkpoint(model: torch.nn.Module, optimizer: Optimizer, epoch: int,
                     args: ModelConfigBase, mean_teacher_model: bool = False) -> None:
     """
     Saves a checkpoint of the current model and optimizer_type parameters in the specified folder
