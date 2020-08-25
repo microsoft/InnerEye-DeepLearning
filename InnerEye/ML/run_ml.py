@@ -102,7 +102,7 @@ class MLRunner:
         and cross_validation_split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX (ie: a parent)
         """
         return self.model_config.cross_validation_split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX and \
-               self.model_config.number_of_cross_validation_splits > 0 and self.model_config.is_offline_run
+               self.model_config.perform_cross_validation and self.model_config.is_offline_run
 
     def spawn_offline_cross_val_classification_child_runs(self) -> None:
         """
