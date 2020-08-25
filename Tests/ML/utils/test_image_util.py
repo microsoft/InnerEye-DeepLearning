@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 import pytest
@@ -72,13 +72,20 @@ def test_get_center_crop_invalid(image: Any, crop_shape: Any) -> None:
         assert image_util.get_center_crop(image=image, crop_shape=crop_shape)
 
 
-def test_get_center_crop() -> None:
+@pytest.mark.parametrize("image_shape, crop_shape, expected_slices", [((4, 4, 4),
+                                                                       (2, 2, 2),
+                                                                       (slice(1, 3), slice(1, 3), slice(1, 3))),
+                                                                      ((4, 4),
+                                                                       (2, 2),
+                                                                       (slice(1, 3), slice(1, 3)))
+                                                                      ])
+def test_get_center_crop(image_shape: Tuple, crop_shape: Tuple, expected_slices: Tuple[slice]) -> None:
     """
     Test to make sure the center crop is extracted correctly from a given image.
     """
-    image = np.random.uniform(size=(4, 4, 4))
-    crop = image_util.get_center_crop(image=image, crop_shape=(2, 2, 2))
-    expected = image[1:3, 1:3, 1:3]
+    image = np.random.uniform(size=image_shape)
+    crop = image_util.get_center_crop(image=image, crop_shape=crop_shape)
+    expected = image[expected_slices]
     assert np.array_equal(crop, expected)
 
 

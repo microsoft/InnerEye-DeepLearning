@@ -351,30 +351,31 @@ def binaries_from_multi_label_array(array: np.ndarray, num_classes_including_bac
         yield np.where(array == label_index, 1, 0)
 
 
-def get_center_crop(image: NumpyOrTorch, crop_shape: TupleInt3) -> NumpyOrTorch:
+def get_center_crop(image: NumpyOrTorch, crop_shape: Tuple) -> NumpyOrTorch:
     """
     Extracts the center region specified by the crop_shape argument from the input image
 
-    :param image: The original image to extract crop from
-    :param crop_shape: The shape of the center crop to extract
+    :param image: The original (n-dimensional) image to extract crop from
+    :param crop_shape: The (n-dimensional) shape of the center crop to extract
     :return the center region as specified by the crop_shape argument.
     """
     if image is None or crop_shape is None:
         raise Exception("image and crop_shape must not be None")
 
-    if len(image.shape) != 3 and len(crop_shape) != 3:
-        raise Exception("image and crop_shape must have 3 dimensions, found dimensions: image={}, crop_shape={}"
-                        .format(len(image.shape), len(crop_shape)))
+    if image.ndim != len(crop_shape):
+        raise Exception("image and crop_shape must have the same number of  dimensions, "
+                        "found dimensions: image={}, crop_shape={}"
+                        .format(image.ndim, len(crop_shape)))
 
     if any(np.asarray(crop_shape) > np.asarray(image.shape)):
         raise Exception("crop_shape must be <= to image shape in all dimensions, found shapes: image={}, crop_shape={}"
                         .format(image.shape, crop_shape))
 
-    x, y, z = image.shape
-    startx = x // 2 - (crop_shape[0] // 2)
-    starty = y // 2 - (crop_shape[1] // 2)
-    startz = z // 2 - (crop_shape[2] // 2)
-    return image[startx:startx + crop_shape[0], starty:starty + crop_shape[1], startz:startz + crop_shape[2]]
+    image_shape = image.shape
+    start = [shape_n//2 - (crop_shape_n // 2) for (shape_n, crop_shape_n) in zip(image_shape, crop_shape)]
+    end = [start_n + crop_shape_n for (start_n, crop_shape_n) in zip(start, crop_shape)]
+    slices = tuple([slice(s, e) for (s, e) in zip(start, end)])
+    return image[slices]
 
 
 def check_array_range(data: np.ndarray, expected_range: Optional[Range] = None,
