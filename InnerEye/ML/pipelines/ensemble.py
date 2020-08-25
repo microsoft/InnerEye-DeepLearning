@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import List
 
 import numpy as np
 
@@ -45,31 +45,24 @@ class EnsemblePipeline(FullImageInferencePipelineBase):
         return EnsemblePipeline(model_config=model_config, inference_pipelines=pipelines)
 
     @staticmethod
-    def aggregate_results(results: Iterable[InferencePipeline.Result],
+    def aggregate_results(results: List[InferencePipeline.Result],
                           aggregation_type: EnsembleAggregationType) -> InferencePipeline.Result:
         """
         Helper method to aggregate results from multiple inference pipelines, based on the aggregation type provided.
-        :param results: inference pipeline results to aggregate. This may be a Generator to prevent multiple large
-        posterior arrays being held at the same time. The first element of the sequence is modified in place to
-        minimize memory use.
+        :param results: inference pipeline results to aggregate.
         :param aggregation_type: aggregation function to use to combine the results.
         :return: InferenceResult: contains a Segmentation for each of the classes and their posterior
         probabilities.
         """
         if aggregation_type != EnsembleAggregationType.Average:
             raise NotImplementedError(f"Ensembling is not implemented for aggregation type: {aggregation_type}")
-        aggregate: Optional[InferencePipeline.Result] = None
-        n_results = 0
-        for result in results:
-            if aggregate is None:
-                aggregate = result
-            else:
-                aggregate.posteriors += result.posteriors
-            n_results += 1
-        assert aggregate is not None
-        aggregate.posteriors /= n_results
-        aggregate.segmentation = posteriors_to_segmentation(aggregate.posteriors)
-        return aggregate
+        posteriors = np.mean([x.posteriors for x in results], axis=0)
+        return InferencePipeline.Result(
+            epoch=results[0].epoch,
+            patient_id=results[0].patient_id,
+            posteriors=posteriors,
+            segmentation=posteriors_to_segmentation(posteriors),
+            voxel_spacing_mm=results[0].voxel_spacing_mm)
 
     def predict_whole_image(self, image_channels: np.ndarray,
                             voxel_spacing_mm: TupleFloat3,
@@ -88,8 +81,8 @@ class EnsemblePipeline(FullImageInferencePipelineBase):
         logging.info(f"Ensembling inference pipelines ({self._get_pipeline_ids()}) "
                      f"predictions for patient: {patient_id}, "
                      f"Aggregation type: {self.model_config.ensemble_aggregation_type.value}")
-        results = (p.predict_whole_image(image_channels, voxel_spacing_mm, mask, patient_id) for p in
-                   self._inference_pipelines)
+        results = [p.predict_whole_image(image_channels, voxel_spacing_mm, mask, patient_id) for p in
+                   self._inference_pipelines]
         return EnsemblePipeline.aggregate_results(results, self.model_config.ensemble_aggregation_type)
 
     def _get_pipeline_ids(self) -> List[int]:
