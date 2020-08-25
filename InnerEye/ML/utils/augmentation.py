@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, List, Tuple
 
 import numpy as np
 import torch
+from torchvision.transforms import functional as TF
 
 from InnerEye.Common.common_util import any_pairwise_larger
 from InnerEye.Common.type_annotations import TupleInt3
@@ -162,8 +163,7 @@ class ImageTransformationBase(Transform3D):
         separately for each [X, Y] slice along the Z-dimension (assumed to be the first dimension).
         :param transforms: a list of transformations to apply to each slice sequentially.
         :returns image: the transformed 3D-image
-        """
-        from torchvision.transforms import functional as TF
+         """
         for z in range(image.shape[0]):
             pil = TF.to_pil_image(image[z])
             for transform_fn in transforms:
@@ -199,7 +199,6 @@ class ImageTransformationBase(Transform3D):
         Returns a function that rotates a 2D image by
         a certain angle.
         """
-        from torchvision.transforms import functional as TF
         return lambda img: TF.rotate(img, angle)
 
     @staticmethod
@@ -210,7 +209,6 @@ class ImageTransformationBase(Transform3D):
         :param shift: a floating point between (-1, 1), the shift is defining as the
         proportion of the image width by which to shift.
         """
-        from torchvision.transforms import functional as TF
         return lambda img: TF.affine(img, 0, (shift * img.size[0], 0), 1, 0)
 
     @staticmethod
@@ -221,7 +219,6 @@ class ImageTransformationBase(Transform3D):
         :param shift: a floating point between (-1, 1), the shift is defining as the
         proportion of the image height by which to shift.
         """
-        from torchvision.transforms import functional as TF
         return lambda img: TF.affine(img, 0, (0, shift * img.size[1]), 1, 0)
 
     @staticmethod
@@ -229,7 +226,6 @@ class ImageTransformationBase(Transform3D):
         """
         Returns a function that is flipping a 2D-image horizontally.
         """
-        from torchvision.transforms import functional as TF
         return lambda img: TF.hflip(img)
 
     @staticmethod
@@ -241,7 +237,6 @@ class ImageTransformationBase(Transform3D):
         1 means no transformation, 2 means multipyling the contrast
         by two.
         """
-        from torchvision.transforms import functional as TF
         return lambda img: TF.adjust_contrast(img, constrast_factor)
 
     @staticmethod
@@ -253,7 +248,6 @@ class ImageTransformationBase(Transform3D):
         1 means no transformation, 2 means multipyling the brightness
         by two.
         """
-        from torchvision.transforms import functional as TF
         return lambda img: TF.adjust_brightness(img, brightness_factor)
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:

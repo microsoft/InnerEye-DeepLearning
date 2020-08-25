@@ -221,7 +221,7 @@ def create_pytorch_environment(workspace: Workspace,
 
 def pytorch_version_from_conda_dependencies(conda_dependencies: CondaDependencies) -> Optional[str]:
     """
-    Given a CondaDependencies object, look for a spec of the form "pytorch=...", and return a
+    Given a CondaDependencies object, look for a spec of the form "pytorch=...", and return
     whichever supported version is compatible with the value, or None if there isn't one.
     """
     supported_versions = PyTorch.get_supported_versions()
