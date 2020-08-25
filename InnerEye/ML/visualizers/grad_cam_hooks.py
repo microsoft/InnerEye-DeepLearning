@@ -119,9 +119,9 @@ class GradCam(GradientBasedFeatureExtractor):
             if isinstance(model, ModelWithTemperature):
                 model = model.model
             if isinstance(model, torch.nn.DataParallel):
-                model: DeviceAwareModule = model.module
-                target_layer = model.get_last_encoder_layer_names()
-                self.conv_in_3d = bool(model.conv_in_3d)
+                _model: DeviceAwareModule = model.module  # type: ignore
+                target_layer = _model.get_last_encoder_layer_names()
+                self.conv_in_3d = bool(_model.conv_in_3d)
             else:
                 target_layer = model.get_last_encoder_layer_names()
                 self.conv_in_3d = bool(model.conv_in_3d)
@@ -287,7 +287,7 @@ class GradCam(GradientBasedFeatureExtractor):
             return total_pseudo_cam_non_image
 
     def generate(self, input: List[torch.Tensor], target_position: int = -1, target_label_index: int = -1) \
-            -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Generates the GradCam for images, PseudoGradCam for images, PseudoGradCam for non-images feautres
         of one batch for the given classification model.
@@ -353,7 +353,7 @@ class GuidedBackPropagation(GradientBasedFeatureExtractor):
         super().__init__(model=model, config=config, target_layer=None)
 
     def guided_backprop_hook(self, module: Module, grad_in: torch.Tensor, grad_out: torch.Tensor) \
-            -> Optional[Tuple[torch.Tensor]]:
+        -> Optional[Tuple[torch.Tensor]]:
         """
         Backward hook for guided Backpropagation.
         Propagate only positive gradient when backpropagating through ReLu layers.
@@ -441,7 +441,8 @@ class VisualizationMaps:
     for a specific model.
     """
 
-    def __init__(self, model: Module, config: ScalarModelBase) -> None:
+    def __init__(self, model: Union[DeviceAwareModule, torch.nn.DataParallel, ModelWithTemperature],
+                 config: ScalarModelBase) -> None:
         self.config = config
         self.is_non_imaging_model = config.is_non_imaging_model
         self.grad_cam: GradCam = GradCam(model, config)
@@ -510,7 +511,7 @@ class VisualizationMaps:
         for label_index in range(len(target_indices)):
             target_position = target_indices[label_index]
             current_output_dir = self.config.visualization_folder / f"{SEQUENCE_POSITION_HUE_NAME_PREFIX}_" \
-                                                                    f"{target_position}"
+                f"{target_position}"
             current_output_dir.mkdir(exist_ok=True)
             guided_grad_cams, grad_cams, pseudo_cam_non_img, probas = self.generate(input_batch,
                                                                                     target_position,
@@ -595,7 +596,7 @@ class VisualizationMaps:
             channels = []
             for item in classification_item[index].items:  # type: ignore
                 if (item.metadata.sequence_position - self.config.min_sequence_position_value) <= target_position \
-                        or target_position == -1:
+                    or target_position == -1:
                     channels.append(item.metadata.sequence_position)
             return [f"{col}_{channel}" for channel in channels for col in
                     non_image_features]  # type: ignore
@@ -626,7 +627,7 @@ class VisualizationMaps:
         segmentations = []
         for item in classification_sequence[index].items:
             if (item.metadata.sequence_position - self.config.min_sequence_position_value) <= target_position \
-                    or target_position == -1:
+                or target_position == -1:
                 if self.imaging_feature_type == ImagingFeatureType.Segmentation:
                     segmentations.append(item.segmentations)
                 elif self.imaging_feature_type == ImagingFeatureType.Image:

@@ -41,7 +41,8 @@ class ModelWithTemperature(DeviceAwareModule):
         temperature = self.temperature.expand(logits.shape)
         return logits / temperature
 
-    def set_temperature(self, logits: torch.Tensor,
+    def set_temperature(self,
+                        logits: torch.Tensor,
                         labels: torch.Tensor,
                         criterion_fn: Callable[[torch.Tensor, torch.Tensor],
                                                Tuple[torch.Tensor, torch.Tensor]],

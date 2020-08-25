@@ -393,7 +393,6 @@ class ScalarModelBase(ModelConfigBase):
         return ModelTransformsPerExecutionMode()
 
 
-
 def get_non_image_features_dict(default_channels: List[str],
                                 specific_channels: Optional[Dict[str, List[str]]] = None) -> Dict[str, List[str]]:
     """

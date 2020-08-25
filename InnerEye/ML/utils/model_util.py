@@ -99,8 +99,8 @@ def build_net(args: SegmentationModelBase) -> BaseModel:  # type: ignore
 def update_model_for_mixed_precision_and_parallel(model: BaseModel,
                                                   args: ModelConfigBase,
                                                   optimizer: Optional[Optimizer] = None,
-                                                  execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
-    Tuple[BaseModelOrDataParallelModel, Optional[Optimizer]]:
+                                                  execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) \
+    -> Tuple[BaseModelOrDataParallelModel, Optional[Optimizer]]:
     """
     Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
     multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
@@ -110,6 +110,7 @@ def update_model_for_mixed_precision_and_parallel(model: BaseModel,
     :param model: The torch module object representing the network.
     :param args: The arguments object with attributes used to enable amp training and create the parallel model.
     :param optimizer: The torch optimizer that should be used for training.
+    :param execution_mode: The current model execution mode.
     :return: Updated torch model and optimizer.
     """
     if args.use_gpu:

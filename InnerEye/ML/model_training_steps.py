@@ -43,6 +43,7 @@ from InnerEye.ML.utils.image_util import NumpyOrTorch
 from InnerEye.ML.utils.metrics_util import SummaryWriters
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
 from InnerEye.ML.utils.supervised_criterion import BinaryCrossEntropyWithLogitsLoss, SupervisedLearningCriterion
+from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.utils.training_util import ModelForwardAndBackwardsOutputs
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from InnerEye.ML.visualizers.regression_visualization import plot_variation_error_prediction
@@ -169,7 +170,6 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         :return: loss tensor.
         """
         return self.criterion(model_output, labels)
-
 
 
 @dataclass
@@ -508,7 +508,7 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
         :param logits: Logits to use in order to learn a temperature scale parameter
         :param labels: Labels to use in order to learn a temperature scale parameter
         """
-        _model: Union[DeviceAwareModule, DataParallelModel] = self.train_val_params.model
+        _model: Union[DeviceAwareModule, DataParallelModel, ModelWithTemperature] = self.train_val_params.model
         assert self.model_config.temperature_scaling_config is not None
         ece_criterion: ECELoss = ECELoss(activation=self.model_config.get_post_loss_logits_normalization_function(),
                                          n_bins=self.model_config.temperature_scaling_config.ece_num_bins)
@@ -526,6 +526,7 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
                                 masked_model_outputs_and_labels.labels.data.unsqueeze(dim=0))
             return loss, ece
 
+        assert isinstance(_model, ModelWithTemperature)
         _model.set_temperature(
             logits=logits,
             labels=labels,

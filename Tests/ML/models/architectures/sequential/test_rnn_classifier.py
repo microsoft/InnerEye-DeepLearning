@@ -351,11 +351,11 @@ def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) ->
     """
     num_gpus = device_count()
     if num_gpus == 0:
-        expected_max_train_loss = 0.39
-        expected_max_val_loss = 0.36
+        expected_max_train_loss = 0.71
+        expected_max_val_loss = 0.71
     elif num_gpus == 2:
-        expected_max_train_loss = 0.39
-        expected_max_val_loss = 0.36
+        expected_max_train_loss = 0.71
+        expected_max_val_loss = 0.71
     elif num_gpus == 1:
         raise ValueError("This test must be executed on a 2 GPU machine to test aggregation of multi-device outputs.")
     else:
