@@ -16,7 +16,9 @@ from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImagingFeatureType
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES
+from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.visualizers.model_hooks import HookBasedFeatureExtractor
 
 
@@ -100,7 +102,8 @@ class GradCam(GradientBasedFeatureExtractor):
     task.
     """
 
-    def __init__(self, model: Module, config: ScalarModelBase) -> None:
+    def __init__(self, model: Union[DeviceAwareModule, torch.nn.DataParallel, ModelWithTemperature],
+                 config: ScalarModelBase) -> None:
         """
 
         :param model: The model to analyse
@@ -113,11 +116,14 @@ class GradCam(GradientBasedFeatureExtractor):
         if self.is_non_imaging_model:
             super().__init__(model, config=config, target_layer=None)
         else:
+            if isinstance(model, ModelWithTemperature):
+                model = model.model
             if isinstance(model, torch.nn.DataParallel):
-                target_layer = model.module.last_encoder_layer
-                self.conv_in_3d = bool(model.module.conv_in_3d)
+                model: DeviceAwareModule = model.module
+                target_layer = model.get_last_encoder_layer_names()
+                self.conv_in_3d = bool(model.conv_in_3d)
             else:
-                target_layer = model.last_encoder_layer
+                target_layer = model.get_last_encoder_layer_names()
                 self.conv_in_3d = bool(model.conv_in_3d)
             super().__init__(model=model, config=config, target_layer=target_layer)
         self.gradients: Dict = {}

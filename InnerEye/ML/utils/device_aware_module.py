@@ -52,3 +52,9 @@ class DeviceAwareModule(torch.nn.Module, Generic[T, E]):
         """
         raise NotImplementedError("get_input_tensor has to be"
                                   "implemented by sub classes.")
+
+    def get_last_encoder_layer_names(self) -> List[str]:
+        """
+        Return the name of the last encoder layers for GradCam. Default is an empty list.
+        """
+        return []

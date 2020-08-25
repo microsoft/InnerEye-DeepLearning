@@ -247,7 +247,7 @@ def test_run_ml_with_sequence_model(use_combined_model: bool,
         MLRunner(config, azure_config).run()
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.skipif(not common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize(["use_combined_model", "imaging_feature_type"],
                          [(False, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Image),
@@ -423,7 +423,7 @@ class ToyMultiLabelSequenceModel(SequenceModelBase):
                              target_indices=self.get_target_indices())
 
 
-@pytest.mark.skipif(not common_util.is_windows(), reason="Has issues on windows build")
+@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 def test_run_ml_with_multi_label_sequence_model(test_output_dirs: TestOutputDirectories) -> None:
     """
     Test training and testing of sequence models that predicts at multiple time points,
