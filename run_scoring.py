@@ -138,7 +138,10 @@ def run(project_root: Optional[Path] = None) -> None:
     script_path = Path('run_score.sh')
     write_script(parser, script_path, project_root)
     print(f"Running {script_path} ...")
-    code = spawn_and_monitor_subprocess(process='bash', args=[str(script_path)], env=dict(os.environ.items()))
+    env = dict(os.environ.items())
+    # Work around https://github.com/pytorch/pytorch/issues/37377
+    env['MKL_SERVICE_FORCE_INTEL'] = '1'
+    code = spawn_and_monitor_subprocess(process='bash', args=[str(script_path)], env=env)
     sys.exit(code)
 
 
