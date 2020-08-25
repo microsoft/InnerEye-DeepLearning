@@ -8,25 +8,77 @@ import sys
 from pathlib import Path
 from typing import List
 
-from joblib import Parallel, delayed
 
-
-def run_mypy(file: str) -> int:
-    return subprocess.run(["mypy", "--config=mypy.ini", f"{str(file)}"]).returncode
+def run_mypy(files: List[str]) -> int:
+    """
+    Runs mypy on the specified files, printing whatever is sent to stdout (i.e. mypy errors).
+    Because of an apparent bug in mypy, we run mypy in --verbose mode, so that log lines are printed to
+    stderr. We intercept these, and assume that any files mentioned in them have been processed.
+    We run mypy repeatedly on the files that were not mentioned until there are none remaining, or until
+    no further files are mentioned in the logs.
+    :param files: list of .py files to check
+    :return: maximum return code from any of the mypy runs
+    """
+    return_code = 0
+    iteration = 1
+    while files:
+        dirs = sorted(set(os.path.dirname(file) or "." for file in files))
+        print(f"Iteration {iteration}: running mypy on {len(files)} files mypy in {len(dirs)} directories")
+        # Set of files we are hoping to see mentioned in the mypy log.
+        files_to_do = set(files)
+        for index, dir in enumerate(dirs, 1):
+            command = ["mypy", "--config=mypy.ini", "--verbose", dir]
+            print(f"Processing directory {index:2d} of {len(dirs)}: {dir}")
+            # We pipe stdout and then print it, otherwise lines can appear in the wrong order in builds.
+            process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            return_code = max(return_code, process.returncode)
+            for line in process.stdout.split("\n"):
+                if line and not line.startswith("Success: "):
+                    print(line)
+            # Remove from files_to_do everything that's mentioned in the log.
+            for line in process.stderr.split("\n"):
+                tokens = line.split()
+                name = None
+                if len(tokens) == 4 and tokens[0] == "LOG:" and tokens[1] == "Parsing" and tokens[2].endswith(".py"):
+                    name = tokens[2]
+                if len(tokens) == 7 and tokens[:4] == ["LOG:", "Metadata", "fresh", "for"] and tokens[-1].endswith(".py"):
+                    name = tokens[-1]
+                if name is None:
+                    continue
+                if name.startswith("./") or name.startswith(".\\"):
+                    name = name[2:]
+                files_to_do.discard(name)
+        # If we didn't manage to discard any files, there's no point continuing. This should not occur, but if
+        # it does, we don't want to continue indefinitely.
+        if len(files_to_do) == len(files):
+            print("No further files appear to have been checked! Unchecked files are:")
+            for file in sorted(files_to_do):
+                print(f"  {file}")
+            return_code = max(return_code, 1)
+            break
+        files = sorted(files_to_do)
+        iteration += 1
+    return return_code
 
 
 def main() -> int:
-    exclude: List[str] = []
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    files = sorted(map(lambda x: x.relative_to(current_dir), Path.cwd().rglob('*.py')))
-    files = list(filter(lambda x: not any([str(Path(ele)) in str(x) for ele in exclude]), files))
-
-    return_codes = Parallel(n_jobs=os.cpu_count())(delayed(run_mypy)(file) for file in files)
-    if all(v == 0 for v in return_codes):
-        return 0
+    """
+    Runs mypy on the files in the argument list, or every *.py file under the current directory if there are none.
+    """
+    current_dir = Path(".")
+    if sys.argv[1:]:
+        file_list = [Path(arg) for arg in sys.argv[1:]]
     else:
-        sys.stderr.write("mypy failed")
-        return 1
+        # We don't want to check the files in the submodule if any, partly because they should already have
+        # been checked in the original repo, and partly because we don't want the module name clashes mypy would
+        # otherwise report.
+        submodule_name = "innereye-deeplearning"
+        files = set(current_dir.glob('*.py'))
+        for path in current_dir.glob('*'):
+            if path.name != submodule_name:
+                files.update(path.rglob('*.py'))
+        file_list = list(files)
+    return run_mypy(sorted(str(file) for file in file_list))
 
 
 if __name__ == "__main__":

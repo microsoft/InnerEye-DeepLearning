@@ -102,20 +102,17 @@ python InnerEye/Scripts/submit_for_inference.py --image_file ~/somewhere/ct.nii.
 
 ### Model Ensembles
 
-You can ensemble the results of any HyperDrive run with exactly the same command as testing an existing model, 
-but with `--run_recovery_id` referring to a cross-validation training run. You don't specify
-`--number_of_cross_validation_splits`. Thus:
-```shell script
-python Inner/ML/runner.py --submit_to_azureml=True --model=Prostate --is_train=False --gpu_cluster_name=my_cluster_name \
-   --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
-```
-This will download the checkpoints for model
-testing based on the model config you have provided in the branch you are running from, and run the inference pipeline
-for each image through each of the checkpoints of the child runs. It will also register the ensemble in the
-AzureML model registry.
+An ensemble model should be created automatically and registered in the AzureML model registry whenever cross-validation
+models are trained. The ensemble model
+creation is done by the child whose `cross_validation_split_index` is 0; you can identify this child by looking
+at the "Child Runs" tab in the parent run page in AzureML. To find the ID of the ensemble model, look in the
+driver log for the child run and search for the string "Registered model". There should be exactly two occurrences of
+this string. The first is for the child model itself (each child run in fact registers one of these) and the
+second is for the ensemble. 
 
-The results will then be aggregated based on the `ensemble_aggregation_type` value in the model config,
-and the generated posteriors will be passed to the usual model testing downstream pipelines, e.g. metrics computation.
+As well as registering the model, the child run runs it on the validation and test sets. The results are aggregated 
+based on the `ensemble_aggregation_type` value in the model config,
+and the generated posteriors are passed to the usual model testing downstream pipelines, e.g. metrics computation.
 
 ##### Interpreting results
 
@@ -125,7 +122,8 @@ Once your HyperDrive AzureML runs are completed, you can visualize the results b
 python InnerEye/ML/visualizers/plot_cross_validation.py --run_recovery_id ... --epoch ...
 ```
 filling in the run recovery ID of the parent run and the epoch number (one of the test epochs, e.g. the last epoch) 
-for which you want results plotted. The script will also output several `..._outliers.txt` file with all of the outliers across the splits and a portal query to 
+for which you want results plotted. The script will also output several `..._outliers.txt` file with all of the outliers
+across the splits and a portal query to 
 find them in the production portal, and run statistical tests to compute the significance of differences between scores
 across the splits and with respect to other runs that you specify. Details of the tests can be found
 in [`wilcoxon_signed_rank_test.py`](/InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py)
@@ -148,8 +146,7 @@ and [`mann_whitney_test.py`](/InnerEye/Common/Statistics/mann_whitney_test.py).
   storage account in Azure. In the blade, click on "Files" and, navigate through to `azureml/azureml/my_run_id`. This 
   will show all files that are mounted as the working directory on the compute VM.
 
-The organization of the `outputs` directory differs between single and ensemble models. For single
-models, the structure is as follows:
+The organization of the `outputs` directory is as follows:
 
 * A `checkpoints` directory containing the checkpointed model file(s).
 * For each test epoch `NNN`, a directory `epoch_NNN`, each of whose subdirectories `Test` and `Val`
@@ -162,7 +159,7 @@ contains the following:
   * Various files identifying the dataset and structure names.
   * A `thumbnails` directory, containing an image file for the maximal predicted slice for each
     structure of each test or validation subject.
-  * For test or validation subject, a directory containing a Nifti file for each predicted structure.
+  * For each test or validation subject, a directory containing a Nifti file for each predicted structure.
 * If there are comparison runs (specified by the config parameter `comparison_blob_storage_paths`),
 there will be a subdirectory named after each of those runs, each containing its own `epoch_NNN` subdirectory,
 and there will be a file `MetricsAcrossAllRuns.csv` directly under `outputs`, combining the data from
@@ -176,34 +173,31 @@ the `metrics.csv` files of the current run and the comparison run(s).
   * `train_stats.csv`, containing summary statistics for each training epoch (learning rate, losses and
   Dice scores).
 
-For ensemble models, the structure is more complex:
-
-* The `checkpoints` directory contains a single subdirectory whose name is the run ID of the
-  cross-validation run from which the ensemble was created. Inside that, there is a subdirectory for each
-  of the component runs, containing its checkpointed model(s).
-* The `epoch_NNN` directory/ies are as for a single run, and contain results for the ensemble model.
-* A directory whose name is the run ID of the current (ensemble) run, containing scores. Within this:
-  * There is one subdirectory for each of the component models (numbered from 0), and one named
-    `ENSEMBLE` for the ensemble model itself. Within each of these, there is an `epoch_NNN` subdirectory,
-    containing `Test` and `Val` subdirectories in turn, as for a single model but containing only
-    the `metrics.csv` file.
-  * A subdirectory named `scatterplots`, containing a `jpg` file for every pairing of component models
-    and the ensemble model. Each one is named `AAA_vs_BBB.jpg`, where `AAA` and `BBB` are the run IDs
-    of the two models. Each plot shows the Dice scores on the test set for the models.
-  * A file `CrossValidationWilcoxonSignedRankTestResults.txt`, comprising the results of the Wilcoxon
-    signed rank test applied to those Dice scores. Each paragraph of that file compares two models and
-    indicates, for each structure, when the Dice scores for the second model are significantly better 
-    or worse than the first. For full details, see the 
-    [source code](../InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py).
-  * Files `Dice_Test_Splits.jpg` and `Dice_Val_Splits.jpg`, containing box plots of the Dice scores
-    on those datasets for each structure and each (component and ensemble) model. These give a visual
-    overview of the results in the `metrics.csv` files detailed above.
-  * Similarly, `HausdorffDistance_mm_Test_splits.jpg` and `HausdorffDistance_mm_Val_splits.jpg` contain
-    box plots of Hausdorff distances.
-  * `MetricsAcrossAllRuns.csv` combines the data from all the `metrics.csv` files.
-  * `Test_outliers.txt` and `Val_outliers.txt` highlight particular outlier scores (both Dice and
-    Hausdorff) in the test and validation sets respectively.
-* The same "additional files" as for a single model, except that there is no `train_stats.csv`.
+Ensemble models are created by the zero'th child (with `cross_validation_split_index=0`) in each
+cross-validation run. Results from inference on the test and validation sets are uploaded to the
+parent run, and can be found in `epoch_NNN` directories as above.
+In additional, various scores and plots from the ensemble and from individual child 
+runs are uploaded to the parent run, in the `CrossValResults` directory. This contains:
+* Subdirectories named 0, 1, 2, ... for all the child runs including the zero'th one, as well
+ as `ENSEMBLE`, containing their respective `epoch_NNN` directories.
+* A subdirectory named `scatterplots`, containing a `jpg` file for every pairing of component models
+  and the ensemble model. Each one is named `AAA_vs_BBB.jpg`, where `AAA` and `BBB` are the run IDs
+  of the two models. Each plot shows the Dice scores on the test set for the models.
+  *TODO*: also has all-against-all for ensemble and each child model. Check for baseline
+  comparisons when big models done.
+* A file `CrossValidationWilcoxonSignedRankTestResults.txt`, comprising the results of the Wilcoxon
+  signed rank test applied to those Dice scores. Each paragraph of that file compares two models and
+  indicates, for each structure, when the Dice scores for the second model are significantly better 
+  or worse than the first. For full details, see the 
+  [source code](../InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py).
+* Files `Dice_Test_Splits.jpg` and `Dice_Val_Splits.jpg`, containing box plots of the Dice scores
+  on those datasets for each structure and each (component and ensemble) model. These give a visual
+  overview of the results in the `metrics.csv` files detailed above.
+* Similarly, `HausdorffDistance_mm_Test_splits.jpg` and `HausdorffDistance_mm_Val_splits.jpg` contain
+  box plots of Hausdorff distances.
+* `MetricsAcrossAllRuns.csv` combines the data from all the `metrics.csv` files.
+* `Test_outliers.txt` and `Val_outliers.txt` highlight particular outlier scores (both Dice and
+  Hausdorff) in the test and validation sets respectively.
 
 ### Using Tensorboard
 

@@ -29,8 +29,9 @@ from InnerEye.ML.utils import ml_util, model_util
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import LRScheduler
 from InnerEye.ML.utils.metrics_util import create_summary_writers
-from InnerEye.ML.utils.ml_util import RandomStateSnapshot, RunRecovery
+from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary, save_checkpoint
+from InnerEye.ML.utils.run_recovery import RunRecovery
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -225,6 +226,7 @@ def train_or_validate_epoch(config: ModelConfigBase,
     num_load_time_exceeded = 0
     num_batches = 0
     total_extra_load_time = 0.0
+    total_load_time = 0.0
     for batch_index, sample in enumerate(train_val_params.data_loader):
         item_finish_time = time()
         item_load_time = item_finish_time - item_start_time
@@ -247,6 +249,7 @@ def train_or_validate_epoch(config: ModelConfigBase,
         logging.debug(f"Epoch {train_val_params.epoch} {status_string} batch {batch_index}: "
                       f"Loaded in {item_load_time:0.2f}sec, "
                       f"{status_string} in {(train_finish_time - item_finish_time):0.2f}sec. Loss = {loss}")
+        total_load_time += item_finish_time - item_start_time
         num_batches += 1
         item_start_time = time()
 
@@ -255,7 +258,8 @@ def train_or_validate_epoch(config: ModelConfigBase,
         training_random_state.restore_random_state()
 
     epoch_time_seconds = time() - epoch_start_time
-    logging.debug(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f}sec")
+    logging.info(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f} sec "
+                 f"of which data loading took {total_load_time:0.2f} sec")
     if num_load_time_exceeded > 0:
         logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
                         f"{MAX_ITEM_LOAD_TIME_SEC}sec.")
