@@ -47,6 +47,9 @@ from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER
 from InnerEye.ML.utils.metrics_constants import LoggingColumns, MetricsFileColumns
 from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_directory
 
+RUN_DICTIONARY_NAME = "RunDictionary.txt"
+
+MAX_STRUCTURES_PER_PLOT = 7
 DRIVER_LOG_BASENAME = "70_driver_log.txt"
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
 # noinspection SQL
@@ -157,7 +160,8 @@ class PlotCrossValidationConfig(GenericConfig):
         if isinstance(run_or_id, Run):
             run_id = run_or_id.id
             if run_id not in self.short_names:
-                self.short_names[run_id] = f"{run_or_id.experiment.name}:{run_or_id.number}"
+                extra = " (FOCUS)" if run_id == self.run_recovery_id else ""
+                self.short_names[run_id] = f"{run_or_id.experiment.name}:{run_or_id.number}{extra}"
         else:
             run_id = run_or_id.split(":")[-1]
             if run_id not in self.short_names:
@@ -556,6 +560,23 @@ def shorten_split_names(config: PlotCrossValidationConfig, metrics: pd.DataFrame
     metrics[COL_SPLIT] = metrics[COL_SPLIT].apply(config.get_short_name)
 
 
+def split_by_structures(df: pd.DataFrame) -> List[pd.DataFrame]:
+    names = sorted(df[MetricsFileColumns.Structure.value].unique())
+    n_structures = len(names)
+    n_plots = int((n_structures + MAX_STRUCTURES_PER_PLOT - 1) / MAX_STRUCTURES_PER_PLOT)
+    if n_plots <= 1:
+        return [df]
+    n_per_plot = n_structures / n_plots
+    df_list = []
+    start = 0
+    for idx in range(n_plots):
+        end = int(0.5 + (idx + 1) * n_per_plot)
+        names_to_use = names[start:end]
+        df_list.append(df[df[MetricsFileColumns.Structure.value].isin(names_to_use)])
+        start = end
+    return df_list
+
+
 def plot_metrics(config: PlotCrossValidationConfig,
                  dataset_split_metrics: Dict[ModelExecutionMode, pd.DataFrame], root: Path) -> None:
     """
@@ -568,42 +589,45 @@ def plot_metrics(config: PlotCrossValidationConfig,
     """
     for mode, df in dataset_split_metrics.items():
         for metric_type, props in get_available_metrics(df).items():
-            metrics: pd.DataFrame = pd.melt(df, id_vars=[COL_SPLIT, MetricsFileColumns.Structure.value],
-                                            value_vars=[metric_type]) \
-                .sort_values(by=[COL_SPLIT, MetricsFileColumns.Structure.value])
-            shorten_split_names(config, metrics)
-            # create plot for the dataframe
-            fig, ax = pyplot.subplots(figsize=(15.7, 8.27))
-            ax = seaborn.boxplot(x='split', y='value',
-                                 hue='Structure',
-                                 data=metrics,
-                                 ax=ax,
-                                 width=0.75,
-                                 palette="Set3")
-            if "ylim" in props:
-                ax.set_ylim([0, 100.5])
-            if "yticks" in props:
-                ax.set_yticks(range(0, 105, 5))
+            df_list = split_by_structures(df)
+            for sub_df_index, sub_df in enumerate(df_list, 1):
+                metrics: pd.DataFrame = pd.melt(sub_df, id_vars=[COL_SPLIT, MetricsFileColumns.Structure.value],
+                                                value_vars=[metric_type])
+                shorten_split_names(config, metrics)
+                metrics = metrics.sort_values(by=[COL_SPLIT, MetricsFileColumns.Structure.value])
+                # create plot for the dataframe
+                fig, ax = pyplot.subplots(figsize=(15.7, 8.27))
+                ax = seaborn.boxplot(x='split', y='value',
+                                     hue='Structure',
+                                     data=metrics,
+                                     ax=ax,
+                                     width=0.75,
+                                     palette="Set3")
+                if "ylim" in props:
+                    ax.set_ylim([0, 100.5])
+                if "yticks" in props:
+                    ax.set_yticks(range(0, 105, 5))
 
-            ax.set_ylabel(props["title"], fontsize=16)
-            ax.set_xlabel('Cross-Validation Splits', fontsize=16)
-            ax.tick_params(axis='both', which='major', labelsize=12)
-            ax.tick_params(axis='both', which='minor', labelsize=10)
-            ax.set_title("Segmentation Results on {} Dataset (Epoch {})".format(
-                mode.value, config.epoch), fontsize=16)
-            ax.set_axisbelow(True)
-            ax.grid()
-            # Shrink current axis by 20%
-            box = ax.get_position()
-            ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-            # Put a legend to the right of the current axis
-            ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
-                      fancybox=True, shadow=True, ncol=7, prop={'size': 12})
+                ax.set_ylabel(props["title"], fontsize=16)
+                ax.set_xlabel('Cross-Validation Splits', fontsize=16)
+                ax.tick_params(axis='both', which='major', labelsize=12)
+                ax.tick_params(axis='both', which='minor', labelsize=10)
+                ax.set_title("Segmentation Results on {} Dataset (Epoch {})".format(
+                    mode.value, config.epoch), fontsize=16)
+                ax.set_axisbelow(True)
+                ax.grid()
+                # Shrink current axis by 20%
+                box = ax.get_position()
+                ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+                # Put a legend to the right of the current axis
+                ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+                          fancybox=True, shadow=True, ncol=7, prop={'size': 12})
 
-            # save plot
-            plot_dst = root / f"{metric_type}_{mode.value}_splits.jpg"
-            fig.savefig(plot_dst, bbox_inches='tight')
-            logging.info("Saved box-plots to: {}".format(plot_dst))
+                # save plot
+                suffix = f"_{sub_df_index}" if len(df_list) > 1 else ""
+                plot_dst = root / f"{metric_type}_{mode.value}_splits{suffix}.jpg"
+                fig.savefig(plot_dst, bbox_inches='tight')
+                logging.info("Saved box-plots to: {}".format(plot_dst))
 
 
 def save_outliers(config: PlotCrossValidationConfig,
@@ -783,6 +807,12 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
                 break
         if dataset_csv:
             shutil.copy(str(dataset_csv), str(root_folder))
+    name_dct = config_and_files.config.short_names
+    pairs = [(val, key) for key, val in name_dct.items()]
+    with Path(root_folder / RUN_DICTIONARY_NAME).open("w") as out:
+        max_len = max(len(short_name) for short_name, _ in pairs)
+        for short_name, long_name in sorted(pairs):
+            out.write(f"{short_name:{max_len}s} {long_name}\n")
 
 
 def get_metrics_columns(df: pd.DataFrame) -> Set[str]:
