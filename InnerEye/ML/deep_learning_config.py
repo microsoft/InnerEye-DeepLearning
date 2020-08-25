@@ -502,19 +502,26 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         is_last_epoch = epoch == self.num_epochs
         return should_save_epoch or is_last_epoch
 
-    def get_total_number_of_save_epochs(self) -> int:
+    def get_train_epochs(self) -> List[int]:
         """
-        Returns the number of epochs for which a model checkpoint will be saved.
+        Returns the epochs for which training will be performed.
         :return:
         """
-        return len(list(filter(self.should_save_epoch, range(self.start_epoch, self.num_epochs + 1))))
+        return list(range(self.start_epoch + 1, self.num_epochs + 1))
 
     def get_total_number_of_training_epochs(self) -> int:
         """
         Returns the number of epochs for which a model will be trained.
         :return:
         """
-        return self.num_epochs - self.start_epoch
+        return len(self.get_train_epochs())
+
+    def get_total_number_of_save_epochs(self) -> int:
+        """
+        Returns the number of epochs for which a model checkpoint will be saved.
+        :return:
+        """
+        return len(list(filter(self.should_save_epoch, self.get_train_epochs())))
 
     def get_total_number_of_validation_epochs(self) -> int:
         """

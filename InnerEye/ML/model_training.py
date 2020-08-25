@@ -111,7 +111,6 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     logging.info("Starting training")
     train_results_per_epoch, val_results_per_epoch, learning_rates_per_epoch = [], [], []
 
-    last_epoch = config.num_epochs + 1
     resource_monitor = None
     if config.monitoring_interval_seconds > 0:
         # initialize and start GPU monitoring
@@ -120,7 +119,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         resource_monitor.start()
 
     optimal_temperature_scale_values = []
-    for epoch in range(config.start_epoch + 1, last_epoch):
+    for epoch in config.get_train_epochs():
         logging.info("Starting epoch {}".format(epoch))
         save_epoch = config.should_save_epoch(epoch) and optimizer is not None
 
@@ -162,13 +161,14 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
         if save_epoch:
             if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
+                # re-create the training steps for the repeat pass, but with metrics saving enabled
+                train_val_params.save_metrics = True
                 training_steps = create_model_training_steps(config, train_val_params)
                 assert isinstance(training_steps, ModelTrainingStepsForSequenceModel)
                 # perform temperature scaling
                 logits = torch.cat([x.get_logits() for x in val_results_per_epoch])
                 labels = torch.cat([x.get_labels() for x in val_results_per_epoch])
-                # re-create the training steps for the repeat pass, but with metrics saving enabled
-                train_val_params.save_metrics = True
+
                 temperature_value = training_steps.learn_temperature_scale_parameter(logits, labels)
                 optimal_temperature_scale_values.append(temperature_value)
                 # recompute the validation set results for the temperature scaled model

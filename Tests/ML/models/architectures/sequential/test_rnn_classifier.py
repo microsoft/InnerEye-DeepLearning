@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
-from torch.cuda import device_count
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import METRICS_FILE_NAME, logging_to_stdout
@@ -347,25 +346,16 @@ class ToySequenceModel2(SequenceModelBase):
 
 
 # Only test the non-combined model because otherwise the build takes too much time.
-@pytest.mark.skipif(not common_util.is_windows(), reason="Has issues on windows build")
+@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.gpu
 def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) -> None:
     """
     Test if we can build an RNN classifier that learns sequences, of the same kind as in
     test_rnn_classifier_toy_problem, but built via the config.
     """
-    num_gpus = device_count()
-    if num_gpus == 0:
-        expected_max_train_loss = 0.71
-        expected_max_val_loss = 0.71
-    elif num_gpus == 2:
-        expected_max_train_loss = 0.71
-        expected_max_val_loss = 0.71
-    elif num_gpus == 1:
-        raise ValueError("This test must be executed on a 2 GPU machine to test aggregation of multi-device outputs.")
-    else:
-        raise ValueError(f"I don't have an expected result for the test running on {num_gpus} GPUs")
-    num_sequences = 400
+    expected_max_train_loss = 0.71
+    expected_max_val_loss = 0.71
+    num_sequences = 100
     ml_util.set_random_seed(123)
     dataset_contents = "subject,index,feature,label\n"
     for subject in range(num_sequences):
@@ -378,12 +368,11 @@ def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) ->
             dataset_contents += f"S{subject},{i},{value},{label}\n"
     logging_to_stdout()
     config = ToySequenceModel2(should_validate=False)
+    config.num_epochs = 2
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset(dataset_contents)
     results = model_train(config)
 
-    # Verify that the loss values for both training and validation sets are below target range.
-    # In the future, please do not fix these loss values to a fixed number as the models can be improved over time.
     actual_train_loss = results.train_results_per_epoch[-1].metrics.values()[MetricType.LOSS.value][0]
     actual_val_loss = results.val_results_per_epoch[-1].metrics.values()[MetricType.LOSS.value][0]
     print(f"Training loss after {config.num_epochs} epochs: {actual_train_loss}")
@@ -392,6 +381,7 @@ def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) ->
     assert actual_val_loss <= expected_max_val_loss, "Validation loss too high"
     assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
            == config.get_total_number_of_save_epochs()
+    assert np.allclose(results.optimal_temperature_scale_values_per_checkpoint_epoch, [0.68], rtol=0.1)
 
 
 class ToyMultiLabelSequenceModel(SequenceModelBase):

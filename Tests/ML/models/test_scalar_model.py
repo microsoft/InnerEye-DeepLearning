@@ -360,7 +360,7 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
                 # check that metrics for any two folds is not the same
                 assert not any([split_metrics.equals(x) for x in metrics[m]])
             metrics[m] = [split_metrics]
-    if train_config.number_of_cross_validation_splits > 0:
+    if train_config.perform_cross_validation:
         # test aggregates are as expected
         aggregate_metrics_path = root / CROSSVAL_RESULTS_FOLDER / METRICS_AGGREGATES_FILE
         assert aggregate_metrics_path.is_file()
