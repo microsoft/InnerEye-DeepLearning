@@ -3,16 +3,15 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
-from pathlib import Path
-from typing import Any, Optional, Tuple
-from pydicom import Dataset
-from pydicom.dataset import FileMetaDataset, FileDataset
-from unittest import mock
-from skimage.transform import resize
-
+import SimpleITK as sitk
 import torch
 import numpy as np
 import pytest
+
+from pathlib import Path
+from typing import Any, Optional, Tuple
+from unittest import mock
+from skimage.transform import resize
 
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.scalar_config import ImageDimension
@@ -179,8 +178,7 @@ def test_load_numpy_image(test_output_dirs: TestOutputDirectories) -> None:
     np.save(npy_file, array)
     image = load_numpy_image(npy_file)
     assert image.shape == array_size
-    image_and_segmentation = load_image_in_known_formats(npy_file, load_segmentation=False,
-                                                         image_dimension=ImageDimension.Image_3D)
+    image_and_segmentation = load_image_in_known_formats(npy_file, load_segmentation=False)
     assert image_and_segmentation.images.shape == array_size
 
 
@@ -201,18 +199,12 @@ def write_test_dicom(array: np.ndarray, path: Path, signed: bool = False) -> Non
     This function DOES NOT create a usable Dicom file and is meant only for testing: tags are set to
     random/default values so that pydicom does not complain when reading the file.
     """
-    dicom_dataset = Dataset()
-    dicom_metadata = FileMetaDataset()
-    dicom_metadata.TransferSyntaxUID = "1.2.840.10008.1.2"
-    dicom = FileDataset(path, dicom_dataset, preamble=b"\0"*128, file_meta=dicom_metadata)
-    dicom.BitsAllocated = 16
-    dicom.Rows = array.shape[0]
-    dicom.Columns = array.shape[1]
-    dicom.PixelRepresentation = 0 if not signed else 1
-    dicom.SamplesPerPixel = 1
-    dicom.PhotometricInterpretation = "MONOCHROME1"
-    dicom.PixelData = array
-    dicom.save_as(path)
+
+    image = sitk.GetImageFromArray(array)
+    writer = sitk.ImageFileWriter()
+    writer.KeepOriginalImageUIDOn()
+    writer.SetFileName(str(path))
+    writer.Execute(image)
 
 
 def test_load_dicom_image_ones(test_output_dirs: TestOutputDirectories) -> None:
@@ -228,14 +220,13 @@ def test_load_dicom_image_ones(test_output_dirs: TestOutputDirectories) -> None:
     assert is_dicom_file_path(dcm_file)
     write_test_dicom(array, dcm_file)
 
-    image = load_dicom_image(dcm_file, image_dimension=ImageDimension.Image_2D)
-    assert image.ndim == 2 and image.shape == array_size
-    assert np.array_equal(image, array)
+    image = load_dicom_image(dcm_file)
+    assert image.ndim == 3 and image.shape == (1, ) + array_size
+    assert np.array_equal(image, array[None, ...])
 
-    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False,
-                                                         image_dimension=ImageDimension.Image_2D)
-    assert image_and_segmentation.images.ndim == 2 and image_and_segmentation.images.shape == array_size
-    assert np.array_equal(image_and_segmentation.images, array)
+    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
+    assert image_and_segmentation.images.ndim == 3 and image_and_segmentation.images.shape == (1,) + array_size
+    assert np.array_equal(image_and_segmentation.images, array[None, ...])
 
 
 def test_load_dicom_image_random_unsigned(test_output_dirs: TestOutputDirectories) -> None:
@@ -250,14 +241,13 @@ def test_load_dicom_image_random_unsigned(test_output_dirs: TestOutputDirectorie
     assert is_dicom_file_path(dcm_file)
     write_test_dicom(array, dcm_file)
 
-    image = load_dicom_image(dcm_file, image_dimension=ImageDimension.Image_2D)
-    assert image.ndim == 2 and image.shape == array_size
-    assert np.array_equal(image, array)
+    image = load_dicom_image(dcm_file)
+    assert image.ndim == 3 and image.shape == (1,) + array_size
+    assert np.array_equal(image, array[None, ...])
 
-    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False,
-                                                         image_dimension=ImageDimension.Image_2D)
-    assert image_and_segmentation.images.ndim == 2 and image_and_segmentation.images.shape == array_size
-    assert np.array_equal(image_and_segmentation.images, array)
+    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
+    assert image_and_segmentation.images.ndim == 3 and image_and_segmentation.images.shape == (1,) + array_size
+    assert np.array_equal(image_and_segmentation.images, array[None, ...])
 
 
 def test_load_dicom_image_random_signed(test_output_dirs: TestOutputDirectories) -> None:
@@ -272,14 +262,13 @@ def test_load_dicom_image_random_signed(test_output_dirs: TestOutputDirectories)
     assert is_dicom_file_path(dcm_file)
     write_test_dicom(array, dcm_file, signed=True)
 
-    image = load_dicom_image(dcm_file, image_dimension=ImageDimension.Image_2D)
-    assert image.ndim == 2 and image.shape == array_size
-    assert np.array_equal(image, array)
+    image = load_dicom_image(dcm_file)
+    assert image.ndim == 3 and image.shape == (1,) + array_size
+    assert np.array_equal(image, array[None, ...])
 
-    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False,
-                                                         image_dimension=ImageDimension.Image_2D)
-    assert image_and_segmentation.images.ndim == 2 and image_and_segmentation.images.shape == array_size
-    assert np.array_equal(image_and_segmentation.images, array)
+    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
+    assert image_and_segmentation.images.ndim == 3 and image_and_segmentation.images.shape == (1,) + array_size
+    assert np.array_equal(image_and_segmentation.images, array[None, ...])
 
 
 @pytest.mark.parametrize(["file_path", "expected_shape"],
@@ -289,8 +278,7 @@ def test_load_dicom_image_random_signed(test_output_dirs: TestOutputDirectories)
                          ])
 def test_load_image(file_path: str, expected_shape: Tuple) -> None:
     full_file_path = full_ml_test_data_path() / file_path
-    image_and_segmentation = load_image_in_known_formats(full_file_path, load_segmentation=False,
-                                                         image_dimension=ImageDimension.Image_3D)
+    image_and_segmentation = load_image_in_known_formats(full_file_path, load_segmentation=False)
     assert image_and_segmentation.images.shape == expected_shape
 
 

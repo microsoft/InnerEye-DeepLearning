@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 import torch
 from tabulate import tabulate
-from pydicom import read_file
 
 from InnerEye.Common import common_util
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat3, TupleInt2Or3
@@ -156,8 +155,7 @@ def read_image_as_array_with_header(file_path: Path) -> Tuple[np.ndarray, ImageH
     return img, ImageHeader(origin=origin, direction=direction, spacing=spacing)
 
 
-def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float,
-                     image_dimension: ImageDimension = ImageDimension.Image_3D) -> ImageWithHeader:
+def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageWithHeader:
     """
     Loads a single .nii, or .nii.gz image from disk. The image to load must be 3D.
 
@@ -178,9 +176,6 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float,
             return is_nifti_file_path(_path)
         return False
 
-    if image_dimension != ImageDimension.Image_3D:
-        raise ValueError("Only loading of 3D Nifti images supported")
-
     if isinstance(path, str):
         path = Path(path)
     if path is None or not _is_valid_image_path(path):
@@ -198,37 +193,31 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float,
     return ImageWithHeader(image=img, header=header)
 
 
-def load_numpy_image(path: PathOrString, image_dimension: ImageDimension = ImageDimension.Image_3D) -> np.ndarray:
+def load_numpy_image(path: PathOrString) -> np.ndarray:
     """
     Loads an array from a numpy file.
     :param path: The path to the numpy file.
     :param image_dimension: Indicates if the input image is 2D or 3D
     """
     image = np.load(path)
-    if image_dimension == ImageDimension.Image_3D and image.ndim != 3:
-        raise ValueError(f"Expected image with 3 dimensions, got image with {image.ndim} dimensions")
-    elif image_dimension == ImageDimension.Image_2D and image.ndim != 2:
-        raise ValueError(f"Expected image with 2 dimensions, got image with {image.ndim} dimensions")
     return image
 
 
-def load_dicom_image(path: PathOrString, image_dimension: ImageDimension = ImageDimension.Image_3D) -> np.ndarray:
+def load_dicom_image(path: PathOrString) -> np.ndarray:
     """
-    Loads an array from a numpy file.
-    :param path: The path to the numpy file.
+    Loads an array from a single dicom file.
+    :param path: The path to the dicom file.
     :param image_dimension: Indicates if the input image is 2D or 3D
     """
-    pix_array = read_file(path).pixel_array
-    if image_dimension == ImageDimension.Image_3D and pix_array.ndim != 3:
-        raise ValueError(f"Expected image with 3 dimensions, got image with {pix_array.ndim} dimensions")
-    elif image_dimension == ImageDimension.Image_2D and pix_array.ndim != 2:
-        raise ValueError(f"Expected image with 2 dimensions, got image with {pix_array.ndim} dimensions")
+    reader = sitk.ImageFileReader()
+    reader.SetFileName(str(path))
+    image = reader.Execute()
+    pixels = sitk.GetArrayFromImage(image)
     # Return a float array, we may resize this in load_3d_images_and_stack, and interpolation will not work on int
-    return pix_array.astype(np.float)
+    return pixels.astype(np.float)
 
 
-def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False,
-                   image_dimension: ImageDimension = ImageDimension.Image_3D) -> HDF5Object:
+def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) -> HDF5Object:
     """
     Loads a single HDF5 file.
     :param path_str: The path of the HDF5 file that should be loaded.
@@ -245,9 +234,6 @@ def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False,
         :return:
         """
         return _path.is_file() and is_hdf5_file_path(_path)
-
-    if image_dimension != ImageDimension.Image_3D:
-        raise ValueError("Only loading of 3D HDF5 images supported")
 
     path = Path(path_str)
 
@@ -297,7 +283,7 @@ def load_images_and_stack(files: Iterable[Path],
         return t
 
     for file_path in files:
-        image_and_segmentation = load_image_in_known_formats(file_path, load_segmentation, image_dimension)
+        image_and_segmentation = load_image_in_known_formats(file_path, load_segmentation)
         image_numpy = image_and_segmentation.images
         if image_dimension == ImageDimension.Image_3D:
             if image_numpy.ndim == 4 and image_numpy.shape[0] == 1:
@@ -321,31 +307,25 @@ def load_images_and_stack(files: Iterable[Path],
 
 
 def load_image_in_known_formats(file: Path,
-                                load_segmentation: bool,
-                                image_dimension: ImageDimension) -> ImageAndSegmentations[np.ndarray]:
+                                load_segmentation: bool) -> ImageAndSegmentations[np.ndarray]:
     """
-    Loads an image from a file in the given path. At the moment, this supports Nifti, HDF5, and numpy files.
+    Loads an image from a file in the given path. At the moment, this supports Nifti, HDF5, numpy and dicom files.
 
     :param file: The path of the file to load.
     :param load_segmentation: If True it loads segmentation if present on the same file as the image.
-    :param image_dimension: Indicates if the input image is 2D or 3D
     :return: a wrapper class that contains the images and segmentation if present
     """
     if is_hdf5_file_path(file):
         hdf5_object = load_hdf5_file(path_str=file,
-                                     load_segmentation=load_segmentation,
-                                     image_dimension=image_dimension)
+                                     load_segmentation=load_segmentation)
         return ImageAndSegmentations(images=hdf5_object.volume,
                                      segmentations=hdf5_object.segmentation if load_segmentation else None)
     elif is_nifti_file_path(file):
-        return ImageAndSegmentations(images=load_nifti_image(path=file,
-                                                             image_dimension=image_dimension).image)
+        return ImageAndSegmentations(images=load_nifti_image(path=file).image)
     elif is_numpy_file_path(file):
-        return ImageAndSegmentations(images=load_numpy_image(path=file,
-                                                             image_dimension=image_dimension))
+        return ImageAndSegmentations(images=load_numpy_image(path=file))
     elif is_dicom_file_path(file):
-        return ImageAndSegmentations(images=load_dicom_image(path=file,
-                                                             image_dimension=image_dimension))
+        return ImageAndSegmentations(images=load_dicom_image(path=file))
     else:
         raise ValueError(f"Unsupported image file type for path {file}")
 
