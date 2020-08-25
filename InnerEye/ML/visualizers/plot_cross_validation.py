@@ -104,6 +104,8 @@ class PlotCrossValidationConfig(GenericConfig):
     comparison_run_recovery_ids: List[str] = param.List(default=None, class_=str,
                                                         doc="The run recovery ids of any additional runs to include in "
                                                             "statistical comparisons")
+    comparison_labels: List[str] = param.List(default=None, class_=str,
+                                              doc="Short labels to use in plots for comparison runs")
     comparison_epochs: List[int] = param.List(default=None, class_=int,
                                               doc="The epochs of any additional runs to include in "
                                                   "statistical comparisons")
@@ -140,6 +142,7 @@ class PlotCrossValidationConfig(GenericConfig):
     def __init__(self, **params: Any):
         # Mapping from run IDs to short names used in graphs
         self.short_names = {}
+        self.run_id_labels = {}
         super().__init__(**params)
 
     def validate(self) -> None:
@@ -155,12 +158,22 @@ class PlotCrossValidationConfig(GenericConfig):
             n_needed = len(self.comparison_run_recovery_ids) - len(self.comparison_epochs)
             if n_needed > 0:
                 self.comparison_epochs.extend([self.comparison_epochs[-1]] * n_needed)
+        else:
+            self.comparison_run_recovery_ids = []
+        if self.comparison_labels is None:
+            self.comparison_labels = []
+        self.run_id_labels[self.run_recovery_id] = "FOCUS"
+        for run_id, label in zip(self.comparison_run_recovery_ids, self.comparison_labels):
+            self.run_id_labels[run_id] = label
 
     def get_short_name(self, run_or_id: Union[Run, str]) -> str:
         if isinstance(run_or_id, Run):
             run_id = run_or_id.id
             if run_id not in self.short_names:
-                extra = " (FOCUS)" if run_id == self.run_recovery_id else ""
+                if run_id in self.run_id_labels:
+                    extra = f" ({self.run_id_labels[run_id]})"
+                else:
+                    extra = ""
                 self.short_names[run_id] = f"{run_or_id.experiment.name}:{run_or_id.number}{extra}"
         else:
             run_id = run_or_id.split(":")[-1]
@@ -812,7 +825,7 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
     with Path(root_folder / RUN_DICTIONARY_NAME).open("w") as out:
         max_len = max(len(short_name) for short_name, _ in pairs)
         for short_name, long_name in sorted(pairs):
-            out.write(f"{short_name:{max_len}s} {long_name}\n")
+            out.write(f"{short_name:{max_len}s}    {long_name}\n")
 
 
 def get_metrics_columns(df: pd.DataFrame) -> Set[str]:
