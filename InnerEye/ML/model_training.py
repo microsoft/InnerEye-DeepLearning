@@ -9,8 +9,6 @@ from dataclasses import dataclass
 from time import time
 from typing import List, Optional, TypeVar
 
-from torch.nn import DataParallel
-
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import empty_string_to_none
