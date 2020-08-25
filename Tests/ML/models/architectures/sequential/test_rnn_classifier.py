@@ -30,7 +30,8 @@ from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentat
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.io_util import ImageAndSegmentations
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, \
+    update_model_for_mixed_precision_and_parallel
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from Tests.ML.util import get_default_azure_config
@@ -249,7 +250,7 @@ def test_run_ml_with_sequence_model(use_combined_model: bool,
         MLRunner(config, azure_config).run()
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.skipif(not common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize(["use_combined_model", "imaging_feature_type"],
                          [(False, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Image),
@@ -262,7 +263,9 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     config.num_epochs = 1
+    config.temperature_scaling_config = None
     model = create_model_with_temperature_scaling(config)
+    update_model_for_mixed_precision_and_parallel(model, config)
     dataloader = SequenceDataset(config,
                                  data_frame=config.dataset_data_frame).as_data_loader(shuffle=False,
                                                                                       batch_size=2)
