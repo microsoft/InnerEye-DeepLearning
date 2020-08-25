@@ -8,7 +8,7 @@ from typing import Any, Optional, Tuple
 from pydicom import Dataset
 from pydicom.dataset import FileMetaDataset, FileDataset
 from unittest import mock
-from skimage.transform import  resize
+from skimage.transform import resize
 
 import torch
 import numpy as np
@@ -195,7 +195,7 @@ def test_is_dicom_file(input: Tuple[str, bool]) -> None:
     assert is_dicom_file_path(Path(file)) == expected
 
 
-def write_test_dicom(array: np.ndarray, path: Path, signed=False) -> None:
+def write_test_dicom(array: np.ndarray, path: Path, signed: bool = False) -> None:
     """
     This saves the input array as a Dicom file.
     This function DOES NOT create a usable Dicom file and is meant only for testing: tags are set to
@@ -529,7 +529,7 @@ def test_load_images_and_stack_3d_with_resize_random(test_output_dirs: TestOutpu
     assert torch.allclose(imaging_data.images, expected_tensor)
 
 
-def test_load_images_and_stack_only_float(test_output_dirs: TestOutputDirectories) -> None:
+def test_load_images_and_stack_with_resize_only_float(test_output_dirs: TestOutputDirectories) -> None:
     """
     Don't allow int type images to be loaded if image_size is set:
     skimage.transform.resize will not resize these correctly

@@ -360,7 +360,6 @@ class ScalarModelBase(ModelConfigBase):
 
     def create_torch_datasets(self, dataset_splits: DatasetSplits) -> Dict[ModelExecutionMode, Any]:
         from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
-        image_dimension = self.image_dimensions
         image_transforms = self.get_image_sample_transforms()
         train = ScalarDataset(args=self, data_frame=dataset_splits.train,
                               name="training", sample_transforms=image_transforms.train)  # type: ignore

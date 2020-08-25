@@ -21,7 +21,7 @@ from rich.progress import track
 from InnerEye.ML.dataset.full_image_dataset import GeneralDataset
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
 from InnerEye.ML.dataset.scalar_sample import ScalarDataSource, ScalarItem, SequenceDataSource
-from InnerEye.ML.scalar_config import LabelTransformation, ScalarModelBase, ImageDimension
+from InnerEye.ML.scalar_config import LabelTransformation, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder

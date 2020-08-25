@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 import torch
 
 from InnerEye.Common.common_util import check_properties_are_not_none
-from InnerEye.Common.type_annotations import TupleInt3
+from InnerEye.Common.type_annotations import TupleInt2Or3
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata, SampleBase
 from InnerEye.ML.utils.io_util import load_images_and_stack
 from InnerEye.ML.utils.ml_util import is_tensor_nan_or_inf
@@ -100,8 +100,8 @@ class ScalarDataSource(ScalarItemBase):
                     root_path: Optional[Path],
                     file_mapping: Optional[Dict[str, Path]],
                     load_segmentation: bool,
-                    center_crop_size: Optional[TupleInt3],
-                    image_size: Optional[TupleInt3],
+                    center_crop_size: Optional[TupleInt2Or3],
+                    image_size: Optional[TupleInt2Or3],
                     image_dimension: ImageDimension
                     ) -> ScalarItem:
         """
