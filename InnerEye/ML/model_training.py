@@ -122,12 +122,12 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     config.create_dataframe_loggers()
 
     model = models_and_optimizers[0].model
-    assert isinstance(model, DataParallel)  # for mypy, later
     optimizer = models_and_optimizers[0].optimizer
+    assert optimizer is not None  # for mypy
     mean_teacher_model = models_and_optimizers[1].model if len(models_and_optimizers) > 1 else None
 
     # Create LR scheduler
-    l_rate_scheduler = LRScheduler(config, optimizer)  # type: ignore
+    l_rate_scheduler = LRScheduler(config, optimizer)
 
     # Training loop
     logging.info("Starting training")
