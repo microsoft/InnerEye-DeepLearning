@@ -49,6 +49,7 @@ def git_https_packages_to_uninstall(env_path: Path) -> List[str]:
     to_uninstall = []
     with env_path.open() as inp:
         for line in inp:
+            line = line.split("#")[0]  # remove any comments
             if line.find("git+https") > 0 and line.find("#egg="):
                 name = line.strip().split("=")[-1]
                 to_uninstall.append(name)

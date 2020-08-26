@@ -59,10 +59,13 @@ class ModelTrainingResult:
                                     len(self.learning_rates_per_epoch)))
 
 
-def diagnose(n: int, optimizer: Optimizer):
-    has_step = hasattr(optimizer, 'step')
-    has_self = has_step and hasattr(optimizer.step, '__self__')
-    logging.info(f"DBG: diagnose {n}: has_step {has_step}, has_self {has_self}")
+def diagnose(n: int, optimizer: Optional[Optimizer]):
+    if optimizer is None:
+        logging.info(f"DBG: diagnpse {n}: optimizer is None")
+    else:
+        has_step = hasattr(optimizer, 'step')
+        has_self = has_step and hasattr(optimizer.step, '__self__')
+        logging.info(f"DBG: diagnose {n}: has_step {has_step}, has_self {has_self}")
 
 
 def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResult:
