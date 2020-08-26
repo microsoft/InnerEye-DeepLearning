@@ -106,6 +106,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
             if checkpoint_epoch is None:
                 raise ValueError("There was no checkpoint file available for the given start_epoch {}"
                                  .format(config.start_epoch))
+
         load_checkpoint()
         if config.compute_mean_teacher_model:
             load_checkpoint(for_mean_teacher_model=True)
@@ -122,7 +123,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # Enable mixed precision training and data parallelization.
     # This relies on the information generated in the model summary.
-    model, optimizer = model_util.update_model_for_mixed_precision_and_parallel(model, config, optimizer)
+    model, gradient_scaler = model_util.update_model_for_mixed_precision_and_parallel(model, config)
     diagnose(2, optimizer)
     if config.compute_mean_teacher_model:
         mean_teacher_model, _ = model_util.update_model_for_mixed_precision_and_parallel(mean_teacher_model, config)
@@ -158,6 +159,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                     mean_teacher_model=mean_teacher_model,
                                     epoch=epoch,
                                     optimizer=optimizer,
+                                    gradient_scaler=gradient_scaler,
                                     epoch_learning_rate=epoch_lrs,
                                     summary_writers=writers,
                                     dataframe_loggers=config.metrics_data_frame_loggers,

@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import Optional, Tuple, Union
 
 import torch
-from apex import amp
 from torch.optim.optimizer import Optimizer
 from torch.optim.rmsprop import RMSprop
+from torch.cuda.amp import GradScaler
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.ML.common import ModelExecutionMode
@@ -96,20 +96,18 @@ def build_net(args: SegmentationModelBase) -> BaseModel:  # type: ignore
 
 def update_model_for_mixed_precision_and_parallel(model: BaseModel,
                                                   args: ModelConfigBase,
-                                                  optimizer: Optional[Optimizer] = None,
                                                   execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
-        Tuple[BaseModelOrDataParallelModel, Optional[Optimizer]]:
+        Tuple[BaseModelOrDataParallelModel, Optional[GradScaler]]:
     """
     Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
     multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
-    perform full volume inference. Additionally, mixed precision training (amp) is utilised on both the model and
-    optimizer instances to improve the training performance.
+    perform full volume inference.
 
     :param model: The torch module object representing the network.
     :param args: The arguments object with attributes used to enable amp training and create the parallel model.
-    :param optimizer: The torch optimizer that should be used for training.
-    :return: Updated torch model and optimizer.
+    :return: Updated torch model and a torch gradient scaler object, if using mixed predictions..
     """
+    grad_scaler = None
     if args.use_gpu:
         # In the normal training codepath, the model should already be on the GPU, but in some tests not.
         model = model.cuda()
@@ -119,19 +117,8 @@ def update_model_for_mixed_precision_and_parallel(model: BaseModel,
             devices = args.get_cuda_devices()
             assert devices is not None  # for mypy
             model.partition_model(devices=devices)
-
-        # This is required to support sigmoid function
-        amp.register_float_function(torch, 'sigmoid')
-
-        # Activate automatic mixed precision
-        # With optimization GEMMs and convolutions are performed in FP16, see https://nvidia.github.io/apex/amp.html
-        amp_output = amp.initialize(model, optimizer, enabled=args.use_mixed_precision, opt_level="O2",
-                                    keep_batchnorm_fp32=None, loss_scale="dynamic", num_losses=1)
-
-        if isinstance(amp_output, tuple):
-            model, optimizer = amp_output
-        else:
-            model = amp_output
+        if args.use_mixed_precision:
+            grad_scaler = GradScaler()
     else:
         logging.info("Making no adjustments to the model because no GPU was found.")
 
@@ -150,7 +137,7 @@ def update_model_for_mixed_precision_and_parallel(model: BaseModel,
         model = model.cuda()
         model = DataParallelModel(model, device_ids=args.get_cuda_devices())  # type: ignore
 
-    return model, optimizer
+    return model, grad_scaler
 
 
 def create_optimizer(args: ModelConfigBase, model: torch.nn.Module) -> Optimizer:
