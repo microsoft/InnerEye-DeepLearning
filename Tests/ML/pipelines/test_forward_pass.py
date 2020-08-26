@@ -112,7 +112,7 @@ def test_amp_activated(use_model_parallel: bool,
                        execution_mode: ModelExecutionMode,
                        use_mixed_precision: bool) -> None:
     """
-    Tests the amp flag both for True and False states. Verifys that the mixed precision training functions as expected.
+    Tests the mix precision flag both for True and False.
     """
     assert machine_has_gpu, "This test must be executed on a GPU machine."
     assert torch.cuda.device_count() > 1, "This test must be executed on a multi-GPU machine"
@@ -150,16 +150,15 @@ def test_amp_activated(use_model_parallel: bool,
 
     # Check if the optimizer is updated with AMP mixed precision features. The attribute should be present
     # if and only if mixed precision is switched on.
-    optimizer_amp = model_and_info_amp.optimizer
-    assert optimizer_amp is not None
-    assert hasattr(optimizer_amp, '_amp_stash') == use_mixed_precision
-    assert hasattr(optimizer_amp, '_post_amp_backward') == use_mixed_precision
+    if use_mixed_precision:
+        assert model_and_info.grad_scaler is not None
 
     criterion = lambda x, y: torch.tensor([0.0], requires_grad=True).cuda()
     pipeline = SegmentationForwardPass(model_and_info_amp.model,
                                        model_config,
                                        batch_size=1,
-                                       optimizer=optimizer_amp,
+                                       optimizer=optimizer,
+                                       gradient_scaler=model_and_info.grad_scaler,
                                        criterion=criterion)
 
     # Verify that forward and backward passes do not throw an exception
@@ -195,6 +194,7 @@ def test_mean_teacher_model() -> None:
     """
     Test training and weight updates of the mean teacher model computation.
     """
+
     def _get_parameters_of_model(model: Union[torch.nn.Module, DataParallelModel]) -> Any:
         """
         Returns the iterator of model parameters

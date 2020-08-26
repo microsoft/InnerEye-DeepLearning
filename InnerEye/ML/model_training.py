@@ -93,9 +93,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     # Print out a detailed breakdown of layers, memory consumption and time.
     generate_and_print_model_summary(config, model)
 
-    # Enable mixed precision training and data parallelization (no-op if already done).
+    # Prepare for mixed precision training and data parallelization (no-op if already done).
     # This relies on the information generated in the model summary.
-
     # We only want to do this if we didn't call load_checkpoint above, because attempting updating twice
     # causes an error.
     models_and_optimizers = [model_util.update_model_for_mixed_precision_and_parallel(model_and_info, config)
@@ -107,6 +106,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     model = models_and_optimizers[0].model
     optimizer = models_and_optimizers[0].optimizer
+    grad_scaler = models_and_optimizers[0].grad_scaler
     assert optimizer is not None  # for mypy
     mean_teacher_model = models_and_optimizers[1].model if len(models_and_optimizers) > 1 else None
 
@@ -139,6 +139,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                     mean_teacher_model=mean_teacher_model,
                                     epoch=epoch,
                                     optimizer=optimizer,
+                                    gradient_scaler=grad_scaler,
                                     epoch_learning_rate=epoch_lrs,
                                     summary_writers=writers,
                                     dataframe_loggers=config.metrics_data_frame_loggers,

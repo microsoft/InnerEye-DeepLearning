@@ -12,6 +12,7 @@ import numpy as np
 import param
 import torch.cuda
 import torch.utils.data
+from torch.cuda.amp import GradScaler
 from torch.nn import MSELoss
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
@@ -71,6 +72,7 @@ class TrainValidateParameters(param.Parameterized, Generic[M]):
     in_training_mode: bool = param.Boolean(default=True)
     dataframe_loggers: MetricsDataframeLoggers = param.ClassSelector(class_=MetricsDataframeLoggers, instantiate=False)
     save_metrics: bool = param.Boolean(default=True)
+    gradient_scaler = param.ClassSelector(class_=GradScaler, instantiate=False)
 
 
 class ModelTrainingStepsBase(Generic[C, M], ABC):
@@ -321,23 +323,32 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         model = self.train_val_params.model
         mean_teacher_model = self.train_val_params.mean_teacher_model
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, model, sample)
+        label_gpu = self.get_label_tensor(model_inputs_and_labels.labels)
 
-        if self.in_training_mode:
-            model.train()
-            logits, gathered_logits, posteriors = \
-                self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
-        else:
-            model.eval()
-            with torch.no_grad():
+        def compute_model_output_and_loss():
+            if self.in_training_mode:
+                model.train()
                 logits, gathered_logits, posteriors = \
                     self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
-            model.train()
+            else:
+                model.eval()
+                with torch.no_grad():
+                    logits, gathered_logits, posteriors = \
+                        self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
+                model.train()
+            loss = self.compute_loss(logits, label_gpu)
+            return gathered_logits, posteriors, loss
 
-        label_gpu = self.get_label_tensor(model_inputs_and_labels.labels)
-        loss = self.compute_loss(logits, label_gpu)
+        if self.model_config.use_mixed_precision:
+            with torch.cuda.amp.autocast():
+                gathered_logits, posteriors, loss = compute_model_output_and_loss()
+        else:
+            gathered_logits, posteriors, loss = compute_model_output_and_loss()
 
         if self.in_training_mode:
-            single_optimizer_step(self.model_config, loss, self.train_val_params.optimizer)
+            single_optimizer_step(loss,
+                                  self.train_val_params.optimizer,
+                                  self.train_val_params.gradient_scaler)
             if self.model_config.compute_mean_teacher_model:
                 self.update_mean_teacher_parameters()
 
@@ -540,7 +551,8 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
                                                 batch_size=self.model_config.train_batch_size,
                                                 optimizer=self.train_val_params.optimizer,
                                                 in_training_mode=self.train_val_params.in_training_mode,
-                                                criterion=self.compute_loss)
+                                                criterion=self.compute_loss,
+                                                gradient_scaler=train_val_params.gradient_scaler)
         self.metrics = MetricsDict(hues=[BACKGROUND_CLASS_NAME] + model_config.ground_truth_ids)
 
     def create_loss_function(self) -> torch.nn.Module:

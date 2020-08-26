@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, List, Optional, Union
 
 import torch
-from apex import amp
+from torch.cuda.amp import GradScaler
 from torch.optim.optimizer import Optimizer
 from torch.optim.rmsprop import RMSprop
 
@@ -50,6 +50,7 @@ class ModelAndInfo:
     """
     model: BaseModelOrDataParallelModel
     optimizer: Optional[Optimizer] = None
+    grad_scaler: Optional[GradScaler] = None
     is_mean_teacher: bool = False
     is_adjusted: bool = False
     checkpoint_epoch: Optional[int] = None
@@ -58,12 +59,6 @@ class ModelAndInfo:
     def to_cuda(self) -> None:
         assert self.model is not None
         self.model = self.model.cuda()
-
-    def apply_amp_output(self, amp_output: Any) -> None:
-        if isinstance(amp_output, tuple):
-            self.model, self.optimizer = amp_output
-        else:
-            self.model = amp_output
 
     def set_data_parallel(self, device_ids: Optional[List[Any]]) -> None:
         assert self.model is not None
@@ -138,17 +133,17 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
     """
     Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
     multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
-    perform full volume inference. Additionally, mixed precision training (amp) is utilised on both the model and
-    optimizer instances to improve the training performance.
-
-    :param model_and_info: The torch module object representing the network, and more
+    perform full volume inference.
+    :param model_and_info: The torch module object representing the network and the optimizer.
     :param args: The arguments object with attributes used to enable amp training and create the parallel model.
     :param execution_mode: mode, i.e. train or test
     :return: Updated torch model and optimizer.
+    :return: Updated torch model and a torch gradient scaler object, if using mixed predictions..
     """
     if model_and_info.is_adjusted:
         logging.debug("model_and_info.is_adjusted is already True")
         return model_and_info
+    grad_scaler = None
     if args.use_gpu:
         # In the normal training codepath, the model should already be on the GPU, but in some tests not.
         model_and_info.to_cuda()
@@ -157,20 +152,13 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
         if args.use_model_parallel:
             devices = args.get_cuda_devices()
             assert devices is not None  # for mypy
-            model_and_info.model.partition_model(devices=devices)  # type: ignore
-
-        # This is required to support sigmoid function
-        amp.register_float_function(torch, 'sigmoid')
-
-        # Activate automatic mixed precision
-        # With optimization GEMMs and convolutions are performed in FP16, see https://nvidia.github.io/apex/amp.html
-        amp_output = amp.initialize(model_and_info.model, model_and_info.optimizer, enabled=args.use_mixed_precision,
-                                    opt_level="O1", keep_batchnorm_fp32=None, loss_scale="dynamic", num_losses=1)
-        model_and_info.apply_amp_output(amp_output)
+            model_and_info.model.partition_model(devices=devices)
+        if args.use_mixed_precision:
+            grad_scaler = GradScaler()
     else:
         logging.info("Making no adjustments to the model because no GPU was found.")
 
-    # Update model related config attributes (After AMP & Model Parallel Activated)
+    # Update model related config attributes (After Model Parallel Activated)
     args.adjust_after_mixed_precision_and_parallel(model_and_info.model)
 
     # DataParallel enables running the model with multiple gpus by splitting samples across GPUs
@@ -186,6 +174,7 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
         model_and_info.set_data_parallel(device_ids=args.get_cuda_devices())
 
     model_and_info.is_adjusted = True
+    model_and_info.grad_scaler = grad_scaler
     logging.debug("model_and_info.is_adjusted set to True")
     return model_and_info
 
