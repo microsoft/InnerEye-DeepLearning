@@ -33,8 +33,8 @@ def test_perform_score_comparisons() -> None:
     result = perform_score_comparisons(dataset_df, metrics_df, [baseline])
     assert result.did_comparisons
     assert len(result.wilcoxon_lines) == 5
-    assert result.wilcoxon_lines[0] == f"Build 1: {comparison_name}"
-    assert result.wilcoxon_lines[1] == "Build 2: CURRENT"
+    assert result.wilcoxon_lines[0] == f"Run 1: {comparison_name}"
+    assert result.wilcoxon_lines[1] == "Run 2: CURRENT"
     assert result.wilcoxon_lines[3].find("WORSE") > 0
     assert list(result.plots.keys()) == [f"{comparison_name}_vs_CURRENT"]
 
