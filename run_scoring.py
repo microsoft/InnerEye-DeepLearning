@@ -106,6 +106,8 @@ def write_script(parser: argparse.ArgumentParser, script_path: Path, project_roo
             # pip does not check such packages are up to date, only that some version is already installed.
             for pkg in git_https_packages_to_uninstall(merged_env):
                 run(f"pip uninstall --yes {pkg}")
+            # Remove nvidia-apex - special case, to ensure really installed
+            run("conda remove nvidia-apex")
             run(f"conda env update --name $CONDA_DEFAULT_ENV --file {merged_env}")
         # unknown_args should start with the script, so we prepend that with project_root if necessary.
         scoring_script = unknown_args[0]

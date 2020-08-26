@@ -59,7 +59,7 @@ class ModelTrainingResult:
                                     len(self.learning_rates_per_epoch)))
 
 
-def diagnose(n: int, optimizer: Optional[Optimizer]):
+def diagnose(n: int, optimizer: Optional[Optimizer]) -> None:
     if optimizer is None:
         logging.info(f"DBG: diagnpse {n}: optimizer is None")
     else:
