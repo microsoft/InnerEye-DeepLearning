@@ -109,7 +109,6 @@ def test_predict_non_ensemble(batch_size: int) -> None:
     model: Any = ScalarOnesModel(config.expected_image_size_zyx, 1.)
     model, _ = update_model_for_mixed_precision_and_parallel(model,
                                                              args=config,
-                                                             optimizer=None,
                                                              execution_mode=ModelExecutionMode.TEST)
     pipeline = ScalarInferencePipeline(model, config, 0, 0)
     data = {"metadata": [GeneralSampleMetadata(id='2')] * batch_size,
@@ -135,11 +134,9 @@ def test_predict_ensemble(batch_size: int) -> None:
     model_returns_1: Any = ScalarOnesModel(config.expected_image_size_zyx, 1.)
     model_returns_0, _ = update_model_for_mixed_precision_and_parallel(model_returns_0,
                                                                        args=config,
-                                                                       optimizer=None,
                                                                        execution_mode=ModelExecutionMode.TEST)
     model_returns_1, _ = update_model_for_mixed_precision_and_parallel(model_returns_1,
                                                                        args=config,
-                                                                       optimizer=None,
                                                                        execution_mode=ModelExecutionMode.TEST)
     pipeline_0 = ScalarInferencePipeline(model_returns_0, config, 0, 0)
     pipeline_1 = ScalarInferencePipeline(model_returns_0, config, 0, 1)

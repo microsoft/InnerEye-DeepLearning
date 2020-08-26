@@ -306,6 +306,5 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
         summary_for_segmentation_models(model_config, model)
     model, _ = update_model_for_mixed_precision_and_parallel(model,
                                                              args=model_config,
-                                                             optimizer=None,
                                                              execution_mode=ModelExecutionMode.TEST)
     return model, checkpoint_epoch
