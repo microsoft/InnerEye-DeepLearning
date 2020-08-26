@@ -42,6 +42,19 @@ def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, s
     return p.wait()
 
 
+def git_https_packages_to_uninstall(env_path: Path) -> List[str]:
+    """
+    Look for lines of the form "git+https...#egg=name" and return a list of such "name" values.
+    """
+    to_uninstall = []
+    with env_path.open() as inp:
+        for line in inp:
+            if line.find("git+https") > 0 and line.find("#egg="):
+                name = line.strip().split("=")[-1]
+                to_uninstall.append(name)
+    return to_uninstall
+
+
 def write_script(parser: argparse.ArgumentParser, script_path: Path, project_root: Path) -> None:
     """
     Writes a shell script based on the contents of the parsed arguments, ready to be run (under Python 3)
@@ -74,10 +87,6 @@ def write_script(parser: argparse.ArgumentParser, script_path: Path, project_roo
         if os.environ.get('CONDA_DEFAULT_ENV', None):
             # Environment may need updating (otherwise we assume it's been set at submission
             # time and is already correct).
-            # We need to explicitly uninstall apex and radio because when given an explicit git+https URL,
-            # pip does not check that the package is up to date, only that some version is already installed.
-            echo("Uninstalling apex and radio")
-            run("pip uninstall --yes apex radio")
             # Update the current conda environment (so no need to activate it afterwards, despite the message
             # given by conda). If we have an environment.yml file in both the top level and the submodule,
             # merge them.
@@ -92,6 +101,10 @@ def write_script(parser: argparse.ArgumentParser, script_path: Path, project_roo
                 run(f"conda-merge {submodule_env} {top_level_env} > {merged_env}")
             else:
                 merged_env = submodule_env
+            # We need to explicitly uninstall packages specified with an explicit git+https URL, because
+            # pip does not check such packages are up to date, only that some version is already installed.
+            for pkg in git_https_packages_to_uninstall(merged_env):
+                run(f"pip uninstall --yes {pkg}")
             run(f"conda env update --name $CONDA_DEFAULT_ENV --file {merged_env}")
         # unknown_args should start with the script, so we prepend that with project_root if necessary.
         scoring_script = unknown_args[0]
