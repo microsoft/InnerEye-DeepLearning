@@ -12,7 +12,10 @@ dependencies:
   - pip:
       # We need a recent apex, as nvidia-apex=0.1 from conda-forge suffers from
       # https://github.com/NVIDIA/apex/issues/552
-      - git+https://github.com/NVIDIA/apex.git@4ef930c#egg=apex
+      # However this stops installation on CPU-only machines, and the alleged fix does not fix it:
+      # https://github.com/NVIDIA/apex/issues/931
+      # Commit a0d99fd, from 2020-07-09, seems to avoid both bugs.
+      - git+https://github.com/NVIDIA/apex.git@a0d99fd#egg=apex
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - azureml-mlflow==1.12.0
       - azureml-sdk==1.12.0
