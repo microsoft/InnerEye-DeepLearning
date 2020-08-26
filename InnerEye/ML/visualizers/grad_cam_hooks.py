@@ -287,7 +287,7 @@ class GradCam(GradientBasedFeatureExtractor):
             return total_pseudo_cam_non_image
 
     def generate(self, input: List[torch.Tensor], target_position: int = -1, target_label_index: int = -1) \
-        -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+            -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Generates the GradCam for images, PseudoGradCam for images, PseudoGradCam for non-images feautres
         of one batch for the given classification model.
@@ -353,7 +353,7 @@ class GuidedBackPropagation(GradientBasedFeatureExtractor):
         super().__init__(model=model, config=config, target_layer=None)
 
     def guided_backprop_hook(self, module: Module, grad_in: torch.Tensor, grad_out: torch.Tensor) \
-        -> Optional[Tuple[torch.Tensor]]:
+            -> Optional[Tuple[torch.Tensor]]:
         """
         Backward hook for guided Backpropagation.
         Propagate only positive gradient when backpropagating through ReLu layers.
@@ -596,7 +596,7 @@ class VisualizationMaps:
             channels = []
             for item in classification_item[index].items:  # type: ignore
                 if (item.metadata.sequence_position - self.config.min_sequence_position_value) <= target_position \
-                    or target_position == -1:
+                        or target_position == -1:
                     channels.append(item.metadata.sequence_position)
             return [f"{col}_{channel}" for channel in channels for col in
                     non_image_features]  # type: ignore
@@ -627,7 +627,7 @@ class VisualizationMaps:
         segmentations = []
         for item in classification_sequence[index].items:
             if (item.metadata.sequence_position - self.config.min_sequence_position_value) <= target_position \
-                or target_position == -1:
+                    or target_position == -1:
                 if self.imaging_feature_type == ImagingFeatureType.Segmentation:
                     segmentations.append(item.segmentations)
                 elif self.imaging_feature_type == ImagingFeatureType.Image:

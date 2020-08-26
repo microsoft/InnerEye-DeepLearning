@@ -100,7 +100,7 @@ def update_model_for_mixed_precision_and_parallel(model: BaseModel,
                                                   args: ModelConfigBase,
                                                   optimizer: Optional[Optimizer] = None,
                                                   execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) \
-    -> Tuple[BaseModelOrDataParallelModel, Optional[Optimizer]]:
+        -> Tuple[BaseModelOrDataParallelModel, Optional[Optimizer]]:
     """
     Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
     multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
