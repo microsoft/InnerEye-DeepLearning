@@ -125,7 +125,7 @@ def update_model_for_mixed_precision_and_parallel(model: BaseModel,
 
         # Activate automatic mixed precision
         # With optimization GEMMs and convolutions are performed in FP16, see https://nvidia.github.io/apex/amp.html
-        amp_output = amp.initialize(model, optimizer, enabled=args.use_mixed_precision, opt_level="O1",
+        amp_output = amp.initialize(model, optimizer, enabled=args.use_mixed_precision, opt_level="O2",
                                     keep_batchnorm_fp32=None, loss_scale="dynamic", num_losses=1)
 
         if isinstance(amp_output, tuple):
