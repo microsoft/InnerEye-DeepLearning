@@ -17,7 +17,7 @@ from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME, Mo
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.deep_learning_config import DeepLearningConfig, TemperatureScalingConfig
 from InnerEye.ML.metrics import TRAIN_STATS_FILE
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForSegmentation
@@ -87,13 +87,15 @@ def test_get_total_number_of_validation_epochs() -> None:
     c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1],
                           temperature_scaling_config=None, should_validate=False)
     assert c.get_total_number_of_validation_epochs() == 2
-    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1], should_validate=False)
+    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1], should_validate=False,
+                          temperature_scaling_config=TemperatureScalingConfig())
     assert c.get_total_number_of_validation_epochs() == 3
     c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1], temperature_scaling_config=None,
                           save_start_epoch=1, save_step_epoch=1, should_validate=False)
     assert c.get_total_number_of_validation_epochs() == 2
     c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1],
-                          save_start_epoch=1, save_step_epochs=1, should_validate=False)
+                          save_start_epoch=1, save_step_epochs=1, should_validate=False,
+                          temperature_scaling_config=TemperatureScalingConfig())
     assert c.get_total_number_of_validation_epochs() == 4
 
 
