@@ -45,7 +45,7 @@ class ModelAndInfo:
       is_adjusted: whether model adjustments (which cannot be done twice) have been applied
       checkpoint_epoch: the training epoch this model was created, if loaded from disk
     """
-    model: BaseModel
+    model: BaseModelOrDataParallelModel
     optimizer: Optional[Optimizer] = None
     is_mean_teacher: bool = False
     is_adjusted: bool = False
@@ -63,7 +63,7 @@ class ModelAndInfo:
 
     def set_data_parallel(self, device_ids: Optional[List[Any]]) -> None:
         assert self.model is not None
-        self.model = DataParallelModel(self.model, device_ids=device_ids)  # type: ignore
+        self.model = DataParallelModel(self.model, device_ids=device_ids)
 
 
 def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:
@@ -81,7 +81,7 @@ def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:
 
 
 # noinspection PyTypeChecker
-def build_net(args: SegmentationModelBase) -> BaseModel:  # type: ignore
+def build_net(args: SegmentationModelBase) -> BaseModel:
     """
     Build network architectures
 
@@ -97,20 +97,21 @@ def build_net(args: SegmentationModelBase) -> BaseModel:  # type: ignore
     crop_size_constraints = CropSizeConstraints(minimum_size=basic_size_shrinkage + 1)
     run_weight_initialization = True
 
+    network: BaseModel
     if args.architecture == ModelArchitectureConfig.Basic:
         network_definition = basic_network_definition
         network = ComplexModel(args, full_channels_list,
                                basic_dilations, network_definition, crop_size_constraints)  # type: ignore
 
     elif args.architecture == ModelArchitectureConfig.UNet3D:
-        network = UNet3D(input_image_channels=args.number_of_image_channels,  # type: ignore
+        network = UNet3D(input_image_channels=args.number_of_image_channels,
                          initial_feature_channels=args.feature_channels[0],
                          num_classes=args.number_of_classes,
                          kernel_size=args.kernel_size)
         run_weight_initialization = False
 
     elif args.architecture == ModelArchitectureConfig.UNet2D:
-        network = UNet2D(input_image_channels=args.number_of_image_channels,  # type: ignore
+        network = UNet2D(input_image_channels=args.number_of_image_channels,
                          initial_feature_channels=args.feature_channels[0],
                          num_classes=args.number_of_classes,
                          padding_mode=PaddingMode.Edge)
@@ -152,7 +153,7 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
         if args.use_model_parallel:
             devices = args.get_cuda_devices()
             assert devices is not None  # for mypy
-            model_and_info.model.partition_model(devices=devices)
+            model_and_info.model.partition_model(devices=devices)  # type: ignore
 
         # This is required to support sigmoid function
         amp.register_float_function(torch, 'sigmoid')
@@ -220,7 +221,7 @@ def summary_for_segmentation_models(config: ModelConfigBase, model: DeviceAwareM
     if isinstance(crop_size, int):
         crop_size = (crop_size, crop_size, crop_size)
     try:
-        model.generate_model_summary(crop_size, log_summaries_to_files=config.log_summaries_to_files)  # type: ignore
+        model.generate_model_summary(crop_size, log_summaries_to_files=config.log_summaries_to_files)
     except AttributeError as e:
         logging.warning(f"summary_for_segmentation_models failed with exception {e}")
 
