@@ -44,12 +44,14 @@ class ModelAndInfo:
       is_mean_teacher: whether this is (intended to be) a mean teacher model
       is_adjusted: whether model adjustments (which cannot be done twice) have been applied
       checkpoint_epoch: the training epoch this model was created, if loaded from disk
+      model_execution_mode: mode this model will be run in
     """
     model: BaseModelOrDataParallelModel
     optimizer: Optional[Optimizer] = None
     is_mean_teacher: bool = False
     is_adjusted: bool = False
     checkpoint_epoch: Optional[int] = None
+    model_execution_mode: ModelExecutionMode = ModelExecutionMode.TEST
 
     def to_cuda(self) -> None:
         assert self.model is not None
@@ -354,5 +356,5 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
         # Generate the model summary, which is required for model partitioning across GPUs.
         summary_for_segmentation_models(model_config, model_and_info.model)
     return update_model_for_mixed_precision_and_parallel(
-        model_and_info, args=model_config, execution_mode=ModelExecutionMode.TEST)
+        model_and_info, args=model_config, execution_mode=model_and_info.model_execution_mode)
 

@@ -92,9 +92,11 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # Create models, optimizers, and whether is_mean_teacher
     model = config.create_model()
-    models_and_optimizers = [ModelAndInfo(model, model_util.create_optimizer(config, model))]
+    models_and_optimizers = [ModelAndInfo(model, model_util.create_optimizer(config, model),
+                                          model_execution_mode=ModelExecutionMode.TRAIN)]
     if config.compute_mean_teacher_model:
-        models_and_optimizers.append(ModelAndInfo(config.create_model(), is_mean_teacher=True))
+        models_and_optimizers.append(ModelAndInfo(config.create_model(), is_mean_teacher=True,
+                                                  model_execution_mode=ModelExecutionMode.TRAIN))
 
     # If continuing from a previous run at a specific epoch, then load the previous model
     if config.should_load_checkpoint_for_training():
