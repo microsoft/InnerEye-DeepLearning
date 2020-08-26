@@ -2,7 +2,6 @@ name: InnerEye
 channels:
   - defaults
   - pytorch
-  - conda-forge
 dependencies:
   - cudatoolkit=10.2
   - pip=20.1.1
@@ -11,6 +10,8 @@ dependencies:
   - python-blosc=1.7.0
   - torchvision=0.7.0
   - pip:
+      # We need a recent apex, as nvidia-apex=0.1 from conda-forge suffers from
+      # https://github.com/NVIDIA/apex/issues/552
       - git+https://github.com/NVIDIA/apex.git@4ef930c#egg=apex
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - azureml-mlflow==1.12.0
