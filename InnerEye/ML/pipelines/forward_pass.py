@@ -13,7 +13,7 @@ import torch
 from apex import amp
 from torch import autograd
 # noinspection PyUnresolvedReferences
-from torch.optim import Optimizer
+from torch.optim import Optimizer  # type: ignore
 
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
