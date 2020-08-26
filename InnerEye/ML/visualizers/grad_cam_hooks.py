@@ -360,7 +360,7 @@ class GuidedBackPropagation(GradientBasedFeatureExtractor):
         """
         # For all ReLU layers propagate only positive gradients
         if isinstance(module, torch.nn.ReLU):
-            return (torch.nn.functional.relu(grad_in[0]),)
+            return torch.nn.functional.relu(grad_in[0]),
         return None
 
     def forward(self, *input):  # type: ignore
