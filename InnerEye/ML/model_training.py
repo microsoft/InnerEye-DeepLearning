@@ -111,7 +111,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # Enable mixed precision training and data parallelization (no-op if already done).
     # This relies on the information generated in the model summary.
-    # We only want to do this if we didn't call load_checkpoint above, because attempting updating twic
+    # We only want to do this if we didn't call load_checkpoint above, because attempting updating twice
     # causes an error.
     models_and_optimizers = [model_util.update_model_for_mixed_precision_and_parallel(model_and_info, config)
                              for model_and_info in models_and_optimizers]

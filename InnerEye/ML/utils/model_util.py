@@ -49,7 +49,7 @@ class ModelAndInfo:
     is_adjusted: bool = False
     checkpoint_epoch: Optional[int] = None
 
-    def cuda(self) -> None:
+    def to_cuda(self) -> None:
         assert self.model is not None
         self.model = self.model.cuda()
 
@@ -144,7 +144,7 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
         return model_and_info
     if args.use_gpu:
         # In the normal training codepath, the model should already be on the GPU, but in some tests not.
-        model_and_info.cuda()
+        model_and_info.to_cuda()
         logging.info("Adjusting the model to use mixed precision training.")
         # If model parallel is set to True, then partition the network across all available gpus.
         if args.use_model_parallel:
@@ -175,7 +175,7 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
         # Move all layers to the default GPU before activating data parallel.
         # This needs to happen even though we put the model to the GPU at the beginning of the method,
         # but we may have spread it across multiple GPUs later.
-        model_and_info.cuda()
+        model_and_info.to_cuda()
         model_and_info.set_data_parallel(device_ids=args.get_cuda_devices())
 
     model_and_info.is_adjusted = True
