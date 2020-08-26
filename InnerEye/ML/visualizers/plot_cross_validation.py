@@ -141,8 +141,8 @@ class PlotCrossValidationConfig(GenericConfig):
 
     def __init__(self, **params: Any):
         # Mapping from run IDs to short names used in graphs
-        self.short_names = {}
-        self.run_id_labels = {}
+        self.short_names: Dict[str, str] = {}
+        self.run_id_labels: Dict[str, str] = {}
         super().__init__(**params)
 
     def validate(self) -> None:
@@ -821,11 +821,12 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
         if dataset_csv:
             shutil.copy(str(dataset_csv), str(root_folder))
     name_dct = config_and_files.config.short_names
-    pairs = [(val, key) for key, val in name_dct.items()]
-    with Path(root_folder / RUN_DICTIONARY_NAME).open("w") as out:
-        max_len = max(len(short_name) for short_name, _ in pairs)
-        for short_name, long_name in sorted(pairs):
-            out.write(f"{short_name:{max_len}s}    {long_name}\n")
+    if name_dct:
+        pairs = [(val, key) for key, val in name_dct.items()]
+        with Path(root_folder / RUN_DICTIONARY_NAME).open("w") as out:
+            max_len = max(len(short_name) for short_name, _ in pairs)
+            for short_name, long_name in sorted(pairs):
+                out.write(f"{short_name:{max_len}s}    {long_name}\n")
 
 
 def get_metrics_columns(df: pd.DataFrame) -> Set[str]:

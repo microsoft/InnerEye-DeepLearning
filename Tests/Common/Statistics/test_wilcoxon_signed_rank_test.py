@@ -74,11 +74,11 @@ def test_run_wilcoxon_test_on_data() -> None:
             "C": {"foo": {"0": 0.97, "1": 0.97, "2": 0.97, "3": 0.97, "4": 0.97}}}
     result1 = "\n".join(wt.run_wilcoxon_test_on_data(data))
     # We expect all three pairwise comparisons.
-    assert result1.find("Build 1: A\nBuild 2: B\n") >= 0 or result1.find("Build 1: B\nBuild 2: A\n") >= 0
-    assert result1.find("Build 1: A\nBuild 2: C\n") >= 0 or result1.find("Build 1: C\nBuild 2: A\n") >= 0
-    assert result1.find("Build 1: B\nBuild 2: C\n") >= 0 or result1.find("Build 1: C\nBuild 2: B\n") >= 0
+    assert result1.find("Run 1: A\nRun 2: B\n") >= 0 or result1.find("Run 1: B\nRun 2: A\n") >= 0
+    assert result1.find("Run 1: A\nRun 2: C\n") >= 0 or result1.find("Run 1: C\nRun 2: A\n") >= 0
+    assert result1.find("Run 1: B\nRun 2: C\n") >= 0 or result1.find("Run 1: C\nRun 2: B\n") >= 0
     # When we specify "against B", there should be no comparison between A and C.
     result2 = "\n".join(wt.run_wilcoxon_test_on_data(data, against=["B"]))
-    assert result2.find("Build 1: A\nBuild 2: B\n") >= 0 or result2.find("Build 1: B\nBuild 2: A\n") >= 0
-    assert result2.find("Build 1: A\nBuild 2: C\n") < 0 and result2.find("Build 1: C\nBuild 2: A\n") < 0
-    assert result2.find("Build 1: B\nBuild 2: C\n") >= 0 or result2.find("Build 1: C\nBuild 2: B\n") >= 0
+    assert result2.find("Run 1: A\nRun 2: B\n") >= 0 or result2.find("Run 1: B\nRun 2: A\n") >= 0
+    assert result2.find("Run 1: A\nRun 2: C\n") < 0 and result2.find("Run 1: C\nRun 2: A\n") < 0
+    assert result2.find("Run 1: B\nRun 2: C\n") >= 0 or result2.find("Run 1: C\nRun 2: B\n") >= 0

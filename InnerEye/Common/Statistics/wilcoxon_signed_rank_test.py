@@ -254,7 +254,8 @@ def wilcoxon_signed_rank_test(args: WilcoxonTestConfig, name_shortener: Optional
         data = read_data(args.csv_file, args.subset, args.exclude.split(','))
     if name_shortener:
         data = dict((name_shortener(key), val) for (key, val) in data.items())
-        args.against = [name_shortener(key) for key in args.against]
+        if args.against is not None:
+            args.against = [name_shortener(key) for key in args.against]
     lines = run_wilcoxon_test_on_data(data, args.against, args.threshold, args.raw)
     plots = create_scatterplots(data, args.against) if args.with_scatterplots else {}
     return lines, plots
