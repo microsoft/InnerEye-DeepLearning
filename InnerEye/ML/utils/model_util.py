@@ -32,6 +32,8 @@ from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, is_gpu_available
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 
+BaseModelOrDataParallelModel = Union[BaseModel, DataParallelModel]
+
 
 @dataclass
 class ModelAndInfo:

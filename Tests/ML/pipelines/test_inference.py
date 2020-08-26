@@ -82,7 +82,7 @@ def test_inference_identity(image_size: Any,
         expected_segmentation = largest_component
 
     # instantiate the model
-    model: torch.nn.Module = PyTorchMockModel(shrink_by)
+    model = PyTorchMockModel(shrink_by)
     model_config.adjust_after_mixed_precision_and_parallel(model)
 
     # create single or ensemble inference pipeline

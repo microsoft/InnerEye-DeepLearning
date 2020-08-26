@@ -13,7 +13,6 @@ import numpy as np
 import torch
 from radio import CTImagesMaskedBatch
 from radio.batchflow import Dataset, action, inbatch_parallel
-from torch.nn import Module
 
 from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import config
@@ -25,6 +24,7 @@ from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import image_util, ml_util, model_util
 from InnerEye.ML.utils.image_util import compute_uncertainty_map_from_posteriors, gaussian_smooth_posteriors, \
     posteriors_to_segmentation
+from InnerEye.ML.utils.model_util import BaseModelOrDataParallelModel
 
 
 class InferencePipelineBase:
@@ -190,7 +190,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
                 posteriors=self.posteriors,
                 voxel_spacing_mm=self.voxel_spacing_mm)
 
-    def __init__(self, model: Module, model_config: config.SegmentationModelBase, epoch: int = 0,
+    def __init__(self, model: BaseModelOrDataParallelModel, model_config: config.SegmentationModelBase, epoch: int = 0,
                  pipeline_id: int = 0):
         super().__init__(model_config)
         self.model = model
@@ -326,7 +326,7 @@ class InferenceBatch(CTImagesMaskedBatch):
         # There may be cases where the test image is smaller than the test_crop_size. Adjust crop_size
         # to always fit into image. If test_crop_size is smaller than the image, crop will remain unchanged.
         image_size = image_channels.shape[1:]
-        model: Union[torch.nn.Module[Any], torch.nn.DataParallel] = \
+        model: Union[torch.nn.Module, torch.nn.DataParallel] = \
             self.pipeline.get_variable(InferencePipeline.Variables.Model)
         if isinstance(model, torch.nn.DataParallel):
             model = model.module
