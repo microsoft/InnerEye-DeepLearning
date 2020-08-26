@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -210,10 +211,12 @@ def write_to_scatterplot_directory(root_folder: Path, plots: Dict[str, plt.Figur
     :param root_folder: path to a folder
     :param plots: dictionary from plot basenames to plots (plt.Figure objects)
     """
-    if not plots:
-        return
     scatterplot_dir = root_folder / SCATTERPLOTS_SUBDIR_NAME
+    if not plots:
+        logging.info(f"There are no plots to write to {scatterplot_dir}, so not creating it.")
+        return
     scatterplot_dir.mkdir(parents=True, exist_ok=True)
+    logging.info(f"There are {len(plots)} plots to write to {scatterplot_dir}")
     for basename, fig in plots.items():
         fig.savefig(scatterplot_dir / f"{basename}.jpg")
 

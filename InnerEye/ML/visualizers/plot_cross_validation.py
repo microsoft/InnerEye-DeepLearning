@@ -723,11 +723,12 @@ def may_write_lines_to_file(lines: List[str], path: Path) -> None:
     :param lines: list of lines to write (without final newlines)
     :param path: csv file path to write to
     """
-    if len(lines) == 0:
-        logging.warning(f"Nothing to write to {path}")
-    else:
-        logging.info(f"Writing {len(lines)} lines to {path}")
-        with path.open('w') as out:
+    with path.open('w') as out:
+        if len(lines) == 0:
+            logging.warning(f"Writing explanatory message to {path}")
+            out.write("There were not enough data points for any statistically meaningful comparisons.")
+        else:
+            logging.info(f"Writing {len(lines)} lines to {path}")
             out.write("\n".join(lines) + "\n")
 
 
