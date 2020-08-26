@@ -69,3 +69,17 @@ class ModelTrainingResults:
                             "val_metrics_per_epoch={}, learning_rates_per_epoch={}"
                             .format(len(self.train_results_per_epoch), len(self.val_results_per_epoch),
                                     len(self.learning_rates_per_epoch)))
+
+
+def gather_tensor(tensor: torch.Tensor, target_device: int = 0) -> torch.Tensor:
+    """
+    When using multiple GPUs, logits is a list of tensors. Concatenate them
+    across the first dimension, and move them to the provided target_device.
+    :param tensor: tensor to gather
+    :param target_device: device to move the tensors to
+    :return:
+    """
+    if isinstance(tensor, list):
+        return torch.nn.parallel.gather(tensor, target_device=target_device)
+    else:
+        return tensor
