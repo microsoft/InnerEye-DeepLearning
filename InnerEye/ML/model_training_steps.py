@@ -310,7 +310,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         else:
             logits = self.train_val_params.model(*model_inputs)
 
-        posteriors = self.model_config.get_post_loss_logits_normalization_function()(model_output)
+        posteriors = self.model_config.get_post_loss_logits_normalization_function()(logits)
         return logits, posteriors
 
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
