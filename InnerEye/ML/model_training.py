@@ -59,6 +59,12 @@ class ModelTrainingResult:
                                     len(self.learning_rates_per_epoch)))
 
 
+def diagnose(n: int, optimizer: Optimizer):
+    has_step = hasattr(optimizer, 'step')
+    has_self = has_step and hasattr(optimizer.step, '__self__')
+    logging.info(f"DBG: diagnose {n}: has_step {has_step}, has_self {has_self}")
+
+
 def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResult:
     """
     The main training loop. It creates the model, dataset, optimizer_type, and criterion, then proceeds
@@ -86,6 +92,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # Create the optimizer_type and loss criterion
     optimizer: Optional[Optimizer] = model_util.create_optimizer(config, model)
+    diagnose(1, optimizer)
 
     # If continuing from a previous run at a specific epoch, then load the previous model
     if config.should_load_checkpoint_for_training():
@@ -113,6 +120,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     # Enable mixed precision training and data parallelization.
     # This relies on the information generated in the model summary.
     model, optimizer = model_util.update_model_for_mixed_precision_and_parallel(model, config, optimizer)
+    diagnose(2, optimizer)
     if config.compute_mean_teacher_model:
         mean_teacher_model, _ = model_util.update_model_for_mixed_precision_and_parallel(mean_teacher_model, config)
 
