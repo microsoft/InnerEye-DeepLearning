@@ -254,15 +254,15 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         self.compute_mean_teacher_model = self.model_config.compute_mean_teacher_model
 
         if self.model_config.compute_grad_cam:
-            if not self.model_config.aggregation_type == AggregationType.Average:
-                self.model_config.max_batch_grad_cam = 0
-                logging.warning("GradCam computation is not implemented for this aggregation type."
-                                "Ignoring computation.")
-            else:
+            if self.model_config.aggregation_type == AggregationType.Average:
                 model_to_evaluate = self.train_val_params.mean_teacher_model if \
                     self.model_config.compute_mean_teacher_model else self.train_val_params.model
                 self.guided_grad_cam = VisualizationMaps(model_to_evaluate, self.model_config)
                 self.model_config.visualization_folder.mkdir(exist_ok=True)
+            else:
+                self.model_config.max_batch_grad_cam = 0
+                logging.warning("GradCam computation is not implemented for this aggregation type."
+                                "Ignoring computation.")
 
     def create_loss_function(self) -> torch.nn.Module:
         """
@@ -359,25 +359,18 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                     *model_inputs_and_labels.model_inputs,
                     use_mean_teacher_model=True)
 
-        if self._should_save_grad_cam_output(epoch=epoch, batch_index=batch_index):
-            self.save_grad_cam(epoch, model_inputs_and_labels.subject_ids,
-                               model_inputs_and_labels.data_item,
-                               model_inputs_and_labels.model_inputs,
-                               label_gpu)
-
         if self.train_val_params.save_metrics:
+            if self._should_save_grad_cam_output(epoch=epoch, batch_index=batch_index):
+                self.save_grad_cam(epoch, model_inputs_and_labels.subject_ids,
+                                   model_inputs_and_labels.data_item,
+                                   model_inputs_and_labels.model_inputs,
+                                   label_gpu)
+
             self.metrics.add_metric(MetricType.LOSS, loss.item())
             self.update_metrics(model_inputs_and_labels.subject_ids, model_output_normalized, label_gpu)
             logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
             minibatch_time = time.time() - start_time
             self.metrics.add_metric(MetricType.SECONDS_PER_BATCH, minibatch_time)
-
-        if isinstance(logits, list):
-            # When using multiple GPUs, logits is a list of tensors. Gather will concatenate them
-            # across the first dimension, and move them to GPU0.
-            model_output = torch.nn.parallel.gather(logits, target_device=0)
-        else:
-            model_output = logits
 
         return ModelForwardAndBackwardsOutputs(
             loss=loss.item(),

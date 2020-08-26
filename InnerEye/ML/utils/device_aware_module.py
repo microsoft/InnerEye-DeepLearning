@@ -17,6 +17,9 @@ class DeviceAwareModule(torch.nn.Module, Generic[T, E]):
     Wrapper around base pytorch module class
     that can provide information about its devices
     """
+    def __init__(self):
+        super().__init__()
+        self.conv_in_3d = False
 
     def get_device_ids(self) -> List[int]:
         """

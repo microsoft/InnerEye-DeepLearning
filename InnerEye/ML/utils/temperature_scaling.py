@@ -21,13 +21,18 @@ class ModelWithTemperature(DeviceAwareModule):
     def __init__(self, model: DeviceAwareModule, temperature_scaling_config: TemperatureScalingConfig):
         super().__init__()
         self.model = model
+        self.conv_in_3d = model.conv_in_3d
         self.temperature_scaling_config = temperature_scaling_config
-        self.temperature = torch.nn.Parameter(torch.ones(1, device=next(model.parameters()).device) * 1.5,
+        self.temperature = torch.nn.Parameter(torch.ones(1, device=next(model.parameters()).device) * 1,
                                               requires_grad=True)
 
     def forward(self, *x: torch.Tensor) -> torch.Tensor:  # type: ignore
         logits = self.model(*x)
         return self.temperature_scale(logits)
+
+    def get_last_encoder_layer_names(self) -> List[str]:
+        _model: DeviceAwareModule = self.model
+        return _model.get_last_encoder_layer_names()
 
     def get_input_tensors(self, item: T) -> List[E]:
         _model: DeviceAwareModule = self.model
@@ -69,6 +74,8 @@ class ModelWithTemperature(DeviceAwareModule):
                                       max_iter=self.temperature_scaling_config.max_iter)  # type: ignore
 
         def eval_criterion() -> torch.Tensor:
+            # zero the gradients for the next optimization step
+            optimizer.zero_grad()
             loss, ece = criterion_fn(self.temperature_scale(logits), labels)
             if logger:
                 logger.log_to_azure_and_tensorboard("Temp_Scale_LOSS", loss.item())

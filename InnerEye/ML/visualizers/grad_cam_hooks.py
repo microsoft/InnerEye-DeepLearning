@@ -18,7 +18,6 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES
-from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.visualizers.model_hooks import HookBasedFeatureExtractor
 
 
@@ -102,7 +101,7 @@ class GradCam(GradientBasedFeatureExtractor):
     task.
     """
 
-    def __init__(self, model: Union[DeviceAwareModule, torch.nn.DataParallel, ModelWithTemperature],
+    def __init__(self, model: Union[DeviceAwareModule, torch.nn.DataParallel],
                  config: ScalarModelBase) -> None:
         """
 
@@ -116,8 +115,6 @@ class GradCam(GradientBasedFeatureExtractor):
         if self.is_non_imaging_model:
             super().__init__(model, config=config, target_layer=None)
         else:
-            if isinstance(model, ModelWithTemperature):
-                model = model.model
             if isinstance(model, torch.nn.DataParallel):
                 _model: DeviceAwareModule = model.module  # type: ignore
                 target_layer = _model.get_last_encoder_layer_names()
@@ -441,7 +438,7 @@ class VisualizationMaps:
     for a specific model.
     """
 
-    def __init__(self, model: Union[DeviceAwareModule, torch.nn.DataParallel, ModelWithTemperature],
+    def __init__(self, model: Union[DeviceAwareModule, torch.nn.DataParallel],
                  config: ScalarModelBase) -> None:
         self.config = config
         self.is_non_imaging_model = config.is_non_imaging_model

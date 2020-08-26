@@ -253,7 +253,7 @@ def test_run_ml_with_sequence_model(use_combined_model: bool,
 
 @pytest.mark.skipif(not common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize(["use_combined_model", "imaging_feature_type"],
-                         [(False, ImagingFeatureType.Image),
+                         [(True, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Segmentation),
                           (True, ImagingFeatureType.ImageAndSegmentation)])

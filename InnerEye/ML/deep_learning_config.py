@@ -70,12 +70,12 @@ class MultiprocessingStartMethod(Enum):
 
 class TemperatureScalingConfig(Parameterized):
     """High level config to encapsulate temperature scaling parameters"""
-    lr: float = param.Number(default=0.02, bounds=(0, None),
+    lr: float = param.Number(default=0.002, bounds=(0, None),
                              doc="The learning rate to use for the optimizer used to learn the "
                                  "temperature scaling parameter")
     max_iter: int = param.Number(default=50, bounds=(1, None),
                                  doc="The maximum number of optimization iterations to use in order to "
-                                     "use when learning the temperature scaling parameter")
+                                     "learn the temperature scaling parameter")
     ece_num_bins: int = param.Number(default=15, bounds=(1, None),
                                      doc="Number of bins to use when computing the "
                                          "Expected Calibration Error")
@@ -322,9 +322,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "is the mean teacher model. The student model is only used for "
                                                  "training. Alpha is the momentum term for weight updates of the mean "
                                                  "teacher model. After each training step the mean teacher model "
-                                                 "weights "
-                                                 "are updated using mean_teacher_weight = alpha * ("
-                                                 "mean_teacher_weight) "
+                                                 "weights are updated using mean_teacher_"
+                                                 "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
 
     def __init__(self, **params: Any) -> None:
