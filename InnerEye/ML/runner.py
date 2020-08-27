@@ -23,7 +23,7 @@ from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOV
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    ModelType, OTHER_RUNS_SUBDIR_NAME, disable_logging_to_file, is_linux, logging_section, logging_to_file, \
+    ModelProcessing, OTHER_RUNS_SUBDIR_NAME, disable_logging_to_file, is_linux, logging_section, logging_to_file, \
     logging_to_stdout, \
     print_exception, remove_directory
 from InnerEye.Common.fixed_paths import get_environment_yaml_file
@@ -35,7 +35,7 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 LOG_FILE_NAME = "stdout.txt"
 
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
-ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, ModelType],
+ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, ModelProcessing],
                                         Tuple[Optional[Path], Optional[Any]]]
 
 
@@ -160,7 +160,7 @@ class Runner:
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
-        self.create_ml_runner().run_inference_and_register_model(run_recovery, model_type=ModelType.ENSEMBLE)
+        self.create_ml_runner().run_inference_and_register_model(run_recovery, model_proc=ModelProcessing.ENSEMBLE_CREATION)
         crossval_dir = self.plot_cross_validation_and_upload_results()
         # CrossValResults should have been uploaded to the parent run, so we don't need it here.
         remove_directory(crossval_dir)

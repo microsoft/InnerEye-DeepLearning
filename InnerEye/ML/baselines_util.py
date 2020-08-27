@@ -17,7 +17,7 @@ from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig
 from InnerEye.Common.common_util import ENSEMBLE_SPLIT_NAME, EPOCH_FOLDER_NAME_PATTERN, FULL_METRICS_DATAFRAME_FILE, \
     METRICS_FILE_NAME, \
-    ModelType, OTHER_RUNS_SUBDIR_NAME, remove_directory
+    ModelProcessing, OTHER_RUNS_SUBDIR_NAME, remove_directory
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -46,7 +46,7 @@ class DiceScoreComparisonResult:
 
 
 def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_config: AzureConfig,
-                                     model_type: ModelType) -> None:
+                                     model_proc: ModelProcessing) -> None:
     """
     If the model config has any baselines to compare against, loads the metrics.csv file that should just have
     been written for the last epoch of the current run, and its dataset.csv. Do the same for all the baselines,
@@ -59,7 +59,7 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
     if not comparison_blob_storage_paths:
         return
     outputs_path = model_config.outputs_folder
-    if model_type == ModelType.ENSEMBLE:
+    if model_proc == ModelProcessing.ENSEMBLE_CREATION:
         outputs_path = outputs_path / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME
     model_epoch_paths = sorted(outputs_path.glob(EPOCH_FOLDER_NAME_PATTERN))
     if not model_epoch_paths:
@@ -86,7 +86,7 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
     if comparison_result.did_comparisons:
         wilcoxon_path = outputs_path / BASELINE_WILCOXON_RESULTS_FILE
         logging.info(
-            f"Wilcoxon tests of current {model_type.value} model against baseline(s), "
+            f"Wilcoxon tests of current {model_proc.value} model against baseline(s), "
             f"written to {wilcoxon_path}:")
         for line in comparison_result.wilcoxon_lines:
             logging.info(line)

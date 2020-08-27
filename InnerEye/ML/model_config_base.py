@@ -145,6 +145,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         Creates a torch model from the provided arguments and returns a torch.nn.Module object.
         This is an abstract method that each model class (segmentation, regression) should override.
+        Return type should really be BaseModel, but that involves importing more than we can afford to.
         """
         # This method is factually an abstract method. We don't want to mark at as such
         # because this would prevent us from easily instantiating this class in tests.

@@ -4,8 +4,9 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, Tuple, Union
+from typing import Any, List, Optional, Union
 
 import torch
 from apex import amp
@@ -36,6 +37,39 @@ from InnerEye.ML.visualizers.model_summary import ModelSummary
 BaseModelOrDataParallelModel = Union[BaseModel, DataParallelModel]
 
 
+@dataclass
+class ModelAndInfo:
+    """
+    A holder for a model and, optionally, associated information.
+      model: any model
+      optimizer: associated optimizer if any
+      is_mean_teacher: whether this is (intended to be) a mean teacher model
+      is_adjusted: whether model adjustments (which cannot be done twice) have been applied
+      checkpoint_epoch: the training epoch this model was created, if loaded from disk
+      model_execution_mode: mode this model will be run in
+    """
+    model: BaseModelOrDataParallelModel
+    optimizer: Optional[Optimizer] = None
+    is_mean_teacher: bool = False
+    is_adjusted: bool = False
+    checkpoint_epoch: Optional[int] = None
+    model_execution_mode: ModelExecutionMode = ModelExecutionMode.TEST
+
+    def to_cuda(self) -> None:
+        assert self.model is not None
+        self.model = self.model.cuda()
+
+    def apply_amp_output(self, amp_output: Any) -> None:
+        if isinstance(amp_output, tuple):
+            self.model, self.optimizer = amp_output
+        else:
+            self.model = amp_output
+
+    def set_data_parallel(self, device_ids: Optional[List[Any]]) -> None:
+        assert self.model is not None
+        self.model = DataParallelModel(self.model, device_ids=device_ids)
+
+
 def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:
     """
     Initialize the weights of a Pytorch module.
@@ -51,7 +85,7 @@ def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:
 
 
 # noinspection PyTypeChecker
-def build_net(args: SegmentationModelBase) -> BaseModel:  # type: ignore
+def build_net(args: SegmentationModelBase) -> BaseModel:
     """
     Build network architectures
 
@@ -67,20 +101,21 @@ def build_net(args: SegmentationModelBase) -> BaseModel:  # type: ignore
     crop_size_constraints = CropSizeConstraints(minimum_size=basic_size_shrinkage + 1)
     run_weight_initialization = True
 
+    network: BaseModel
     if args.architecture == ModelArchitectureConfig.Basic:
         network_definition = basic_network_definition
         network = ComplexModel(args, full_channels_list,
                                basic_dilations, network_definition, crop_size_constraints)  # type: ignore
 
     elif args.architecture == ModelArchitectureConfig.UNet3D:
-        network = UNet3D(input_image_channels=args.number_of_image_channels,  # type: ignore
+        network = UNet3D(input_image_channels=args.number_of_image_channels,
                          initial_feature_channels=args.feature_channels[0],
                          num_classes=args.number_of_classes,
                          kernel_size=args.kernel_size)
         run_weight_initialization = False
 
     elif args.architecture == ModelArchitectureConfig.UNet2D:
-        network = UNet2D(input_image_channels=args.number_of_image_channels,  # type: ignore
+        network = UNet2D(input_image_channels=args.number_of_image_channels,
                          initial_feature_channels=args.feature_channels[0],
                          num_classes=args.number_of_classes,
                          padding_mode=PaddingMode.Edge)
@@ -96,50 +131,47 @@ def build_net(args: SegmentationModelBase) -> BaseModel:  # type: ignore
     return network
 
 
-def update_model_for_mixed_precision_and_parallel(model: BaseModel,
+def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
                                                   args: ModelConfigBase,
-                                                  optimizer: Optional[Optimizer] = None,
-                                                  execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) \
-        -> Tuple[BaseModelOrDataParallelModel, Optional[Optimizer]]:
+                                                  execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
+    ModelAndInfo:
     """
     Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
     multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
     perform full volume inference. Additionally, mixed precision training (amp) is utilised on both the model and
     optimizer instances to improve the training performance.
 
-    :param model: The torch module object representing the network.
+    :param model_and_info: The torch module object representing the network, and more
     :param args: The arguments object with attributes used to enable amp training and create the parallel model.
-    :param optimizer: The torch optimizer that should be used for training.
-    :param execution_mode: The current model execution mode.
+    :param execution_mode: mode, i.e. train or test
     :return: Updated torch model and optimizer.
     """
+    if model_and_info.is_adjusted:
+        logging.debug("model_and_info.is_adjusted is already True")
+        return model_and_info
     if args.use_gpu:
         # In the normal training codepath, the model should already be on the GPU, but in some tests not.
-        model = model.cuda()
+        model_and_info.to_cuda()
         logging.info("Adjusting the model to use mixed precision training.")
         # If model parallel is set to True, then partition the network across all available gpus.
         if args.use_model_parallel:
             devices = args.get_cuda_devices()
             assert devices is not None  # for mypy
-            model.partition_model(devices=devices)
+            model_and_info.model.partition_model(devices=devices)  # type: ignore
 
         # This is required to support sigmoid function
         amp.register_float_function(torch, 'sigmoid')
 
         # Activate automatic mixed precision
         # With optimization GEMMs and convolutions are performed in FP16, see https://nvidia.github.io/apex/amp.html
-        amp_output = amp.initialize(model, optimizer, enabled=args.use_mixed_precision, opt_level="O1",
-                                    keep_batchnorm_fp32=None, loss_scale="dynamic", num_losses=1)
-
-        if isinstance(amp_output, tuple):
-            model, optimizer = amp_output
-        else:
-            model = amp_output
+        amp_output = amp.initialize(model_and_info.model, model_and_info.optimizer, enabled=args.use_mixed_precision,
+                                    opt_level="O1", keep_batchnorm_fp32=None, loss_scale="dynamic", num_losses=1)
+        model_and_info.apply_amp_output(amp_output)
     else:
         logging.info("Making no adjustments to the model because no GPU was found.")
 
     # Update model related config attributes (After AMP & Model Parallel Activated)
-    args.adjust_after_mixed_precision_and_parallel(model)
+    args.adjust_after_mixed_precision_and_parallel(model_and_info.model)
 
     # DataParallel enables running the model with multiple gpus by splitting samples across GPUs
     # If the model is used in training mode, data parallel is activated by default.
@@ -150,10 +182,12 @@ def update_model_for_mixed_precision_and_parallel(model: BaseModel,
         # Move all layers to the default GPU before activating data parallel.
         # This needs to happen even though we put the model to the GPU at the beginning of the method,
         # but we may have spread it across multiple GPUs later.
-        model = model.cuda()
-        model = DataParallelModel(model, device_ids=args.get_cuda_devices())  # type: ignore
+        model_and_info.to_cuda()
+        model_and_info.set_data_parallel(device_ids=args.get_cuda_devices())
 
-    return model, optimizer
+    model_and_info.is_adjusted = True
+    logging.debug("model_and_info.is_adjusted set to True")
+    return model_and_info
 
 
 def create_optimizer(args: ModelConfigBase, model: torch.nn.Module) -> Optimizer:
@@ -191,7 +225,7 @@ def summary_for_segmentation_models(config: ModelConfigBase, model: DeviceAwareM
     if isinstance(crop_size, int):
         crop_size = (crop_size, crop_size, crop_size)
     try:
-        model.generate_model_summary(crop_size, log_summaries_to_files=config.log_summaries_to_files)  # type: ignore
+        model.generate_model_summary(crop_size, log_summaries_to_files=config.log_summaries_to_files)
     except AttributeError as e:
         logging.warning(f"summary_for_segmentation_models failed with exception {e}")
 
@@ -233,9 +267,9 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
     random_state.restore_random_state()
 
 
-def load_checkpoint(model: torch.nn.DataParallel,
+def load_checkpoint(model: torch.nn.Module,
                     path_to_checkpoint: Path,
-                    optimizer: Optimizer = None) -> Optional[int]:
+                    optimizer: Optional[Optimizer] = None) -> Optional[int]:
     """
     Loads a checkpoint of a model.
     The epoch of the stored model and the epoch provided as argument must match.
@@ -269,7 +303,7 @@ def load_checkpoint(model: torch.nn.DataParallel,
     return checkpoint['epoch']
 
 
-def save_checkpoint(model: torch.nn.DataParallel, optimizer: Optimizer, epoch: int,
+def save_checkpoint(model: torch.nn.Module, optimizer: Optimizer, epoch: int,
                     args: ModelConfigBase, mean_teacher_model: bool = False) -> None:
     """
     Saves a checkpoint of the current model and optimizer_type parameters in the specified folder
@@ -297,34 +331,33 @@ def save_checkpoint(model: torch.nn.DataParallel, optimizer: Optimizer, epoch: i
 
 
 def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
-                                    path_to_checkpoint: Path) -> Optional[Tuple[BaseModelOrDataParallelModel, int]]:
+                                    path_to_checkpoint: Path,
+                                    model_and_info: Optional[ModelAndInfo] = None) -> ModelAndInfo:
     """
     Creates a model as per the configuration, and loads the parameters from the given checkpoint path.
     The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
 
-    :param model_config: The configuration from which an empty model will be created.
+    :param model_config: The configuration from which an empty model will be created (if existing_model is None)
     :param path_to_checkpoint: The path to the checkpoint file.
-    :return: The model with all loaded parameters, and the epoch in which the model was saved. If the result is None,
-    there is no model file at the given path.
+    :param model_and_info: optional model and associated info; created from model_config if None
+    :return: The model with all loaded parameters, the (adjusted) optimizer, and the epoch in which the model was saved.
+    If the checkpoint_epoch is None, there is no model file at the given path.
     """
-    # Create model
-    model = create_model_with_temperature_scaling(model_config)
-
-    # Load the stored model. If there is not checkpoint present, return immediately.
-    checkpoint_epoch = load_checkpoint(model=model,
-                                       path_to_checkpoint=path_to_checkpoint,
-                                       optimizer=None)
-    if checkpoint_epoch is None:
-        return None
+    # Create model if necessary
+    if model_and_info is None:
+        model_and_info = ModelAndInfo(create_model_with_temperature_scaling(model_config))
+    # Load the stored model. If there is no checkpoint present, return immediately.
+    model_and_info.checkpoint_epoch = load_checkpoint(model=model_and_info.model,
+                                                      path_to_checkpoint=path_to_checkpoint,
+                                                      optimizer=model_and_info.optimizer)
+    if model_and_info.checkpoint_epoch is None:
+        return model_and_info
     # Enable data/model parallelization
     if model_config.is_segmentation_model:
         # Generate the model summary, which is required for model partitioning across GPUs.
-        summary_for_segmentation_models(model_config, model)
-    model, _ = update_model_for_mixed_precision_and_parallel(model,
-                                                             args=model_config,
-                                                             optimizer=None,
-                                                             execution_mode=ModelExecutionMode.TEST)
-    return model, checkpoint_epoch
+        summary_for_segmentation_models(model_config, model_and_info.model)
+    return update_model_for_mixed_precision_and_parallel(
+        model_and_info, args=model_config, execution_mode=model_and_info.model_execution_mode)
 
 
 def create_model_with_temperature_scaling(config: ModelConfigBase) -> Any:

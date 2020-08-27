@@ -12,7 +12,7 @@ from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.utils import image_util, model_util
-from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
+from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
 
 
 def run_inference_on_unet(size: TupleInt3) -> None:
@@ -91,7 +91,7 @@ def test_invalid_stride_size() -> None:
     )
     with pytest.raises(ValueError) as ex:
         model = create_model_with_temperature_scaling(config)
-        model_util.update_model_for_mixed_precision_and_parallel(model, config)
+        model_util.update_model_for_mixed_precision_and_parallel(ModelAndInfo(model), config)
     assert "inference stride size must be smaller" in ex.value.args[0]
     assert str(config.inference_stride_size) in ex.value.args[0]
     assert str(config.test_crop_size) in ex.value.args[0]
