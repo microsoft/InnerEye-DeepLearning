@@ -11,11 +11,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from azureml.core import Dataset, Experiment, Run, Workspace
+from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.datastore import Datastore
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.exceptions import WorkspaceException
-from azureml.train.estimator import Estimator
+from azureml.train.dnn import PyTorch
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
@@ -165,7 +166,7 @@ def create_and_submit_experiment(
 def create_pytorch_environment(workspace: Workspace,
                                azure_config: AzureConfig,
                                source_config: SourceConfig,
-                               azure_dataset_id: str) -> Estimator:
+                               azure_dataset_id: str) -> PyTorch:
     """
     Creates an Estimator environment required for model execution
 
@@ -203,14 +204,14 @@ def create_pytorch_environment(workspace: Workspace,
         logging.info(f"Dataset does not yet exist, creating a new one from data in folder '{azure_dataset_id}'")
         # See WARNING above before changing the from_files call!
         azureml_dataset = Dataset.File.from_files([(datastore, azure_dataset_id)])
-        logging.info(f"Registering the dataset for future use.")
+        logging.info("Registering the dataset for future use.")
         azureml_dataset.register(workspace, name=azure_dataset_id)
     if azureml_dataset:
         if azure_config.use_dataset_mount:
-            logging.info(f"Inside AzureML, the dataset will be provided as a mounted folder.")
+            logging.info("Inside AzureML, the dataset will be provided as a mounted folder.")
             estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_mount()]
         else:
-            logging.info(f"Inside AzureML, the dataset will be downloaded before training starts.")
+            logging.info("Inside AzureML, the dataset will be downloaded before training starts.")
             estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_download()]
     else:
         raise ValueError("No AzureML dataset was found.")
@@ -218,10 +219,26 @@ def create_pytorch_environment(workspace: Workspace,
     return create_estimator_from_configs(workspace, azure_config, source_config, estimator_inputs)
 
 
-def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfig, source_config: SourceConfig,
-                                  estimator_inputs: List[DatasetConsumptionConfig]) -> Estimator:
+def pytorch_version_from_conda_dependencies(conda_dependencies: CondaDependencies) -> Optional[str]:
     """
-    Create an return an Estimator from the provided configuration information.
+    Given a CondaDependencies object, look for a spec of the form "pytorch=...", and return
+    whichever supported version is compatible with the value, or None if there isn't one.
+    """
+    supported_versions = PyTorch.get_supported_versions()
+    for spec in conda_dependencies.conda_packages:
+        components = spec.split("=")
+        if len(components) == 2 and components[0] == "pytorch":
+            version = components[1]
+            for supported in supported_versions:
+                if version.startswith(supported) or supported.startswith(version):
+                    return supported
+    return None
+
+
+def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfig, source_config: SourceConfig,
+                                  estimator_inputs: List[DatasetConsumptionConfig]) -> PyTorch:
+    """
+    Create an return a PyTorch estimator from the provided configuration information.
     :param workspace: workspace that should contain a datastore named "workspaceblobstore", for storing source
     :param azure_config: Azure configuration, used to store various values for the job to be submitted
     :param source_config: source configutation, for other needed values
@@ -234,10 +251,24 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
                  f"source directory {source_config.root_folder})")
     environment_variables = {
         "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": str(source_config.upload_timeout_seconds),
+        "MKL_SERVICE_FORCE_INTEL": "1",
         **(source_config.environment_variables or {})
     }
+    # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not be
+    # necessary if the innereye package is installed. It is necessary when working with an outer project and
+    # InnerEye as a git submodule and submitting jobs from the local machine.
+    # In case of version conflicts, the package version in the outer project is given priority.
+    conda_dependencies = merge_conda_dependencies(source_config.conda_dependencies_files)  # type: ignore
+    if azure_config.pip_extra_index_url:
+        # When an extra-index-url is supplied, swap the order in which packages are searched for.
+        # This is necessary if we need to consume packages from extra-index that clash with names of packages on
+        # pypi
+        conda_dependencies.set_pip_option(f"--index-url {azure_config.pip_extra_index_url}")
+        conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
     # create Estimator environment
-    estimator = Estimator(
+    framework_version = pytorch_version_from_conda_dependencies(conda_dependencies)
+    logging.info(f"PyTorch framework version: {framework_version}")
+    estimator = PyTorch(
         source_directory=source_config.root_folder,
         entry_script=entry_script_relative_path,
         script_params=source_config.script_params,
@@ -249,18 +280,8 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
         shm_size=azure_config.docker_shm_size,
         use_docker=True,
         use_gpu=True,
+        framework_version=framework_version
     )
-    # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not be
-    # necessary if the innereye package is installed. It is necessary when working with an outer project and
-    # InnerEye as a git submodule and submitting jobs from the local machine.
-    # In case of version conflicts, the package version in the outer project is given priority.
-    conda_dependencies = merge_conda_dependencies(source_config.conda_dependencies_files)  # type: ignore
-    if azure_config.pip_extra_index_url:
-        # When an extra-index-url is supplied, swap the order in which packages are searched for.
-        # This is necessary if we need to consume packages from extra-index that clash with names of packages on
-        # pypi
-        conda_dependencies.set_pip_option(f"--index-url {azure_config.pip_extra_index_url}")
-        conda_dependencies.set_pip_option(f"--extra-index-url https://pypi.org/simple")
     estimator.run_config.environment.python.conda_dependencies = conda_dependencies
     # We'd like to log the estimator config, but conversion to string fails when the Estimator has some inputs.
     # logging.info(azure_util.estimator_to_string(estimator))

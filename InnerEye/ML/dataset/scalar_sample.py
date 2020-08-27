@@ -119,7 +119,7 @@ class ScalarDataSource(ScalarItemBase):
         full_channel_files: List[Path] = []
         for f in self.channel_files:
             if f is None:
-                raise ValueError(f"When loading images, channel_files should no longer contain None entries.")
+                raise ValueError("When loading images, channel_files should no longer contain None entries.")
             elif file_mapping:
                 if f in file_mapping:
                     full_channel_files.append(file_mapping[str(f)])

@@ -17,7 +17,7 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import TestOutputDirectories
-from InnerEye.Common.common_util import ModelType
+from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -95,7 +95,7 @@ def test_register_and_score_model(is_ensemble: bool,
                 best_epoch=0,
                 best_epoch_dice=0,
                 checkpoint_paths=checkpoints,
-                model_type=ModelType.SINGLE)
+                model_proc=ModelProcessing.DEFAULT)
             assert model is not None
             model_path = Path(model.get_model_path(model.name, model.version, ws))
             assert (model_path / fixed_paths.ENVIRONMENT_YAML_FILE_NAME).exists()
@@ -164,7 +164,7 @@ def test_register_model_invalid() -> None:
             best_epoch=0,
             best_epoch_dice=0,
             checkpoint_paths=checkpoint_paths,
-            model_type=ModelType.SINGLE
+            model_proc=ModelProcessing.DEFAULT
         )
     with pytest.raises(Exception):
         ml_runner = MLRunner(config, get_default_azure_config())
@@ -172,7 +172,7 @@ def test_register_model_invalid() -> None:
             best_epoch=0,
             best_epoch_dice=0,
             checkpoint_paths=checkpoint_paths,
-            model_type=ModelType.SINGLE
+            model_proc=ModelProcessing.DEFAULT
         )
 
 
