@@ -6,7 +6,7 @@ steps:
       branch_prefix="refs/heads/"
       full_branch_name=$(Build.SourceBranch)
       branch_name_without_prefix=${full_branch_name#$branch_prefix}
-      source_version_message="`echo $(Build.SourceVersionMessage) | tr -dc 'A-Za-z0-9_ ' | cut -c1-50`"
+      source_version_message="`echo $(Build.SourceVersionMessage) | tr -dc 'A-Za-z0-9_ ' | cut -c1-120`"
       python ./InnerEye/ML/runner.py --submit_to_azureml=True --model="$(model)" --is_train="$(is_train)" $(more_switches) --number_of_cross_validation_splits="$(number_of_cross_validation_splits)" --wait_for_completion="${{parameters.wait_for_completion}}" --pytest_mark="${{parameters.pytest_mark}}" --gpu_cluster_name="$(gpu_cluster_name)" --user_friendly_name="$(user_friendly_name)" --run_recovery_id="$(run_recovery_id)" --tag="$(tags)" --build_number=$(Build.BuildId) --build_user="$(Build.RequestedFor)" --build_branch="$branch_name_without_prefix" --build_source_id="$(Build.SourceVersion)" --build_source_message="$source_version_message" --build_source_author="$(Build.SourceVersionAuthor)" --build_source_repository="$(Build.Repository.Name)"
     env:
       PYTHONPATH: $(Build.SourcesDirectory)/
