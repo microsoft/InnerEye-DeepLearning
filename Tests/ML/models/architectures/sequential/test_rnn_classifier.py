@@ -30,7 +30,7 @@ from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentat
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.io_util import ImageAndSegmentations
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, \
+from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling, \
     update_model_for_mixed_precision_and_parallel
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
@@ -266,7 +266,7 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
     config.num_epochs = 1
 
     model = create_model_with_temperature_scaling(config)
-    update_model_for_mixed_precision_and_parallel(model, config)
+    update_model_for_mixed_precision_and_parallel(ModelAndInfo(model), config)
     dataloader = SequenceDataset(config,
                                  data_frame=config.dataset_data_frame).as_data_loader(shuffle=False,
                                                                                       batch_size=2)

@@ -25,8 +25,10 @@ class ModelWithTemperature(DeviceAwareModule):
         self.model = model
         self.conv_in_3d = model.conv_in_3d
         self.temperature_scaling_config = temperature_scaling_config
-        _device = model.get_devices()[0] if len(model.get_devices()) > 0 else None
 
+        # assign this parameter to the first model device otherwise use PyTorch default.
+        _model_devices = model.get_devices()
+        _device = _model_devices[0] if _model_devices else None
         self.temperature = torch.nn.Parameter(torch.ones(1, device=_device), requires_grad=True)
 
     def forward(self, *x: torch.Tensor) -> torch.Tensor:  # type: ignore
