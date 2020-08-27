@@ -384,7 +384,7 @@ def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) ->
     assert actual_val_loss <= expected_max_val_loss, "Validation loss too high"
     assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
            == config.get_total_number_of_save_epochs()
-    assert np.allclose(results.optimal_temperature_scale_values_per_checkpoint_epoch, [0.68], rtol=0.1)
+    assert np.allclose(results.optimal_temperature_scale_values_per_checkpoint_epoch, [0.97], rtol=0.1)
 
 
 class ToyMultiLabelSequenceModel(SequenceModelBase):

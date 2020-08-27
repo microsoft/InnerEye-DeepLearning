@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Generic, List, TypeVar
+from typing import Generic, List, Optional, TypeVar
 
 import torch
 
@@ -21,12 +21,13 @@ class DeviceAwareModule(torch.nn.Module, Generic[T, E]):
         super().__init__()
         self.conv_in_3d = False
 
-    def get_device_ids(self) -> List[int]:
+    def get_device_ids(self) -> Optional[List[int]]:
         """
         :return a list of device ids on which this module
         is deployed.
         """
-        return list({x.device.index for x in self.parameters()})
+        _devices = list({x.device.index for x in self.parameters()})
+        return None if len(_devices) == 0 else _devices
 
     def get_number_trainable_parameters(self) -> int:
         """

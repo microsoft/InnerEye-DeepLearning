@@ -18,13 +18,15 @@ class ModelWithTemperature(DeviceAwareModule):
     Torch module to wrap a model with temperature scaling.
     """
 
-    def __init__(self, model: DeviceAwareModule, temperature_scaling_config: TemperatureScalingConfig):
+    def __init__(self, model: DeviceAwareModule,
+                 temperature_scaling_config: TemperatureScalingConfig):
         super().__init__()
         self.model = model
         self.conv_in_3d = model.conv_in_3d
         self.temperature_scaling_config = temperature_scaling_config
-        self.temperature = torch.nn.Parameter(torch.ones(1, device=next(model.parameters()).device) * 1,
-                                              requires_grad=True)
+        _device = model.get_device_ids()[0] if model.get_device_ids() is not None else None
+
+        self.temperature = torch.nn.Parameter(torch.ones(1, device=_device), requires_grad=True)
 
     def forward(self, *x: torch.Tensor) -> torch.Tensor:  # type: ignore
         logits = self.model(*x)

@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 from torch.nn.parallel.data_parallel import DataParallel
@@ -24,12 +24,14 @@ class DataParallelModel(DataParallel, DeviceAwareModule):
             raise ValueError(f"Expecting DeviceAwareModule. Instead found {module}")
         return module
 
-    def get_device_ids(self) -> List[int]:
+    def get_device_ids(self) -> Optional[List[int]]:
         """
         Gets the numeric indices of the CUDA devices that the present object is using.
+        Otherwise return None if no devices are found.
         :return:
         """
-        return [x if isinstance(x, int) else x.index for x in self.device_ids]
+        _devices = [x if isinstance(x, int) else x.index for x in self.device_ids]
+        return None if len(_devices) == 0 else _devices
 
     def gather(self, outputs: List[torch.Tensor], output_device: int) -> List[torch.Tensor]:
         """
