@@ -184,7 +184,7 @@ class ScalarModelInputsAndLabels(Generic[E, T]):
 
 
 def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
-                                       model: DeviceAwareModule,
+                                       model: torch.nn.Module,
                                        sample: Dict[str, Any]) -> ScalarModelInputsAndLabels:
     """
     For a model that predicts scalars, gets the model input tensors from a sample returned by the data loader.
@@ -198,7 +198,7 @@ def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
         model = model.get_module()
 
     if isinstance(model_config, SequenceModelBase):
-        sequence_model: DeviceAwareModule[List[ClassificationItemSequence], torch.Tensor] = model
+        sequence_model: DeviceAwareModule[List[ClassificationItemSequence], torch.Tensor] = model  # type: ignore
         sequences = ClassificationItemSequence.from_minibatch(sample)
         subject_ids = [x.id for x in sequences]
         labels = ClassificationItemSequence.create_labels_tensor_for_minibatch(
@@ -214,7 +214,7 @@ def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
             data_item=sequences
         )
     else:
-        scalar_model: DeviceAwareModule[ScalarItem, torch.Tensor] = model
+        scalar_model: DeviceAwareModule[ScalarItem, torch.Tensor] = model  # type: ignore
         scalar_item = ScalarItem.from_dict(sample)
         subject_ids = [str(x.id) for x in scalar_item.metadata]  # type: ignore
         model_inputs = scalar_model.get_input_tensors(scalar_item)
