@@ -218,7 +218,7 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
                == config.get_total_number_of_save_epochs()
 
 
-@pytest.mark.skipif(not common_util.is_windows(), reason="Has issues on windows build")
+@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.parametrize(["use_combined_model", "imaging_feature_type"],
                          [(False, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Image),
@@ -251,9 +251,9 @@ def test_run_ml_with_sequence_model(use_combined_model: bool,
         MLRunner(config, azure_config).run()
 
 
-@pytest.mark.skipif(not common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize(["use_combined_model", "imaging_feature_type"],
-                         [(True, ImagingFeatureType.Image),
+                         [(False, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Segmentation),
                           (True, ImagingFeatureType.ImageAndSegmentation)])
