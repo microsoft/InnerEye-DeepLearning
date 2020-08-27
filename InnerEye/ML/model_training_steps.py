@@ -293,25 +293,26 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             raise ValueError(f"Unable to convert tensor {labels} to data type {self.label_tensor_dtype}: {str(ex)}")
         return self.model_config.get_gpu_tensor_if_possible(labels)
 
-    def get_logits_and_outputs(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
-            -> Tuple[torch.Tensor, torch.Tensor]:
+    def get_logits_and_posteriors(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
+            -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Returns a Tuple containing the logits and the final model output. Note that the logits might be
-        distributed over multiple GPU if the model is an instance of DataParallel. In this case, the model outputs on
-        the other hand will be gathered to GPU_0.
+        distributed over multiple GPU if the model is an instance of DataParallel. In this case,
+        the posteriors outputs on the other hand will be gathered to GPU_0.
 
         :param model_inputs: input to evaluate the model on
         :param use_mean_teacher_model: If True, logits and outputs are produced for the mean teacher model. Else
-        logits and outputs are produced for the standard (student) model.
-        :return: Tuple (logits, posteriors).
+        logits and posteriors are produced for the standard (student) model.
+        :return: Tuple (logits, gathered_logits, posteriors).
         """
         if use_mean_teacher_model:
             logits = self.train_val_params.mean_teacher_model(*model_inputs)
         else:
             logits = self.train_val_params.model(*model_inputs)
 
-        posteriors = self.model_config.get_post_loss_logits_normalization_function()(logits)
-        return logits, posteriors
+        gathered_logits = gather_tensor(logits)
+        posteriors = self.model_config.get_post_loss_logits_normalization_function()(gathered_logits)
+        return logits, gathered_logits, posteriors
 
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
                                        batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
@@ -328,13 +329,13 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
 
         if self.in_training_mode:
             model.train()
-            logits, posteriors = \
-                self.get_logits_and_outputs(*model_inputs_and_labels.model_inputs)
+            logits, gathered_logits, posteriors = \
+                self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
         else:
             model.eval()
             with torch.no_grad():
-                logits, posteriors = \
-                    self.get_logits_and_outputs(*model_inputs_and_labels.model_inputs)
+                logits, gathered_logits, posteriors = \
+                    self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
             model.train()
 
         label_gpu = self.get_label_tensor(model_inputs_and_labels.labels)
@@ -350,7 +351,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             # instead of the output of the student model.
             mean_teacher_model.eval()
             with torch.no_grad():
-                logits, posteriors = self.get_logits_and_outputs(
+                logits, gathered_logits, posteriors = self.get_logits_and_posteriors(
                     *model_inputs_and_labels.model_inputs,
                     use_mean_teacher_model=True)
 
@@ -362,14 +363,14 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                                    label_gpu)
 
             self.metrics.add_metric(MetricType.LOSS, loss.item())
-            self.update_metrics(model_inputs_and_labels.subject_ids, gather_tensor(posteriors), label_gpu)
+            self.update_metrics(model_inputs_and_labels.subject_ids, posteriors, label_gpu)
             logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
             minibatch_time = time.time() - start_time
             self.metrics.add_metric(MetricType.SECONDS_PER_BATCH, minibatch_time)
 
         return ModelForwardAndBackwardsOutputs(
             loss=loss.item(),
-            logits=gather_tensor(logits).detach().cpu(),
+            logits=gathered_logits.detach().cpu(),
             labels=model_inputs_and_labels.labels
         )
 

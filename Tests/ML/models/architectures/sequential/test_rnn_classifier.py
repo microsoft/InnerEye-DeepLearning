@@ -218,7 +218,7 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
                == config.get_total_number_of_save_epochs()
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
+@pytest.mark.skipif(not common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.parametrize(["use_combined_model", "imaging_feature_type"],
                          [(False, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Image),
