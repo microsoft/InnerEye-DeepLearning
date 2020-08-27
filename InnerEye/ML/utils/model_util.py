@@ -134,7 +134,7 @@ def build_net(args: SegmentationModelBase) -> BaseModel:
 def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
                                                   args: ModelConfigBase,
                                                   execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
-    ModelAndInfo:
+        ModelAndInfo:
     """
     Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
     multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to

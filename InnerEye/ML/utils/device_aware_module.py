@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, List, TypeVar
 
 import torch
 
@@ -17,17 +17,17 @@ class DeviceAwareModule(torch.nn.Module, Generic[T, E]):
     Wrapper around base pytorch module class
     that can provide information about its devices
     """
-    def __init__(self):
+
+    def __init__(self) -> None:
         super().__init__()
         self.conv_in_3d = False
 
-    def get_device_ids(self) -> Optional[List[int]]:
+    def get_devices(self) -> List[torch.device]:
         """
         :return a list of device ids on which this module
         is deployed.
         """
-        _devices = list({x.device.index for x in self.parameters()})
-        return None if len(_devices) == 0 else _devices
+        return list({x.device for x in self.parameters()})
 
     def get_number_trainable_parameters(self) -> int:
         """

@@ -6,6 +6,7 @@
 from typing import Callable, List, Optional, Tuple
 
 import torch
+from torch.optim import LBFGS  # type: ignore
 
 from InnerEye.Common.type_annotations import T
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
@@ -24,7 +25,7 @@ class ModelWithTemperature(DeviceAwareModule):
         self.model = model
         self.conv_in_3d = model.conv_in_3d
         self.temperature_scaling_config = temperature_scaling_config
-        _device = model.get_device_ids()[0] if model.get_device_ids() is not None else None
+        _device = model.get_devices()[0] if len(model.get_devices()) > 0 else None
 
         self.temperature = torch.nn.Parameter(torch.ones(1, device=_device), requires_grad=True)
 
@@ -74,8 +75,8 @@ class ModelWithTemperature(DeviceAwareModule):
               .format(before_temperature_loss.item(), before_temperature_ece.item()))
 
         # Next: optimize the temperature w.r.t. the provided criterion function
-        optimizer = torch.optim.LBFGS([self.temperature], lr=self.temperature_scaling_config.lr,
-                                      max_iter=self.temperature_scaling_config.max_iter)  # type: ignore
+        optimizer = LBFGS([self.temperature], lr=self.temperature_scaling_config.lr,
+                                      max_iter=self.temperature_scaling_config.max_iter)
 
         def eval_criterion() -> torch.Tensor:
             # zero the gradients for the next optimization step
