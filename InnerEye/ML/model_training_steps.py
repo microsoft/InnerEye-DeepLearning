@@ -298,10 +298,10 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         """
         Returns a Tuple containing the logits and the final model output. Note that the logits might be
         distributed over multiple GPU if the model is an instance of DataParallel. In this case,
-        the posteriors outputs on the other hand will be gathered to GPU_0.
+        the gathered_logits and posteriors will be gathered to GPU_0.
 
         :param model_inputs: input to evaluate the model on
-        :param use_mean_teacher_model: If True, logits and outputs are produced for the mean teacher model. Else
+        :param use_mean_teacher_model: If True, logits and posteriors are produced for the mean teacher model. Else
         logits and posteriors are produced for the standard (student) model.
         :return: Tuple (logits, gathered_logits, posteriors).
         """
