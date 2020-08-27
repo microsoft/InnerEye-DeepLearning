@@ -36,9 +36,15 @@ class ModelOutputsAndMetricsForEpoch:
         common_util.check_properties_are_not_none(self, ignore=["metrics"])
 
     def get_logits(self) -> torch.Tensor:
+        """
+        Get concatenated logits from each training/validation batch in this epoch.
+        """
         return torch.cat([x.logits for x in self.model_outputs])
 
     def get_labels(self) -> torch.Tensor:
+        """
+        Get concatenated labels from each training/validation batch in this epoch.
+        """
         return torch.cat([x.labels for x in self.model_outputs])
 
 
@@ -52,13 +58,23 @@ class ModelTrainingResults:
     learning_rates_per_epoch: List[List[float]]
     optimal_temperature_scale_values_per_checkpoint_epoch: List[float] = field(default_factory=list)
 
-    def get_logits(self, training: bool) -> torch.Tensor:
+    def get_logits(self, is_training: bool) -> torch.Tensor:
+        """
+        Get concatenated logits from each training/validation epoch.
+        :param is_training: return logits from model on the training set if True otherwise form the validation set
+        :return: concatenated logits from each training/validation epoch.
+        """
         return torch.cat([x.get_logits() for x in
-                          (self.train_results_per_epoch if training else self.val_results_per_epoch)])
+                          (self.train_results_per_epoch if is_training else self.val_results_per_epoch)])
 
-    def get_labels(self, training: bool) -> torch.Tensor:
+    def get_labels(self, is_training: bool) -> torch.Tensor:
+        """
+        Get concatenated labels used for each training/validating epoch.
+        :param is_training: return training set labels if True otherwise return validation set labels
+        :return: concatenated labels used for each training/validating epoch.
+        """
         return torch.cat([x.get_labels() for x in
-                          (self.train_results_per_epoch if training else self.val_results_per_epoch)])
+                          (self.train_results_per_epoch if is_training else self.val_results_per_epoch)])
 
     def __post_init__(self) -> None:
         common_util.check_properties_are_not_none(self)
@@ -71,7 +87,8 @@ class ModelTrainingResults:
                                     len(self.learning_rates_per_epoch)))
 
 
-def gather_tensor(tensor: torch.Tensor, target_device: int = 0) -> torch.Tensor:
+def gather_tensor(tensor: Union[torch.Tensor, List[torch.Tensor]],
+                  target_device: int = 0) -> torch.Tensor:
     """
     When using multiple GPUs, logits is a list of tensors. Concatenate them
     across the first dimension, and move them to the provided target_device.

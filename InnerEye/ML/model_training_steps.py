@@ -503,7 +503,7 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
         ece_criterion: ECELoss = ECELoss(activation=self.model_config.get_post_loss_logits_normalization_function(),
                                          n_bins=self.model_config.temperature_scaling_config.ece_num_bins)
 
-        if torch.cuda.is_available():
+        if self.model_config.use_gpu:
             ece_criterion = ece_criterion.cuda()
         if isinstance(_model, DataParallelModel):
             _model = _model.get_module()
@@ -521,6 +521,7 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
             logits=logits,
             labels=labels,
             criterion_fn=_forward_criterion,
+            use_gpu=self.model_config.use_gpu,
             logger=self.azure_and_tensorboard_logger
         )
 

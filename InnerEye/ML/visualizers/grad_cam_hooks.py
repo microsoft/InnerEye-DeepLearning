@@ -40,7 +40,7 @@ class GradientBasedFeatureExtractor(HookBasedFeatureExtractor):
         super().__init__(model, target_layer)
         self.config = config
         self.hooks: List[Any] = []
-        if torch.cuda.is_available():
+        if config.use_gpu:
             self.device = torch.device("cuda")
         else:
             self.device = torch.device("cpu")
@@ -195,7 +195,7 @@ class GradCam(GradientBasedFeatureExtractor):
             list_gradients.append(torch.stack(self.gradients[device], dim=1))  # [B, C_in, C_out, Z, X, Y]
             list_activations.append(torch.stack(self.activations[device], dim=1))  # [B, C_in, C_out, Z, X, Y]
 
-        if torch.cuda.is_available():
+        if self.config.use_gpu:
             activations = torch.nn.parallel.gather(list_activations, target_device=self.device)
             gradients = torch.nn.parallel.gather(list_gradients, target_device=self.device)
 
@@ -394,7 +394,7 @@ class GuidedBackPropagation(GradientBasedFeatureExtractor):
         self.target_label_index = target_label_index
         self.model.eval()
         self.forward(*input)
-        if torch.cuda.is_available():
+        if self.config.use_gpu:
             torch.cuda.empty_cache()
         self.backward()
 

@@ -6,9 +6,8 @@ import argparse
 import logging
 import os
 from time import time
-from typing import Optional, TypeVar
+from typing import Optional, Tuple, TypeVar
 
-import torch
 from torch.optim.optimizer import Optimizer
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
@@ -152,7 +151,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
         training_steps = create_model_training_steps(config, train_val_params)
         val_epoch_results = train_or_validate_epoch(training_steps)
-        val_results_per_epoch.append(val_epoch_results)
+        if train_val_params.save_metrics:
+            val_results_per_epoch.append(val_epoch_results)
 
         if config.is_segmentation_model:
             metrics.store_epoch_stats_for_segmentation(config.outputs_folder, epoch, epoch_lrs,
@@ -160,21 +160,13 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                                        val_epoch_results.metrics)
 
         if save_epoch:
+            # perform temperature scaling if required
             if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
-                # re-create the training steps for the repeat pass, but with metrics saving enabled
-                train_val_params.save_metrics = True
-                training_steps = create_model_training_steps(config, train_val_params)
-                assert isinstance(training_steps, ModelTrainingStepsForSequenceModel)
-                # perform temperature scaling
-                logits = torch.cat([x.get_logits() for x in val_results_per_epoch])
-                labels = torch.cat([x.get_labels() for x in val_results_per_epoch])
-
-                temperature_value = training_steps.learn_temperature_scale_parameter(logits, labels)
-                optimal_temperature_scale_values.append(temperature_value)
-                # recompute the validation set results for the temperature scaled model
-                val_epoch_results = train_or_validate_epoch(training_steps)
+                optimal_temperature, scaled_val_results = \
+                    temperature_scaling_steps(config, train_val_params, val_epoch_results)
+                optimal_temperature_scale_values.append(optimal_temperature)
                 # overwrite the metrics for the epoch with the metrics from the temperature scaled model
-                val_results_per_epoch[-1] = val_epoch_results
+                val_results_per_epoch.append(scaled_val_results)
 
             assert optimizer is not None
             save_checkpoint(model, optimizer, epoch, config)
@@ -206,6 +198,36 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         resource_monitor.kill()
 
     return model_training_results
+
+
+def temperature_scaling_steps(config: SequenceModelBase,
+                              train_val_params: TrainValidateParameters,
+                              val_results_for_epoch: ModelOutputsAndMetricsForEpoch) -> \
+        Tuple[float, ModelOutputsAndMetricsForEpoch]:
+    """
+    Perform the steps required for temperature scaling:
+    1) Learn the temperature parameter on the logits and labels of the provided validation epoch
+    2) Re-run the validation after learning the scaling parameter.
+
+    :param config: Config for a sequence model.
+    :param train_val_params: Train/Validate parameters to use.
+    :param val_results_for_epoch: results from the validation epoch to use in order to perform temperature scaling.
+    :return: the optimal temperature value and the validation results after scaling has been performed.
+    """
+    # re-create the training steps for the repeat pass, but with metrics saving enabled
+    train_val_params.save_metrics = True
+    training_steps = create_model_training_steps(config, train_val_params)
+    assert isinstance(training_steps, ModelTrainingStepsForSequenceModel)
+    # make sure results for a validation epoch have been passed in
+    assert val_results_for_epoch.is_train is False
+    # perform temperature scaling
+    logits = val_results_for_epoch.get_logits()
+    labels = val_results_for_epoch.get_labels()
+    temperature_value = training_steps.learn_temperature_scale_parameter(logits, labels)
+    # recompute the validation set results for the temperature scaled model
+    val_epoch_results = train_or_validate_epoch(training_steps)
+
+    return temperature_value, val_epoch_results
 
 
 def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutputsAndMetricsForEpoch:
