@@ -84,14 +84,13 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         :param pipeline_id: ID for the pipeline to be created.
         :return: ScalarInferencePipeline if recovery from checkpoint successful. None if unsuccessful.
         """
-        model_and_checkpoint_epoch = model_util.load_from_checkpoint_and_adjust(config, path_to_checkpoint)
-        if model_and_checkpoint_epoch is None:
+        model_and_info = model_util.load_from_checkpoint_and_adjust(config, path_to_checkpoint)
+        if model_and_info.model is None or model_and_info.checkpoint_epoch is None:
             # not raising a value error here: This is used to create individual pipelines for ensembles,
             #                                   possible one model cannot be created but others can
             logging.warning(f"Could not recover model from checkpoint path {path_to_checkpoint}")
             return None
-        model, checkpoint_epoch = model_and_checkpoint_epoch
-        return ScalarInferencePipeline(model, config, checkpoint_epoch, pipeline_id)
+        return ScalarInferencePipeline(model_and_info.model, config, model_and_info.checkpoint_epoch, pipeline_id)
 
     def predict(self, sample: Dict[str, Any]) -> ScalarInferencePipelineBase.Result:
         """

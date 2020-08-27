@@ -727,7 +727,8 @@ class SegmentationModelBase(ModelConfigBase):
 
         :return: The network model as a torch.nn.Module object
         """
-        # Use a local import here to avoid reliance on pytorch too early
+        # Use a local import here to avoid reliance on pytorch too early.
+        # Return type should be BaseModel, but that would also introduce reliance on pytorch.
         from InnerEye.ML.utils.model_util import build_net
         return build_net(self)
 

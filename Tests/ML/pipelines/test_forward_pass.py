@@ -19,6 +19,7 @@ from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util, model_util
 from InnerEye.ML.utils.io_util import ImageDataType
+from InnerEye.ML.utils.model_util import ModelAndInfo
 from Tests.ML.util import machine_has_gpu, no_gpu_available
 
 
@@ -133,14 +134,12 @@ def test_amp_activated(use_model_parallel: bool,
     # Move the model to the GPU. This is mostly to avoid issues with AMP, which has trouble
     # with first using a GPU model and later using a CPU-based one.
     model = model.cuda()
-
     optimizer = model_util.create_optimizer(model_config, model)
-    model_amp = optimizer_amp = None
+    model_and_info = ModelAndInfo(model, optimizer)
     try:
-        model_amp, optimizer_amp = model_util.update_model_for_mixed_precision_and_parallel(model,
-                                                                                            model_config,
-                                                                                            optimizer,
-                                                                                            execution_mode)
+        model_and_info_amp = model_util.update_model_for_mixed_precision_and_parallel(model_and_info,
+                                                                                      model_config,
+                                                                                      execution_mode)
     except NotImplementedError as ex:
         if use_model_parallel:
             # The SimpleModel does not implement model partitioning, and should hence fail at this step.
@@ -151,11 +150,13 @@ def test_amp_activated(use_model_parallel: bool,
 
     # Check if the optimizer is updated with AMP mixed precision features. The attribute should be present
     # if and only if mixed precision is switched on.
+    optimizer_amp = model_and_info_amp.optimizer
+    assert optimizer_amp is not None
     assert hasattr(optimizer_amp, '_amp_stash') == use_mixed_precision
     assert hasattr(optimizer_amp, '_post_amp_backward') == use_mixed_precision
 
     criterion = lambda x, y: torch.tensor([0.0], requires_grad=True).cuda()
-    pipeline = SegmentationForwardPass(model_amp,
+    pipeline = SegmentationForwardPass(model_and_info_amp.model,
                                        model_config,
                                        batch_size=1,
                                        optimizer=optimizer_amp,

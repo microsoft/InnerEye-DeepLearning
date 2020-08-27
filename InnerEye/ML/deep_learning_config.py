@@ -237,10 +237,11 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     restrict_subjects: Optional[str] = \
         param.String(doc="Use at most this number of subjects for train, val, or test set (must be > 0 or None). "
                          "If None, do not modify the train, val, or test sets. If a string of the form 'i,j,k' where "
-                         "i, j and k are integers, modify just the corresponding set (i for train, j for val, k for "
-                         "test). If any of i, j or j are missing or are non-positive, do not modify the corresponding "
+                         "i, j and k are integers, modify just the corresponding sets (i for train, j for val, k for "
+                         "test). If any of i, j or j are missing or are negative, do not modify the corresponding "
                          "set. Thus a value of 20,,5 means limit training set to 20, keep validation set as is, and "
-                         "limit test set to 5.",
+                         "limit test set to 5. If any of i,j,k is '+', discarded members of the other sets are added "
+                         "to that set.",
                      allow_None=True)
     perform_training_set_inference: bool = \
         param.Boolean(False,
