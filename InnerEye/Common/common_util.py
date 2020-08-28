@@ -32,10 +32,14 @@ METRICS_FILE_NAME = "metrics.csv"
 EPOCH_METRICS_FILE_NAME = "epoch_metrics.csv"
 METRICS_AGGREGATES_FILE = "metrics_aggregates.csv"
 CROSSVAL_RESULTS_FOLDER = "CrossValResults"
+BASELINE_COMPARISONS_FOLDER = "BaselineComparisons"
 FULL_METRICS_DATAFRAME_FILE = "MetricsAcrossAllRuns.csv"
 
 OTHER_RUNS_SUBDIR_NAME = "OTHER_RUNS"
 ENSEMBLE_SPLIT_NAME = "ENSEMBLE"
+
+SCATTERPLOTS_SUBDIR_NAME = "scatterplots"
+BASELINE_WILCOXON_RESULTS_FILE = "BaselineComparisonWilcoxonSignedRankTestResults.txt"
 
 
 class DataframeLogger:
@@ -461,13 +465,16 @@ def get_namespace_root(namespace: str) -> Optional[Path]:
     return None
 
 
-def remove_directory(pth: Path) -> None:
+def remove_file_or_directory(pth: Path) -> None:
     """
-    Remove a directory and its contents.
+    Remove a directory and its contents, or a file.
     """
-    for child in pth.glob('*'):
-        if child.is_file():
-            child.unlink()
-        else:
-            remove_directory(child)
-    pth.rmdir()
+    if pth.is_dir():
+        for child in pth.glob('*'):
+            if child.is_file():
+                child.unlink()
+            else:
+                remove_file_or_directory(child)
+        pth.rmdir()
+    elif pth.exists():
+        pth.unlink()
