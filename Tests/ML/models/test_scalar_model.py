@@ -428,22 +428,21 @@ def test_dataset_stats_hook(test_output_dirs: TestOutputDirectories) -> None:
     Test if the flexible hook for computing dataset statistics is called correctly in create_and_set_torch_datasets
     """
     model = ClassificationModelForTesting()
-    out_file_name = "stats.txt"
     root_dir = Path(test_output_dirs.root_dir)
+    out_file = root_dir / "stats.txt"
 
-    def hook(dataset: ScalarDataset, mode: ModelExecutionMode) -> None:
+    def hook(datasets: Dict[ModelExecutionMode, ScalarDataset]) -> None:
         # Assert on types to ensure that the hook is called with the right arguments
-        assert isinstance(dataset, ScalarDataset)
-        assert isinstance(mode, ModelExecutionMode)
-
-        out_file = root_dir / mode.value / out_file_name
-        out_file.parent.mkdir()
-        out_file.write_text(f"Dataset length: {len(dataset.items)}")
+        assert isinstance(datasets, Dict)
+        lines = []
+        for mode in ModelExecutionMode:
+            assert mode in datasets
+            assert isinstance(datasets[mode], ScalarDataset)
+            lines.append(f"{mode.value}: {len(datasets[mode].items)}")
+        out_file.write_text("\n".join(lines))
 
     model.dataset_stats_hook = hook
 
     model.create_and_set_torch_datasets()
-    for mode in ModelExecutionMode:
-        expected_file = root_dir / mode.value / out_file_name
-        assert expected_file.is_file()
-        assert expected_file.read_text().startswith("Dataset length")
+    assert out_file.is_file()
+    assert out_file.read_text() == "\n".join(["Train: 2", "Test: 1", "Val: 1"])

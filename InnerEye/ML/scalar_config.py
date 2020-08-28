@@ -177,11 +177,11 @@ class ScalarModelBase(ModelConfigBase):
                                                                              instantiate=False,
                                                                              doc="The aggregation method to use when"
                                                                                  "testing ensemble models.")
-    dataset_stats_hook: Optional[Callable[[Any, ModelExecutionMode], None]] = \
+    dataset_stats_hook: Optional[Callable[[Dict[ModelExecutionMode, Any]], None]] = \
         param.Callable(default=None,
                        allow_None=True,
-                       doc="A hook that is called with a dataset object and the dataset split name, to do "
-                           "customized statistics for a dataset.")
+                       doc="A hook that is called with a dictionary that maps from train/val/test to the actual "
+                            "dataset, to do customized statistics.")
 
     def __init__(self, num_dataset_reader_workers: int = 0, **params: Any) -> None:
         super().__init__(**params)
@@ -360,11 +360,11 @@ class ScalarModelBase(ModelConfigBase):
             self._datasets_for_inference = datasets
             for split, dataset in datasets.items():
                 logging.info(f"{split.value}: {len(dataset)} subjects. Detailed status: {dataset.status}")
-                if self.dataset_stats_hook:
-                    try:
-                        self.dataset_stats_hook(dataset, split)
-                    except Exception as ex:
-                        print_exception(ex, message=f"Unable to invoke hook for computing dataset statistics.")
+            if self.dataset_stats_hook:
+                try:
+                    self.dataset_stats_hook(datasets)
+                except Exception as ex:
+                    print_exception(ex, message=f"Unable to invoke hook for computing dataset statistics.")
 
     def get_training_class_counts(self) -> Dict:
         if self._datasets_for_training is None:
