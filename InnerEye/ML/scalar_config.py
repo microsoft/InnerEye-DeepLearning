@@ -364,7 +364,7 @@ class ScalarModelBase(ModelConfigBase):
                 try:
                     self.dataset_stats_hook(datasets)
                 except Exception as ex:
-                    print_exception(ex, message=f"Unable to invoke hook for computing dataset statistics.")
+                    print_exception(ex, message="Unable to invoke hook for computing dataset statistics.")
 
     def get_training_class_counts(self) -> Dict:
         if self._datasets_for_training is None:
