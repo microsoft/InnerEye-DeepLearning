@@ -53,10 +53,10 @@ up each score from one set of results with a score from the other set.
 
 from collections import defaultdict
 from itertools import filterfalse, tee
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
-import numpy
+import numpy as np
 import pandas as pd
 import param
 from azureml.core import Run
@@ -67,7 +67,7 @@ from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.visualizers.metrics_scatterplot import create_scatterplots
 
-INTERSECT = lambda l, r: numpy.intersect1d(l, r, False)
+INTERSECT = lambda l, r: np.intersect1d(l, r, False)
 
 """
 The factor by which the Wilcoxon Z value should be divided to allow for incomplete independence of the data.
@@ -108,8 +108,10 @@ def calculate_statistics(dist1: Dict[str, float], dist2: Dict[str, float], facto
     shared = sorted(set(key for key in dist1 if key in dist2))
     values1 = [dist1[key] for key in shared]
     values2 = [dist2[key] for key in shared]
-    median1 = numpy.median(values1)
-    median2 = numpy.median(values2)
+    mean1 = np.mean(values1)
+    mean2 = np.mean(values2)
+    median1 = np.median(values1)
+    median2 = np.median(values2)
     n1, n2 = difference_counts(values1, values2)
     # We don't use the Scipy Wilcoxon test method, as it doesn't
     # tell us which way round the statistic is.
@@ -119,6 +121,8 @@ def calculate_statistics(dist1: Dict[str, float], dist2: Dict[str, float], facto
         "pairs": len(shared),
         "n1": n1,
         "n2": n2,
+        "mean1": mean1,
+        "mean2": mean2,
         "median1": median1,
         "median2": median2,
         "wilcoxon_z": wil_z,
@@ -177,15 +181,16 @@ def compose_pairwise_result(threshold: float, results: Dict[str, Dict[str, float
     """
     Composes results in human readable form and (if throw_on_failure) throws if any tests fail
     """
-    header = [f"{'Name':<15s} {'N':^3s} {'N1>2':^4s} {'N2>1':^4s} {'Med1':^7s} {'Med2':^7s} "
-              f"{'WilcZ':>6s} {'WilcP':^5s} {'2_vs_1':<s}"]
+    header = [f"{'Name':<15s} {'N':^3s} {'Mean1':^7s} {'Mean2':^7s} {'N1>2':^4s} {'N2>1':^4s} "
+              f"{'Med1':^7s} {'Med2':^7s} {'WilcZ':>6s} {'WilcP':^5s} {'2_vs_1':<s}"]
     n_failed = 0
     lines: List[str] = []
     test_is_valid = False
+    max_len = max([0] + [len(name) for name in results])
     for name in sorted(results):
         dct = results[name]
-        line = f"{name:<15s} {dct['pairs']:3d} {dct['n1']:4d} {dct['n2']:4d} " \
-               f"{dct['median1']:7.3f} {dct['median2']:7.3f}"
+        line = f"{name:<{max_len}s} {dct['pairs']:3d} {dct['mean1']:7.3f} {dct['mean2']:7.3f} {dct['n1']:4d} " \
+               f"{dct['n2']:4d} {dct['median1']:7.3f} {dct['median2']:7.3f}"
         if dct['n1'] + dct['n2'] >= 5:
             failure = dct['wilcoxon_p'] < threshold / 2
             pf = failure and 'WORSE' or (dct['wilcoxon_p'] > 1 - threshold / 2 and 'BETTER') or ''
@@ -241,12 +246,14 @@ def convert_data(csv_data: pd.DataFrame, subset: str = 'all', exclude: Optional[
     return data
 
 
-def wilcoxon_signed_rank_test(args: WilcoxonTestConfig, name_shortener: Optional[Callable[[Run], str]] = None) \
+def wilcoxon_signed_rank_test(args: WilcoxonTestConfig,
+                              name_shortener: Optional[Callable[[Union[Run, str]], str]] = None) \
         -> Tuple[List[str], Dict[str, plt.figure]]:
     """
     Reads data from a csv file, and performs all pairwise comparisons, except if --against was specified,
     compare every other run against the "--against" run.
     :param args: parsed command line parameters
+    :param name_shortener: optional function to shorten names to make graphs and tables more legible
     """
     if args.data is not None:
         data = convert_data(args.data)
