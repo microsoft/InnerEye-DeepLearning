@@ -14,6 +14,8 @@ def test_calculate_statistics() -> None:
     expected = {"pairs": 1,  # number of matching pairs - only "foo" is shared
                 "n1": 0,  # number of pairs in which the first score is bigger
                 "n2": 1,  # number of pairs in which the second score is bigger
+                "mean1": 2.0,
+                "mean2": 2.5,
                 "median1": 2.0,
                 "median2": 2.5,
                 "wilcoxon_z": 1.0,
@@ -50,6 +52,8 @@ def test_compose_pairwise_results() -> None:
                {"pairs": 10,
                 "n1": 30,
                 "n2": 40,
+                "mean1": 3.5,
+                "mean2": 4.5,
                 "median1": 3,
                 "median2": 4,
                 "wilcoxon_z": 1.0,
