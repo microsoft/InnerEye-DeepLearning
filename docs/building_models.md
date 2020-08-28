@@ -137,7 +137,9 @@ filling in the run recovery ID of the parent run and the epoch number (one of th
 for which you want results plotted. The script will also output several `..._outliers.txt` file with all of the outliers
 across the splits and a portal query to 
 find them in the production portal, and run statistical tests to compute the significance of differences between scores
-across the splits and with respect to other runs that you specify. Details of the tests can be found
+across the splits and with respect to other runs that you specify. This is done for you during
+ the run itself (see below), but you can use the script post hoc to compare arbitrary runs
+ with each other. Details of the tests can be found
 in [`wilcoxon_signed_rank_test.py`](/InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py)
 and [`mann_whitney_test.py`](/InnerEye/Common/Statistics/mann_whitney_test.py).
 
@@ -184,32 +186,37 @@ the `metrics.csv` files of the current run and the comparison run(s).
   and `test_dataset.csv`, `train_dataset.csv` and `val_dataset.csv` for those subsets of it.
   * `train_stats.csv`, containing summary statistics for each training epoch (learning rate, losses and
   Dice scores).
+  * `BaselineComparisonWilcoxonSignedRankTestResults.txt`, containing the results of comparisons
+  between the current run and any specified baselines (earlier runs) to compare with. Each paragraph of that file compares two models and
+  indicates, for each structure, when the Dice scores for the second model are significantly better 
+  or worse than the first. For full details, see the 
+  [source code](../InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py).
+  * A directory `scatterplots`, containing a `jpg` file for every pairing of the current model
+  with one of the baslines. Each one is named `AAA_vs_BBB.jpg`, where `AAA` and `BBB` are the run IDs
+  of the two models. Each plot shows the Dice scores on the test set for the models.
 
 Ensemble models are created by the zero'th child (with `cross_validation_split_index=0`) in each
 cross-validation run. Results from inference on the test and validation sets are uploaded to the
 parent run, and can be found in `epoch_NNN` directories as above.
-In additional, various scores and plots from the ensemble and from individual child 
+In addition, various scores and plots from the ensemble and from individual child 
 runs are uploaded to the parent run, in the `CrossValResults` directory. This contains:
 * Subdirectories named 0, 1, 2, ... for all the child runs including the zero'th one, as well
  as `ENSEMBLE`, containing their respective `epoch_NNN` directories.
-* A subdirectory named `scatterplots`, containing a `jpg` file for every pairing of component models
-  and the ensemble model. Each one is named `AAA_vs_BBB.jpg`, where `AAA` and `BBB` are the run IDs
-  of the two models. Each plot shows the Dice scores on the test set for the models.
-  *TODO*: also has all-against-all for ensemble and each child model. Check for baseline
-  comparisons when big models done.
-* A file `CrossValidationWilcoxonSignedRankTestResults.txt`, comprising the results of the Wilcoxon
-  signed rank test applied to those Dice scores. Each paragraph of that file compares two models and
-  indicates, for each structure, when the Dice scores for the second model are significantly better 
-  or worse than the first. For full details, see the 
-  [source code](../InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py).
 * Files `Dice_Test_Splits.jpg` and `Dice_Val_Splits.jpg`, containing box plots of the Dice scores
   on those datasets for each structure and each (component and ensemble) model. These give a visual
-  overview of the results in the `metrics.csv` files detailed above.
+  overview of the results in the `metrics.csv` files detailed above. When there are many different
+  structures, several such plots are created, with a different subset of structures in each one.
 * Similarly, `HausdorffDistance_mm_Test_splits.jpg` and `HausdorffDistance_mm_Val_splits.jpg` contain
   box plots of Hausdorff distances.
 * `MetricsAcrossAllRuns.csv` combines the data from all the `metrics.csv` files.
 * `Test_outliers.txt` and `Val_outliers.txt` highlight particular outlier scores (both Dice and
   Hausdorff) in the test and validation sets respectively.
+* A `scatterplots` directory and a file `CrossValidationWilcoxonSignedRankTestResults.txt`,
+  for comparisons between the ensemble and its component models.
+
+There is also a directory `BaselineComparisons`, containing the Wilcoxon test results and
+scatterplots for the ensemble, as described above for single runs.
+
 
 ### Using Tensorboard
 

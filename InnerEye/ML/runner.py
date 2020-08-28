@@ -22,10 +22,14 @@ from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    ModelProcessing, OTHER_RUNS_SUBDIR_NAME, disable_logging_to_file, is_linux, logging_section, logging_to_file, \
+from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
+    CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
+    FULL_METRICS_DATAFRAME_FILE, \
+    METRICS_AGGREGATES_FILE, \
+    ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, disable_logging_to_file, is_linux, \
+    logging_section, logging_to_file, \
     logging_to_stdout, \
-    print_exception, remove_directory
+    print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import get_environment_yaml_file
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
@@ -163,11 +167,21 @@ class Runner:
         self.create_ml_runner().run_inference_and_register_model(run_recovery, model_proc=ModelProcessing.ENSEMBLE_CREATION)
         crossval_dir = self.plot_cross_validation_and_upload_results()
         # CrossValResults should have been uploaded to the parent run, so we don't need it here.
-        remove_directory(crossval_dir)
+        remove_file_or_directory(crossval_dir)
         # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files
-        # available elsewhere.
+        # available elsewhere. However, first we need to upload relevant parts of OTHER_RUNS/ENSEMBLE.
         other_runs_dir = self.model_config.outputs_folder / OTHER_RUNS_SUBDIR_NAME
-        remove_directory(other_runs_dir)
+        other_runs_ensemble_dir = other_runs_dir / ENSEMBLE_SPLIT_NAME
+        if PARENT_RUN_CONTEXT is not None:
+            if other_runs_ensemble_dir.exists():
+                # Only keep baseline Wilcoxon results and scatterplots:
+                for subdir in other_runs_ensemble_dir.glob("*"):
+                    if subdir.name not in [BASELINE_WILCOXON_RESULTS_FILE, SCATTERPLOTS_SUBDIR_NAME]:
+                        remove_file_or_directory(subdir)
+                PARENT_RUN_CONTEXT.upload_folder(name=BASELINE_COMPARISONS_FOLDER, path=str(other_runs_ensemble_dir))
+            else:
+                logging.warning(f"Directory not found for upload: {other_runs_ensemble_dir}")
+        remove_file_or_directory(other_runs_dir)
 
     def parse_and_load_model(self) -> ParserResult:
         """

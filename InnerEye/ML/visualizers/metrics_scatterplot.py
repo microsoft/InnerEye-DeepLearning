@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -10,9 +11,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import param
 
+from InnerEye.Common.common_util import SCATTERPLOTS_SUBDIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
-
-SCATTERPLOTS_SUBDIR_NAME = "scatterplots"
 
 
 class MetricsScatterplotConfig(GenericConfig):
@@ -31,29 +31,30 @@ class MetricsScatterplotConfig(GenericConfig):
 def create_scatterplots(data: Dict[str, Dict[str, Dict[str, float]]], against: Optional[List[str]],
                         max_dice: Optional[float] = None) -> Dict[str, plt.Figure]:
     """
-    :param data: dictionary such that data[build][structure][seriesId] = dice_score
-    :param against: build names to plot against (as y axis); if None or empty, do all against all
+    :param data: dictionary such that data[run][structure][seriesId] = dice_score
+    :param against: run names to plot against (as y axis); if None or empty, do all against all
     :param max_dice: maximum Dice score to expect; if None, either 1.0 or 100.0 will be inferred from the data
     in code called from here.
     """
-    builds = sorted(data.keys())
+    runs = sorted(data.keys())
     result = {}
     if not against:
         against = None
-    for i, build1 in enumerate(builds):
-        for build2 in builds[i+1:]:
-            if against is not None and build2 not in against:
-                if build1 not in against:
+    for i, run1 in enumerate(runs):
+        for run2 in runs[i+1:]:
+            if against is not None and run2 not in against:
+                if run1 not in against:
                     continue
-                x_build, y_build = build2, build1
+                x_run, y_run = run2, run1
             else:
-                x_build, y_build = build1, build2
-            x_dct = data[x_build]
-            y_dct = data[y_build]
-            x_name = x_build.split(':')[-1]
-            y_name = y_build.split(':')[-1]
-            config = MetricsScatterplotConfig(x_name=x_name, y_name=y_name, max_dice=max_dice)
-            result[f"{x_name}_vs_{y_name}"] = metrics_scatterplot_from_dicts(config, x_dct, y_dct)
+                x_run, y_run = run1, run2
+            x_dct = data[x_run]
+            y_dct = data[y_run]
+            x_name = x_run.replace(":", "_")
+            y_name = y_run.replace(":", "_")
+            plot_name = f"{x_name}_vs_{y_name}"
+            config = MetricsScatterplotConfig(x_name=x_run, y_name=y_run, max_dice=max_dice)
+            result[plot_name] = metrics_scatterplot_from_dicts(config, x_dct, y_dct)
     return result
 
 
@@ -209,10 +210,12 @@ def write_to_scatterplot_directory(root_folder: Path, plots: Dict[str, plt.Figur
     :param root_folder: path to a folder
     :param plots: dictionary from plot basenames to plots (plt.Figure objects)
     """
-    if not plots:
-        return
     scatterplot_dir = root_folder / SCATTERPLOTS_SUBDIR_NAME
+    if not plots:
+        logging.info(f"There are no plots to write to {scatterplot_dir}, so not creating it.")
+        return
     scatterplot_dir.mkdir(parents=True, exist_ok=True)
+    logging.info(f"There are {len(plots)} plots to write to {scatterplot_dir}")
     for basename, fig in plots.items():
         fig.savefig(scatterplot_dir / f"{basename}.jpg")
 
