@@ -70,7 +70,6 @@ def monitor(arguments: MonitorArguments, azure_config: AzureConfig) -> None:
             exit(-1)
 
     # Start Tensorboard on executing machine
-    # ts = HotFixedTensorBoard(exp_runs, port=arguments.port)
     ts = TensorBoard(exp_runs, port=arguments.port)
 
     print("==============================================================================")
