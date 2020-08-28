@@ -32,8 +32,11 @@ class LRScheduler:
         self._max_epochs = args.num_epochs
 
         # if loading from a checkpoint, then last epoch will be the checkpoint epoch
-        # otherwise -1 as no epochs have been trained
+        # otherwise -1 as no epochs have been trained.
+        # For pytorch version 1.3:
         last_epoch = args.start_epoch if args.should_load_checkpoint_for_training() else -1
+        # For pytorch version 1.6:
+        # last_epoch = args.start_epoch - 1 if args.should_load_checkpoint_for_training() else -1
 
         if args.l_rate_decay == LRSchedulerType.Exponential:
             self._scheduler = ExponentialLR(optimizer, args.l_rate_gamma, last_epoch=last_epoch)
@@ -59,7 +62,10 @@ class LRScheduler:
         """
         Get the current learning rate (making sure it is >= min_l_rate if provided in the config)
         """
+        # For pytorch version 1.3:
         lr = self._scheduler.get_lr()  # type: ignore
+        # For pytorch version 1.6:
+        # lr = self._scheduler.get_last_lr()  # type: ignore
         lrs: List[float] = [lr] if isinstance(lr, float) else lr
         return [max(self._min_lr, x) for x in lrs]
 

@@ -7,11 +7,11 @@ from typing import Any, Optional
 
 import param
 from azureml.core import Experiment
+from tensorboard.program import TensorBoard
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import parse_arguments
-from InnerEye.Azure.tensorboard import HotFixedTensorBoard
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
 
@@ -70,7 +70,7 @@ def monitor(arguments: MonitorArguments, azure_config: AzureConfig) -> None:
             exit(-1)
 
     # Start Tensorboard on executing machine
-    ts = HotFixedTensorBoard(exp_runs, port=arguments.port)
+    ts = TensorBoard(exp_runs, port=arguments.port)
 
     print("==============================================================================")
     for run in exp_runs:

@@ -137,8 +137,8 @@ def plot_image_and_label_contour(image: np.ndarray,
     if isinstance(labels, np.ndarray) and isinstance(contour_arguments, dict):
         plot_contour(labels, contour_arguments)
     elif isinstance(labels, list) and isinstance(contour_arguments, list):
-        for l, c in zip(labels, contour_arguments):
-            plot_contour(l, c)
+        for label, contour in zip(labels, contour_arguments):
+            plot_contour(label, contour)
     else:
         raise ValueError("Combination of input arguments is not recognized.")
 
