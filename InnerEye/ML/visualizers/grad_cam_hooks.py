@@ -276,7 +276,7 @@ class GradCam(GradientBasedFeatureExtractor):
                 # For a non-sequence model a categorical feature might appear several times for several channels but
                 # there
                 # is no padding. Hence we handle the conversion differently.
-                pseudo_cam_categorical = pseudo_cam_one_hot[categorical_input_one_hot != 0].reshape(
+                pseudo_cam_categorical = pseudo_cam_one_hot[categorical_input_one_hot.cpu() != 0].reshape(
                     (batch_size, number_positions, -1))
 
             return np.concatenate([pseudo_cam_numerical, pseudo_cam_categorical], axis=2)
