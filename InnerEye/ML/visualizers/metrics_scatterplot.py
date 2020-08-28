@@ -11,9 +11,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import param
 
+from InnerEye.Common.common_util import SCATTERPLOTS_SUBDIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
-
-SCATTERPLOTS_SUBDIR_NAME = "scatterplots"
 
 
 class MetricsScatterplotConfig(GenericConfig):
