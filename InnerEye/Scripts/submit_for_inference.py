@@ -25,7 +25,7 @@ class SubmitForInferenceConfig(GenericConfig):
     """
     Command line parameter class.
     """
-    experiment_name: str = param.String(default=f"model_inference",
+    experiment_name: str = param.String(default="model_inference",
                                         doc="Name of experiment the run should belong to")
     model_id: str = param.String(doc="Id of model, e.g. Prostate:123")
     image_file: Path = param.ClassSelector(class_=Path, doc="Image file to segment, ending in .nii.gz")

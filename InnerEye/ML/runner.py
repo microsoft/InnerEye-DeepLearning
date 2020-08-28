@@ -50,7 +50,7 @@ def may_initialize_rpdb() -> None:
     rpdb_port = 4444
     rpdb.handle_trap(port=rpdb_port)
     # For some reason, os.getpid() does not return the ID of what appears to be the currently running process.
-    logging.info(f"rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
+    logging.info("rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
                  f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}")
 
 
@@ -207,7 +207,7 @@ class Runner:
             exist = "exists" if Path(azure_config.extra_code_directory).exists() else "does not exist"
             logging.info(f"extra_code_directory is {azure_config.extra_code_directory}, which {exist}")
         else:
-            logging.info(f"extra_code_directory is unset")
+            logging.info("extra_code_directory is unset")
         self.azure_config = azure_config
         self.model_config = model_config
         return parser2_result
@@ -225,7 +225,7 @@ class Runner:
         may_initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
-        if self.model_config.number_of_cross_validation_splits > 0:
+        if self.model_config.perform_cross_validation:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None
@@ -243,7 +243,7 @@ class Runner:
         # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
         logging.getLogger('adal-python').setLevel(logging.WARNING)
         if not self.model_config.azure_dataset_id:
-            raise ValueError(f"When running on AzureML, the 'azure_dataset_id' property must be set.")
+            raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
         model_config_overrides = str(self.model_config.overrides)
         source_config = SourceConfig(
             root_folder=str(self.project_root),
@@ -264,7 +264,7 @@ class Runner:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
             # A build step will pick up that file and publish it to Azure DevOps.
             # If pytest_mark is set, this file must exist.
-            logging.info(f"Downloading pytest result file.")
+            logging.info("Downloading pytest result file.")
             download_pytest_result(self.azure_config, azure_run)
         else:
             logging.info("No pytest_mark present, hence not downloading the pytest result file.")

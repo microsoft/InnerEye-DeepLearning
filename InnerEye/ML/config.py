@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, unique
-from math import isclose
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -14,6 +13,7 @@ import pandas as pd
 import param
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import HyperDriveConfig
+from math import isclose
 from pandas import DataFrame
 
 from InnerEye.Common.common_util import any_pairwise_larger, any_smaller_or_equal_than, check_is_any_of
@@ -466,8 +466,8 @@ class SegmentationModelBase(ModelConfigBase):
         super().validate()
         check_is_any_of("Architecture", self.architecture, vars(ModelArchitectureConfig).keys())
 
-        def len_or_zero(l: Optional[List[Any]]) -> int:
-            return 0 if l is None else len(l)
+        def len_or_zero(lst: Optional[List[Any]]) -> int:
+            return 0 if lst is None else len(lst)
 
         if self.kernel_size % 2 == 0:
             raise ValueError("The kernel size must be an odd number (kernel_size: {})".format(self.kernel_size))

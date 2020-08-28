@@ -7,6 +7,8 @@ from typing import Any, List, Optional
 import torch
 from torch.nn import Module
 
+from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
+
 
 class HookBasedFeatureExtractor(Module):
 
@@ -25,9 +27,12 @@ class HookBasedFeatureExtractor(Module):
         self.net: Module
 
         if isinstance(model, torch.nn.DataParallel):
-            self.net = model._modules['module']  # type: ignore
+            self.net = model.module  # type: ignore
         else:
             self.net = model
+
+        if isinstance(self.net, ModelWithTemperature):
+            self.net = self.net.model
 
         if layer_name is not None:
             self._verify_layer_name(self.net, layer_name)

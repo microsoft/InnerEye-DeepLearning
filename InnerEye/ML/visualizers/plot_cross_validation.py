@@ -435,7 +435,7 @@ def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) ->
     # Create splits as per crossval settings. If not running crossval, use a pseudo split "" that will make
     # the code pick up the results of the present run.
     splits = [str(i) for i in range(train_config.number_of_cross_validation_splits)] \
-        if train_config.number_of_cross_validation_splits > 0 else [""]
+        if train_config.perform_cross_validation else [""]
     result_files, _ = download_crossval_result_files(plot_crossval_config,
                                                      download_to_folder=download_to_folder,
                                                      splits_to_evaluate=splits)
@@ -626,7 +626,7 @@ def save_outliers(config: PlotCrossValidationConfig,
                                                .describe()[metric_type][stats_columns]
                                                .sort_values(stats_columns, ascending=False))
                         f.write(outliers_summary)
-                        f.write(f"\n\n")
+                        f.write("\n\n")
                         f.write(create_portal_query_for_outliers(outliers))
                     else:
                         f.write("No outliers found")

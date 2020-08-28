@@ -3,52 +3,56 @@ channels:
   - defaults
   - pytorch
 dependencies:
-  - pip=20.0.2
+  - pip=20.1.1
   - python=3.7.3
   - pytorch=1.3.0
   - python-blosc==1.7.0
   - pip:
+      # We need a recent apex, as nvidia-apex=0.1 from conda-forge suffers from
+      # https://github.com/NVIDIA/apex/issues/552
+      # However this stops installation on CPU-only machines, and the alleged fix does not fix it:
+      # https://github.com/NVIDIA/apex/issues/931
+      # Commit a0d99fd, from 2020-07-09, seems to avoid both bugs.
+      - git+https://github.com/NVIDIA/apex.git@a0d99fd#egg=apex
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
-      - git+https://github.com/ptrblck/apex.git@4ad9b3b#egg=apex
-      - azureml-mlflow==1.9.0
-      - azureml-sdk==1.9.0
-      - azureml-tensorboard==1.9.0
+      - azureml-mlflow==1.12.0
+      - azureml-sdk==1.12.0
+      - azureml-tensorboard==1.12.0
       - blobxfer==1.9.4
-      - dataclasses-json==0.4.2
-      - flake8==3.7.7
+      - dataclasses-json==0.5.2
+      - flake8==3.8.3
       - gputil==1.4.0
       - h5py==2.10.0
-      - joblib==0.13.2
+      - joblib==0.16.0
       - jupyter==1.0.0
-      - matplotlib==3.1.0
+      - matplotlib==3.3.0
       - mlflow==1.8.0
-      - mock==3.0.5
       - mypy==0.770
       - mypy-extensions==0.4.3
-      - numpy==1.18.1
-      - options==1.4.10
-      - pandas==1.0.5
+      - numpy==1.19.1
+      - pandas==1.1.0
       - papermill==2.1.2
       - param==1.9.3
-      - pillow==7.1.2
-      - psutil==5.7.0
+      - pillow==7.2.0
+      - psutil==5.7.2
+      - pyflakes==2.2.0
       - PyYAML==5.3.1
-      - pyflakes==2.1.1
-      - pytest==4.5.0
-      - pytest-cov==2.7.1
-      - pytest-forked==1.1.3
-      - pytest-xdist==1.31.0
-      - rich==3.0.5
+      - pytest==6.0.1
+      - pytest-cov==2.10.1
+      - pytest-forked==1.3.0
+      - pytest-xdist==1.34.0
+      - rich==5.1.1
       - rpdb==0.1.6
-      - scikit-image==0.15.0
+      - scikit-image==0.17.2
       - scikit-learn==0.23.2
-      - scipy==1.3.1
-      - seaborn==0.9.0
+      - scipy==1.5.2
+      - seaborn==0.10.1
       - simpleitk==1.2.4
-      - six==1.12.0
+      - six==1.15.0
       - stopit==1.1.2
       - tabulate==0.8.7
+      - tensorboard==2.3.0
       - tensorboardX==2.1
-      - tensorboard==2.2.2
       - torchprof==1.1.1
       - torchvision==0.4.1
+

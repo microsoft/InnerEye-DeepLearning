@@ -5,12 +5,12 @@
 from __future__ import annotations
 
 import logging
-import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 import SimpleITK as sitk
+import math
 import numpy as np
 import tensorboardX
 import torch
