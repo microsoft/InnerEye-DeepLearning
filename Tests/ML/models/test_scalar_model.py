@@ -21,6 +21,7 @@ from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsD
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML import model_testing, model_training, runner
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
 from InnerEye.ML.run_ml import MLRunner
@@ -154,6 +155,7 @@ def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectorie
     """
     Test training and testing of classification models, when it is started together via run_ml.
     """
+    logging_to_stdout()
     azure_config = get_default_azure_config()
     azure_config.is_train = True
     train_config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
@@ -419,3 +421,29 @@ def test_unroll_aggregates() -> None:
     assert unrolled[0] == EpochMetricValues(1, LoggingColumns.AreaUnderPRCurve.value, 1.0)
     assert unrolled[-2] == EpochMetricValues(4, LoggingColumns.CrossEntropy.value, 0.7029)
     assert unrolled[-1] == EpochMetricValues(4, LoggingColumns.SubjectCount.value, 3)
+
+
+def test_dataset_stats_hook(test_output_dirs: TestOutputDirectories) -> None:
+    """
+    Test if the flexible hook for computing dataset statistics is called correctly in create_and_set_torch_datasets
+    """
+    model = ClassificationModelForTesting()
+    out_file_name = "stats.txt"
+    root_dir = Path(test_output_dirs.root_dir)
+
+    def hook(dataset: ScalarDataset, mode: ModelExecutionMode) -> None:
+        # Assert on types to ensure that the hook is called with the right arguments
+        assert isinstance(dataset, ScalarDataset)
+        assert isinstance(mode, ModelExecutionMode)
+
+        out_file = root_dir / mode.value / out_file_name
+        out_file.parent.mkdir()
+        out_file.write_text(f"Dataset length: {len(dataset.items)}")
+
+    model.dataset_stats_hook = hook
+
+    model.create_and_set_torch_datasets()
+    for mode in ModelExecutionMode:
+        expected_file = root_dir / mode.value / out_file_name
+        assert expected_file.is_file()
+        assert expected_file.read_text().startswith("Dataset length")
