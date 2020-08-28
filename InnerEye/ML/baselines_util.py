@@ -15,7 +15,8 @@ from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, fetch_run, stri
 from InnerEye.Common import common_util
 from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig
-from InnerEye.Common.common_util import ENSEMBLE_SPLIT_NAME, EPOCH_FOLDER_NAME_PATTERN, FULL_METRICS_DATAFRAME_FILE, \
+from InnerEye.Common.common_util import BASELINE_WILCOXON_RESULTS_FILE, ENSEMBLE_SPLIT_NAME, EPOCH_FOLDER_NAME_PATTERN, \
+    FULL_METRICS_DATAFRAME_FILE, \
     METRICS_FILE_NAME, \
     ModelProcessing, OTHER_RUNS_SUBDIR_NAME, remove_file_or_directory
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
@@ -23,8 +24,6 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_directory
 from InnerEye.ML.visualizers.plot_cross_validation import convert_rows_for_comparisons, may_write_lines_to_file
-
-BASELINE_WILCOXON_RESULTS_FILE = "BaselineComparisonWilcoxonSignedRankTestResults.txt"
 
 
 @dataclass

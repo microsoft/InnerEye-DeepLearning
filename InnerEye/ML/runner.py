@@ -22,7 +22,8 @@ from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
+from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
+    CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     FULL_METRICS_DATAFRAME_FILE, \
     METRICS_AGGREGATES_FILE, \
     ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, disable_logging_to_file, is_linux, \
@@ -30,7 +31,6 @@ from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, CROSSVAL_RE
     logging_to_stdout, \
     print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import get_environment_yaml_file
-from InnerEye.ML.baselines_util import BASELINE_WILCOXON_RESULTS_FILE
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase

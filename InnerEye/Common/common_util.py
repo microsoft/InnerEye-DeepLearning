@@ -38,6 +38,9 @@ FULL_METRICS_DATAFRAME_FILE = "MetricsAcrossAllRuns.csv"
 OTHER_RUNS_SUBDIR_NAME = "OTHER_RUNS"
 ENSEMBLE_SPLIT_NAME = "ENSEMBLE"
 
+SCATTERPLOTS_SUBDIR_NAME = "scatterplots"
+BASELINE_WILCOXON_RESULTS_FILE = "BaselineComparisonWilcoxonSignedRankTestResults.txt"
+
 
 class DataframeLogger:
     """
@@ -473,8 +476,5 @@ def remove_file_or_directory(pth: Path) -> None:
             else:
                 remove_file_or_directory(child)
         pth.rmdir()
-    elif path.exists():
+    elif pth.exists():
         pth.unlink()
-
-
-SCATTERPLOTS_SUBDIR_NAME = "scatterplots"
