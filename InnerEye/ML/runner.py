@@ -225,7 +225,7 @@ class Runner:
         may_initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
-        if self.model_config.number_of_cross_validation_splits > 0:
+        if self.model_config.perform_cross_validation:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None

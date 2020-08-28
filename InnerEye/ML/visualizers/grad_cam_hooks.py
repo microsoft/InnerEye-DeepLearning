@@ -16,6 +16,7 @@ from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImagingFeatureType
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES
 from InnerEye.ML.visualizers.model_hooks import HookBasedFeatureExtractor
 
@@ -39,7 +40,7 @@ class GradientBasedFeatureExtractor(HookBasedFeatureExtractor):
         super().__init__(model, target_layer)
         self.config = config
         self.hooks: List[Any] = []
-        if torch.cuda.is_available():
+        if config.use_gpu:
             self.device = torch.device("cuda")
         else:
             self.device = torch.device("cpu")
@@ -100,7 +101,8 @@ class GradCam(GradientBasedFeatureExtractor):
     task.
     """
 
-    def __init__(self, model: Module, config: ScalarModelBase) -> None:
+    def __init__(self, model: Union[DeviceAwareModule, torch.nn.DataParallel],
+                 config: ScalarModelBase) -> None:
         """
 
         :param model: The model to analyse
@@ -114,10 +116,11 @@ class GradCam(GradientBasedFeatureExtractor):
             super().__init__(model, config=config, target_layer=None)
         else:
             if isinstance(model, torch.nn.DataParallel):
-                target_layer = model.module.last_encoder_layer
-                self.conv_in_3d = bool(model.module.conv_in_3d)
+                _model: DeviceAwareModule = model.module  # type: ignore
+                target_layer = _model.get_last_encoder_layer_names()
+                self.conv_in_3d = bool(_model.conv_in_3d)
             else:
-                target_layer = model.last_encoder_layer
+                target_layer = model.get_last_encoder_layer_names()
                 self.conv_in_3d = bool(model.conv_in_3d)
             super().__init__(model=model, config=config, target_layer=target_layer)
         self.gradients: Dict = {}
@@ -192,7 +195,7 @@ class GradCam(GradientBasedFeatureExtractor):
             list_gradients.append(torch.stack(self.gradients[device], dim=1))  # [B, C_in, C_out, Z, X, Y]
             list_activations.append(torch.stack(self.activations[device], dim=1))  # [B, C_in, C_out, Z, X, Y]
 
-        if torch.cuda.is_available():
+        if self.config.use_gpu:
             activations = torch.nn.parallel.gather(list_activations, target_device=self.device)
             gradients = torch.nn.parallel.gather(list_gradients, target_device=self.device)
 
@@ -354,7 +357,7 @@ class GuidedBackPropagation(GradientBasedFeatureExtractor):
         """
         # For all ReLU layers propagate only positive gradients
         if isinstance(module, torch.nn.ReLU):
-            return (torch.nn.functional.relu(grad_in[0]),)
+            return torch.nn.functional.relu(grad_in[0]),
         return None
 
     def forward(self, *input):  # type: ignore
@@ -391,7 +394,7 @@ class GuidedBackPropagation(GradientBasedFeatureExtractor):
         self.target_label_index = target_label_index
         self.model.eval()
         self.forward(*input)
-        if torch.cuda.is_available():
+        if self.config.use_gpu:
             torch.cuda.empty_cache()
         self.backward()
 
@@ -435,7 +438,8 @@ class VisualizationMaps:
     for a specific model.
     """
 
-    def __init__(self, model: Module, config: ScalarModelBase) -> None:
+    def __init__(self, model: Union[DeviceAwareModule, torch.nn.DataParallel],
+                 config: ScalarModelBase) -> None:
         self.config = config
         self.is_non_imaging_model = config.is_non_imaging_model
         self.grad_cam: GradCam = GradCam(model, config)
@@ -504,7 +508,7 @@ class VisualizationMaps:
         for label_index in range(len(target_indices)):
             target_position = target_indices[label_index]
             current_output_dir = self.config.visualization_folder / f"{SEQUENCE_POSITION_HUE_NAME_PREFIX}_" \
-                                                                    f"{target_position}"
+                f"{target_position}"
             current_output_dir.mkdir(exist_ok=True)
             guided_grad_cams, grad_cams, pseudo_cam_non_img, probas = self.generate(input_batch,
                                                                                     target_position,

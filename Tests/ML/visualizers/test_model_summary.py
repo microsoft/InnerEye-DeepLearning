@@ -16,6 +16,7 @@ from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp impo
     ImagingFeatureType
 from InnerEye.ML.models.layers.basic import BasicLayer
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 
 logging_to_stdout(logging.INFO)
@@ -60,7 +61,7 @@ def test_model_summary_on_minimum_crop_size() -> None:
 
 
 def test_model_summary_on_classification1() -> None:
-    model = GlaucomaPublic().create_model()
+    model = create_model_with_temperature_scaling(GlaucomaPublic())
     ModelSummary(model).generate_summary(input_sizes=[(1, 6, 64, 60)])
 
 

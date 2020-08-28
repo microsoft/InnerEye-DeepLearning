@@ -27,9 +27,11 @@ from InnerEye.ML.models.architectures.unet_3d import UNet3D
 from InnerEye.ML.models.layers.basic import BasicLayer
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, is_gpu_available
+from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 
 BaseModelOrDataParallelModel = Union[BaseModel, DataParallelModel]
@@ -243,8 +245,7 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
     # Hence, move the model to the GPU before doing model summary.
     if config.use_gpu:
         model = model.cuda()
-    if config.is_scalar_model:
-        assert isinstance(config, ScalarModelBase)
+    if isinstance(config, ScalarModelBase):
         # To generate the model summary, read the first item of the dataset. Then use the model's own
         # get_model_input function to convert the dataset item to input tensors, and feed them through the model.
         train_dataset = config.get_torch_dataset_for_inference(ModelExecutionMode.TRAIN)
@@ -344,7 +345,7 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     """
     # Create model if necessary
     if model_and_info is None:
-        model_and_info = ModelAndInfo(model_config.create_model())
+        model_and_info = ModelAndInfo(create_model_with_temperature_scaling(model_config))
     # Load the stored model. If there is no checkpoint present, return immediately.
     model_and_info.checkpoint_epoch = load_checkpoint(model=model_and_info.model,
                                                       path_to_checkpoint=path_to_checkpoint,
@@ -358,3 +359,14 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     return update_model_for_mixed_precision_and_parallel(
         model_and_info, args=model_config, execution_mode=model_and_info.model_execution_mode)
 
+
+def create_model_with_temperature_scaling(config: ModelConfigBase) -> Any:
+    """
+    Create a model with temperature scaling by wrapping the result of config.create_model with ModelWithTemperature,
+    if temperature scaling config has been provided, otherwise return the result of config.create_model
+    """
+    # wrap the model around a temperature scaling model if required
+    model = config.create_model()
+    if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
+        model = ModelWithTemperature(model, config.temperature_scaling_config)
+    return model
