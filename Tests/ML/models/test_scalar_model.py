@@ -72,8 +72,8 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     def extract_loss(results: List[MetricsDict]) -> List[float]:
         return [d.values()[MetricType.LOSS.value][0] for d in results]
 
-    actual_train_loss = extract_loss(model_training_result.train_results_per_epoch)
-    actual_val_loss = extract_loss(model_training_result.val_results_per_epoch)
+    actual_train_loss = extract_loss([x.metrics for x in model_training_result.train_results_per_epoch])
+    actual_val_loss = extract_loss([x.metrics for x in model_training_result.val_results_per_epoch])
     actual_learning_rates = list(flatten(model_training_result.learning_rates_per_epoch))
     assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6)
     assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6)
@@ -360,7 +360,7 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
                 # check that metrics for any two folds is not the same
                 assert not any([split_metrics.equals(x) for x in metrics[m]])
             metrics[m] = [split_metrics]
-    if train_config.number_of_cross_validation_splits > 0:
+    if train_config.perform_cross_validation:
         # test aggregates are as expected
         aggregate_metrics_path = root / CROSSVAL_RESULTS_FOLDER / METRICS_AGGREGATES_FILE
         assert aggregate_metrics_path.is_file()

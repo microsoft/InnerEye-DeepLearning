@@ -23,6 +23,9 @@ KEY_FOR_DEFAULT_CHANNEL = "default"
 
 
 class AggregationType(Enum):
+    """
+    The type of global pooling aggregation to use between the encoder and the classifier.
+    """
     ZAdaptive3dAvg = "Adaptive3dAverage"
     Average = "Average"
     GatedPooling = "Gated"
@@ -109,7 +112,7 @@ class ScalarModelBase(ModelConfigBase):
                                                     doc="The column that contains the path to image files.")
     expected_column_values: List[Tuple[str, str]] = \
         param.List(default=None, doc="List of tuples with column name and expected value to filter rows in the "
-                                     f"{DATASET_CSV_FILE_NAME}",
+        f"{DATASET_CSV_FILE_NAME}",
                    allow_None=True)
     label_channels: Optional[List[str]] = \
         param.List(default=None, allow_None=True,

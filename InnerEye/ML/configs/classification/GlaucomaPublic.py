@@ -89,6 +89,9 @@ class GlaucomaPublic(ScalarModelBase):
                 self.conv_in_3d = True
                 self.last_encoder_layer = ["encoder", "4", "activation"]
 
+            def get_last_encoder_layer_names(self) -> List[str]:
+                return self.last_encoder_layer
+
             def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
                 x = self.encoder(x)
                 x = self.aggregation_layer(input=x, kernel_size=x.shape[2:])
