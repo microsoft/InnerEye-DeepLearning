@@ -238,6 +238,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     number_of_cross_validation_splits: int = param.Integer(0, bounds=(0, None),
                                                            doc="Number of cross validation splits for k-fold cross "
                                                                "validation")
+    cross_validation_split_holdout_proportion: float = param.Number(0, bounds=(0.0, 1.0),
+                                                                  doc="The proportion of the dataset to use as "
+                                                                       "holdout when performing cross validation. "
+                                                                      "default is 0.")
     cross_validation_split_index: int = param.Integer(-1, bounds=(-1, None),
                                                       doc="The index of the cross validation fold this model is "
                                                           "associated with when performing k-fold cross validation")

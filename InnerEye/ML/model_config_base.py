@@ -178,10 +178,16 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         When running cross validation, this method returns the dataset split that should be used for the
         currently executed cross validation split.
         :param dataset_split: The full dataset, split into training, validation and test section.
+        if a cross_validation_split_holdout_proportion > 0 is provided in set in the config, then
+        this proportion will be held out from the training and validation set and added to the test set of each split.
         :return: The dataset split with training and validation sections shuffled according to the current
         cross validation index.
         """
-        splits = dataset_split.get_k_fold_cross_validation_splits(self.number_of_cross_validation_splits)
+        splits = dataset_split.get_k_fold_cross_validation_splits(
+            n_splits=self.number_of_cross_validation_splits,
+            hold_out_proportion=self.cross_validation_split_holdout_proportion
+        )
+
         return splits[self.cross_validation_split_index]
 
     def get_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:

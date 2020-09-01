@@ -45,7 +45,7 @@ class DatasetSplits:
     def __str__(self) -> str:
         unique_train, unique_test, unique_val = self.unique_subjects()
         return f'Train: {len(unique_train)}, Test: {len(unique_test)}, and Val: {len(unique_val)}. ' \
-               f'Total subjects: {len(unique_train) + len(unique_test) + len(unique_val)}'
+            f'Total subjects: {len(unique_train) + len(unique_test) + len(unique_val)}'
 
     def unique_subjects(self) -> Tuple[Any, Any, Any]:
         return (self.train[self.subject_column].unique(),
@@ -140,7 +140,7 @@ class DatasetSplits:
                                       proportion_train: float,
                                       proportion_test: float,
                                       proportion_val: float) \
-            -> Dict[ModelExecutionMode, Set[IntOrString]]:
+        -> Dict[ModelExecutionMode, Set[IntOrString]]:
         """
         Get mutually exclusive subject ranges for each dataset split (w.r.t to the proportion provided)
         ensuring all sets have at least one item in them when possible.
@@ -346,11 +346,14 @@ class DatasetSplits:
                         subject_column: str = CSV_SUBJECT_HEADER) -> pd.DataFrame:
         return df[df[subject_column].isin(ids)]
 
-    def get_k_fold_cross_validation_splits(self, n_splits: int, random_seed: int = 0) -> List[DatasetSplits]:
+    def get_k_fold_cross_validation_splits(self, n_splits: int, hold_out_proportion: float = 0,
+                                           random_seed: int = 0) -> List[DatasetSplits]:
         """
         Creates K folds from the Train + Val splits
         :param n_splits: number of folds to perform.
         :param random_seed: random seed to be used for shuffle 0 is default.
+        :param hold_out_proportion: the proportion of subjects that should be held out from the training/validation
+        splits
         :return: List of K dataset splits
         """
         if n_splits <= 0:
@@ -364,9 +367,27 @@ class DatasetSplits:
         subject_ids = cv_dataset[self.subject_column].unique()
         ids_from_indices = lambda indices: [subject_ids[x] for x in indices]
         # create the number of requested splits of the dataset
-        return [
-            DatasetSplits(train=self.get_df_from_ids(cv_dataset, ids_from_indices(train_indices), self.subject_column),
-                          val=self.get_df_from_ids(cv_dataset, ids_from_indices(val_indices), self.subject_column),
-                          test=self.test,
-                          subject_column=self.subject_column) for train_indices, val_indices in
-            k_folds.split(subject_ids)]
+        splits = []
+        for train_indices, val_indices in k_folds.split(subject_ids):
+            train_val_indices = np.concatenate((train_indices, val_indices), axis=0)
+            # randomly sample the holdout indices from the union of the train and val indices
+            hold_out_indices = np.random.choice(train_val_indices, int(len(train_indices) * hold_out_proportion),
+                                                replace=False)
+
+            # remove the overlapping indices from the train and val sets
+            train_indices = np.setdiff1d(train_indices, hold_out_indices)
+            val_indices = np.setdiff1d(val_indices, hold_out_indices)
+
+            # create the new test set which is a concatenation of the existing test set and the holdout
+            hold_out_df = self.get_df_from_ids(cv_dataset, ids_from_indices(hold_out_indices), self.subject_column)
+            test_df = pd.concat([self.test, hold_out_df])
+
+            splits.append(
+                DatasetSplits(
+                    train=self.get_df_from_ids(cv_dataset, ids_from_indices(train_indices), self.subject_column),
+                    val=self.get_df_from_ids(cv_dataset, ids_from_indices(val_indices), self.subject_column),
+                    test=test_df,
+                    subject_column=self.subject_column)
+            )
+
+        return splits

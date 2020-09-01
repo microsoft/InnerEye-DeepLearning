@@ -13,6 +13,7 @@ from pandas import DataFrame
 
 from InnerEye.Common.type_annotations import IntOrString
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
@@ -146,17 +147,33 @@ def test_get_subject_ranges_for_splits() -> None:
         [np.isclose(len(splits[mode]) / len(population), proportions[i]) for i, mode in enumerate(splits.keys())])
 
 
-def test_get_k_fold_cross_validation_splits() -> None:
+@pytest.mark.parametrize("hold_out_set_proportion", [0.0, 0.1])
+def test_get_k_fold_cross_validation_splits(hold_out_set_proportion: float) -> None:
     # check the dataset splits have deterministic randomness
+    ml_util.set_random_seed(1)
     for i in range(2):
         test_df, test_ids, train_ids, val_ids = _get_test_df()
         splits = DatasetSplits.from_subject_ids(test_df, train_ids, test_ids, val_ids)
-        folds = splits.get_k_fold_cross_validation_splits(n_splits=5)
+        folds = splits.get_k_fold_cross_validation_splits(n_splits=5, hold_out_proportion=hold_out_set_proportion)
+
         assert len(folds) == 5
-        assert all([x.test.equals(splits.test) for x in folds])
-        assert all(
-            [len(set(list(x.train.subject.unique()) + list(x.test.subject.unique()) + list(x.val.subject.unique()))
-                 .difference(set(test_df.subject.unique()))) == 0 for x in folds])
+        all_test_subjects = set(splits.test.subject.unique())
+        for x in folds:
+            x_test = set(x.test.subject.unique())
+            # make sure the new test + holdout set contains all of the test subjects that are common across the splits
+            assert all_test_subjects.issubset(x_test)
+            # extract the hold out set
+            hold_out = x_test.difference(all_test_subjects)
+            # check that the hold out set is w.r.t to the required hold out set proportion
+            assert np.isclose(
+                len(hold_out),
+                int((len(x.train.subject.unique()) + len(x.val.subject.unique())) * hold_out_set_proportion))
+            # check that the hold out set contains subjects from the train and val sets only
+            assert all([(y in list(splits.train.subject.unique()) +
+                         list(splits.val.subject.unique())) for y in hold_out])
+            # check to make sure no subjects have been left out
+            assert len(set(list(x.train.subject.unique()) + list(x.test.subject.unique())
+                           + list(x.val.subject.unique())).difference(set(test_df.subject.unique()))) == 0
 
 
 def test_restrict_subjects1() -> None:
@@ -198,6 +215,7 @@ def _get_test_df() -> Tuple[DataFrame, List[int], List[int], List[int]]:
         "other": list(range(0, 100))
     }
     train_ids, test_ids, val_ids = list(range(0, 50)), list(range(50, 75)), list(range(75, 100))
+    train_val = train_ids + val_ids
     test_df = DataFrame(test_data, columns=list(test_data.keys()))
     return test_df, test_ids, train_ids, val_ids
 
