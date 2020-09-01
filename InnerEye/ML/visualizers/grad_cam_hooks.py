@@ -291,9 +291,8 @@ class GradCam(GradientBasedFeatureExtractor):
 
         GradCam computes Relu(Gradients x Activations) at the output of the encoder of the network
         (before the global pooling layer). "PseudoGradCam" for non-imaging features denotes
-        ReLu(input x gradients) for non-imaging features. "PseudoGradCam" is used to compare feature importance
-        of imaging versus non-imaging features for the final classification task (as non-imaging features are
-        concatenated to the aggregated encoded imaging features prior to the final classifier).
+        ReLu(input x gradients) for non-imaging features. "PseudoGradCam" is used to compare relative feature importance
+        of various non-imaging features for the final classification task.
 
         :param input: input image [B, C, Z, X, Y]
         :param target_position: in case of sequence model with multiple target weeks, specify which target
