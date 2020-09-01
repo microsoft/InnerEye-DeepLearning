@@ -35,7 +35,7 @@ from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion, DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass, single_optimizer_step
-from InnerEye.ML.scalar_config import AggregationType, ScalarLoss, ScalarModelBase
+from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import dataset_util, metrics_util
 from InnerEye.ML.utils.dataset_util import DatasetExample
