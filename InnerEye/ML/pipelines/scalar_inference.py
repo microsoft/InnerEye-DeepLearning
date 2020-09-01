@@ -177,9 +177,11 @@ class ScalarEnsemblePipeline(ScalarInferencePipelineBase):
         if len(set(map(tuple, [result.subject_ids for result in results]))) > 1:  # type: ignore
             raise ValueError("Trying to aggregate results for different subject ids.")
         subject_ids = results[0].subject_ids
-        # check that we have the same subject ids
+        # check that we have the same labels
         for result in results:
-            if not torch.equal(results[0].labels, result.labels):
+            # Using allclose() instead of equal() because we can have NaN in the labels (in which case
+            # equal() would return False).
+            if not torch.allclose(results[0].labels, result.labels, atol=0, rtol=0, equal_nan=True):
                 raise ValueError("Trying to aggregate results but ground truth does not match across samples.")
         labels = results[0].labels
 
