@@ -254,15 +254,10 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         self.compute_mean_teacher_model = self.model_config.compute_mean_teacher_model
 
         if self.model_config.compute_grad_cam:
-            if self.model_config.aggregation_type == AggregationType.Average:
-                model_to_evaluate = self.train_val_params.mean_teacher_model if \
-                    self.model_config.compute_mean_teacher_model else self.train_val_params.model
-                self.guided_grad_cam = VisualizationMaps(model_to_evaluate, self.model_config)
-                self.model_config.visualization_folder.mkdir(exist_ok=True)
-            else:
-                self.model_config.max_batch_grad_cam = 0
-                logging.warning("GradCam computation is not implemented for this aggregation type."
-                                "Ignoring computation.")
+            model_to_evaluate = self.train_val_params.mean_teacher_model if \
+                self.model_config.compute_mean_teacher_model else self.train_val_params.model
+            self.guided_grad_cam = VisualizationMaps(model_to_evaluate, self.model_config)
+            self.model_config.visualization_folder.mkdir(exist_ok=True)
 
     def create_loss_function(self) -> torch.nn.Module:
         """
