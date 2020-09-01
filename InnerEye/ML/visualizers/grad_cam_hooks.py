@@ -286,7 +286,7 @@ class GradCam(GradientBasedFeatureExtractor):
     def generate(self, input: List[torch.Tensor], target_position: int = -1, target_label_index: int = -1) \
             -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Generates the GradCam for images, PseudoGradCam for non-images features
+        Generates the GradCam for images, PseudoGradCam for non-imaging features
         of one batch for the given classification model.
 
         GradCam computes Relu(Gradients x Activations) at the output of the encoder of the network
