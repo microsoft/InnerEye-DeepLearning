@@ -162,7 +162,6 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
     :param path: The path to the image to load.
     :return: A numpy array of the image and header data if applicable.
     :param image_type: The type to load the image in, set to None to not cast, default is float
-    :param image_dimension: Indicates if the input image is 2D or 3D
     :raises ValueError: If the path is invalid or the image is not 3D.
     """
 
@@ -197,7 +196,6 @@ def load_numpy_image(path: PathOrString) -> np.ndarray:
     """
     Loads an array from a numpy file.
     :param path: The path to the numpy file.
-    :param image_dimension: Indicates if the input image is 2D or 3D
     """
     image = np.load(path)
     return image
@@ -207,7 +205,6 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
     """
     Loads an array from a single dicom file.
     :param path: The path to the dicom file.
-    :param image_dimension: Indicates if the input image is 2D or 3D
     """
     reader = sitk.ImageFileReader()
     reader.SetFileName(str(path))
@@ -223,7 +220,6 @@ def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) 
     :param path_str: The path of the HDF5 file that should be loaded.
     :param load_segmentation: If True, the `segmentation` field of the result object will be populated. If
     False, the field will be set to None.
-    :param image_dimension: Indicates if the input image is 2D or 3D
     :return: numpy array
     """
 
