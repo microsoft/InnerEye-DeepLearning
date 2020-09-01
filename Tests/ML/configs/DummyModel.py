@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import pandas as pd
+from typing import Any
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import HyperDriveConfig
 
@@ -15,8 +16,9 @@ from Tests.fixed_paths_for_tests import full_ml_test_data_path
 class DummyModel(SegmentationModelBase):
     fg_ids = ["region"]
 
-    def __init__(self) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(
+            should_validate=False,
             random_seed=42,
             architecture="Basic",
             feature_channels=[3, 3, 4, 4, 4, 4, 5, 5],
@@ -65,6 +67,7 @@ class DummyModel(SegmentationModelBase):
             test_diff_epochs=1,
             test_step_epochs=1,
         )
+        self.add_and_validate(kwargs)
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits(train=dataset_df[dataset_df.subject.isin([1, 2])],

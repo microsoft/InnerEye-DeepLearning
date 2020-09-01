@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Any, List, Optional
 
 import math
-from torch.optim.lr_scheduler import ExponentialLR, LambdaLR, StepLR, _LRScheduler
+from torch.optim.lr_scheduler import ExponentialLR, LambdaLR, StepLR, MultiStepLR, _LRScheduler
 from torch.optim.optimizer import Optimizer
 
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, LRSchedulerType
@@ -42,6 +42,8 @@ class LRScheduler:
             self._scheduler = ExponentialLR(optimizer, args.l_rate_gamma, last_epoch=last_epoch)
         elif args.l_rate_decay == LRSchedulerType.Step:
             self._scheduler = StepLR(optimizer, args.l_rate_step_size, args.l_rate_gamma, last_epoch=last_epoch)
+        elif args.l_rate_decay == LRSchedulerType.MultiStep:
+            self._scheduler = MultiStepLR(optimizer, args.l_rate_milestones, args.l_rate_gamma, last_epoch=last_epoch)
         elif args.l_rate_decay == LRSchedulerType.Polynomial:
             x = args.min_l_rate / args.l_rate
             polynomial_decay: Any = lambda epoch: (1 - x) * (

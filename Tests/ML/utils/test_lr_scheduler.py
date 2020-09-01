@@ -76,10 +76,9 @@ def test_cosine_decay_function() -> None:
     """
     Tests Cosine lr decay function at (pi/2) and verifies if the value is correct.
     """
-    config = DummyModel()
-    config.l_rate_decay = LRSchedulerType.Cosine
-    config.num_epochs = 10
-    config.min_l_rate = 0.0
+    config = DummyModel(l_rate_decay=LRSchedulerType.Cosine,
+                        num_epochs=10,
+                        min_l_rate=0.0)
 
     # create lr scheduler
     test_epoch = 5
@@ -96,3 +95,27 @@ def _create_lr_scheduler_and_optimizer(config: SegmentationModelBase, optimizer:
     # create lr scheduler
     lr_scheduler = LRScheduler(config, optimizer)
     return lr_scheduler, optimizer
+
+
+def test_multistep_lr() -> None:
+    """
+    Creates a MultiStep LR and check values are returned as expected
+    """
+
+    num_epochs = 10
+    config = DummyModel(l_rate_decay=LRSchedulerType.MultiStep,
+                        l_rate_gamma=0.1,
+                        num_epochs=num_epochs,
+                        l_rate_milestones=[2, 5, 7])
+
+    # create lr scheduler
+    expected_lrs = np.array([1e-3, 1e-3, 1e-4, 1e-4, 1e-4, 1e-5, 1e-5, 1e-6, 1e-6, 1e-6])
+
+    lr_scheduler, optimizer = _create_lr_scheduler_and_optimizer(config)
+
+    lrs = []
+    for _ in range(num_epochs):
+        lrs.append(lr_scheduler.get_last_lr()[0])
+        lr_scheduler.step()
+
+    assert np.allclose(expected_lrs, lrs)
