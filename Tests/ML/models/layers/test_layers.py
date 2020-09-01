@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import torch
 from torch.nn import BatchNorm3d, Conv3d, MSELoss, ReLU
+from torch.nn.modules import Conv2d
 
 from InnerEye.Common.type_annotations import TupleInt2, TupleInt3
 from InnerEye.ML.config import PaddingMode
@@ -178,3 +179,24 @@ def test_gated_pooling() -> None:
     weight = gated.gate(input)
     expected = weight * 1 + (1 - weight) * 2  # type: ignore
     assert gated(input.reshape((1, 1, 3, 1, 1)), [3, 1, 1]).squeeze() == expected
+
+
+@pytest.mark.parametrize("dilation1", [1, 2])
+def test_degenerate_conv_with_dilation(dilation1: int) -> None:
+    """
+    Check if a 2D convolution with a degenerate kernel size along one dimension, and a
+    dilation > 1 along the same dimension, works as expected.
+    :return:
+    """
+    input = torch.zeros((1, 1, 10, 20))
+    # Kernel is degenerate across [0], but dilation is 2
+    feature_channels = 2
+    conv = Conv2d(1, feature_channels, kernel_size=(1, 3), dilation=(dilation1, dilation1))
+    output = conv(input)
+    print("Input has size {}, output has size {}".format(input.shape, output.shape))
+    # Expectation is that the image is unchanged across the first dimension, even though there is a
+    # dilation specified.
+    assert output.shape[0] == input.shape[0]
+    assert output.shape[1] == feature_channels
+    assert output.shape[2] == input.shape[2]
+    assert output.shape[3] < input.shape[3]
