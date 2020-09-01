@@ -35,7 +35,7 @@ from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion, DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass, single_optimizer_step
-from InnerEye.ML.scalar_config import AggregationType, ScalarLoss, ScalarModelBase
+from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import dataset_util, metrics_util
 from InnerEye.ML.utils.dataset_util import DatasetExample
@@ -254,15 +254,10 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         self.compute_mean_teacher_model = self.model_config.compute_mean_teacher_model
 
         if self.model_config.compute_grad_cam:
-            if self.model_config.aggregation_type == AggregationType.Average:
-                model_to_evaluate = self.train_val_params.mean_teacher_model if \
-                    self.model_config.compute_mean_teacher_model else self.train_val_params.model
-                self.guided_grad_cam = VisualizationMaps(model_to_evaluate, self.model_config)
-                self.model_config.visualization_folder.mkdir(exist_ok=True)
-            else:
-                self.model_config.max_batch_grad_cam = 0
-                logging.warning("GradCam computation is not implemented for this aggregation type."
-                                "Ignoring computation.")
+            model_to_evaluate = self.train_val_params.mean_teacher_model if \
+                self.model_config.compute_mean_teacher_model else self.train_val_params.model
+            self.guided_grad_cam = VisualizationMaps(model_to_evaluate, self.model_config)
+            self.model_config.visualization_folder.mkdir(exist_ok=True)
 
     def create_loss_function(self) -> torch.nn.Module:
         """
