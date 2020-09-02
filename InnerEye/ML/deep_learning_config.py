@@ -371,7 +371,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
             if sorted(set(self.l_rate_milestones)) != self.l_rate_milestones:
                 raise ValueError("l_rate_milestones must be a strictly increasing list")
             if self.l_rate_milestones[0] <= 0:
-                raise ValueError("l_rate_milestones cannot be negative or zero")
+                raise ValueError("l_rate_milestones cannot be negative or 0.")
 
     @property
     def model_name(self) -> str:

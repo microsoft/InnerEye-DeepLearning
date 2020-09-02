@@ -40,11 +40,12 @@ def test_min_and_initial_lr(lr_scheduler_type: LRSchedulerType) -> None:
     """
     Test if minimum learning rate threshold is applied as expected
     """
-    config = DummyModel(l_rate=1e-3, min_l_rate=0.0009, l_rate_decay=lr_scheduler_type, l_rate_milestones=[3, 5, 7])
+    config = DummyModel(num_epochs=3, l_rate=1e-3, min_l_rate=0.0009,
+                        l_rate_decay=lr_scheduler_type, l_rate_milestones=[1, 2])
     # create lr scheduler
     lr_scheduler, _ = _create_lr_scheduler_and_optimizer(config)
     assert lr_scheduler.get_last_lr()[0] == config.l_rate
-    lr_scheduler.step(2)
+    lr_scheduler.step(3)
     assert lr_scheduler.get_last_lr()[0] == config.min_l_rate
 
 
