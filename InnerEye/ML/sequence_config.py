@@ -57,6 +57,9 @@ class SequenceModelBase(ScalarModelBase):
 
     def __init__(self, **params: Any):
         super().__init__(**params)
+        # For sequence models, create a hook for computing dataset statistics by default, because sequence
+        # length is expected to have a major impact on performance. If an alternative hook is needed,
+        # overwrite the hook in a derived class or after instantiating the model configuration.
         self.dataset_stats_hook = self.compute_dataset_stats_hook
         if len(self.sequence_target_positions) == 0:
             raise ValueError("sequence_target_positions must not be empty")
