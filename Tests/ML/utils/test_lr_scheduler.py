@@ -73,7 +73,7 @@ def test_lr_monotonically_decreasing_function(lr_scheduler_type: LRSchedulerType
 @pytest.mark.parametrize("warmup_epochs", [0, 4, 5])
 def test_warmup_against_original_schedule(lr_scheduler_type: LRSchedulerType, warmup_epochs: int) -> None:
     """
-    Tests if LR scheduler with warmup matches the Pytorch implementation without warmup.
+    Tests if LR scheduler with warmup matches the Pytorch implementation after the warmup stage is completed.
     """
     config = DummyModel(l_rate_decay=lr_scheduler_type, num_epochs=10, warmup_epochs=warmup_epochs,
                         l_rate_step_size=2, l_rate_milestones=[3, 5, 7])
