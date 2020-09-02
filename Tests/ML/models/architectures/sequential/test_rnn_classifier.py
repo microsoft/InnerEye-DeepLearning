@@ -24,7 +24,8 @@ from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp impo
 from InnerEye.ML.models.architectures.sequential.rnn_classifier import RNNClassifier, RNNClassifierWithEncoder
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss
-from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
+from InnerEye.ML.sequence_config import SEQUENCE_LENGTH_FILE, SEQUENCE_LENGTH_STATS_FILE, \
+    SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentation
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
@@ -555,3 +556,11 @@ def _get_multi_label_sequence_dataframe() -> pd.DataFrame:
 3250.12345,238,B,84,3,0
 """
     return pd.read_csv(StringIO(dataset_contents), dtype=str)
+
+
+def test_dataset_stats_hook() -> None:
+    model = ToySequenceModel()
+    model.dataset_data_frame = _get_mock_sequence_dataset()
+    model.create_and_set_torch_datasets()
+    assert (model.logs_folder / SEQUENCE_LENGTH_FILE).is_file()
+    assert (model.logs_folder / SEQUENCE_LENGTH_STATS_FILE).is_file()

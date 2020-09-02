@@ -5,14 +5,21 @@
 import logging
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
 import param
+from pandas import DataFrame
 
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 SEQUENCE_POSITION_HUE_NAME_PREFIX = "Seq_pos"
+
+SEQUENCE_LENGTH_STATS_FILE = "sequence_length_stats.txt"
+SEQUENCE_LENGTH_FILE = "sequence_length.csv"
+SEQUENCE_LENGTH_COLUMN = "sequence_length"
 
 
 class SequenceModelBase(ScalarModelBase):
@@ -51,6 +58,7 @@ class SequenceModelBase(ScalarModelBase):
 
     def __init__(self, **params: Any):
         super().__init__(**params)
+        self.dataset_stats_hook = self.compute_dataset_stats_hook
         if len(self.sequence_target_positions) == 0:
             raise ValueError("sequence_target_positions must not be empty")
         if self.temperature_scaling_config:
@@ -103,3 +111,37 @@ class SequenceModelBase(ScalarModelBase):
             ModelExecutionMode.VAL: val,
             ModelExecutionMode.TEST: test
         }
+
+    def compute_dataset_stats_hook(self, datasets: Dict[ModelExecutionMode, Any]) -> None:
+        """
+        Writes details and summary statistics about the datasets for each of the 3 dataset splits (train/val/test).
+        """
+        from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
+        mode_series = []
+        id_series = []
+        length_series = []
+        for mode in ModelExecutionMode:
+            dataset = datasets[mode]
+            assert isinstance(dataset, SequenceDataset)
+            for seq in dataset.items:
+                mode_series.append(mode.value)
+                id_series.append(seq.id)
+                length_series.append(len(seq.items))
+        # Add a constant column that is the cross validation index, so that we can more easily merge these files later
+        # in the post-crossvalidation hook.
+        df = DataFrame.from_dict({
+            LoggingColumns.CrossValidationSplitIndex.value: [self.cross_validation_split_index] * len(mode_series),
+            LoggingColumns.DataSplit.value: mode_series,
+            LoggingColumns.Patient: id_series,
+            SEQUENCE_LENGTH_COLUMN: length_series
+        })
+        self.logs_folder.mkdir(exist_ok=True, parents=True)
+        details_file = self.logs_folder / SEQUENCE_LENGTH_FILE
+        df.to_csv(details_file, index=False)
+        # Drop all columns apart from the sequence length column, so that the stats file will also contain
+        # the name of the series that is described
+        stats = df.drop(columns=[LoggingColumns.Patient, LoggingColumns.CrossValidationSplitIndex.value]) \
+            .groupby(by=LoggingColumns.DataSplit.value).describe()
+        out_file = self.logs_folder / SEQUENCE_LENGTH_STATS_FILE
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', 150):
+            out_file.write_text(str(stats))
