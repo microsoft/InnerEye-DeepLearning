@@ -558,7 +558,7 @@ def _get_multi_label_sequence_dataframe() -> pd.DataFrame:
     return pd.read_csv(StringIO(dataset_contents), dtype=str)
 
 
-def test_dataset_stats_hook(test_output_dirs: TestOutputDirectories) -> None:
+def test_sequence_dataset_stats_hook(test_output_dirs: TestOutputDirectories) -> None:
     model = ToySequenceModel()
     model.set_output_to(test_output_dirs.root_dir)
     model.dataset_data_frame = _get_mock_sequence_dataset()

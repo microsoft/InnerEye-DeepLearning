@@ -113,7 +113,8 @@ class SequenceModelBase(ScalarModelBase):
 
     def compute_dataset_stats_hook(self, datasets: Dict[ModelExecutionMode, Any]) -> None:
         """
-        Writes details and summary statistics about the datasets for each of the 3 dataset splits (train/val/test).
+        Writes files with details and summary statistics about the datasets for each of the 3 dataset
+        splits (train/val/test).
         """
         from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
         mode_series = []
