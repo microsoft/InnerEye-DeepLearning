@@ -69,7 +69,7 @@ class StepLRWithWarmUp(SchedulerWithWarmUpMixin, StepLR):  # type: ignore
 
 class LambdaLRWithWarmUp(SchedulerWithWarmUpMixin, LambdaLR):  # type: ignore
     """
-    LamnbdaLR with added warmup steps.
+    LambdaLR with added warmup steps.
     Usage is the same as LambdaLR, with an added keyword param "warmup_epochs"
     """
     pass
