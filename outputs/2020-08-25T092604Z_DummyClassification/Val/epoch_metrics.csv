@@ -1,3 +1,0 @@
-loss,cross_entropy,accuracy_at_threshold_05,seconds_per_batch,seconds_per_epoch,learning_rate,area_under_roc_curve,area_under_pr_curve,accuracy_at_optimal_threshold,false_positive_rate_at_optimal_threshold,false_negative_rate_at_optimal_threshold,optimal_threshold,subject_count,epoch,cross_validation_split_index
-0.6363552808761597,0.6581671833992004,1.0,0.024029016494750977,0.030995845794677734,0.0001,1.0,1.0,0.0,,1.0,1.5177994966506958,1.0,1,-1
-0.6369301676750183,0.6581966280937195,1.0,0.025043249130249023,0.03500199317932129,9.999306876841536e-05,1.0,1.0,0.0,,1.0,1.5177842378616333,1.0,2,-1

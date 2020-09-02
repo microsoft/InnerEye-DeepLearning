@@ -1,6 +1,7 @@
 ### DATASETS
 /datasets/
 /logs/
+/outputs/
 /model_inference_config.json
 ## Results and Models
 result/

@@ -1,5 +1,0 @@
-subjectID,channel,path,value,scalar1,scalar2
-S3,image,61bc9d73-9fbb-bd7d-c06b-eeffbafabcc4.h5,,,3
-S3,label,,False,3.0,
-S4,image,61bc9d73-9fbb-bd7d-c06b-eeffbafabcc4.h5,,,4
-S4,label,,False,3.0,
