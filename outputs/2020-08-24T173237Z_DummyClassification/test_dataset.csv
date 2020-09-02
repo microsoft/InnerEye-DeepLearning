@@ -1,0 +1,3 @@
+subjectID,channel,path,value,scalar1,scalar2
+S1,image,4be9beed-5861-fdd2-72c2-8dd89aadc1ef.h5,,,1
+S1,label,,True,1.0,

@@ -1,0 +1,143 @@
+2020-08-26T17:15:39Z INFO     ModelWithTemperature(
+  (model): RNNClassifierWithEncoder(
+    (gru): LayerNormGRU(
+      (cells): ModuleList(
+        (0): LayerNormGRUCell(
+          11, 3, bias=False
+          (ln_r): Identity()
+          (ln_z): Identity()
+          (ln_n): Identity()
+        )
+      )
+    )
+    (hidden2class): Linear(in_features=3, out_features=1, bias=True)
+    (image_encoder): ImageEncoder(
+      (image_and_non_image_features_aggregator): ImageAndNonImageFeaturesAggregator()
+      (encoder): Sequential(
+        (0): UNetEncodeBlock(
+          (block1): BasicLayer(
+            (conv1): Conv3d(1, 4, kernel_size=(1, 3, 3), stride=(1, 2, 2), bias=False)
+            (bn1): BatchNorm3d(4, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+            (activation): ReLU(inplace=True)
+          )
+          (block2): BasicLayer(
+            (conv1): Conv3d(4, 4, kernel_size=(1, 3, 3), stride=(1, 1, 1), bias=False)
+            (bn1): BatchNorm3d(4, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+            (activation): ReLU(inplace=True)
+          )
+        )
+        (1): UNetEncodeBlock(
+          (block1): BasicLayer(
+            (conv1): Conv3d(4, 8, kernel_size=(1, 3, 3), stride=(1, 2, 2), bias=False)
+            (bn1): BatchNorm3d(8, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+            (activation): ReLU(inplace=True)
+          )
+          (block2): BasicLayer(
+            (conv1): Conv3d(8, 8, kernel_size=(1, 3, 3), stride=(1, 1, 1), bias=False)
+            (bn1): BatchNorm3d(8, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+            (activation): ReLU(inplace=True)
+          )
+        )
+        (2): BasicLayer(
+          (conv1): Conv3d(8, 6, kernel_size=(1, 3, 3), stride=(1, 2, 2), bias=False)
+          (bn1): BatchNorm3d(6, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        )
+      )
+      (aggregation_layer): AveragePooling()
+    )
+    (layer_norm): Identity()
+  )
+)
+2020-08-26T17:15:40Z INFO     -------------------------------------------------------------------------------
+2020-08-26T17:15:40Z INFO             Layer (type)              Output Shape         Param #          Device
+2020-08-26T17:15:40Z INFO     ===============================================================================
+2020-08-26T17:15:40Z INFO                 Conv3d-1         [1, 4, 6, 31, 29]              36          cuda:0
+2020-08-26T17:15:40Z INFO            BatchNorm3d-2         [1, 4, 6, 31, 29]               8          cuda:0
+2020-08-26T17:15:40Z INFO                   ReLU-3         [1, 4, 6, 31, 29]               0            None
+2020-08-26T17:15:40Z INFO                 Conv3d-4         [1, 4, 6, 29, 27]             144          cuda:0
+2020-08-26T17:15:40Z INFO            BatchNorm3d-5         [1, 4, 6, 29, 27]               8          cuda:0
+2020-08-26T17:15:40Z INFO                   ReLU-6         [1, 4, 6, 29, 27]               0            None
+2020-08-26T17:15:40Z INFO                 Conv3d-7         [1, 8, 6, 14, 13]             288          cuda:0
+2020-08-26T17:15:40Z INFO            BatchNorm3d-8         [1, 8, 6, 14, 13]              16          cuda:0
+2020-08-26T17:15:40Z INFO                   ReLU-9         [1, 8, 6, 14, 13]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-10         [1, 8, 6, 12, 11]             576          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-11         [1, 8, 6, 12, 11]              16          cuda:0
+2020-08-26T17:15:40Z INFO                  ReLU-12         [1, 8, 6, 12, 11]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-13           [1, 6, 6, 5, 5]             432          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-14           [1, 6, 6, 5, 5]              12          cuda:0
+2020-08-26T17:15:40Z INFO        AveragePooling-15           [1, 6, 1, 1, 1]               0            None
+2020-08-26T17:15:40Z INFO     ImageAndNonImageFeaturesAggregator-16                   [1, 11]               0            None
+2020-08-26T17:15:40Z INFO     ImageAndNonImageFeaturesAggregator-17                   [1, 11]               0            None
+2020-08-26T17:15:40Z INFO              Identity-18                   [1, 11]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-19         [1, 4, 6, 31, 29]              36          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-20         [1, 4, 6, 31, 29]               8          cuda:0
+2020-08-26T17:15:40Z INFO                  ReLU-21         [1, 4, 6, 31, 29]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-22         [1, 4, 6, 29, 27]             144          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-23         [1, 4, 6, 29, 27]               8          cuda:0
+2020-08-26T17:15:40Z INFO                  ReLU-24         [1, 4, 6, 29, 27]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-25         [1, 8, 6, 14, 13]             288          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-26         [1, 8, 6, 14, 13]              16          cuda:0
+2020-08-26T17:15:40Z INFO                  ReLU-27         [1, 8, 6, 14, 13]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-28         [1, 8, 6, 12, 11]             576          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-29         [1, 8, 6, 12, 11]              16          cuda:0
+2020-08-26T17:15:40Z INFO                  ReLU-30         [1, 8, 6, 12, 11]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-31           [1, 6, 6, 5, 5]             432          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-32           [1, 6, 6, 5, 5]              12          cuda:0
+2020-08-26T17:15:40Z INFO        AveragePooling-33           [1, 6, 1, 1, 1]               0            None
+2020-08-26T17:15:40Z INFO     ImageAndNonImageFeaturesAggregator-34                   [1, 11]               0            None
+2020-08-26T17:15:40Z INFO              Identity-35                   [1, 11]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-36         [1, 4, 6, 31, 29]              36          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-37         [1, 4, 6, 31, 29]               8          cuda:0
+2020-08-26T17:15:40Z INFO                  ReLU-38         [1, 4, 6, 31, 29]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-39         [1, 4, 6, 29, 27]             144          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-40         [1, 4, 6, 29, 27]               8          cuda:0
+2020-08-26T17:15:40Z INFO                  ReLU-41         [1, 4, 6, 29, 27]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-42         [1, 8, 6, 14, 13]             288          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-43         [1, 8, 6, 14, 13]              16          cuda:0
+2020-08-26T17:15:40Z INFO                  ReLU-44         [1, 8, 6, 14, 13]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-45         [1, 8, 6, 12, 11]             576          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-46         [1, 8, 6, 12, 11]              16          cuda:0
+2020-08-26T17:15:40Z INFO                  ReLU-47         [1, 8, 6, 12, 11]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-48           [1, 6, 6, 5, 5]             432          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-49           [1, 6, 6, 5, 5]              12          cuda:0
+2020-08-26T17:15:40Z INFO        AveragePooling-50           [1, 6, 1, 1, 1]               0            None
+2020-08-26T17:15:40Z INFO     ImageAndNonImageFeaturesAggregator-51                   [1, 11]               0            None
+2020-08-26T17:15:40Z INFO     ImageAndNonImageFeaturesAggregator-52                   [1, 11]               0            None
+2020-08-26T17:15:40Z INFO              Identity-53                   [1, 11]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-54         [1, 4, 6, 31, 29]              36          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-55         [1, 4, 6, 31, 29]               8          cuda:0
+2020-08-26T17:15:40Z INFO                  ReLU-56         [1, 4, 6, 31, 29]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-57         [1, 4, 6, 29, 27]             144          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-58         [1, 4, 6, 29, 27]               8          cuda:0
+2020-08-26T17:15:40Z INFO                  ReLU-59         [1, 4, 6, 29, 27]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-60         [1, 8, 6, 14, 13]             288          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-61         [1, 8, 6, 14, 13]              16          cuda:0
+2020-08-26T17:15:40Z INFO                  ReLU-62         [1, 8, 6, 14, 13]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-63         [1, 8, 6, 12, 11]             576          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-64         [1, 8, 6, 12, 11]              16          cuda:0
+2020-08-26T17:15:40Z INFO                  ReLU-65         [1, 8, 6, 12, 11]               0            None
+2020-08-26T17:15:40Z INFO                Conv3d-66           [1, 6, 6, 5, 5]             432          cuda:0
+2020-08-26T17:15:40Z INFO           BatchNorm3d-67           [1, 6, 6, 5, 5]              12          cuda:0
+2020-08-26T17:15:40Z INFO        AveragePooling-68           [1, 6, 1, 1, 1]               0            None
+2020-08-26T17:15:40Z INFO     ImageAndNonImageFeaturesAggregator-69                   [1, 11]               0            None
+2020-08-26T17:15:40Z INFO     ImageAndNonImageFeaturesAggregator-70                   [1, 11]               0            None
+2020-08-26T17:15:40Z INFO              Identity-71                   [1, 11]               0            None
+2020-08-26T17:15:40Z INFO              Identity-72                    [1, 3]               0            None
+2020-08-26T17:15:40Z INFO              Identity-73                    [1, 3]               0            None
+2020-08-26T17:15:40Z INFO              Identity-74                    [1, 3]               0            None
+2020-08-26T17:15:40Z INFO              Identity-75                    [1, 3]               0            None
+2020-08-26T17:15:40Z INFO              Identity-76                    [1, 3]               0            None
+2020-08-26T17:15:40Z INFO              Identity-77                    [1, 3]               0            None
+2020-08-26T17:15:40Z INFO              Identity-78                    [1, 3]               0            None
+2020-08-26T17:15:40Z INFO              Identity-79                    [1, 3]               0            None
+2020-08-26T17:15:40Z INFO              Identity-80                    [1, 3]               0            None
+2020-08-26T17:15:40Z INFO              Identity-81                    [1, 3]               0            None
+2020-08-26T17:15:40Z INFO              Identity-82                    [1, 3]               0            None
+2020-08-26T17:15:40Z INFO              Identity-83                    [1, 3]               0            None
+2020-08-26T17:15:40Z INFO                Linear-84                 [1, 2, 1]               4          cuda:0
+2020-08-26T17:15:40Z INFO     ===============================================================================
+2020-08-26T17:15:40Z INFO     Total params: 6,148
+2020-08-26T17:15:40Z INFO     Trainable params: 6,148
+2020-08-26T17:15:40Z INFO     Input mem size (MB)(Wout mixed-precision): 0.35
+2020-08-26T17:15:40Z INFO     Forward/backward pass mem size (MB)(Wout mixed-precision): 5.13
+2020-08-26T17:15:40Z INFO     -------------------------------------------------------------------------------

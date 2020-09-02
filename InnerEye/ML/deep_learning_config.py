@@ -13,7 +13,7 @@ import param
 from pandas import DataFrame
 from param import Parameterized
 
-from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
+from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
@@ -238,9 +238,13 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     number_of_cross_validation_splits: int = param.Integer(0, bounds=(0, None),
                                                            doc="Number of cross validation splits for k-fold cross "
                                                                "validation")
-    cross_validation_split_index: int = param.Integer(-1, bounds=(-1, None),
+    cross_validation_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
                                                       doc="The index of the cross validation fold this model is "
                                                           "associated with when performing k-fold cross validation")
+    cross_validation_split_child_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
+                                                            doc="The index of the cross validation fold this model is "
+                                                                "associated with when performing k-fold cross "
+                                                                "validation")
     file_system_config: DeepLearningFileSystemConfig = param.ClassSelector(default=DeepLearningFileSystemConfig(),
                                                                            class_=DeepLearningFileSystemConfig,
                                                                            instantiate=False,
@@ -540,7 +544,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         test_epochs = {self.num_epochs}
         if self.test_diff_epochs is not None and self.test_start_epoch is not None and \
-                self.test_step_epochs is not None:
+            self.test_step_epochs is not None:
             for j in range(self.test_diff_epochs):
                 epoch = self.test_start_epoch + self.test_step_epochs * j
                 if epoch > self.num_epochs:

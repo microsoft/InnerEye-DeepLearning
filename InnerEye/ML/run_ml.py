@@ -34,6 +34,7 @@ from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.runner import ModelDeploymentHookSignature
+from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
@@ -110,14 +111,30 @@ class MLRunner:
         Stores the results on the Validation set to the outputs directory of the parent run.
         """
         parent_run_file_system = self.model_config.file_system_config
-        for x in range(self.model_config.number_of_cross_validation_splits):
+
+        def _spawn_run(cross_val_split_index: int, cross_val_split_child_index: int) -> None:
             split_model_config = copy.deepcopy(self.model_config)
-            split_model_config.cross_validation_split_index = x
+            split_model_config.cross_validation_split_index = cross_val_split_index
+            split_model_config.cross_validation_split_child_index = cross_val_split_child_index
             split_model_config.file_system_config = parent_run_file_system.add_subfolder(str(x))
+
+            # update the outputs directory if we are spawning a child cross val run
+            if cross_val_split_child_index != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
+                split_model_config.file_system_config = split_model_config.file_system_config\
+                    .add_subfolder(str(cross_val_split_child_index))
             logging.info(f"Running model train and test on cross validation split: {x}")
             split_ml_runner = MLRunner(split_model_config, self.azure_config, self.project_root,
                                        self.model_deployment_hook, self.innereye_submodule_name)
             split_ml_runner.run()
+
+        for x in range(self.model_config.number_of_cross_validation_splits):
+            num_child_folds = self.model_config.number_of_cross_validation_splits_per_fold \
+                if isinstance(self.model_config, ScalarModelBase) else 0
+            if num_child_folds > 0:
+                for y in range(num_child_folds):
+                    _spawn_run(x, y)
+            else:
+                _spawn_run(x, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX)
 
         config_and_files = get_config_and_results_for_offline_runs(self.model_config)
         plot_cross_validation_from_files(config_and_files, Path(config_and_files.config.outputs_directory))
@@ -207,7 +224,8 @@ class MLRunner:
         # the current run is a single one. See the documentation of ModelProcessing for more details.
         self.run_inference_and_register_model(run_recovery, ModelProcessing.DEFAULT)
 
-    def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery], model_proc: ModelProcessing) -> None:
+    def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery],
+                                         model_proc: ModelProcessing) -> None:
         """
         Run inference as required, and register the model, but not necessarily in that order:
         if we can identify the epoch to register at without running inference, we register first.
@@ -375,7 +393,7 @@ class MLRunner:
                                     run: Optional[Run] = None,
                                     workspace: Optional[Workspace] = None,
                                     tags: Optional[Dict[str, str]] = None) -> \
-            Tuple[Optional[Model], Optional[Path], Any]:
+        Tuple[Optional[Model], Optional[Path], Any]:
         """
         Registers a new model in the workspace's model registry to be deployed further,
         and creates a model zip for portal deployment (if required). This model, is the
@@ -503,7 +521,7 @@ class MLRunner:
     def model_inference_train_and_test(self, run_context: Optional[Run] = None,
                                        run_recovery: Optional[RunRecovery] = None,
                                        model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> \
-            Tuple[Optional[InferenceMetrics], Optional[InferenceMetrics], Optional[InferenceMetrics]]:
+        Tuple[Optional[InferenceMetrics], Optional[InferenceMetrics], Optional[InferenceMetrics]]:
         train_metrics = None
         val_metrics = None
         test_metrics = None

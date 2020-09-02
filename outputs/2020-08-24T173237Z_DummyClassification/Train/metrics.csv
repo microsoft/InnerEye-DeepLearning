@@ -1,0 +1,5 @@
+prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
+Default,1,S4,0.5172356367111206,0.0,-1,Train
+Default,1,S3,0.5172356367111206,0.0,-1,Train
+Default,2,S4,0.5172203779220581,0.0,-1,Train
+Default,2,S3,0.5172203779220581,0.0,-1,Train

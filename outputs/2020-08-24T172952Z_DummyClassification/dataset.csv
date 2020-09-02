@@ -1,0 +1,9 @@
+subjectID,channel,path,value,scalar1,scalar2
+S1,image,4be9beed-5861-fdd2-72c2-8dd89aadc1ef.h5,,,1
+S1,label,,True,1.0,
+S2,image,6ceacaf8-abd2-ffec-2ade-d52afd6dd1be.h5,,,2
+S2,label,,True,2.0,
+S3,image,61bc9d73-9fbb-bd7d-c06b-eeffbafabcc4.h5,,,3
+S3,label,,False,3.0,
+S4,image,61bc9d73-9fbb-bd7d-c06b-eeffbafabcc4.h5,,,4
+S4,label,,False,3.0,

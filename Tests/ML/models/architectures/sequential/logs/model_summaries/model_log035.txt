@@ -1,0 +1,38 @@
+2020-08-26T17:09:37Z INFO     ModelWithTemperature(
+  (model): RNNClassifierWithEncoder(
+    (gru): LayerNormGRU(
+      (cells): ModuleList(
+        (0): LayerNormGRUCell(
+          5, 3, bias=False
+          (ln_r): Identity()
+          (ln_z): Identity()
+          (ln_n): Identity()
+        )
+      )
+    )
+    (hidden2class): Linear(in_features=3, out_features=1, bias=True)
+    (layer_norm): Identity()
+  )
+)
+2020-08-26T17:09:37Z INFO     -------------------------------------------------------------------------------
+2020-08-26T17:09:37Z INFO             Layer (type)              Output Shape         Param #          Device
+2020-08-26T17:09:37Z INFO     ===============================================================================
+2020-08-26T17:09:37Z INFO               Identity-1                    [1, 3]               0            None
+2020-08-26T17:09:37Z INFO               Identity-2                    [1, 3]               0            None
+2020-08-26T17:09:37Z INFO               Identity-3                    [1, 3]               0            None
+2020-08-26T17:09:37Z INFO               Identity-4                    [1, 3]               0            None
+2020-08-26T17:09:37Z INFO               Identity-5                    [1, 3]               0            None
+2020-08-26T17:09:37Z INFO               Identity-6                    [1, 3]               0            None
+2020-08-26T17:09:37Z INFO               Identity-7                    [1, 3]               0            None
+2020-08-26T17:09:37Z INFO               Identity-8                    [1, 3]               0            None
+2020-08-26T17:09:37Z INFO               Identity-9                    [1, 3]               0            None
+2020-08-26T17:09:37Z INFO              Identity-10                    [1, 3]               0            None
+2020-08-26T17:09:37Z INFO              Identity-11                    [1, 3]               0            None
+2020-08-26T17:09:37Z INFO              Identity-12                    [1, 3]               0            None
+2020-08-26T17:09:37Z INFO                Linear-13                 [1, 2, 1]               4          cuda:0
+2020-08-26T17:09:37Z INFO     ===============================================================================
+2020-08-26T17:09:37Z INFO     Total params: 4
+2020-08-26T17:09:37Z INFO     Trainable params: 4
+2020-08-26T17:09:37Z INFO     Input mem size (MB)(Wout mixed-precision): 0.00
+2020-08-26T17:09:37Z INFO     Forward/backward pass mem size (MB)(Wout mixed-precision): 0.00
+2020-08-26T17:09:37Z INFO     -------------------------------------------------------------------------------

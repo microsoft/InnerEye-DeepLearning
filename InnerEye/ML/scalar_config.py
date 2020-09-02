@@ -176,6 +176,9 @@ class ScalarModelBase(ModelConfigBase):
                                                                              instantiate=False,
                                                                              doc="The aggregation method to use when"
                                                                                  "testing ensemble models.")
+    number_of_cross_validation_splits_per_fold: int = param.Integer(0, bounds=(0, None),
+                                                                    doc="Number of cross validation splits for k-fold "
+                                                                        "cross validation within a fold.")
 
     def __init__(self, num_dataset_reader_workers: int = 0, **params: Any) -> None:
         super().__init__(**params)
