@@ -367,11 +367,11 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
         if self.l_rate_decay == LRSchedulerType.MultiStep:
             if not self.l_rate_milestones:
-                raise ValueError(f"Must specify l_rate_milestones to use LR scheduler MultiStep")
+                raise ValueError("Must specify l_rate_milestones to use LR scheduler MultiStep")
             if sorted(set(self.l_rate_milestones)) != self.l_rate_milestones:
-                raise ValueError(f"l_rate_milestones must be a strictly increasing list")
+                raise ValueError("l_rate_milestones must be a strictly increasing list")
             if self.l_rate_milestones[0] <= 0:
-                raise ValueError(f"l_rate_milestones cannot be negative or zero")
+                raise ValueError("l_rate_milestones cannot be negative or zero")
 
     @property
     def model_name(self) -> str:
