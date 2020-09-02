@@ -34,7 +34,7 @@ class SchedulerWithWarmUpMixin(object):
     class SomeSchedulerWithWarmup(SchedulerWithWarmUpMixin, SomeScheduler)
         pass
 
-    scheduler = SomeSchedulerWithWarmup(warmup=..., <keyword args for scheduler>)
+    scheduler = SomeSchedulerWithWarmup(warmup_epochs=..., <keyword args for scheduler>)
     """
     def __init__(self, *, warmup_epochs: int, optimizer: Optimizer, last_epoch: int, **kwargs: Any):
         self.warmup_epochs = warmup_epochs
