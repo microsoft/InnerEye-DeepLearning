@@ -2,13 +2,13 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Optional
 
 import numpy as np
 import pytest
 import torch
 from torch.optim.optimizer import Optimizer
-from torch.optim.lr_scheduler import ExponentialLR, StepLR, MultiStepLR, LambdaLR, CosineAnnealingLR
+from torch.optim.lr_scheduler import ExponentialLR, StepLR, MultiStepLR, LambdaLR, CosineAnnealingLR, _LRScheduler
 
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import LRSchedulerType
@@ -79,6 +79,7 @@ def test_warmup_against_original_schedule(lr_scheduler_type: LRSchedulerType, wa
     # create lr scheduler
     lr_scheduler, optimizer = _create_lr_scheduler_and_optimizer(config)
 
+    original_scheduler: Optional[_LRScheduler] = None
     if lr_scheduler_type == LRSchedulerType.Exponential:
         original_scheduler = ExponentialLR(optimizer=optimizer, gamma=config.l_rate_gamma)
     elif lr_scheduler_type == LRSchedulerType.Step:
@@ -87,6 +88,7 @@ def test_warmup_against_original_schedule(lr_scheduler_type: LRSchedulerType, wa
     elif lr_scheduler_type == LRSchedulerType.Cosine:
         original_scheduler = CosineAnnealingLR(optimizer, T_max=config.num_epochs, eta_min=config.min_l_rate)
     elif lr_scheduler_type == LRSchedulerType.MultiStep:
+        assert config.l_rate_milestones is not None  # for mypy
         original_scheduler = MultiStepLR(optimizer=optimizer, milestones=config.l_rate_milestones,
                                          gamma=config.l_rate_gamma)
     elif lr_scheduler_type == LRSchedulerType.Polynomial:
@@ -108,8 +110,8 @@ def test_warmup_against_original_schedule(lr_scheduler_type: LRSchedulerType, wa
     for _ in range(config.num_epochs - warmup_epochs):
         # For pytorch version 1.6:
         # expected_lr_list.append(original_scheduler.get_last_lr())
-        expected_lr_list.append(original_scheduler.get_lr()[0])
-        original_scheduler.step()
+        expected_lr_list.append(original_scheduler.get_lr())
+        original_scheduler.step()  # type: ignore
 
     assert result_lr_list == expected_lr_list
 
@@ -126,6 +128,41 @@ def _create_lr_scheduler_and_optimizer(config: SegmentationModelBase, optimizer:
     # create lr scheduler
     lr_scheduler = LRScheduler(config, optimizer)
     return lr_scheduler, optimizer
+
+
+@pytest.mark.parametrize("lr_scheduler_type", [x for x in LRSchedulerType])
+@pytest.mark.parametrize("warmup_epochs", [0, 4, 5])
+@pytest.mark.parametrize("restart_at", [4])
+def test_resume_from_saved_state(lr_scheduler_type: LRSchedulerType, warmup_epochs: int, restart_at: int) -> None:
+    """
+    Tests if LR scheduler when reloaded from a state dict continues as expected.
+    """
+    config = DummyModel(l_rate_decay=lr_scheduler_type, num_epochs=10, warmup_epochs=warmup_epochs,
+                        l_rate_step_size=2, l_rate_milestones=[3, 5, 7])
+    # create two lr schedulers
+    lr_scheduler_1, optimizer_1 = _create_lr_scheduler_and_optimizer(config)
+    lr_scheduler_2, optimizer_2 = _create_lr_scheduler_and_optimizer(config)
+
+    expected_lr_list = []
+    for _ in range(config.num_epochs):
+        # For pytorch version 1.6:
+        # expected_lr_list.append(original_scheduler.get_last_lr())
+        expected_lr_list.append(lr_scheduler_2.get_last_lr()[0])
+        lr_scheduler_2.step()
+
+    result_lr_list = []
+    for _ in range(restart_at):
+        result_lr_list.append(lr_scheduler_1.get_last_lr()[0])
+        lr_scheduler_1.step()
+
+    # resume state: This just means setting start_epoch in the config
+    config.start_epoch = restart_at
+    lr_scheduler_resume, _ = _create_lr_scheduler_and_optimizer(config, optimizer_1)
+    for _ in range(config.num_epochs - restart_at):
+        result_lr_list.append(lr_scheduler_resume.get_last_lr()[0])
+        lr_scheduler_resume.step()
+
+    assert result_lr_list == expected_lr_list
 
 
 def test_cosine_decay_function() -> None:
