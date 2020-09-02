@@ -40,7 +40,7 @@ def test_min_and_initial_lr(lr_scheduler_type: LRSchedulerType) -> None:
     """
     Test if minimum learning rate threshold is applied as expected
     """
-    config = DummyModel(l_rate=1e-3, min_l_rate=0.0009, l_rate_decay=lr_scheduler_type)
+    config = DummyModel(l_rate=1e-3, min_l_rate=0.0009, l_rate_decay=lr_scheduler_type, l_rate_milestones=[3, 5, 7])
     # create lr scheduler
     lr_scheduler, _ = _create_lr_scheduler_and_optimizer(config)
     assert lr_scheduler.get_last_lr()[0] == config.l_rate
@@ -53,10 +53,10 @@ def test_lr_monotonically_decreasing_function(lr_scheduler_type: LRSchedulerType
     """
     Tests if LR scheduler is a monotonically decreasing function
     """
-    config = DummyModel(l_rate_decay=lr_scheduler_type, num_epochs=10)
+    config = DummyModel(l_rate_decay=lr_scheduler_type, num_epochs=10, l_rate_milestones=[3, 5, 7])
 
     def strictly_decreasing(L: List) -> bool:
-        return all(x > y for x, y in zip(L, L[1:]))
+        return all(x >= y for x, y in zip(L, L[1:]))
 
     # create lr scheduler
     lr_scheduler, _ = _create_lr_scheduler_and_optimizer(config)
@@ -110,7 +110,7 @@ def test_warmup_against_original_schedule(lr_scheduler_type: LRSchedulerType, wa
     for _ in range(config.num_epochs - warmup_epochs):
         # For pytorch version 1.6:
         # expected_lr_list.append(original_scheduler.get_last_lr())
-        expected_lr_list.append(original_scheduler.get_lr())
+        expected_lr_list.append(original_scheduler.get_lr()[0])  # type: ignore
         original_scheduler.step()  # type: ignore
 
     assert result_lr_list == expected_lr_list
