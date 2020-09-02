@@ -208,8 +208,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     l_rate_milestones: Optional[List[int]] = param.List(None, bounds=(1, None), allow_None=True, class_=int,
                                                         doc="The milestones for MultiStep decay (ignored for "
                                                             "Polynomial, Cosine, Step and Exponential)")
-    warmup_epochs: int = param.Integer(0, bounds=(0, None), doc="Number of warmup epochs before the scheduler starts "
-                                                                "decaying the learning rate. "
+    warmup_epochs: int = param.Integer(0, bounds=(0, None), doc="Number of warmup epochs (linear warmup) before the "
+                                                                "scheduler starts decaying the learning rate. "
                                                                 "For example, if you are using MultiStepLR with "
                                                                 "milestones [50, 100, 200] and warmup = 100, warmup "
                                                                 "will last for 100 epochs and the first decay of LR "
