@@ -446,3 +446,16 @@ def test_dataset_stats_hook(test_output_dirs: TestOutputDirectories) -> None:
     model.create_and_set_torch_datasets()
     assert out_file.is_file()
     assert out_file.read_text() == "\n".join(["Train: 2", "Test: 1", "Val: 1"])
+
+
+def test_dataset_stats_hook_failing(test_output_dirs: TestOutputDirectories) -> None:
+    """
+    Test if the hook for computing dataset statistics can safely fail.
+    """
+    model = ClassificationModelForTesting()
+
+    def hook(datasets: Dict[ModelExecutionMode, ScalarDataset]) -> None:
+        raise ValueError()
+
+    model.dataset_stats_hook = hook
+    model.create_and_set_torch_datasets()

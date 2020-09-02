@@ -350,6 +350,7 @@ class ScalarModelBase(ModelConfigBase):
     def create_and_set_torch_datasets(self, for_training: bool = True, for_inference: bool = True) -> None:
         """
         Creates and sets torch datasets for all model execution modes, and stores them in the self._datasets field.
+        It also calls the hook to compute statistics for the train/val/test datasets.
         """
         # For models other than segmentation models, it is easier to create both training and inference datasets
         # in one go, ignoring the arguments.
@@ -364,7 +365,7 @@ class ScalarModelBase(ModelConfigBase):
                 try:
                     self.dataset_stats_hook(datasets)
                 except Exception as ex:
-                    print_exception(ex, message="Unable to invoke hook for computing dataset statistics.")
+                    print_exception(ex, message="Error while calling the hook for computing dataset statistics.")
 
     def get_training_class_counts(self) -> Dict:
         if self._datasets_for_training is None:
