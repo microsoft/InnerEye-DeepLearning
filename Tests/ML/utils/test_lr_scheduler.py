@@ -133,8 +133,9 @@ def _create_lr_scheduler_and_optimizer(config: SegmentationModelBase, optimizer:
 
 @pytest.mark.parametrize("lr_scheduler_type", [x for x in LRSchedulerType])
 @pytest.mark.parametrize("warmup_epochs", [0, 4, 5])
-@pytest.mark.parametrize("restart_at", [4])
-def test_resume_from_saved_state(lr_scheduler_type: LRSchedulerType, warmup_epochs: int, restart_at: int) -> None:
+@pytest.mark.parametrize("restart_from_epoch", [4])
+def test_resume_from_saved_state(lr_scheduler_type: LRSchedulerType,
+                                 warmup_epochs: int, restart_from_epoch: int) -> None:
     """
     Tests if LR scheduler when reloaded from a state dict continues as expected.
     """
@@ -146,20 +147,18 @@ def test_resume_from_saved_state(lr_scheduler_type: LRSchedulerType, warmup_epoc
 
     expected_lr_list = []
     for _ in range(config.num_epochs):
-        # For pytorch version 1.6:
-        # expected_lr_list.append(original_scheduler.get_last_lr())
         expected_lr_list.append(lr_scheduler_2.get_last_lr()[0])
         lr_scheduler_2.step()
 
     result_lr_list = []
-    for _ in range(restart_at):
+    for _ in range(restart_from_epoch):
         result_lr_list.append(lr_scheduler_1.get_last_lr()[0])
         lr_scheduler_1.step()
 
     # resume state: This just means setting start_epoch in the config
-    config.start_epoch = restart_at
+    config.start_epoch = restart_from_epoch
     lr_scheduler_resume, _ = _create_lr_scheduler_and_optimizer(config, optimizer_1)
-    for _ in range(config.num_epochs - restart_at):
+    for _ in range(config.num_epochs - restart_from_epoch):
         result_lr_list.append(lr_scheduler_resume.get_last_lr()[0])
         lr_scheduler_resume.step()
 
