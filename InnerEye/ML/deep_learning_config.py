@@ -13,7 +13,7 @@ import param
 from pandas import DataFrame
 from param import Parameterized
 
-from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
+from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
@@ -241,10 +241,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     cross_validation_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
                                                       doc="The index of the cross validation fold this model is "
                                                           "associated with when performing k-fold cross validation")
-    cross_validation_split_child_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
-                                                            doc="The index of the cross validation fold this model is "
-                                                                "associated with when performing k-fold cross "
-                                                                "validation")
     file_system_config: DeepLearningFileSystemConfig = param.ClassSelector(default=DeepLearningFileSystemConfig(),
                                                                            class_=DeepLearningFileSystemConfig,
                                                                            instantiate=False,

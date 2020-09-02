@@ -151,27 +151,24 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         # because this would prevent us from easily instantiating this class in tests.
         raise NotImplementedError("create_model must be overridden")
 
+    def get_cross_validation_hyperdrive_sampler(self) -> GridParameterSampling:
+        return GridParameterSampling(parameter_space={
+            CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
+        })
+
     def get_cross_validation_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
         """
         Returns a configuration for AzureML Hyperdrive that varies the cross validation split index.
         :param estimator: The AzureML estimator object that runs model training.
         :return: A hyperdrive configuration object.
         """
-        parameter_space = {
-            CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits)))
-        }
-
-        param_sampling = GridParameterSampling(parameter_space)
-
-        config = HyperDriveConfig(
+        return HyperDriveConfig(
             estimator=estimator,
-            hyperparameter_sampling=param_sampling,
+            hyperparameter_sampling=self.get_cross_validation_hyperdrive_sampler(),
             primary_metric_name=TrackedMetrics.Val_Loss.value,
             primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
             max_total_runs=self.number_of_cross_validation_splits
         )
-
-        return config
 
     def get_cross_validation_dataset_splits(self, dataset_split: DatasetSplits) -> DatasetSplits:
         """

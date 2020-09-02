@@ -9,8 +9,10 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import pandas as pd
 import param
 from azureml.train.estimator import Estimator
-from azureml.train.hyperdrive import HyperDriveConfig
+from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, choice
 
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
+    CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, OneHotEncoderBase
@@ -179,6 +181,11 @@ class ScalarModelBase(ModelConfigBase):
     number_of_cross_validation_splits_per_fold: int = param.Integer(0, bounds=(0, None),
                                                                     doc="Number of cross validation splits for k-fold "
                                                                         "cross validation within a fold.")
+
+    cross_validation_sub_fold_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
+                                                               doc="The index of the cross validation fold this model "
+                                                                   "is associated with when performing k-fold cross "
+                                                                   "validation")
 
     def __init__(self, num_dataset_reader_workers: int = 0, **params: Any) -> None:
         super().__init__(**params)
@@ -394,6 +401,21 @@ class ScalarModelBase(ModelConfigBase):
         For data augmentation, specify a Compose3D for the training execution mode.
         """
         return ModelTransformsPerExecutionMode()
+
+    def get_cross_validation_dataset_splits(self, dataset_split: DatasetSplits) -> DatasetSplits:
+        split_for_current_fold = super().get_cross_validation_dataset_splits(dataset_split)
+        if self.number_of_cross_validation_splits_per_fold > 0:
+            return split_for_current_fold.get_k_fold_cross_validation_splits(
+                self.number_of_cross_validation_splits_per_fold)[self.cross_validation_sub_fold_split_index]
+        else:
+            return split_for_current_fold
+
+    def get_cross_validation_hyperdrive_sampler(self) -> GridParameterSampling:
+        return GridParameterSampling(parameter_space={
+            CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
+            CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY: choice(list(range(
+                self.number_of_cross_validation_splits_per_fold))),
+        })
 
 
 def get_non_image_features_dict(default_channels: List[str],

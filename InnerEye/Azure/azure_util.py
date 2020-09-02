@@ -21,6 +21,7 @@ IS_ENSEMBLE_KEY_NAME = "is_ensemble"
 MODEL_ID_KEY_NAME = "model_id"
 # The name of the key used to store the cross validation index of the dataset for the run
 CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY = "cross_validation_split_index"
+CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY = "cross_validation_sub_fold_split_index"
 PARENT_RUN_ID_KEY_NAME = "parent_run_id"
 
 # This is the folder structure that AzureML generates to store all results for an experiment run.
