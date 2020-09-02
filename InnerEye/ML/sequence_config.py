@@ -19,7 +19,6 @@ SEQUENCE_POSITION_HUE_NAME_PREFIX = "Seq_pos"
 
 SEQUENCE_LENGTH_STATS_FILE = "sequence_length_stats.txt"
 SEQUENCE_LENGTH_FILE = "sequence_length.csv"
-SEQUENCE_LENGTH_COLUMN = "sequence_length"
 
 
 class SequenceModelBase(ScalarModelBase):
@@ -132,15 +131,15 @@ class SequenceModelBase(ScalarModelBase):
         df = DataFrame.from_dict({
             LoggingColumns.CrossValidationSplitIndex.value: [self.cross_validation_split_index] * len(mode_series),
             LoggingColumns.DataSplit.value: mode_series,
-            LoggingColumns.Patient: id_series,
-            SEQUENCE_LENGTH_COLUMN: length_series
+            LoggingColumns.Patient.value: id_series,
+            LoggingColumns.SequenceLength.value: length_series
         })
         self.logs_folder.mkdir(exist_ok=True, parents=True)
         details_file = self.logs_folder / SEQUENCE_LENGTH_FILE
         df.to_csv(details_file, index=False)
         # Drop all columns apart from the sequence length column, so that the stats file will also contain
         # the name of the series that is described
-        stats = df.drop(columns=[LoggingColumns.Patient, LoggingColumns.CrossValidationSplitIndex.value]) \
+        stats = df.drop(columns=[LoggingColumns.Patient.value, LoggingColumns.CrossValidationSplitIndex.value]) \
             .groupby(by=LoggingColumns.DataSplit.value).describe()
         out_file = self.logs_folder / SEQUENCE_LENGTH_STATS_FILE
         with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', 150):
