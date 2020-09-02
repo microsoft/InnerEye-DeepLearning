@@ -116,12 +116,15 @@ class MLRunner:
             split_model_config = copy.deepcopy(self.model_config)
             split_model_config.cross_validation_split_index = cross_val_split_index
             split_model_config.cross_validation_sub_fold_split_index = cross_val_sub_fold_split_index
-            split_model_config.file_system_config = parent_run_file_system.add_subfolder(str(x))
 
+            outputs_path = Path(str(cross_val_split_index))
             # update the outputs directory if we are spawning a child cross val run
             if cross_val_sub_fold_split_index != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-                split_model_config.file_system_config = split_model_config.file_system_config\
-                    .add_subfolder(str(cross_val_sub_fold_split_index))
+                split_model_config.file_system_config = parent_run_file_system.add_subfolder(
+                    str(outputs_path / str(cross_val_sub_fold_split_index)))
+            else:
+                split_model_config.file_system_config = parent_run_file_system.add_subfolder(str(outputs_path))
+
             logging.info(f"Running model train and test on cross validation split: {x}")
             split_ml_runner = MLRunner(split_model_config, self.azure_config, self.project_root,
                                        self.model_deployment_hook, self.innereye_submodule_name)

@@ -20,7 +20,6 @@ from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables, \
     parse_arguments, submit_to_azureml
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME
-from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
@@ -279,7 +278,7 @@ class Runner:
             # A build step will pick up that file and publish it to Azure DevOps.
             # If pytest_mark is set, this file must exist.
             logging.info("Downloading pytest result file.")
-            download_pytest_result(self.azure_config, azure_run)
+            #download_pytest_result(self.azure_config, azure_run)
         else:
             logging.info("No pytest_mark present, hence not downloading the pytest result file.")
         status = azure_run.get_status()
@@ -314,7 +313,7 @@ class Runner:
                 training_failed = True
             if self.azure_config.pytest_mark:
                 try:
-                    pytest_passed, results_file_path = run_pytest(self.azure_config.pytest_mark, outputs_folder)
+                    #pytest_passed, results_file_path = run_pytest(self.azure_config.pytest_mark, outputs_folder)
                     if not pytest_passed:
                         logging.error(
                             f"Not all PyTest tests passed. See {results_file_path}")

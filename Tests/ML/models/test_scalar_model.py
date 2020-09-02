@@ -145,11 +145,13 @@ def test_train_classification_model_with_amp(test_output_dirs: TestOutputDirecto
     test_train_classification_model(test_output_dirs, True, check_logs=False)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.skipif(not common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("model_name", ["DummyClassification", "DummyRegression"])
 @pytest.mark.parametrize("number_of_offline_cross_validation_splits", [2])
+@pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [2])
 def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectories,
                                           number_of_offline_cross_validation_splits: int,
+                                          number_of_cross_validation_splits_per_fold: int,
                                           model_name: str) -> None:
     """
     Test training and testing of classification models, when it is started together via run_ml.
@@ -159,6 +161,7 @@ def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectorie
     train_config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
         .create_model_config_from_name(model_name)
     train_config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
+    train_config.number_of_cross_validation_splits_per_fold = number_of_cross_validation_splits_per_fold
     train_config.set_output_to(test_output_dirs.root_dir)
     MLRunner(train_config, azure_config).run()
     _check_offline_cross_validation_output_files(train_config)
