@@ -208,7 +208,12 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     l_rate_milestones: Optional[List] = param.List(None, bounds=(1, None), allow_None=True, class_=int,
                                                       doc="The milestones for MultiStep decay (ignored for Polynomial, "
                                                           "Cosine, Step and Exponential)")
-    warmup_epochs: int = param.Integer(0, bounds=(0, None), doc="Number of warmup epochs before the scheduler starts.")
+    warmup_epochs: int = param.Integer(0, bounds=(0, None), doc="Number of warmup epochs before the scheduler starts "
+                                                                "decaying the learning rate. "
+                                                                "For example, if you are using MultiStepLR with "
+                                                                "milestones [50, 100, 200] and warmup = 100, warmup "
+                                                                "will last for 100 epochs and the first decay of LR "
+                                                                "will happen on epoch 150")
     optimizer_type: OptimizerType = param.ClassSelector(default=OptimizerType.Adam, class_=OptimizerType,
                                                         instantiate=False, doc="The optimizer_type to use")
     opt_eps: float = param.Number(1e-4, doc="The epsilon parameter of RMSprop or Adam")
@@ -362,7 +367,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
         if self.l_rate_decay == LRSchedulerType.MultiStep:
             if not self.l_rate_milestones:
-                raise ValueError(f"Must specify l_rate_milestones to use LR scheduler MultiStep or MultiStepWithWarmUp")
+                raise ValueError(f"Must specify l_rate_milestones to use LR scheduler MultiStep")
             if sorted(set(self.l_rate_milestones)) != self.l_rate_milestones:
                 raise ValueError(f"l_rate_milestones must be a strictly increasing list")
             if self.l_rate_milestones[0] <= 0:
