@@ -137,7 +137,7 @@ def _create_lr_scheduler_and_optimizer(config: SegmentationModelBase, optimizer:
 def test_resume_from_saved_state(lr_scheduler_type: LRSchedulerType,
                                  warmup_epochs: int, restart_from_epoch: int) -> None:
     """
-    Tests if LR scheduler when reloaded from a state dict continues as expected.
+    Tests if LR scheduler when restarted from an epoch continues as expected.
     """
     config = DummyModel(l_rate_decay=lr_scheduler_type, num_epochs=10, warmup_epochs=warmup_epochs,
                         l_rate_step_size=2, l_rate_milestones=[3, 5, 7])

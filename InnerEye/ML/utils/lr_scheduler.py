@@ -15,7 +15,7 @@ from torch.optim.optimizer import Optimizer
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, LRSchedulerType
 
 
-class WarmUpMixin(Protocol):
+class WarmUpMixinProtocol(Protocol):
     """
     This class exists to tell mypy about the attributes the mixin expects
     """
@@ -24,14 +24,14 @@ class WarmUpMixin(Protocol):
     warmup_epochs: int
 
 
-class SchedulerWithWarmUpMixin(object):
+class WarmUpMixin(object):
     """
     Inherit this class as the FIRST parent, and a scheduler from torch.optim.lr_scheduler as the second parent
     to add a warmup step before the scheduler starts the learning rate decay.
 
     Ex.
     from torch.optim.lr_scheduler import SomeScheduler
-    class SomeSchedulerWithWarmup(SchedulerWithWarmUpMixin, SomeScheduler)
+    class SomeSchedulerWithWarmup(WarmUpMixin, SomeScheduler)
         pass
 
     scheduler = SomeSchedulerWithWarmup(warmup_epochs=..., <keyword args for scheduler>)
@@ -40,7 +40,7 @@ class SchedulerWithWarmUpMixin(object):
         self.warmup_epochs = warmup_epochs
         super().__init__(optimizer=optimizer, last_epoch=last_epoch, **kwargs)  # type: ignore
 
-    def get_lr(self: WarmUpMixin) -> Iterable:
+    def get_lr(self: WarmUpMixinProtocol) -> Iterable:
         if self.last_epoch < self.warmup_epochs:
             return [base_lr * self.last_epoch / self.warmup_epochs
                     for base_lr in self.base_lrs]
@@ -51,7 +51,7 @@ class SchedulerWithWarmUpMixin(object):
             return lrs
 
 
-class ExponentialLRWithWarmUp(SchedulerWithWarmUpMixin, ExponentialLR):  # type: ignore
+class ExponentialLRWithWarmUp(WarmUpMixin, ExponentialLR):  # type: ignore
     """
     ExponentialLR with added warmup steps.
     Usage is the same as ExponentialLR, with an added keyword param "warmup_epochs"
@@ -59,7 +59,7 @@ class ExponentialLRWithWarmUp(SchedulerWithWarmUpMixin, ExponentialLR):  # type:
     pass
 
 
-class StepLRWithWarmUp(SchedulerWithWarmUpMixin, StepLR):  # type: ignore
+class StepLRWithWarmUp(WarmUpMixin, StepLR):  # type: ignore
     """
     StepLR with added warmup steps.
     Usage is the same as StepLR, with an added keyword param "warmup_epochs"
@@ -67,7 +67,7 @@ class StepLRWithWarmUp(SchedulerWithWarmUpMixin, StepLR):  # type: ignore
     pass
 
 
-class LambdaLRWithWarmUp(SchedulerWithWarmUpMixin, LambdaLR):  # type: ignore
+class LambdaLRWithWarmUp(WarmUpMixin, LambdaLR):  # type: ignore
     """
     LambdaLR with added warmup steps.
     Usage is the same as LambdaLR, with an added keyword param "warmup_epochs"
@@ -75,7 +75,7 @@ class LambdaLRWithWarmUp(SchedulerWithWarmUpMixin, LambdaLR):  # type: ignore
     pass
 
 
-class CosineAnnealingLRWithWarmUp(SchedulerWithWarmUpMixin, CosineAnnealingLR):  # type: ignore
+class CosineAnnealingLRWithWarmUp(WarmUpMixin, CosineAnnealingLR):  # type: ignore
     """
     CosineAnnealingLR with added warmup steps.
     Usage is the same as CosineAnnealingLR, with an added keyword param "warmup_epochs"
@@ -83,7 +83,7 @@ class CosineAnnealingLRWithWarmUp(SchedulerWithWarmUpMixin, CosineAnnealingLR): 
     pass
 
 
-class MultiStepLRWithWarmUp(SchedulerWithWarmUpMixin, MultiStepLR):  # type: ignore
+class MultiStepLRWithWarmUp(WarmUpMixin, MultiStepLR):  # type: ignore
     """
     MultiStepLR with added warmup steps.
     Usage is the same as MultiStepLR, with an added keyword param "warmup_epochs"
