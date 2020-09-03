@@ -155,12 +155,12 @@ def create_and_submit_experiment(
     print("==============================================================================")
 
     if azure_config.run_recovery_id:
-        print("\nRecovered from: {}".format(azure_config.run_recovery_id))
+        print(f"\nRecovered from: {azure_config.run_recovery_id}")
 
-    print("\nTo recover this run use recovery id: {}\n".format(azure_util.create_run_recovery_id(run)))
     print("==============================================================================")
     print("Experiment URL: {}".format(exp.get_portal_url()))
-    print("Run URL: {}".format(run.get_portal_url()))
+    print("If this run fails, re-start runner.py and supply these additional arguments: "
+          f"--run_recovery_id={azure_util.create_run_recovery_id(run)}")
     print("==============================================================================")
     return run
 
