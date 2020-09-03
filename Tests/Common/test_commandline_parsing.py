@@ -9,7 +9,7 @@ import pytest
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
-from InnerEye.Common.fixed_paths import DEFAULT_LOGS_DIR_NAME, DEFAULT_AML_UPLOAD_DIR
+from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
 from InnerEye.ML.runner import Runner

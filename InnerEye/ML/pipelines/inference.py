@@ -212,16 +212,15 @@ class InferencePipeline(FullImageInferencePipelineBase):
         :return InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint
         file for this epoch.
         """
-        model_and_checkpoint_epoch = model_util.load_from_checkpoint_and_adjust(model_config, path_to_checkpoint)
-        if model_and_checkpoint_epoch is None:
+        model_and_info = model_util.load_from_checkpoint_and_adjust(model_config, path_to_checkpoint)
+        if model_and_info.checkpoint_epoch is None or model_and_info.model is None:
             return None
-        model, checkpoint_epoch = model_and_checkpoint_epoch
-        for name, param in model.named_parameters():
+        for name, param in model_and_info.model.named_parameters():
             param_numpy = param.clone().cpu().data.numpy()
             image_util.check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
 
-        return InferencePipeline(model=model, model_config=model_config,
-                                 epoch=checkpoint_epoch, pipeline_id=pipeline_id)
+        return InferencePipeline(model=model_and_info.model, model_config=model_config,
+                                 epoch=model_and_info.checkpoint_epoch, pipeline_id=pipeline_id)
 
     def predict_whole_image(self, image_channels: np.ndarray,
                             voxel_spacing_mm: TupleFloat3,
@@ -327,7 +326,7 @@ class InferenceBatch(CTImagesMaskedBatch):
         # There may be cases where the test image is smaller than the test_crop_size. Adjust crop_size
         # to always fit into image. If test_crop_size is smaller than the image, crop will remain unchanged.
         image_size = image_channels.shape[1:]
-        model: Union[torch.nn.Module[Any], torch.nn.DataParallel] = \
+        model: Union[torch.nn.Module, torch.nn.DataParallel] = \
             self.pipeline.get_variable(InferencePipeline.Variables.Model)
         if isinstance(model, torch.nn.DataParallel):
             model = model.module
@@ -408,9 +407,10 @@ class InferenceBatch(CTImagesMaskedBatch):
         # of shape but with an added class dimension: Num patches x Class x Z x Y x X
         predictions = np.concatenate(predictions, axis=0)
 
-        # create posterior output for each class with the shape: Class x Z x Y x x
+        # create posterior output for each class with the shape: Class x Z x Y x x. We use float32 as these
+        # arrays can be big.
         output_image_shape = self.pipeline.get_variable(InferencePipeline.Variables.OutputImageShape)
-        posteriors = np.zeros(shape=[model_config.number_of_classes] + list(output_image_shape))
+        posteriors = np.zeros(shape=[model_config.number_of_classes] + list(output_image_shape), dtype=np.float32)
         stride = self.pipeline.get_variable(InferencePipeline.Variables.Stride)
 
         for c in range(len(posteriors)):

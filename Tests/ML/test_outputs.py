@@ -160,7 +160,7 @@ def test_store_run_information(test_output_dirs: TestOutputDirectories) -> None:
     store_run_information(results_folder, dataset_id, ground_truth_ids, channel_ids)
     for i, file in enumerate(files):
         assert file.exists()
-        lines = [l.strip() for l in file.read_text().splitlines()]
+        lines = [line.strip() for line in file.read_text().splitlines()]
         assert lines == values[i]
 
 

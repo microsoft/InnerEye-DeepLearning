@@ -26,6 +26,7 @@ from InnerEye.ML.model_training import generate_and_print_model_summary
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.io_util import read_image_as_array_with_header
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_azure_config, get_model_loader
 
@@ -204,13 +205,13 @@ def test_load_all_configs(model_name: str) -> None:
         minimal_feature_channels = 1
         config.feature_channels = [minimal_feature_channels] * len(config.feature_channels)
         print("Model architecture after restricting to 2 feature channels only:")
-        model = config.create_model()
+        model = create_model_with_temperature_scaling(config)
         generate_and_print_model_summary(config, model)
     else:
         # For classification models, we can't always print a model summary: The model could require arbitrary
         # numbers of input tensors, and we'd only know once we load the training data.
         # Hence, only try to create the model, but don't attempt to print the summary.
-        config.create_model()
+        create_model_with_temperature_scaling(config)
 
 
 def test_cross_validation_config() -> None:

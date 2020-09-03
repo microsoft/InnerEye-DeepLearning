@@ -16,6 +16,7 @@ from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImagingFeatureType
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES
 from InnerEye.ML.visualizers.model_hooks import HookBasedFeatureExtractor
 
@@ -39,7 +40,7 @@ class GradientBasedFeatureExtractor(HookBasedFeatureExtractor):
         super().__init__(model, target_layer)
         self.config = config
         self.hooks: List[Any] = []
-        if torch.cuda.is_available():
+        if config.use_gpu:
             self.device = torch.device("cuda")
         else:
             self.device = torch.device("cpu")
@@ -94,13 +95,14 @@ class GradCam(GradientBasedFeatureExtractor):
     ImageEncoderWithMLP and RNNClassifier (models that take both images and non-imaging feautres as input).
 
     GradCam computes Relu(Gradients x Activations) at the output of the encoder of the network
-    (before the global average pooling layer). "PseudoGradCam" for non-imaging features denotes
+    (before the global pooling layer). "PseudoGradCam" for non-imaging features denotes
     ReLu(input x gradients) for non-imaging features. "PseudoGradCam" is
     used to compare relative feature importance of various non-imaging features for the final classification
     task.
     """
 
-    def __init__(self, model: Module, config: ScalarModelBase) -> None:
+    def __init__(self, model: Union[DeviceAwareModule, torch.nn.DataParallel],
+                 config: ScalarModelBase) -> None:
         """
 
         :param model: The model to analyse
@@ -114,10 +116,11 @@ class GradCam(GradientBasedFeatureExtractor):
             super().__init__(model, config=config, target_layer=None)
         else:
             if isinstance(model, torch.nn.DataParallel):
-                target_layer = model.module.last_encoder_layer
-                self.conv_in_3d = bool(model.module.conv_in_3d)
+                _model: DeviceAwareModule = model.module  # type: ignore
+                target_layer = _model.get_last_encoder_layer_names()
+                self.conv_in_3d = bool(_model.conv_in_3d)
             else:
-                target_layer = model.last_encoder_layer
+                target_layer = model.get_last_encoder_layer_names()
                 self.conv_in_3d = bool(model.conv_in_3d)
             super().__init__(model=model, config=config, target_layer=target_layer)
         self.gradients: Dict = {}
@@ -180,7 +183,7 @@ class GradCam(GradientBasedFeatureExtractor):
         """
         Get GradCam mps for images input. GradCam computes
         Relu(Gradients x Activations) at the output of the encoder of the network
-        (before the average pooling layer).
+        (before the global pooling layer).
 
         :param input: input batch
         :return: the GradCam maps
@@ -192,7 +195,7 @@ class GradCam(GradientBasedFeatureExtractor):
             list_gradients.append(torch.stack(self.gradients[device], dim=1))  # [B, C_in, C_out, Z, X, Y]
             list_activations.append(torch.stack(self.activations[device], dim=1))  # [B, C_in, C_out, Z, X, Y]
 
-        if torch.cuda.is_available():
+        if self.config.use_gpu:
             activations = torch.nn.parallel.gather(list_activations, target_device=self.device)
             gradients = torch.nn.parallel.gather(list_gradients, target_device=self.device)
 
@@ -273,7 +276,7 @@ class GradCam(GradientBasedFeatureExtractor):
                 # For a non-sequence model a categorical feature might appear several times for several channels but
                 # there
                 # is no padding. Hence we handle the conversion differently.
-                pseudo_cam_categorical = pseudo_cam_one_hot[categorical_input_one_hot != 0].reshape(
+                pseudo_cam_categorical = pseudo_cam_one_hot[categorical_input_one_hot.cpu() != 0].reshape(
                     (batch_size, number_positions, -1))
 
             return np.concatenate([pseudo_cam_numerical, pseudo_cam_categorical], axis=2)
@@ -283,16 +286,13 @@ class GradCam(GradientBasedFeatureExtractor):
     def generate(self, input: List[torch.Tensor], target_position: int = -1, target_label_index: int = -1) \
             -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Generates the GradCam for images, PseudoGradCam for images, PseudoGradCam for non-images feautres
+        Generates the GradCam for images, PseudoGradCam for non-imaging features
         of one batch for the given classification model.
 
         GradCam computes Relu(Gradients x Activations) at the output of the encoder of the network
-        (before the average pooling layer). "PseudoGradCam" for images denotes the results
-        of Gradients x Activations at the output of the average aggregation layer. "PseudoGradCam"
-        for non-imaging features denotes ReLu(input x gradients) for non-imaging features. "PseudoGradCam" is
-        used to compare feature importance of imaging versus non-imaging features for the final classification
-        task (as non-imaging features are concatenated to the aggregated encoded imaging features prior to the
-        final classifier).
+        (before the global pooling layer). "PseudoGradCam" for non-imaging features denotes
+        ReLu(input x gradients) for non-imaging features. "PseudoGradCam" is used to compare relative feature importance
+        of various non-imaging features for the final classification task.
 
         :param input: input image [B, C, Z, X, Y]
         :param target_position: in case of sequence model with multiple target weeks, specify which target
@@ -354,7 +354,7 @@ class GuidedBackPropagation(GradientBasedFeatureExtractor):
         """
         # For all ReLU layers propagate only positive gradients
         if isinstance(module, torch.nn.ReLU):
-            return (torch.nn.functional.relu(grad_in[0]),)
+            return torch.nn.functional.relu(grad_in[0]),
         return None
 
     def forward(self, *input):  # type: ignore
@@ -391,7 +391,7 @@ class GuidedBackPropagation(GradientBasedFeatureExtractor):
         self.target_label_index = target_label_index
         self.model.eval()
         self.forward(*input)
-        if torch.cuda.is_available():
+        if self.config.use_gpu:
             torch.cuda.empty_cache()
         self.backward()
 
@@ -435,7 +435,8 @@ class VisualizationMaps:
     for a specific model.
     """
 
-    def __init__(self, model: Module, config: ScalarModelBase) -> None:
+    def __init__(self, model: Union[DeviceAwareModule, torch.nn.DataParallel],
+                 config: ScalarModelBase) -> None:
         self.config = config
         self.is_non_imaging_model = config.is_non_imaging_model
         self.grad_cam: GradCam = GradCam(model, config)
@@ -504,7 +505,7 @@ class VisualizationMaps:
         for label_index in range(len(target_indices)):
             target_position = target_indices[label_index]
             current_output_dir = self.config.visualization_folder / f"{SEQUENCE_POSITION_HUE_NAME_PREFIX}_" \
-                                                                    f"{target_position}"
+                f"{target_position}"
             current_output_dir.mkdir(exist_ok=True)
             guided_grad_cams, grad_cams, pseudo_cam_non_img, probas = self.generate(input_batch,
                                                                                     target_position,

@@ -19,7 +19,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import pandas as pd
 import param
@@ -47,6 +47,9 @@ from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER
 from InnerEye.ML.utils.metrics_constants import LoggingColumns, MetricsFileColumns
 from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_directory
 
+RUN_DICTIONARY_NAME = "RunDictionary.txt"
+
+MAX_STRUCTURES_PER_PLOT = 7
 DRIVER_LOG_BASENAME = "70_driver_log.txt"
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
 # noinspection SQL
@@ -101,6 +104,8 @@ class PlotCrossValidationConfig(GenericConfig):
     comparison_run_recovery_ids: List[str] = param.List(default=None, class_=str,
                                                         doc="The run recovery ids of any additional runs to include in "
                                                             "statistical comparisons")
+    comparison_labels: List[str] = param.List(default=None, class_=str,
+                                              doc="Short labels to use in plots for comparison runs")
     comparison_epochs: List[int] = param.List(default=None, class_=int,
                                               doc="The epochs of any additional runs to include in "
                                                   "statistical comparisons")
@@ -135,6 +140,9 @@ class PlotCrossValidationConfig(GenericConfig):
                                                          "and do statistical tests")
 
     def __init__(self, **params: Any):
+        # Mapping from run IDs to short names used in graphs
+        self.short_names: Dict[str, str] = {}
+        self.run_id_labels: Dict[str, str] = {}
         super().__init__(**params)
 
     def validate(self) -> None:
@@ -150,6 +158,28 @@ class PlotCrossValidationConfig(GenericConfig):
             n_needed = len(self.comparison_run_recovery_ids) - len(self.comparison_epochs)
             if n_needed > 0:
                 self.comparison_epochs.extend([self.comparison_epochs[-1]] * n_needed)
+        else:
+            self.comparison_run_recovery_ids = []
+        if self.comparison_labels is None:
+            self.comparison_labels = []
+        self.run_id_labels[self.run_recovery_id] = "FOCUS"
+        for run_id, label in zip(self.comparison_run_recovery_ids, self.comparison_labels):
+            self.run_id_labels[run_id] = label
+
+    def get_short_name(self, run_or_id: Union[Run, str]) -> str:
+        if isinstance(run_or_id, Run):
+            run_id = run_or_id.id
+            if run_id not in self.short_names:
+                if run_id in self.run_id_labels:
+                    extra = f" ({self.run_id_labels[run_id]})"
+                else:
+                    extra = ""
+                self.short_names[run_id] = f"{run_or_id.experiment.name}:{run_or_id.number}{extra}"
+        else:
+            run_id = run_or_id.split(":")[-1]
+            if run_id not in self.short_names:
+                self.short_names[run_or_id] = run_id
+        return self.short_names[run_id]
 
     @property
     def azure_config(self) -> AzureConfig:
@@ -335,7 +365,6 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         run_recovery_id = config.run_recovery_id
     if epoch is None:
         epoch = config.epoch
-    parent = None
     if run_recovery_id:
         workspace = config.azure_config.get_workspace()
         parent = fetch_run(workspace, run_recovery_id)
@@ -372,6 +401,8 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
             loop_over.append((run, split_index, split_suffix, run_recovery_id))
 
     for run, split_index, split_suffix, run_recovery_id in loop_over:
+        if run is not None:
+            config.get_short_name(run)
         config.local_run_result_split_suffix = split_suffix
         # When run is the parent run, we need to look on the local disc.
         # If (as expected) dataset.csv is not already present, we copy it from the top of the outputs directory.
@@ -435,7 +466,7 @@ def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) ->
     # Create splits as per crossval settings. If not running crossval, use a pseudo split "" that will make
     # the code pick up the results of the present run.
     splits = [str(i) for i in range(train_config.number_of_cross_validation_splits)] \
-        if train_config.number_of_cross_validation_splits > 0 else [""]
+        if train_config.perform_cross_validation else [""]
     result_files, _ = download_crossval_result_files(plot_crossval_config,
                                                      download_to_folder=download_to_folder,
                                                      splits_to_evaluate=splits)
@@ -532,17 +563,31 @@ def convert_rows_for_comparisons(split_column_value: Optional[str],
     return df
 
 
-def shorten_split_names(metrics: pd.DataFrame) -> None:
+def shorten_split_names(config: PlotCrossValidationConfig, metrics: pd.DataFrame) -> None:
     """
     Replaces values in metrics[COL_SPLIT] by shortened versions consisting of the first 3 and last
     3 characters, separated by "..", when that string is shorter.
+    :param config: for finding short names
     :param metrics: data frame with a column named COL_SPLIT
     """
-    def shorten(name: str) -> str:
-        if len(name) <= 8:
-            return name
-        return f"{name[:3]}..{name[-3:]}"
-    metrics[COL_SPLIT] = metrics[COL_SPLIT].apply(shorten)
+    metrics[COL_SPLIT] = metrics[COL_SPLIT].apply(config.get_short_name)
+
+
+def split_by_structures(df: pd.DataFrame) -> List[pd.DataFrame]:
+    names = sorted(df[MetricsFileColumns.Structure.value].unique())
+    n_structures = len(names)
+    n_plots = int((n_structures + MAX_STRUCTURES_PER_PLOT - 1) / MAX_STRUCTURES_PER_PLOT)
+    if n_plots <= 1:
+        return [df]
+    n_per_plot = n_structures / n_plots
+    df_list = []
+    start = 0
+    for idx in range(n_plots):
+        end = int(0.5 + (idx + 1) * n_per_plot)
+        names_to_use = names[start:end]
+        df_list.append(df[df[MetricsFileColumns.Structure.value].isin(names_to_use)])
+        start = end
+    return df_list
 
 
 def plot_metrics(config: PlotCrossValidationConfig,
@@ -557,42 +602,45 @@ def plot_metrics(config: PlotCrossValidationConfig,
     """
     for mode, df in dataset_split_metrics.items():
         for metric_type, props in get_available_metrics(df).items():
-            metrics: pd.DataFrame = pd.melt(df, id_vars=[COL_SPLIT, MetricsFileColumns.Structure.value],
-                                            value_vars=[metric_type]) \
-                .sort_values(by=[COL_SPLIT, MetricsFileColumns.Structure.value])
-            shorten_split_names(metrics)
-            # create plot for the dataframe
-            fig, ax = pyplot.subplots(figsize=(15.7, 8.27))
-            ax = seaborn.boxplot(x='split', y='value',
-                                 hue='Structure',
-                                 data=metrics,
-                                 ax=ax,
-                                 width=0.75,
-                                 palette="Set3")
-            if "ylim" in props:
-                ax.set_ylim([0, 100.5])
-            if "yticks" in props:
-                ax.set_yticks(range(0, 105, 5))
+            df_list = split_by_structures(df)
+            for sub_df_index, sub_df in enumerate(df_list, 1):
+                metrics: pd.DataFrame = pd.melt(sub_df, id_vars=[COL_SPLIT, MetricsFileColumns.Structure.value],
+                                                value_vars=[metric_type])
+                shorten_split_names(config, metrics)
+                metrics = metrics.sort_values(by=[COL_SPLIT, MetricsFileColumns.Structure.value])
+                # create plot for the dataframe
+                fig, ax = pyplot.subplots(figsize=(15.7, 8.27))
+                ax = seaborn.boxplot(x='split', y='value',
+                                     hue='Structure',
+                                     data=metrics,
+                                     ax=ax,
+                                     width=0.75,
+                                     palette="Set3")
+                if "ylim" in props:
+                    ax.set_ylim([0, 100.5])
+                if "yticks" in props:
+                    ax.set_yticks(range(0, 105, 5))
 
-            ax.set_ylabel(props["title"], fontsize=16)
-            ax.set_xlabel('Cross-Validation Splits', fontsize=16)
-            ax.tick_params(axis='both', which='major', labelsize=12)
-            ax.tick_params(axis='both', which='minor', labelsize=10)
-            ax.set_title("Segmentation Results on {} Dataset (Epoch {})".format(
-                mode.value, config.epoch), fontsize=16)
-            ax.set_axisbelow(True)
-            ax.grid()
-            # Shrink current axis by 20%
-            box = ax.get_position()
-            ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-            # Put a legend to the right of the current axis
-            ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
-                      fancybox=True, shadow=True, ncol=7, prop={'size': 12})
+                ax.set_ylabel(props["title"], fontsize=16)
+                ax.set_xlabel('Cross-Validation Splits', fontsize=16)
+                ax.tick_params(axis='both', which='major', labelsize=12)
+                ax.tick_params(axis='both', which='minor', labelsize=10)
+                ax.set_title("Segmentation Results on {} Dataset (Epoch {})".format(
+                    mode.value, config.epoch), fontsize=16)
+                ax.set_axisbelow(True)
+                ax.grid()
+                # Shrink current axis by 20%
+                box = ax.get_position()
+                ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+                # Put a legend to the right of the current axis
+                ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+                          fancybox=True, shadow=True, ncol=7, prop={'size': 12})
 
-            # save plot
-            plot_dst = root / f"{metric_type}_{mode.value}_splits.jpg"
-            fig.savefig(plot_dst, bbox_inches='tight')
-            logging.info("Saved box-plots to: {}".format(plot_dst))
+                # save plot
+                suffix = f"_{sub_df_index}" if len(df_list) > 1 else ""
+                plot_dst = root / f"{metric_type}_{mode.value}_splits{suffix}.jpg"
+                fig.savefig(plot_dst, bbox_inches='tight')
+                logging.info("Saved box-plots to: {}".format(plot_dst))
 
 
 def save_outliers(config: PlotCrossValidationConfig,
@@ -626,7 +674,7 @@ def save_outliers(config: PlotCrossValidationConfig,
                                                .describe()[metric_type][stats_columns]
                                                .sort_values(stats_columns, ascending=False))
                         f.write(outliers_summary)
-                        f.write(f"\n\n")
+                        f.write("\n\n")
                         f.write(create_portal_query_for_outliers(outliers))
                     else:
                         f.write("No outliers found")
@@ -675,11 +723,12 @@ def may_write_lines_to_file(lines: List[str], path: Path) -> None:
     :param lines: list of lines to write (without final newlines)
     :param path: csv file path to write to
     """
-    if len(lines) == 0:
-        logging.warning(f"Nothing to write to {path}")
-    else:
-        logging.info(f"Writing {len(lines)} lines to {path}")
-        with path.open('w') as out:
+    with path.open('w') as out:
+        if len(lines) == 0:
+            logging.warning(f"Writing explanatory message to {path}")
+            out.write("There were not enough data points for any statistically meaningful comparisons.")
+        else:
+            logging.info(f"Writing {len(lines)} lines to {path}")
             out.write("\n".join(lines) + "\n")
 
 
@@ -698,7 +747,7 @@ def run_statistical_tests_on_file(root_folder: Path, full_csv_file: Path, option
     against = None if options.compare_all_against_all else focus_splits
     config = WilcoxonTestConfig(csv_file=str(full_csv_file), with_scatterplots=options.create_plots, against=against,
                                 subset=options.evaluation_set_name, exclude='')
-    wilcoxon_lines, plots = wilcoxon_signed_rank_test(config)
+    wilcoxon_lines, plots = wilcoxon_signed_rank_test(config, name_shortener=options.get_short_name)
     write_to_scatterplot_directory(root_folder, plots)
     may_write_lines_to_file(wilcoxon_lines, root_folder / WILCOXON_RESULTS_FILE)
     mann_whitney_lines = mann_whitney.compare_scores_across_institutions(
@@ -772,6 +821,13 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
                 break
         if dataset_csv:
             shutil.copy(str(dataset_csv), str(root_folder))
+    name_dct = config_and_files.config.short_names
+    if name_dct:
+        pairs = [(val, key) for key, val in name_dct.items()]
+        with Path(root_folder / RUN_DICTIONARY_NAME).open("w") as out:
+            max_len = max(len(short_name) for short_name, _ in pairs)
+            for short_name, long_name in sorted(pairs):
+                out.write(f"{short_name:{max_len}s}    {long_name}\n")
 
 
 def get_metrics_columns(df: pd.DataFrame) -> Set[str]:

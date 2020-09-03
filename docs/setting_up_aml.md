@@ -32,8 +32,18 @@ desired `Workspace Edition`. Finish by clicking on `Review + Create` and then `C
 the Azure documentation [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-manage-workspace).
 
 
-### Step 2: Register your application to create a Service Principal Authentication object. 
-You will need to register your application in Azure to be able to create a Service Principal Authentication object. This
+### Step 2 (Optional): Register your application to create a Service Principal Authentication object.
+
+Training runs in AzureML can be submitted either under the name of user who started it, or as a generic identity called
+"Service Principal". Using the generic identity is essential if you would like to submit training runs from code,
+for example from within an Azure pipeline. But even if you are not planning to submit training runs from code, you
+may choose to use a Service Principal because it can make access management easier.
+
+If you would like the training runs to have the identity of the user who started it, there's nothing special to do - 
+when you first try to submit a job, you will be prompted to authenticate in the browser.
+
+If you would like to use Service Principal, you will need to create it in Azure first, and then store its password
+in a file inside your repository. This
 will allow you to access all resources linked to your newly created Azure ML workspace with a single secret key after you
 have finished the setup. You can find more information about application registrations and service principal objects
 [here](https://docs.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals).
@@ -50,8 +60,12 @@ To register the application:
  1. You need to create an application secret to access the resources managed by this service principal. 
  On the pane on the left find `Certificates & Secrets`. Click on `+ New client secret` (bottom of the page), note down your token. 
  Warning: this token will only appear once at the creation of the token, you will not be able to re-display it again later. 
- Copy this token to your password manager or keep it in a secure location where you will be able to retrieve it for the
- next steps.
+ 1. Save your application secret in your local machine:
+     1. You can either set the environment variable `APPLICATION_KEY` to the application secret you just generated.
+     1. Or you can create a file called 'InnerEyeTestVariables.txt' in the root directory of your git repository. 
+     That file should contain a single line of the form `APPLICATION_KEY=TheApplicationSecretYouJustCreated`
+ 1. You will need to share this application secret with your colleagues if they also want to use Service Principal
+ authentication. They will also either need to set the environment variable, or create the text file with the secret.
  
 Now that your service principal is created, you need to give permission for it to access and manage your AML workspace. 
 To do so:
@@ -103,8 +117,16 @@ In order to be able to run experiments you will need to create a compute cluster
 to do so follow the steps described [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-set-up-training-targets#set-up-in-azure-machine-learning-studio).
 Note down the name of your compute target.
 
-We recommend using [low priority](https://docs.microsoft.com/en-us/azure/batch/batch-low-pri-vms) clusters, they only cost a fraction of the dedicated VMs.
-As a reference, the Prostate model and the Head and Neck model require VMs with 4 GPUs with at least 16GB of memory per GPU, for example Standard_ND24s, Standard_NC24s_v3 or Standard_NC24s_v2.
+We recommend using [low priority](https://docs.microsoft.com/en-us/azure/batch/batch-low-pri-vms) clusters, since 
+they only cost a fraction of the dedicated VMs.
+As a reference, the Prostate model and the Head and Neck model require VMs with 4 GPUs with at least 16GB of memory
+per GPU, for example `Standard_ND24s`, `Standard_NC24s_v3` or `Standard_NC24s_v2`.
+
+You need to ensure that your Azure subscription actually has a quota for accessing GPU machines. To see your quota,
+find your newly created AzureML workspace in the [Azure portal](http://portal.azure.com), using the search bar at the
+top. Then choose "Usage and Quotas" in the left hand navigation. You should see your actual core usage and your quota,
+like "0/100" meaning that you are using 0 nodes out of a quota of 100. If you don't see a quota for both dedicated AND
+low priority nodes, click on the "Request Quota" button at the bottom of the page to create a ticket with Azure support.
 
 ### Step 6: Create a datastore
 You will need to create a datastore in AzureML. Go to the `Datastores` tab in AML, and then click `+ New datastore`. 
@@ -121,7 +143,8 @@ resource. Copy and paste the GUID to the `tenant_id` field of the `.yml` file. M
 2. You then need to retrieve your subscription id. In the search bar look for `Subscriptions`. Then in the subscriptions list,
 look for the subscription you are using for your workspace. Copy the value of the `Subscription ID` in the corresponding 
 field of [train_variables.yml](/InnerEye/train_variables.yml).
-3. Copy the application ID of your service principal that you retrieved earlier (cf. Step 2.4) to the `application_id` field.
+3. Copy the application ID of your Service Principal that you retrieved earlier (cf. Step 2.4) to the `application_id` field.
+If you did not set up a Service Principal, fill that with an empty string or leave out altogether.
 4. In the `storage_account:` field copy the ID of the AML storage account (retrieved in Step 3).
 5. Similarly in the `datasets_storage_account:` field copy the ID of the dataset storage account (retrieved in Step 4). If
 you chose not to create a separate account for your dataset in Step 4, then specify the same value as in the 
@@ -137,11 +160,6 @@ To securely store your keys for your two storage accounts, we recommend using
 To only thing you need to do is to add your storage accounts keys in this key vault. 
 To make it easier for you we have created a script called [write_secrets.py](/InnerEye/Scripts/write_secrets.py). 
 You simply need to run this script with the correct arguments and it will update all secrets for you.
-
-### Step 8: Save your application secret in your local machine
-Last but not least, in order to be able to authenticate to your AML workspace via the Service Principal 
-that you created earlier, you need to set the environment variable `APPLICATION_KEY` to the value of
-the application secret that you retrieved in Step 2.5.
 
 You should be all set now! 
 

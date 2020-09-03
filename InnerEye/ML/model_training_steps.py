@@ -30,11 +30,12 @@ from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import AzureAndTensorboardLogger, AzureMLLogger, compute_scalar_metrics
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.models.losses.cross_entropy import CrossEntropyLoss
+from InnerEye.ML.models.losses.ece import ECELoss
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion, DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass, single_optimizer_step
-from InnerEye.ML.scalar_config import AggregationType, ScalarLoss, ScalarModelBase
+from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import dataset_util, metrics_util
 from InnerEye.ML.utils.dataset_util import DatasetExample
@@ -42,6 +43,8 @@ from InnerEye.ML.utils.image_util import NumpyOrTorch
 from InnerEye.ML.utils.metrics_util import SummaryWriters
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
 from InnerEye.ML.utils.supervised_criterion import BinaryCrossEntropyWithLogitsLoss, SupervisedLearningCriterion
+from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
+from InnerEye.ML.utils.training_util import ModelForwardAndBackwardsOutputs, gather_tensor
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from InnerEye.ML.visualizers.regression_visualization import plot_variation_error_prediction
 
@@ -67,6 +70,7 @@ class TrainValidateParameters(param.Parameterized, Generic[M]):
     summary_writers: SummaryWriters = param.ClassSelector(class_=SummaryWriters, instantiate=False)
     in_training_mode: bool = param.Boolean(default=True)
     dataframe_loggers: MetricsDataframeLoggers = param.ClassSelector(class_=MetricsDataframeLoggers, instantiate=False)
+    save_metrics: bool = param.Boolean(default=True)
 
 
 class ModelTrainingStepsBase(Generic[C, M], ABC):
@@ -104,7 +108,8 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         return self.train_val_params.in_training_mode
 
     @abstractmethod
-    def forward_and_backward_minibatch(self, sample: Dict[str, Any], batch_index: int, epoch: int) -> float:
+    def forward_and_backward_minibatch(self, sample: Dict[str, Any],
+                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and returns the loss.
         :param sample: The batched sample on which the model should be trained.
@@ -184,7 +189,7 @@ class ScalarModelInputsAndLabels(Generic[E, T]):
 
 
 def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
-                                       model: DeviceAwareModule,
+                                       model: torch.nn.Module,
                                        sample: Dict[str, Any]) -> ScalarModelInputsAndLabels:
     """
     For a model that predicts scalars, gets the model input tensors from a sample returned by the data loader.
@@ -198,7 +203,7 @@ def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
         model = model.get_module()
 
     if isinstance(model_config, SequenceModelBase):
-        sequence_model: DeviceAwareModule[List[ClassificationItemSequence], torch.Tensor] = model
+        sequence_model: DeviceAwareModule[List[ClassificationItemSequence], torch.Tensor] = model  # type: ignore
         sequences = ClassificationItemSequence.from_minibatch(sample)
         subject_ids = [x.id for x in sequences]
         labels = ClassificationItemSequence.create_labels_tensor_for_minibatch(
@@ -214,7 +219,7 @@ def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
             data_item=sequences
         )
     else:
-        scalar_model: DeviceAwareModule[ScalarItem, torch.Tensor] = model
+        scalar_model: DeviceAwareModule[ScalarItem, torch.Tensor] = model  # type: ignore
         scalar_item = ScalarItem.from_dict(sample)
         subject_ids = [str(x.id) for x in scalar_item.metadata]  # type: ignore
         model_inputs = scalar_model.get_input_tensors(scalar_item)
@@ -247,16 +252,12 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         super().__init__(config, train_val_params)
         self.metrics = create_metrics_dict_from_config(config)
         self.compute_mean_teacher_model = self.model_config.compute_mean_teacher_model
+
         if self.model_config.compute_grad_cam:
-            if not self.model_config.aggregation_type == AggregationType.Average:
-                self.model_config.max_batch_grad_cam = 0
-                logging.warning("GradCam computation is not implemented for this aggregation type."
-                                "Ignoring computation.")
-            else:
-                model_to_evaluate = self.train_val_params.mean_teacher_model if \
-                    self.model_config.compute_mean_teacher_model else self.train_val_params.model
-                self.guided_grad_cam = VisualizationMaps(model_to_evaluate, self.model_config)
-                self.model_config.visualization_folder.mkdir(exist_ok=True)
+            model_to_evaluate = self.train_val_params.mean_teacher_model if \
+                self.model_config.compute_mean_teacher_model else self.train_val_params.model
+            self.guided_grad_cam = VisualizationMaps(model_to_evaluate, self.model_config)
+            self.model_config.visualization_folder.mkdir(exist_ok=True)
 
     def create_loss_function(self) -> torch.nn.Module:
         """
@@ -287,32 +288,29 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             raise ValueError(f"Unable to convert tensor {labels} to data type {self.label_tensor_dtype}: {str(ex)}")
         return self.model_config.get_gpu_tensor_if_possible(labels)
 
-    def get_logits_and_outputs(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
-            -> Tuple[torch.Tensor, torch.Tensor]:
+    def get_logits_and_posteriors(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
+            -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Returns a Tuple containing the logits and the final model output. Note that the logits might be
-        distributed over multiple GPU if the model is an instance of DataParallel. In this case, the model outputs on
-        the other hand will be gathered to GPU_0.
+        distributed over multiple GPU if the model is an instance of DataParallel. In this case,
+        the gathered_logits and posteriors will be gathered to GPU_0.
 
         :param model_inputs: input to evaluate the model on
-        :param use_mean_teacher_model: If True, logits and outputs are produced for the mean teacher model. Else
-        logits and outputs are produced for the standard (student) model.
-        :return: Tuple (logits, model_output).
+        :param use_mean_teacher_model: If True, logits and posteriors are produced for the mean teacher model. Else
+        logits and posteriors are produced for the standard (student) model.
+        :return: Tuple (logits, gathered_logits, posteriors).
         """
         if use_mean_teacher_model:
             logits = self.train_val_params.mean_teacher_model(*model_inputs)
         else:
             logits = self.train_val_params.model(*model_inputs)
-        if isinstance(logits, list):
-            # When using multiple GPUs, logits is a list of tensors. Gather will concatenate them
-            # across the first dimension, and move them to GPU0.
-            model_output = torch.nn.parallel.gather(logits, target_device=0)
-        else:
-            model_output = logits
-        model_output = self.model_config.get_post_loss_logits_normalization_function()(model_output)
-        return logits, model_output
 
-    def forward_and_backward_minibatch(self, sample: Dict[str, Any], batch_index: int, epoch: int) -> float:
+        gathered_logits = gather_tensor(logits)
+        posteriors = self.model_config.get_post_loss_logits_normalization_function()(gathered_logits)
+        return logits, gathered_logits, posteriors
+
+    def forward_and_backward_minibatch(self, sample: Dict[str, Any],
+                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and computes all metrics.
         :param sample: The batched sample on which the model should be trained.
@@ -326,11 +324,13 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
 
         if self.in_training_mode:
             model.train()
-            logits, model_output = self.get_logits_and_outputs(*model_inputs_and_labels.model_inputs)
+            logits, gathered_logits, posteriors = \
+                self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
         else:
             model.eval()
             with torch.no_grad():
-                logits, model_output = self.get_logits_and_outputs(*model_inputs_and_labels.model_inputs)
+                logits, gathered_logits, posteriors = \
+                    self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
             model.train()
 
         label_gpu = self.get_label_tensor(model_inputs_and_labels.labels)
@@ -346,21 +346,28 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             # instead of the output of the student model.
             mean_teacher_model.eval()
             with torch.no_grad():
-                _, model_output = self.get_logits_and_outputs(*model_inputs_and_labels.model_inputs,
-                                                              use_mean_teacher_model=True)
+                logits, gathered_logits, posteriors = self.get_logits_and_posteriors(
+                    *model_inputs_and_labels.model_inputs,
+                    use_mean_teacher_model=True)
 
-        if self._should_save_grad_cam_output(epoch=epoch, batch_index=batch_index):
-            self.save_grad_cam(epoch, model_inputs_and_labels.subject_ids,
-                               model_inputs_and_labels.data_item,
-                               model_inputs_and_labels.model_inputs,
-                               label_gpu)
+        if self.train_val_params.save_metrics:
+            if self._should_save_grad_cam_output(epoch=epoch, batch_index=batch_index):
+                self.save_grad_cam(epoch, model_inputs_and_labels.subject_ids,
+                                   model_inputs_and_labels.data_item,
+                                   model_inputs_and_labels.model_inputs,
+                                   label_gpu)
 
-        self.metrics.add_metric(MetricType.LOSS, loss.item())
-        self.update_metrics(model_inputs_and_labels.subject_ids, model_output, label_gpu)
-        logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
-        minibatch_time = time.time() - start_time
-        self.metrics.add_metric(MetricType.SECONDS_PER_BATCH, minibatch_time)
-        return loss.item()
+            self.metrics.add_metric(MetricType.LOSS, loss.item())
+            self.update_metrics(model_inputs_and_labels.subject_ids, posteriors, label_gpu)
+            logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
+            minibatch_time = time.time() - start_time
+            self.metrics.add_metric(MetricType.SECONDS_PER_BATCH, minibatch_time)
+
+        return ModelForwardAndBackwardsOutputs(
+            loss=loss.item(),
+            logits=gathered_logits.detach().cpu(),
+            labels=model_inputs_and_labels.labels
+        )
 
     def get_epoch_results_and_store(self, epoch_time_seconds: float) -> MetricsDict:
         """
@@ -423,17 +430,6 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             gradcam_dir=self.model_config.visualization_folder
         )
 
-    def _should_save_grad_cam_output(self, epoch: int, batch_index: int) -> bool:
-        return self.model_config.is_classification_model \
-               and (not self.in_training_mode) \
-               and self.model_config.should_save_epoch(epoch) \
-               and (batch_index < self.model_config.max_batch_grad_cam)
-
-    def _should_save_regression_error_plot(self, epoch: int) -> bool:
-        return self.model_config.is_regression_model \
-               and (not self.in_training_mode) \
-               and self.model_config.should_save_epoch(epoch)
-
     def update_mean_teacher_parameters(self) -> None:
         """
         Updates the mean teacher model parameters as per the update formula
@@ -448,6 +444,17 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         for mean_teacher_param, student_param in zip(mean_teacher_model.parameters(), model.parameters()):
             mean_teacher_param.data = self.model_config.mean_teacher_alpha * mean_teacher_param.data \
                                       + (1 - self.model_config.mean_teacher_alpha) * student_param.data
+
+    def _should_save_grad_cam_output(self, epoch: int, batch_index: int) -> bool:
+        return self.model_config.is_classification_model \
+               and (not self.in_training_mode) \
+               and self.model_config.should_save_epoch(epoch) \
+               and (batch_index < self.model_config.max_batch_grad_cam)
+
+    def _should_save_regression_error_plot(self, epoch: int) -> bool:
+        return self.model_config.is_regression_model \
+               and (not self.in_training_mode) \
+               and self.model_config.should_save_epoch(epoch)
 
 
 class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[SequenceModelBase]):
@@ -478,6 +485,40 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
             criterion = self.criterion
 
         return criterion(masked_model_outputs_and_labels.model_outputs, masked_model_outputs_and_labels.labels)
+
+    def learn_temperature_scale_parameter(self, logits: torch.Tensor, labels: torch.Tensor) -> float:
+        """
+        Uses the provided logits and labels to learn a temperature scale parameter.
+        :param logits: Logits to use in order to learn a temperature scale parameter
+        :param labels: Labels to use in order to learn a temperature scale parameter
+        :return Optimal temperature value
+        """
+        _model: Union[DeviceAwareModule, DataParallelModel, ModelWithTemperature] = self.train_val_params.model
+        assert self.model_config.temperature_scaling_config is not None
+        ece_criterion: ECELoss = ECELoss(activation=self.model_config.get_post_loss_logits_normalization_function(),
+                                         n_bins=self.model_config.temperature_scaling_config.ece_num_bins)
+
+        if self.model_config.use_gpu:
+            ece_criterion = ece_criterion.cuda()
+        if isinstance(_model, DataParallelModel):
+            _model = _model.get_module()
+
+        def _forward_criterion(_logits: torch.Tensor, _labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+            loss = self.forward_criterion(_logits, _labels)
+            masked_model_outputs_and_labels = get_masked_model_outputs_and_labels(_logits, _labels)
+            assert masked_model_outputs_and_labels is not None
+            ece = ece_criterion(masked_model_outputs_and_labels.model_outputs.data.unsqueeze(dim=0),
+                                masked_model_outputs_and_labels.labels.data.unsqueeze(dim=0))
+            return loss, ece
+
+        assert isinstance(_model, ModelWithTemperature)
+        return _model.set_temperature(
+            logits=logits,
+            labels=labels,
+            criterion_fn=_forward_criterion,
+            use_gpu=self.model_config.use_gpu,
+            logger=self.azure_and_tensorboard_logger
+        )
 
 
 class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModelBase, DeviceAwareModule]):
@@ -552,7 +593,8 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
         else:
             raise NotImplementedError("Loss type {} is not implemented".format(loss_type))
 
-    def forward_and_backward_minibatch(self, sample: Dict[str, Any], batch_index: int, epoch: int) -> float:
+    def forward_and_backward_minibatch(self, sample: Dict[str, Any],
+                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and computes all metrics.
         :param sample: The batched sample on which the model should be trained.
@@ -597,7 +639,12 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
             if batch_index == self.example_to_save and self.model_config.store_dataset_sample:
                 _store_dataset_sample(self.model_config, self.train_val_params.epoch, forward_pass_result,
                                       cropped_sample)
-        return loss
+
+        return ModelForwardAndBackwardsOutputs(
+            loss=loss,
+            logits=forward_pass_result.posteriors,
+            labels=forward_pass_result.segmentations
+        )
 
     def get_epoch_results_and_store(self, epoch_time_seconds: float) -> MetricsDict:
         """

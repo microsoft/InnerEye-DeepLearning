@@ -16,7 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import param
 from azureml.core import Keyvault, Run, Workspace
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
-from azureml.train.estimator import Estimator
+from azureml.train.estimator import MMLBaseEstimator
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from InnerEye.Azure.azure_util import get_results_blob_path, get_run_id, \
@@ -218,10 +218,10 @@ class AzureConfig(GenericConfig):
         :return: Destination root to the downloaded files
         """
         if self.storage_account is None:
-            raise ValueError(f'self.storage_account cannot be None')
+            raise ValueError("self.storage_account cannot be None")
         key = self.get_storage_account_key()
         if key is None:
-            raise ValueError(f'self.storage_account_key cannot be None')
+            raise ValueError("self.storage_account_key cannot be None")
         return download_blobs(
             account=self.storage_account,
             account_key=key,
@@ -243,7 +243,7 @@ class SourceConfig:
     entry_script: str
     conda_dependencies_files: List[Path]
     script_params: Optional[Dict[str, str]] = None
-    hyperdrive_config_func: Optional[Callable[[Estimator], HyperDriveConfig]] = None
+    hyperdrive_config_func: Optional[Callable[[MMLBaseEstimator], HyperDriveConfig]] = None
     upload_timeout_seconds: int = 36000
     environment_variables: Optional[Dict[str, str]] = None
 
