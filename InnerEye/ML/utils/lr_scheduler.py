@@ -125,7 +125,8 @@ class SchedulerWithWarmUp(_LRScheduler):
 
     def state_dict(self) -> Dict:
         """
-        Return a dictionary with all the values in this objects __dict__.
+        Added for completeness, since base class _LRScheduler implements this.
+        Returns a dictionary with all the values in this objects __dict__.
         It creates the dictionary entry for variables "_scheduler" and "_warmup_scheduler" separately, by calling
         state_dict for these variables.
         The state dict does not include the state of the optimizer.
@@ -139,6 +140,7 @@ class SchedulerWithWarmUp(_LRScheduler):
 
     def load_state_dict(self, state_dict: Dict) -> None:
         """
+        Added for completeness, since base class _LRScheduler implements this.
         Initializes the current object with values from state_dict.
         Initializes variables "_scheduler" and "_warmup_scheduler" separately, by calling load_state_dict
         for these variables.
