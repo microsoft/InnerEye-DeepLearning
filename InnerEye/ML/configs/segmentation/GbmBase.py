@@ -47,7 +47,7 @@ class GbmBase(SegmentationModelBase):
             start_epoch=0,
             num_epochs=200,
             l_rate=1e-3,
-            l_rate_polynomial_scheduler_gamma=0.9,
+            l_rate_polynomial_gamma=0.9,
             optimizer_type=OptimizerType.Adam,
             opt_eps=1e-4,
             adam_betas=(0.9, 0.999),

@@ -50,7 +50,7 @@ class DummyModel(SegmentationModelBase):
             start_epoch=0,
             num_epochs=2,
             l_rate=1e-3,
-            l_rate_polynomial_scheduler_gamma=0.9,
+            l_rate_polynomial_gamma=0.9,
             optimizer_type=OptimizerType.RMSprop,
             opt_eps=1e-4,
             rms_alpha=0.9,

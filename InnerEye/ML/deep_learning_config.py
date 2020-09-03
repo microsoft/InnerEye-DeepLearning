@@ -201,26 +201,26 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                             instantiate=False,
                                                             doc="Learning rate decay method (Cosine, Polynomial, "
                                                             "Step, MultiStep or Exponential)")
-    l_rate_exponential_scheduler_gamma: float = param.Number(0.9, doc="Controls the rate of decay for the Exponential "
-                                                                       "LR scheduler.")
-    l_rate_step_scheduler_gamma: float = param.Number(0.1, doc="Controls the rate of decay for the "
-                                                                "Step LR scheduler.")
-    l_rate_step_scheduler_step_size: int = param.Integer(50, bounds=(0, None),
-                                                         doc="The step size for Step LR scheduler")
-    l_rate_multi_step_scheduler_gamma: float = param.Number(0.1, doc="Controls the rate of decay for the "
-                                                                      "MultiStep LR scheduler.")
-    l_rate_multi_step_scheduler_milestones: Optional[List[int]] = param.List(None, bounds=(1, None),
-                                                                             allow_None=True, class_=int,
-                                                                             doc="The milestones for MultiStep decay.")
-    l_rate_polynomial_scheduler_gamma: float = param.Number(1e-4, doc="Controls the rate of decay for the "
-                                                                "Polynomial LR scheduler.")
-    l_rate_scheduler_warmup_epochs: int = param.Integer(0, bounds=(0, None),
-                                                        doc="Number of warmup epochs (linear warmup) before the "
-                                                            "scheduler starts decaying the learning rate. "
-                                                            "For example, if you are using MultiStepLR with "
-                                                            "milestones [50, 100, 200] and warmup epochs = 100, warmup "
-                                                            "will last for 100 epochs and the first decay of LR "
-                                                            "will happen on epoch 150")
+    l_rate_exponential_gamma: float = param.Number(0.9, doc="Controls the rate of decay for the Exponential "
+                                                            "LR scheduler.")
+    l_rate_step_gamma: float = param.Number(0.1, doc="Controls the rate of decay for the "
+                                                     "Step LR scheduler.")
+    l_rate_step_step_size: int = param.Integer(50, bounds=(0, None),
+                                               doc="The step size for Step LR scheduler")
+    l_rate_multi_step_gamma: float = param.Number(0.1, doc="Controls the rate of decay for the "
+                                                           "MultiStep LR scheduler.")
+    l_rate_multi_step_milestones: Optional[List[int]] = param.List(None, bounds=(1, None),
+                                                                   allow_None=True, class_=int,
+                                                                   doc="The milestones for MultiStep decay.")
+    l_rate_polynomial_gamma: float = param.Number(1e-4, doc="Controls the rate of decay for the "
+                                                            "Polynomial LR scheduler.")
+    l_rate_warmup_epochs: int = param.Integer(0, bounds=(0, None),
+                                              doc="Number of warmup epochs (linear warmup) before the "
+                                                  "scheduler starts decaying the learning rate. "
+                                                  "For example, if you are using MultiStepLR with "
+                                                  "milestones [50, 100, 200] and warmup epochs = 100, warmup "
+                                                  "will last for 100 epochs and the first decay of LR "
+                                                  "will happen on epoch 150")
     optimizer_type: OptimizerType = param.ClassSelector(default=OptimizerType.Adam, class_=OptimizerType,
                                                         instantiate=False, doc="The optimizer_type to use")
     opt_eps: float = param.Number(1e-4, doc="The epsilon parameter of RMSprop or Adam")
@@ -373,12 +373,12 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                              f"and cross_validation_split_index={self.cross_validation_split_index}")
 
         if self.l_rate_scheduler == LRSchedulerType.MultiStep:
-            if not self.l_rate_multi_step_scheduler_milestones:
-                raise ValueError("Must specify l_rate_multi_step_scheduler_milestones to use LR scheduler MultiStep")
-            if sorted(set(self.l_rate_multi_step_scheduler_milestones)) != self.l_rate_multi_step_scheduler_milestones:
-                raise ValueError("l_rate_multi_step_scheduler_milestones must be a strictly increasing list")
-            if self.l_rate_multi_step_scheduler_milestones[0] <= 0:
-                raise ValueError("l_rate_multi_step_scheduler_milestones cannot be negative or 0.")
+            if not self.l_rate_multi_step_milestones:
+                raise ValueError("Must specify l_rate_multi_step_milestones to use LR scheduler MultiStep")
+            if sorted(set(self.l_rate_multi_step_milestones)) != self.l_rate_multi_step_milestones:
+                raise ValueError("l_rate_multi_step_milestones must be a strictly increasing list")
+            if self.l_rate_multi_step_milestones[0] <= 0:
+                raise ValueError("l_rate_multi_step_milestones cannot be negative or 0.")
 
     @property
     def model_name(self) -> str:

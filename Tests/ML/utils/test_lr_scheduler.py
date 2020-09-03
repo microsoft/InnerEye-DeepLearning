@@ -42,12 +42,12 @@ def test_min_and_initial_lr(lr_scheduler_type: LRSchedulerType) -> None:
     """
     config = DummyModel(num_epochs=3, l_rate=1e-3, min_l_rate=0.0009,
                         l_rate_scheduler=lr_scheduler_type,
-                        l_rate_exponential_scheduler_gamma=0.9,
-                        l_rate_step_scheduler_gamma=0.9,
-                        l_rate_step_scheduler_step_size=1,
-                        l_rate_multi_step_scheduler_gamma=0.9,
-                        l_rate_multi_step_scheduler_milestones=[1, 2],
-                        l_rate_polynomial_scheduler_gamma=0.9)
+                        l_rate_exponential_gamma=0.9,
+                        l_rate_step_gamma=0.9,
+                        l_rate_step_step_size=1,
+                        l_rate_multi_step_gamma=0.9,
+                        l_rate_multi_step_milestones=[1, 2],
+                        l_rate_polynomial_gamma=0.9)
     # create lr scheduler
     lr_scheduler, _ = _create_lr_scheduler_and_optimizer(config)
     assert lr_scheduler.get_last_lr()[0] == config.l_rate
@@ -62,12 +62,12 @@ def test_lr_monotonically_decreasing_function(lr_scheduler_type: LRSchedulerType
     """
     config = DummyModel(num_epochs=10,
                         l_rate_scheduler=lr_scheduler_type,
-                        l_rate_exponential_scheduler_gamma=0.9,
-                        l_rate_step_scheduler_gamma=0.9,
-                        l_rate_step_scheduler_step_size=1,
-                        l_rate_multi_step_scheduler_gamma=0.9,
-                        l_rate_multi_step_scheduler_milestones=[3, 5, 7],
-                        l_rate_polynomial_scheduler_gamma=0.9)
+                        l_rate_exponential_gamma=0.9,
+                        l_rate_step_gamma=0.9,
+                        l_rate_step_step_size=1,
+                        l_rate_multi_step_gamma=0.9,
+                        l_rate_multi_step_milestones=[3, 5, 7],
+                        l_rate_polynomial_gamma=0.9)
 
     def strictly_decreasing(L: List) -> bool:
         return all(x >= y for x, y in zip(L, L[1:]))
@@ -88,33 +88,33 @@ def test_warmup_against_original_schedule(lr_scheduler_type: LRSchedulerType, wa
     """
     Tests if LR scheduler with warmup matches the Pytorch implementation after the warmup stage is completed.
     """
-    config = DummyModel(num_epochs=10, l_rate_scheduler_warmup_epochs=warmup_epochs,
+    config = DummyModel(num_epochs=10, l_rate_warmup_epochs=warmup_epochs,
                         l_rate_scheduler=lr_scheduler_type,
-                        l_rate_exponential_scheduler_gamma=0.9,
-                        l_rate_step_scheduler_gamma=0.9,
-                        l_rate_step_scheduler_step_size=2,
-                        l_rate_multi_step_scheduler_gamma=0.9,
-                        l_rate_multi_step_scheduler_milestones=[3, 5, 7],
-                        l_rate_polynomial_scheduler_gamma=0.9)
+                        l_rate_exponential_gamma=0.9,
+                        l_rate_step_gamma=0.9,
+                        l_rate_step_step_size=2,
+                        l_rate_multi_step_gamma=0.9,
+                        l_rate_multi_step_milestones=[3, 5, 7],
+                        l_rate_polynomial_gamma=0.9)
     # create lr scheduler
     lr_scheduler, optimizer = _create_lr_scheduler_and_optimizer(config)
 
     original_scheduler: Optional[_LRScheduler] = None
     if lr_scheduler_type == LRSchedulerType.Exponential:
-        original_scheduler = ExponentialLR(optimizer=optimizer, gamma=config.l_rate_exponential_scheduler_gamma)
+        original_scheduler = ExponentialLR(optimizer=optimizer, gamma=config.l_rate_exponential_gamma)
     elif lr_scheduler_type == LRSchedulerType.Step:
-        original_scheduler = StepLR(optimizer=optimizer, step_size=config.l_rate_step_scheduler_step_size,
-                                    gamma=config.l_rate_step_scheduler_gamma)
+        original_scheduler = StepLR(optimizer=optimizer, step_size=config.l_rate_step_step_size,
+                                    gamma=config.l_rate_step_gamma)
     elif lr_scheduler_type == LRSchedulerType.Cosine:
         original_scheduler = CosineAnnealingLR(optimizer, T_max=config.num_epochs, eta_min=config.min_l_rate)
     elif lr_scheduler_type == LRSchedulerType.MultiStep:
-        assert config.l_rate_multi_step_scheduler_milestones is not None  # for mypy
-        original_scheduler = MultiStepLR(optimizer=optimizer, milestones=config.l_rate_multi_step_scheduler_milestones,
-                                         gamma=config.l_rate_multi_step_scheduler_gamma)
+        assert config.l_rate_multi_step_milestones is not None  # for mypy
+        original_scheduler = MultiStepLR(optimizer=optimizer, milestones=config.l_rate_multi_step_milestones,
+                                         gamma=config.l_rate_multi_step_gamma)
     elif lr_scheduler_type == LRSchedulerType.Polynomial:
         x = config.min_l_rate / config.l_rate
         polynomial_decay: Any = lambda epoch: (1 - x) * (
-                (1. - float(epoch) / config.num_epochs) ** config.l_rate_polynomial_scheduler_gamma) + x
+                (1. - float(epoch) / config.num_epochs) ** config.l_rate_polynomial_gamma) + x
         original_scheduler = LambdaLR(optimizer=optimizer, lr_lambda=polynomial_decay)
     else:
         raise ValueError("Scheduler has not been added to this test.")
@@ -158,14 +158,14 @@ def test_resume_from_saved_state(lr_scheduler_type: LRSchedulerType,
     """
     Tests if LR scheduler when restarted from an epoch continues as expected.
     """
-    config = DummyModel(num_epochs=10, l_rate_scheduler_warmup_epochs=warmup_epochs,
+    config = DummyModel(num_epochs=10, l_rate_warmup_epochs=warmup_epochs,
                         l_rate_scheduler=lr_scheduler_type,
-                        l_rate_exponential_scheduler_gamma=0.9,
-                        l_rate_step_scheduler_gamma=0.9,
-                        l_rate_step_scheduler_step_size=2,
-                        l_rate_multi_step_scheduler_gamma=0.9,
-                        l_rate_multi_step_scheduler_milestones=[3, 5, 7],
-                        l_rate_polynomial_scheduler_gamma=0.9)
+                        l_rate_exponential_gamma=0.9,
+                        l_rate_step_gamma=0.9,
+                        l_rate_step_step_size=2,
+                        l_rate_multi_step_gamma=0.9,
+                        l_rate_multi_step_milestones=[3, 5, 7],
+                        l_rate_polynomial_gamma=0.9)
     # create two lr schedulers
     lr_scheduler_1, optimizer_1 = _create_lr_scheduler_and_optimizer(config)
     lr_scheduler_2, optimizer_2 = _create_lr_scheduler_and_optimizer(config)
@@ -215,10 +215,10 @@ def test_multistep_lr(warmup_epochs: int, expected_lrs: np.ndarray) -> None:
 
     num_epochs = 10
     config = DummyModel(l_rate_scheduler=LRSchedulerType.MultiStep,
-                        l_rate_multi_step_scheduler_gamma=0.1,
+                        l_rate_multi_step_gamma=0.1,
                         num_epochs=num_epochs,
-                        l_rate_multi_step_scheduler_milestones=[2, 5, 7],
-                        l_rate_scheduler_warmup_epochs=warmup_epochs)
+                        l_rate_multi_step_milestones=[2, 5, 7],
+                        l_rate_warmup_epochs=warmup_epochs)
 
     # create lr scheduler
     lr_scheduler, optimizer = _create_lr_scheduler_and_optimizer(config)

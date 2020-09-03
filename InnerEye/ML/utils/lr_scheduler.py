@@ -116,32 +116,32 @@ class LRScheduler:
         # last_epoch = args.start_epoch - 1 if args.should_load_checkpoint_for_training() else -1
 
         if args.l_rate_scheduler == LRSchedulerType.Exponential:
-            self._scheduler = ExponentialLRWithWarmUp(warmup_epochs=args.l_rate_scheduler_warmup_epochs,
+            self._scheduler = ExponentialLRWithWarmUp(warmup_epochs=args.l_rate_warmup_epochs,
                                                       optimizer=optimizer,
-                                                      gamma=args.l_rate_exponential_scheduler_gamma,
+                                                      gamma=args.l_rate_exponential_gamma,
                                                       last_epoch=last_epoch)
         elif args.l_rate_scheduler == LRSchedulerType.Step:
-            self._scheduler = StepLRWithWarmUp(warmup_epochs=args.l_rate_scheduler_warmup_epochs,
+            self._scheduler = StepLRWithWarmUp(warmup_epochs=args.l_rate_warmup_epochs,
                                                optimizer=optimizer,
-                                               step_size=args.l_rate_step_scheduler_step_size,
-                                               gamma=args.l_rate_step_scheduler_gamma,
+                                               step_size=args.l_rate_step_step_size,
+                                               gamma=args.l_rate_step_gamma,
                                                last_epoch=last_epoch)
         elif args.l_rate_scheduler == LRSchedulerType.MultiStep:
-            self._scheduler = MultiStepLRWithWarmUp(warmup_epochs=args.l_rate_scheduler_warmup_epochs,
+            self._scheduler = MultiStepLRWithWarmUp(warmup_epochs=args.l_rate_warmup_epochs,
                                                     optimizer=optimizer,
-                                                    milestones=args.l_rate_multi_step_scheduler_milestones,
-                                                    gamma=args.l_rate_multi_step_scheduler_gamma,
+                                                    milestones=args.l_rate_multi_step_milestones,
+                                                    gamma=args.l_rate_multi_step_gamma,
                                                     last_epoch=last_epoch)
         elif args.l_rate_scheduler == LRSchedulerType.Polynomial:
             x = args.min_l_rate / args.l_rate
             polynomial_decay: Any = lambda epoch: (1 - x) * (
-                    (1. - float(epoch) / self._max_epochs) ** args.l_rate_polynomial_scheduler_gamma) + x
-            self._scheduler = LambdaLRWithWarmUp(warmup_epochs=args.l_rate_scheduler_warmup_epochs,
+                    (1. - float(epoch) / self._max_epochs) ** args.l_rate_polynomial_gamma) + x
+            self._scheduler = LambdaLRWithWarmUp(warmup_epochs=args.l_rate_warmup_epochs,
                                                  optimizer=optimizer,
                                                  lr_lambda=polynomial_decay,
                                                  last_epoch=last_epoch)
         elif args.l_rate_scheduler == LRSchedulerType.Cosine:
-            self._scheduler = CosineAnnealingLRWithWarmUp(warmup_epochs=args.l_rate_scheduler_warmup_epochs,
+            self._scheduler = CosineAnnealingLRWithWarmUp(warmup_epochs=args.l_rate_warmup_epochs,
                                                           optimizer=optimizer,
                                                           T_max=self._max_epochs,
                                                           eta_min=args.min_l_rate,
