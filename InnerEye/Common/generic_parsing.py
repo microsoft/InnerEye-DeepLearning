@@ -226,6 +226,8 @@ class GenericConfig(param.Parameterized):
             return "constant"
         elif is_private_field_name(value.name):
             return "private"
+        elif isinstance(value, param.Callable):
+            return "callable"
         return None
 
     def apply_overrides(self, values: Optional[Dict[str, Any]], should_validate: bool = True,

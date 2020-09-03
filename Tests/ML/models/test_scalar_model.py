@@ -21,6 +21,7 @@ from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsD
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML import model_testing, model_training, runner
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
 from InnerEye.ML.run_ml import MLRunner
@@ -154,6 +155,7 @@ def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectorie
     """
     Test training and testing of classification models, when it is started together via run_ml.
     """
+    logging_to_stdout()
     azure_config = get_default_azure_config()
     azure_config.is_train = True
     train_config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
@@ -419,3 +421,41 @@ def test_unroll_aggregates() -> None:
     assert unrolled[0] == EpochMetricValues(1, LoggingColumns.AreaUnderPRCurve.value, 1.0)
     assert unrolled[-2] == EpochMetricValues(4, LoggingColumns.CrossEntropy.value, 0.7029)
     assert unrolled[-1] == EpochMetricValues(4, LoggingColumns.SubjectCount.value, 3)
+
+
+def test_dataset_stats_hook(test_output_dirs: TestOutputDirectories) -> None:
+    """
+    Test if the flexible hook for computing dataset statistics is called correctly in create_and_set_torch_datasets
+    """
+    model = ClassificationModelForTesting()
+    root_dir = Path(test_output_dirs.root_dir)
+    out_file = root_dir / "stats.txt"
+
+    def hook(datasets: Dict[ModelExecutionMode, ScalarDataset]) -> None:
+        # Assert on types to ensure that the hook is called with the right arguments
+        assert isinstance(datasets, Dict)
+        lines = []
+        for mode in ModelExecutionMode:
+            assert mode in datasets
+            assert isinstance(datasets[mode], ScalarDataset)
+            lines.append(f"{mode.value}: {len(datasets[mode].items)}")
+        out_file.write_text("\n".join(lines))
+
+    model.dataset_stats_hook = hook
+
+    model.create_and_set_torch_datasets()
+    assert out_file.is_file()
+    assert out_file.read_text() == "\n".join(["Train: 2", "Test: 1", "Val: 1"])
+
+
+def test_dataset_stats_hook_failing(test_output_dirs: TestOutputDirectories) -> None:
+    """
+    Test if the hook for computing dataset statistics can safely fail.
+    """
+    model = ClassificationModelForTesting()
+
+    def hook(datasets: Dict[ModelExecutionMode, ScalarDataset]) -> None:
+        raise ValueError()
+
+    model.dataset_stats_hook = hook
+    model.create_and_set_torch_datasets()

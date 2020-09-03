@@ -54,3 +54,4 @@ class LoggingColumns(Enum):
     OptimalThreshold = "optimal_threshold"
     FalsePositiveRateAtOptimalThreshold = "false_positive_rate_at_optimal_threshold"
     FalseNegativeRateAtOptimalThreshold = "false_negative_rate_at_optimal_threshold"
+    SequenceLength = "sequence_length"
