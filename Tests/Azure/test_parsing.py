@@ -178,15 +178,14 @@ def test_git_info() -> None:
     Test if git branch information can be read correctly.
     """
     azure_config = AzureConfig.from_yaml(fixed_paths.TRAIN_YAML_FILE)
+    azure_config.project_root = fixed_paths.repository_root_directory()
     assert azure_config.build_branch == ""
-    assert azure_config.build_user == ""
     assert azure_config.build_source_id == ""
     assert azure_config.build_source_message == ""
     assert azure_config.build_source_author == ""
     assert azure_config.build_source_repository == ""
-    source_info = azure_config.get_git_information(project_root_directory=fixed_paths.repository_root_directory())
+    source_info = azure_config.get_git_information()
     assert source_info.repository == "InnerEye-DeepLearning"
-    assert len(source_info.user) > 0
     assert len(source_info.commit_id) > 0
     assert len(source_info.commit_author) > 0
     assert len(source_info.commit_message) > 0
