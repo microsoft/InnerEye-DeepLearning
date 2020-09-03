@@ -85,7 +85,7 @@ class SchedulerWithWarmUp(_LRScheduler):
                                gamma=args.l_rate_step_gamma,
                                last_epoch=last_epoch)
         elif args.l_rate_scheduler == LRSchedulerType.MultiStep:
-            assert args.l_rate_multi_step_milestones is not None # for mypy, we have done this check elsewhere
+            assert args.l_rate_multi_step_milestones is not None  # for mypy, we have done this check elsewhere
             scheduler = MultiStepLR(optimizer=self.optimizer,
                                     milestones=args.l_rate_multi_step_milestones,
                                     gamma=args.l_rate_multi_step_gamma,
@@ -124,6 +124,12 @@ class SchedulerWithWarmUp(_LRScheduler):
         return warmup
 
     def state_dict(self) -> Dict:
+        """
+        Return a dictionary with all the values in this objects __dict__.
+        It creates the dictionary entry for variables "_scheduler" and "_warmup_scheduler" separately, by calling
+        state_dict for these variables.
+        The state dict does not include the state of the optimizer.
+        """
         state_dict = {key: val for key, val in self.__dict__.items()
                                             if key != "_scheduler" and key != "_warmup_scheduler"
                                                                    and key != "optimizer"}
@@ -132,6 +138,11 @@ class SchedulerWithWarmUp(_LRScheduler):
         return state_dict
 
     def load_state_dict(self, state_dict: Dict) -> None:
+        """
+        Initializes the current object with values from state_dict.
+        Initializes variables "_scheduler" and "_warmup_scheduler" separately, by calling load_state_dict
+        for these variables.
+        """
         top_level = {key: val for key, val in state_dict.items()
                      if key != "_scheduler" and key != "_warmup_scheduler"}
         self.__dict__.update(top_level)

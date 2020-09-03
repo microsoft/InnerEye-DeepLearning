@@ -194,6 +194,72 @@ def test_resume_from_saved_state(lr_scheduler_type: LRSchedulerType,
     assert result_lr_list == expected_lr_list
 
 
+@pytest.mark.parametrize("lr_scheduler_type", [x for x in LRSchedulerType])
+def test_save_and_load_state_dict(lr_scheduler_type: LRSchedulerType) -> None:
+
+    def object_dict_same(lr1: LRScheduler, lr2: LRScheduler) -> bool:
+        """
+        Tests to see if two LRScheduler objects are the same.
+        This ignores lambdas if one of the schedulers is LambdaLR, since lambdas are not stored to the state dict.
+        """
+        # dict of object LR scheduler
+        # ignore the _scheduler attribute, which is of type SchedulerWithWarmUp and compare it separately
+        dict1 = {key: val for key, val in lr1.__dict__.items() if key != "_scheduler"}
+        dict2 = {key: val for key, val in lr2.__dict__.items() if key != "_scheduler"}
+
+        # see if the SchedulerWithWarmUp object is the same
+        warmup_and_scheduler1 = lr1.__dict__["_scheduler"]
+        warmup_and_scheduler2 = lr2.__dict__["_scheduler"]
+
+        # scheduler object
+        scheduler1 = warmup_and_scheduler1.__dict__["_scheduler"]
+        scheduler2 = warmup_and_scheduler2.__dict__["_scheduler"]
+        # remove lambdas from scheduler dict
+        scheduler1_dict = {key: val for key, val in scheduler1.__dict__.items() if key != "lr_lambdas"}
+        scheduler2_dict = {key: val for key, val in scheduler2.__dict__.items() if key != "lr_lambdas"}
+
+        # warmup object
+        warmup1 = warmup_and_scheduler1.__dict__["_warmup_scheduler"]
+        warmup2 = warmup_and_scheduler2.__dict__["_warmup_scheduler"]
+
+        # Other variables in the object SchedulerWithWarmUp
+        other_variables1 = {key: val for key, val in warmup_and_scheduler1.__dict__.items()
+                            if key != "_scheduler" and key != "_warmup_scheduler"}
+        other_variables2 = {key: val for key, val in warmup_and_scheduler2.__dict__.items()
+                            if key != "_scheduler" and key != "_warmup_scheduler"}
+
+        return dict1 == dict2 and other_variables1 == other_variables2 and \
+                                  scheduler1_dict == scheduler2_dict and \
+                                  warmup1.__dict__ == warmup2.__dict__
+
+    config = DummyModel(num_epochs=10,
+                        l_rate_scheduler=lr_scheduler_type,
+                        l_rate_exponential_gamma=0.9,
+                        l_rate_step_gamma=0.9,
+                        l_rate_step_step_size=2,
+                        l_rate_multi_step_gamma=0.9,
+                        l_rate_multi_step_milestones=[3, 5, 7],
+                        l_rate_polynomial_gamma=0.9,
+                        l_rate_warmup=LRWarmUpType.Linear,
+                        l_rate_warmup_epochs=4)
+    lr_scheduler_1, optimizer = _create_lr_scheduler_and_optimizer(config)
+
+    lr_scheduler_1.step()
+    # This is not supported functionality - we are doing this just to change _scheduler from its default state
+    lr_scheduler_1._scheduler.step()
+    lr_scheduler_1._scheduler.step()
+
+    state_dict = lr_scheduler_1.state_dict()
+
+    lr_scheduler_2, _ = _create_lr_scheduler_and_optimizer(config, optimizer)
+
+    assert not object_dict_same(lr_scheduler_1, lr_scheduler_2)
+
+    lr_scheduler_2.load_state_dict(state_dict)
+
+    assert object_dict_same(lr_scheduler_1, lr_scheduler_2)
+
+
 def test_cosine_decay_function() -> None:
     """
     Tests Cosine lr decay function at (pi/2) and verifies if the value is correct.
@@ -233,4 +299,4 @@ def test_multistep_lr(warmup_epochs: int, expected_lrs: np.ndarray) -> None:
         lrs.append(lr_scheduler.get_last_lr()[0])
         lr_scheduler.step()
 
-    assert np.allclose(expected_lrs, lrs)
+    assert np.allclose(lrs, expected_lrs)
