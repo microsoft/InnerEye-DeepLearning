@@ -162,7 +162,8 @@ def create_and_submit_experiment(
 
     recovery_id = azure_util.create_run_recovery_id(run)
     recovery_file = Path(RUN_RECOVERY_FILE)
-    recovery_file.unlink(missing_ok=True)
+    if recovery_file.exists():
+        recovery_file.unlink()
     recovery_file.write_text(recovery_id)
 
     print("==============================================================================")
