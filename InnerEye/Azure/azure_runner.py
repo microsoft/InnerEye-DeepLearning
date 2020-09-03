@@ -3,10 +3,12 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import argparse
+import getpass
 import logging
 import signal
 import sys
 from argparse import ArgumentError, ArgumentParser, Namespace
+from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -145,7 +147,10 @@ def create_and_submit_experiment(
     :returns: Run object for the submitted AzureML run
     """
     branch = azure_config.get_git_information().branch
-    exp = Experiment(workspace=workspace, name=azure_util.to_azure_friendly_string(branch))
+    # If no branch information is found anywhere, create an experiment name that is the user alias and a timestamp
+    # at monthly granularity, so that not too many runs accumulate in that experiment.
+    experiment_name = branch or getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
+    exp = Experiment(workspace=workspace, name=azure_util.to_azure_friendly_string(experiment_name))
     pt_env = create_pytorch_environment(workspace, azure_config, source_config, azure_dataset_id)
 
     # submit a training/testing run associated with the experiment

@@ -140,20 +140,19 @@ class AzureConfig(GenericConfig):
         commit_id = self.build_source_id
         commit_author = self.build_source_author
         commit_message = self.build_source_message
-        repository = self.project_root.name
+        repository = self.build_source_repository or self.project_root.name
         is_dirty = True
         try:
             git_repo = Repo(self.project_root)
             branch = branch or git_repo.active_branch.name
             last_commit = git_repo.active_branch.commit
-            commit_id = last_commit.hexsha
-            commit_author = last_commit.author.name
-            commit_message = last_commit.message[:120].strip()
+            commit_id = commit_id or last_commit.hexsha
+            commit_author = commit_author or last_commit.author.name
+            commit_message = commit_message or last_commit.message[:120].strip()
             # Is_dirty in the present settings ignores untracked files.
             is_dirty = git_repo.is_dirty()
         except:
             logging.info(f"Folder {self.project_root} does not seem to be a git repository.")
-        branch = branch or getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
         return GitInformation(
             repository=repository,
             branch=branch,
