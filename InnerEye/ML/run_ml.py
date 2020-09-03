@@ -112,18 +112,11 @@ class MLRunner:
         """
         parent_run_file_system = self.model_config.file_system_config
 
-        def _spawn_run(cross_val_split_index: int, cross_val_sub_fold_split_index: int) -> None:
+        def _spawn_run(run_index: int, cross_val_split_index: int, cross_val_sub_fold_split_index: int) -> None:
             split_model_config = copy.deepcopy(self.model_config)
             split_model_config.cross_validation_split_index = cross_val_split_index
             split_model_config.cross_validation_sub_fold_split_index = cross_val_sub_fold_split_index
-
-            outputs_path = Path(str(cross_val_split_index))
-            # update the outputs directory if we are spawning a child cross val run
-            if cross_val_sub_fold_split_index != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-                split_model_config.file_system_config = parent_run_file_system.add_subfolder(
-                    str(outputs_path / str(cross_val_sub_fold_split_index)))
-            else:
-                split_model_config.file_system_config = parent_run_file_system.add_subfolder(str(outputs_path))
+            split_model_config.file_system_config = parent_run_file_system.add_subfolder(str(run_index))
 
             logging.info(f"Running model train and test on cross validation split: {x}")
             split_ml_runner = MLRunner(split_model_config, self.azure_config, self.project_root,
@@ -135,13 +128,12 @@ class MLRunner:
                 if isinstance(self.model_config, ScalarModelBase) else 0
             if num_child_folds > 0:
                 for y in range(num_child_folds):
-                    _spawn_run(x, y)
+                    _spawn_run((x * self.model_config.number_of_cross_validation_splits_per_fold) + y, x, y)
             else:
-                _spawn_run(x, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX)
+                _spawn_run(x, x, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX)
 
         config_and_files = get_config_and_results_for_offline_runs(self.model_config)
-        if self.model_config.number_of_cross_validation_splits_per_fold == 0:
-            plot_cross_validation_from_files(config_and_files, Path(config_and_files.config.outputs_directory))
+        plot_cross_validation_from_files(config_and_files, Path(config_and_files.config.outputs_directory))
 
     def set_run_tags_from_parent(self) -> None:
         """

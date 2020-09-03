@@ -42,6 +42,7 @@ from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_testing import METRICS_FILE_NAME, get_epoch_results_path
+from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER, CSV_SUBJECT_HEADER, OutlierType, \
     extract_outliers
 from InnerEye.ML.utils.metrics_constants import LoggingColumns, MetricsFileColumns
@@ -465,7 +466,12 @@ def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) ->
     plot_crossval_config.local_run_results = str(train_config.outputs_folder)
     # Create splits as per crossval settings. If not running crossval, use a pseudo split "" that will make
     # the code pick up the results of the present run.
-    splits = [str(i) for i in range(train_config.number_of_cross_validation_splits)] \
+    num_splits = train_config.number_of_cross_validation_splits
+    if isinstance(train_config, ScalarModelBase) and train_config.number_of_cross_validation_splits_per_fold > 0:
+        num_splits *= train_config.number_of_cross_validation_splits_per_fold
+    plot_crossval_config.number_of_cross_validation_splits = num_splits
+
+    splits = [str(i) for i in range(plot_crossval_config.number_of_cross_validation_splits)] \
         if train_config.perform_cross_validation else [""]
     result_files, _ = download_crossval_result_files(plot_crossval_config,
                                                      download_to_folder=download_to_folder,
@@ -882,7 +888,7 @@ def plot_cross_validation(config: PlotCrossValidationConfig) -> Path:
 
 
 def add_comparison_data(config: PlotCrossValidationConfig, metrics: pd.DataFrame) \
-        -> Tuple[pd.DataFrame, Optional[List[Any]]]:
+    -> Tuple[pd.DataFrame, Optional[List[Any]]]:
     """
     :param config: configuration of this plotting run
     :param metrics: on entry, metrics for just the focus (target) run

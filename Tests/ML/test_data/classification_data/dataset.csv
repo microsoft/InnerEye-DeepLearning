@@ -7,3 +7,15 @@ S3,image,61bc9d73-9fbb-bd7d-c06b-eeffbafabcc4.h5,,,3
 S3,label,,False,3.0
 S4,image,61bc9d73-9fbb-bd7d-c06b-eeffbafabcc4.h5,,,4
 S4,label,,False,3.0
+S5,image,61bc9d73-9fbb-bd7d-c06b-eeffbafabcc4.h5,,,4
+S5,label,,True,1.0
+S6,image,61bc9d73-9fbb-bd7d-c06b-eeffbafabcc4.h5,,,4
+S6,label,,False,6.0
+S7,image,61bc9d73-9fbb-bd7d-c06b-eeffbafabcc4.h5,,,4
+S7,label,,False,5.0
+S8,image,61bc9d73-9fbb-bd7d-c06b-eeffbafabcc4.h5,,,4
+S8,label,,False,1.0
+S9,image,61bc9d73-9fbb-bd7d-c06b-eeffbafabcc4.h5,,,4
+S9,label,,False,2.0
+S10,image,61bc9d73-9fbb-bd7d-c06b-eeffbafabcc4.h5,,,4
+S10,label,,True,1.0

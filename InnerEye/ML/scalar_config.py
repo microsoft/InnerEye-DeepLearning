@@ -405,8 +405,14 @@ class ScalarModelBase(ModelConfigBase):
     def get_cross_validation_dataset_splits(self, dataset_split: DatasetSplits) -> DatasetSplits:
         split_for_current_fold = super().get_cross_validation_dataset_splits(dataset_split)
         if self.number_of_cross_validation_splits_per_fold > 0:
-            return split_for_current_fold.get_k_fold_cross_validation_splits(
+            # create a sub fold based on the training set and set the validation set
+            # as the validation set of the split.
+            val_split = split_for_current_fold.val
+            split_for_current_fold.val = pd.DataFrame()
+            sub_fold_split = split_for_current_fold.get_k_fold_cross_validation_splits(
                 self.number_of_cross_validation_splits_per_fold)[self.cross_validation_sub_fold_split_index]
+            sub_fold_split.val = val_split
+            return sub_fold_split
         else:
             return split_for_current_fold
 
