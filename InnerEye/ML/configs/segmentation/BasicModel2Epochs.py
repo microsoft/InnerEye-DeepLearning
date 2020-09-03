@@ -10,6 +10,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.configs.segmentation.Lung import AZURE_DATASET_ID
+from InnerEye.ML.deep_learning_config import LRSchedulerType
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 fg_classes = ["spinalcord", "lung_r", "lung_l"]
@@ -44,6 +45,12 @@ class BasicModel2Epochs(SegmentationModelBase):
             test_step_epochs=1,
             use_mixed_precision=True,
             azure_dataset_id=AZURE_DATASET_ID,
+            # Use an LR scheduler with a pronounced and clearly visible decay, to be able to easily see if that
+            # is applied correctly in run recovery.
+            l_rate=1e-4,
+            l_rate_decay=LRSchedulerType.Step,
+            l_rate_step_size=1,
+            l_rate_gamma=0.9
         )
         self.add_and_validate(kwargs)
 
