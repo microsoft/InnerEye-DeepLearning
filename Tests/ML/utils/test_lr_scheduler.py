@@ -40,18 +40,18 @@ def test_min_and_initial_lr(lr_scheduler_type: LRSchedulerType) -> None:
     """
     Test if minimum learning rate threshold is applied as expected
     """
-    config = DummyModel(num_epochs=3, l_rate=1e-3, min_l_rate=0.0009,
+    config = DummyModel(num_epochs=2, l_rate=1e-3, min_l_rate=0.0009,
                         l_rate_scheduler=lr_scheduler_type,
                         l_rate_exponential_gamma=0.9,
                         l_rate_step_gamma=0.9,
                         l_rate_step_step_size=1,
-                        l_rate_multi_step_gamma=0.9,
-                        l_rate_multi_step_milestones=[1, 2],
+                        l_rate_multi_step_gamma=0.7,
+                        l_rate_multi_step_milestones=[1],
                         l_rate_polynomial_gamma=0.9)
     # create lr scheduler
     lr_scheduler, _ = _create_lr_scheduler_and_optimizer(config)
     assert lr_scheduler.get_last_lr()[0] == config.l_rate
-    lr_scheduler.step(3)
+    lr_scheduler.step(2)
     assert lr_scheduler.get_last_lr()[0] == config.min_l_rate
 
 
@@ -69,7 +69,7 @@ def test_lr_monotonically_decreasing_function(lr_scheduler_type: LRSchedulerType
                         l_rate_multi_step_milestones=[3, 5, 7],
                         l_rate_polynomial_gamma=0.9)
 
-    def strictly_decreasing(L: List) -> bool:
+    def non_increasing(L: List) -> bool:
         return all(x >= y for x, y in zip(L, L[1:]))
 
     # create lr scheduler
@@ -79,7 +79,7 @@ def test_lr_monotonically_decreasing_function(lr_scheduler_type: LRSchedulerType
         lr_scheduler.step()
         lr_list.append(lr_scheduler.get_last_lr()[0])
 
-    assert strictly_decreasing(lr_list)
+    assert non_increasing(lr_list)
 
 
 @pytest.mark.parametrize("lr_scheduler_type", [x for x in LRSchedulerType])
