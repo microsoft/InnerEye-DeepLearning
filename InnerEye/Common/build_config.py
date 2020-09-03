@@ -17,7 +17,7 @@ def build_information_to_dot_net_json(azure_config: AzureConfig, result_location
     :param azure_config: Azure configuration file with build information.
     :param result_location: ExperimentResultLocation object with result locations.
     """
-    source_code_information = azure_config.get_source_information()
+    source_code_information = azure_config.get_git_information()
     return json.dumps({
         "BuildNumber": azure_config.build_number,
         "BuildRequestedFor": azure_config.build_user,

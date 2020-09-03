@@ -127,14 +127,15 @@ class AzureConfig(GenericConfig):
 
     def __init__(self, **params: Any) -> None:
         super().__init__(**params)
+        self.git_information: Optional[GitInformation] = None
 
-    def get_source_information(self) -> GitInformation:
+    def get_git_information(self) -> GitInformation:
         """
         Gets all version control information about the present source code in the project_root_directory.
         Information is taken from commandline arguments, or if not given there, retrieved from git directly.
         """
-        if self.source_code_information:
-            return self.source_code_information
+        if self.git_information:
+            return self.git_information
         branch = self.build_branch
         commit_id = self.build_source_id
         commit_author = self.build_source_author
