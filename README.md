@@ -68,16 +68,6 @@ Once training in AzureML is done, the models can be deployed from within AzureML
 
 **You are responsible for the performance and any necessary testing or regulatory clearances for any models generated**
 
-## References
-
-Please cite the following references if you find the image segmentation framework useful in your research:
-
-[Augmenting Image Guided Radiotherapy Workflows with Deep Learning](). JAMA Network Open (Under Review), 2020.    
-Oktay O, Nanavati J, Schwaighofer A, Carter D, Bristow M, Tanno R, Jena R, Barnett G, Noble D, Rimmer Y, Glocker B, O’Hara K, Bishop C, Alvarez-Valle J, and Nori A.
-
-[3D U-Net: Learning Dense Volumetric Segmentation from Sparse Annotation](https://arxiv.org/abs/1606.06650). MICCAI, Springer, 2016.  
-Özgün Çiçek, Ahmed Abdulkadir, Soeren S. Lienkamp, Thomas Brox, Olaf Ronneberger
-
 ## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
