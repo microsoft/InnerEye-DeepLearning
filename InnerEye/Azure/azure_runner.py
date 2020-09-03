@@ -168,6 +168,7 @@ def create_and_submit_experiment(
 
     print("==============================================================================")
     print("Experiment URL: {}".format(exp.get_portal_url()))
+    print("Run URL: {}".format(run.get_portal_url()))
     print("If this run fails, re-start runner.py and supply these additional arguments: "
           f"--run_recovery_id={recovery_id}")
     print(f"The run recovery ID has been written to this file: {recovery_file}")

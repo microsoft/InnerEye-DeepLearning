@@ -68,6 +68,18 @@ this case, you should specify `--submit_to_azureml=False`, and instead of specif
 where the folder `my/data/folder` contains a `dataset.csv` file and subfolders `0`, `1`, `2`, ...,
 one for each image.
 
+
+### AzureML Run Hierarchy
+
+AzureML structures all jobs in a hierarchical fashion:
+* The top-level concept is a workspace
+* Inside of a workspace, there are multiple experiments. Upon starting a training run, the name of the experiment
+needs to be supplied. The InnerEye toolbox is set specifically to work with git repositories, and it automatically
+sets the experiment name to match the name of the current git branch.
+* Inside of an experiment, there are multiple runs. When starting the InnerEye toolbox as above, a run will be created.
+* A run can have child runs - see below in the discussion about cross validation.
+
+
 ### K-Fold Model Cross Validation
 
 As for training a new model, but add the switch `--number_of_cross_validation_splits=N`, for some `N` greater than
