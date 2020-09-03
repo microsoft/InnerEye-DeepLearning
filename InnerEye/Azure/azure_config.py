@@ -41,11 +41,10 @@ AZURECONFIG_SUBMIT_TO_AZUREML = "submit_to_azureml"
 
 
 @dataclass(frozen=True)
-class SourceCodeInformation:
+class GitInformation:
     """
-    Contains information about the source code that was used to submit the present experiment.
+    Contains information about the git repository that was used to submit the present experiment.
     """
-    user: str
     repository: str
     branch: str
     commit_id: str
@@ -98,7 +97,8 @@ class AzureConfig(GenericConfig):
                                                   doc="A run recovery id string in the form 'experiment name:run id'"
                                                       " to use for inference or recovering a model training run.")
     build_number: int = param.Integer(0, doc="The numeric ID of the Azure pipeline that triggered this training run.")
-    build_user: str = param.String(doc="The user to associate this experiment with.")
+    build_user: str = param.String(getpass.getuser(),
+                                   doc="The user to associate this experiment with.")
     build_source_repository: str = param.String(doc="The name of the repository this source belongs to.")
     build_branch: str = param.String(doc="The branch this experiment has been triggered from.")
     build_source_id: str = param.String(doc="The git commit that was used to create this build.")
@@ -127,24 +127,22 @@ class AzureConfig(GenericConfig):
 
     def __init__(self, **params: Any) -> None:
         super().__init__(**params)
-        self.source_code_information: Optional[SourceCodeInformation] = None
 
-    def get_source_information(self, project_root_directory: Path) -> SourceCodeInformation:
+    def get_source_information(self) -> GitInformation:
         """
         Gets all version control information about the present source code in the project_root_directory.
         Information is taken from commandline arguments, or if not given there, retrieved from git directly.
         """
         if self.source_code_information:
             return self.source_code_information
-        user = self.build_user or getpass.getuser()
         branch = self.build_branch
         commit_id = self.build_source_id
         commit_author = self.build_source_author
         commit_message = self.build_source_message
-        repository = project_root_directory.name
+        repository = self.project_root.name
         is_dirty = True
         try:
-            git_repo = Repo(project_root_directory)
+            git_repo = Repo(self.project_root)
             branch = branch or git_repo.active_branch.name
             last_commit = git_repo.active_branch.commit
             commit_id = last_commit.hexsha
@@ -153,10 +151,9 @@ class AzureConfig(GenericConfig):
             # Is_dirty in the present settings ignores untracked files.
             is_dirty = git_repo.is_dirty()
         except:
-            logging.info(f"Folder {project_root_directory} does not seem to be a git repository.")
+            logging.info(f"Folder {self.project_root} does not seem to be a git repository.")
         branch = branch or getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
-        self.source_code_information = SourceCodeInformation(
-            user=user,
+        return GitInformation(
             repository=repository,
             branch=branch,
             commit_id=commit_id,
@@ -164,7 +161,6 @@ class AzureConfig(GenericConfig):
             commit_author=commit_author,
             is_dirty=is_dirty
         )
-        return self.source_code_information
 
     @staticmethod
     def from_yaml(yaml_file_path: Path) -> AzureConfig:

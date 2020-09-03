@@ -105,6 +105,7 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
     :param model_config_overrides: A string that describes which model parameters were overwritten by commandline
      arguments in the present run.
     """
+    source_code_information = azure_config.get_source_information()
     run.set_tags({
         "tag": azure_config.tag,
         "model_name": azure_config.model,
@@ -114,11 +115,11 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
         RUN_RECOVERY_FROM_ID_KEY_NAME: azure_config.run_recovery_id,
         "build_number": str(azure_config.build_number),
         "build_user": azure_config.build_user,
-        "build_source_repository": azure_config.build_source_repository,
-        "build_source_branch": azure_config.build_branch,
-        "build_source_id": azure_config.build_source_id,
-        "build_source_message": azure_config.build_source_message,
-        "build_build_source_author": azure_config.build_source_author,
+        "build_source_repository": source_code_information.repository,
+        "build_source_branch": source_code_information.branch,
+        "build_source_id": source_code_information.commit_id,
+        "build_source_message": source_code_information.commit_message,
+        "build_build_source_author": source_code_information.commit_author,
         "overrides": model_config_overrides,
         CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: -1,
     })
@@ -140,7 +141,8 @@ def create_and_submit_experiment(
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
     :returns: Run object for the submitted AzureML run
     """
-    exp = Experiment(workspace=workspace, name=azure_util.to_azure_friendly_string(azure_config.build_branch))
+    branch = azure_config.get_source_information().branch
+    exp = Experiment(workspace=workspace, name=azure_util.to_azure_friendly_string(branch))
     pt_env = create_pytorch_environment(workspace, azure_config, source_config, azure_dataset_id)
 
     # submit a training/testing run associated with the experiment
