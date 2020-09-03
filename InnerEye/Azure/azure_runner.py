@@ -32,6 +32,8 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 SLEEP_TIME_SECONDS = 30
 INPUT_DATA_KEY = "input_data"
 
+RUN_RECOVERY_FILE = "most_recent_run.txt"
+
 
 def submit_to_azureml(azure_config: AzureConfig,
                       source_config: SourceConfig,
@@ -158,10 +160,16 @@ def create_and_submit_experiment(
     if azure_config.run_recovery_id:
         print(f"\nRecovered from: {azure_config.run_recovery_id}")
 
+    recovery_id = azure_util.create_run_recovery_id(run)
+    recovery_file = Path(RUN_RECOVERY_FILE)
+    recovery_file.unlink(missing_ok=True)
+    recovery_file.write_text(recovery_id)
+
     print("==============================================================================")
     print("Experiment URL: {}".format(exp.get_portal_url()))
     print("If this run fails, re-start runner.py and supply these additional arguments: "
-          f"--run_recovery_id={azure_util.create_run_recovery_id(run)}")
+          f"--run_recovery_id={recovery_id}")
+    print(f"The run recovery ID has been written to this file: {recovery_file}")
     print("==============================================================================")
     return run
 

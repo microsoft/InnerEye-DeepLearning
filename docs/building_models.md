@@ -71,10 +71,16 @@ one for each image.
 ### K-Fold Model Cross Validation
 
 As for training a new model, but add the switch `--number_of_cross_validation_splits=N`, for some `N` greater than
-1; a value of 5 is typical. This will trigger a HyperDrive run with each child run training on a fold from the 
-union of the Training and Validation sets. The Test set is unchanged.
+1; a value of 5 is typical. This will start a 
+[HyperDrive run](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters): A parent
+AzureML job, with `N` child runs that will execute in parallel. You can see the child runs in the AzureML UI in the
+"Child Runs" tab.
 
-### Recovering and continuing training
+The dataset splits for those `N` child runs will be
+computed from the union of the Training and Validation sets. The Test set is unchanged. Note that the Test set can be
+empty, in which case the training and validation sets for the `N` child runs will be the full dataset.
+
+### Recovering failed runs and continuing training
 
 To train further with an already-created model, give the above command with additional switches like these:
 ```
@@ -113,7 +119,7 @@ python InnerEye/Scripts/submit_for_inference.py --image_file ~/somewhere/ct.nii.
 
 ### Model Ensembles
 
-An ensemble model should be created automatically and registered in the AzureML model registry whenever cross-validation
+An ensemble model will be created automatically and registered in the AzureML model registry whenever cross-validation
 models are trained. The ensemble model
 creation is done by the child whose `cross_validation_split_index` is 0; you can identify this child by looking
 at the "Child Runs" tab in the parent run page in AzureML. To find the ID of the ensemble model, look in the
