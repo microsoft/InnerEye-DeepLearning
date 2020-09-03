@@ -8,9 +8,7 @@ import getpass
 import logging
 import sys
 from dataclasses import dataclass
-from datetime import date
 from enum import Enum
-from git import Repo
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -19,6 +17,7 @@ from azureml.core import Keyvault, Run, Workspace
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.train.estimator import MMLBaseEstimator
 from azureml.train.hyperdrive import HyperDriveConfig
+from git import Repo
 
 from InnerEye.Azure.azure_util import get_results_blob_path, get_run_id, \
     is_offline_run_context, to_azure_friendly_container_path
@@ -133,6 +132,7 @@ class AzureConfig(GenericConfig):
         """
         Gets all version control information about the present source code in the project_root_directory.
         Information is taken from commandline arguments, or if not given there, retrieved from git directly.
+        The result of the first call to this function is cached, and returned in later calls.
         """
         if self.git_information:
             return self.git_information
