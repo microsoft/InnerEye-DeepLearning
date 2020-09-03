@@ -4,9 +4,8 @@
 #  ------------------------------------------------------------------------------------------
 from __future__ import annotations
 
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Iterable
 from typing_extensions import Protocol
-from collections import Iterable
 
 from torch.optim.lr_scheduler import ExponentialLR, LambdaLR, StepLR, MultiStepLR, CosineAnnealingLR
 from torch.optim.lr_scheduler import _LRScheduler
@@ -20,7 +19,7 @@ class WarmUpMixinProtocol(Protocol):
     This class exists to tell mypy about the attributes the mixin expects
     """
     last_epoch: int
-    base_lrs: Iterable
+    base_lrs: List[float]
     warmup_epochs: int
 
 
@@ -116,39 +115,39 @@ class LRScheduler:
         # For pytorch version 1.6:
         # last_epoch = args.start_epoch - 1 if args.should_load_checkpoint_for_training() else -1
 
-        if args.l_rate_decay == LRSchedulerType.Exponential:
-            self._scheduler = ExponentialLRWithWarmUp(warmup_epochs=args.warmup_epochs,
+        if args.l_rate_scheduler == LRSchedulerType.Exponential:
+            self._scheduler = ExponentialLRWithWarmUp(warmup_epochs=args.l_rate_scheduler_warmup_epochs,
                                                       optimizer=optimizer,
-                                                      gamma=args.l_rate_gamma,
+                                                      gamma=args.l_rate_exponential_scheduler_gamma,
                                                       last_epoch=last_epoch)
-        elif args.l_rate_decay == LRSchedulerType.Step:
-            self._scheduler = StepLRWithWarmUp(warmup_epochs=args.warmup_epochs,
+        elif args.l_rate_scheduler == LRSchedulerType.Step:
+            self._scheduler = StepLRWithWarmUp(warmup_epochs=args.l_rate_scheduler_warmup_epochs,
                                                optimizer=optimizer,
-                                               step_size=args.l_rate_step_size,
-                                               gamma=args.l_rate_gamma,
+                                               step_size=args.l_rate_step_scheduler_step_size,
+                                               gamma=args.l_rate_step_scheduler_gamma,
                                                last_epoch=last_epoch)
-        elif args.l_rate_decay == LRSchedulerType.MultiStep:
-            self._scheduler = MultiStepLRWithWarmUp(warmup_epochs=args.warmup_epochs,
+        elif args.l_rate_scheduler == LRSchedulerType.MultiStep:
+            self._scheduler = MultiStepLRWithWarmUp(warmup_epochs=args.l_rate_scheduler_warmup_epochs,
                                                     optimizer=optimizer,
-                                                    milestones=args.l_rate_milestones,
-                                                    gamma=args.l_rate_gamma,
+                                                    milestones=args.l_rate_multi_step_scheduler_milestones,
+                                                    gamma=args.l_rate_multi_step_scheduler_gamma,
                                                     last_epoch=last_epoch)
-        elif args.l_rate_decay == LRSchedulerType.Polynomial:
+        elif args.l_rate_scheduler == LRSchedulerType.Polynomial:
             x = args.min_l_rate / args.l_rate
             polynomial_decay: Any = lambda epoch: (1 - x) * (
-                    (1. - float(epoch) / self._max_epochs) ** args.l_rate_gamma) + x
-            self._scheduler = LambdaLRWithWarmUp(warmup_epochs=args.warmup_epochs,
+                    (1. - float(epoch) / self._max_epochs) ** args.l_rate_polynomial_scheduler_gamma) + x
+            self._scheduler = LambdaLRWithWarmUp(warmup_epochs=args.l_rate_scheduler_warmup_epochs,
                                                  optimizer=optimizer,
                                                  lr_lambda=polynomial_decay,
                                                  last_epoch=last_epoch)
-        elif args.l_rate_decay == LRSchedulerType.Cosine:
-            self._scheduler = CosineAnnealingLRWithWarmUp(warmup_epochs=args.warmup_epochs,
+        elif args.l_rate_scheduler == LRSchedulerType.Cosine:
+            self._scheduler = CosineAnnealingLRWithWarmUp(warmup_epochs=args.l_rate_scheduler_warmup_epochs,
                                                           optimizer=optimizer,
                                                           T_max=self._max_epochs,
                                                           eta_min=args.min_l_rate,
                                                           last_epoch=last_epoch)
         else:
-            raise ValueError("Unknown learning rate scheduler {}".format(args.l_rate_decay))
+            raise ValueError("Unknown learning rate scheduler {}".format(args.l_rate_scheduler))
 
     def get_last_lr(self) -> List[float]:
         """
