@@ -11,7 +11,7 @@ from torch.optim.optimizer import Optimizer
 from torch.optim.lr_scheduler import ExponentialLR, StepLR, MultiStepLR, LambdaLR, CosineAnnealingLR, _LRScheduler
 
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import LRSchedulerType
+from InnerEye.ML.deep_learning_config import LRSchedulerType, LRWarmUpType
 from InnerEye.ML.utils.lr_scheduler import LRScheduler
 from Tests.ML.configs.DummyModel import DummyModel
 
@@ -88,14 +88,16 @@ def test_warmup_against_original_schedule(lr_scheduler_type: LRSchedulerType, wa
     """
     Tests if LR scheduler with warmup matches the Pytorch implementation after the warmup stage is completed.
     """
-    config = DummyModel(num_epochs=10, l_rate_warmup_epochs=warmup_epochs,
+    config = DummyModel(num_epochs=10,
                         l_rate_scheduler=lr_scheduler_type,
                         l_rate_exponential_gamma=0.9,
                         l_rate_step_gamma=0.9,
                         l_rate_step_step_size=2,
                         l_rate_multi_step_gamma=0.9,
                         l_rate_multi_step_milestones=[3, 5, 7],
-                        l_rate_polynomial_gamma=0.9)
+                        l_rate_polynomial_gamma=0.9,
+                        l_rate_warmup=LRWarmUpType.Linear if warmup_epochs > 0 else LRWarmUpType.NoWarmUp,
+                        l_rate_warmup_epochs=warmup_epochs)
     # create lr scheduler
     lr_scheduler, optimizer = _create_lr_scheduler_and_optimizer(config)
 
@@ -126,14 +128,14 @@ def test_warmup_against_original_schedule(lr_scheduler_type: LRSchedulerType, wa
 
     expected_lr_list = []
     for i in range(warmup_epochs):
-        expected_lr_list.append(config.l_rate * i / warmup_epochs)
+        expected_lr_list.append(config.l_rate * (i + 1) / warmup_epochs)
     for _ in range(config.num_epochs - warmup_epochs):
         # For pytorch version 1.6:
         # expected_lr_list.append(original_scheduler.get_last_lr())
         expected_lr_list.append(original_scheduler.get_lr()[0])  # type: ignore
         original_scheduler.step()  # type: ignore
 
-    assert result_lr_list == expected_lr_list
+    assert np.allclose(result_lr_list, expected_lr_list)
 
 
 def _create_dummy_optimizer(config: SegmentationModelBase) -> Optimizer:
@@ -151,21 +153,23 @@ def _create_lr_scheduler_and_optimizer(config: SegmentationModelBase, optimizer:
 
 
 @pytest.mark.parametrize("lr_scheduler_type", [x for x in LRSchedulerType])
-@pytest.mark.parametrize("warmup_epochs", [0, 4, 5])
+@pytest.mark.parametrize("warmup_epochs", [0, 3, 4, 5])
 @pytest.mark.parametrize("restart_from_epoch", [4])
 def test_resume_from_saved_state(lr_scheduler_type: LRSchedulerType,
                                  warmup_epochs: int, restart_from_epoch: int) -> None:
     """
     Tests if LR scheduler when restarted from an epoch continues as expected.
     """
-    config = DummyModel(num_epochs=10, l_rate_warmup_epochs=warmup_epochs,
+    config = DummyModel(num_epochs=10,
                         l_rate_scheduler=lr_scheduler_type,
                         l_rate_exponential_gamma=0.9,
                         l_rate_step_gamma=0.9,
                         l_rate_step_step_size=2,
                         l_rate_multi_step_gamma=0.9,
                         l_rate_multi_step_milestones=[3, 5, 7],
-                        l_rate_polynomial_gamma=0.9)
+                        l_rate_polynomial_gamma=0.9,
+                        l_rate_warmup=LRWarmUpType.Linear if warmup_epochs > 0 else LRWarmUpType.NoWarmUp,
+                        l_rate_warmup_epochs=warmup_epochs)
     # create two lr schedulers
     lr_scheduler_1, optimizer_1 = _create_lr_scheduler_and_optimizer(config)
     lr_scheduler_2, optimizer_2 = _create_lr_scheduler_and_optimizer(config)
@@ -207,7 +211,7 @@ def test_cosine_decay_function() -> None:
 
 @pytest.mark.parametrize("warmup_epochs, expected_lrs",
                          [(0, np.array([1e-3, 1e-3, 1e-4, 1e-4, 1e-4, 1e-5, 1e-5, 1e-6, 1e-6, 1e-6])),
-                          (5, np.array([0, 2e-4, 4e-4, 6e-4, 8e-4, 1e-3, 1e-3, 1e-4, 1e-4, 1e-4]))])
+                          (5, np.array([2e-4, 4e-4, 6e-4, 8e-4, 1e-3, 1e-3, 1e-3, 1e-4, 1e-4, 1e-4]))])
 def test_multistep_lr(warmup_epochs: int, expected_lrs: np.ndarray) -> None:
     """
     Creates a MultiStep LR and check values are returned as expected
@@ -218,6 +222,7 @@ def test_multistep_lr(warmup_epochs: int, expected_lrs: np.ndarray) -> None:
                         l_rate_multi_step_gamma=0.1,
                         num_epochs=num_epochs,
                         l_rate_multi_step_milestones=[2, 5, 7],
+                        l_rate_warmup=LRWarmUpType.Linear if warmup_epochs > 0 else LRWarmUpType.NoWarmUp,
                         l_rate_warmup_epochs=warmup_epochs)
 
     # create lr scheduler

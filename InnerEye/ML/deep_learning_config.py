@@ -28,6 +28,15 @@ ARGS_TXT = "args.txt"
 
 
 @unique
+class LRWarmUpType(Enum):
+    """
+    Supported LR warm up types for model training
+    """
+    NoWarmUp = "NoWarmUp"
+    Linear = "Linear"
+
+
+@unique
 class LRSchedulerType(Enum):
     """
     Supported lr scheduler types for model training
@@ -214,6 +223,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                                    doc="The milestones for MultiStep decay.")
     l_rate_polynomial_gamma: float = param.Number(1e-4, doc="Controls the rate of decay for the "
                                                             "Polynomial LR scheduler.")
+    l_rate_warmup: LRWarmUpType = param.ClassSelector(default=LRWarmUpType.NoWarmUp, class_=LRWarmUpType,
+                                                      instantiate=False,
+                                                      doc="The type of learning rate warm up to use. "
+                                                          "Can be NoWarmUp (default) or Linear.")
     l_rate_warmup_epochs: int = param.Integer(0, bounds=(0, None),
                                               doc="Number of warmup epochs (linear warmup) before the "
                                                   "scheduler starts decaying the learning rate. "
