@@ -53,7 +53,7 @@ At a bare minimum, you will need to
 - Clone the repository
 - Create a Conda environment from the `environment.yml` file in the repository, by running 
 `conda env create --file environment.yml`
-- Activate the environment by running `conda acctivate InnerEye`
+- Activate the environment by running `conda activate InnerEye`
 
 Detailed instructions, including setup in Azure, are here:
 1. [Setting up your environment](docs/environment.md)
