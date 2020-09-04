@@ -148,7 +148,7 @@ class AzureConfig(GenericConfig):
             git_repo = Repo(self.project_root)
             try:
                 active_branch = git_repo.active_branch.name
-            except TypeError as ex:
+            except TypeError:
                 # If the repository is in "detached head" state, getting the active branch fails.
                 # In particular, this is the case on the build agents.
                 active_branch = ""
