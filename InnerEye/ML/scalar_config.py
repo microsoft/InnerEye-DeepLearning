@@ -11,6 +11,7 @@ import param
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import HyperDriveConfig
 
+from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt2Or3
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, OneHotEncoderBase
@@ -23,6 +24,9 @@ KEY_FOR_DEFAULT_CHANNEL = "default"
 
 
 class AggregationType(Enum):
+    """
+    The type of global pooling aggregation to use between the encoder and the classifier.
+    """
     ZAdaptive3dAvg = "Adaptive3dAverage"
     Average = "Average"
     GatedPooling = "Gated"
@@ -187,6 +191,11 @@ class ScalarModelBase(ModelConfigBase):
                                                                              instantiate=False,
                                                                              doc="The aggregation method to use when"
                                                                                  "testing ensemble models.")
+    dataset_stats_hook: Optional[Callable[[Dict[ModelExecutionMode, Any]], None]] = \
+        param.Callable(default=None,
+                       allow_None=True,
+                       doc="A hook that is called with a dictionary that maps from train/val/test to the actual "
+                            "dataset, to do customized statistics.")
 
     image_dimensions: ImageDimension = param.ClassSelector(default=ImageDimension.Image_3D,
                                                            class_=ImageDimension,
@@ -377,16 +386,22 @@ class ScalarModelBase(ModelConfigBase):
     def create_and_set_torch_datasets(self, for_training: bool = True, for_inference: bool = True) -> None:
         """
         Creates and sets torch datasets for all model execution modes, and stores them in the self._datasets field.
+        It also calls the hook to compute statistics for the train/val/test datasets.
         """
-        _splits = self.create_torch_datasets(self.get_dataset_splits())
-
-        if for_training:
-            _splits.pop(ModelExecutionMode.TEST, None)
-            self._datasets_for_training = _splits
-        if for_inference:
-            self._datasets_for_inference = _splits
-            for split, dataset in self._datasets_for_inference.items():
+        # For models other than segmentation models, it is easier to create both training and inference datasets
+        # in one go, ignoring the arguments.
+        if self._datasets_for_training is None and self._datasets_for_inference is None:
+            datasets = self.create_torch_datasets(self.get_dataset_splits())
+            self._datasets_for_training = {mode: datasets[mode]
+                                           for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]}
+            self._datasets_for_inference = datasets
+            for split, dataset in datasets.items():
                 logging.info(f"{split.value}: {len(dataset)} subjects. Detailed status: {dataset.status}")
+            if self.dataset_stats_hook:
+                try:
+                    self.dataset_stats_hook(datasets)
+                except Exception as ex:
+                    print_exception(ex, message="Error while calling the hook for computing dataset statistics.")
 
     def get_training_class_counts(self) -> Dict:
         if self._datasets_for_training is None:

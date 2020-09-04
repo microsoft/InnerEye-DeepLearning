@@ -17,11 +17,13 @@ from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME, Mo
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.deep_learning_config import DeepLearningConfig, TemperatureScalingConfig
 from InnerEye.ML.metrics import TRAIN_STATS_FILE
-from InnerEye.ML.model_training import ModelTrainingResult, model_train
+from InnerEye.ML.model_training import model_train
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForSegmentation
 from InnerEye.ML.models.losses.mixture import MixtureLoss
+from InnerEye.ML.sequence_config import SequenceModelBase
+from InnerEye.ML.utils.training_util import ModelTrainingResults
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contents
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
@@ -77,6 +79,33 @@ def test_get_test_epochs() -> None:
     assert c.get_test_epochs() == [100]
 
 
+def test_get_total_number_of_validation_epochs() -> None:
+    """
+    Since an extra validation epoch is performed when temperature scaling for each checkpoint, make sure
+    the expected count is correct, as it is used to restrict the iterations on the validation data loader.
+    """
+    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1],
+                          temperature_scaling_config=None, should_validate=False)
+    assert c.get_total_number_of_validation_epochs() == 2
+    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1], should_validate=False,
+                          temperature_scaling_config=TemperatureScalingConfig())
+    assert c.get_total_number_of_validation_epochs() == 3
+    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1], temperature_scaling_config=None,
+                          save_start_epoch=1, save_step_epoch=1, should_validate=False)
+    assert c.get_total_number_of_validation_epochs() == 2
+    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1],
+                          save_start_epoch=1, save_step_epochs=1, should_validate=False,
+                          temperature_scaling_config=TemperatureScalingConfig())
+    assert c.get_total_number_of_validation_epochs() == 4
+
+
+def test_get_total_number_of_training_epochs() -> None:
+    c = DeepLearningConfig(num_epochs=2, should_validate=False)
+    assert c.get_total_number_of_training_epochs() == 2
+    c = DeepLearningConfig(num_epochs=10, start_epoch=5, should_validate=False)
+    assert c.get_total_number_of_training_epochs() == 5
+
+
 @pytest.mark.parametrize("image_channels", [["region"], ["random_123"]])
 @pytest.mark.parametrize("ground_truth_ids", [["region", "region"], ["region", "other_region"]])
 def test_invalid_model_train(test_output_dirs: TestOutputDirectories, image_channels: Any,
@@ -121,15 +150,17 @@ def _test_model_train(output_dirs: TestOutputDirectories,
 
     loss_absolute_tolerance = 1e-3
     model_training_result = model_training.model_train(train_config)
-    assert isinstance(model_training_result, ModelTrainingResult)
+    assert isinstance(model_training_result, ModelTrainingResults)
 
     # check to make sure training batches are NOT all the same across epochs
-    _check_patch_centers(model_training_result.train_results_per_epoch, should_equal=False)
+    _check_patch_centers([x.metrics for x in model_training_result.train_results_per_epoch], should_equal=False)
     # check to make sure validation batches are all the same across epochs
-    _check_patch_centers(model_training_result.val_results_per_epoch, should_equal=True)
-    assert isinstance(model_training_result.train_results_per_epoch[0], MetricsDict)
-    actual_train_losses = [m.get_single_metric(MetricType.LOSS) for m in model_training_result.train_results_per_epoch]
-    actual_val_losses = [m.get_single_metric(MetricType.LOSS) for m in model_training_result.val_results_per_epoch]
+    _check_patch_centers([x.metrics for x in model_training_result.val_results_per_epoch], should_equal=True)
+    assert isinstance(model_training_result.train_results_per_epoch[0].metrics, MetricsDict)
+    actual_train_losses = [m.metrics.get_single_metric(MetricType.LOSS)
+                           for m in model_training_result.train_results_per_epoch]
+    actual_val_losses = [m.metrics.get_single_metric(MetricType.LOSS)
+                         for m in model_training_result.val_results_per_epoch]
     print("actual_train_losses = {}".format(actual_train_losses))
     print("actual_val_losses = {}".format(actual_val_losses))
     assert np.allclose(actual_train_losses, expected_train_losses, atol=loss_absolute_tolerance)

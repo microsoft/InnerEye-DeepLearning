@@ -209,6 +209,7 @@ def test_parse_and_check_restriction_pattern() -> None:
     assert DatasetSplits.parse_restriction_pattern("1,,3") == (1, None, 3)
     assert DatasetSplits.parse_restriction_pattern(",,3") == (None, None, 3)
     assert DatasetSplits.parse_restriction_pattern("+,0,3") == (sys.maxsize, 0, 3)
+    assert DatasetSplits.parse_restriction_pattern("1,2,+") == (1, 2, sys.maxsize)
     with pytest.raises(ValueError):
         # Neither 1 nor 3 fields
         DatasetSplits.parse_restriction_pattern("1,2")
@@ -221,6 +222,3 @@ def test_parse_and_check_restriction_pattern() -> None:
     with pytest.raises(ValueError):
         # This would mean "move the training set to validation AND to test".
         DatasetSplits.parse_restriction_pattern("0,+,+")
-    with pytest.raises(ValueError):
-        # These means "move all zero fields to test", but there are no zero fields.
-        DatasetSplits.parse_restriction_pattern("1,2,+")

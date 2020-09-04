@@ -22,10 +22,14 @@ from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    ModelType, OTHER_RUNS_SUBDIR_NAME, disable_logging_to_file, is_linux, logging_section, logging_to_file, \
+from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
+    CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
+    FULL_METRICS_DATAFRAME_FILE, \
+    METRICS_AGGREGATES_FILE, \
+    ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, disable_logging_to_file, is_linux, \
+    logging_section, logging_to_file, \
     logging_to_stdout, \
-    print_exception, remove_directory
+    print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import get_environment_yaml_file
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
@@ -35,7 +39,7 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 LOG_FILE_NAME = "stdout.txt"
 
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
-ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, ModelType],
+ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, ModelProcessing],
                                         Tuple[Optional[Path], Optional[Any]]]
 
 
@@ -50,7 +54,7 @@ def may_initialize_rpdb() -> None:
     rpdb_port = 4444
     rpdb.handle_trap(port=rpdb_port)
     # For some reason, os.getpid() does not return the ID of what appears to be the currently running process.
-    logging.info(f"rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
+    logging.info("rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
                  f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}")
 
 
@@ -160,14 +164,24 @@ class Runner:
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
-        self.create_ml_runner().run_inference_and_register_model(run_recovery, model_type=ModelType.ENSEMBLE)
+        self.create_ml_runner().run_inference_and_register_model(run_recovery, model_proc=ModelProcessing.ENSEMBLE_CREATION)
         crossval_dir = self.plot_cross_validation_and_upload_results()
         # CrossValResults should have been uploaded to the parent run, so we don't need it here.
-        remove_directory(crossval_dir)
+        remove_file_or_directory(crossval_dir)
         # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files
-        # available elsewhere.
+        # available elsewhere. However, first we need to upload relevant parts of OTHER_RUNS/ENSEMBLE.
         other_runs_dir = self.model_config.outputs_folder / OTHER_RUNS_SUBDIR_NAME
-        remove_directory(other_runs_dir)
+        other_runs_ensemble_dir = other_runs_dir / ENSEMBLE_SPLIT_NAME
+        if PARENT_RUN_CONTEXT is not None:
+            if other_runs_ensemble_dir.exists():
+                # Only keep baseline Wilcoxon results and scatterplots:
+                for subdir in other_runs_ensemble_dir.glob("*"):
+                    if subdir.name not in [BASELINE_WILCOXON_RESULTS_FILE, SCATTERPLOTS_SUBDIR_NAME]:
+                        remove_file_or_directory(subdir)
+                PARENT_RUN_CONTEXT.upload_folder(name=BASELINE_COMPARISONS_FOLDER, path=str(other_runs_ensemble_dir))
+            else:
+                logging.warning(f"Directory not found for upload: {other_runs_ensemble_dir}")
+        remove_file_or_directory(other_runs_dir)
 
     def parse_and_load_model(self) -> ParserResult:
         """
@@ -207,7 +221,7 @@ class Runner:
             exist = "exists" if Path(azure_config.extra_code_directory).exists() else "does not exist"
             logging.info(f"extra_code_directory is {azure_config.extra_code_directory}, which {exist}")
         else:
-            logging.info(f"extra_code_directory is unset")
+            logging.info("extra_code_directory is unset")
         self.azure_config = azure_config
         self.model_config = model_config
         return parser2_result
@@ -225,7 +239,7 @@ class Runner:
         may_initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
-        if self.model_config.number_of_cross_validation_splits > 0:
+        if self.model_config.perform_cross_validation:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None
@@ -243,7 +257,7 @@ class Runner:
         # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
         logging.getLogger('adal-python').setLevel(logging.WARNING)
         if not self.model_config.azure_dataset_id:
-            raise ValueError(f"When running on AzureML, the 'azure_dataset_id' property must be set.")
+            raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
         model_config_overrides = str(self.model_config.overrides)
         source_config = SourceConfig(
             root_folder=str(self.project_root),
@@ -264,7 +278,7 @@ class Runner:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
             # A build step will pick up that file and publish it to Azure DevOps.
             # If pytest_mark is set, this file must exist.
-            logging.info(f"Downloading pytest result file.")
+            logging.info("Downloading pytest result file.")
             download_pytest_result(self.azure_config, azure_run)
         else:
             logging.info("No pytest_mark present, hence not downloading the pytest result file.")

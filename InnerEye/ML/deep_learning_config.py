@@ -16,7 +16,7 @@ from param import Parameterized
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
-from InnerEye.Common.fixed_paths import DEFAULT_LOGS_DIR_NAME, DEFAULT_AML_UPLOAD_DIR
+from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, \
@@ -28,6 +28,15 @@ ARGS_TXT = "args.txt"
 
 
 @unique
+class LRWarmUpType(Enum):
+    """
+    Supported LR warm up types for model training
+    """
+    NoWarmUp = "NoWarmUp"
+    Linear = "Linear"
+
+
+@unique
 class LRSchedulerType(Enum):
     """
     Supported lr scheduler types for model training
@@ -36,6 +45,7 @@ class LRSchedulerType(Enum):
     Step = "Step"
     Polynomial = "Polynomial"
     Cosine = "Cosine"
+    MultiStep = "MultiStep"
 
 
 @unique
@@ -66,6 +76,19 @@ class MultiprocessingStartMethod(Enum):
     fork = "fork"
     forkserver = "forkserver"
     spawn = "spawn"
+
+
+class TemperatureScalingConfig(Parameterized):
+    """High level config to encapsulate temperature scaling parameters"""
+    lr: float = param.Number(default=0.002, bounds=(0, None),
+                             doc="The learning rate to use for the optimizer used to learn the "
+                                 "temperature scaling parameter")
+    max_iter: int = param.Number(default=50, bounds=(1, None),
+                                 doc="The maximum number of optimization iterations to use in order to "
+                                     "learn the temperature scaling parameter")
+    ece_num_bins: int = param.Number(default=15, bounds=(1, None),
+                                     doc="Number of bins to use when computing the "
+                                         "Expected Calibration Error")
 
 
 class DeepLearningFileSystemConfig(Parameterized):
@@ -158,6 +181,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                          doc="The high-level model category described by this config.")
     _model_name: str = param.String(None, doc="The human readable name of the model (for example, Liver). This is "
                                               "usually set from the class name.")
+
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     azure_dataset_id: Optional[str] = param.String(None, allow_None=True,
                                                    doc="The ID of the dataset to use. This dataset must exist as a "
@@ -181,16 +205,35 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     l_rate: float = param.Number(1e-4, doc="The initial learning rate", bounds=(0, None))
     _min_l_rate: float = param.Number(0.0, doc="The minimum learning rate", bounds=(0.0, None))
-    l_rate_decay: LRSchedulerType = param.ClassSelector(default=LRSchedulerType.Polynomial,
-                                                        class_=LRSchedulerType,
-                                                        instantiate=False,
-                                                        doc="Learning rate decay method (Cosine, Polynomial, "
-                                                            "Step, or Exponential)")
-    l_rate_gamma: float = param.Number(1e-4, doc="Controls the rate of decay, depending on the method")
-    l_rate_step_size: int = param.Integer(50, bounds=(0, None),
-                                          doc="The step size for Step decay (ignored for Polynomial "
-                                              "and Exponential)")
-
+    l_rate_scheduler: LRSchedulerType = param.ClassSelector(default=LRSchedulerType.Polynomial,
+                                                            class_=LRSchedulerType,
+                                                            instantiate=False,
+                                                            doc="Learning rate decay method (Cosine, Polynomial, "
+                                                            "Step, MultiStep or Exponential)")
+    l_rate_exponential_gamma: float = param.Number(0.9, doc="Controls the rate of decay for the Exponential "
+                                                            "LR scheduler.")
+    l_rate_step_gamma: float = param.Number(0.1, doc="Controls the rate of decay for the "
+                                                     "Step LR scheduler.")
+    l_rate_step_step_size: int = param.Integer(50, bounds=(0, None),
+                                               doc="The step size for Step LR scheduler")
+    l_rate_multi_step_gamma: float = param.Number(0.1, doc="Controls the rate of decay for the "
+                                                           "MultiStep LR scheduler.")
+    l_rate_multi_step_milestones: Optional[List[int]] = param.List(None, bounds=(1, None),
+                                                                   allow_None=True, class_=int,
+                                                                   doc="The milestones for MultiStep decay.")
+    l_rate_polynomial_gamma: float = param.Number(1e-4, doc="Controls the rate of decay for the "
+                                                            "Polynomial LR scheduler.")
+    l_rate_warmup: LRWarmUpType = param.ClassSelector(default=LRWarmUpType.NoWarmUp, class_=LRWarmUpType,
+                                                      instantiate=False,
+                                                      doc="The type of learning rate warm up to use. "
+                                                          "Can be NoWarmUp (default) or Linear.")
+    l_rate_warmup_epochs: int = param.Integer(0, bounds=(0, None),
+                                              doc="Number of warmup epochs (linear warmup) before the "
+                                                  "scheduler starts decaying the learning rate. "
+                                                  "For example, if you are using MultiStepLR with "
+                                                  "milestones [50, 100, 200] and warmup epochs = 100, warmup "
+                                                  "will last for 100 epochs and the first decay of LR "
+                                                  "will happen on epoch 150")
     optimizer_type: OptimizerType = param.ClassSelector(default=OptimizerType.Adam, class_=OptimizerType,
                                                         instantiate=False, doc="The optimizer_type to use")
     opt_eps: float = param.Number(1e-4, doc="The epsilon parameter of RMSprop or Adam")
@@ -237,10 +280,11 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     restrict_subjects: Optional[str] = \
         param.String(doc="Use at most this number of subjects for train, val, or test set (must be > 0 or None). "
                          "If None, do not modify the train, val, or test sets. If a string of the form 'i,j,k' where "
-                         "i, j and k are integers, modify just the corresponding set (i for train, j for val, k for "
-                         "test). If any of i, j or j are missing or are non-positive, do not modify the corresponding "
+                         "i, j and k are integers, modify just the corresponding sets (i for train, j for val, k for "
+                         "test). If any of i, j or j are missing or are negative, do not modify the corresponding "
                          "set. Thus a value of 20,,5 means limit training set to 20, keep validation set as is, and "
-                         "limit test set to 5.",
+                         "limit test set to 5. If any of i,j,k is '+', discarded members of the other sets are added "
+                         "to that set.",
                      allow_None=True)
     perform_training_set_inference: bool = \
         param.Boolean(False,
@@ -307,8 +351,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "the mean teacher model. Likewise the model used for inference "
                                                  "is the mean teacher model. The student model is only used for "
                                                  "training. Alpha is the momentum term for weight updates of the mean "
-                                                 "teacher model. After each training step the mean teacher model weights "
-                                                 "are updated using mean_teacher_weight = alpha * (mean_teacher_weight) "
+                                                 "teacher model. After each training step the mean teacher model "
+                                                 "weights are updated using mean_teacher_"
+                                                 "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
 
     def __init__(self, **params: Any) -> None:
@@ -339,6 +384,14 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
             raise ValueError(f"Cross validation split index must be -1 for a non cross validation run, "
                              f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
                              f"and cross_validation_split_index={self.cross_validation_split_index}")
+
+        if self.l_rate_scheduler == LRSchedulerType.MultiStep:
+            if not self.l_rate_multi_step_milestones:
+                raise ValueError("Must specify l_rate_multi_step_milestones to use LR scheduler MultiStep")
+            if sorted(set(self.l_rate_multi_step_milestones)) != self.l_rate_multi_step_milestones:
+                raise ValueError("l_rate_multi_step_milestones must be a strictly increasing list")
+            if self.l_rate_multi_step_milestones[0] <= 0:
+                raise ValueError("l_rate_multi_step_milestones cannot be negative or 0.")
 
     @property
     def model_name(self) -> str:
@@ -485,6 +538,34 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                             and epoch % self.save_step_epochs == 0
         is_last_epoch = epoch == self.num_epochs
         return should_save_epoch or is_last_epoch
+
+    def get_train_epochs(self) -> List[int]:
+        """
+        Returns the epochs for which training will be performed.
+        :return:
+        """
+        return list(range(self.start_epoch + 1, self.num_epochs + 1))
+
+    def get_total_number_of_training_epochs(self) -> int:
+        """
+        Returns the number of epochs for which a model will be trained.
+        :return:
+        """
+        return len(self.get_train_epochs())
+
+    def get_total_number_of_save_epochs(self) -> int:
+        """
+        Returns the number of epochs for which a model checkpoint will be saved.
+        :return:
+        """
+        return len(list(filter(self.should_save_epoch, self.get_train_epochs())))
+
+    def get_total_number_of_validation_epochs(self) -> int:
+        """
+        Returns the number of epochs for which a model will be validated.
+        :return:
+        """
+        return self.get_total_number_of_training_epochs()
 
     def get_test_epochs(self) -> List[int]:
         """

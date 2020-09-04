@@ -149,7 +149,7 @@ class RNNClassifierWithEncoder(RNNClassifier):
             # Adding necessary attributes required by GradCam computation.
             self.imaging_feature_type = image_encoder.imaging_feature_type  # type: ignore
             self.num_non_image_features = image_encoder.num_non_image_features  # type: ignore
-            self.last_encoder_layer = ["image_encoder"] + image_encoder.last_encoder_layer  # type: ignore
+            self.last_encoder_layer = ["image_encoder"] + image_encoder.get_last_encoder_layer_names()  # type: ignore
             self.conv_in_3d = self.image_encoder.conv_in_3d
             self.encode_channels_jointly = False
         self.use_encoder_batch_norm = use_encoder_batch_norm
@@ -180,6 +180,9 @@ class RNNClassifierWithEncoder(RNNClassifier):
                 encoded_seq.append(encoded_features)
         encoded_input = non_imaging_seq if encoded_seq == [] else torch.stack(encoded_seq, dim=1)
         return super().forward(encoded_input)
+
+    def get_last_encoder_layer_names(self) -> List[str]:
+        return self.last_encoder_layer
 
     def get_input_tensors(self, sequences: List[ClassificationItemSequence]) -> List[torch.Tensor]:
         """

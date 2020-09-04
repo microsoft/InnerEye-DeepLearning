@@ -308,36 +308,6 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
         logging.debug(f"    {p}")
 
 
-def reorder_for_merging(files: List[Path]) -> List[Path]:
-    """
-    Workaround for bug in conda_dependencies.py in versions up to 1.11.0 of azureml-sdk: if any file has a
-    line containing "- pythonX" where the X character is not "=", put it first, as it will trigger
-    the bug if merged in. If there is more than one such file, we're out of luck.
-    """
-    # Remove duplicates, preserving order
-    unique_files = []
-    for file in files:
-        if file not in unique_files:
-            unique_files.append(file)
-    if len(unique_files) == 1:
-        return unique_files
-    # Detect files that could trigger the bug
-    indices = []
-    for i, file in enumerate(unique_files):
-        with file.open() as fp:
-            for line in fp.readlines():
-                if "- python" in line and "- python=" not in line:
-                    indices.append(i)
-                    break
-    if len(indices) == 0:
-        return unique_files
-    if len(indices) == 1:
-        index = indices[0]
-        return [unique_files[index]] + unique_files[:index] + unique_files[index + 1:]
-    raise ValueError("Multiple environment files contain bug-triggering pattern: "
-                     " ".join(str(unique_files[index]) for index in indices))
-
-
 def merge_conda_dependencies(files: List[Path]) -> CondaDependencies:
     """
     Creates a CondaDependencies object from the Conda environments specified in one or more files.
@@ -349,7 +319,7 @@ def merge_conda_dependencies(files: List[Path]) -> CondaDependencies:
     """
     merged_dependencies: Optional[CondaDependencies] = None
 
-    for file in reorder_for_merging(files):
+    for file in files:
         conda_dependencies = CondaDependencies(file)
         _log_conda_dependencies_stats(conda_dependencies, f"Conda environment in {file}")
         if merged_dependencies is None:

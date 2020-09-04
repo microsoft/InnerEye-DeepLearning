@@ -18,12 +18,16 @@ class DeviceAwareModule(torch.nn.Module, Generic[T, E]):
     that can provide information about its devices
     """
 
-    def get_device_ids(self) -> List[int]:
+    def __init__(self) -> None:
+        super().__init__()
+        self.conv_in_3d = False
+
+    def get_devices(self) -> List[torch.device]:
         """
         :return a list of device ids on which this module
         is deployed.
         """
-        return list({x.device.index for x in self.parameters()})
+        return list({x.device for x in self.parameters()})
 
     def get_number_trainable_parameters(self) -> int:
         """
@@ -52,3 +56,9 @@ class DeviceAwareModule(torch.nn.Module, Generic[T, E]):
         """
         raise NotImplementedError("get_input_tensor has to be"
                                   "implemented by sub classes.")
+
+    def get_last_encoder_layer_names(self) -> List[str]:
+        """
+        Return the name of the last encoder layers for GradCam. Default is an empty list.
+        """
+        return []

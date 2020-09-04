@@ -532,7 +532,7 @@ def check_if_posterior_array(posteriors: np.ndarray) -> None:
         raise Exception(f"Posteriors must have shape: Class x Z x Y x X found {len(posteriors.shape)} dimension(s)")
     check_array_range(posteriors, (0.0, 1.0), "Posteriors:")  # type: ignore
     if not np.all(np.isclose(np.sum(posteriors, axis=0), 1)):
-        raise ValueError(f"Posteriors must sum to 1 in the class dimension")
+        raise ValueError("Posteriors must sum to 1 in the class dimension")
 
 
 def segmentation_to_one_hot(segmentation: torch.Tensor,

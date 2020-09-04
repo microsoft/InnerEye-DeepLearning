@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Tuple
 
 import pytest
-from _pytest.main import EXIT_NOTESTSCOLLECTED, EXIT_OK
+from _pytest.main import ExitCode
 from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
@@ -33,10 +33,10 @@ def run_pytest(pytest_mark: str, outputs_folder: Path) -> Tuple[bool, Path]:
         pytest_args += ["-m", pytest_mark]
     logging.info(f"Starting pytest, with args: {pytest_args}")
     status_code = pytest.main(pytest_args)
-    if status_code == EXIT_NOTESTSCOLLECTED:
+    if status_code == ExitCode.NO_TESTS_COLLECTED:
         logging.error(f"PyTest did not find any tests to run, when restricting to tests with this mark: {pytest_mark}")
         return False, _outputs_file
-    return status_code == EXIT_OK, _outputs_file
+    return status_code == ExitCode.OK, _outputs_file
 
 
 def download_pytest_result(azure_config: AzureConfig, run: Run, destination_folder: Path = Path.cwd()) -> Path:

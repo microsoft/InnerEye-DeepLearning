@@ -19,6 +19,7 @@ from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util, model_util
 from InnerEye.ML.utils.io_util import ImageDataType
+from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
 from Tests.ML.util import machine_has_gpu, no_gpu_available
 
 
@@ -133,14 +134,12 @@ def test_amp_activated(use_model_parallel: bool,
     # Move the model to the GPU. This is mostly to avoid issues with AMP, which has trouble
     # with first using a GPU model and later using a CPU-based one.
     model = model.cuda()
-
     optimizer = model_util.create_optimizer(model_config, model)
-    model_amp = optimizer_amp = None
+    model_and_info = ModelAndInfo(model, optimizer)
     try:
-        model_amp, optimizer_amp = model_util.update_model_for_mixed_precision_and_parallel(model,
-                                                                                            model_config,
-                                                                                            optimizer,
-                                                                                            execution_mode)
+        model_and_info_amp = model_util.update_model_for_mixed_precision_and_parallel(model_and_info,
+                                                                                      model_config,
+                                                                                      execution_mode)
     except NotImplementedError as ex:
         if use_model_parallel:
             # The SimpleModel does not implement model partitioning, and should hence fail at this step.
@@ -151,11 +150,13 @@ def test_amp_activated(use_model_parallel: bool,
 
     # Check if the optimizer is updated with AMP mixed precision features. The attribute should be present
     # if and only if mixed precision is switched on.
+    optimizer_amp = model_and_info_amp.optimizer
+    assert optimizer_amp is not None
     assert hasattr(optimizer_amp, '_amp_stash') == use_mixed_precision
     assert hasattr(optimizer_amp, '_post_amp_backward') == use_mixed_precision
 
     criterion = lambda x, y: torch.tensor([0.0], requires_grad=True).cuda()
-    pipeline = SegmentationForwardPass(model_amp,
+    pipeline = SegmentationForwardPass(model_and_info_amp.model,
                                        model_config,
                                        batch_size=1,
                                        optimizer=optimizer_amp,
@@ -212,15 +213,15 @@ def test_mean_teacher_model() -> None:
     model_train(config)
 
     # Retrieve the weight after one epoch
-    model = config.create_model()
+    model = create_model_with_temperature_scaling(config)
     print(config.get_path_to_checkpoint(1))
     _ = model_util.load_checkpoint(model, config.get_path_to_checkpoint(1))
     model_weight = next(_get_parameters_of_model(model))
 
     # Get the starting weight of the mean teacher model
     ml_util.set_random_seed(config.random_seed)
-    _ = config.create_model()
-    mean_teach_model = config.create_model()
+    _ = create_model_with_temperature_scaling(config)
+    mean_teach_model = create_model_with_temperature_scaling(config)
     initial_weight_mean_teacher_model = next(_get_parameters_of_model(mean_teach_model))
 
     # Now train with mean teacher and check the update of the weight
@@ -229,7 +230,7 @@ def test_mean_teacher_model() -> None:
     model_train(config)
 
     # Retrieve weight of mean teacher model saved in the checkpoint
-    mean_teacher_model = config.create_model()
+    mean_teacher_model = create_model_with_temperature_scaling(config)
     _ = model_util.load_checkpoint(mean_teacher_model, config.get_path_to_checkpoint(1, for_mean_teacher_model=True))
     result_weight = next(_get_parameters_of_model(mean_teacher_model))
     # Retrieve the associated student weight

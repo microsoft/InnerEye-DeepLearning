@@ -12,6 +12,7 @@ import torch
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from InnerEye.ML.visualizers import model_hooks
 
 
@@ -74,7 +75,7 @@ def extract_activation_maps(args: ModelConfigBase) -> None:
     :param args:
     :return:
     """
-    model = args.create_model()
+    model = create_model_with_temperature_scaling(args)
     if args.use_gpu:
         model = torch.nn.DataParallel(model, device_ids=list(range(torch.cuda.device_count())))
         model = model.cuda()

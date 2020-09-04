@@ -167,6 +167,9 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
 
         self.aggregation_layer = self._get_aggregation_layer(aggregation_type, scan_size)
 
+    def get_last_encoder_layer_names(self) -> List[str]:
+        return self.last_encoder_layer
+
     def _get_aggregation_layer(self, aggregation_type: AggregationType, scan_size: Optional[TupleInt3]) -> Any:
         """
         Returns the aggregation layer as specified by the config
