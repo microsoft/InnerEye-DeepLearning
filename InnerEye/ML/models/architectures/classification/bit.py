@@ -6,9 +6,12 @@ import torch
 import numpy as np
 
 from torch import nn
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, List
 
 from InnerEye.ML.models.layers.weight_standardization import WeightStandardizedConv2d
+from InnerEye.ML.models.architectures.classification.bit import BiTResNetV2
+from InnerEye.ML.dataset.scalar_sample import ScalarItem
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 
 
 class ResNetV2Block(nn.Module):
@@ -209,8 +212,20 @@ class BiTResNetV2(nn.Module):
         state_dict = dict()
         for name, weight in weight_dict.items():
             tensor = torch.from_numpy(weight)
-            if tensor.ndim == 4:
+            if tensor.ndim == 4:  # type: ignore
                 tensor = tensor.permute(3, 2, 0, 1)
             state_dict[map_name(name)] = tensor
 
         return state_dict
+
+
+class BiTModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
+    def __init__(self):
+        super().__init__()
+        self.model = BiTResNetV2()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
+        return self.model(x)
+
+    def get_input_tensors(self, item: ScalarItem) -> List[torch.Tensor]:
+        return [item.images]

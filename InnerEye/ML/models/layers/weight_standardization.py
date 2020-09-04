@@ -39,16 +39,16 @@ class WeightStandardizedConv2d(nn.Conv2d):
                          padding_mode=padding_mode)
 
     @staticmethod
-    def standardize(weights: torch.Tensor):
+    def standardize(weights: torch.Tensor) -> torch.Tensor:
         """
         Normalize weights on a per-kernel basis for all kernels.
         """
-        assert weights.ndim == 4
+        assert weights.ndim == 4  # type: ignore
         mean = torch.mean(weights, dim=(1, 2, 3), keepdim=True)
         variance = torch.var(weights, dim=(1, 2, 3), keepdim=True, unbiased=False)
         standardized_weights = (weights - mean) / torch.sqrt(variance + eps)
         return standardized_weights
 
-    def forward(self, input: torch.Tensor):
+    def forward(self, input: torch.Tensor) -> torch.Tensor:  # type: ignore
         standardized_weights = WeightStandardizedConv2d.standardize(self.weight)
-        return self.conv2d_forward(input, standardized_weights)
+        return self.conv2d_forward(input, standardized_weights)  # type: ignore

@@ -8,7 +8,7 @@ import numpy as np
 from InnerEye.ML.models.layers.weight_standardization import WeightStandardizedConv2d, eps
 
 
-def test_standardize_ones():
+def test_standardize_ones() -> None:
     """
     Smoke test for normalization.
     """
@@ -19,7 +19,7 @@ def test_standardize_ones():
     assert torch.allclose(result, torch.zeros(size=size))
 
 
-def test_standardize_zeros():
+def test_standardize_zeros() -> None:
     """
     Make sure there are no divide-by-zero errors.
     """
@@ -30,7 +30,7 @@ def test_standardize_zeros():
     assert torch.allclose(result, torch.zeros(size=size))
 
 
-def test_standardize_rows():
+def test_standardize_rows() -> None:
     """
     We find mean and variance for each filter, so a filter filled with a constant value should normalize to 0.
     """
@@ -43,7 +43,7 @@ def test_standardize_rows():
     assert torch.allclose(result, torch.zeros(size=size))
 
 
-def test_standardize_random():
+def test_standardize_random() -> None:
     """
     Test normalization on arbitrary weights.
     """
@@ -64,7 +64,7 @@ def test_standardize_random():
     assert torch.allclose(result, expected)
 
 
-def test_conv_constant_filter():
+def test_conv_constant_filter() -> None:
     """
     Test with filters filled with a constant value: they'll normalize to zero
     """
