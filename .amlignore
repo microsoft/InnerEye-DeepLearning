@@ -8,6 +8,5 @@ outputs
 logs
 test_outputs/*
 run_outputs/*
-aria.log*
 # Test output from model registration
 TestsOutsidePackage/azureml-models

@@ -136,11 +136,12 @@ class MLRunner:
             "friendly_name",
             "build_number",
             "build_user",
-            "build_source_repository",
-            "build_source_branch",
-            "build_source_id",
-            "build_source_message",
-            "build_build_source_author",
+            "source_repository",
+            "source_branch",
+            "source_id",
+            "source_message",
+            "source_author",
+            "source_dirty",
             RUN_RECOVERY_FROM_ID_KEY_NAME
         ]
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}

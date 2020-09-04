@@ -159,7 +159,18 @@ class ScalarModelBase(ModelConfigBase):
     center_crop_size: Optional[TupleInt3] = \
         param.NumericTuple(default=None, allow_None=True, length=3,
                            doc="If given, the loaded images and segmentations will be cropped to the given size."
-                               "Size is given in pixels. The crop will be taken from the center of the image.")
+                               "Size is given in pixels. The crop will be taken from the center of the image. "
+                               "Crop size should be in the form (crop_z, crop_y, crop_x)."
+                               "If your dataset has 2D images, center crop should have singleton first dimension,"
+                               "i.e. (1, ) + (crop_y, crop_x)")
+
+    image_size: Optional[TupleInt3] = \
+        param.NumericTuple(default=None, allow_None=True, length=3,
+                           doc="If given, images will be resized to these dimensions immediately after loading from"
+                               "file."
+                               "Image size should be in the form (size_z, size_y, size_x)."
+                               "If your dataset has 2D images, image size should have singleton first dimension,"
+                               "i.e. (1, ) + (size_y, size_x)")
 
     categorical_feature_encoder: Optional[OneHotEncoderBase] = param.ClassSelector(OneHotEncoderBase,
                                                                                    allow_None=True,
@@ -334,11 +345,11 @@ class ScalarModelBase(ModelConfigBase):
     def create_torch_datasets(self, dataset_splits: DatasetSplits) -> Dict[ModelExecutionMode, Any]:
         from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
         image_transforms = self.get_image_sample_transforms()
-        train = ScalarDataset(self, dataset_splits.train,
+        train = ScalarDataset(args=self, data_frame=dataset_splits.train,
                               name="training", sample_transforms=image_transforms.train)  # type: ignore
-        val = ScalarDataset(self, dataset_splits.val, feature_statistics=train.feature_statistics,
+        val = ScalarDataset(args=self, data_frame=dataset_splits.val, feature_statistics=train.feature_statistics,
                             name="validation", sample_transforms=image_transforms.val)  # type: ignore
-        test = ScalarDataset(self, dataset_splits.test, feature_statistics=train.feature_statistics,
+        test = ScalarDataset(args=self, data_frame=dataset_splits.test, feature_statistics=train.feature_statistics,
                              name="test", sample_transforms=image_transforms.test)  # type: ignore
 
         return {

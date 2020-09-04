@@ -14,7 +14,7 @@ import torch
 from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata, SampleBase
-from InnerEye.ML.utils.io_util import load_3d_images_and_stack
+from InnerEye.ML.utils.io_util import load_images_and_stack
 from InnerEye.ML.utils.ml_util import is_tensor_nan_or_inf
 
 
@@ -99,7 +99,8 @@ class ScalarDataSource(ScalarItemBase):
                     root_path: Optional[Path],
                     file_mapping: Optional[Dict[str, Path]],
                     load_segmentation: bool,
-                    center_crop_size: Optional[TupleInt3]
+                    center_crop_size: Optional[TupleInt3],
+                    image_size: Optional[TupleInt3]
                     ) -> ScalarItem:
         """
         Loads all the images that are specified in the channel_files field, and stacks them into a tensor
@@ -113,6 +114,8 @@ class ScalarDataSource(ScalarItemBase):
         :param load_segmentation: If True it loads segmentation if present on the same file as the image.
         :param center_crop_size: If supplied, all loaded images will be cropped to the size given here. The crop will
         be taken from the center of the image.
+        :param image_size: If given, all loaded images will be reshaped to the size given here, prior to the
+        center crop.
         :return: An instance of ClassificationItem, with the same label and numerical_non_image_features fields,
         and all images loaded.
         """
@@ -130,9 +133,10 @@ class ScalarDataSource(ScalarItemBase):
             else:
                 raise ValueError("One of the arguments 'file_mapping' or 'root_path' must be given.")
 
-        imaging_data = load_3d_images_and_stack(full_channel_files,
-                                                load_segmentation=load_segmentation,
-                                                center_crop_size=center_crop_size)
+        imaging_data = load_images_and_stack(files=full_channel_files,
+                                             load_segmentation=load_segmentation,
+                                             center_crop_size=center_crop_size,
+                                             image_size=image_size)
         return ScalarItem(
             label=self.label,
             numerical_non_image_features=self.numerical_non_image_features,
