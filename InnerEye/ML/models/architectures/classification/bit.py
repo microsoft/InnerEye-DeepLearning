@@ -9,7 +9,6 @@ from torch import nn
 from typing import Tuple, Dict, Optional, List
 
 from InnerEye.ML.models.layers.weight_standardization import WeightStandardizedConv2d
-from InnerEye.ML.models.architectures.classification.bit import BiTResNetV2
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 
