@@ -219,7 +219,7 @@ class BiTResNetV2(nn.Module):
 
 
 class BiTModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
-    def __init__(self):
+    def __init__(self):  # type: ignore
         super().__init__()
         self.model = BiTResNetV2()
 
