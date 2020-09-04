@@ -204,12 +204,6 @@ class ScalarModelBase(ModelConfigBase):
         else:
             self.num_dataset_reader_workers = num_dataset_reader_workers
 
-    def validate(self) -> None:
-        """
-        Validates the parameters stored in the present object.
-        """
-        super().validate()
-
     @property
     def is_classification_model(self) -> bool:
         """
