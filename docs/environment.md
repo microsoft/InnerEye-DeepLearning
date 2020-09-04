@@ -1,9 +1,50 @@
 # Setting up your environment
 
-We recommend using [WSL2](https://docs.microsoft.com/en-us/windows/wsl/about) for development or Linux with PyCharm or VSCode. Linux is better supported by Pytorch.
+## Using the InnerEye code as a git submodule of your project
+You have two options for working with our codebase:
+* You can fork the InnerEye-DeepLearning repository, and work off that.
+* Or you can create your project that uses the InnerEye-DeepLearning code, and include InnerEye-DeepLearning as a git
+submodule.
 
-## WSL2 setup
-- [WSL2 development](/docs/WSL.md)
+If you go down the second route, here's the list of files you will need in your project (that's the same as those
+given in [this document](building_models.md))
+* `environment.yml`: Conda environment with python, pip, pytorch
+* `train_variables.yml`: A file similar to `InnerEye\train_variables.yml` containing all your Azure settings
+* A folder like `ML` that contains your additional code, and model configurations.
+* A file `ML/runner.py` that invokes the InnerEye training runner, but that points the code to your environment and Azure
+settings; see the [Building models](building_models.md) instructions for details.
+
+You then need to add the InnerEye code as a git submodule, in folder `innereye-submodule`:
+```shell script
+git submodule add https://github.com/microsoft/InnerEye-DeepLearning innereye-submodule
+```
+Then configure your Python IDE to consume *both* your repository root *and* the `innereye-submodule` subfolder as inputs.
+In Pycharm, you would do that by going to Settings/Project Structure. Mark your repository root as "Source", and 
+`innereye-submodule` as well.
+
+We recommend using PyCharm or VSCode as the Python editor. 
+
+
+## Windows Subsystem for Linux Setup
+When developing on a Windows machine, we recommend using [the Windows Subsystem for Linux, WSL2](https://docs.microsoft.com/en-us/windows/wsl/about).
+That's because PyTorch has better support for Linux.
+
+If you want to use WSL, please follow [these instructions](/docs/WSL.md)
+
+## Installing Conda or Miniconda
+You can skip this step if you have installed WSL as per the previous item.
+
+Download a Conda or Miniconda [installer for your platform](https://docs.conda.io/en/latest/miniconda.html)
+and run it.
+
+
+## Create a Conda environment
+Start the `conda` prompt for your platform. In that prompt, navigate to your repository root and run
+`conda env create --file environment.yml`
+
+# More Details for Tool Setup
+The following steps describe how to set up specific tools. You can execute most of those at a later
+point, if you want to dig deeper into the code.
 
 ## PyCharm
 - Our team uses [PyCharm](https://www.jetbrains.com/pycharm/) for development.
@@ -62,7 +103,7 @@ Run Flake8 by right-clicking on a source file, External Tools / Flake8
 To delete, make sure the environment being deleted is not your current environment (just run `deactivate`). Then run 
 `conda env remove --name environmentToDelete`.
 
-To create an enviornment from scratch and then export it to a YAML file:
+To create an environment from scratch and then export it to a YAML file:
 
     conda create --name envName python
     pip install whatEverPackage
@@ -89,25 +130,3 @@ You can do this, for example, to force an update of the `azureml-sdk` and all it
 If you want to take the second route:
 1. Use `conda env update -f environment.yml --prune` to refresh if you make changes in environment.yml
 1. To update packages use `conda update --all` and `pip-review --local --interactive`
-
-## Using the InnerEye code as a git submodule of your project
-You have two options for working with our codebase:
-* You can fork the InnerEye-DeepLearning repository, and work off that.
-* Or you can create your project that uses the InnerEye-DeepLearning code, and include InnerEye-DeepLearning as a git
-submodule.
-
-If you go down the second route, here's the list of files you will need in your project (that's the same as those
-given in [this document](building_models.md))
-* `environment.yml`: Conda environment with python, pip, pytorch
-* `train_variables.yml`: A file similar to `InnerEye\train_variables.yml` containing all your Azure settings
-* A folder like `ML` that contains your additional code, and model configurations.
-* A file `ML/runner.py` that invokes the InnerEye training runner, but that points the code to your environment and Azure
-settings; see the [Building models](building_models.md) instructions for details.
-
-You then need to add the InnerEye code as a git submodule, in folder `innereye-submodule`:
-```shell script
-git submodule add https://github.com/microsoft/InnerEye-DeepLearning innereye-submodule
-```
-Then configure your Python IDE to consume *both* your repository root *and* the `innereye-submodule` subfolder as inputs.
-In Pycharm, you would do that by going to Settings/Project Structure. Mark your repository root as "Source", and 
-`innereye-submodule` as well.
