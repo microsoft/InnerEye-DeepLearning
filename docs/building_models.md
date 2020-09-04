@@ -82,15 +82,20 @@ sets the experiment name to match the name of the current git branch.
 
 ### K-Fold Model Cross Validation
 
-As for training a new model, but add the switch `--number_of_cross_validation_splits=N`, for some `N` greater than
-1; a value of 5 is typical. This will start a 
+For running K-fold cross validation, the InnerEye toolbox schedules multiple training runs in the cloud that run
+at the same time (provided that the cluster has capacity). This means that a complete cross validation run usually
+takes as long as a single training run.
+
+To start cross validation, you can either modify the `number_of_cross_validation_splits` property of your model,
+or supply it on the command line: Provide all the usual switches, and add `--number_of_cross_validation_splits=N`, 
+for some `N` greater than 1; a value of 5 is typical. This will start a 
 [HyperDrive run](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters): A parent
 AzureML job, with `N` child runs that will execute in parallel. You can see the child runs in the AzureML UI in the
 "Child Runs" tab.
 
 The dataset splits for those `N` child runs will be
 computed from the union of the Training and Validation sets. The Test set is unchanged. Note that the Test set can be
-empty, in which case the training and validation sets for the `N` child runs will be the full dataset.
+empty, in which case the union all validation sets for the `N` child runs will be the full dataset.
 
 ### Recovering failed runs and continuing training
 
