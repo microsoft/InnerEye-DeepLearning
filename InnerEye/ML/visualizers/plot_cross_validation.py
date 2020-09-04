@@ -873,10 +873,10 @@ def plot_cross_validation(config: PlotCrossValidationConfig) -> Path:
     :return:
     """
     logging_to_stdout(logging.INFO)
-    with logging_section("downloading cross-validation results"):
+    with logging_section("Downloading cross-validation results"):
         result_files, root_folder = download_crossval_result_files(config)
     config_and_files = OfflineCrossvalConfigAndFiles(config=config, files=result_files)
-    with logging_section("plotting cross-validation results"):
+    with logging_section("Plotting cross-validation results"):
         plot_cross_validation_from_files(config_and_files, root_folder)
     return root_folder
 

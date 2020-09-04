@@ -117,7 +117,7 @@ class Runner:
         Wait for cross val runs (apart from the current one) to finish and then aggregate results of all.
         :param delay: How long to wait between polls to AML to get status of child runs
         """
-        with logging_section("waiting for sibling runs"):
+        with logging_section("Waiting for sibling runs"):
             while self.wait_until_cross_val_splits_are_ready_for_aggregation():
                 time.sleep(delay)
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
@@ -153,7 +153,7 @@ class Runner:
         """
         # Import only here in case of dependency issues in reduced environment
         from InnerEye.ML.utils.run_recovery import RunRecovery
-        with logging_section("downloading checkpoints from sibling runs"):
+        with logging_section("Downloading checkpoints from sibling runs"):
             run_recovery = RunRecovery.download_checkpoints_from_run(
                 self.azure_config, self.model_config, PARENT_RUN_CONTEXT, output_subdir_name=OTHER_RUNS_SUBDIR_NAME)
             # Check paths are good, just in case
