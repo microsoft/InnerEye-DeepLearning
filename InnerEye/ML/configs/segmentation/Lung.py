@@ -53,7 +53,7 @@ class Lung(SegmentationModelBase):
             num_epochs=140,
             l_rate=1e-3,
             min_l_rate=1e-5,
-            l_rate_gamma=0.9,
+            l_rate_polynomial_gamma=0.9,
             optimizer_type=OptimizerType.Adam,
             opt_eps=1e-4,
             adam_betas=(0.9, 0.999),
