@@ -48,9 +48,9 @@ class BasicModel2Epochs(SegmentationModelBase):
             # Use an LR scheduler with a pronounced and clearly visible decay, to be able to easily see if that
             # is applied correctly in run recovery.
             l_rate=1e-4,
-            l_rate_decay=LRSchedulerType.Step,
-            l_rate_step_size=1,
-            l_rate_gamma=0.9
+            l_rate_scheduler=LRSchedulerType.Step,
+            l_rate_step_step_size=1,
+            l_rate_step_gamma=0.9
         )
         self.add_and_validate(kwargs)
 
