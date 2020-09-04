@@ -12,6 +12,7 @@ import pytest
 from InnerEye.Common import common_util
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.metrics import InferenceMetricsForSegmentation
 from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
@@ -38,7 +39,7 @@ def test_model_inference_train_and_test(test_output_dirs: TestOutputDirectories,
     result, _, _ = MLRunner(config).model_inference_train_and_test()
     if result is None:
         raise ValueError("Error result cannot be None")
-
+    assert isinstance(result, InferenceMetricsForSegmentation)
     for key, _ in result.epochs.items():
         epoch_folder_name = common_util.epoch_folder_name(key)
         for folder in [ModelExecutionMode.TRAIN.value, ModelExecutionMode.VAL.value, ModelExecutionMode.TEST.value]:

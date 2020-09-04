@@ -10,13 +10,13 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
-from torch.cuda import device_count
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, SequenceMetricsDict
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
+from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
@@ -24,12 +24,15 @@ from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp impo
 from InnerEye.ML.models.architectures.sequential.rnn_classifier import RNNClassifier, RNNClassifierWithEncoder
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss
-from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
+from InnerEye.ML.sequence_config import SEQUENCE_LENGTH_FILE, SEQUENCE_LENGTH_STATS_FILE, \
+    SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentation
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.io_util import ImageAndSegmentations
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
+from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling, \
+    update_model_for_mixed_precision_and_parallel
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from Tests.ML.util import get_default_azure_config
@@ -72,6 +75,7 @@ class ToySequenceModel(SequenceModelBase):
             dataframe=_get_mock_sequence_dataset(), columns=["cat1"])
         super().__init__(
             local_dataset=full_ml_test_data_path("sequence_data_for_classification"),
+            temperature_scaling_config=TemperatureScalingConfig(),
             label_value_column="label",
             numerical_columns=["numerical1", "numerical2"],
             categorical_columns=["cat1"],
@@ -210,7 +214,9 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, SCAN_SIZE),
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
-        model_train(config)
+        results = model_train(config)
+        assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
+               == config.get_total_number_of_save_epochs()
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
@@ -259,7 +265,9 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     config.num_epochs = 1
-    model = config.create_model()
+
+    model = create_model_with_temperature_scaling(config)
+    update_model_for_mixed_precision_and_parallel(ModelAndInfo(model), config)
     dataloader = SequenceDataset(config,
                                  data_frame=config.dataset_data_frame).as_data_loader(shuffle=False,
                                                                                       batch_size=2)
@@ -308,6 +316,7 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
 class ToySequenceModel2(SequenceModelBase):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(
+            temperature_scaling_config=TemperatureScalingConfig(),
             local_dataset=full_ml_test_data_path("sequence_data_for_classification"),
             label_value_column="label",
             numerical_columns=["feature"],
@@ -348,18 +357,9 @@ def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) ->
     Test if we can build an RNN classifier that learns sequences, of the same kind as in
     test_rnn_classifier_toy_problem, but built via the config.
     """
-    num_gpus = device_count()
-    if num_gpus == 0:
-        expected_max_train_loss = 0.39
-        expected_max_val_loss = 0.36
-    elif num_gpus == 2:
-        expected_max_train_loss = 0.39
-        expected_max_val_loss = 0.36
-    elif num_gpus == 1:
-        raise ValueError("This test must be executed on a 2 GPU machine to test aggregation of multi-device outputs.")
-    else:
-        raise ValueError(f"I don't have an expected result for the test running on {num_gpus} GPUs")
-    num_sequences = 400
+    expected_max_train_loss = 0.71
+    expected_max_val_loss = 0.71
+    num_sequences = 100
     ml_util.set_random_seed(123)
     dataset_contents = "subject,index,feature,label\n"
     for subject in range(num_sequences):
@@ -372,24 +372,27 @@ def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) ->
             dataset_contents += f"S{subject},{i},{value},{label}\n"
     logging_to_stdout()
     config = ToySequenceModel2(should_validate=False)
+    config.num_epochs = 2
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset(dataset_contents)
     results = model_train(config)
 
-    # Verify that the loss values for both training and validation sets are below target range.
-    # In the future, please do not fix these loss values to a fixed number as the models can be improved over time.
-    actual_train_loss = results.train_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
-    actual_val_loss = results.val_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
+    actual_train_loss = results.train_results_per_epoch[-1].metrics.values()[MetricType.LOSS.value][0]
+    actual_val_loss = results.val_results_per_epoch[-1].metrics.values()[MetricType.LOSS.value][0]
     print(f"Training loss after {config.num_epochs} epochs: {actual_train_loss}")
     print(f"Validation loss after {config.num_epochs} epochs: {actual_val_loss}")
     assert actual_train_loss <= expected_max_train_loss, "Training loss too high"
     assert actual_val_loss <= expected_max_val_loss, "Validation loss too high"
+    assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
+           == config.get_total_number_of_save_epochs()
+    assert np.allclose(results.optimal_temperature_scale_values_per_checkpoint_epoch, [0.97], rtol=0.1)
 
 
 class ToyMultiLabelSequenceModel(SequenceModelBase):
     def __init__(self, **kwargs: Any) -> None:
         num_epochs = 3
         super().__init__(
+            temperature_scaling_config=TemperatureScalingConfig(),
             label_value_column="Label",
             numerical_columns=["NUM1", "NUM2"],
             sequence_column="Position",
@@ -498,7 +501,7 @@ def test_visualization_for_different_target_weeks(test_output_dirs: TestOutputDi
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_multi_label_sequence_dataframe()
     config.pre_process_dataset_dataframe()
-    model = config.create_model()
+    model = create_model_with_temperature_scaling(config)
     dataloader = SequenceDataset(config,
                                  data_frame=config.dataset_data_frame).as_data_loader(shuffle=False,
                                                                                       batch_size=2)
@@ -553,3 +556,29 @@ def _get_multi_label_sequence_dataframe() -> pd.DataFrame:
 3250.12345,238,B,84,3,0
 """
     return pd.read_csv(StringIO(dataset_contents), dtype=str)
+
+
+def test_sequence_dataset_stats_hook(test_output_dirs: TestOutputDirectories) -> None:
+    model = ToySequenceModel()
+    model.set_output_to(test_output_dirs.root_dir)
+    model.dataset_data_frame = _get_mock_sequence_dataset()
+    model.create_and_set_torch_datasets()
+    length_file = model.logs_folder / SEQUENCE_LENGTH_FILE
+    assert length_file.is_file()
+    assert length_file.read_text().splitlines() == [
+        "cross_validation_split_index,data_split,subject,sequence_length",
+        "-1,Train,2137.00005,4",
+        "-1,Train,2627.12341,3",
+        "-1,Train,3250.00005,5",
+        "-1,Train,3250.12345,4",
+        "-1,Test,2627.00001,3",
+        "-1,Val,2137.00125,5"]
+    stats_file = model.logs_folder / SEQUENCE_LENGTH_STATS_FILE
+    assert stats_file.is_file()
+    assert stats_file.read_text().splitlines() == [
+        "           sequence_length                                          ",
+        "                     count mean       std  min   25%  50%   75%  max",
+        "data_split                                                          ",
+        "Test                   1.0  3.0       NaN  3.0  3.00  3.0  3.00  3.0",
+        "Train                  4.0  4.0  0.816497  3.0  3.75  4.0  4.25  5.0",
+        "Val                    1.0  5.0       NaN  5.0  5.00  5.0  5.00  5.0"]

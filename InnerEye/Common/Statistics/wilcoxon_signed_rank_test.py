@@ -53,12 +53,13 @@ up each score from one set of results with a score from the other set.
 
 from collections import defaultdict
 from itertools import filterfalse, tee
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
-import numpy
+import numpy as np
 import pandas as pd
 import param
+from azureml.core import Run
 from scipy import stats
 
 import InnerEye.Common.Statistics.statistical_tests as tests
@@ -66,7 +67,7 @@ from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.visualizers.metrics_scatterplot import create_scatterplots
 
-INTERSECT = lambda l, r: numpy.intersect1d(l, r, False)
+INTERSECT = lambda l, r: np.intersect1d(l, r, False)
 
 """
 The factor by which the Wilcoxon Z value should be divided to allow for incomplete independence of the data.
@@ -82,7 +83,7 @@ class WilcoxonTestConfig(GenericConfig):
     Command line parameter class.
     """
     against: Optional[List[str]] = param.List(class_=str, default=None,
-                                              doc='Build (value in "split" column of csv_file) against which to '
+                                              doc='Run (value in "split" column of csv_file) against which to '
                                                   'compare every other set')
     exclude: str = param.String(default='',
                                 doc='comma-separated list of structure names to exclude, e.g. external,bladder')
@@ -107,8 +108,10 @@ def calculate_statistics(dist1: Dict[str, float], dist2: Dict[str, float], facto
     shared = sorted(set(key for key in dist1 if key in dist2))
     values1 = [dist1[key] for key in shared]
     values2 = [dist2[key] for key in shared]
-    median1 = numpy.median(values1)
-    median2 = numpy.median(values2)
+    mean1 = np.mean(values1)
+    mean2 = np.mean(values2)
+    median1 = np.median(values1)
+    median2 = np.median(values2)
     n1, n2 = difference_counts(values1, values2)
     # We don't use the Scipy Wilcoxon test method, as it doesn't
     # tell us which way round the statistic is.
@@ -118,6 +121,8 @@ def calculate_statistics(dist1: Dict[str, float], dist2: Dict[str, float], facto
         "pairs": len(shared),
         "n1": n1,
         "n2": n2,
+        "mean1": mean1,
+        "mean2": mean2,
         "median1": median1,
         "median2": median2,
         "wilcoxon_z": wil_z,
@@ -176,15 +181,16 @@ def compose_pairwise_result(threshold: float, results: Dict[str, Dict[str, float
     """
     Composes results in human readable form and (if throw_on_failure) throws if any tests fail
     """
-    header = [f"{'Name':<15s} {'N':^3s} {'N1>2':^4s} {'N2>1':^4s} {'Med1':^7s} {'Med2':^7s} "
-              f"{'WilcZ':>6s} {'WilcP':^5s} {'2_vs_1':<s}"]
+    header = [f"{'Name':<15s} {'N':^3s} {'Mean1':^7s} {'Mean2':^7s} {'N1>2':^4s} {'N2>1':^4s} "
+              f"{'Med1':^7s} {'Med2':^7s} {'WilcZ':>6s} {'WilcP':^5s} {'2_vs_1':<s}"]
     n_failed = 0
     lines: List[str] = []
     test_is_valid = False
+    max_len = max([0] + [len(name) for name in results])
     for name in sorted(results):
         dct = results[name]
-        line = f"{name:<15s} {dct['pairs']:3d} {dct['n1']:4d} {dct['n2']:4d} " \
-               f"{dct['median1']:7.3f} {dct['median2']:7.3f}"
+        line = f"{name:<{max_len}s} {dct['pairs']:3d} {dct['mean1']:7.3f} {dct['mean2']:7.3f} {dct['n1']:4d} " \
+               f"{dct['n2']:4d} {dct['median1']:7.3f} {dct['median2']:7.3f}"
         if dct['n1'] + dct['n2'] >= 5:
             failure = dct['wilcoxon_p'] < threshold / 2
             pf = failure and 'WORSE' or (dct['wilcoxon_p'] > 1 - threshold / 2 and 'BETTER') or ''
@@ -240,16 +246,23 @@ def convert_data(csv_data: pd.DataFrame, subset: str = 'all', exclude: Optional[
     return data
 
 
-def wilcoxon_signed_rank_test(args: WilcoxonTestConfig) -> Tuple[List[str], Dict[str, plt.figure]]:
+def wilcoxon_signed_rank_test(args: WilcoxonTestConfig,
+                              name_shortener: Optional[Callable[[Union[Run, str]], str]] = None) \
+        -> Tuple[List[str], Dict[str, plt.figure]]:
     """
     Reads data from a csv file, and performs all pairwise comparisons, except if --against was specified,
-    compare every other build against the "--against" build.
+    compare every other run against the "--against" run.
     :param args: parsed command line parameters
+    :param name_shortener: optional function to shorten names to make graphs and tables more legible
     """
     if args.data is not None:
         data = convert_data(args.data)
     else:
         data = read_data(args.csv_file, args.subset, args.exclude.split(','))
+    if name_shortener:
+        data = dict((name_shortener(key), val) for (key, val) in data.items())
+        if args.against is not None:
+            args.against = [name_shortener(key) for key in args.against]
     lines = run_wilcoxon_test_on_data(data, args.against, args.threshold, args.raw)
     plots = create_scatterplots(data, args.against) if args.with_scatterplots else {}
     return lines, plots
@@ -260,29 +273,29 @@ def run_wilcoxon_test_on_data(data: Dict[str, Dict[str, Dict[str, float]]],
                               raw: bool = False) -> List[str]:
     """
     Performs all pairwise comparisons on the provided data, except if "against" was specified,
-    compare every other build against the "against" build.
-    :param data: scores such that data[build][structure][subject] = dice score
-    :param against: builds to compare against; or None to compare all against all
+    compare every other run against the "against" run.
+    :param data: scores such that data[run][structure][subject] = dice score
+    :param against: runs to compare against; or None to compare all against all
     :param raw: whether to interpret Wilcoxon Z values "raw" or apply a correction
     :param threshold: p value to apply in deciding whether a result is significant
     """
-    builds = sorted(data.keys())
+    runs = sorted(data.keys())
     lines = []
     if against == []:
         against = None
     if against is not None:
-        pairs = sorted([(build in against, build) for build in builds])
-        builds = [pair[1] for pair in pairs]
-    while builds:
-        build1 = builds[0]
-        builds = builds[1:]
-        for build2 in builds:
-            if against is not None and build2 not in against:
+        pairs = sorted([(run in against, run) for run in runs])
+        runs = [pair[1] for pair in pairs]
+    while runs:
+        run1 = runs[0]
+        runs = runs[1:]
+        for run2 in runs:
+            if against is not None and run2 not in against:
                 continue
-            results = evaluate_data_pair(data[build1], data[build2], raw)
+            results = evaluate_data_pair(data[run1], data[run2], raw)
             result_lines = compose_pairwise_result(threshold, results)
             if len(result_lines) > 0:
-                lines.extend([f"Build 1: {build1}", f"Build 2: {build2}"])
+                lines.extend([f"Run 1: {run1}", f"Run 2: {run2}"])
                 lines.extend(result_lines)
                 lines.append("")
     return lines

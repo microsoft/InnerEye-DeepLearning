@@ -8,7 +8,9 @@ import torch
 from torch.nn.parallel.data_parallel import DataParallel
 from torch.nn.parallel.scatter_gather import gather, scatter_kwargs
 
+from InnerEye.Common.type_annotations import T
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
+from InnerEye.ML.utils.device_aware_module import E
 
 
 class DataParallelModel(DataParallel, DeviceAwareModule):
@@ -18,18 +20,22 @@ class DataParallelModel(DataParallel, DeviceAwareModule):
     computation in parallel.
     """
 
+    def get_input_tensors(self, item: T) -> List[E]:
+        _module: DeviceAwareModule = self.get_module()
+        return _module.get_input_tensors(item)
+
     def get_module(self) -> DeviceAwareModule:
         module = self.module
         if not isinstance(module, DeviceAwareModule):
             raise ValueError(f"Expecting DeviceAwareModule. Instead found {module}")
         return module
 
-    def get_device_ids(self) -> List[int]:
+    def get_devices(self) -> List[torch.device]:
         """
         Gets the numeric indices of the CUDA devices that the present object is using.
         :return:
         """
-        return [x if isinstance(x, int) else x.index for x in self.device_ids]
+        return [torch.device(x) if isinstance(x, int) else x for x in self.device_ids]
 
     def gather(self, outputs: List[torch.Tensor], output_device: int) -> List[torch.Tensor]:
         """

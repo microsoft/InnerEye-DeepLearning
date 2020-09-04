@@ -84,14 +84,13 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         :param pipeline_id: ID for the pipeline to be created.
         :return: ScalarInferencePipeline if recovery from checkpoint successful. None if unsuccessful.
         """
-        model_and_checkpoint_epoch = model_util.load_from_checkpoint_and_adjust(config, path_to_checkpoint)
-        if model_and_checkpoint_epoch is None:
+        model_and_info = model_util.load_from_checkpoint_and_adjust(config, path_to_checkpoint)
+        if model_and_info.model is None or model_and_info.checkpoint_epoch is None:
             # not raising a value error here: This is used to create individual pipelines for ensembles,
             #                                   possible one model cannot be created but others can
             logging.warning(f"Could not recover model from checkpoint path {path_to_checkpoint}")
             return None
-        model, checkpoint_epoch = model_and_checkpoint_epoch
-        return ScalarInferencePipeline(model, config, checkpoint_epoch, pipeline_id)
+        return ScalarInferencePipeline(model_and_info.model, config, model_and_info.checkpoint_epoch, pipeline_id)
 
     def predict(self, sample: Dict[str, Any]) -> ScalarInferencePipelineBase.Result:
         """
@@ -178,9 +177,11 @@ class ScalarEnsemblePipeline(ScalarInferencePipelineBase):
         if len(set(map(tuple, [result.subject_ids for result in results]))) > 1:  # type: ignore
             raise ValueError("Trying to aggregate results for different subject ids.")
         subject_ids = results[0].subject_ids
-        # check that we have the same subject ids
+        # check that we have the same labels
         for result in results:
-            if not torch.equal(results[0].labels, result.labels):
+            # Using allclose() instead of equal() because we can have NaN in the labels (in which case
+            # equal() would return False).
+            if not torch.allclose(results[0].labels, result.labels, atol=0, rtol=0, equal_nan=True):
                 raise ValueError("Trying to aggregate results but ground truth does not match across samples.")
         labels = results[0].labels
 

@@ -33,6 +33,9 @@ class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
         self.last_encoder_layer: List[str] = ["_layers", "0"]
         self.conv_in_3d = False
 
+    def get_last_encoder_layer_names(self) -> List[str]:
+        return self.last_encoder_layer
+
     def get_input_tensors(self, item: ScalarItem) -> List[torch.Tensor]:
         """
         Transforms a classification item into images

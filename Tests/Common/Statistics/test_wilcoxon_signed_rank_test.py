@@ -14,6 +14,8 @@ def test_calculate_statistics() -> None:
     expected = {"pairs": 1,  # number of matching pairs - only "foo" is shared
                 "n1": 0,  # number of pairs in which the first score is bigger
                 "n2": 1,  # number of pairs in which the second score is bigger
+                "mean1": 2.0,
+                "mean2": 2.5,
                 "median1": 2.0,
                 "median2": 2.5,
                 "wilcoxon_z": 1.0,
@@ -50,6 +52,8 @@ def test_compose_pairwise_results() -> None:
                {"pairs": 10,
                 "n1": 30,
                 "n2": 40,
+                "mean1": 3.5,
+                "mean2": 4.5,
                 "median1": 3,
                 "median2": 4,
                 "wilcoxon_z": 1.0,
@@ -74,11 +78,11 @@ def test_run_wilcoxon_test_on_data() -> None:
             "C": {"foo": {"0": 0.97, "1": 0.97, "2": 0.97, "3": 0.97, "4": 0.97}}}
     result1 = "\n".join(wt.run_wilcoxon_test_on_data(data))
     # We expect all three pairwise comparisons.
-    assert result1.find("Build 1: A\nBuild 2: B\n") >= 0 or result1.find("Build 1: B\nBuild 2: A\n") >= 0
-    assert result1.find("Build 1: A\nBuild 2: C\n") >= 0 or result1.find("Build 1: C\nBuild 2: A\n") >= 0
-    assert result1.find("Build 1: B\nBuild 2: C\n") >= 0 or result1.find("Build 1: C\nBuild 2: B\n") >= 0
+    assert result1.find("Run 1: A\nRun 2: B\n") >= 0 or result1.find("Run 1: B\nRun 2: A\n") >= 0
+    assert result1.find("Run 1: A\nRun 2: C\n") >= 0 or result1.find("Run 1: C\nRun 2: A\n") >= 0
+    assert result1.find("Run 1: B\nRun 2: C\n") >= 0 or result1.find("Run 1: C\nRun 2: B\n") >= 0
     # When we specify "against B", there should be no comparison between A and C.
     result2 = "\n".join(wt.run_wilcoxon_test_on_data(data, against=["B"]))
-    assert result2.find("Build 1: A\nBuild 2: B\n") >= 0 or result2.find("Build 1: B\nBuild 2: A\n") >= 0
-    assert result2.find("Build 1: A\nBuild 2: C\n") < 0 and result2.find("Build 1: C\nBuild 2: A\n") < 0
-    assert result2.find("Build 1: B\nBuild 2: C\n") >= 0 or result2.find("Build 1: C\nBuild 2: B\n") >= 0
+    assert result2.find("Run 1: A\nRun 2: B\n") >= 0 or result2.find("Run 1: B\nRun 2: A\n") >= 0
+    assert result2.find("Run 1: A\nRun 2: C\n") < 0 and result2.find("Run 1: C\nRun 2: A\n") < 0
+    assert result2.find("Run 1: B\nRun 2: C\n") >= 0 or result2.find("Run 1: C\nRun 2: B\n") >= 0

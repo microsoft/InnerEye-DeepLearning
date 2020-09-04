@@ -176,11 +176,13 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
                        batch_size: Optional[int] = None,
                        num_dataload_workers: Optional[int] = None,
                        use_imbalanced_sampler: bool = False,
-                       drop_last_batch: bool = False) -> DataLoader:
+                       drop_last_batch: bool = False,
+                       max_repeats: Optional[int] = None) -> DataLoader:
         num_dataload_workers = num_dataload_workers or self.args.num_dataload_workers
         batch_size = batch_size or self.args.train_batch_size
         if self.args.avoid_process_spawn_in_data_loaders:
-            max_repeats = self.args.num_epochs - self.args.start_epoch
+            if max_repeats is None:
+                max_repeats = self.args.get_total_number_of_training_epochs()
             return RepeatDataLoader(
                 self,
                 max_repeats=max_repeats,

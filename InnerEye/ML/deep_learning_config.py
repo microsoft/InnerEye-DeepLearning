@@ -16,7 +16,7 @@ from param import Parameterized
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
-from InnerEye.Common.fixed_paths import DEFAULT_LOGS_DIR_NAME, DEFAULT_AML_UPLOAD_DIR
+from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, \
@@ -66,6 +66,19 @@ class MultiprocessingStartMethod(Enum):
     fork = "fork"
     forkserver = "forkserver"
     spawn = "spawn"
+
+
+class TemperatureScalingConfig(Parameterized):
+    """High level config to encapsulate temperature scaling parameters"""
+    lr: float = param.Number(default=0.002, bounds=(0, None),
+                             doc="The learning rate to use for the optimizer used to learn the "
+                                 "temperature scaling parameter")
+    max_iter: int = param.Number(default=50, bounds=(1, None),
+                                 doc="The maximum number of optimization iterations to use in order to "
+                                     "learn the temperature scaling parameter")
+    ece_num_bins: int = param.Number(default=15, bounds=(1, None),
+                                     doc="Number of bins to use when computing the "
+                                         "Expected Calibration Error")
 
 
 class DeepLearningFileSystemConfig(Parameterized):
@@ -158,6 +171,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                          doc="The high-level model category described by this config.")
     _model_name: str = param.String(None, doc="The human readable name of the model (for example, Liver). This is "
                                               "usually set from the class name.")
+
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     azure_dataset_id: Optional[str] = param.String(None, allow_None=True,
                                                    doc="The ID of the dataset to use. This dataset must exist as a "
@@ -237,10 +251,11 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     restrict_subjects: Optional[str] = \
         param.String(doc="Use at most this number of subjects for train, val, or test set (must be > 0 or None). "
                          "If None, do not modify the train, val, or test sets. If a string of the form 'i,j,k' where "
-                         "i, j and k are integers, modify just the corresponding set (i for train, j for val, k for "
-                         "test). If any of i, j or j are missing or are non-positive, do not modify the corresponding "
+                         "i, j and k are integers, modify just the corresponding sets (i for train, j for val, k for "
+                         "test). If any of i, j or j are missing or are negative, do not modify the corresponding "
                          "set. Thus a value of 20,,5 means limit training set to 20, keep validation set as is, and "
-                         "limit test set to 5.",
+                         "limit test set to 5. If any of i,j,k is '+', discarded members of the other sets are added "
+                         "to that set.",
                      allow_None=True)
     perform_training_set_inference: bool = \
         param.Boolean(False,
@@ -307,8 +322,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "the mean teacher model. Likewise the model used for inference "
                                                  "is the mean teacher model. The student model is only used for "
                                                  "training. Alpha is the momentum term for weight updates of the mean "
-                                                 "teacher model. After each training step the mean teacher model weights "
-                                                 "are updated using mean_teacher_weight = alpha * (mean_teacher_weight) "
+                                                 "teacher model. After each training step the mean teacher model "
+                                                 "weights are updated using mean_teacher_"
+                                                 "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
 
     def __init__(self, **params: Any) -> None:
@@ -485,6 +501,34 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                             and epoch % self.save_step_epochs == 0
         is_last_epoch = epoch == self.num_epochs
         return should_save_epoch or is_last_epoch
+
+    def get_train_epochs(self) -> List[int]:
+        """
+        Returns the epochs for which training will be performed.
+        :return:
+        """
+        return list(range(self.start_epoch + 1, self.num_epochs + 1))
+
+    def get_total_number_of_training_epochs(self) -> int:
+        """
+        Returns the number of epochs for which a model will be trained.
+        :return:
+        """
+        return len(self.get_train_epochs())
+
+    def get_total_number_of_save_epochs(self) -> int:
+        """
+        Returns the number of epochs for which a model checkpoint will be saved.
+        :return:
+        """
+        return len(list(filter(self.should_save_epoch, self.get_train_epochs())))
+
+    def get_total_number_of_validation_epochs(self) -> int:
+        """
+        Returns the number of epochs for which a model will be validated.
+        :return:
+        """
+        return self.get_total_number_of_training_epochs()
 
     def get_test_epochs(self) -> List[int]:
         """

@@ -111,7 +111,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         assert self._datasets_for_inference is not None  # for mypy
         return self._datasets_for_inference[mode]
 
-    def create_data_loaders(self) -> Dict[ModelExecutionMode, Any]:
+    def create_data_loaders(self, max_repeats: Optional[int] = None) -> Dict[ModelExecutionMode, Any]:
         """
         Creates the torch DataLoaders that supply the training and the validation set during training only.
         :return: A dictionary, with keys ModelExecutionMode.TRAIN and ModelExecutionMode.VAL, and their respective
@@ -127,9 +127,14 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         train_loader = self._datasets_for_training[ModelExecutionMode.TRAIN] \
             .as_data_loader(shuffle=self.shuffle,
                             use_imbalanced_sampler=self.use_imbalanced_sampler_for_training,
-                            drop_last_batch=self.drop_last_batch_in_training)
+                            drop_last_batch=self.drop_last_batch_in_training,
+                            max_repeats=self.get_total_number_of_training_epochs())
         logging.info("Creating the data loader for the validation set.")
-        val_loader = self._datasets_for_training[ModelExecutionMode.VAL].as_data_loader(shuffle=False)
+
+        val_loader = self._datasets_for_training[ModelExecutionMode.VAL].as_data_loader(
+            shuffle=False,
+            max_repeats=self.get_total_number_of_validation_epochs()
+        )
         logging.info("Finished creating the data loaders.")
         return {
             ModelExecutionMode.TRAIN: train_loader,
@@ -140,6 +145,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         Creates a torch model from the provided arguments and returns a torch.nn.Module object.
         This is an abstract method that each model class (segmentation, regression) should override.
+        Return type should really be BaseModel, but that involves importing more than we can afford to.
         """
         # This method is factually an abstract method. We don't want to mark at as such
         # because this would prevent us from easily instantiating this class in tests.
