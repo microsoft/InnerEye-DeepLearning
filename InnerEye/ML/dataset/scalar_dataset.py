@@ -686,7 +686,8 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             root_path=self.args.local_dataset,
             file_mapping=self.file_to_full_path,
             load_segmentation=self.args.load_segmentation,
-            center_crop_size=self.args.center_crop_size)
+            center_crop_size=self.args.center_crop_size,
+            image_size=self.args.image_size)
 
         return Compose3D.apply(self.transforms, sample)
 
@@ -705,7 +706,8 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
     A dataset class that can read CSV files with a flexible schema, and extract image file paths and non-image features.
     """
 
-    def __init__(self, args: ScalarModelBase, data_frame: Optional[pd.DataFrame] = None,
+    def __init__(self, args: ScalarModelBase,
+                 data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics[ScalarDataSource]] = None,
                  name: Optional[str] = None,
                  sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None):
@@ -718,7 +720,11 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
         :param sample_transforms: Sample transforms that should be applied.
         :param name: Name of the dataset, used for diagnostics logging
         """
-        super().__init__(args, data_frame, feature_statistics, name, sample_transforms)
+        super().__init__(args,
+                         data_frame=data_frame,
+                         feature_statistics=feature_statistics,
+                         name=name,
+                         sample_transforms=sample_transforms)
         self.items = self.load_all_data_sources()
         self.normalize_non_image_features()
 

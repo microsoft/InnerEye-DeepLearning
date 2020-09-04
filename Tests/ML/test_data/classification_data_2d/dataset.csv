@@ -1,0 +1,9 @@
+subjectID,channel,path,value
+S1,image,im1.npy
+S1,label,,True
+S2,image,im2.npy
+S2,label,,True
+S3,image,im1.npy
+S3,label,,False
+S4,image,im2.npy
+S4,label,,False
