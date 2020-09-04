@@ -23,6 +23,7 @@ from InnerEye.Azure.azure_util import get_results_blob_path, get_run_id, \
     is_offline_run_context, to_azure_friendly_container_path
 from InnerEye.Azure.secrets_handling import APPLICATION_KEY, SecretsHandling, read_variables_from_yaml
 from InnerEye.Common import fixed_paths
+from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 
@@ -143,6 +144,7 @@ class AzureConfig(GenericConfig):
         repository = self.build_source_repository or self.project_root.name
         is_dirty = True
         try:
+            logging.debug(f"Trying to read git repository on {self.project_root}")
             git_repo = Repo(self.project_root)
             branch = branch or git_repo.active_branch.name
             last_commit = git_repo.active_branch.commit
@@ -151,7 +153,8 @@ class AzureConfig(GenericConfig):
             commit_message = commit_message or last_commit.message[:120].strip()
             # Is_dirty in the present settings ignores untracked files.
             is_dirty = git_repo.is_dirty()
-        except:
+        except Exception as ex:
+            print_exception(ex, "Error when reading git repository.", logger_fn=logging.debug)
             logging.info(f"Folder {self.project_root} does not seem to be a git repository.")
         return GitInformation(
             repository=repository,
