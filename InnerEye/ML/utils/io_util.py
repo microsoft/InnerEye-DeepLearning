@@ -16,10 +16,9 @@ import torch
 from tabulate import tabulate
 
 from InnerEye.Common import common_util
-from InnerEye.Common.type_annotations import PathOrString, TupleFloat3, TupleInt2Or3
+from InnerEye.Common.type_annotations import PathOrString, TupleFloat3, TupleInt3
 from InnerEye.ML.config import DEFAULT_POSTERIOR_VALUE_RANGE, PhotometricNormalizationMethod, \
     SegmentationModelBase
-from InnerEye.ML.scalar_config import ImageDimension
 from InnerEye.ML.dataset.sample import PatientDatasetSource, Sample
 from InnerEye.ML.utils.hdf5_util import HDF5Object
 from InnerEye.ML.utils.image_util import ImageDataType, ImageHeader, check_array_range, get_center_crop, is_binary_array
@@ -247,9 +246,8 @@ class ImageAndSegmentations(Generic[TensorOrNumpyArray]):
 
 def load_images_and_stack(files: Iterable[Path],
                              load_segmentation: bool,
-                             image_dimension: ImageDimension,
-                             center_crop_size: Optional[TupleInt2Or3] = None,
-                             image_size: Optional[TupleInt2Or3] = None) -> ImageAndSegmentations[torch.Tensor]:
+                             center_crop_size: Optional[TupleInt3] = None,
+                             image_size: Optional[TupleInt3] = None) -> ImageAndSegmentations[torch.Tensor]:
     """
     Attempts to load a set of files, all of which are expected to contain 3D images of the same size (Z, X, Y)
     They are all stacked along dimension 0 and returned as a torch tensor of size (B, Z, X, Y)
@@ -261,7 +259,6 @@ def load_images_and_stack(files: Iterable[Path],
     :param center_crop_size: If supplied, all loaded images will be cropped to the size given here. The crop will be
     taken from the center of the image.
     :param image_size: If supplied, all loaded images will be resized immediately after loading.
-    :param image_dimension: Indicates if the input image is 2D or 3D
     :return: A wrapper class that contains the loaded images, and if load_segmentation is True, also the segmentations
     that were present in the files.
     """
@@ -272,25 +269,29 @@ def load_images_and_stack(files: Iterable[Path],
         if image_size:
             if not issubclass(array.dtype.type, np.floating):
                 raise ValueError("Array must be of type float.")
+            if array.shape[0] == 1 and not image_size[0] == 1:
+                raise ValueError(f"Input image is 2D with singleton dimension {array.shape}, but parameter "
+                                 f"image_shape has non-singleton first dimension {image_size}")
             array = resize(array, image_size, anti_aliasing=True)
         t = torch.from_numpy(array)
         if center_crop_size:
+            if array.shape[0] == 1 and not center_crop_size[0] == 1:
+                raise ValueError(f"Input image is 2D with singleton dimension {array.shape}, but parameter "
+                                 f"center_crop_size has non-singleton first dimension {center_crop_size}")
             return get_center_crop(t, center_crop_size)
         return t
 
     for file_path in files:
         image_and_segmentation = load_image_in_known_formats(file_path, load_segmentation)
         image_numpy = image_and_segmentation.images
-        if image_dimension == ImageDimension.Image_3D:
-            if image_numpy.ndim == 4 and image_numpy.shape[0] == 1:
-                image_numpy = image_numpy.squeeze(axis=0)
-            elif image_numpy.ndim != 3:
-                raise ValueError(f"Image {file_path} has unsupported shape: {image_numpy.shape}")
-        elif image_dimension == ImageDimension.Image_2D:
-            if image_numpy.ndim == 3 and image_numpy.shape[0] == 1:
-                image_numpy = image_numpy.squeeze(axis=0)
-            elif image_numpy.ndim != 2:
-                raise ValueError(f"Image {file_path} has unsupported shape: {image_numpy.shape}")
+
+        if image_numpy.ndim == 4 and image_numpy.shape[0] == 1:
+            image_numpy = image_numpy.squeeze(axis=0)
+        elif image_numpy.ndim == 2:
+            image_numpy = image_numpy[None, ...]
+        elif image_numpy.ndim != 3:
+            raise ValueError(f"Image {file_path} has unsupported shape: {image_numpy.shape}")
+
         images.append(from_numpy_crop_and_resize(image_numpy))
         if load_segmentation:
             # Segmentations are loaded as UInt8. Convert to one-hot encoding as late as possible,

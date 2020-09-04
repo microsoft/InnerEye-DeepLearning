@@ -12,11 +12,10 @@ from typing import Any, Dict, List, Optional
 import torch
 
 from InnerEye.Common.common_util import check_properties_are_not_none
-from InnerEye.Common.type_annotations import TupleInt2Or3
+from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata, SampleBase
 from InnerEye.ML.utils.io_util import load_images_and_stack
 from InnerEye.ML.utils.ml_util import is_tensor_nan_or_inf
-from InnerEye.ML.scalar_config import ImageDimension
 
 
 @dataclass(frozen=True)
@@ -100,9 +99,8 @@ class ScalarDataSource(ScalarItemBase):
                     root_path: Optional[Path],
                     file_mapping: Optional[Dict[str, Path]],
                     load_segmentation: bool,
-                    center_crop_size: Optional[TupleInt2Or3],
-                    image_size: Optional[TupleInt2Or3],
-                    image_dimension: ImageDimension
+                    center_crop_size: Optional[TupleInt3],
+                    image_size: Optional[TupleInt3]
                     ) -> ScalarItem:
         """
         Loads all the images that are specified in the channel_files field, and stacks them into a tensor
@@ -118,7 +116,6 @@ class ScalarDataSource(ScalarItemBase):
         be taken from the center of the image.
         :param image_size: If given, all loaded images will be reshaped to the size given here, prior to the
         center crop.
-        :param image_dimension: Indicates if the input image is 2D or 3D
         :return: An instance of ClassificationItem, with the same label and numerical_non_image_features fields,
         and all images loaded.
         """
@@ -138,7 +135,6 @@ class ScalarDataSource(ScalarItemBase):
 
         imaging_data = load_images_and_stack(files=full_channel_files,
                                              load_segmentation=load_segmentation,
-                                             image_dimension=image_dimension,
                                              center_crop_size=center_crop_size,
                                              image_size=image_size)
         return ScalarItem(

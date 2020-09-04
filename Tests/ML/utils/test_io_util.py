@@ -14,7 +14,6 @@ from unittest import mock
 from skimage.transform import resize
 
 from InnerEye.Common.output_directories import TestOutputDirectories
-from InnerEye.ML.scalar_config import ImageDimension
 from InnerEye.ML.dataset.sample import PatientDatasetSource, PatientMetadata
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
@@ -290,7 +289,7 @@ def test_load_image(file_path: str, expected_shape: Tuple) -> None:
 def test_load_and_stack(file_path_str: str, expected_shape: Tuple) -> None:
     file_path = Path(file_path_str)
     files = [full_ml_test_data_path() / f for f in [file_path, file_path]]
-    stacked = load_images_and_stack(files, load_segmentation=False, image_dimension=ImageDimension.Image_3D)
+    stacked = load_images_and_stack(files, load_segmentation=False)
     assert torch.is_tensor(stacked.segmentations)
     assert stacked.segmentations is not None
     assert stacked.segmentations.shape == (0,)
@@ -302,7 +301,7 @@ def test_load_and_stack_with_segmentation() -> None:
     expected_shape = (4, 5, 7)
     file_path = full_ml_test_data_path() / "hdf5_data/patient_hdf5s/4be9beed-5861-fdd2-72c2-8dd89aadc1ef.h5"
     files = [file_path, file_path]
-    stacked = load_images_and_stack(files, load_segmentation=True, image_dimension=ImageDimension.Image_3D)
+    stacked = load_images_and_stack(files, load_segmentation=True)
     assert stacked.segmentations is not None
     assert torch.is_tensor(stacked.segmentations)
     assert stacked.segmentations.dtype == torch.uint8
@@ -328,7 +327,7 @@ def test_load_and_stack_with_crop() -> None:
     mock_return = ImageAndSegmentations(image, segmentation)
     with mock.patch("InnerEye.ML.utils.io_util.load_image_in_known_formats", return_value=mock_return):
         stacked = load_images_and_stack([Path("doesnotmatter")], load_segmentation=True,
-                                        image_dimension=ImageDimension.Image_3D, center_crop_size=crop_shape)
+                                        center_crop_size=crop_shape)
         assert torch.is_tensor(stacked.images)
         assert stacked.images.shape == (1,) + crop_shape
         assert torch.all(stacked.images == 1.0)
@@ -339,7 +338,7 @@ def test_load_and_stack_with_crop() -> None:
 
 
 def test_load_images_when_empty() -> None:
-    stacked = load_images_and_stack([], load_segmentation=False, image_dimension=ImageDimension.Image_3D)
+    stacked = load_images_and_stack([], load_segmentation=False)
     assert stacked.images.shape == (0,)
     assert stacked.segmentations is not None
     assert stacked.segmentations.shape == (0,)
@@ -356,17 +355,17 @@ def test_load_images_and_stack_2d_ones(test_output_dirs: TestOutputDirectories) 
     write_test_dicom(array, Path(test_output_dirs.root_dir) / "file2.dcm")
     write_test_dicom(array, Path(test_output_dirs.root_dir) / "file3.dcm")
 
-    expected_tensor = torch.from_numpy(np.ones((3,) + image_size))
+    expected_tensor = torch.from_numpy(np.ones((3, 1) + image_size))
 
     file_list = [Path(test_output_dirs.root_dir) / f"file{i}.dcm" for i in range(1, 4)]
     imaging_data = load_images_and_stack(file_list,
                                             load_segmentation=False,
-                                            image_dimension=ImageDimension.Image_2D,
-                                            image_size=image_size)
+                                            image_size=(1,) + image_size)
 
-    assert len(imaging_data.images.shape) == 3
+    assert len(imaging_data.images.shape) == 4
     assert imaging_data.images.shape[0] == 3
-    assert imaging_data.images.shape[1:] == image_size
+    assert imaging_data.images.shape[1] == 1
+    assert imaging_data.images.shape[2:] == image_size
     assert torch.allclose(imaging_data.images, expected_tensor)
 
 
@@ -385,17 +384,17 @@ def test_load_images_and_stack_2d_random(test_output_dirs: TestOutputDirectories
     array3 = np.random.randint(low=low, high=high, size=image_size, dtype='uint16')
     write_test_dicom(array3, Path(test_output_dirs.root_dir) / "file3.dcm")
 
-    expected_tensor = torch.from_numpy(np.stack([array1, array2, array3]).astype(float))
+    expected_tensor = torch.from_numpy(np.expand_dims(np.stack([array1, array2, array3]).astype(float), axis=1))
 
     file_list = [Path(test_output_dirs.root_dir) / f"file{i}.dcm" for i in range(1, 4)]
     imaging_data = load_images_and_stack(file_list,
                                             load_segmentation=False,
-                                            image_dimension=ImageDimension.Image_2D,
-                                            image_size=image_size)
+                                            image_size=(1,) + image_size)
 
-    assert len(imaging_data.images.shape) == 3
+    assert len(imaging_data.images.shape) == 4
     assert imaging_data.images.shape[0] == 3
-    assert imaging_data.images.shape[1:] == image_size
+    assert imaging_data.images.shape[1] == 1
+    assert imaging_data.images.shape[2:] == image_size
     assert torch.allclose(imaging_data.images, expected_tensor)
 
 
@@ -412,17 +411,17 @@ def test_load_images_and_stack_2d_with_resize_ones(test_output_dirs: TestOutputD
     array = np.ones((30, 10), dtype='uint16')
     write_test_dicom(array, Path(test_output_dirs.root_dir) / "file3.dcm")
 
-    expected_tensor = torch.from_numpy(np.ones((3,) + image_size))
+    expected_tensor = torch.from_numpy(np.ones((3, 1) + image_size))
 
     file_list = [Path(test_output_dirs.root_dir) / f"file{i}.dcm" for i in range(1, 4)]
     imaging_data = load_images_and_stack(file_list,
                                             load_segmentation=False,
-                                            image_dimension=ImageDimension.Image_2D,
-                                            image_size=image_size)
+                                            image_size=(1,) + image_size)
 
-    assert len(imaging_data.images.shape) == 3
+    assert len(imaging_data.images.shape) == 4
     assert imaging_data.images.shape[0] == 3
-    assert imaging_data.images.shape[1:] == image_size
+    assert imaging_data.images.shape[1] == 1
+    assert imaging_data.images.shape[2:] == image_size
     assert torch.allclose(imaging_data.images, expected_tensor)
 
 
@@ -444,17 +443,17 @@ def test_load_images_and_stack_2d_with_resize_random(test_output_dirs: TestOutpu
     array1 = resize(array1.astype(np.float), image_size, anti_aliasing=True)
     array3 = resize(array3.astype(np.float), image_size, anti_aliasing=True)
 
-    expected_tensor = torch.from_numpy(np.stack([array1, array2, array3]).astype(float))
+    expected_tensor = torch.from_numpy(np.expand_dims(np.stack([array1, array2, array3]).astype(float), axis=1))
 
     file_list = [Path(test_output_dirs.root_dir) / f"file{i}.dcm" for i in range(1, 4)]
     imaging_data = load_images_and_stack(file_list,
                                             load_segmentation=False,
-                                            image_dimension=ImageDimension.Image_2D,
-                                            image_size=image_size)
+                                            image_size=(1,) + image_size)
 
-    assert len(imaging_data.images.shape) == 3
+    assert len(imaging_data.images.shape) == 4
     assert imaging_data.images.shape[0] == 3
-    assert imaging_data.images.shape[1:] == image_size
+    assert imaging_data.images.shape[1] == 1
+    assert imaging_data.images.shape[2:] == image_size
     assert torch.allclose(imaging_data.images, expected_tensor)
 
 
@@ -476,7 +475,6 @@ def test_load_images_and_stack_3d_with_resize_ones(test_output_dirs: TestOutputD
     file_list = [Path(test_output_dirs.root_dir) / f"file{i}.npy" for i in range(1, 4)]
     imaging_data = load_images_and_stack(file_list,
                                             load_segmentation=False,
-                                            image_dimension=ImageDimension.Image_3D,
                                             image_size=image_size)
 
     assert len(imaging_data.images.shape) == 4
@@ -508,7 +506,6 @@ def test_load_images_and_stack_3d_with_resize_random(test_output_dirs: TestOutpu
     file_list = [Path(test_output_dirs.root_dir) / f"file{i}.npy" for i in range(1, 4)]
     imaging_data = load_images_and_stack(file_list,
                                             load_segmentation=False,
-                                            image_dimension=ImageDimension.Image_3D,
                                             image_size=image_size)
 
     assert len(imaging_data.images.shape) == 4
@@ -531,5 +528,4 @@ def test_load_images_and_stack_with_resize_only_float(test_output_dirs: TestOutp
     with pytest.raises(ValueError):
         load_images_and_stack(file_list,
                               load_segmentation=False,
-                              image_dimension=ImageDimension.Image_3D,
                               image_size=image_size)

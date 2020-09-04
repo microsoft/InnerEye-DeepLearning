@@ -13,7 +13,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 
 from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import ListOrDictParam
-from InnerEye.Common.type_annotations import TupleInt2Or3
+from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, OneHotEncoderBase
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
@@ -36,11 +36,6 @@ class AggregationType(Enum):
 
 class EnsembleAggregationType(Enum):
     Average = "Average"
-
-
-class ImageDimension(Enum):
-    Image_2D = 0
-    Image_3D = 1
 
 
 @unique
@@ -161,19 +156,21 @@ class ScalarModelBase(ModelConfigBase):
     load_segmentation: bool = \
         param.Boolean(default=False, doc="If True the segmentations from hdf5 files will be loaded. If False, only"
                                          "the images will be loaded.")
-    center_crop_size: Optional[TupleInt2Or3] = \
-        param.ClassSelector(default=None, allow_None=True,
-                            class_=tuple,
-                            instantiate=False,
-                            doc="If given, the loaded images and segmentations will be cropped to the given size."
-                               "Size is given in pixels. The crop will be taken from the center of the image.")
+    center_crop_size: Optional[TupleInt3] = \
+        param.NumericTuple(default=None, allow_None=True, length=3,
+                           doc="If given, the loaded images and segmentations will be cropped to the given size."
+                               "Size is given in pixels. The crop will be taken from the center of the image. "
+                               "Crop size should be in the form (crop_z, crop_y, crop_x)."
+                               "If your dataset has 2D images, center crop should have singleton first dimension,"
+                               "i.e. (1, ) + (crop_y, crop_x)")
 
-    image_size: Optional[TupleInt2Or3] = \
-        param.ClassSelector(default=None, allow_None=True,
-                            class_=tuple,
-                            instantiate=False,
-                            doc="If given, images will be resized to these dimensions immediately after loading from"
-                               "file.")
+    image_size: Optional[TupleInt3] = \
+        param.NumericTuple(default=None, allow_None=True, length=3,
+                           doc="If given, images will be resized to these dimensions immediately after loading from"
+                               "file."
+                               "Image size should be in the form (size_z, size_y, size_x)."
+                               "If your dataset has 2D images, image size should have singleton first dimension,"
+                               "i.e. (1, ) + (size_y, size_x)")
 
     categorical_feature_encoder: Optional[OneHotEncoderBase] = param.ClassSelector(OneHotEncoderBase,
                                                                                    allow_None=True,
@@ -197,11 +194,6 @@ class ScalarModelBase(ModelConfigBase):
                        doc="A hook that is called with a dictionary that maps from train/val/test to the actual "
                             "dataset, to do customized statistics.")
 
-    image_dimensions: ImageDimension = param.ClassSelector(default=ImageDimension.Image_3D,
-                                                           class_=ImageDimension,
-                                                           instantiate=False,
-                                                           doc="Whether the input data images are 2D or 3D")
-
     def __init__(self, num_dataset_reader_workers: int = 0, **params: Any) -> None:
         super().__init__(**params)
         self._model_category = ModelCategory.Scalar
@@ -217,17 +209,6 @@ class ScalarModelBase(ModelConfigBase):
         Validates the parameters stored in the present object.
         """
         super().validate()
-        if self.image_dimensions == ImageDimension.Image_2D:
-            expected_dim = 2
-        if self.image_dimensions == ImageDimension.Image_3D:
-            expected_dim = 3
-
-        if self.center_crop_size and len(self.center_crop_size) != expected_dim:
-            raise ValueError(f"center_crop_size must be {expected_dim} for a {expected_dim}D image, "
-                             f"got {len(self.center_crop_size)} dimensions")
-        if self.image_size and len(self.image_size) != expected_dim:
-            raise ValueError(f"image_size must be {expected_dim} for a {expected_dim}D image, "
-                             f"got {len(self.image_size)} dimensions")
 
     @property
     def is_classification_model(self) -> bool:
