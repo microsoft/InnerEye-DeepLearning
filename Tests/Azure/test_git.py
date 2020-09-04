@@ -29,7 +29,9 @@ def test_git_info() -> None:
     assert azure_config.build_source_repository == ""
     source_info = azure_config.get_git_information()
     assert source_info.repository == azure_config.project_root.name
-    assert len(source_info.branch) > 0
+    # We can't access the branch name when this test runs on the build agents, because the repositories
+    # are checked out in "detached head" state. Hence, can't assert on branch name in any way
+    # that works locally and in the cloud.
     assert len(source_info.commit_id) == 40
     assert len(source_info.commit_author) > 0
     assert len(source_info.commit_message) > 0

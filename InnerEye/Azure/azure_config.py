@@ -146,8 +146,14 @@ class AzureConfig(GenericConfig):
         try:
             logging.debug(f"Trying to read git repository on {self.project_root}")
             git_repo = Repo(self.project_root)
-            branch = branch or git_repo.active_branch.name
-            last_commit = git_repo.active_branch.commit
+            try:
+                active_branch = git_repo.active_branch.name
+            except TypeError as ex:
+                # If the repository is in "detached head" state, getting the active branch fails.
+                # In particular, this is the case on the build agents.
+                active_branch = ""
+            branch = branch or active_branch
+            last_commit = git_repo.head.commit
             commit_id = commit_id or last_commit.hexsha
             commit_author = commit_author or last_commit.author.name
             commit_message = commit_message or last_commit.message[:120].strip()
