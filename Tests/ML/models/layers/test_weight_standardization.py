@@ -58,7 +58,7 @@ def test_standardize_random():
     var = expected.var(axis=(1, 2, 3), ddof=0, keepdims=True)
     expected = (expected - mean)/np.sqrt(var + eps)
     expected = torch.from_numpy(expected)
-    
+
     result = WeightStandardizedConv2d.standardize(weights)
     assert result.shape == weights.shape
     assert torch.allclose(result, expected)
