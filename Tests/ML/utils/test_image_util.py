@@ -62,15 +62,8 @@ def test_pad_images_for_training(image_size: TupleInt3) -> None:
     assert np.all(padded_image[..., 8:4, 8:4, 8:4] == expected_pad_value)
 
 
-@pytest.mark.parametrize("image, crop_shape", [(None, None),
-                                               (None, (8, 8, 8)),
-                                               (np.random.uniform((4, 4, 4)), None),
-                                               (np.random.uniform((4, 4, 4)), (8, 8, 8)),
-                                               (np.random.uniform((1, 4, 4, 4)), None),
-                                               (np.random.uniform((1, 4, 4, 4)), (8, 8, 8)),
-                                               (np.random.uniform((1, 4, 4)), None),
-                                               (np.random.uniform((1, 4, 4)), (2, 2, 2)),
-                                               (np.random.uniform((1, 4, 4)), (2, 2))])
+@pytest.mark.parametrize("image", [None, np.random.uniform((4, 4, 4)), np.random.uniform((1, 4, 4, 4))])
+@pytest.mark.parametrize("crop_shape", [None, (8, 8, 8)])
 def test_get_center_crop_invalid(image: Any, crop_shape: Any) -> None:
     """
     Test that get_center_crop corectly raises an error for invalid arguments
@@ -79,32 +72,13 @@ def test_get_center_crop_invalid(image: Any, crop_shape: Any) -> None:
         assert image_util.get_center_crop(image=image, crop_shape=crop_shape)
 
 
-@pytest.mark.parametrize("image_shape, crop_shape, expected_slices", [((4, 4, 4),
-                                                                       (2, 2, 2),
-                                                                       (slice(1, 3), slice(1, 3), slice(1, 3))),
-                                                                      ((4, 4, 4),
-                                                                       (4, 4, 4),
-                                                                       (slice(0, 4), slice(0, 4), slice(0, 4))),
-                                                                      ((4, 4),
-                                                                       (2, 2),
-                                                                       (slice(1, 3), slice(1, 3))),
-                                                                      ((4, 4),
-                                                                       (4, 4),
-                                                                       (slice(0, 4), slice(0, 4))),
-                                                                      ((1, 4, 4),
-                                                                       (1, 2, 2),
-                                                                       (slice(0, 1), slice(1, 3), slice(1, 3))),
-                                                                      ((1, 4, 4),
-                                                                       (1, 4, 4),
-                                                                       (slice(0, 1), slice(0, 4), slice(0, 4)))
-                                                                      ])
-def test_get_center_crop(image_shape: Tuple, crop_shape: Tuple, expected_slices: Tuple[slice]) -> None:
+def test_get_center_crop() -> None:
     """
     Test to make sure the center crop is extracted correctly from a given image.
     """
-    image = np.random.uniform(size=image_shape)
-    crop = image_util.get_center_crop(image=image, crop_shape=crop_shape)
-    expected = image[expected_slices]
+    image = np.random.uniform(size=(4, 4, 4))
+    crop = image_util.get_center_crop(image=image, crop_shape=(2, 2, 2))
+    expected = image[1:3, 1:3, 1:3]
     assert np.array_equal(crop, expected)
 
 
