@@ -20,7 +20,7 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.utils import image_util, ml_util
 from InnerEye.ML.utils.io_util import ImageDataType
-from InnerEye.ML.utils.transforms import ComposeTransforms
+from InnerEye.ML.utils.transforms import Compose3D
 from Tests.Common.test_util import full_ml_test_data_path
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import DummyPatientMetadata, load_train_and_test_data_channels
@@ -122,7 +122,7 @@ def full_image_dataset(default_config: SegmentationModelBase,
                        normalize_fn: Callable) -> FullImageDataset:
     df = default_config.get_dataset_splits()
     return FullImageDataset(args=default_config,
-                            full_image_sample_transforms=ComposeTransforms([normalize_fn]),  # type: ignore
+                            full_image_sample_transforms=Compose3D([normalize_fn]),  # type: ignore
                             data_frame=df.train)
 
 
@@ -132,7 +132,7 @@ def full_image_dataset_no_mask(default_config: SegmentationModelBase,
     default_config.mask_id = None
     df = default_config.get_dataset_splits()
     return FullImageDataset(args=default_config,
-                            full_image_sample_transforms=ComposeTransforms([normalize_fn]),  # type: ignore
+                            full_image_sample_transforms=Compose3D([normalize_fn]),  # type: ignore
                             data_frame=df.train)
 
 
