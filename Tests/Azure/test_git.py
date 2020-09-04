@@ -2,8 +2,14 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from pathlib import Path
+
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
+
+# Re-compute the repository root directory, because we need to have that point to the git repo, not the root
+# of the InnerEye package
+project_root = Path(__file__).resolve().parent.parent.parent
 
 
 def test_git_info() -> None:
@@ -11,7 +17,7 @@ def test_git_info() -> None:
     Test if git branch information can be read correctly.
     """
     azure_config = AzureConfig.from_yaml(fixed_paths.TRAIN_YAML_FILE)
-    azure_config.project_root = fixed_paths.repository_root_directory()
+    azure_config.project_root = project_root
     assert azure_config.build_branch == ""
     assert azure_config.build_source_id == ""
     assert azure_config.build_source_author == ""
@@ -30,7 +36,7 @@ def test_git_info_from_commandline() -> None:
     Test if git branch information can be overriden on the commandline
     """
     azure_config = AzureConfig.from_yaml(fixed_paths.TRAIN_YAML_FILE)
-    azure_config.project_root = fixed_paths.repository_root_directory()
+    azure_config.project_root = project_root
     azure_config.build_branch = "branch"
     azure_config.build_source_id = "id"
     azure_config.build_source_author = "author"
