@@ -22,6 +22,30 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 
 
+def dice_boxplot_per_structure(df: DataFrame, dice_column_name: str = "DiceNumeric",
+                               title: str = "Dice per structure") -> None:
+    """
+    Creates a box-and-whisker plot for the Dice scores per structure. Structures are on the x-axis,
+    box plots are drawn vertically. The plot is created in the currently active figure or subplot.
+    """
+    structure = MetricsFileColumns.Structure.value
+    dice_numeric = dice_column_name
+    structure_series = df[structure]
+    unique_structures = structure_series.unique()
+    dice_per_structure = [df[dice_numeric][structure_series == s] for s in unique_structures]
+    # If there are only single entries per structure, do not generate a box plot
+    if all([len(dps) == 1 for dps in dice_per_structure]):
+        return
+
+    plt.title(title)
+    plt.boxplot(dice_per_structure, labels=unique_structures)
+    plt.xlabel("Structure")
+    plt.ylabel("Dice")
+    plt.xticks(rotation=75)
+    plt.ylim(0, 1)
+    plt.grid()
+
+
 @dataclass
 class SummaryWriters:
     """
@@ -113,27 +137,6 @@ class MetricsPerPatientWriter:
         df_hd = filter_rename_metric_columns(MetricsFileColumns.HausdorffDistanceMM.value)
         df_md = filter_rename_metric_columns(MetricsFileColumns.MeanDistanceMM.value)
         _merge_df(_merge_df(df_dice, df_hd), df_md).to_csv(file_path, float_format=self.float_format)
-
-    def dice_boxplot_per_structure(self) -> None:
-        """
-        Creates a box-and-whisker plot for the Dice scores per structure. Structures are on the x-axis,
-        box plots are drawn vertically. The plot is created in the currently active figure or subplot.
-        """
-        df = self.to_data_frame()
-        structure = MetricsFileColumns.Structure.value
-        dice_numeric = MetricsFileColumns.DiceNumeric.value
-        structure_series = df[structure]
-        unique_structures = structure_series.unique()
-        dice_per_structure = [df[dice_numeric][structure_series == s] for s in unique_structures]
-        # If there are only single entries per structure, do not generate a box plot
-        if all([len(dps) == 1 for dps in dice_per_structure]):
-            return
-
-        plt.boxplot(dice_per_structure, labels=unique_structures)
-        plt.xlabel("Structure")
-        plt.ylabel("Dice")
-        plt.ylim(0, 1)
-        plt.grid()
 
     def to_data_frame(self) -> DataFrame:
         """

@@ -37,7 +37,7 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
 from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, \
     save_lines_to_file
-from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
+from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter, dice_boxplot_per_structure
 from InnerEye.ML.utils.run_recovery import RunRecovery
 
 BOXPLOT_FILE = "metrics_boxplot.png"
@@ -204,10 +204,11 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     metrics_writer.save_aggregates_to_csv(results_folder / METRICS_AGGREGATES_FILE)
     if config.is_plotting_enabled:
         plt.figure()
-        metrics_writer.dice_boxplot_per_structure()
+        dice_boxplot_per_structure(metrics_writer.to_data_frame(),
+                                   title=f"Dice score for {epoch_and_split}")
         # The box plot file will be written to the output directory. AzureML will pick that up, and display
         # on the run overview page, without having to log to the run context.
-        plt.title("Dice score for {}".format(epoch_and_split))
+
         plotting.resize_and_save(5, 4, results_folder / BOXPLOT_FILE)
         plt.close()
     logging.info(f"Finished evaluation of model {config.model_name} on {epoch_and_split}")
