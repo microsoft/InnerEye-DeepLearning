@@ -137,6 +137,10 @@ class PlotCrossValidationConfig(GenericConfig):
     number_of_cross_validation_splits: int = param.Integer(default=0,
                                                            doc="The expected number of splits in the"
                                                                "cross-validation run")
+
+    number_of_cross_validation_splits_per_fold: int = param.Integer(default=0,
+                                                            doc="The expected number of splits in the"
+                                                               "cross-validation run for each fold")
     create_plots: bool = param.Boolean(default=True, doc="Whether to create plots; if False, just find outliers "
                                                          "and do statistical tests")
 
@@ -446,12 +450,15 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
     epoch = train_config.num_epochs if train_config.is_segmentation_model else None
     is_classification = False if train_config.is_segmentation_model else train_config.is_classification_model
     number_of_cross_validation_splits = train_config.number_of_cross_validation_splits
+    if isinstance(train_config, ScalarModelBase):
+        number_of_cross_validation_splits_per_fold = train_config.number_of_cross_validation_splits_per_fold
     return PlotCrossValidationConfig(run_recovery_id=None,
                                      is_segmentation=train_config.is_segmentation_model,
                                      is_classification=is_classification,
                                      epoch=epoch,
                                      should_validate=False,
-                                     number_of_cross_validation_splits=number_of_cross_validation_splits)
+                                     number_of_cross_validation_splits=number_of_cross_validation_splits,
+                                     number_of_cross_validation_splits_per_fold=number_of_cross_validation_splits_per_fold)
 
 
 def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) -> OfflineCrossvalConfigAndFiles:
@@ -510,6 +517,12 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
 
     # concatenate the data frames per split, removing execution modes for which there is no data.
     combined_metrics = {k: pd.concat(v) for k, v in dataset_split_metrics.items() if v}
+    # if child folds are present then combine model output
+    for k, v in combined_metrics.items():
+        aggregation_column = 'model_output'
+        group_by_columns = [x for x in v.columns if x != aggregation_column]
+        combined_metrics[k] = v.groupby(group_by_columns, as_index=False)[aggregation_column].mean()\
+            .sort_values(["epoch", "cross_validation_split_index"])
     return combined_metrics
 
 
