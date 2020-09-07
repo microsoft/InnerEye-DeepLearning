@@ -224,6 +224,10 @@ class BiTModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
         self.model = BiTResNetV2()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
+        if x.shape[1] != 1:
+            raise ValueError("2D Model expects images with singleton z dimension")
+
+        x = x.view((x.shape[0], ) + x.shape[2:])
         return self.model(x)
 
     def get_input_tensors(self, item: ScalarItem) -> List[torch.Tensor]:
