@@ -48,11 +48,8 @@ class SchedulerWithWarmUp(_LRScheduler):
     of the normal schedulers.
     """
 
-    def __init__(self, args: DeepLearningConfig, optimizer: Optimizer):
+    def __init__(self, args: DeepLearningConfig, optimizer: Optimizer, last_epoch: int = -1):
         self.optimizer = optimizer
-        # At the end of the constructor there is a call to self.step(), which will increase self.last_epoch again
-        # after a checkpoint loading.
-        last_epoch = args.start_epoch - 1 if args.should_load_checkpoint_for_training() else -1
         self.last_epoch = last_epoch
         self.warmup_epochs = 0 if args.l_rate_warmup == LRWarmUpType.NoWarmUp else args.l_rate_warmup_epochs
         self._scheduler = self.get_scheduler(args)
