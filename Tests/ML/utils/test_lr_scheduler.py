@@ -2,17 +2,18 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import List, Tuple, Any, Optional
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 import pytest
 import torch
+from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR, LambdaLR, MultiStepLR, MultiplicativeLR, \
+    StepLR, _LRScheduler
 from torch.optim.optimizer import Optimizer
-from torch.optim.lr_scheduler import ExponentialLR, StepLR, MultiStepLR, LambdaLR, CosineAnnealingLR, _LRScheduler
 
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import LRSchedulerType, LRWarmUpType
-from InnerEye.ML.utils.lr_scheduler import LRScheduler
+from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from Tests.ML.configs.DummyModel import DummyModel
 
 
@@ -130,9 +131,7 @@ def test_warmup_against_original_schedule(lr_scheduler_type: LRSchedulerType, wa
     for i in range(warmup_epochs):
         expected_lr_list.append(config.l_rate * (i + 1) / warmup_epochs)
     for _ in range(config.num_epochs - warmup_epochs):
-        # For pytorch version 1.6:
-        # expected_lr_list.append(original_scheduler.get_last_lr())
-        expected_lr_list.append(original_scheduler.get_lr()[0])  # type: ignore
+        expected_lr_list.append(original_scheduler.get_last_lr())
         original_scheduler.step()  # type: ignore
 
     assert np.allclose(result_lr_list, expected_lr_list)
@@ -143,13 +142,33 @@ def _create_dummy_optimizer(config: SegmentationModelBase) -> Optimizer:
 
 
 def _create_lr_scheduler_and_optimizer(config: SegmentationModelBase, optimizer: Optimizer = None) \
-        -> Tuple[LRScheduler, Optimizer]:
+        -> Tuple[SchedulerWithWarmUp, Optimizer]:
     # create dummy optimizer
     if optimizer is None:
         optimizer = _create_dummy_optimizer(config)
     # create lr scheduler
-    lr_scheduler = LRScheduler(config, optimizer)
+    lr_scheduler = SchedulerWithWarmUp(config, optimizer)
     return lr_scheduler, optimizer
+
+
+def test_built_in_lr_scheduler() -> None:
+    """
+    A test to check that the behaviour of the built-in learning rate schedulers is still what we think it is.
+    """
+    initial_lr = 1
+    optimizer = torch.optim.Adam([torch.ones(2, 2, requires_grad=True)], lr=initial_lr)
+    # A scheduler that reduces learning rate by a factor of 0.5 in each epoch
+    scheduler = MultiplicativeLR(optimizer, lr_lambda=lambda epoch: 0.5)
+    lrs = []
+    for _ in [0, 1, 2]:
+        last_lr = scheduler.get_last_lr()
+        lrs.append(last_lr)
+        # get_last_lr should not change the state when called twice
+        assert scheduler.get_last_lr() == scheduler.get_last_lr()
+        scheduler.step()
+    # Expected behaviour: First LR should be the initial LR set in the optimizers.
+    # Each call to scheduler.step will multiply be 0.5
+    assert lrs == [[1], [0.5], [0.25]]
 
 
 @pytest.mark.parametrize("lr_scheduler_type", [x for x in LRSchedulerType])
@@ -196,8 +215,7 @@ def test_resume_from_saved_state(lr_scheduler_type: LRSchedulerType,
 
 @pytest.mark.parametrize("lr_scheduler_type", [x for x in LRSchedulerType])
 def test_save_and_load_state_dict(lr_scheduler_type: LRSchedulerType) -> None:
-
-    def object_dict_same(lr1: LRScheduler, lr2: LRScheduler) -> bool:
+    def object_dict_same(lr1: SchedulerWithWarmUp, lr2: SchedulerWithWarmUp) -> bool:
         """
         Tests to see if two LRScheduler objects are the same.
         This ignores lambdas if one of the schedulers is LambdaLR, since lambdas are not stored to the state dict.
@@ -229,8 +247,8 @@ def test_save_and_load_state_dict(lr_scheduler_type: LRSchedulerType) -> None:
                             if key != "_scheduler" and key != "_warmup_scheduler"}
 
         return dict1 == dict2 and other_variables1 == other_variables2 and \
-                                  scheduler1_dict == scheduler2_dict and \
-                                  warmup1.__dict__ == warmup2.__dict__
+               scheduler1_dict == scheduler2_dict and \
+               warmup1.__dict__ == warmup2.__dict__
 
     config = DummyModel(num_epochs=10,
                         l_rate_scheduler=lr_scheduler_type,
@@ -246,8 +264,8 @@ def test_save_and_load_state_dict(lr_scheduler_type: LRSchedulerType) -> None:
 
     lr_scheduler_1.step()
     # This is not supported functionality - we are doing this just to change _scheduler from its default state
-    lr_scheduler_1._scheduler.step()
-    lr_scheduler_1._scheduler.step()
+    lr_scheduler_1.scheduler.step()
+    lr_scheduler_1.scheduler.step()
 
     state_dict = lr_scheduler_1.state_dict()
 
@@ -282,9 +300,10 @@ def test_multistep_lr(warmup_epochs: int, expected_lrs: np.ndarray) -> None:
     """
     Creates a MultiStep LR and check values are returned as expected
     """
-
     num_epochs = 10
+    initial_l_rate = 1e-3
     config = DummyModel(l_rate_scheduler=LRSchedulerType.MultiStep,
+                        l_rate=initial_l_rate,
                         l_rate_multi_step_gamma=0.1,
                         num_epochs=num_epochs,
                         l_rate_multi_step_milestones=[2, 5, 7],
@@ -296,7 +315,14 @@ def test_multistep_lr(warmup_epochs: int, expected_lrs: np.ndarray) -> None:
 
     lrs = []
     for _ in range(num_epochs):
-        lrs.append(lr_scheduler.get_last_lr()[0])
+        last_lr = lr_scheduler.get_last_lr()
+        assert isinstance(last_lr, list)
+        lrs.append(last_lr[0])
+        optimizer.step()
         lr_scheduler.step()
-
+    print(f"Actual learning rate schedule: {lrs}")
+    if warmup_epochs == 0:
+        assert lrs[0] == initial_l_rate
+    else:
+        assert lrs[warmup_epochs - 1] == initial_l_rate
     assert np.allclose(lrs, expected_lrs)

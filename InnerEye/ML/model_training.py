@@ -24,7 +24,7 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util, model_util
 from InnerEye.ML.utils.config_util import ModelConfigLoader
-from InnerEye.ML.utils.lr_scheduler import LRScheduler
+from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling, \
@@ -111,7 +111,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     mean_teacher_model = models_and_optimizers[1].model if len(models_and_optimizers) > 1 else None
 
     # Create LR scheduler
-    l_rate_scheduler = LRScheduler(config, optimizer)
+    l_rate_scheduler = SchedulerWithWarmUp(config, optimizer)
 
     # Training loop
     logging.info("Starting training")
