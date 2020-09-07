@@ -16,8 +16,7 @@ INNEREYE_PATH_PARAMETER_NAME = "innereye_path"
 
 def plot_scores_for_csv(path_csv: str):
     df = pd.read_csv(path_csv)
-    df.style.hide_index()
-    display(Markdown("##Dice"))
+
     describe_score(df, MetricsFileColumns.Dice.value)
     worse_patients(df, MetricsFileColumns.Dice.value, ascending=True)
     boxplot_per_structure(df, column_name="Dice", title="Dice")
