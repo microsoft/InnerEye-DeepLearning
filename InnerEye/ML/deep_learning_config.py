@@ -364,6 +364,13 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         super().__init__(**params)
         logging.info("Creating the default output folder structure.")
         self.create_filesystem(fixed_paths.repository_root_directory())
+        # update the random seed based on the cross validation split index so each
+        # fold has a different initial random state.
+        if self.cross_validation_split_index != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
+            random_seed_before = self.random_seed
+            self.random_seed += self.cross_validation_split_index
+            logging.info(f"Added cross validation split offset to original random seed."
+                         f" Changed from {random_seed_before} to {self.random_seed}")
 
     def validate(self) -> None:
         """
