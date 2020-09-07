@@ -356,7 +356,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
 
-    def __init__(self, random_seed: int, **params: Any) -> None:
+    def __init__(self, random_seed: int = 42, **params: Any) -> None:
         self._model_name = type(self).__name__
         # This should be annotated as torch.utils.data.Dataset, but we don't want to import torch here.
         self._datasets_for_training: Optional[Dict[ModelExecutionMode, Any]] = None
