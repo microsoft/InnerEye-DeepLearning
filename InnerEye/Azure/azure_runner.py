@@ -3,10 +3,12 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import argparse
+import getpass
 import logging
 import signal
 import sys
 from argparse import ArgumentError, ArgumentParser, Namespace
+from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -31,6 +33,8 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 
 SLEEP_TIME_SECONDS = 30
 INPUT_DATA_KEY = "input_data"
+
+RUN_RECOVERY_FILE = "most_recent_run.txt"
 
 
 def submit_to_azureml(azure_config: AzureConfig,
@@ -105,6 +109,7 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
     :param model_config_overrides: A string that describes which model parameters were overwritten by commandline
      arguments in the present run.
     """
+    git_information = azure_config.get_git_information()
     run.set_tags({
         "tag": azure_config.tag,
         "model_name": azure_config.model,
@@ -114,11 +119,12 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
         RUN_RECOVERY_FROM_ID_KEY_NAME: azure_config.run_recovery_id,
         "build_number": str(azure_config.build_number),
         "build_user": azure_config.build_user,
-        "build_source_repository": azure_config.build_source_repository,
-        "build_source_branch": azure_config.build_branch,
-        "build_source_id": azure_config.build_source_id,
-        "build_source_message": azure_config.build_source_message,
-        "build_build_source_author": azure_config.build_source_author,
+        "source_repository": git_information.repository,
+        "source_branch": git_information.branch,
+        "source_id": git_information.commit_id,
+        "source_message": git_information.commit_message,
+        "source_author": git_information.commit_author,
+        "source_dirty": str(git_information.is_dirty),
         "overrides": model_config_overrides,
         CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: -1,
     })
@@ -140,7 +146,11 @@ def create_and_submit_experiment(
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
     :returns: Run object for the submitted AzureML run
     """
-    exp = Experiment(workspace=workspace, name=azure_util.to_azure_friendly_string(azure_config.build_branch))
+    branch = azure_config.get_git_information().branch
+    # If no branch information is found anywhere, create an experiment name that is the user alias and a timestamp
+    # at monthly granularity, so that not too many runs accumulate in that experiment.
+    experiment_name = branch or getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
+    exp = Experiment(workspace=workspace, name=azure_util.to_azure_friendly_string(experiment_name))
     pt_env = create_pytorch_environment(workspace, azure_config, source_config, azure_dataset_id)
 
     # submit a training/testing run associated with the experiment
@@ -153,12 +163,20 @@ def create_and_submit_experiment(
     print("==============================================================================")
 
     if azure_config.run_recovery_id:
-        print("\nRecovered from: {}".format(azure_config.run_recovery_id))
+        print(f"\nRecovered from: {azure_config.run_recovery_id}")
 
-    print("\nTo recover this run use recovery id: {}\n".format(azure_util.create_run_recovery_id(run)))
+    recovery_id = azure_util.create_run_recovery_id(run)
+    recovery_file = Path(RUN_RECOVERY_FILE)
+    if recovery_file.exists():
+        recovery_file.unlink()
+    recovery_file.write_text(recovery_id)
+
     print("==============================================================================")
     print("Experiment URL: {}".format(exp.get_portal_url()))
     print("Run URL: {}".format(run.get_portal_url()))
+    print("If this run fails, re-start runner.py and supply these additional arguments: "
+          f"--run_recovery_id={recovery_id}")
+    print(f"The run recovery ID has been written to this file: {recovery_file}")
     print("==============================================================================")
     return run
 

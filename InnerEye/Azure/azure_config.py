@@ -8,7 +8,6 @@ import getpass
 import logging
 import sys
 from dataclasses import dataclass
-from datetime import date
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
@@ -18,11 +17,13 @@ from azureml.core import Keyvault, Run, Workspace
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.train.estimator import MMLBaseEstimator
 from azureml.train.hyperdrive import HyperDriveConfig
+from git import Repo
 
 from InnerEye.Azure.azure_util import get_results_blob_path, get_run_id, \
     is_offline_run_context, to_azure_friendly_container_path
 from InnerEye.Azure.secrets_handling import APPLICATION_KEY, SecretsHandling, read_variables_from_yaml
 from InnerEye.Common import fixed_paths
+from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 
@@ -37,6 +38,19 @@ class VMPriority(Enum):
 
 # The name of the submit_to_azureml property of AzureConfig
 AZURECONFIG_SUBMIT_TO_AZUREML = "submit_to_azureml"
+
+
+@dataclass(frozen=True)
+class GitInformation:
+    """
+    Contains information about the git repository that was used to submit the present experiment.
+    """
+    repository: str
+    branch: str
+    commit_id: str
+    commit_message: str
+    commit_author: str
+    is_dirty: bool
 
 
 class AzureConfig(GenericConfig):
@@ -82,20 +96,15 @@ class AzureConfig(GenericConfig):
     run_recovery_id: Optional[str] = param.String(None,
                                                   doc="A run recovery id string in the form 'experiment name:run id'"
                                                       " to use for inference or recovering a model training run.")
-    build_number: int = param.Integer(0, doc="The numeric ID of the build that triggered this training run.")
+    build_number: int = param.Integer(0, doc="The numeric ID of the Azure pipeline that triggered this training run.")
     build_user: str = param.String(getpass.getuser(),
                                    doc="The user to associate this experiment with.")
-    build_source_repository: str = param.String("InnerEye-DeepLearning",
-                                                doc="The name of the repository this source belongs to.")
-    build_branch: str = param.String(getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}",
-                                     doc="The branch this experiment has been triggered from.")
-    build_source_id: str = param.String("local_commit",
-                                        doc="The git commit that was used to create this build.")
-    build_source_message: str = param.String("Unknown",
-                                             doc="The message associated with the git commit that was used to create "
+    build_source_repository: str = param.String(doc="The name of the repository this source belongs to.")
+    build_branch: str = param.String(doc="The branch this experiment has been triggered from.")
+    build_source_id: str = param.String(doc="The git commit that was used to create this build.")
+    build_source_message: str = param.String(doc="The message associated with the git commit that was used to create "
                                                  "this build.")
-    build_source_author: str = param.String("Unknown author",
-                                            doc="The author of the git commit that was used to create this build.")
+    build_source_author: str = param.String(doc="The author of the git commit that was used to create this build.")
     user_friendly_name: Optional[str] = param.String(None, doc="A user friendly name to identify this experiment.")
     tag: Optional[str] = param.String(None, doc="A string that will be added as a tag to this experiment.")
     log_level: str = param.String("INFO",
@@ -118,6 +127,49 @@ class AzureConfig(GenericConfig):
 
     def __init__(self, **params: Any) -> None:
         super().__init__(**params)
+        self.git_information: Optional[GitInformation] = None
+
+    def get_git_information(self) -> GitInformation:
+        """
+        Gets all version control information about the present source code in the project_root_directory.
+        Information is taken from commandline arguments, or if not given there, retrieved from git directly.
+        The result of the first call to this function is cached, and returned in later calls.
+        """
+        if self.git_information:
+            return self.git_information
+        branch = self.build_branch
+        commit_id = self.build_source_id
+        commit_author = self.build_source_author
+        commit_message = self.build_source_message
+        repository = self.build_source_repository or self.project_root.name
+        is_dirty = True
+        try:
+            logging.debug(f"Trying to read git repository on {self.project_root}")
+            git_repo = Repo(self.project_root)
+            try:
+                active_branch = git_repo.active_branch.name
+            except TypeError:
+                # If the repository is in "detached head" state, getting the active branch fails.
+                # In particular, this is the case on the build agents.
+                active_branch = ""
+            branch = branch or active_branch
+            last_commit = git_repo.head.commit
+            commit_id = commit_id or last_commit.hexsha
+            commit_author = commit_author or last_commit.author.name
+            commit_message = commit_message or last_commit.message[:120].strip()
+            # Is_dirty in the present settings ignores untracked files.
+            is_dirty = git_repo.is_dirty()
+        except Exception as ex:
+            print_exception(ex, "Error when reading git repository.", logger_fn=logging.debug)
+            logging.info(f"Folder {self.project_root} does not seem to be a git repository.")
+        return GitInformation(
+            repository=repository,
+            branch=branch,
+            commit_id=commit_id,
+            commit_message=commit_message,
+            commit_author=commit_author,
+            is_dirty=is_dirty
+        )
 
     @staticmethod
     def from_yaml(yaml_file_path: Path) -> AzureConfig:

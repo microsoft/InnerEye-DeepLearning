@@ -6,7 +6,7 @@ __pycache__
 datasets
 outputs
 logs
-test_outputs
-run_outputs
+test_outputs/*
+run_outputs/*
 # Test output from model registration
 TestsOutsidePackage/azureml-models

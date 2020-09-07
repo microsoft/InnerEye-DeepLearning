@@ -48,6 +48,14 @@ Once training in AzureML is done, the models can be deployed from within AzureML
 
 ## Getting started
 
+At a bare minimum, you will need to
+- Install `conda` or `miniconda` for your operating system
+- Clone the repository
+- Create a Conda environment from the `environment.yml` file in the repository, by running 
+`conda env create --file environment.yml`
+- Activate the environment by running `conda activate InnerEye`
+
+Detailed instructions, including setup in Azure, are here:
 1. [Setting up your environment](docs/environment.md)
 1. [Setting up Azure Machine Learning](docs/setting_up_aml.md)
 1. [Creating a dataset](docs/creating_dataset.md)

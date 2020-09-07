@@ -2,4 +2,3 @@
 ignore = E226,E302,E41,W391, E701, W291, E722, W503, E128, E126, E127, E731, E401
 max-line-length = 160
 max-complexity = 25
-exclude = InnerEye/aria/

@@ -148,9 +148,9 @@ Tests/ML/test_outputs
 /.idea/dictionaries
 /.idea/pylint.xml
 /.idea/InnerEye-DeepLearning.iml
-# Local test runs of Aria create their own log output
-aria.log*
 # Temp file that is generated if setup.py is run locally
 /package_version.txt
 # Test output from model registration
 /TestsOutsidePackage/azureml-models
+# This file contains the run recovery ID of the most recent job
+most_recent_run.txt

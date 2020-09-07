@@ -224,7 +224,11 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
         from the values provided. If None, the normalization factor is computed from the data in the present dataset.
         :param name: Name of the dataset, used for logging
         """
-        super().__init__(args, data_frame, feature_statistics, name, sample_transforms)
+        super().__init__(args=args,
+                         data_frame=data_frame,
+                         feature_statistics=feature_statistics,
+                         name=name,
+                         sample_transforms=sample_transforms)
         if self.args.sequence_column is None:
             raise ValueError("This class requires a value in the `sequence_column`, specifying where the "
                              "sequence index should be read from.")
