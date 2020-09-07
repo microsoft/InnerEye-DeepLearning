@@ -135,7 +135,7 @@ def _test_model_train(output_dirs: TestOutputDirectories,
     train_config.image_channels = image_channels
     train_config.ground_truth_ids = ground_truth_ids
     train_config.mask_id = None if no_mask_channel else train_config.mask_id
-    train_config.set_random_seed(42)
+    train_config.random_seed = 42
     train_config.class_weights = [0.5, 0.25, 0.25]
     train_config.store_dataset_sample = True
 
