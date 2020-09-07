@@ -30,6 +30,8 @@ class SchedulerWithWarmUp(_LRScheduler):
     def warmup_function(self, last_epoch: int) -> float:
         if self.warmup_epochs <= 0 or self.warmup_method == LRWarmUpType.NoWarmUp:
             return 1.0
+        if last_epoch >= self.warmup_epochs:
+            return 1.0
         if self.warmup_method == LRWarmUpType.Linear:
             return (last_epoch + 1) / (self.warmup_epochs + 1)
 

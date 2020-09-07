@@ -388,3 +388,29 @@ def test_multistep_lr(warmup_epochs: int, expected_lrs: np.ndarray) -> None:
     else:
         assert lrs[warmup_epochs - 1] == initial_l_rate
     assert np.allclose(lrs, expected_lrs)
+
+
+def test_warmup_function() -> None:
+    config = DummyModel(l_rate_scheduler=LRSchedulerType.MultiStep,
+                        l_rate=1,
+                        l_rate_multi_step_gamma=0.1,
+                        num_epochs=10,
+                        l_rate_multi_step_milestones=[2, 5, 7],
+                        l_rate_warmup=LRWarmUpType.Linear,
+                        l_rate_warmup_epochs=5)
+
+    scheduler, _ = _create_lr_scheduler_and_optimizer(config)
+
+    def check_warmup(expected: List[float]) -> None:
+        actual = [scheduler.warmup_function(e) for e in range(4)]
+        assert actual == expected
+
+    scheduler.warmup_method = LRWarmUpType.Linear
+    scheduler.warmup_epochs = 0
+    check_warmup([1.0] * 4)
+
+    scheduler.warmup_epochs = 1
+    check_warmup([0.5] + [1.0] * 3)
+
+    scheduler.warmup_epochs = 2
+    check_warmup([1/3, 2/3] + [1.0] * 2)
