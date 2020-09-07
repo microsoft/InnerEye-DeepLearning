@@ -14,7 +14,7 @@ from InnerEye.Common import common_util
 from InnerEye.Common.common_util import get_epoch_results_path
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML import model_testing
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, MODEL_WEIGHTS_FILE_NAME
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -114,15 +114,28 @@ def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
 @pytest.mark.parametrize(("config", "checkpoint_folder"),
                          [(DummyModel(), "checkpoints"),
                           (ClassificationModelForTesting(), "classification_data_generated_random/checkpoints")])
-def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
-                                                 checkpoint_folder: str,
-                                                 test_output_dirs: TestOutputDirectories) -> None:
+def test_create_inference_pipeline_from_checkpoint_invalid_epoch(config: ModelConfigBase,
+                                                                 checkpoint_folder: str,
+                                                                 test_output_dirs: TestOutputDirectories) -> None:
     config.set_output_to(test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
     stored_checkpoints = full_ml_test_data_path(checkpoint_folder)
     shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
-    # no pipeline created when checkpoint for epoch does not exist
-    assert create_inference_pipeline(config, 10) is None
+    with pytest.raises(ValueError):
+        # no pipeline created when checkpoint for epoch does not exist
+        create_inference_pipeline(config, 10)
+
+
+@pytest.mark.parametrize(("config", "local_model_weights"),
+                         [(DummyModel(), "checkpoints"),
+                          (ClassificationModelForTesting(), "classification_data_generated_random/checkpoints")])
+def test_create_inference_pipeline_from_model_weights_invalid_epoch(config: ModelConfigBase,
+                                                                    local_model_weights: str) -> None:
+    config.local_model_weights = full_ml_test_data_path(local_model_weights)
+    with pytest.raises(ValueError):
+        # no pipeline created when checkpoint for epoch does not exist - there are checkpoints in these folders,
+        # but we are only interested in files named "weights.pt"
+        create_inference_pipeline(config, 10)
 
 
 @pytest.mark.parametrize("with_run_recovery", [False, True])
@@ -135,12 +148,12 @@ def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
                            "classification_data_generated_random/checkpoints",
                            ScalarInferencePipeline, ScalarEnsemblePipeline)
                           ])
-def test_create_inference_pipeline(with_run_recovery: bool,
-                                   config: ModelConfigBase,
-                                   checkpoint_folder: str,
-                                   inference_type: type,
-                                   ensemble_type: type,
-                                   test_output_dirs: TestOutputDirectories) -> None:
+def test_create_inference_pipeline_from_checkpoint(with_run_recovery: bool,
+                                                   config: ModelConfigBase,
+                                                   checkpoint_folder: str,
+                                                   inference_type: type,
+                                                   ensemble_type: type,
+                                                   test_output_dirs: TestOutputDirectories) -> None:
     config.set_output_to(test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
     stored_checkpoints = full_ml_test_data_path(checkpoint_folder)
@@ -156,3 +169,24 @@ def test_create_inference_pipeline(with_run_recovery: bool,
     if with_run_recovery:
         run_recovery = RunRecovery(checkpoints_roots=[stored_checkpoints] * 2)
         assert isinstance(create_inference_pipeline(config, 1, run_recovery), ensemble_type)
+
+
+@pytest.mark.parametrize(("config", "local_model_weights", "weights_file_name", "pipeline_type"),
+                         [(DummyModel(), "checkpoints", "1_checkpoint.pth.tar", InferencePipeline),
+                          (ClassificationModelForTesting(), "classification_data_generated_random/checkpoints",
+                                                            "1_checkpoint.pth.tar", ScalarInferencePipeline)])
+def test_create_inference_pipeline_from_model_weights(config: ModelConfigBase,
+                                                      local_model_weights: str,
+                                                      weights_file_name: str,
+                                                      pipeline_type: type) -> None:
+    config.local_model_weights = full_ml_test_data_path(local_model_weights)
+
+    # The checkpoint in the folder must have name weights.pth, so copy over the existing checkpoints under this name
+    stored_checkpoints_file = full_ml_test_data_path(local_model_weights) / weights_file_name
+    destination_checkpoints_file = full_ml_test_data_path(local_model_weights) / MODEL_WEIGHTS_FILE_NAME
+    shutil.copyfile(str(stored_checkpoints_file), str(destination_checkpoints_file))
+
+    pipeline = create_inference_pipeline(config, 10)
+    # clean up
+    destination_checkpoints_file.unlink()
+    assert isinstance(pipeline, pipeline_type)
