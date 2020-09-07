@@ -182,7 +182,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     _model_name: str = param.String(None, doc="The human readable name of the model (for example, Liver). This is "
                                               "usually set from the class name.")
 
-    _random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
+    random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     azure_dataset_id: Optional[str] = param.String(None, allow_None=True,
                                                    doc="The ID of the dataset to use. This dataset must exist as a "
                                                        "folder of the same name in the 'datasets' "
@@ -356,7 +356,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
 
-    def __init__(self, random_seed: int = 42, **params: Any) -> None:
+    def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
         # This should be annotated as torch.utils.data.Dataset, but we don't want to import torch here.
         self._datasets_for_training: Optional[Dict[ModelExecutionMode, Any]] = None
@@ -364,7 +364,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         super().__init__(**params)
         logging.info("Creating the default output folder structure.")
         self.create_filesystem(fixed_paths.repository_root_directory())
-        self.set_random_seed(random_seed)
 
     def validate(self) -> None:
         """
@@ -606,18 +605,12 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         set random seed in order to return the effective random seed.
         :return:
         """
-        seed = self._random_seed
+        seed = self.random_seed
         if self.cross_validation_split_index != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
             # offset the random seed based on the cross validation split index so each
             # fold has a different initial random state.
             seed += self.cross_validation_split_index
         return seed
-
-    def set_random_seed(self, value: int) -> None:
-        """
-        Set the random seed value which will be used as the base random seed for all random operations.
-        """
-        self._random_seed = value
 
     @property  # type: ignore
     def use_gpu(self) -> bool:  # type: ignore
