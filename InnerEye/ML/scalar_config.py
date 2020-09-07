@@ -9,13 +9,13 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import pandas as pd
 import param
 from azureml.train.estimator import Estimator
-from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, choice
+from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, OneHotEncoderBase
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, OneHotEncoderBase, TrackedMetrics
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
@@ -196,6 +196,9 @@ class ScalarModelBase(ModelConfigBase):
                          "num_dataset_reader_workers to 0 as this is an AML run.")
         else:
             self.num_dataset_reader_workers = num_dataset_reader_workers
+        self.random_seed = (self.cross_validation_split_index *
+                            self.model_config.number_of_cross_validation_splits_per_fold) + \
+                           self.cross_validation_sub_fold_split_index
 
     @property
     def is_classification_model(self) -> bool:
@@ -422,6 +425,36 @@ class ScalarModelBase(ModelConfigBase):
             CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY: choice(list(range(
                 self.number_of_cross_validation_splits_per_fold))),
         })
+
+    def get_cross_validation_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
+        """
+        Returns a configuration for AzureML Hyperdrive that varies the cross validation split index.
+        :param estimator: The AzureML estimator object that runs model training.
+        :return: A hyperdrive configuration object.
+        """
+        max_total_runs = self.number_of_cross_validation_splits
+        if self.number_of_cross_validation_splits_per_fold != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
+            max_total_runs = self.number_of_cross_validation_splits_per_fold * self.number_of_cross_validation_splits
+
+        return HyperDriveConfig(
+            estimator=estimator,
+            hyperparameter_sampling=self.get_cross_validation_hyperdrive_sampler(),
+            primary_metric_name=TrackedMetrics.Val_Loss.value,
+            primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
+            max_total_runs=max_total_runs
+        )
+
+    def should_wait_for_other_cross_val_child_runs(self) -> bool:
+        """
+        Returns True if the current run is an online run and is the 0th cross validation split.
+        In this case, this will be the run that will wait for all other child runs to finish in order
+        to aggregate their results.
+        :return:
+        """
+        should_wait_child = True
+        if self.number_of_cross_validation_splits_per_fold > 0 and self.cross_validation_sub_fold_split_index != 0:
+            should_wait_child = False
+        return (not self.is_offline_run) and self.cross_validation_split_index == 0 and should_wait_child
 
 
 def get_non_image_features_dict(default_channels: List[str],

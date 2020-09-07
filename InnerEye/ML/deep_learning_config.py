@@ -335,6 +335,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         super().__init__(**params)
         logging.info("Creating the default output folder structure.")
         self.create_filesystem(fixed_paths.repository_root_directory())
+        if self.cross_validation_split_index > -1:
+            self.random_seed += self.cross_validation_split_index
 
     def validate(self) -> None:
         """
@@ -602,7 +604,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         dst = (root or self.outputs_folder) / ARGS_TXT
         dst.write_text(data=str(self))
 
-    @property
     def should_wait_for_other_cross_val_child_runs(self) -> bool:
         """
         Returns True if the current run is an online run and is the 0th cross validation split.
