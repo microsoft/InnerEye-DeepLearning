@@ -5,7 +5,7 @@
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
-from IPython.display import Markdown, display
+from IPython.display import HTML, Markdown, display
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import boxplot_per_structure
 
@@ -16,7 +16,7 @@ INNEREYE_PATH_PARAMETER_NAME = "innereye_path"
 
 def plot_scores_for_csv(path_csv: str):
     df = pd.read_csv(path_csv)
-
+    df.style.hide_index()
     display(Markdown("##Dice"))
     describe_score(df, MetricsFileColumns.Dice.value)
     worse_patients(df, MetricsFileColumns.Dice.value, ascending=True)
@@ -37,7 +37,7 @@ def plot_scores_for_csv(path_csv: str):
 def worse_patients(df: pd.DataFrame, metric_name: str, ascending: bool):
     display(Markdown(f"##Worse {metric_name} patients"))
     df2 = df.sort_values(by=metric_name, ascending=ascending).head(20)
-    display(df2)
+    display(HTML(df2.to_html(index=False)))
 
 
 def describe_score(df: pd.DataFrame, metric_name: str):
