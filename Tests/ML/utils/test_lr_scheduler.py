@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 import numpy as np
 import pytest
@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR, LambdaLR,
 from torch.optim.optimizer import Optimizer
 
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import LRSchedulerType, LRWarmUpType
+from InnerEye.ML.deep_learning_config import DeepLearningConfig, LRSchedulerType, LRWarmUpType
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from Tests.ML.configs.DummyModel import DummyModel
 
@@ -52,7 +52,8 @@ def test_min_and_initial_lr(lr_scheduler_type: LRSchedulerType) -> None:
     # create lr scheduler
     lr_scheduler, _ = _create_lr_scheduler_and_optimizer(config)
     assert lr_scheduler.get_last_lr()[0] == config.l_rate
-    lr_scheduler.step(2)
+    lr_scheduler.step()
+    lr_scheduler.step()
     assert lr_scheduler.get_last_lr()[0] == config.min_l_rate
 
 
@@ -151,24 +152,86 @@ def _create_lr_scheduler_and_optimizer(config: SegmentationModelBase, optimizer:
     return lr_scheduler, optimizer
 
 
-def test_built_in_lr_scheduler() -> None:
+@pytest.mark.parametrize("scheduler_func, expected_values",
+                         # A scheduler that reduces learning rate by a factor of 0.5 in each epoch
+                         [(lambda optimizer: MultiplicativeLR(optimizer, lr_lambda=lambda epoch: 0.5),
+                           [1, 0.5, 0.25, 0.125, 0.0625]),
+                          # A scheduler that reduces learning rate by a factor of 0.5 at epochs 2 and 4
+                          (lambda optimizer: MultiStepLR(optimizer, [2, 4], gamma=0.5),
+                           [1, 1, 0.5, 0.5, 0.25]),
+                          (lambda optimizer: MultiStepLR(optimizer, [1, 2, 3, 4, 5], gamma=0.5),
+                           [1, 0.5, 0.25, 0.125, 0.0625])
+                          ])
+def test_built_in_lr_scheduler(scheduler_func: Callable[[Optimizer], _LRScheduler],
+                               expected_values: List[float]) -> None:
     """
     A test to check that the behaviour of the built-in learning rate schedulers is still what we think it is.
     """
     initial_lr = 1
     optimizer = torch.optim.Adam([torch.ones(2, 2, requires_grad=True)], lr=initial_lr)
-    # A scheduler that reduces learning rate by a factor of 0.5 in each epoch
-    scheduler = MultiplicativeLR(optimizer, lr_lambda=lambda epoch: 0.5)
+    scheduler = scheduler_func(optimizer)
     lrs = []
-    for _ in [0, 1, 2]:
+    for _ in range(5):
         last_lr = scheduler.get_last_lr()
         lrs.append(last_lr)
         # get_last_lr should not change the state when called twice
         assert scheduler.get_last_lr() == scheduler.get_last_lr()
         scheduler.step()
     # Expected behaviour: First LR should be the initial LR set in the optimizers.
-    # Each call to scheduler.step will multiply be 0.5
-    assert lrs == [[1], [0.5], [0.25]]
+    expected_values = [[v] for v in expected_values]
+    assert lrs == expected_values
+
+
+@pytest.mark.parametrize("min_l_rate, expected_values",
+                         [(0.4, [1, 0.5, 0.4, 0.4]),
+                          (0.0, [1, 0.5, 0.25, 0.125])])
+def test_lr_scheduler_with_min_l_rate(min_l_rate: float, expected_values: List[float]) -> None:
+    """
+    Check that the minimum learning rate parameter is respected.
+    """
+    initial_lr = 1
+    optimizer = torch.optim.Adam([torch.ones(2, 2, requires_grad=True)], lr=initial_lr)
+    config = DeepLearningConfig(l_rate=initial_lr,
+                                l_rate_scheduler=LRSchedulerType.MultiStep,
+                                l_rate_multi_step_milestones=[1, 2, 3, 4],
+                                l_rate_multi_step_gamma=0.5,
+                                should_validate=False)
+    config._min_l_rate = min_l_rate
+    scheduler = SchedulerWithWarmUp(config, optimizer)
+    lrs = []
+    for _ in range(4):
+        last_lr = scheduler.get_last_lr()
+        lrs.append(last_lr)
+        scheduler.step()
+    expected_values = [[v] for v in expected_values]
+    assert lrs == expected_values
+
+
+@pytest.mark.parametrize("warmup_epochs, expected_values",
+                         [(0, [1, 1, 0.5, 0.5]),
+                          (1, [0.5, 1, 0.5, 0.5]),
+                          (2, [1/3, 2/3, 0.25, 0.25])])
+def test_lr_scheduler_with_warmup(warmup_epochs: int, expected_values: List[float]) -> None:
+    """
+    Check that warmup is applied correctly to a multistep scheduler
+    """
+    initial_lr = 1
+    optimizer = torch.optim.Adam([torch.ones(2, 2, requires_grad=True)], lr=initial_lr)
+    config = DeepLearningConfig(l_rate=initial_lr,
+                                l_rate_scheduler=LRSchedulerType.MultiStep,
+                                l_rate_multi_step_milestones=[2, 4],
+                                l_rate_multi_step_gamma=0.5,
+                                l_rate_warmup_epochs=warmup_epochs,
+                                l_rate_warmup=LRWarmUpType.Linear,
+                                should_validate=False)
+    scheduler = SchedulerWithWarmUp(config, optimizer)
+    lrs = []
+    for _ in range(4):
+        last_lr = scheduler.get_last_lr()
+        lrs.append(last_lr)
+        scheduler.step()
+    expected_values = [[v] for v in expected_values]
+    assert lrs == expected_values
 
 
 @pytest.mark.parametrize("lr_scheduler_type", [x for x in LRSchedulerType])
@@ -318,7 +381,6 @@ def test_multistep_lr(warmup_epochs: int, expected_lrs: np.ndarray) -> None:
         last_lr = lr_scheduler.get_last_lr()
         assert isinstance(last_lr, list)
         lrs.append(last_lr[0])
-        optimizer.step()
         lr_scheduler.step()
     print(f"Actual learning rate schedule: {lrs}")
     if warmup_epochs == 0:
