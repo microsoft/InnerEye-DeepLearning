@@ -33,6 +33,7 @@ from InnerEye.Common.fixed_paths import get_environment_yaml_file
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 
 LOG_FILE_NAME = "stdout.txt"
@@ -97,6 +98,9 @@ class Runner:
         if (not self.model_config.is_offline_run) \
                 and (azure_util.is_cross_validation_child_run(RUN_CONTEXT)):
             n_splits = self.model_config.number_of_cross_validation_splits
+            if isinstance(self.model_config,
+                          ScalarModelBase) and self.model_config.number_of_cross_validation_splits_per_fold > 0:
+                n_splits *= self.model_config.number_of_cross_validation_splits_per_fold
             child_runs = azure_util.fetch_child_runs(PARENT_RUN_CONTEXT,
                                                      expected_number_cross_validation_splits=n_splits)
             pending_runs = [x.id for x in child_runs
@@ -322,7 +326,7 @@ class Runner:
                     pytest_failed = True
         finally:
             # wait for aggregation if required, and only if the training actually succeeded.
-            if not training_failed and self.model_config.should_wait_for_other_cross_val_child_runs:
+            if not training_failed and self.model_config.should_wait_for_other_cross_val_child_runs():
                 self.wait_for_cross_val_runs_to_finish_and_aggregate()
             disable_logging_to_file()
         if training_failed or pytest_failed or not pytest_passed:
