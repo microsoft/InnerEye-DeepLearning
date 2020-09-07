@@ -33,6 +33,10 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import model_train
+from InnerEye.ML.reports.notebook_report import generate_notebook
+from InnerEye.ML.reports.segmentation.segmentation_report import INNEREYE_PATH_PARAMETER_NAME, \
+    SEGMENTATION_REPORT_NOTEBOOK_PATH, \
+    TEST_METRICS_CSV_PARAMETER_NAME
 from InnerEye.ML.runner import ModelDeploymentHookSignature
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
@@ -233,6 +237,13 @@ class MLRunner:
             self.try_compare_scores_against_baselines(model_proc)
         else:
             logging.warning("Couldn't register model in offline mode")
+
+        # Generate report
+        # what is the metrics_path?
+        generate_notebook(notebook_path=SEGMENTATION_REPORT_NOTEBOOK_PATH,
+                          notebook_params={TEST_METRICS_CSV_PARAMETER_NAME: str(metrics_path),
+                                           INNEREYE_PATH_PARAMETER_NAME: str(Path(__file__).parent.parent.parent.parent)},
+                          result_path="report.ipynb")
 
     def should_register_model(self) -> bool:
         """
