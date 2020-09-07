@@ -109,7 +109,7 @@ If you want to create a new storage account:
 5. Choose a location suitable for you.
 6. Click create.
 7. Once your resource is created you can access it by typing its name in the top search bar. You will then need to retrieve the storage account ID 
-and the access key of this storage account following the same instructions as you did for the dataset storage account (cf. Step 3.7 above).
+and the access key of this storage account following the same instructions as you did for the AML `storage account` (cf. Step 3.3 and 3.4 above).
 Be careful not to mix up the `dataset storage account` and the AML `storage account` IDs and keys.
 
 ### Step 5: Create a compute cluster for your experiments
