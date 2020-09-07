@@ -39,6 +39,8 @@ DATASETS_ACCOUNT_NAME = "innereyepublicdatasets"
 # points to a container inside of a storage account.
 AZUREML_DATASTORE_NAME = "innereyedatasets"
 
+MODEL_WEIGHTS_DIR_NAME = "modelweights"
+
 ML_RELATIVE_SOURCE_PATH = os.path.join("ML")
 ML_RELATIVE_RUNNER_PATH = os.path.join(ML_RELATIVE_SOURCE_PATH, "runner.py")
 ML_FULL_SOURCE_FOLDER_PATH = str(repository_root_directory() / ML_RELATIVE_SOURCE_PATH)

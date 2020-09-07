@@ -5,22 +5,25 @@
 from __future__ import annotations
 
 import logging
+import param
+import torch
+import numpy as np
+
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-
-import param
+from typing import Any, Dict, List, Optional, Union
 from pandas import DataFrame
 from param import Parameterized
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
-from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
+from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME, MODEL_WEIGHTS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, \
     create_unique_timestamp_id
+
 
 VISUALIZATION_FOLDER = "Visualizations"
 CHECKPOINT_FOLDER = "checkpoints"
@@ -355,6 +358,16 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "weights are updated using mean_teacher_"
                                                  "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
+    azure_model_weights_id: Optional[str] = param.String(None, allow_None=True,
+                                                         doc="The ID of the model weights to initialize the model with."
+                                                             "The model weights must exist as a folder of the same name "
+                                                             "in the 'model weights' container in the model weights "
+                                                             "storage account.")
+    local_model_weights: Optional[Path] = param.ClassSelector(class_=Path,
+                                                              default=None,
+                                                              allow_None=True,
+                                                              doc="The path to the model weights to use, "
+                                                                  "when training is running outside Azure.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
@@ -662,6 +675,18 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         Returns True if the mean teacher model should be computed.
         """
         return self.mean_teacher_alpha is not None
+
+    @classmethod
+    def get_state_dict_from_model_weights(cls, path_to_checkpoint: Path) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
+        """
+        When azure_model_weights_id or local_model_weights is set, the file downloaded may not be in the exact
+        format expected by the models load_state_dict() - for example, pretrained Imagenet weights for networks.
+        In such cases, you can overload this function to extract the state dict from the checkpoint.
+        :param path_to_checkpoint: Path to the checkpoint file.
+        :return: state dict which can be consumed by load_state_dict().
+        """
+        from InnerEye.ML.utils.model_util import default_state_dict_reader
+        return default_state_dict_reader(path_to_checkpoint)
 
     def __str__(self) -> str:
         """Returns a string describing the present object, as a list of key == value pairs."""

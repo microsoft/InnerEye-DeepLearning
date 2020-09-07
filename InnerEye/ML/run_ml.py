@@ -176,6 +176,7 @@ class MLRunner:
         if self.azure_config.run_recovery_id:
             run_recovery = RunRecovery.download_checkpoints_from_recovery_run(
                 self.azure_config, self.model_config, RUN_CONTEXT)
+
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
         if self.azure_config.register_model_only_for_epoch is None or run_recovery is None:
@@ -183,6 +184,13 @@ class MLRunner:
             # and config.local_dataset was not already set.
             self.mount_or_download_dataset()
             self.model_config.write_args_file()
+
+            if (self.model_config.azure_model_weights_id is not None
+                or self.model_config.local_model_weights is not None) \
+                    and not self.model_config.should_load_checkpoint_for_training():
+                self.model_config.local_model_weights = \
+                    self.download_model_weights(RUN_CONTEXT, self.project_root / fixed_paths.MODEL_WEIGHTS_DIR_NAME)
+
             logging.info(str(self.model_config))
             # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
             make_pytorch_reproducible()
@@ -203,6 +211,9 @@ class MLRunner:
 
             # log the number of epochs used for model training
             RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
+
+            # Set this to None here, otherwise we will end up reading these weights again in inference runs.
+            self.model_config.local_model_weights = None
 
         # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
         # the current run is a single one. See the documentation of ModelProcessing for more details.
@@ -566,3 +577,38 @@ class MLRunner:
                 logging.info("Downloading dataset from Azure took {} sec".format(elapsed_seconds))
             return target_folder
         return config.local_dataset
+
+    def download_model_weights(self, run_context: Optional[Run] = None,
+                                    model_weights_path: Path = Path.cwd()) -> Optional[Path]:
+        """
+        Downloads the model_weights into model_weights_path, only if the model_weights do not exist in the given path.
+        Returns a path to the folder that contains the model weights.
+        """
+
+        # check if the model_weights needs to be downloaded from Azure
+        config = self.model_config
+        if config.azure_model_weights_id:
+            # log the dataset id being used for this run
+            if run_context is not None:
+                run_context.tag("model_weights_id", config.azure_model_weights_id)
+            target_folder = model_weights_path / config.azure_model_weights_id
+            # only download if hasn't already been downloaded
+            if target_folder.is_dir():
+                logging.info("Using cached model_weights in folder %s", target_folder)
+            else:
+                logging.info("Starting to download model_weights from Azure to folder %s", target_folder)
+                start_time = timer()
+                # download the dataset blobs from Azure to local
+                download_blobs(
+                    account=self.azure_config.model_weights_storage_account,
+                    account_key=self.azure_config.get_model_weights_storage_account_key(),
+                    # When specifying the blobs root path, ensure that there is a slash at the end, otherwise
+                    # all datasets with that dataset_id as a prefix get downloaded.
+                    blobs_root_path="{}/{}/".format(self.azure_config.model_weights_container,
+                                                    config.azure_model_weights_id),
+                    destination=target_folder
+                )
+                elapsed_seconds = timer() - start_time
+                logging.info("Downloading model_weights from Azure took {} sec".format(elapsed_seconds))
+            return target_folder
+        return config.local_model_weights

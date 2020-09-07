@@ -6,7 +6,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, Callable
 
 import torch
 from apex import amp
@@ -267,9 +267,21 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
     random_state.restore_random_state()
 
 
+def default_state_dict_reader(path_to_checkpoint: Path):
+    """
+    Read the state dict from a file
+    """
+    # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
+    # if the model is small.
+    map_location = None if is_gpu_available() else 'cpu'
+    checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
+    return checkpoint
+
+
 def load_checkpoint(model: torch.nn.Module,
                     path_to_checkpoint: Path,
-                    optimizer: Optional[Optimizer] = None) -> Optional[int]:
+                    optimizer: Optional[Optimizer] = None,
+                    model_weight_reader: Callable = None) -> Optional[int]:
     """
     Loads a checkpoint of a model.
     The epoch of the stored model and the epoch provided as argument must match.
@@ -278,6 +290,7 @@ def load_checkpoint(model: torch.nn.Module,
     :param model: The DataParallel object representing the network. Must have the same architecture of the stored model.
     :param path_to_checkpoint: The path to the checkpoint file.
     :param optimizer: The optimizer used for training
+    :param model_weight_reader: A function which takes a Path argument and returns a state dict.
     :return: The checkpoint epoch if loaded and None if not loaded
     """
 
@@ -286,17 +299,18 @@ def load_checkpoint(model: torch.nn.Module,
         return None
 
     logging.info(f"Loading checkpoint {path_to_checkpoint}")
-    # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
-    # if the model is small.
-    map_location = None if is_gpu_available() else 'cpu'
-    checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
+
+    if model_weight_reader:
+        checkpoint = model_weight_reader(path_to_checkpoint)
+    else:
+        checkpoint = default_state_dict_reader(path_to_checkpoint)
 
     if isinstance(model, torch.nn.DataParallel):
         model.module.load_state_dict(checkpoint['state_dict'])
     else:
         model.load_state_dict(checkpoint['state_dict'])
 
-    if optimizer is not None:
+    if optimizer is not None and (not model_weight_reader or 'opt_dict' in checkpoint):
         optimizer.load_state_dict(checkpoint['opt_dict'])
 
     logging.info("Loaded checkpoint (epoch: {})".format(checkpoint['epoch']))
@@ -332,7 +346,8 @@ def save_checkpoint(model: torch.nn.Module, optimizer: Optimizer, epoch: int,
 
 def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
                                     path_to_checkpoint: Path,
-                                    model_and_info: Optional[ModelAndInfo] = None) -> ModelAndInfo:
+                                    model_and_info: Optional[ModelAndInfo] = None,
+                                    use_reader_function_from_config: bool = False) -> ModelAndInfo:
     """
     Creates a model as per the configuration, and loads the parameters from the given checkpoint path.
     The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
@@ -340,6 +355,8 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     :param model_config: The configuration from which an empty model will be created (if existing_model is None)
     :param path_to_checkpoint: The path to the checkpoint file.
     :param model_and_info: optional model and associated info; created from model_config if None
+    :param use_reader_function_from_config: Whether to use the default method to read a state dict from a file,
+    or use a custom function specified in the model config
     :return: The model with all loaded parameters, the (adjusted) optimizer, and the epoch in which the model was saved.
     If the checkpoint_epoch is None, there is no model file at the given path.
     """
@@ -347,9 +364,12 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     if model_and_info is None:
         model_and_info = ModelAndInfo(create_model_with_temperature_scaling(model_config))
     # Load the stored model. If there is no checkpoint present, return immediately.
-    model_and_info.checkpoint_epoch = load_checkpoint(model=model_and_info.model,
-                                                      path_to_checkpoint=path_to_checkpoint,
-                                                      optimizer=model_and_info.optimizer)
+    model_and_info.checkpoint_epoch = \
+        load_checkpoint(model=model_and_info.model,
+                        path_to_checkpoint=path_to_checkpoint,
+                        optimizer=model_and_info.optimizer,
+                        model_weight_reader=model_config.get_state_dict_from_model_weights if
+                                                                use_reader_function_from_config else None)
     if model_and_info.checkpoint_epoch is None:
         return model_and_info
     # Enable data/model parallelization

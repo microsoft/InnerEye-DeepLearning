@@ -65,11 +65,18 @@ class AzureConfig(GenericConfig):
     storage_account: str = param.String(None, doc="The blob storage account to use to store outputs from AML jobs")
     datasets_storage_account: str = param.String(None,
                                                  doc="The blob storage account to use to access datasets in AML jobs")
+    model_weights_storage_account: str = param.String(None,
+                                                 doc="The blob storage account to use to access model weights "
+                                                     "in AML jobs")
     storage_account_secret_name: str = \
         param.String(None, doc="The name of the keyvault secret that contains the storage account key.")
     datasets_storage_account_secret_name: str = \
         param.String(None, doc="The name of the keyvault secret that contains the dataset storage account key.")
+    model_weights_storage_account_secret_name: str = \
+        param.String(None, doc="The name of the keyvault secret that contains the model weights storage account key.")
     datasets_container: str = param.String(None, doc="The blob storage container to use to access datasets in AML jobs")
+    model_weights_container: str = param.String(None, doc="The blob storage container to use to access "
+                                                          "model weights in AML jobs")
     workspace_name: str = param.String(None, doc="The name of the AzureML workspace that should be used.")
     workspace_region: str = param.String(None, doc="The region to create AML workspaces in")
     resource_group: str = param.String(None, doc="The resource group to create AML workspaces in")
@@ -191,6 +198,12 @@ class AzureConfig(GenericConfig):
         Gets the storage account key for the storage account that holds the dataset.
         """
         return self.get_secret_from_keyvault(self.datasets_storage_account_secret_name)
+
+    def get_model_weights_storage_account_key(self) -> str:
+        """
+        Gets the storage account key for the storage account that holds the dataset.
+        """
+        return self.get_secret_from_keyvault(self.model_weights_storage_account_secret_name)
 
     def get_secret_from_keyvault(self, secret_name: str) -> str:
         """

@@ -20,7 +20,7 @@ from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NA
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config
 from InnerEye.ML import metrics, plotting
-from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
+from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES, MODEL_WEIGHTS_FILE_NAME
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
@@ -353,6 +353,12 @@ def create_inference_pipeline(config: ModelConfigBase,
     :param run_recovery: RunRecovery data if applicable
     :return: FullImageInferencePipelineBase or ScalarInferencePipelineBase
     """
+    if config.local_model_weights:
+        checkpoint_paths = [config.local_model_weights / MODEL_WEIGHTS_FILE_NAME]
+        pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths, True)
+        if not pipeline:
+            raise ValueError(f"Unable to recover from checkpoint {checkpoint_paths[0]}.")
+        return pipeline
     if run_recovery:
         checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, config.compute_mean_teacher_model)
         pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
@@ -361,14 +367,22 @@ def create_inference_pipeline(config: ModelConfigBase,
             # is from the current run, which has been doing more training, so we look for it there.
             return pipeline
     checkpoint_paths = [config.get_path_to_checkpoint(epoch, config.compute_mean_teacher_model)]
-    return create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
+    pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
+    if not pipeline:
+        raise ValueError(f"Unable to recover from checkpoint {checkpoint_paths[0]}.")
+    return pipeline
 
 
 def create_pipeline_from_checkpoint_paths(config: ModelConfigBase,
-                                          checkpoint_paths: List[Path]) -> Optional[InferencePipelineBase]:
+                                          checkpoint_paths: List[Path],
+                                          use_reader_from_config = False) -> Optional[InferencePipelineBase]:
     """
     Attempt to create a pipeline from the provided checkpoint paths. If the files referred to by the paths
     do not exist, or if there are no paths, None will be returned.
+    :param config: Model configuration
+    :param checkpoint_paths: paths to the (one or more) checkpoints to recover
+    :param use_reader_from_config: Whether to use the default method to read a state dict from a file,
+    or use a custom function specified in the model config
     """
     if len(checkpoint_paths) > 1:
         if config.is_segmentation_model:
@@ -383,11 +397,13 @@ def create_pipeline_from_checkpoint_paths(config: ModelConfigBase,
         if config.is_segmentation_model:
             assert isinstance(config, SegmentationModelBase)
             return InferencePipeline.create_from_checkpoint(path_to_checkpoint=checkpoint_paths[0],
-                                                            model_config=config)
+                                                            model_config=config,
+                                                            use_reader_from_config=use_reader_from_config)
         elif config.is_scalar_model:
             assert isinstance(config, ScalarModelBase)
             return ScalarInferencePipeline.create_from_checkpoint(path_to_checkpoint=checkpoint_paths[0],
-                                                                  config=config)
+                                                                  config=config,
+                                                                  use_reader_from_config=use_reader_from_config)
         else:
             raise NotImplementedError("Cannot create ensemble pipeline for unknown model type")
     return None

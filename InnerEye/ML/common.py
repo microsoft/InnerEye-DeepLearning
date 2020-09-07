@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 DATASET_CSV_FILE_NAME = "dataset.csv"
+MODEL_WEIGHTS_FILE_NAME = "weights.pt"
 CHECKPOINT_FILE_SUFFIX = "_checkpoint.pth.tar"
 MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX = "_mean_teacher_checkpoint.pth.tar"
 

@@ -76,15 +76,21 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
     @staticmethod
     def create_from_checkpoint(path_to_checkpoint: Path,
                                config: ScalarModelBase,
-                               pipeline_id: int = 0) -> Optional[ScalarInferencePipeline]:
+                               pipeline_id: int = 0,
+                               use_reader_from_config: bool = False) -> Optional[ScalarInferencePipeline]:
         """
         Creates an inference pipeline from a single checkpoint.
         :param path_to_checkpoint: Path to the checkpoint to recover.
         :param config: Model configuration information.
         :param pipeline_id: ID for the pipeline to be created.
+        :param use_reader_from_config: Whether to use the default method to read a state dict from a file,
+        or use a custom function specified in the model config
         :return: ScalarInferencePipeline if recovery from checkpoint successful. None if unsuccessful.
         """
-        model_and_info = model_util.load_from_checkpoint_and_adjust(config, path_to_checkpoint)
+        model_and_info = \
+            model_util.load_from_checkpoint_and_adjust(model_config=config,
+                                                       path_to_checkpoint=path_to_checkpoint,
+                                                       use_reader_function_from_config=use_reader_from_config)
         if model_and_info.model is None or model_and_info.checkpoint_epoch is None:
             # not raising a value error here: This is used to create individual pipelines for ensembles,
             #                                   possible one model cannot be created but others can

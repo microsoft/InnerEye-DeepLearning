@@ -200,7 +200,8 @@ class InferencePipeline(FullImageInferencePipelineBase):
     @staticmethod
     def create_from_checkpoint(path_to_checkpoint: Path,
                                model_config: SegmentationModelBase,
-                               pipeline_id: int = 0) -> Optional[InferencePipeline]:
+                               pipeline_id: int = 0,
+                               use_reader_from_config: bool = False) -> Optional[InferencePipeline]:
         """
         Creates an instance of the inference pipeline for a given epoch from a stored checkpoint.
         After loading, the model parameters are checked for NaN and Infinity values.
@@ -209,10 +210,15 @@ class InferencePipeline(FullImageInferencePipelineBase):
         model_config.checkpoint_folder
         :param model_config: Model related configurations.
         :param pipeline_id: Numeric identifier for the pipeline (useful for logging when ensembling)
+        :param use_reader_from_config: Whether to use the default method to read a state dict from a file,
+        or use a custom function specified in the model config
         :return InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint
         file for this epoch.
         """
-        model_and_info = model_util.load_from_checkpoint_and_adjust(model_config, path_to_checkpoint)
+        model_and_info = \
+            model_util.load_from_checkpoint_and_adjust(model_config=model_config,
+                                                       path_to_checkpoint=path_to_checkpoint,
+                                                       use_reader_function_from_config=use_reader_from_config)
         if model_and_info.checkpoint_epoch is None or model_and_info.model is None:
             return None
         for name, param in model_and_info.model.named_parameters():

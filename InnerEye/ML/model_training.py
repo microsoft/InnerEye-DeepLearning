@@ -13,7 +13,7 @@ from InnerEye.Common.common_util import empty_string_to_none
 from InnerEye.Common.metrics_dict import MetricsDict
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML import metrics
-from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.common import ModelExecutionMode, MODEL_WEIGHTS_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -41,9 +41,15 @@ T = TypeVar('T')
 def load_checkpoint_from_model_and_info(run_recovery: Optional[RunRecovery], config: ModelConfigBase,
                                         model_and_info: ModelAndInfo) -> ModelAndInfo:
     is_mean_teacher = model_and_info.is_mean_teacher
-    checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch, is_mean_teacher)[0] \
-        if run_recovery else config.get_path_to_checkpoint(config.start_epoch, is_mean_teacher)
-    result = model_util.load_from_checkpoint_and_adjust(config, checkpoint_path, model_and_info)
+    use_reader_from_config = False
+    if run_recovery:
+        checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch, is_mean_teacher)[0]
+    elif config.local_model_weights:
+        checkpoint_path = config.local_model_weights / MODEL_WEIGHTS_FILE_NAME
+        use_reader_from_config = True
+    else:
+        checkpoint_path = config.get_path_to_checkpoint(config.start_epoch, is_mean_teacher)
+    result = model_util.load_from_checkpoint_and_adjust(config, checkpoint_path, model_and_info, use_reader_from_config)
     if result.checkpoint_epoch is None:
         raise ValueError("There was no checkpoint file available for the given start_epoch {}"
                          .format(config.start_epoch))
@@ -75,6 +81,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     model = create_model_with_temperature_scaling(config)
     models_and_optimizers = [ModelAndInfo(model, model_util.create_optimizer(config, model),
                                           model_execution_mode=ModelExecutionMode.TRAIN)]
+
     if config.compute_mean_teacher_model:
         models_and_optimizers.append(ModelAndInfo(create_model_with_temperature_scaling(config),
                                                   is_mean_teacher=True,

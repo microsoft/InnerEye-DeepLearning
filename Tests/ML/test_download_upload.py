@@ -12,7 +12,7 @@ from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run, get_results_b
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.output_directories import TestOutputDirectories
-from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME
+from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME, MODEL_WEIGHTS_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.blobxfer_util import download_blobs
@@ -95,6 +95,22 @@ def test_download_dataset(test_output_dirs: TestOutputDirectories) -> None:
     assert result_path
     dataset_csv = Path(result_path) / DATASET_CSV_FILE_NAME
     assert dataset_csv.exists()
+
+
+def test_download_model_weights(test_output_dirs: TestOutputDirectories) -> None:
+    config = SegmentationModelBase(should_validate=False,
+                                   architecture="Basic",
+                                   feature_channels=[2] * 8,
+                                   crop_size=(64, 64, 64),
+                                   image_channels=["channel1", "channel2"],
+                                   azure_model_weights_id="basic_model_test_state_dict"
+                                   )
+    azure_config = get_default_azure_config()
+    result_path = MLRunner(config, azure_config)\
+                        .download_model_weights(None, model_weights_path=Path(test_output_dirs.root_dir))
+    assert result_path
+    weights_file = Path(result_path) / MODEL_WEIGHTS_FILE_NAME
+    assert weights_file.exists()
 
 
 @pytest.mark.parametrize("is_file", [True, False])
