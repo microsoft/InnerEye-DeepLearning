@@ -182,7 +182,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     _model_name: str = param.String(None, doc="The human readable name of the model (for example, Liver). This is "
                                               "usually set from the class name.")
 
-    random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
+    _random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     azure_dataset_id: Optional[str] = param.String(None, allow_None=True,
                                                    doc="The ID of the dataset to use. This dataset must exist as a "
                                                        "folder of the same name in the 'datasets' "
@@ -356,7 +356,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
 
-    def __init__(self, **params: Any) -> None:
+    def __init__(self, random_seed: int, **params: Any) -> None:
         self._model_name = type(self).__name__
         # This should be annotated as torch.utils.data.Dataset, but we don't want to import torch here.
         self._datasets_for_training: Optional[Dict[ModelExecutionMode, Any]] = None
@@ -364,13 +364,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         super().__init__(**params)
         logging.info("Creating the default output folder structure.")
         self.create_filesystem(fixed_paths.repository_root_directory())
-        # update the random seed based on the cross validation split index so each
-        # fold has a different initial random state.
-        if self.cross_validation_split_index != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-            random_seed_before = self.random_seed
-            self.random_seed += self.cross_validation_split_index
-            logging.info(f"Added cross validation split offset to original random seed."
-                         f" Changed from {random_seed_before} to {self.random_seed}")
+        self.set_random_seed(random_seed)
 
     def validate(self) -> None:
         """
@@ -604,6 +598,26 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         return fixed_paths.repository_root_directory() \
                / self.checkpoint_folder \
                / f"{epoch}{filename}"
+
+    def get_effective_random_seed(self) -> int:
+        """
+        Returns the random seed set as part of this configuration. If the configuration corresponds
+        to a cross validation split, then the cross validation fold index will be added to the
+        set random seed in order to return the effective random seed.
+        :return:
+        """
+        seed = self._random_seed
+        if self.cross_validation_split_index != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
+            # offset the random seed based on the cross validation split index so each
+            # fold has a different initial random state.
+            seed += self.cross_validation_split_index
+        return seed
+
+    def set_random_seed(self, value: int) -> None:
+        """
+        Set the random seed value which will be used as the base random seed for all random operations.
+        """
+        self._random_seed = value
 
     @property  # type: ignore
     def use_gpu(self) -> bool:  # type: ignore

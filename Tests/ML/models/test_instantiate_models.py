@@ -215,14 +215,9 @@ def test_load_all_configs(model_name: str) -> None:
 
 
 def test_cross_validation_config() -> None:
-    config = CrossValidationDummyModel(0, -1)
-    assert config.random_seed == 42
-    config = CrossValidationDummyModel(10, 1)
-    assert config.random_seed == 43
-    config = CrossValidationDummyModel(10, 5)
-    assert config.random_seed == 47
-    config = CrossValidationDummyModel(10, -1)
-    assert config.random_seed == 42
+    CrossValidationDummyModel(0, -1)
+    CrossValidationDummyModel(10, 1)
+    CrossValidationDummyModel(10, -1)
 
     with pytest.raises(ValueError):
         CrossValidationDummyModel(10, 11)

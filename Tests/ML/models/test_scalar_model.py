@@ -227,7 +227,7 @@ def test_runner1(test_output_dirs: TestOutputDirectories) -> None:
                                yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
     assert isinstance(config, ScalarModelBase)
     assert config.model_name == "DummyClassification"
-    assert config.random_seed == set_from_commandline
+    assert config.get_effective_random_seed() == set_from_commandline
     assert config.non_image_feature_channels == ["label"]
     assert str(config.outputs_folder).startswith(output_root)
     assert (config.logs_folder / runner.LOG_FILE_NAME).exists()
