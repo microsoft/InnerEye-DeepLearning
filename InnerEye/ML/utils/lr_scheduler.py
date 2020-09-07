@@ -12,34 +12,66 @@ from torch.optim.optimizer import Optimizer
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, LRSchedulerType, LRWarmUpType
 
 
-class SchedulerWithWarmUp(_LRScheduler):
+def get_current_learning_rates(optimizer: Optimizer) -> List[float]:
     """
-    LR Scheduler which runs first a warmup step and then a standard scheduler for LR decay.
+    Reads the current values of the learning rate(s) for all parameter groups from the optimizer.
     """
+    return [group['lr'] for group in optimizer.param_groups]
 
-    def __init__(self, args: DeepLearningConfig, optimizer: Optimizer, last_epoch: int = -1):
-        self.optimizer = optimizer
+
+class LinearWarmUp(_LRScheduler):
+    """
+    Implements linear warmup up to a given initial learning rate.
+    """
+    def __init__(self, optimizer: Optimizer, warmup_epochs: int, final_lr: float, last_epoch: int = -1):
+        if warmup_epochs < 0:
+            raise ValueError("The number of warmup epochs must be >= 0.")
+        self.warmup_epochs = warmup_epochs
+        self.final_lr = final_lr
         self.last_epoch = last_epoch
-        self.warmup_epochs = args.l_rate_warmup_epochs
-        self.warmup_method = args.l_rate_warmup
-        self.scheduler = self.get_scheduler(args)
-        self._last_lr = [group['lr'] for group in self.optimizer.param_groups]
-        self.min_l_rate = args.min_l_rate
         super().__init__(optimizer, last_epoch)
 
-    def warmup_function(self, last_epoch: int) -> float:
-        if self.warmup_epochs <= 0 or self.warmup_method == LRWarmUpType.NoWarmUp:
+    def warmup_multiplier(self) -> float:
+        if self.warmup_epochs <= 0:
             return 1.0
-        if last_epoch >= self.warmup_epochs:
+        if self.last_epoch >= self.warmup_epochs:
             return 1.0
-        if self.warmup_method == LRWarmUpType.Linear:
-            return (last_epoch + 1) / (self.warmup_epochs + 1)
+        return (self.last_epoch + 1) / (self.warmup_epochs + 1)
+
+    def get_lr(self) -> List[float]:
+        return [self.final_lr * self.warmup_multiplier()]
+
+
+class SchedulerWithWarmUp(_LRScheduler):
+    """
+    LR Scheduler which runs a warmup schedule (linear ramp-up) for a few iterations, and then switches to one
+    of the normal schedulers.
+    """
+
+    def __init__(self, args: DeepLearningConfig, optimizer: Optimizer):
+        self.optimizer = optimizer
+        # At the end of the constructor there is a call to self.step(), which will increase self.last_epoch again
+        # after a checkpoint loading.
+        last_epoch = args.start_epoch - 1 if args.should_load_checkpoint_for_training() else -1
+        self.last_epoch = last_epoch
+        self.warmup_epochs = 0 if args.l_rate_warmup == LRWarmUpType.NoWarmUp else args.l_rate_warmup_epochs
+        self._scheduler = self.get_scheduler(args)
+        # This must be called after self.get_scheduler, because we want the optimizer to have the learning rate
+        # guided by the warmup schedule
+        self._warmup = LinearWarmUp(optimizer,
+                                    warmup_epochs=self.warmup_epochs,
+                                    final_lr=args.l_rate,
+                                    last_epoch=last_epoch)
+        self._last_lr = get_current_learning_rates(optimizer)
+        self.min_l_rate = args.min_l_rate
+        super().__init__(optimizer, last_epoch)
 
     def get_scheduler(self, args: DeepLearningConfig) -> _LRScheduler:
         """
         Create the LR scheduler that will be used after warmup, based on the config params.
         """
         scheduler: _LRScheduler
+        epochs_after_warmup = args.num_epochs - self.warmup_epochs
         if args.l_rate_scheduler == LRSchedulerType.Exponential:
             scheduler = ExponentialLR(optimizer=self.optimizer,
                                       gamma=args.l_rate_exponential_gamma,
@@ -50,7 +82,7 @@ class SchedulerWithWarmUp(_LRScheduler):
                                gamma=args.l_rate_step_gamma,
                                last_epoch=self.last_epoch)
         elif args.l_rate_scheduler == LRSchedulerType.MultiStep:
-            assert args.l_rate_multi_step_milestones is not None  # for mypy, we have done this check elsewhere
+            assert args.l_rate_multi_step_milestones is not None
             scheduler = MultiStepLR(optimizer=self.optimizer,
                                     milestones=args.l_rate_multi_step_milestones,
                                     gamma=args.l_rate_multi_step_gamma,
@@ -58,13 +90,13 @@ class SchedulerWithWarmUp(_LRScheduler):
         elif args.l_rate_scheduler == LRSchedulerType.Polynomial:
             x = args.min_l_rate / args.l_rate
             polynomial_decay: Any = lambda epoch: (1 - x) * (
-                    (1. - float(epoch) / args.num_epochs) ** args.l_rate_polynomial_gamma) + x
+                    (1. - float(epoch) / epochs_after_warmup) ** args.l_rate_polynomial_gamma) + x
             scheduler = LambdaLR(optimizer=self.optimizer,
                                  lr_lambda=polynomial_decay,
                                  last_epoch=self.last_epoch)
         elif args.l_rate_scheduler == LRSchedulerType.Cosine:
             scheduler = CosineAnnealingLR(optimizer=self.optimizer,
-                                          T_max=args.num_epochs,
+                                          T_max=epochs_after_warmup,
                                           eta_min=args.min_l_rate,
                                           last_epoch=self.last_epoch)
         else:
@@ -80,8 +112,9 @@ class SchedulerWithWarmUp(_LRScheduler):
         The state dict does not include the state of the optimizer.
         """
         state_dict = {key: val for key, val in self.__dict__.items()
-                      if key != "_scheduler" and key != "optimizer"}
-        state_dict['_scheduler'] = self.scheduler.state_dict()
+                      if key != "_scheduler" and key != "optimizer" and key != "_warmup"}
+        state_dict['_scheduler'] = self._scheduler.state_dict()
+        state_dict['_warmup'] = self._warmup.state_dict()
         return state_dict
 
     def load_state_dict(self, state_dict: Dict) -> None:
@@ -91,9 +124,10 @@ class SchedulerWithWarmUp(_LRScheduler):
         Initializes variables "_scheduler" and "_warmup_scheduler" separately, by calling load_state_dict
         for these variables.
         """
-        top_level = {key: val for key, val in state_dict.items() if key != "_scheduler"}
+        top_level = {key: val for key, val in state_dict.items() if key != "_scheduler" and key != "_warmup"}
         self.__dict__.update(top_level)
-        self.scheduler.__dict__.update(state_dict["_scheduler"])
+        self._scheduler.__dict__.update(state_dict["_scheduler"])
+        self._warmup.__dict__.update(state_dict["_warmup"])
 
     def step(self, epoch: int = None) -> None:
         # self.step() is called in the _LRScheduler.__init__, as the very last operation, when self.last_epoch == -1
@@ -107,12 +141,9 @@ class SchedulerWithWarmUp(_LRScheduler):
         # The scheduler itself has already been initialized, and scheduler.step has also been called already in
         # the respective constructor. Avoid calling it again here.
         if self.last_epoch != -1:
-            self.scheduler.step()
+            if self.last_epoch < self._warmup.warmup_epochs:
+                self._warmup.step()
+            else:
+                self._scheduler.step()
         self.last_epoch += 1
-        warmup_factor = min(self.warmup_function(self.last_epoch), 1)
-        lrs = []
-        for group in self.optimizer.param_groups:
-            lr = max(group['lr'] * warmup_factor, self.min_l_rate)
-            group['lr'] = lr
-            lrs.append(lr)
-        self._last_lr = lrs
+        self._last_lr = get_current_learning_rates(self.optimizer)
