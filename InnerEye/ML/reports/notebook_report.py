@@ -21,7 +21,6 @@ def generate_notebook(notebook_path: Path, notebook_params: Dict, result_path: P
     with open(str(result_path)) as f:
         notebook = nbformat.read(f, as_version=4)
         html_exporter = HTMLExporter()
-        html_exporter.template_name = 'classic'
         html_exporter.exclude_input = True
         (body, resources) = html_exporter.from_notebook_node(notebook)
         write_file = FilesWriter()

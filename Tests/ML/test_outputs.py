@@ -20,7 +20,8 @@ from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.plotting import resize_and_save
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.io_util import ImageHeader
-from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter, dice_boxplot_per_structure
+from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
+from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter, boxplot_per_structure
 from InnerEye.ML.utils.transforms import LinearTransform, get_range_for_window_level
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contents, assert_file_contents_match_exactly, assert_nifti_content
@@ -134,7 +135,9 @@ def test_metrics_file(test_output_dirs: TestOutputDirectories) -> None:
     # Sorting should be first by structure name alphabetically, then Dice with lowest scores first.
     assert_file_contents_match_exactly(Path(aggregates_file),
                                        full_ml_test_data_path() / METRICS_AGGREGATES_FILE)
-    dice_boxplot_per_structure(d.to_data_frame())
+    boxplot_per_structure(d.to_data_frame(),
+                          column_name=MetricsFileColumns.DiceNumeric.value,
+                          title=f"Dice score")
     boxplot1 = new_file("boxplot_2class.png")
     resize_and_save(5, 4, boxplot1)
     plt.clf()
@@ -142,7 +145,9 @@ def test_metrics_file(test_output_dirs: TestOutputDirectories) -> None:
     d.add(p1, "foo", 0.9, 2.0, 1.0)
     d.add(p1, "bar", 0.9, 2.0, 1.0)
     d.add(p1, "baz", 0.9, 2.0, 1.0)
-    dice_boxplot_per_structure(d.to_data_frame())
+    boxplot_per_structure(d.to_data_frame(),
+                          column_name=MetricsFileColumns.DiceNumeric.value,
+                          title=f"Dice score")
     boxplot2 = new_file("boxplot_6class.png")
     resize_and_save(5, 4, boxplot2)
 

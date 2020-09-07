@@ -22,14 +22,14 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 
 
-def dice_boxplot_per_structure(df: DataFrame, dice_column_name: str = "DiceNumeric",
-                               title: str = "Dice per structure") -> None:
+def boxplot_per_structure(df: DataFrame, column_name: str,
+                          title: str) -> None:
     """
-    Creates a box-and-whisker plot for the Dice scores per structure. Structures are on the x-axis,
+    Creates a box-and-whisker plot for a score per structure. Structures are on the x-axis,
     box plots are drawn vertically. The plot is created in the currently active figure or subplot.
     """
     structure = MetricsFileColumns.Structure.value
-    dice_numeric = dice_column_name
+    dice_numeric = column_name
     structure_series = df[structure]
     unique_structures = structure_series.unique()
     dice_per_structure = [df[dice_numeric][structure_series == s] for s in unique_structures]
@@ -40,9 +40,8 @@ def dice_boxplot_per_structure(df: DataFrame, dice_column_name: str = "DiceNumer
     plt.title(title)
     plt.boxplot(dice_per_structure, labels=unique_structures)
     plt.xlabel("Structure")
-    plt.ylabel("Dice")
+    plt.ylabel(column_name)
     plt.xticks(rotation=75)
-    plt.ylim(0, 1)
     plt.grid()
 
 

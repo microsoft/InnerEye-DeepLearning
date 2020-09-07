@@ -13,5 +13,9 @@ def test_generate_segmentation_report():
     current_dir = Path(__file__).parent.absolute()
     metrics_path = current_dir / "metrics_hn.csv"
     generate_notebook(notebook_path=SEGMENTATION_REPORT_NOTEBOOK_PATH,
-                      notebook_params={"metrics_csv": str(metrics_path)},
+                      notebook_params={"test_metrics_csv": str(metrics_path),
+                                       "innereye_path": str(Path(__file__).parent.parent.parent.parent)},
                       result_path=current_dir / "report.ipynb")
+    chk_file = Path(current_dir / "report.html")
+
+    assert chk_file.is_file()
