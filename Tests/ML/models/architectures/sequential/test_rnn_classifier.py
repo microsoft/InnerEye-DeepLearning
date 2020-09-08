@@ -24,7 +24,8 @@ from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp impo
 from InnerEye.ML.models.architectures.sequential.rnn_classifier import RNNClassifier, RNNClassifierWithEncoder
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss
-from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
+from InnerEye.ML.sequence_config import SEQUENCE_LENGTH_FILE, SEQUENCE_LENGTH_STATS_FILE, \
+    SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentation
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
@@ -555,3 +556,29 @@ def _get_multi_label_sequence_dataframe() -> pd.DataFrame:
 3250.12345,238,B,84,3,0
 """
     return pd.read_csv(StringIO(dataset_contents), dtype=str)
+
+
+def test_sequence_dataset_stats_hook(test_output_dirs: TestOutputDirectories) -> None:
+    model = ToySequenceModel()
+    model.set_output_to(test_output_dirs.root_dir)
+    model.dataset_data_frame = _get_mock_sequence_dataset()
+    model.create_and_set_torch_datasets()
+    length_file = model.logs_folder / SEQUENCE_LENGTH_FILE
+    assert length_file.is_file()
+    assert length_file.read_text().splitlines() == [
+        "cross_validation_split_index,data_split,subject,sequence_length",
+        "-1,Train,2137.00005,4",
+        "-1,Train,2627.12341,3",
+        "-1,Train,3250.00005,5",
+        "-1,Train,3250.12345,4",
+        "-1,Test,2627.00001,3",
+        "-1,Val,2137.00125,5"]
+    stats_file = model.logs_folder / SEQUENCE_LENGTH_STATS_FILE
+    assert stats_file.is_file()
+    assert stats_file.read_text().splitlines() == [
+        "           sequence_length                                          ",
+        "                     count mean       std  min   25%  50%   75%  max",
+        "data_split                                                          ",
+        "Test                   1.0  3.0       NaN  3.0  3.00  3.0  3.00  3.0",
+        "Train                  4.0  4.0  0.816497  3.0  3.75  4.0  4.25  5.0",
+        "Val                    1.0  5.0       NaN  5.0  5.00  5.0  5.00  5.0"]

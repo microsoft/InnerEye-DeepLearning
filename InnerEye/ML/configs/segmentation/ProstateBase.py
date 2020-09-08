@@ -40,11 +40,11 @@ class ProstateBase(SegmentationModelBase):
             inference_batch_size=1,
             inference_stride_size=(64, 256, 256),
             kernel_size=3,
-            l_rate_gamma=0.9,
             l_rate=1e-3,
+            min_l_rate=1e-5,
+            l_rate_polynomial_gamma=0.9,
             largest_connected_component_foreground_classes=[name for name in fg_classes if name != "seminalvesicles"],
             level=50,
-            min_l_rate=1e-5,
             momentum=0.9,
             monitoring_interval_seconds=0,
             norm_method=PhotometricNormalizationMethod.CtWindow,
@@ -64,8 +64,6 @@ class ProstateBase(SegmentationModelBase):
             weight_decay=1e-4,
             window=600,
         )
-        if self.cross_validation_split_index > -1:
-            self.random_seed += self.cross_validation_split_index
         self.add_and_validate(kwargs)
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:

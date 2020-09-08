@@ -148,7 +148,7 @@ def test_seq_dataset_loader() -> None:
     )
     assert len(dataset) == 2
     # Patch the load_images function that well be called once we access a dataset item
-    with mock.patch('InnerEye.ML.dataset.scalar_sample.load_3d_images_and_stack',
+    with mock.patch('InnerEye.ML.dataset.scalar_sample.load_images_and_stack',
                     return_value=ImageAndSegmentations[torch.Tensor](images=torch.ones(1),
                                                                      segmentations=torch.empty(0))):
         item0 = ClassificationItemSequence(**dataset[0])

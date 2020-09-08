@@ -68,13 +68,31 @@ this case, you should specify `--submit_to_azureml=False`, and instead of specif
 where the folder `my/data/folder` contains a `dataset.csv` file and subfolders `0`, `1`, `2`, ...,
 one for each image.
 
+
+### AzureML Run Hierarchy
+
+AzureML structures all jobs in a hierarchical fashion:
+* The top-level concept is a workspace
+* Inside of a workspace, there are multiple experiments. Upon starting a training run, the name of the experiment
+needs to be supplied. The InnerEye toolbox is set specifically to work with git repositories, and it automatically
+sets the experiment name to match the name of the current git branch.
+* Inside of an experiment, there are multiple runs. When starting the InnerEye toolbox as above, a run will be created.
+* A run can have child runs - see below in the discussion about cross validation.
+
+
 ### K-Fold Model Cross Validation
 
 As for training a new model, but add the switch `--number_of_cross_validation_splits=N`, for some `N` greater than
-1; a value of 5 is typical. This will trigger a HyperDrive run with each child run training on a fold from the 
-union of the Training and Validation sets. The Test set is unchanged.
+1; a value of 5 is typical. This will start a 
+[HyperDrive run](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters): A parent
+AzureML job, with `N` child runs that will execute in parallel. You can see the child runs in the AzureML UI in the
+"Child Runs" tab.
 
-### Recovering and continuing training
+The dataset splits for those `N` child runs will be
+computed from the union of the Training and Validation sets. The Test set is unchanged. Note that the Test set can be
+empty, in which case the training and validation sets for the `N` child runs will be the full dataset.
+
+### Recovering failed runs and continuing training
 
 To train further with an already-created model, give the above command with additional switches like these:
 ```
@@ -113,7 +131,7 @@ python InnerEye/Scripts/submit_for_inference.py --image_file ~/somewhere/ct.nii.
 
 ### Model Ensembles
 
-An ensemble model should be created automatically and registered in the AzureML model registry whenever cross-validation
+An ensemble model will be created automatically and registered in the AzureML model registry whenever cross-validation
 models are trained. The ensemble model
 creation is done by the child whose `cross_validation_split_index` is 0; you can identify this child by looking
 at the "Child Runs" tab in the parent run page in AzureML. To find the ID of the ensemble model, look in the

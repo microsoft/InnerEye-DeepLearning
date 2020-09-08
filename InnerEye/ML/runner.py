@@ -302,6 +302,8 @@ class Runner:
         logging_to_stdout(self.azure_config.log_level)
         # Numba code generation is extremely talkative in DEBUG mode, disable that.
         logging.getLogger('numba').setLevel(logging.WARNING)
+        # Matplotlib is also very talkative in DEBUG mode, filling half of the log file in a PR build.
+        logging.getLogger('matplotlib').setLevel(logging.INFO)
         pytest_failed = False
         training_failed = False
         pytest_passed = True

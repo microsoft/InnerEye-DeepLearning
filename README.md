@@ -48,6 +48,14 @@ Once training in AzureML is done, the models can be deployed from within AzureML
 
 ## Getting started
 
+At a bare minimum, you will need to
+- Install `conda` or `miniconda` for your operating system
+- Clone the repository
+- Create a Conda environment from the `environment.yml` file in the repository, by running 
+`conda env create --file environment.yml`
+- Activate the environment by running `conda activate InnerEye`
+
+Detailed instructions, including setup in Azure, are here:
 1. [Setting up your environment](docs/environment.md)
 1. [Setting up Azure Machine Learning](docs/setting_up_aml.md)
 1. [Creating a dataset](docs/creating_dataset.md)
@@ -67,16 +75,6 @@ Once training in AzureML is done, the models can be deployed from within AzureML
 [MIT License](LICENSE)
 
 **You are responsible for the performance and any necessary testing or regulatory clearances for any models generated**
-
-## References
-
-Please cite the following references if you find the image segmentation framework useful in your research:
-
-[Augmenting Image Guided Radiotherapy Workflows with Deep Learning](). JAMA Network Open (Under Review), 2020.    
-Oktay O, Nanavati J, Schwaighofer A, Carter D, Bristow M, Tanno R, Jena R, Barnett G, Noble D, Rimmer Y, Glocker B, O’Hara K, Bishop C, Alvarez-Valle J, and Nori A.
-
-[3D U-Net: Learning Dense Volumetric Segmentation from Sparse Annotation](https://arxiv.org/abs/1606.06650). MICCAI, Springer, 2016.  
-Özgün Çiçek, Ahmed Abdulkadir, Soeren S. Lienkamp, Thomas Brox, Olaf Ronneberger
 
 ## Contributing
 

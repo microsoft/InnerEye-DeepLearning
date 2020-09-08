@@ -156,6 +156,7 @@ def set_random_seed(random_seed: int) -> None:
     if is_gpu_available():
         # noinspection PyUnresolvedReferences
         torch.cuda.manual_seed_all(random_seed)  # type: ignore
+    logging.info(f"Random seed set to: {random_seed}")
 
 
 # noinspection PyUnresolvedReferences,PyTypeHints

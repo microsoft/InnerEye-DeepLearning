@@ -21,6 +21,7 @@ dependencies:
       - blobxfer==1.9.4
       - dataclasses-json==0.5.2
       - flake8==3.8.3
+      - gitpython==3.1.7
       - gputil==1.4.0
       - h5py==2.10.0
       - joblib==0.16.0

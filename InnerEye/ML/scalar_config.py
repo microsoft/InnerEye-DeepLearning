@@ -11,6 +11,7 @@ import param
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 
+from InnerEye.Common.common_util import print_exception
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 from InnerEye.Common.generic_parsing import ListOrDictParam
@@ -114,7 +115,7 @@ class ScalarModelBase(ModelConfigBase):
                                                     doc="The column that contains the path to image files.")
     expected_column_values: List[Tuple[str, str]] = \
         param.List(default=None, doc="List of tuples with column name and expected value to filter rows in the "
-        f"{DATASET_CSV_FILE_NAME}",
+                                     f"{DATASET_CSV_FILE_NAME}",
                    allow_None=True)
     label_channels: Optional[List[str]] = \
         param.List(default=None, allow_None=True,
@@ -160,7 +161,18 @@ class ScalarModelBase(ModelConfigBase):
     center_crop_size: Optional[TupleInt3] = \
         param.NumericTuple(default=None, allow_None=True, length=3,
                            doc="If given, the loaded images and segmentations will be cropped to the given size."
-                               "Size is given in pixels. The crop will be taken from the center of the image.")
+                               "Size is given in pixels. The crop will be taken from the center of the image. "
+                               "Crop size should be in the form (crop_z, crop_y, crop_x)."
+                               "If your dataset has 2D images, center crop should have singleton first dimension,"
+                               "i.e. (1, ) + (crop_y, crop_x)")
+
+    image_size: Optional[TupleInt3] = \
+        param.NumericTuple(default=None, allow_None=True, length=3,
+                           doc="If given, images will be resized to these dimensions immediately after loading from"
+                               "file."
+                               "Image size should be in the form (size_z, size_y, size_x)."
+                               "If your dataset has 2D images, image size should have singleton first dimension,"
+                               "i.e. (1, ) + (size_y, size_x)")
 
     categorical_feature_encoder: Optional[OneHotEncoderBase] = param.ClassSelector(OneHotEncoderBase,
                                                                                    allow_None=True,
@@ -186,6 +198,11 @@ class ScalarModelBase(ModelConfigBase):
                                                                doc="The index of the cross validation fold this model "
                                                                    "is associated with when performing k-fold cross "
                                                                    "validation")
+    dataset_stats_hook: Optional[Callable[[Dict[ModelExecutionMode, Any]], None]] = \
+        param.Callable(default=None,
+                       allow_None=True,
+                       doc="A hook that is called with a dictionary that maps from train/val/test to the actual "
+                           "dataset, to do customized statistics.")
 
     def __init__(self, num_dataset_reader_workers: int = 0, **params: Any) -> None:
         super().__init__(**params)
@@ -196,9 +213,6 @@ class ScalarModelBase(ModelConfigBase):
                          "num_dataset_reader_workers to 0 as this is an AML run.")
         else:
             self.num_dataset_reader_workers = num_dataset_reader_workers
-        self.random_seed = (self.cross_validation_split_index *
-                            self.model_config.number_of_cross_validation_splits_per_fold) + \
-                           self.cross_validation_sub_fold_split_index
 
     @property
     def is_classification_model(self) -> bool:
@@ -341,11 +355,11 @@ class ScalarModelBase(ModelConfigBase):
     def create_torch_datasets(self, dataset_splits: DatasetSplits) -> Dict[ModelExecutionMode, Any]:
         from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
         image_transforms = self.get_image_sample_transforms()
-        train = ScalarDataset(self, dataset_splits.train,
+        train = ScalarDataset(args=self, data_frame=dataset_splits.train,
                               name="training", sample_transforms=image_transforms.train)  # type: ignore
-        val = ScalarDataset(self, dataset_splits.val, feature_statistics=train.feature_statistics,
+        val = ScalarDataset(args=self, data_frame=dataset_splits.val, feature_statistics=train.feature_statistics,
                             name="validation", sample_transforms=image_transforms.val)  # type: ignore
-        test = ScalarDataset(self, dataset_splits.test, feature_statistics=train.feature_statistics,
+        test = ScalarDataset(args=self, data_frame=dataset_splits.test, feature_statistics=train.feature_statistics,
                              name="test", sample_transforms=image_transforms.test)  # type: ignore
 
         return {
@@ -357,16 +371,22 @@ class ScalarModelBase(ModelConfigBase):
     def create_and_set_torch_datasets(self, for_training: bool = True, for_inference: bool = True) -> None:
         """
         Creates and sets torch datasets for all model execution modes, and stores them in the self._datasets field.
+        It also calls the hook to compute statistics for the train/val/test datasets.
         """
-        _splits = self.create_torch_datasets(self.get_dataset_splits())
-
-        if for_training:
-            _splits.pop(ModelExecutionMode.TEST, None)
-            self._datasets_for_training = _splits
-        if for_inference:
-            self._datasets_for_inference = _splits
-            for split, dataset in self._datasets_for_inference.items():
+        # For models other than segmentation models, it is easier to create both training and inference datasets
+        # in one go, ignoring the arguments.
+        if self._datasets_for_training is None and self._datasets_for_inference is None:
+            datasets = self.create_torch_datasets(self.get_dataset_splits())
+            self._datasets_for_training = {mode: datasets[mode]
+                                           for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]}
+            self._datasets_for_inference = datasets
+            for split, dataset in datasets.items():
                 logging.info(f"{split.value}: {len(dataset)} subjects. Detailed status: {dataset.status}")
+            if self.dataset_stats_hook:
+                try:
+                    self.dataset_stats_hook(datasets)
+                except Exception as ex:
+                    print_exception(ex, message="Error while calling the hook for computing dataset statistics.")
 
     def get_training_class_counts(self) -> Dict:
         if self._datasets_for_training is None:
@@ -418,6 +438,14 @@ class ScalarModelBase(ModelConfigBase):
             return sub_fold_split
         else:
             return split_for_current_fold
+
+    def get_effective_random_seed(self) -> int:
+        if self.cross_validation_sub_fold_split_index != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
+            return (self.cross_validation_split_index *
+                    self.number_of_cross_validation_splits_per_fold) + \
+                   self.cross_validation_sub_fold_split_index
+        else:
+            return super().get_effective_random_seed()
 
     def get_cross_validation_hyperdrive_sampler(self) -> GridParameterSampling:
         return GridParameterSampling(parameter_space={

@@ -15,7 +15,8 @@ from azureml.core.model import Model
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import INPUT_DATA_KEY
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
+    CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
     IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, \
     RUN_RECOVERY_FROM_ID_KEY_NAME, \
     RUN_RECOVERY_ID_KEY_NAME, \
@@ -149,16 +150,22 @@ class MLRunner:
             "friendly_name",
             "build_number",
             "build_user",
-            "build_source_repository",
-            "build_source_branch",
-            "build_source_id",
-            "build_source_message",
-            "build_build_source_author",
+            "source_repository",
+            "source_branch",
+            "source_id",
+            "source_message",
+            "source_author",
+            "source_dirty",
             RUN_RECOVERY_FROM_ID_KEY_NAME
         ]
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
         new_tags[RUN_RECOVERY_ID_KEY_NAME] = create_run_recovery_id(run=RUN_CONTEXT)
         new_tags[CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY] = str(self.model_config.cross_validation_split_index)
+        new_tags["effective_random_seed"] = str(self.model_config.get_effective_random_seed())
+        if isinstance(self.model_config, ScalarModelBase):
+            new_tags["number_of_cross_validation_splits_per_fold"] = str(
+                self.model_config.number_of_cross_validation_splits_per_fold)
+            new_tags[CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY] = str(self.model_config.cross_validation_sub_fold_split_index)
         RUN_CONTEXT.set_tags(new_tags)
 
     def run(self) -> None:

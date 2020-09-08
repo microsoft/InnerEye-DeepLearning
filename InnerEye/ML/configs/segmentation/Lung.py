@@ -53,7 +53,7 @@ class Lung(SegmentationModelBase):
             num_epochs=140,
             l_rate=1e-3,
             min_l_rate=1e-5,
-            l_rate_gamma=0.9,
+            l_rate_polynomial_gamma=0.9,
             optimizer_type=OptimizerType.Adam,
             opt_eps=1e-4,
             adam_betas=(0.9, 0.999),
@@ -71,8 +71,6 @@ class Lung(SegmentationModelBase):
             mixture_loss_components=[MixtureLossComponent(0.5, SegmentationLoss.Focal, 0.2),
                                      MixtureLossComponent(0.5, SegmentationLoss.SoftDice, 0.1)],
         )
-        if self.cross_validation_split_index > -1:
-            self.random_seed += self.cross_validation_split_index
         self.add_and_validate(kwargs)
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
