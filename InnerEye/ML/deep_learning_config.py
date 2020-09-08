@@ -6,14 +6,16 @@ from __future__ import annotations
 
 import logging
 import param
-import torch
 import numpy as np
 
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 from pandas import DataFrame
 from param import Parameterized
+
+if TYPE_CHECKING:
+    import torch
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
