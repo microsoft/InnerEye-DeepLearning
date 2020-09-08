@@ -205,15 +205,14 @@ class MLRunner:
             if self.azure_config.is_train:
                 with logging_section("model training"):
                     model_train(self.model_config, run_recovery)
+                    # Set this to None here, otherwise we will end up reading these weights again in inference runs.
+                    self.model_config.local_model_weights = None
             else:
                 self.model_config.write_dataset_files()
                 self.create_activation_maps()
 
             # log the number of epochs used for model training
             RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
-
-            # Set this to None here, otherwise we will end up reading these weights again in inference runs.
-            self.model_config.local_model_weights = None
 
         # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
         # the current run is a single one. See the documentation of ModelProcessing for more details.
