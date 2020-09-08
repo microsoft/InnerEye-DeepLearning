@@ -64,7 +64,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     config.write_dataset_files()
 
     # set the random seed for all libraries
-    ml_util.set_random_seed(config.get_effective_random_seed())
+    ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
 
     logging.debug("Creating the pytorch model.")
 
@@ -252,7 +252,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutp
         # take the snapshot of the existing random state
         training_random_state = RandomStateSnapshot.snapshot_random_state()
         # reset the random state for validation
-        ml_util.set_random_seed(config.get_effective_random_seed())
+        ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
 
     status_string = "training" if train_val_params.in_training_mode else "validation"
     item_start_time = time()

@@ -5,7 +5,7 @@
 import abc
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import pandas as pd
 from azureml.train.estimator import Estimator
@@ -151,10 +151,15 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         # because this would prevent us from easily instantiating this class in tests.
         raise NotImplementedError("create_model must be overridden")
 
-    def get_cross_validation_hyperdrive_sampler(self) -> GridParameterSampling:
-        return GridParameterSampling(parameter_space={
+    def get_cross_validation_hyperdrive_sampler(self) -> Tuple[GridParameterSampling, int]:
+        """
+        Returns the cross validation sampler, and the number of total number of runs required to sample the entire
+        parameter space.
+        """
+        sampler = GridParameterSampling(parameter_space={
             CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
         })
+        return sampler, self.number_of_cross_validation_splits
 
     def get_cross_validation_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
         """
@@ -162,12 +167,13 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         :param estimator: The AzureML estimator object that runs model training.
         :return: A hyperdrive configuration object.
         """
+        sampler, runs = self.get_cross_validation_hyperdrive_sampler()
         return HyperDriveConfig(
             estimator=estimator,
-            hyperparameter_sampling=self.get_cross_validation_hyperdrive_sampler(),
+            hyperparameter_sampling=sampler,
             primary_metric_name=TrackedMetrics.Val_Loss.value,
             primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-            max_total_runs=self.number_of_cross_validation_splits
+            max_total_runs=runs
         )
 
     def get_cross_validation_dataset_splits(self, dataset_split: DatasetSplits) -> DatasetSplits:

@@ -9,14 +9,14 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import pandas as pd
 import param
 from azureml.train.estimator import Estimator
-from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
+from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, choice
 
-from InnerEye.Common.common_util import print_exception
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
+from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, OneHotEncoderBase, TrackedMetrics
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, OneHotEncoderBase
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
@@ -115,7 +115,7 @@ class ScalarModelBase(ModelConfigBase):
                                                     doc="The column that contains the path to image files.")
     expected_column_values: List[Tuple[str, str]] = \
         param.List(default=None, doc="List of tuples with column name and expected value to filter rows in the "
-                                     f"{DATASET_CSV_FILE_NAME}",
+        f"{DATASET_CSV_FILE_NAME}",
                    allow_None=True)
     label_channels: Optional[List[str]] = \
         param.List(default=None, allow_None=True,
@@ -447,34 +447,23 @@ class ScalarModelBase(ModelConfigBase):
         else:
             return super().get_effective_random_seed()
 
-    def get_cross_validation_hyperdrive_sampler(self) -> GridParameterSampling:
-        return GridParameterSampling(parameter_space={
+    def get_cross_validation_hyperdrive_sampler(self) -> Tuple[GridParameterSampling, int]:
+        sampler = GridParameterSampling(parameter_space={
             CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
             CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY: choice(list(range(
                 self.number_of_cross_validation_splits_per_fold))),
         })
 
-    def get_cross_validation_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
-        """
-        Returns a configuration for AzureML Hyperdrive that varies the cross validation split index.
-        :param estimator: The AzureML estimator object that runs model training.
-        :return: A hyperdrive configuration object.
-        """
         max_total_runs = self.number_of_cross_validation_splits
-        if self.number_of_cross_validation_splits_per_fold != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-            max_total_runs = self.number_of_cross_validation_splits_per_fold * self.number_of_cross_validation_splits
+        if self.number_of_cross_validation_splits_per_fold > 0:
+            max_total_runs *= self.number_of_cross_validation_splits_per_fold
 
-        return HyperDriveConfig(
-            estimator=estimator,
-            hyperparameter_sampling=self.get_cross_validation_hyperdrive_sampler(),
-            primary_metric_name=TrackedMetrics.Val_Loss.value,
-            primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-            max_total_runs=max_total_runs
-        )
+        return sampler, max_total_runs
 
     def should_wait_for_other_cross_val_child_runs(self) -> bool:
         """
-        Returns True if the current run is an online run and is the 0th cross validation split.
+        Returns True if the current run is an online run and is the 0th cross validation split and
+        0th sub fold split if sub fold cross validation is being performed.
         In this case, this will be the run that will wait for all other child runs to finish in order
         to aggregate their results.
         :return:
