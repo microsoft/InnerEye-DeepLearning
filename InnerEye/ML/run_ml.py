@@ -23,7 +23,9 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFA
     update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
-from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section, print_exception
+from InnerEye.Common.common_util import METRICS_FILE_NAME, ModelProcessing, get_epoch_results_path, is_windows, \
+    logging_section, \
+    print_exception
 from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PACKAGE_NAME
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -212,7 +214,8 @@ class MLRunner:
         # the current run is a single one. See the documentation of ModelProcessing for more details.
         self.run_inference_and_register_model(run_recovery, ModelProcessing.DEFAULT)
 
-    def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery], model_proc: ModelProcessing) -> None:
+    def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery],
+                                         model_proc: ModelProcessing) -> None:
         """
         Run inference as required, and register the model, but not necessarily in that order:
         if we can identify the epoch to register at without running inference, we register first.
@@ -227,6 +230,7 @@ class MLRunner:
                 return
         # run full image inference on existing or newly trained model on the training, and testing set
         test_metrics, val_metrics, _ = self.model_inference_train_and_test(RUN_CONTEXT, run_recovery, model_proc)
+
         # register the generated model from the run if we haven't already done so
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
             if registration_epoch is None:
@@ -237,13 +241,6 @@ class MLRunner:
             self.try_compare_scores_against_baselines(model_proc)
         else:
             logging.warning("Couldn't register model in offline mode")
-
-        # Generate report
-        # what is the metrics_path?
-        generate_notebook(notebook_path=SEGMENTATION_REPORT_NOTEBOOK_PATH,
-                          notebook_params={TEST_METRICS_CSV_PARAMETER_NAME: str(metrics_path),
-                                           INNEREYE_PATH_PARAMETER_NAME: str(Path(__file__).parent.parent.parent.parent)},
-                          result_path="report.ipynb")
 
     def should_register_model(self) -> bool:
         """
@@ -301,6 +298,17 @@ class MLRunner:
         else:
             best_epoch_dice = 0.0  # dummy value
         assert isinstance(self.model_config, SegmentationModelBase)
+
+        # Generate report
+        metrics_path = self.model_config.config.outputs_folder / \
+                       get_epoch_results_path(best_epoch, mode=ModelExecutionMode.Test,
+                                              model_proc=model_proc) / METRICS_FILE_NAME
+        generate_notebook(notebook_path=SEGMENTATION_REPORT_NOTEBOOK_PATH,
+                          notebook_params={TEST_METRICS_CSV_PARAMETER_NAME: str(metrics_path),
+                                           INNEREYE_PATH_PARAMETER_NAME: str(
+                                               Path(__file__).parent.parent.parent.parent)},
+                          result_path="report.ipynb")
+
         self.register_model_for_epoch(RUN_CONTEXT, run_recovery, best_epoch, best_epoch_dice, model_proc)
 
     def save_build_info_for_dotnet_consumers(self) -> None:
