@@ -353,12 +353,6 @@ def create_inference_pipeline(config: ModelConfigBase,
     :param run_recovery: RunRecovery data if applicable
     :return: FullImageInferencePipelineBase or ScalarInferencePipelineBase
     """
-    if config.local_model_weights:
-        checkpoint_paths = [config.local_model_weights / MODEL_WEIGHTS_FILE_NAME]
-        pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths, True)
-        if not pipeline:
-            raise ValueError(f"Unable to recover from checkpoint {checkpoint_paths[0]}.")
-        return pipeline
     if run_recovery:
         checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, config.compute_mean_teacher_model)
         pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
@@ -366,8 +360,12 @@ def create_inference_pipeline(config: ModelConfigBase,
             # We found the checkpoint(s) in the run being recovered. If we didn't, it's probably because the epoch
             # is from the current run, which has been doing more training, so we look for it there.
             return pipeline
-    checkpoint_paths = [config.get_path_to_checkpoint(epoch, config.compute_mean_teacher_model)]
-    pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
+    if not config.local_model_weights:
+        checkpoint_paths = [config.get_path_to_checkpoint(epoch, config.compute_mean_teacher_model)]
+        pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
+    else:
+        checkpoint_paths = [config.local_model_weights / MODEL_WEIGHTS_FILE_NAME]
+        pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths, True)
     if not pipeline:
         raise ValueError(f"Unable to recover from checkpoint {checkpoint_paths[0]}.")
     return pipeline
