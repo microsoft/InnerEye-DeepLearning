@@ -92,7 +92,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                                   model_execution_mode=ModelExecutionMode.TRAIN))
 
     # If continuing from a previous run at a specific epoch, then load the previous model
-    if config.should_load_checkpoint_for_training():
+    if config.should_load_checkpoint_for_training() or config.local_model_weights:
         models_and_optimizers = [load_checkpoint_from_model_and_info(run_recovery, config, model_and_info)
                                  for model_and_info in models_and_optimizers]
     # Otherwise, create checkpoint directory for this run
