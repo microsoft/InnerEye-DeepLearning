@@ -13,7 +13,7 @@ import param
 from pandas import DataFrame
 from param import Parameterized
 
-from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
+from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
@@ -209,7 +209,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                             class_=LRSchedulerType,
                                                             instantiate=False,
                                                             doc="Learning rate decay method (Cosine, Polynomial, "
-                                                            "Step, MultiStep or Exponential)")
+                                                                "Step, MultiStep or Exponential)")
     l_rate_exponential_gamma: float = param.Number(0.9, doc="Controls the rate of decay for the Exponential "
                                                             "LR scheduler.")
     l_rate_step_gamma: float = param.Number(0.1, doc="Controls the rate of decay for the "
