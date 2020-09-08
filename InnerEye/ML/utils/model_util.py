@@ -58,6 +58,7 @@ class ModelAndInfo:
     def to_cuda(self) -> None:
         assert self.model is not None
         self.model = self.model.cuda()
+        self.optimizer = self.optimizer.cuda()
 
     def apply_amp_output(self, amp_output: Any) -> None:
         if isinstance(amp_output, tuple):
