@@ -355,6 +355,7 @@ def create_inference_pipeline(config: ModelConfigBase,
     """
     if run_recovery:
         checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, config.compute_mean_teacher_model)
+        logging.info(f"Recovering from supplied run recovery paths {checkpoint_paths}")
         pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
         if pipeline is not None:
             # We found the checkpoint(s) in the run being recovered. If we didn't, it's probably because the epoch
