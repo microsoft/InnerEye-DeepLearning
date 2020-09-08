@@ -44,11 +44,15 @@ def load_checkpoint_from_model_and_info(run_recovery: Optional[RunRecovery], con
     use_reader_from_config = False
     if run_recovery:
         checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch, is_mean_teacher)[0]
+        logging.info(f"Recovering run from run recovery checkpoint: {checkpoint_path}")
     elif config.local_model_weights:
         checkpoint_path = config.local_model_weights / MODEL_WEIGHTS_FILE_NAME
+        logging.info(f"Recovering from model weights {checkpoint_path}")
         use_reader_from_config = True
     else:
         checkpoint_path = config.get_path_to_checkpoint(config.start_epoch, is_mean_teacher)
+        logging.info(f"Recovering from checkpoint for epoch {checkpoint_path}")
+
     result = model_util.load_from_checkpoint_and_adjust(config, checkpoint_path, model_and_info, use_reader_from_config)
     if result.checkpoint_epoch is None:
         raise ValueError("There was no checkpoint file available for the given start_epoch {}"

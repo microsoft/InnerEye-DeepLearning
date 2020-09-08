@@ -375,7 +375,7 @@ def create_inference_pipeline(config: ModelConfigBase,
 
 def create_pipeline_from_checkpoint_paths(config: ModelConfigBase,
                                           checkpoint_paths: List[Path],
-                                          use_reader_from_config = False) -> Optional[InferencePipelineBase]:
+                                          use_reader_from_config=False) -> Optional[InferencePipelineBase]:
     """
     Attempt to create a pipeline from the provided checkpoint paths. If the files referred to by the paths
     do not exist, or if there are no paths, None will be returned.

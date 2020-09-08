@@ -189,7 +189,7 @@ class MLRunner:
                 or self.model_config.local_model_weights is not None) \
                     and not self.model_config.should_load_checkpoint_for_training():
                 self.model_config.local_model_weights = \
-                    self.download_model_weights(RUN_CONTEXT, self.project_root / fixed_paths.MODEL_WEIGHTS_DIR_NAME)
+                    self.model_config.local_model_weights = self.download_model_weights(RUN_CONTEXT, self.project_root / fixed_paths.MODEL_WEIGHTS_DIR_NAME)
 
             logging.info(str(self.model_config))
             # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
@@ -588,7 +588,7 @@ class MLRunner:
         # check if the model_weights needs to be downloaded from Azure
         config = self.model_config
         if config.azure_model_weights_id:
-            # log the dataset id being used for this run
+            # log the id for the weights being used for this run
             if run_context is not None:
                 run_context.tag("model_weights_id", config.azure_model_weights_id)
             target_folder = model_weights_path / config.azure_model_weights_id
