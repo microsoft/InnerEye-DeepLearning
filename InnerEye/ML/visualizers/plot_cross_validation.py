@@ -137,10 +137,6 @@ class PlotCrossValidationConfig(GenericConfig):
     number_of_cross_validation_splits: int = param.Integer(default=0,
                                                            doc="The expected number of splits in the"
                                                                "cross-validation run")
-
-    number_of_cross_validation_splits_per_fold: int = param.Integer(default=0,
-                                                            doc="The expected number of splits in the"
-                                                               "cross-validation run for each fold")
     create_plots: bool = param.Boolean(default=True, doc="Whether to create plots; if False, just find outliers "
                                                          "and do statistical tests")
 
@@ -450,15 +446,17 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
     epoch = train_config.num_epochs if train_config.is_segmentation_model else None
     is_classification = False if train_config.is_segmentation_model else train_config.is_classification_model
     number_of_cross_validation_splits = train_config.number_of_cross_validation_splits
-    if isinstance(train_config, ScalarModelBase):
-        number_of_cross_validation_splits_per_fold = train_config.number_of_cross_validation_splits_per_fold
+
+    # include cross validation sub-folds, which are supported by classification models.
+    if isinstance(train_config, ScalarModelBase) and train_config.number_of_cross_validation_splits_per_fold > 0:
+        number_of_cross_validation_splits *= train_config.number_of_cross_validation_splits_per_fold
+
     return PlotCrossValidationConfig(run_recovery_id=None,
                                      is_segmentation=train_config.is_segmentation_model,
                                      is_classification=is_classification,
                                      epoch=epoch,
                                      should_validate=False,
-                                     number_of_cross_validation_splits=number_of_cross_validation_splits,
-                                     number_of_cross_validation_splits_per_fold=number_of_cross_validation_splits_per_fold)
+                                     number_of_cross_validation_splits=number_of_cross_validation_splits)
 
 
 def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) -> OfflineCrossvalConfigAndFiles:
@@ -471,12 +469,6 @@ def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) ->
     download_to_folder = train_config.outputs_folder / CROSSVAL_RESULTS_FOLDER
     plot_crossval_config.outputs_directory = str(download_to_folder)
     plot_crossval_config.local_run_results = str(train_config.outputs_folder)
-    # Create splits as per crossval settings. If not running crossval, use a pseudo split "" that will make
-    # the code pick up the results of the present run.
-    num_splits = train_config.number_of_cross_validation_splits
-    if isinstance(train_config, ScalarModelBase) and train_config.number_of_cross_validation_splits_per_fold > 0:
-        num_splits *= train_config.number_of_cross_validation_splits_per_fold
-    plot_crossval_config.number_of_cross_validation_splits = num_splits
 
     splits = [str(i) for i in range(plot_crossval_config.number_of_cross_validation_splits)] \
         if train_config.perform_cross_validation else [""]
@@ -901,7 +893,7 @@ def plot_cross_validation(config: PlotCrossValidationConfig) -> Path:
 
 
 def add_comparison_data(config: PlotCrossValidationConfig, metrics: pd.DataFrame) \
-    -> Tuple[pd.DataFrame, Optional[List[Any]]]:
+        -> Tuple[pd.DataFrame, Optional[List[Any]]]:
     """
     :param config: configuration of this plotting run
     :param metrics: on entry, metrics for just the focus (target) run
