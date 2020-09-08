@@ -12,7 +12,7 @@ from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, choice
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
-    CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
+    CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
@@ -450,7 +450,7 @@ class ScalarModelBase(ModelConfigBase):
     def get_cross_validation_hyperdrive_sampler(self) -> Tuple[GridParameterSampling, int]:
         sampler = GridParameterSampling(parameter_space={
             CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
-            CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY: choice(list(range(
+            CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY: choice(list(range(
                 self.number_of_cross_validation_splits_per_fold))),
         })
 

@@ -16,7 +16,7 @@ from azureml.core.model import Model
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import INPUT_DATA_KEY
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
-    CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
+    CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
     EFFECTIVE_RANDOM_SEED_KEY_NAME, \
     IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME, PARENT_RUN_CONTEXT, \
     PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
@@ -112,11 +112,12 @@ class MLRunner:
         """
         parent_run_file_system = self.model_config.file_system_config
 
-        def _spawn_run(run_index: int, cross_val_split_index: int, cross_val_sub_fold_split_index: int) -> None:
+        def _spawn_run(cross_val_split_index: int, cross_val_sub_fold_split_index: int) -> None:
             split_model_config = copy.deepcopy(self.model_config)
             split_model_config.cross_validation_split_index = cross_val_split_index
             split_model_config.cross_validation_sub_fold_split_index = cross_val_sub_fold_split_index
-            split_model_config.file_system_config = parent_run_file_system.add_subfolder(str(run_index))
+            split_model_config.file_system_config = parent_run_file_system.add_subfolder(
+                str(split_model_config.get_effective_random_seed()))
 
             logging.info(f"Running model train and test on cross validation split: {x}")
             split_ml_runner = MLRunner(split_model_config, self.azure_config, self.project_root,
@@ -128,9 +129,9 @@ class MLRunner:
                 if isinstance(self.model_config, ScalarModelBase) else 0
             if num_child_folds > 0:
                 for y in range(num_child_folds):
-                    _spawn_run((x * self.model_config.number_of_cross_validation_splits_per_fold) + y, x, y)
+                    _spawn_run(x, y)
             else:
-                _spawn_run(x, x, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX)
+                _spawn_run(x, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX)
 
         config_and_files = get_config_and_results_for_offline_runs(self.model_config)
         plot_cross_validation_from_files(config_and_files, Path(config_and_files.config.outputs_directory))
@@ -164,7 +165,7 @@ class MLRunner:
         if isinstance(self.model_config, ScalarModelBase):
             new_tags[NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME] = str(
                 self.model_config.number_of_cross_validation_splits_per_fold)
-            new_tags[CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY] = str(
+            new_tags[CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY] = str(
                 self.model_config.cross_validation_sub_fold_split_index)
         RUN_CONTEXT.set_tags(new_tags)
 
