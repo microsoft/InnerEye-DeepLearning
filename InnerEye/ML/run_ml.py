@@ -298,18 +298,6 @@ class MLRunner:
         else:
             best_epoch_dice = 0.0  # dummy value
         assert isinstance(self.model_config, SegmentationModelBase)
-
-        # Generate report
-        logging.info("Saving report in html")
-        metrics_path = self.model_config.config.outputs_folder / \
-                       get_epoch_results_path(best_epoch, mode=ModelExecutionMode.Test,
-                                              model_proc=model_proc) / METRICS_FILE_NAME
-        generate_notebook(notebook_path=SEGMENTATION_REPORT_NOTEBOOK_PATH,
-                          notebook_params={TEST_METRICS_CSV_PARAMETER_NAME: str(metrics_path),
-                                           INNEREYE_PATH_PARAMETER_NAME: str(
-                                               Path(__file__).parent.parent.parent.parent)},
-                          result_path=self.model_config.config.outputs_folder / "report.ipynb")
-
         self.register_model_for_epoch(RUN_CONTEXT, run_recovery, best_epoch, best_epoch_dice, model_proc)
 
     def save_build_info_for_dotnet_consumers(self) -> None:
@@ -374,6 +362,17 @@ class MLRunner:
                 best_epoch_dice=best_epoch_dice,
                 checkpoint_paths=valid_checkpoint_paths,
                 model_proc=model_proc)
+
+        # Generate report
+        logging.info("Saving report in html")
+        metrics_path = self.model_config.outputs_folder / \
+                       get_epoch_results_path(best_epoch, mode=ModelExecutionMode.Test, # ???????
+                                              model_proc=model_proc) / METRICS_FILE_NAME
+        generate_notebook(notebook_path=SEGMENTATION_REPORT_NOTEBOOK_PATH,
+                          notebook_params={TEST_METRICS_CSV_PARAMETER_NAME: str(metrics_path),
+                                           INNEREYE_PATH_PARAMETER_NAME: str(
+                                               Path(__file__).parent.parent.parent.parent)},
+                          result_path=self.model_config.config.outputs_folder / "report.ipynb")
 
     def try_compare_scores_against_baselines(self, model_proc: ModelProcessing) -> None:
         """
