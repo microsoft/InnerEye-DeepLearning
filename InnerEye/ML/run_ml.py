@@ -300,6 +300,7 @@ class MLRunner:
         assert isinstance(self.model_config, SegmentationModelBase)
 
         # Generate report
+        logging.info("Saving report in html")
         metrics_path = self.model_config.config.outputs_folder / \
                        get_epoch_results_path(best_epoch, mode=ModelExecutionMode.Test,
                                               model_proc=model_proc) / METRICS_FILE_NAME
@@ -307,7 +308,7 @@ class MLRunner:
                           notebook_params={TEST_METRICS_CSV_PARAMETER_NAME: str(metrics_path),
                                            INNEREYE_PATH_PARAMETER_NAME: str(
                                                Path(__file__).parent.parent.parent.parent)},
-                          result_path="report.ipynb")
+                          result_path=self.model_config.config.outputs_folder / "report.ipynb")
 
         self.register_model_for_epoch(RUN_CONTEXT, run_recovery, best_epoch, best_epoch_dice, model_proc)
 
