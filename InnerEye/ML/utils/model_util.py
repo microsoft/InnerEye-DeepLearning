@@ -58,7 +58,6 @@ class ModelAndInfo:
     def to_cuda(self) -> None:
         assert self.model is not None
         self.model = self.model.cuda()
-        self.optimizer = self.optimizer.cuda()
 
     def apply_amp_output(self, amp_output: Any) -> None:
         if isinstance(amp_output, tuple):
@@ -270,6 +269,7 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
 
 def load_checkpoint(model: torch.nn.Module,
                     path_to_checkpoint: Path,
+                    to_gpu: bool,
                     optimizer: Optional[Optimizer] = None) -> Optional[int]:
     """
     Loads a checkpoint of a model.
@@ -298,7 +298,13 @@ def load_checkpoint(model: torch.nn.Module,
         model.load_state_dict(checkpoint['state_dict'])
 
     if optimizer is not None:
-        optimizer.load_state_dict(checkpoint['opt_dict'])
+        opt_dict = checkpoint['opt_dict']
+        if to_gpu:
+            # https://github.com/pytorch/pytorch/issues/2830
+            for key, val in opt_dict.items():
+                if isinstance(val, torch.Tensor):
+                    opt_dict[key] = val.cuda()
+        optimizer.load_state_dict(opt_dict)
 
     logging.info("Loaded checkpoint (epoch: {})".format(checkpoint['epoch']))
     return checkpoint['epoch']
@@ -350,6 +356,7 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     # Load the stored model. If there is no checkpoint present, return immediately.
     model_and_info.checkpoint_epoch = load_checkpoint(model=model_and_info.model,
                                                       path_to_checkpoint=path_to_checkpoint,
+                                                      to_gpu=model_config.use_gpu,
                                                       optimizer=model_and_info.optimizer)
     if model_and_info.checkpoint_epoch is None:
         return model_and_info

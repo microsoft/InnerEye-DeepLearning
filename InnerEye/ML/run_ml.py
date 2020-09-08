@@ -197,7 +197,6 @@ class MLRunner:
             if self.azure_config.is_train:
                 with logging_section("model training"):
                     model_train(self.model_config, run_recovery)
-                    run_recovery = None
             else:
                 self.model_config.write_dataset_files()
                 self.create_activation_maps()
