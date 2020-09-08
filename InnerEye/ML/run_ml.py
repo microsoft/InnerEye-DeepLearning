@@ -189,7 +189,7 @@ class MLRunner:
                 or self.model_config.local_model_weights is not None) \
                     and not self.model_config.should_load_checkpoint_for_training():
                 self.model_config.local_model_weights = \
-                    self.model_config.local_model_weights = self.download_model_weights(RUN_CONTEXT, self.project_root / fixed_paths.MODEL_WEIGHTS_DIR_NAME)
+                    self.download_model_weights(RUN_CONTEXT, self.project_root / fixed_paths.MODEL_WEIGHTS_DIR_NAME)
 
             logging.info(str(self.model_config))
             # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
