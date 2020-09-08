@@ -17,7 +17,7 @@ def test_visualize_commandline1() -> None:
     """
     default_config = DummyModel()
     old_photonorm = default_config.norm_method
-    old_random_seed = default_config.random_seed
+    old_random_seed = default_config.get_effective_random_seed()
     new_dataset = "new_dataset"
     assert default_config.azure_dataset_id != new_dataset
     with mock.patch("sys.argv", ["", f"--azure_dataset_id={new_dataset}"]):
@@ -25,7 +25,7 @@ def test_visualize_commandline1() -> None:
     assert updated_config.azure_dataset_id == new_dataset
     # These two values were not specified on the commandline, and should be at their original values.
     assert updated_config.norm_method == old_photonorm
-    assert updated_config.random_seed == old_random_seed
+    assert updated_config.get_effective_random_seed() == old_random_seed
     # Credentials and variables should have been picked up from yaml files
     assert len(runner_config.datasets_container) > 0
     assert len(runner_config.storage_account) > 0

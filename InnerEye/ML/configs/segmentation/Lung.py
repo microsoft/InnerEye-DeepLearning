@@ -71,8 +71,6 @@ class Lung(SegmentationModelBase):
             mixture_loss_components=[MixtureLossComponent(0.5, SegmentationLoss.Focal, 0.2),
                                      MixtureLossComponent(0.5, SegmentationLoss.SoftDice, 0.1)],
         )
-        if self.cross_validation_split_index > -1:
-            self.random_seed += self.cross_validation_split_index
         self.add_and_validate(kwargs)
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:

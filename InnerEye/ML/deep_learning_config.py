@@ -13,7 +13,7 @@ import param
 from pandas import DataFrame
 from param import Parameterized
 
-from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
+from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
@@ -597,6 +597,20 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         return fixed_paths.repository_root_directory() \
                / self.checkpoint_folder \
                / f"{epoch}{filename}"
+
+    def get_effective_random_seed(self) -> int:
+        """
+        Returns the random seed set as part of this configuration. If the configuration corresponds
+        to a cross validation split, then the cross validation fold index will be added to the
+        set random seed in order to return the effective random seed.
+        :return:
+        """
+        seed = self.random_seed
+        if self.cross_validation_split_index != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
+            # offset the random seed based on the cross validation split index so each
+            # fold has a different initial random state.
+            seed += self.cross_validation_split_index
+        return seed
 
     @property  # type: ignore
     def use_gpu(self) -> bool:  # type: ignore
