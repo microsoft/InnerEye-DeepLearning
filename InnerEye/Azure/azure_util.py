@@ -15,6 +15,8 @@ from azureml.train.estimator import Estimator
 
 DEFAULT_CROSS_VALIDATION_SPLIT_INDEX = -1
 EXPERIMENT_RUN_SEPARATOR = ":"
+EFFECTIVE_RANDOM_SEED_KEY_NAME = "effective_random_seed"
+NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME = "number_of_cross_validation_splits_per_fold"
 RUN_RECOVERY_ID_KEY_NAME = "run_recovery_id"
 RUN_RECOVERY_FROM_ID_KEY_NAME = "recovered_from"
 IS_ENSEMBLE_KEY_NAME = "is_ensemble"

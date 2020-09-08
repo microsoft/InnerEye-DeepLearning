@@ -17,11 +17,10 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import INPUT_DATA_KEY
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
-    IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, \
-    RUN_RECOVERY_FROM_ID_KEY_NAME, \
-    RUN_RECOVERY_ID_KEY_NAME, \
-    create_run_recovery_id, get_results_blob_path, has_input_datasets, storage_account_from_full_name, \
-    update_run_tags
+    EFFECTIVE_RANDOM_SEED_KEY_NAME, \
+    IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME, PARENT_RUN_CONTEXT, \
+    PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
+    create_run_recovery_id, get_results_blob_path, has_input_datasets, storage_account_from_full_name, update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section, print_exception
@@ -161,11 +160,12 @@ class MLRunner:
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
         new_tags[RUN_RECOVERY_ID_KEY_NAME] = create_run_recovery_id(run=RUN_CONTEXT)
         new_tags[CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY] = str(self.model_config.cross_validation_split_index)
-        new_tags["effective_random_seed"] = str(self.model_config.get_effective_random_seed())
+        new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.model_config.get_effective_random_seed())
         if isinstance(self.model_config, ScalarModelBase):
-            new_tags["number_of_cross_validation_splits_per_fold"] = str(
+            new_tags[NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME] = str(
                 self.model_config.number_of_cross_validation_splits_per_fold)
-            new_tags[CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY] = str(self.model_config.cross_validation_sub_fold_split_index)
+            new_tags[CROSS_VALIDATION_SUBFOLD_SPLIT_INDEX_TAG_KEY] = str(
+                self.model_config.cross_validation_sub_fold_split_index)
         RUN_CONTEXT.set_tags(new_tags)
 
     def run(self) -> None:
