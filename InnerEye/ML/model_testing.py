@@ -417,7 +417,7 @@ def classification_model_test(config: ScalarModelBase,
         # for mypy
         assert isinstance(pipeline, ScalarInferencePipelineBase)
 
-        ml_util.set_random_seed(config.get_effective_random_seed(), "model_testing")
+        ml_util.set_random_seed(config.get_effective_random_seed(), "Model Testing")
         ds = config.get_torch_dataset_for_inference(data_split).as_data_loader(
             shuffle=False,
             batch_size=1,
