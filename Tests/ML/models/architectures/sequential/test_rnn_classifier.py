@@ -183,7 +183,7 @@ def _get_mock_sequence_dataset(dataset_contents: Optional[str] = None) -> pd.Dat
 
 
 @pytest.mark.parametrize(["use_combined_model", "imaging_feature_type"],
-                         [(False, ImagingFeatureType.Image),
+                         [#(False, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Segmentation),
                           (True, ImagingFeatureType.ImageAndSegmentation)])
