@@ -235,6 +235,14 @@ class ScalarModelBase(ModelConfigBase):
         """
         return len(self.image_channels) == 0
 
+    @property
+    def perform_sub_fold_cross_validation(self) -> bool:
+        """
+        True if sub fold cross validation will be be performed as part of the training procedure.
+        :return:
+        """
+        return self.number_of_cross_validation_splits_per_fold > 0
+
     def get_total_number_of_non_imaging_features(self) -> int:
         """Returns the total number of non imaging features expected in the input"""
         return self.get_total_number_of_numerical_non_imaging_features() + \
@@ -427,7 +435,7 @@ class ScalarModelBase(ModelConfigBase):
 
     def get_cross_validation_dataset_splits(self, dataset_split: DatasetSplits) -> DatasetSplits:
         split_for_current_fold = super().get_cross_validation_dataset_splits(dataset_split)
-        if self.number_of_cross_validation_splits_per_fold > 0:
+        if self.perform_sub_fold_cross_validation:
             # create a sub fold based on the training set and set the validation set
             # as the validation set of the split.
             val_split = split_for_current_fold.val
@@ -447,18 +455,18 @@ class ScalarModelBase(ModelConfigBase):
         else:
             return super().get_effective_random_seed()
 
-    def get_cross_validation_hyperdrive_sampler(self) -> Tuple[GridParameterSampling, int]:
-        sampler = GridParameterSampling(parameter_space={
+    def get_total_number_of_cross_validation_runs(self) -> int:
+        if self.perform_sub_fold_cross_validation:
+            return self.number_of_cross_validation_splits * self.number_of_cross_validation_splits_per_fold
+        else:
+            return super().get_total_number_of_cross_validation_runs()
+
+    def get_cross_validation_hyperdrive_sampler(self) -> GridParameterSampling:
+        return GridParameterSampling(parameter_space={
             CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
             CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY: choice(list(range(
                 self.number_of_cross_validation_splits_per_fold))),
         })
-
-        max_total_runs = self.number_of_cross_validation_splits
-        if self.number_of_cross_validation_splits_per_fold > 0:
-            max_total_runs *= self.number_of_cross_validation_splits_per_fold
-
-        return sampler, max_total_runs
 
     def should_wait_for_other_cross_val_child_runs(self) -> bool:
         """
@@ -469,7 +477,7 @@ class ScalarModelBase(ModelConfigBase):
         :return:
         """
         should_wait_child = True
-        if self.number_of_cross_validation_splits_per_fold > 0 and self.cross_validation_sub_fold_split_index != 0:
+        if self.perform_sub_fold_cross_validation and self.cross_validation_sub_fold_split_index != 0:
             should_wait_child = False
         return (not self.is_offline_run) and self.cross_validation_split_index == 0 and should_wait_child
 

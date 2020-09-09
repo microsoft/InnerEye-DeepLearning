@@ -5,7 +5,7 @@
 import abc
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional
 
 import pandas as pd
 from azureml.train.estimator import Estimator
@@ -111,7 +111,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         assert self._datasets_for_inference is not None  # for mypy
         return self._datasets_for_inference[mode]
 
-    def create_data_loaders(self, max_repeats: Optional[int] = None) -> Dict[ModelExecutionMode, Any]:
+    def create_data_loaders(self) -> Dict[ModelExecutionMode, Any]:
         """
         Creates the torch DataLoaders that supply the training and the validation set during training only.
         :return: A dictionary, with keys ModelExecutionMode.TRAIN and ModelExecutionMode.VAL, and their respective
@@ -151,15 +151,20 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         # because this would prevent us from easily instantiating this class in tests.
         raise NotImplementedError("create_model must be overridden")
 
-    def get_cross_validation_hyperdrive_sampler(self) -> Tuple[GridParameterSampling, int]:
+    def get_total_number_of_cross_validation_runs(self) -> int:
         """
-        Returns the cross validation sampler, and the number of total number of runs required to sample the entire
+        Returns the total number of HyperDrive/offline runs required to sample the entire
         parameter space.
         """
-        sampler = GridParameterSampling(parameter_space={
+        return max(1, self.number_of_cross_validation_splits)
+
+    def get_cross_validation_hyperdrive_sampler(self) -> GridParameterSampling:
+        """
+        Returns the cross validation sampler, required to sample the entire parameter space for cross validation.
+        """
+        return GridParameterSampling(parameter_space={
             CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
         })
-        return sampler, self.number_of_cross_validation_splits
 
     def get_cross_validation_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
         """
@@ -167,13 +172,12 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         :param estimator: The AzureML estimator object that runs model training.
         :return: A hyperdrive configuration object.
         """
-        sampler, runs = self.get_cross_validation_hyperdrive_sampler()
         return HyperDriveConfig(
             estimator=estimator,
-            hyperparameter_sampling=sampler,
+            hyperparameter_sampling=self.get_cross_validation_hyperdrive_sampler(),
             primary_metric_name=TrackedMetrics.Val_Loss.value,
             primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-            max_total_runs=runs
+            max_total_runs=self.get_total_number_of_cross_validation_runs()
         )
 
     def get_cross_validation_dataset_splits(self, dataset_split: DatasetSplits) -> DatasetSplits:

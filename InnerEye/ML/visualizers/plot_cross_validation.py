@@ -42,7 +42,6 @@ from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_testing import METRICS_FILE_NAME, get_epoch_results_path
-from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER, CSV_SUBJECT_HEADER, OutlierType, \
     extract_outliers
 from InnerEye.ML.utils.metrics_constants import LoggingColumns, MetricsFileColumns
@@ -445,11 +444,7 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
     # specified because datafiles contain results for all epochs.
     epoch = train_config.num_epochs if train_config.is_segmentation_model else None
     is_classification = False if train_config.is_segmentation_model else train_config.is_classification_model
-    number_of_cross_validation_splits = train_config.number_of_cross_validation_splits
-
-    # include cross validation sub-folds, which are supported by classification models.
-    if isinstance(train_config, ScalarModelBase) and train_config.number_of_cross_validation_splits_per_fold > 0:
-        number_of_cross_validation_splits *= train_config.number_of_cross_validation_splits_per_fold
+    number_of_cross_validation_splits = train_config.get_total_number_of_cross_validation_runs()
 
     return PlotCrossValidationConfig(run_recovery_id=None,
                                      is_segmentation=train_config.is_segmentation_model,
