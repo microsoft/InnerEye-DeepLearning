@@ -127,7 +127,6 @@ class ToySequenceModel(SequenceModelBase):
                              stride_size_per_encoding_block=(1, 2, 2),
                              initial_feature_channels=4,
                              num_encoder_blocks=3,
-                             use_mixed_precision=True
                              )
             assert image_encoder is not None  # for mypy
             input_dims = image_encoder.final_num_feature_channels
@@ -183,7 +182,7 @@ def _get_mock_sequence_dataset(dataset_contents: Optional[str] = None) -> pd.Dat
 
 
 @pytest.mark.parametrize(["use_combined_model", "imaging_feature_type"],
-                         [#(False, ImagingFeatureType.Image),
+                         [(False, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Segmentation),
                           (True, ImagingFeatureType.ImageAndSegmentation)])

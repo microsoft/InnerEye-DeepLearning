@@ -60,7 +60,6 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
                  encoder_dimensionality_reduction_factor: float = 0.8,
                  aggregation_type: AggregationType = AggregationType.Average,
                  scan_size: Optional[TupleInt3] = None,
-                 use_mixed_precision: bool = True,
                  ) -> None:
         """
         Creates an image classifier that has UNet encoders sections for each image channel. The encoder output
@@ -82,8 +81,6 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
         combined model to balance with non imaging features.
         :param scan_size: should be a tuple representing 3D tensor shape and if specified it's usedd in initializing
         gated pooling or z-adaptive. The first element should be representing the z-direction for classification images
-        :param use_mixed_precision: If True, assume that training happens with mixed precision. Segmentations will
-        be converted to float16 tensors right away. If False, segmentations will be converted to float32 tensors.
         """
         super().__init__()
         self.num_non_image_features = num_non_image_features
@@ -106,7 +103,6 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
             self.stride_size_per_encoding_block = [stride_size_per_encoding_block] * num_encoder_blocks
         self.conv_in_3d = np.any([k[0] != 1 for k in self.kernel_size_per_encoding_block]) \
                           or np.any([s[0] != 1 for s in self.stride_size_per_encoding_block])
-        self.use_mixed_precision = use_mixed_precision
         self.padding_mode = padding_mode
         self.encode_channels_jointly = encode_channels_jointly
         self.num_image_channels = num_image_channels
@@ -204,19 +200,17 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
             if item.segmentations is None:
                 raise ValueError("Expected item.segmentations to not be None")
             use_gpu = self.is_model_on_gpu()
-            result_dtype = torch.float16 if self.use_mixed_precision and use_gpu else torch.float32
             # Special case need for the loading of individual positions in the sequence model,
             # the images are loaded as [C, Z, X, Y] but the segmentation_to_one_hot expects [B, C, Z, X, Y]
             if item.segmentations.ndimension() == 4:
                 input_tensors = [segmentation_to_one_hot(item.segmentations.unsqueeze(dim=0),
-                                                         use_gpu=use_gpu,
-                                                         result_dtype=result_dtype).squeeze(dim=0)]
+                                                         use_gpu=use_gpu).squeeze(dim=0)]
             else:
                 input_tensors = [
-                    segmentation_to_one_hot(item.segmentations, use_gpu=use_gpu, result_dtype=result_dtype)]
+                    segmentation_to_one_hot(item.segmentations, use_gpu=use_gpu)]
 
             if self.imaging_feature_type == ImagingFeatureType.ImageAndSegmentation:
-                input_tensors.append(item.images.to(dtype=result_dtype, copy=True))
+                input_tensors.append(item.images.to(dtype=torch.float, copy=True))
                 _dim = 0 if item.images.ndimension() == 4 else 1
                 input_tensors = [torch.cat(input_tensors, dim=_dim)]
         else:
@@ -289,7 +283,6 @@ class ImageEncoderWithMlp(ImageEncoder):
                  encoder_dimensionality_reduction_factor: float = 0.8,
                  aggregation_type: AggregationType = AggregationType.Average,
                  scan_size: Optional[TupleInt3] = None,
-                 use_mixed_precision: bool = True,
                  ) -> None:
         """
         Creates an image classifier that has UNet encoders sections for each image channel. The encoder output
@@ -314,8 +307,6 @@ class ImageEncoderWithMlp(ImageEncoder):
         combined model to balance with non imaging features.
         :param scan_size: should be a tuple representing 3D tensor shape and if specified it's usedd in initializing
         gated pooling or z-adaptive. The first element should be representing the z-direction for classification images
-        :param use_mixed_precision: If True, assume that training happens with mixed precision. Segmentations will
-        be converted to float16 tensors right away. If False, segmentations will be converted to float32 tensors.
         """
         super().__init__(imaging_feature_type=imaging_feature_type,
                          encode_channels_jointly=encode_channels_jointly,
@@ -328,8 +319,7 @@ class ImageEncoderWithMlp(ImageEncoder):
                          stride_size_per_encoding_block=stride_size_per_encoding_block,
                          encoder_dimensionality_reduction_factor=encoder_dimensionality_reduction_factor,
                          aggregation_type=aggregation_type,
-                         scan_size=scan_size,
-                         use_mixed_precision=use_mixed_precision)
+                         scan_size=scan_size)
         self.classification_layer = create_mlp(self.final_num_feature_channels, mlp_dropout)
         self.final_activation = final_activation
 

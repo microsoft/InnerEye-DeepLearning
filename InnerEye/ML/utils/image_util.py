@@ -536,7 +536,7 @@ def check_if_posterior_array(posteriors: np.ndarray) -> None:
 
 def segmentation_to_one_hot(segmentation: torch.Tensor,
                             use_gpu: bool,
-                            result_dtype: torch.dtype) -> torch.Tensor:
+                            result_dtype: torch.dtype = torch.float32) -> torch.Tensor:
     """
     Converts a tensor that contains a segmentation multi-label map to one-hot encoding, running the time-consuming
     operations on the GPU if the use_gpu flag is True. The code assumes that there are no more than

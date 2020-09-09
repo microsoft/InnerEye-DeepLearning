@@ -12,7 +12,7 @@ from InnerEye.Common.type_annotations import IntOrTuple3, TupleInt2
 from InnerEye.ML.config import PaddingMode
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
 from InnerEye.ML.models.layers.basic import BasicLayer
-from InnerEye.ML.models.parallel.model_parallel import move_to_device, partition_layers
+from InnerEye.ML.models.parallel.model_parallel import get_device_from_parameters, move_to_device, partition_layers
 from InnerEye.ML.utils.layer_util import get_padding_from_kernel_size, get_upsampling_kernel_size, \
     initialise_layer_weights
 
@@ -70,7 +70,10 @@ class UNet3D(BaseModel):
                 activation(inplace=True))
 
         def forward(self, x: Any) -> Any:  # type: ignore
-            [x] = move_to_device(input_tensors=[x], target_device=next(self.parameters()).device)
+            # When using the new DataParallel of PyTorch 1.6, self.parameters would be empty. Do not attempt to move
+            # the tensors in this case. If self.parameters is present, the module is used inside of a model parallel
+            # construct.
+            [x] = move_to_device([x], target_device=get_device_from_parameters(self))
             return self.upsample_block(x)
 
     class UNetEncodeBlockSynthesis(torch.nn.Module):
@@ -101,8 +104,11 @@ class UNet3D(BaseModel):
             self.apply(initialise_layer_weights)
 
         def forward(self, x: Any, skip_connection: Any) -> Any:  # type: ignore
+            # When using the new DataParallel of PyTorch 1.6, self.parameters would be empty. Do not attempt to move
+            # the tensors in this case. If self.parameters is present, the module is used inside of a model parallel
+            # construct.
             [x, skip_connection] = move_to_device(input_tensors=[x, skip_connection],
-                                                  target_device=next(self.parameters()).device)
+                                                  target_device=get_device_from_parameters(self))
             x = self.conv1(x)
             x += self.conv2(skip_connection)
             x = self.activation_block(x)
@@ -146,7 +152,10 @@ class UNet3D(BaseModel):
                                      dilation=dilation, activation=activation)
 
         def forward(self, x: Any) -> Any:  # type: ignore
-            [x] = move_to_device(input_tensors=[x], target_device=next(self.parameters()).device)
+            # When using the new DataParallel of PyTorch 1.6, self.parameters would be empty. Do not attempt to move
+            # the tensors in this case. If self.parameters is present, the module is used inside of a model parallel
+            # construct.
+            [x] = move_to_device(input_tensors=[x], target_device=get_device_from_parameters(self))
             x = self.block1(x)
             return self.block2(x) + x if self.use_residual else self.block2(x)
 
@@ -232,8 +241,10 @@ class UNet3D(BaseModel):
             x = layer(x, skip_connections.pop()) if layer.concat else layer(x)
             if layer_id < self.num_downsampling_paths:  # type: ignore
                 skip_connections.append(x)
-
-        [x] = move_to_device(input_tensors=[x], target_device=next(self.output_layer.parameters()).device)
+        # When using the new DataParallel of PyTorch 1.6, self.parameters would be empty. Do not attempt to move
+        # the tensors in this case. If self.parameters is present, the module is used inside of a model parallel
+        # construct.
+        [x] = move_to_device(input_tensors=[x], target_device=get_device_from_parameters(self.output_layer))
         return self.output_layer(x)
 
     def get_all_child_layers(self) -> List[torch.nn.Module]:
@@ -241,6 +252,7 @@ class UNet3D(BaseModel):
 
     def partition_model(self, devices: List[torch.device]) -> None:
         if self.summary is None:
-            raise RuntimeError("Network summary is required to partition UNet3D. Call model.generate_model_summary() first.")
+            raise RuntimeError(
+                "Network summary is required to partition UNet3D. Call model.generate_model_summary() first.")
 
         partition_layers(self.get_all_child_layers(), summary=self.summary, target_devices=devices)

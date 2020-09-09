@@ -10,17 +10,29 @@ import torch
 
 
 def move_to_device(input_tensors: List[torch.Tensor],
-                   target_device: torch.device,
+                   target_device: Optional[torch.device],
                    non_blocking: bool = False) -> Generator:
     """
     Updates the memory location of tensors stored in a list.
     :param input_tensors: List of torch tensors
-    :param target_device: Target device (e.g. cuda:0, cuda:1, etc)
+    :param target_device: Target device (e.g. cuda:0, cuda:1, etc). If the device is None, the tensors are not moved.
     :param non_blocking: bool
     """
-    return (tensor if tensor.device == target_device
+    return (tensor if tensor.device == target_device or target_device is None
             else tensor.to(target_device, non_blocking=non_blocking)
             for tensor in input_tensors)
+
+
+def get_device_from_parameters(module: torch.nn.Module) -> Optional[torch.device]:
+    """
+    Reads out the device information from the first of the module's parameters.
+    If the module does not have any parameters, return None.
+    """
+    try:
+        first_parameter = next(module.parameters())
+        return first_parameter.device
+    except StopIteration:
+        return None
 
 
 def group_layers_with_balanced_memory(inputs: List[torch.nn.Module],
