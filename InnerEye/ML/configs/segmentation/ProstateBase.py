@@ -69,18 +69,17 @@ class ProstateBase(SegmentationModelBase):
         self.add_and_validate(kwargs)
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
-        test = list(dataset_df[dataset_df.tags.str.contains("ContinuousLearning")].subject.unique())
-        train_val = list(dataset_df[~dataset_df.subject.isin(test)].subject.unique())
-
-        val = numpy.random.choice(train_val, int(len(train_val) * 0.1), replace=False)
-        train = [x for x in train_val if x not in val]
-
-        return DatasetSplits.from_subject_ids(
-            df=dataset_df,
-            test_ids=test,
-            val_ids=val,
-            train_ids=train
-        )
+        """
+        Return an adjusted split with more training data than the default, otherwise we won't
+        have enough for a good model.
+        """
+        splits = super().get_model_train_test_dataset_splits(dataset_df)
+        # Move items from test and val sets to training so they are roughly in the ratio
+        # 100 train, 10 test, 1 val
+        total = splits.number_of_subjects()
+        n_test = int(0.5 + total * 10 / 111)
+        n_val = int(0.5 + total * 1 / 111)
+        return splits.restrict_subjects(f"+,{n_val},{n_test}")
 
     def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
         """
