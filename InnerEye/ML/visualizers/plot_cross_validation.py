@@ -508,7 +508,7 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
     if config.is_classification:
         # if child folds are present then combine model outputs
         for k, v in combined_metrics.items():
-            aggregation_column = 'model_output'
+            aggregation_column = LoggingColumns.ModelOutput
             group_by_columns = [x for x in v.columns if x != aggregation_column]
             combined_metrics[k] = v.groupby(group_by_columns, as_index=False)[aggregation_column].mean()
     return combined_metrics

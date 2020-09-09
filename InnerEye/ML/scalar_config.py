@@ -434,6 +434,13 @@ class ScalarModelBase(ModelConfigBase):
         return ModelTransformsPerExecutionMode()
 
     def get_cross_validation_dataset_splits(self, dataset_split: DatasetSplits) -> DatasetSplits:
+        """
+        When running cross validation, this method returns the dataset split that should be used for the
+        currently executed cross validation split.
+        :param dataset_split: The full dataset, split into training, validation and test section.
+        :return: The dataset split with training and validation sections shuffled according to the current
+        cross validation index.
+        """
         split_for_current_fold = super().get_cross_validation_dataset_splits(dataset_split)
         if self.perform_sub_fold_cross_validation:
             # create a sub fold based on the training set and set the validation set
