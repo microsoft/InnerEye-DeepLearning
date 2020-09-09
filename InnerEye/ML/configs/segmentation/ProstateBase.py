@@ -70,12 +70,10 @@ class ProstateBase(SegmentationModelBase):
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         """
-        Return an adjusted split with more training data than the default, otherwise we won't
-        have enough for a good model.
+        Return an adjusted split so they are roughly in the ratio
+        100 train, 10 test, 1 val
         """
         splits = super().get_model_train_test_dataset_splits(dataset_df)
-        # Move items from test and val sets to training so they are roughly in the ratio
-        # 100 train, 10 test, 1 val
         total = splits.number_of_subjects()
         n_test = int(0.5 + total * 10 / 111)
         n_val = int(0.5 + total * 1 / 111)
