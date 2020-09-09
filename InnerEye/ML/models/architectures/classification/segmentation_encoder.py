@@ -196,4 +196,4 @@ class MultiSegmentationEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
         if item.segmentations is None:
             raise ValueError("Expected item.segmentations to not be None")
         use_gpu = self.is_model_on_gpu()
-        return [segmentation_to_one_hot(item.segmentations,use_gpu=use_gpu)]
+        return [segmentation_to_one_hot(item.segmentations, use_gpu=use_gpu)]

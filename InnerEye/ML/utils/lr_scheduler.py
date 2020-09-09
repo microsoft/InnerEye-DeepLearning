@@ -38,7 +38,7 @@ class LinearWarmUp(_LRScheduler):
             return 1.0
         return (self.last_epoch + 1) / (self.warmup_epochs + 1)
 
-    def get_lr(self) -> List[float]:
+    def get_lr(self) -> List[float]:  # type: ignore
         return [self.final_lr * self.warmup_multiplier()]
 
 
@@ -144,3 +144,6 @@ class SchedulerWithWarmUp(_LRScheduler):
                 self._scheduler.step()
         self.last_epoch += 1
         self._last_lr = get_current_learning_rates(self.optimizer)
+
+    def get_last_lr(self) -> List[float]
+        return self._last_lr

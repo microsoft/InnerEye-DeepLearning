@@ -23,7 +23,7 @@ def enumerate_scheduler(scheduler: _LRScheduler, steps: int) -> List[float]:
     """
     lrs = []
     for _ in range(steps):
-        lr = scheduler.get_last_lr()
+        lr = scheduler.get_last_lr()  # type: ignore
         assert isinstance(lr, list)
         assert len(lr) == 1
         lrs.append(lr[0])
@@ -141,8 +141,7 @@ def test_warmup_against_original_schedule(lr_scheduler_type: LRSchedulerType, wa
     lr_with_warmup_scheduler = enumerate_scheduler(lr_scheduler, config.num_epochs)
     print(f"Actual schedule: {lr_with_warmup_scheduler}")
 
-    if ((lr_scheduler_type == LRSchedulerType.Polynomial or
-         lr_scheduler_type == LRSchedulerType.Cosine)
+    if ((lr_scheduler_type == LRSchedulerType.Polynomial or lr_scheduler_type == LRSchedulerType.Cosine)
             and warmup_epochs > 0):
         # Polynomial and Cosine scheduler will be squashed in time because the number of epochs is reduced
         # (both schedulers take a "length of training" argument, and that is now shorter). Skip comparing those.
@@ -185,14 +184,13 @@ def test_built_in_lr_scheduler(scheduler_func: Callable[[Optimizer], _LRSchedule
     scheduler = scheduler_func(optimizer)
     lrs = []
     for _ in range(5):
-        last_lr = scheduler.get_last_lr()
+        last_lr = scheduler.get_last_lr()  # type: ignore
         lrs.append(last_lr)
         # get_last_lr should not change the state when called twice
-        assert scheduler.get_last_lr() == scheduler.get_last_lr()
+        assert scheduler.get_last_lr() == last_lr  # type: ignore
         scheduler.step()
     # Expected behaviour: First LR should be the initial LR set in the optimizers.
-    expected_values = [[v] for v in expected_values]
-    assert lrs == expected_values
+    assert lrs == [[v] for v in expected_values]
 
 
 @pytest.mark.parametrize("warmup_epochs, expected_values",

@@ -12,6 +12,7 @@ import numpy as np
 import param
 import torch.cuda
 import torch.utils.data
+from torch import Tensor
 from torch.cuda.amp import GradScaler
 from torch.nn import MSELoss
 from torch.optim.optimizer import Optimizer
@@ -325,7 +326,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, model, sample)
         label_gpu = self.get_label_tensor(model_inputs_and_labels.labels)
 
-        def compute_model_output_and_loss():
+        def compute_model_output_and_loss() -> Tuple[Tensor, Tensor, Tensor]:
             if self.in_training_mode:
                 model.train()
                 logits, gathered_logits, posteriors = \

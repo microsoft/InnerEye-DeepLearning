@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
 
 import numpy as np
 import torch
-from torch import autograd
+from torch import Tensor, autograd
 from torch.cuda.amp import GradScaler
 # noinspection PyUnresolvedReferences
 from torch.optim import Optimizer  # type: ignore
@@ -132,7 +132,7 @@ class SegmentationForwardPass:
 
         # do a forward pass on the model with the patches as input
         # this will give outputs in format: Batches x Classes x Z x Y x X
-        def compute_logits_and_loss():
+        def compute_logits_and_loss() -> Tuple[Tensor, Tensor]:
             loss: Optional[torch.Tensor] = None
             logits = self.model(patches)
             # If labels *is* None, loss will also be None, which will stop the code below working (and
@@ -176,7 +176,7 @@ class SegmentationForwardPass:
 
 def single_optimizer_step(loss: torch.Tensor,
                           optimizer: Optimizer,
-                          gradient_scaler: GradScaler) -> None:
+                          gradient_scaler: Optional[GradScaler]) -> None:
     """
     Wrapper function to make the optimizer take a single step, given a loss tensor with gradients.
     This will update the loss tensor with auto scaling for mixed
