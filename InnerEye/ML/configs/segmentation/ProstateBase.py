@@ -63,6 +63,8 @@ class ProstateBase(SegmentationModelBase):
             use_model_parallel=True,
             weight_decay=1e-4,
             window=600,
+            posterior_smoothing_mm=(2.0, 2.0, 3.0),
+            save_start_epoch=100,
         )
         self.add_and_validate(kwargs)
 

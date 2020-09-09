@@ -402,6 +402,21 @@ def test_patient_metadata() -> None:
     assert metadata.tags_str is None
 
 
+def test_min_patient_metadata() -> None:
+    """
+    Loading a dataset where only required columns are present
+    :return:
+    """
+    df = pd.read_csv(full_ml_test_data_path("dataset.csv"))
+    df = df.drop(columns="institutionId")
+    patient_id = 1
+    metadata = PatientMetadata.from_dataframe(df, patient_id)
+    assert metadata.patient_id == patient_id
+    assert metadata.series is None
+    assert metadata.institution is None
+    assert metadata.tags_str is None
+
+
 def test_get_all_metadata(default_config: ModelConfigBase) -> None:
     df = default_config.get_dataset_splits().train
     assert PatientMetadata.from_dataframe(df, 1) == PatientMetadata(patient_id=1, institution="1")
