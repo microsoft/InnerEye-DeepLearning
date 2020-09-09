@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 from typing import Any
 
-import numpy
 import pandas as pd
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import BanditPolicy, HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, uniform
