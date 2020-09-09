@@ -405,7 +405,6 @@ def test_patient_metadata() -> None:
 def test_min_patient_metadata() -> None:
     """
     Loading a dataset where only required columns are present
-    :return:
     """
     df = pd.read_csv(full_ml_test_data_path("dataset.csv"))
     df = df.drop(columns="institutionId")
