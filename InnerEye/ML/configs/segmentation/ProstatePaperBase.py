@@ -65,8 +65,6 @@ class ProstatePaperBase(SegmentationModelBase):
             test_diff_epochs=1,
             test_step_epochs=1
         )
-        if self.cross_validation_split_index > -1:
-            self.random_seed += self.cross_validation_split_index
         self.add_and_validate(kwargs)
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
