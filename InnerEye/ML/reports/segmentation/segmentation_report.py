@@ -5,46 +5,49 @@
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
-from IPython.display import HTML, Markdown, display
+from IPython.display import Markdown, display
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import boxplot_per_structure
 
-SEGMENTATION_REPORT_NOTEBOOK_PATH = current_dir = Path(__file__).parent.absolute() / "segmentation_report.ipynb"
+SEGMENTATION_REPORT_NOTEBOOK_PATH = Path(__file__).parent.absolute() / "segmentation_report.ipynb"
 TEST_METRICS_CSV_PARAMETER_NAME = "test_metrics_csv"
+TRAIN_METRICS_CSV_PARAMETER_NAME = "train_metrics_csv"
+VAL_METRICS_CSV_PARAMETER_NAME = "val_metrics_csv"
 INNEREYE_PATH_PARAMETER_NAME = "innereye_path"
 
 
 def plot_scores_for_csv(path_csv: str):
+    """
+    Displays all the tables and figures given a csv file with segmentation metrics
+    Columns expected: Patient,Structure,Dice,HausdorffDistance_mm,MeanDistance_mm
+    """
     df = pd.read_csv(path_csv)
 
-    describe_score(df, MetricsFileColumns.Dice.value)
-    worse_patients(df, MetricsFileColumns.Dice.value, ascending=True)
+    DisplayMetric(df, MetricsFileColumns.Dice.value)
+    DisplayMetric(df, MetricsFileColumns.HausdorffDistanceMM.value)
+    DisplayMetric(df, MetricsFileColumns.MeanDistanceMM.value)
+
+
+def DisplayMetric(df, metric_name: str):
+    display(Markdown(f"##{metric_name}"))
+    display(describe_score(df, MetricsFileColumns.Dice.value))
+    display(Markdown(f"##Worse {metric_name} patients"))
+    display(worse_patients(df, MetricsFileColumns.Dice.value, ascending=True))
     boxplot_per_structure(df, column_name="Dice", title="Dice")
-    plt.show()
-
-    describe_score(df, MetricsFileColumns.HausdorffDistanceMM.value)
-    worse_patients(df, MetricsFileColumns.HausdorffDistanceMM.value, ascending=False)
-    boxplot_per_structure(df, column_name="HausdorffDistance_mm", title="HausdorffDistance_mm")
-    plt.show()
-
-    describe_score(df, MetricsFileColumns.MeanDistanceMM.value)
-    worse_patients(df, MetricsFileColumns.HausdorffDistanceMM.value, ascending=False)
-    boxplot_per_structure(df, column_name="MeanDistance_mm", title="MeanDistance_mm")
     plt.show()
 
 
 def worse_patients(df: pd.DataFrame, metric_name: str, ascending: bool):
-    display(Markdown(f"##Worse {metric_name} patients"))
     df2 = df.sort_values(by=metric_name, ascending=ascending).head(20)
-    display(HTML(df2.to_html(index=False)))
+    return df2
 
 
 def describe_score(df: pd.DataFrame, metric_name: str):
-    display(Markdown(f"##{metric_name}"))
     df2 = df.groupby(MetricsFileColumns.Structure.value)[metric_name].describe() \
         .unstack(1).reset_index()
     df2 = pd.pivot_table(df2, values=[0], index=MetricsFileColumns.Structure.value,
                          columns='level_0').reset_index()
     df2.columns = df2.columns.droplevel()
-    df2 = df2.sort_values(by='mean')
-    display(df2)
+    df2 = df2.sort_values(by='mean').reset_index(drop=True)
+    df2.columns = [MetricsFileColumns.Structure.value] + list(df2.columns.array)[1:]
+    return df2

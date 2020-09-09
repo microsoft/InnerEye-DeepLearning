@@ -26,14 +26,21 @@ from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WI
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     FULL_METRICS_DATAFRAME_FILE, \
     METRICS_AGGREGATES_FILE, \
-    ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, disable_logging_to_file, is_linux, \
+    METRICS_FILE_NAME, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, disable_logging_to_file, \
+    get_epoch_results_path, \
+    is_linux, \
     logging_section, logging_to_file, \
     logging_to_stdout, \
     print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import get_environment_yaml_file
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.reports.notebook_report import generate_notebook
+from InnerEye.ML.reports.segmentation.segmentation_report import INNEREYE_PATH_PARAMETER_NAME, \
+    SEGMENTATION_REPORT_NOTEBOOK_PATH, TEST_METRICS_CSV_PARAMETER_NAME, TRAIN_METRICS_CSV_PARAMETER_NAME, \
+    VAL_METRICS_CSV_PARAMETER_NAME
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 
 LOG_FILE_NAME = "stdout.txt"
@@ -71,6 +78,7 @@ class Runner:
     Suggested value is "innereye-deeplearning".
     :param command_line_args: command-line arguments to use; if None, use sys.argv.
     """
+
     def __init__(self,
                  project_root: Path,
                  yaml_config_file: Path,
@@ -123,6 +131,29 @@ class Runner:
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
         self.create_ensemble_model()
 
+    @staticmethod
+    def generate_report(config: DeepLearningConfig, best_epoch: int, model_proc: ModelProcessing):
+        logging.info("Saving report in html")
+        path_to_best_epoch_train = config.outputs_folder / get_epoch_results_path(best_epoch,
+                                                                                  mode=ModelExecutionMode.TRAIN,
+                                                                                  model_proc=model_proc) / \
+                                   METRICS_FILE_NAME
+        path_to_best_epoch_val = config.outputs_folder / get_epoch_results_path(best_epoch,
+                                                                                mode=ModelExecutionMode.VAL,
+                                                                                model_proc=model_proc) / \
+                                 METRICS_FILE_NAME
+        path_to_best_epoch_test = config.outputs_folder / get_epoch_results_path(best_epoch,
+                                                                                 mode=ModelExecutionMode.TEST,
+                                                                                 model_proc=model_proc) / \
+                                  METRICS_FILE_NAME
+        generate_notebook(notebook_path=SEGMENTATION_REPORT_NOTEBOOK_PATH,
+                          notebook_params={TRAIN_METRICS_CSV_PARAMETER_NAME: str(path_to_best_epoch_train),
+                                           VAL_METRICS_CSV_PARAMETER_NAME: str(path_to_best_epoch_val),
+                                           TEST_METRICS_CSV_PARAMETER_NAME: str(path_to_best_epoch_test),
+                                           INNEREYE_PATH_PARAMETER_NAME: str(
+                                               Path(__file__).parent.parent.parent.parent)},
+                          result_path=config.outputs_folder / "report.ipynb")
+
     def plot_cross_validation_and_upload_results(self) -> Path:
         from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
             plot_cross_validation, unroll_aggregate_metrics
@@ -164,8 +195,11 @@ class Runner:
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
-        self.create_ml_runner().run_inference_and_register_model(run_recovery, model_proc=ModelProcessing.ENSEMBLE_CREATION)
+        best_epoch = self.create_ml_runner().run_inference_and_register_model(run_recovery,
+                                                                              model_proc=ModelProcessing.ENSEMBLE_CREATION)
+
         crossval_dir = self.plot_cross_validation_and_upload_results()
+        Runner.generate_report(self.model_config, best_epoch, ModelProcessing.ENSEMBLE_CREATION)
         # CrossValResults should have been uploaded to the parent run, so we don't need it here.
         remove_file_or_directory(crossval_dir)
         # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files

@@ -137,7 +137,7 @@ def test_metrics_file(test_output_dirs: TestOutputDirectories) -> None:
                                        full_ml_test_data_path() / METRICS_AGGREGATES_FILE)
     boxplot_per_structure(d.to_data_frame(),
                           column_name=MetricsFileColumns.DiceNumeric.value,
-                          title=f"Dice score")
+                          title="Dice score")
     boxplot1 = new_file("boxplot_2class.png")
     resize_and_save(5, 4, boxplot1)
     plt.clf()
@@ -147,7 +147,7 @@ def test_metrics_file(test_output_dirs: TestOutputDirectories) -> None:
     d.add(p1, "baz", 0.9, 2.0, 1.0)
     boxplot_per_structure(d.to_data_frame(),
                           column_name=MetricsFileColumns.DiceNumeric.value,
-                          title=f"Dice score")
+                          title="Dice score")
     boxplot2 = new_file("boxplot_6class.png")
     resize_and_save(5, 4, boxplot2)
 
