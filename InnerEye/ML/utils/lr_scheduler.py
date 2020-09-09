@@ -145,5 +145,5 @@ class SchedulerWithWarmUp(_LRScheduler):
         self.last_epoch += 1
         self._last_lr = get_current_learning_rates(self.optimizer)
 
-    def get_last_lr(self) -> List[float]
+    def get_last_lr(self) -> List[float]:
         return self._last_lr

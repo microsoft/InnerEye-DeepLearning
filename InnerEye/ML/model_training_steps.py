@@ -362,6 +362,12 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                     *model_inputs_and_labels.model_inputs,
                     use_mean_teacher_model=True)
 
+        # Autocast may have returned float16 tensors. Documentation suggests to simply cast back to float32.
+        # If tensor was already float32, no overhead is incurred.
+        posteriors = posteriors.float()
+        gathered_logits = gathered_logits.detach().float().cpu()
+        loss_scalar = loss.float().item()
+
         if self.train_val_params.save_metrics:
             if self._should_save_grad_cam_output(epoch=epoch, batch_index=batch_index):
                 self.save_grad_cam(epoch, model_inputs_and_labels.subject_ids,
@@ -369,15 +375,15 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                                    model_inputs_and_labels.model_inputs,
                                    label_gpu)
 
-            self.metrics.add_metric(MetricType.LOSS, loss.item())
+            self.metrics.add_metric(MetricType.LOSS, loss_scalar)
             self.update_metrics(model_inputs_and_labels.subject_ids, posteriors, label_gpu)
             logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
             minibatch_time = time.time() - start_time
             self.metrics.add_metric(MetricType.SECONDS_PER_BATCH, minibatch_time)
 
         return ModelForwardAndBackwardsOutputs(
-            loss=loss.item(),
-            logits=gathered_logits.detach().cpu(),
+            loss=loss_scalar,
+            logits=gathered_logits,
             labels=model_inputs_and_labels.labels
         )
 
