@@ -53,28 +53,10 @@ class ModelTrainingResults:
     """
     Stores the results from training, with the results on training and validation data for each training epoch.
     """
-    train_results_per_epoch: List[ModelOutputsAndMetricsForEpoch]
-    val_results_per_epoch: List[ModelOutputsAndMetricsForEpoch]
+    train_results_per_epoch: List[MetricsDict]
+    val_results_per_epoch: List[MetricsDict]
     learning_rates_per_epoch: List[List[float]]
     optimal_temperature_scale_values_per_checkpoint_epoch: List[float] = field(default_factory=list)
-
-    def get_logits(self, is_training: bool) -> torch.Tensor:
-        """
-        Get concatenated logits from each training/validation epoch.
-        :param is_training: return logits from model on the training set if True otherwise form the validation set
-        :return: concatenated logits from each training/validation epoch.
-        """
-        return torch.cat([x.get_logits() for x in
-                          (self.train_results_per_epoch if is_training else self.val_results_per_epoch)])
-
-    def get_labels(self, is_training: bool) -> torch.Tensor:
-        """
-        Get concatenated labels used for each training/validating epoch.
-        :param is_training: return training set labels if True otherwise return validation set labels
-        :return: concatenated labels used for each training/validating epoch.
-        """
-        return torch.cat([x.get_labels() for x in
-                          (self.train_results_per_epoch if is_training else self.val_results_per_epoch)])
 
     def __post_init__(self) -> None:
         common_util.check_properties_are_not_none(self)
