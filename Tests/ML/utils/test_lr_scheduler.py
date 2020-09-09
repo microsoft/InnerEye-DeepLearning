@@ -218,7 +218,7 @@ def test_lr_scheduler_with_warmup(warmup_epochs: int, expected_values: List[floa
 
 
 # Exclude Polynomial scheduler because that uses lambdas, which we can't save to a state dict
-@pytest.mark.parametrize("lr_scheduler_type", [x for x in LRSchedulerType])
+@pytest.mark.parametrize("lr_scheduler_type", [x for x in LRSchedulerType if x != LRSchedulerType.Polynomial])
 @pytest.mark.parametrize("warmup_epochs", [0, 3, 4, 5])
 def test_resume_from_saved_state(lr_scheduler_type: LRSchedulerType, warmup_epochs: int) -> None:
     """
