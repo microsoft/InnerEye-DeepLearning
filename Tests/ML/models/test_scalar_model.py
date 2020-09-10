@@ -146,7 +146,7 @@ def test_train_classification_model_with_amp(test_output_dirs: TestOutputDirecto
     test_train_classification_model(test_output_dirs, True, check_logs=False)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.skipif(not common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("model_name", ["DummyClassification", "DummyRegression"])
 @pytest.mark.parametrize("number_of_offline_cross_validation_splits", [2])
 @pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [2])
@@ -354,7 +354,7 @@ def test_is_offline_cross_val_parent_run(offline_parent_cv_run: bool) -> None:
 def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) -> None:
     metrics: Dict[ModelExecutionMode, List[pd.DataFrame]] = dict()
     root = Path(train_config.file_system_config.outputs_folder)
-    for x in range(train_config.number_of_cross_validation_splits):
+    for x in range(train_config.get_total_number_of_cross_validation_runs()):
         expected_outputs_folder = root / str(x)
         assert expected_outputs_folder.exists()
         for m in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
