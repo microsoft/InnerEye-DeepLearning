@@ -469,3 +469,26 @@ def test_dataset_stats_hook_failing(test_output_dirs: TestOutputDirectories) -> 
 
     model.dataset_stats_hook = hook
     model.create_and_set_torch_datasets()
+
+
+def test_get_dataset_splits() -> None:
+    """
+    Test if dataset splits are created as expected for scalar models.
+    """
+    model = ClassificationModelForTesting()
+    model.number_of_cross_validation_splits = 2
+    dataset_splits = model.get_dataset_splits()
+    assert list(dataset_splits[ModelExecutionMode.TRAIN].subjectID.unique()) == ['S4', 'S5', 'S2', 'S10']
+    assert list(dataset_splits[ModelExecutionMode.VAL].subjectID.unique()) == ['S1', 'S6', 'S7', 'S8']
+    assert list(dataset_splits[ModelExecutionMode.TEST].subjectID.unique()) == ['S3', 'S9']
+    # check if sub-folds are created as expected
+    model.number_of_cross_validation_splits_per_fold = 2
+    sub_fold_dataset_splits = model.get_dataset_splits()
+    # the validation and the test set must be the same for parent and sub fold
+    pd.testing.assert_frame_equal(dataset_splits.val, sub_fold_dataset_splits.val,
+                                         check_like=True, check_dtype=False)
+    pd.testing.assert_frame_equal(dataset_splits.test,
+                                         sub_fold_dataset_splits.test, check_like=True,
+                                         check_dtype=False)
+    # make sure the training set is the expected subset of the parent
+    assert list(sub_fold_dataset_splits[ModelExecutionMode.TRAIN].subjectID.unique()) == ['S2', 'S10']
