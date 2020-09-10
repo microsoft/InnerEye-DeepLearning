@@ -7,8 +7,8 @@ from typing import Any, Callable, List, Optional, Tuple
 import numpy as np
 import pytest
 import torch
-from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR, LambdaLR, MultiStepLR, MultiplicativeLR, \
-    StepLR, _LRScheduler
+from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR, LambdaLR, MultiStepLR, \
+    MultiplicativeLR, StepLR, _LRScheduler  # type: ignore
 from torch.optim.optimizer import Optimizer
 
 from InnerEye.ML.config import SegmentationModelBase

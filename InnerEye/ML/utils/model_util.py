@@ -152,7 +152,7 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
         if args.use_model_parallel:
             devices = args.get_cuda_devices()
             assert devices is not None  # for mypy
-            model_and_info.model.partition_model(devices=devices)
+            model_and_info.model.partition_model(devices=devices)  # type: ignore
         if args.use_mixed_precision:
             grad_scaler = GradScaler()
     else:

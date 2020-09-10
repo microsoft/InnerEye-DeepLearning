@@ -32,7 +32,6 @@ from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get
     unroll_aggregate_metrics
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.models.test_parallel import no_gpu
 from Tests.ML.util import get_default_azure_config, machine_has_gpu
 
 

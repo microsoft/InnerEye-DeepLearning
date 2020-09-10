@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Callable, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 import numpy as np
 import torch
@@ -132,7 +132,7 @@ class SegmentationForwardPass:
 
         # do a forward pass on the model with the patches as input
         # this will give outputs in format: Batches x Classes x Z x Y x X
-        def compute_logits_and_loss() -> Tuple[Tensor, Tensor]:
+        def compute_logits_and_loss() -> Tuple[Any, Optional[Tensor]]:
             loss: Optional[torch.Tensor] = None
             logits = self.model(patches)
             # If labels *is* None, loss will also be None, which will stop the code below working (and
