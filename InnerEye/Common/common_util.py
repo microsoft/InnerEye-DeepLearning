@@ -135,7 +135,8 @@ class ModelProcessing(Enum):
     ENSEMBLE_CREATION = 'ensemble_creation'
 
 
-def get_epoch_results_path(epoch: int, mode: ModelExecutionMode, model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Path:
+def get_epoch_results_path(epoch: int, mode: ModelExecutionMode,
+                           model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Path:
     """
     For a given model execution mode, and an epoch index, creates the relative results path
     in the form epoch_x/(Train, Test or Val)
