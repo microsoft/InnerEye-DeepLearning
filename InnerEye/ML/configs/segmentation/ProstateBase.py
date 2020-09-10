@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 from typing import Any
 
-import numpy
 import pandas as pd
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import BanditPolicy, HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, uniform
@@ -63,22 +62,18 @@ class ProstateBase(SegmentationModelBase):
             use_model_parallel=True,
             weight_decay=1e-4,
             window=600,
+            posterior_smoothing_mm=(2.0, 2.0, 3.0),
+            save_start_epoch=100,
         )
         self.add_and_validate(kwargs)
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
-        test = list(dataset_df[dataset_df.tags.str.contains("ContinuousLearning")].subject.unique())
-        train_val = list(dataset_df[~dataset_df.subject.isin(test)].subject.unique())
-
-        val = numpy.random.choice(train_val, int(len(train_val) * 0.1), replace=False)
-        train = [x for x in train_val if x not in val]
-
-        return DatasetSplits.from_subject_ids(
-            df=dataset_df,
-            test_ids=test,
-            val_ids=val,
-            train_ids=train
-        )
+        """
+        Return an adjusted split
+        """
+        return DatasetSplits.from_proportions(dataset_df, proportion_train=0.8, proportion_val=0.05,
+                                              proportion_test=0.15,
+                                              random_seed=0)
 
     def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
         """
