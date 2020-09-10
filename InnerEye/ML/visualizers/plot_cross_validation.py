@@ -480,7 +480,10 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
     From a list of run result files on the local disk, create a dictionary of aggregate metrics.
     The dictionary maps from execution mode to metrics for that execution mode. The metrics
     for all cross validation splits are concatenated.
+    If sub fold cross validation is performed then the results for each sub fold are aggregated into their
+    parent fold by averaging.
     The resulting dictionary can contains only the execution modes for which metrics are present.
+
     :param result_files: The list of files to read.
     :param config: The overall configuration for the cross validation analysis.
     :return: A dictionary that maps from model execution mode (TEST, VAL) to concatenated metrics.
