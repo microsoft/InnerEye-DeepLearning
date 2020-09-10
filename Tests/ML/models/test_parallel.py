@@ -6,12 +6,14 @@ from typing import Any, List
 
 import pytest
 import torch
+from torch import Tensor
 
 from InnerEye.Common import common_util
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion
-from InnerEye.ML.models.parallel.model_parallel import group_layers_with_balanced_memory, move_to_device, \
+from InnerEye.ML.models.parallel.model_parallel import group_layers_with_balanced_memory, is_model_parallel, \
+    move_to_device, \
     partition_layers
 from InnerEye.ML.utils.ml_util import is_gpu_available
 
@@ -51,22 +53,26 @@ class SimpleModel(BaseModel):
 @pytest.mark.gpu
 @pytest.mark.skipif(no_gpu, reason="CUDA capable GPU is not available")
 def test_move_to_device() -> None:
+    def assert_device_matches(tensors: List[Tensor], target_device: torch.device) -> None:
+        for tensor in tensors:
+            assert tensor.device == target_device
+
     target_device = torch.device('cuda:0')
     input_tensor_1 = torch.tensor(3, device=torch.device('cpu'))
     input_tensor_2 = torch.tensor(3, device=torch.device('cuda:0'))
-    [moved_tensor_1, moved_tensor_2] = move_to_device([input_tensor_1, input_tensor_2],
-                                                      target_device=target_device)
-
-    assert moved_tensor_1.device == target_device
-    assert moved_tensor_2.device == target_device
+    tensors = [input_tensor_1, input_tensor_2]
+    moved = list(move_to_device(tensors, target_device=target_device))
+    assert_device_matches(moved, target_device)
 
     if torch.cuda.device_count() > 1:
         target_device = torch.device('cuda:1')
-        [moved_tensor_1, moved_tensor_2] = move_to_device([input_tensor_1, input_tensor_2],
-                                                          target_device=target_device)
+        moved = list(move_to_device(tensors, target_device=target_device))
+        assert_device_matches(moved, target_device)
 
-        assert moved_tensor_1.device == target_device
-        assert moved_tensor_2.device == target_device
+    # Not supplying a target device should leave the tensor untouched
+    moved = list(move_to_device(tensors, target_device=None))
+    assert moved[0].device == tensors[0].device
+    assert moved[1].device == tensors[1].device
 
 
 @pytest.mark.gpu
@@ -96,7 +102,10 @@ def test_partition_layers() -> None:
     all_layers = model.get_all_child_layers()
 
     if summary is None:
-        raise RuntimeError("Network summary is required to partition UNet3D. Call model.generate_model_summary() first.")
+        raise RuntimeError(
+            "Network summary is required to partition UNet3D. Call model.generate_model_summary() first.")
+    for layer in all_layers:
+        assert not is_model_parallel(layer)
 
     partition_layers(layers=all_layers, summary=summary, target_devices=devices)
 
@@ -104,6 +113,9 @@ def test_partition_layers() -> None:
     assert all_layers[1].weight.device == torch.device("cuda:0")
     assert all_layers[2].weight.device == torch.device("cuda:1")
     assert all_layers[3].weight.device == torch.device("cuda:1")
+
+    for layer in all_layers:
+        assert is_model_parallel(layer)
 
 
 @pytest.mark.gpu
