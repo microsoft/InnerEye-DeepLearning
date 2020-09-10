@@ -12,7 +12,7 @@ from InnerEye.Common import common_util
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion
-from InnerEye.ML.models.parallel.model_parallel import group_layers_with_balanced_memory, is_model_parallel, \
+from InnerEye.ML.models.parallel.model_parallel import group_layers_with_balanced_memory, \
     move_to_device, partition_layers
 from InnerEye.ML.utils.ml_util import is_gpu_available
 
@@ -103,8 +103,6 @@ def test_partition_layers() -> None:
     if summary is None:
         raise RuntimeError(
             "Network summary is required to partition UNet3D. Call model.generate_model_summary() first.")
-    for layer in all_layers:
-        assert not is_model_parallel(layer)
 
     partition_layers(layers=all_layers, summary=summary, target_devices=devices)
 
@@ -112,9 +110,6 @@ def test_partition_layers() -> None:
     assert all_layers[1].weight.device == torch.device("cuda:0")
     assert all_layers[2].weight.device == torch.device("cuda:1")
     assert all_layers[3].weight.device == torch.device("cuda:1")
-
-    for layer in all_layers:
-        assert is_model_parallel(layer)
 
 
 @pytest.mark.gpu
