@@ -50,7 +50,6 @@ class ModelAndInfo:
     """
     model: BaseModelOrDataParallelModel
     optimizer: Optional[Optimizer] = None
-    grad_scaler: Optional[GradScaler] = None
     is_mean_teacher: bool = False
     is_adjusted: bool = False
     checkpoint_epoch: Optional[int] = None
@@ -126,9 +125,9 @@ def build_net(args: SegmentationModelBase) -> BaseModel:
     return network
 
 
-def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
-                                                  args: ModelConfigBase,
-                                                  execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
+def update_model_for_multiple_gpu(model_and_info: ModelAndInfo,
+                                  args: ModelConfigBase,
+                                  execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
         ModelAndInfo:
     """
     Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
@@ -143,7 +142,6 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
     if model_and_info.is_adjusted:
         logging.debug("model_and_info.is_adjusted is already True")
         return model_and_info
-    grad_scaler = None
     if args.use_gpu:
         # In the normal training codepath, the model should already be on the GPU, but in some tests not.
         model_and_info.to_cuda()
@@ -153,8 +151,6 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
             devices = args.get_cuda_devices()
             assert devices is not None  # for mypy
             model_and_info.model.partition_model(devices=devices)  # type: ignore
-        if args.use_mixed_precision:
-            grad_scaler = GradScaler()
     else:
         logging.info("Making no adjustments to the model because no GPU was found.")
 
@@ -174,7 +170,6 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
         model_and_info.set_data_parallel(device_ids=args.get_cuda_devices())
 
     model_and_info.is_adjusted = True
-    model_and_info.grad_scaler = grad_scaler
     logging.debug("model_and_info.is_adjusted set to True")
     return model_and_info
 
@@ -345,7 +340,7 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     if model_config.is_segmentation_model:
         # Generate the model summary, which is required for model partitioning across GPUs.
         summary_for_segmentation_models(model_config, model_and_info.model)
-    return update_model_for_mixed_precision_and_parallel(
+    return update_model_for_multiple_gpu(
         model_and_info, args=model_config, execution_mode=model_and_info.model_execution_mode)
 
 

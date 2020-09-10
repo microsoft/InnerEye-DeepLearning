@@ -7,6 +7,7 @@ from typing import Any, List, Optional, Union
 import numpy as np
 import pytest
 import torch
+from torch.cuda.amp import GradScaler
 
 from InnerEye.Common import common_util
 from InnerEye.ML.common import ModelExecutionMode
@@ -137,9 +138,9 @@ def test_amp_activated(use_model_parallel: bool,
     optimizer = model_util.create_optimizer(model_config, model)
     model_and_info = ModelAndInfo(model, optimizer)
     try:
-        model_and_info_amp = model_util.update_model_for_mixed_precision_and_parallel(model_and_info,
-                                                                                      model_config,
-                                                                                      execution_mode)
+        model_and_info_amp = model_util.update_model_for_multiple_gpu(model_and_info,
+                                                                      model_config,
+                                                                      execution_mode)
     except NotImplementedError as ex:
         if use_model_parallel:
             # The SimpleModel does not implement model partitioning, and should hence fail at this step.
@@ -148,17 +149,13 @@ def test_amp_activated(use_model_parallel: bool,
         else:
             raise ValueError(f"Expected this call to succeed, but got: {ex}")
 
-    # Check if the optimizer is updated with AMP mixed precision features. The attribute should be present
-    # if and only if mixed precision is switched on.
-    if use_mixed_precision:
-        assert model_and_info.grad_scaler is not None
-
+    gradient_scaler = GradScaler() if use_mixed_precision else None
     criterion = lambda x, y: torch.tensor([0.0], requires_grad=True).cuda()
     pipeline = SegmentationForwardPass(model_and_info_amp.model,
                                        model_config,
                                        batch_size=1,
                                        optimizer=optimizer,
-                                       gradient_scaler=model_and_info.grad_scaler,
+                                       gradient_scaler=gradient_scaler,
                                        criterion=criterion)
 
     # Verify that forward and backward passes do not throw an exception

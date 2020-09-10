@@ -8,6 +8,8 @@ import os
 from time import time
 from typing import Optional, Tuple, TypeVar
 
+from torch.cuda.amp import GradScaler
+
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common.common_util import empty_string_to_none
 from InnerEye.Common.metrics_dict import MetricsDict
@@ -97,7 +99,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     # This relies on the information generated in the model summary.
     # We only want to do this if we didn't call load_checkpoint above, because attempting updating twice
     # causes an error.
-    models_and_optimizers = [model_util.update_model_for_mixed_precision_and_parallel(model_and_info, config)
+    models_and_optimizers = [model_util.update_model_for_multiple_gpu(model_and_info, config)
                              for model_and_info in models_and_optimizers]
 
     # Create the SummaryWriters for Tensorboard
@@ -106,7 +108,6 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     model = models_and_optimizers[0].model
     optimizer = models_and_optimizers[0].optimizer
-    grad_scaler = models_and_optimizers[0].grad_scaler
     assert optimizer is not None  # for mypy
     mean_teacher_model = models_and_optimizers[1].model if len(models_and_optimizers) > 1 else None
 
@@ -124,6 +125,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                            tb_log_file_path=str(config.logs_folder / "diagnostics"))
         resource_monitor.start()
 
+    gradient_scaler = GradScaler() if config.use_gpu and config.use_mixed_precision else None
     optimal_temperature_scale_values = []
     for epoch in config.get_train_epochs():
         logging.info("Starting epoch {}".format(epoch))
@@ -139,7 +141,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                     mean_teacher_model=mean_teacher_model,
                                     epoch=epoch,
                                     optimizer=optimizer,
-                                    gradient_scaler=grad_scaler,
+                                    gradient_scaler=gradient_scaler,
                                     epoch_learning_rate=epoch_lrs,
                                     summary_writers=writers,
                                     dataframe_loggers=config.metrics_data_frame_loggers,
