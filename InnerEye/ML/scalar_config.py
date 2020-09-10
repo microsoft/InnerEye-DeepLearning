@@ -456,9 +456,8 @@ class ScalarModelBase(ModelConfigBase):
 
     def get_effective_random_seed(self) -> int:
         if self.cross_validation_sub_fold_split_index != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-            return (self.cross_validation_split_index *
-                    self.number_of_cross_validation_splits_per_fold) + \
-                   self.cross_validation_sub_fold_split_index
+            return (self.cross_validation_split_index * self.number_of_cross_validation_splits_per_fold) \
+                   + self.cross_validation_sub_fold_split_index
         else:
             return super().get_effective_random_seed()
 
