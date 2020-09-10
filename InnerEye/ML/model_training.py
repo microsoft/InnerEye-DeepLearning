@@ -60,7 +60,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading a previous checkpoint.
     """
-    # save the datasets csv for record
+    # Save the dataset files for record
     config.write_dataset_files()
 
     # set the random seed for all libraries
