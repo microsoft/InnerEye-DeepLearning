@@ -292,25 +292,50 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         return self.model_config.get_gpu_tensor_if_possible(labels)
 
     def get_logits_and_posteriors(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
-            -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+            -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns a Tuple containing the logits and the final model output. Note that the logits might be
         distributed over multiple GPU if the model is an instance of DataParallel. In this case,
-        the gathered_logits and posteriors will be gathered to GPU_0.
-
+        the posteriors will be gathered to GPU_0.
         :param model_inputs: input to evaluate the model on
         :param use_mean_teacher_model: If True, logits and posteriors are produced for the mean teacher model. Else
         logits and posteriors are produced for the standard (student) model.
-        :return: Tuple (logits, gathered_logits, posteriors).
+        :return: Tuple (logits, posteriors).
         """
         if use_mean_teacher_model:
             logits = self.train_val_params.mean_teacher_model(*model_inputs)
         else:
             logits = self.train_val_params.model(*model_inputs)
+        posteriors = self.model_config.get_post_loss_logits_normalization_function()(gather_tensor(logits))
+        return logits, posteriors
 
-        gathered_logits = gather_tensor(logits)
-        posteriors = self.model_config.get_post_loss_logits_normalization_function()(gathered_logits)
-        return logits, gathered_logits, posteriors
+    def _compute_model_output_and_loss(self, model_inputs_and_labels: ScalarModelInputsAndLabels) -> \
+            Tuple[Tensor, Tensor, Tensor]:
+        """
+        Computes the output of the model for a given set of inputs and labels.
+        Returns a tuple of (logits, posteriors, loss). For multi-GPU computation, the logits are returned
+        as a list.
+        """
+        model = self.train_val_params.model
+        label_gpu = self.get_label_tensor(model_inputs_and_labels.labels)
+
+        def compute() -> Tuple[Tensor, Tensor, Tensor]:
+            if self.in_training_mode:
+                model.train()
+                logits, posteriors = self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
+            else:
+                model.eval()
+                with torch.no_grad():
+                    logits, posteriors = self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
+                model.train()
+            loss = self.compute_loss(logits, label_gpu)
+            return logits, posteriors, loss
+
+        if self.model_config.use_mixed_precision:
+            with torch.cuda.amp.autocast():
+                return compute()
+        else:
+            return compute()
 
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
                                        batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
@@ -325,27 +350,9 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         mean_teacher_model = self.train_val_params.mean_teacher_model
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, model, sample)
         label_gpu = self.get_label_tensor(model_inputs_and_labels.labels)
-
-        def compute_model_output_and_loss() -> Tuple[Tensor, Tensor, Tensor]:
-            if self.in_training_mode:
-                model.train()
-                logits, gathered_logits, posteriors = \
-                    self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
-            else:
-                model.eval()
-                with torch.no_grad():
-                    logits, gathered_logits, posteriors = \
-                        self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
-                model.train()
-            loss = self.compute_loss(logits, label_gpu)
-            return gathered_logits, posteriors, loss
-
-        if self.model_config.use_mixed_precision:
-            with torch.cuda.amp.autocast():
-                gathered_logits, posteriors, loss = compute_model_output_and_loss()
-        else:
-            gathered_logits, posteriors, loss = compute_model_output_and_loss()
-
+        logits, posteriors, loss = self._compute_model_output_and_loss(model_inputs_and_labels)
+        gathered_logits = gather_tensor(logits)
+        # antonsc: Should switch the gradient scaler here to be that of the mean teacher
         if self.in_training_mode:
             single_optimizer_step(loss,
                                   self.train_val_params.optimizer,
@@ -358,9 +365,10 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             # instead of the output of the student model.
             mean_teacher_model.eval()
             with torch.no_grad():
-                logits, gathered_logits, posteriors = self.get_logits_and_posteriors(
+                logits, posteriors = self.get_logits_and_posteriors(
                     *model_inputs_and_labels.model_inputs,
                     use_mean_teacher_model=True)
+                gathered_logits = gather_tensor(logits)
 
         # Autocast may have returned float16 tensors. Documentation suggests to simply cast back to float32.
         # If tensor was already float32, no overhead is incurred.
