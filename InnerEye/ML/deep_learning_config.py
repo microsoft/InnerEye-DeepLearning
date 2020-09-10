@@ -377,6 +377,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         if self.azure_dataset_id is None and self.local_dataset is None:
             raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
 
+        if self.number_of_cross_validation_splits == 1:
+            raise ValueError(f"At least two splits required to perform cross validation found "
+                             f"number_of_cross_validation_splits={self.number_of_cross_validation_splits}")
         if 0 < self.number_of_cross_validation_splits <= self.cross_validation_split_index:
             raise ValueError(f"Cross validation split index is out of bounds: {self.cross_validation_split_index}, "
                              f"which is invalid for CV with {self.number_of_cross_validation_splits} splits.")
@@ -463,7 +466,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         True if cross validation will be be performed as part of the training procedure.
         :return:
         """
-        return self.number_of_cross_validation_splits > 0
+        return self.number_of_cross_validation_splits > 1
 
     @property
     def overrides(self) -> Optional[Dict[str, Any]]:

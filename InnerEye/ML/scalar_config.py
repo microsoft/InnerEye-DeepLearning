@@ -214,6 +214,14 @@ class ScalarModelBase(ModelConfigBase):
         else:
             self.num_dataset_reader_workers = num_dataset_reader_workers
 
+    def validate(self) -> None:
+        if not self.perform_cross_validation and self.perform_sub_fold_cross_validation:
+            raise ValueError("Cannot perform sub fold cross validation if not running in cross validation mode"
+                             " found, please set number_of_cross_validation_splits >= 2")
+        if self.number_of_cross_validation_splits_per_fold == 1:
+            raise ValueError("At least two sub folds must be required when performing sub fold cross validation,"
+                             " but number_of_cross_validation_splits_per_fold was set to 1")
+
     @property
     def is_classification_model(self) -> bool:
         """
@@ -241,7 +249,7 @@ class ScalarModelBase(ModelConfigBase):
         True if sub fold cross validation will be be performed as part of the training procedure.
         :return:
         """
-        return self.number_of_cross_validation_splits_per_fold > 0
+        return self.number_of_cross_validation_splits_per_fold > 1
 
     def get_total_number_of_non_imaging_features(self) -> int:
         """Returns the total number of non imaging features expected in the input"""

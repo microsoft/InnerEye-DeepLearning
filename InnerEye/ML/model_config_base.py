@@ -154,9 +154,9 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
     def get_total_number_of_cross_validation_runs(self) -> int:
         """
         Returns the total number of HyperDrive/offline runs required to sample the entire
-        parameter space.
+        cross validation parameter space.
         """
-        return max(1, self.number_of_cross_validation_splits)
+        return self.number_of_cross_validation_splits
 
     def get_cross_validation_hyperdrive_sampler(self) -> GridParameterSampling:
         """
@@ -194,7 +194,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
     def get_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
         """
         Returns the HyperDrive config for either parameter search or cross validation
-        (if number_of_cross_validation_splits > 0).
+        (if number_of_cross_validation_splits > 1).
         :param estimator: AzureML estimator
         :return: HyperDriveConfigs
         """

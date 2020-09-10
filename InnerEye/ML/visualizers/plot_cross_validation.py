@@ -794,7 +794,7 @@ def check_result_file_counts(config_and_files: OfflineCrossvalConfigAndFiles) ->
 def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndFiles,
                                      root_folder: Path) -> None:
     config = config_and_files.config
-    if config.number_of_cross_validation_splits > 0:
+    if config.number_of_cross_validation_splits > 1:
         check_result_file_counts(config_and_files)
     result_files = config_and_files.files
     metrics_dfs = load_dataframes(result_files, config)

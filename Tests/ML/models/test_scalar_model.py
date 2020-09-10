@@ -171,13 +171,13 @@ def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectorie
     if train_config.is_regression_model:
         assert (train_config.outputs_folder / "0" / "error_plot_4.png").is_file()
 
-    if number_of_offline_cross_validation_splits > 0:
+    if train_config.perform_cross_validation:
         # Test that the result files can be correctly picked up by the cross validation routine.
         # For that, we point the downloader to the local results folder. The core download method
         # recognizes run_recovery_id == None as the signal to read from the local_run_results folder.
         config_and_files = get_config_and_results_for_offline_runs(train_config)
         result_files = config_and_files.files
-        assert len(result_files) == number_of_offline_cross_validation_splits
+        assert len(result_files) == train_config.get_total_number_of_cross_validation_runs()
         for file in result_files:
             assert file.execution_mode == ModelExecutionMode.VAL
             assert file.dataset_csv_file is not None
@@ -369,7 +369,14 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         # test aggregates are as expected
         aggregate_metrics_path = root / CROSSVAL_RESULTS_FOLDER / METRICS_AGGREGATES_FILE
         assert aggregate_metrics_path.is_file()
+        # since we aggregate the outputs of each of the child folds
+        # we need to compare the outputs w.r.t to the parent folds
+        child_folds = train_config.number_of_cross_validation_splits_per_fold
+        if train_config.perform_sub_fold_cross_validation:
+            train_config.number_of_cross_validation_splits_per_fold = 0
         _dataset_splits = train_config.get_dataset_splits()
+        train_config.number_of_cross_validation_splits_per_fold = child_folds
+
         _val_dataset_split_count = len(_dataset_splits.val[train_config.subject_column].unique()) + len(
             _dataset_splits.train[train_config.subject_column].unique())
         _aggregates_csv = pd.read_csv(aggregate_metrics_path)
