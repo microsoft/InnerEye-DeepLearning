@@ -7,8 +7,9 @@ from typing import Any, Callable, List, Optional, Tuple
 import numpy as np
 import pytest
 import torch
+from torch.optim import lr_scheduler
 from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR, LambdaLR, MultiStepLR, \
-    MultiplicativeLR, StepLR, _LRScheduler  # type: ignore
+    StepLR, _LRScheduler
 from torch.optim.optimizer import Optimizer
 
 from InnerEye.ML.config import SegmentationModelBase
@@ -164,10 +165,14 @@ def _create_lr_scheduler_and_optimizer(config: SegmentationModelBase, optimizer:
     return lr_scheduler, optimizer
 
 
+# This construct is to work around an issue where mypy does not think that MultiplicativeLR exists in lr_scheduler
+def multiplicative(optimizer) -> _LRScheduler:
+    return lr_scheduler.MultiplicativeLR(optimizer, lr_lambda=lambda epoch: 0.5)  # type: ignore
+
+
 @pytest.mark.parametrize("scheduler_func, expected_values",
                          # A scheduler that reduces learning rate by a factor of 0.5 in each epoch
-                         [(lambda optimizer: MultiplicativeLR(optimizer, lr_lambda=lambda epoch: 0.5),
-                           [1, 0.5, 0.25, 0.125, 0.0625]),
+                         [(multiplicative, [1, 0.5, 0.25, 0.125, 0.0625]),
                           # A scheduler that reduces learning rate by a factor of 0.5 at epochs 2 and 4
                           (lambda optimizer: MultiStepLR(optimizer, [2, 4], gamma=0.5),
                            [1, 1, 0.5, 0.5, 0.25]),
