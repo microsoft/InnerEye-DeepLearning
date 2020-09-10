@@ -558,6 +558,10 @@ def convert_rows_for_comparisons(split_column_value: Optional[str],
     :return: augmented subset of the rows in df, as described
     """
     pre_len = len(df)
+    # We need the institution column to compare subjects across institutions, if it is not present with add a default
+    # value
+    if CSV_INSTITUTION_HEADER not in dataset_df.columns:
+        dataset_df[CSV_INSTITUTION_HEADER] = ''
     df = pd.merge(df, dataset_df[[CSV_SUBJECT_HEADER, CSV_SERIES_HEADER, CSV_INSTITUTION_HEADER]],
                   left_on=MetricsFileColumns.Patient.value, right_on=CSV_SUBJECT_HEADER) \
         .drop_duplicates().drop([CSV_SUBJECT_HEADER], axis=1)
