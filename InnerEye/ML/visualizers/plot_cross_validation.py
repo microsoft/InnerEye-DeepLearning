@@ -92,7 +92,7 @@ class PlotCrossValidationConfig(GenericConfig):
     is_segmentation: bool = param.Boolean(default=True,
                                           doc="Set to True if the model to evaluate is a segmentation model"
                                               "otherwise False for a scalar model")
-    is_classification: bool = param.Boolean(default=False,
+    is_classification: bool = param.Boolean(default=True,
                                             doc="Set to True if the model to evaluate is a classification model"
                                                 "otherwise False for a regression model")
     run_recovery_id: Optional[str] = param.String(default=None, allow_None=True,
@@ -513,7 +513,8 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
         for k, v in combined_metrics.items():
             aggregation_column = LoggingColumns.ModelOutput.value
             group_by_columns = [x for x in v.columns if x != aggregation_column]
-            combined_metrics[k] = v.groupby(group_by_columns, as_index=False)[aggregation_column].mean()
+            combined_metrics[k] = v.groupby(group_by_columns, as_index=False)[aggregation_column].mean()\
+                .sort_values(list(v.columns), ascending=True).reset_index(drop=True)
     return combined_metrics
 
 

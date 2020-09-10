@@ -36,7 +36,8 @@ from Tests.fixed_paths_for_tests import full_ml_test_data_path
 def test_config_ensemble() -> PlotCrossValidationConfig:
     return PlotCrossValidationConfig(
         run_recovery_id=DEFAULT_ENSEMBLE_RUN_RECOVERY_ID,
-        epoch=1
+        epoch=1,
+        is_classification=False
     )
 
 
@@ -54,7 +55,8 @@ def test_config_comparison() -> PlotCrossValidationConfig:
         run_recovery_id=DEFAULT_ENSEMBLE_RUN_RECOVERY_ID + "_0",
         epoch=1,
         comparison_run_recovery_ids=[DEFAULT_ENSEMBLE_RUN_RECOVERY_ID + "_1"],
-        comparison_epochs=[1]
+        comparison_epochs=[1],
+        is_classification=False
     )
 
 
@@ -157,7 +159,7 @@ def test_metrics_preparation_for_classification(perform_sub_fold_cross_validatio
     metrics = metrics.sort_values(list(metrics.columns), ascending=True).reset_index(drop=True)
     # To write new test results:
     # metrics.to_csv(expected_df_csv, index=False)
-    expected_df = pd.read_csv(expected_df_csv)
+    expected_df = pd.read_csv(expected_df_csv).sort_values(list(metrics.columns), ascending=True).reset_index(drop=True)
     pd.testing.assert_frame_equal(expected_df, metrics, check_like=True, check_dtype=False)
 
 
