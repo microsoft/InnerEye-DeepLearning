@@ -12,7 +12,7 @@ from InnerEye.Common.type_annotations import IntOrTuple3, TupleInt2
 from InnerEye.ML.config import PaddingMode
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
 from InnerEye.ML.models.layers.basic import BasicLayer
-from InnerEye.ML.models.parallel.model_parallel import get_device_from_parameters, is_model_parallel, move_to_device, \
+from InnerEye.ML.models.parallel.model_parallel import get_device_from_parameters, move_to_device, \
     partition_layers
 from InnerEye.ML.utils.layer_util import get_padding_from_kernel_size, get_upsampling_kernel_size, \
     initialise_layer_weights
@@ -74,8 +74,7 @@ class UNet3D(BaseModel):
             # When using the new DataParallel of PyTorch 1.6, self.parameters would be empty. Do not attempt to move
             # the tensors in this case. If self.parameters is present, the module is used inside of a model parallel
             # construct.
-            if is_model_parallel(self):
-                [x] = move_to_device([x], target_device=get_device_from_parameters(self))
+            [x] = move_to_device([x], target_device=get_device_from_parameters(self))
             return self.upsample_block(x)
 
     class UNetEncodeBlockSynthesis(torch.nn.Module):
@@ -109,9 +108,8 @@ class UNet3D(BaseModel):
             # When using the new DataParallel of PyTorch 1.6, self.parameters would be empty. Do not attempt to move
             # the tensors in this case. If self.parameters is present, the module is used inside of a model parallel
             # construct.
-            if is_model_parallel(self):
-                [x, skip_connection] = move_to_device(input_tensors=[x, skip_connection],
-                                                      target_device=get_device_from_parameters(self))
+            [x, skip_connection] = move_to_device(input_tensors=[x, skip_connection],
+                                                  target_device=get_device_from_parameters(self))
             x = self.conv1(x)
             x += self.conv2(skip_connection)
             x = self.activation_block(x)
@@ -158,8 +156,7 @@ class UNet3D(BaseModel):
             # When using the new DataParallel of PyTorch 1.6, self.parameters would be empty. Do not attempt to move
             # the tensors in this case. If self.parameters is present, the module is used inside of a model parallel
             # construct.
-            if is_model_parallel(self):
-                [x] = move_to_device(input_tensors=[x], target_device=get_device_from_parameters(self))
+            [x] = move_to_device(input_tensors=[x], target_device=get_device_from_parameters(self))
             x = self.block1(x)
             return self.block2(x) + x if self.use_residual else self.block2(x)
 
@@ -248,8 +245,7 @@ class UNet3D(BaseModel):
         # When using the new DataParallel of PyTorch 1.6, self.parameters would be empty. Do not attempt to move
         # the tensors in this case. If self.parameters is present, the module is used inside of a model parallel
         # construct.
-        if is_model_parallel(self):
-            [x] = move_to_device(input_tensors=[x], target_device=get_device_from_parameters(self.output_layer))
+        [x] = move_to_device(input_tensors=[x], target_device=get_device_from_parameters(self.output_layer))
         return self.output_layer(x)
 
     def get_all_child_layers(self) -> List[torch.nn.Module]:

@@ -116,14 +116,6 @@ def group_layers_with_balanced_memory(inputs: List[torch.nn.Module],
         yield [inputs[ii] for ii in range(num_layers) if ii in group.indices]
 
 
-def is_model_parallel(module: torch.nn.Module) -> bool:
-    """
-    Checks if the module has been undergoing partitioning across multiple GPUs in the `partition_layers` function.
-    Returns True if the model is partitioned across GPUs, and False if no attempts have been recorded.
-    """
-    return getattr(module, 'is_model_parallel', False)
-
-
 def partition_layers(layers: List[torch.nn.Module],
                      summary: OrderedDict,
                      target_devices: List[torch.device]) -> None:
@@ -142,9 +134,6 @@ def partition_layers(layers: List[torch.nn.Module],
                 update_module_device(submodules, target_device)
             else:
                 module.to(target_device)
-                # Set a flag that this model uses ModelParallel, that we can later use in testing and to distinguish
-                # between DataParallel
-                module.is_model_parallel = True
 
     num_devices = len(target_devices)
     for group, device in zip(group_layers_with_balanced_memory(layers, num_devices, summary), target_devices):
