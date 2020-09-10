@@ -69,14 +69,11 @@ class ProstateBase(SegmentationModelBase):
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         """
-        Return an adjusted split so they are roughly in the ratio
-        100 train, 10 test, 1 val
+        Return an adjusted split
         """
-        splits = super().get_model_train_test_dataset_splits(dataset_df)
-        total = splits.number_of_subjects()
-        n_test = int(0.5 + total * 10 / 111)
-        n_val = int(0.5 + total * 1 / 111)
-        return splits.restrict_subjects(f"+,{n_val},{n_test}")
+        return DatasetSplits.from_proportions(dataset_df, proportion_train=0.8, proportion_val=0.05,
+                                              proportion_test=0.15,
+                                              random_seed=0)
 
     def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
         """
