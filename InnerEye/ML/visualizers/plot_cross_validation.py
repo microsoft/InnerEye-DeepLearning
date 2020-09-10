@@ -92,7 +92,7 @@ class PlotCrossValidationConfig(GenericConfig):
     is_segmentation: bool = param.Boolean(default=True,
                                           doc="Set to True if the model to evaluate is a segmentation model"
                                               "otherwise False for a scalar model")
-    is_classification: bool = param.Boolean(default=True,
+    is_classification: bool = param.Boolean(default=False,
                                             doc="Set to True if the model to evaluate is a classification model"
                                                 "otherwise False for a regression model")
     run_recovery_id: Optional[str] = param.String(default=None, allow_None=True,
