@@ -376,8 +376,8 @@ def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) ->
     config.dataset_data_frame = _get_mock_sequence_dataset(dataset_contents)
     results = model_train(config)
 
-    actual_train_loss = results.train_results_per_epoch[-1].metrics.values()[MetricType.LOSS.value][0]
-    actual_val_loss = results.val_results_per_epoch[-1].metrics.values()[MetricType.LOSS.value][0]
+    actual_train_loss = results.train_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
+    actual_val_loss = results.val_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
     print(f"Training loss after {config.num_epochs} epochs: {actual_train_loss}")
     print(f"Validation loss after {config.num_epochs} epochs: {actual_val_loss}")
     assert actual_train_loss <= expected_max_train_loss, "Training loss too high"

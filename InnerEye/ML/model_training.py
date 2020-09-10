@@ -146,7 +146,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                     in_training_mode=True)
         training_steps = create_model_training_steps(config, train_val_params)
         train_epoch_results = train_or_validate_epoch(training_steps)
-        train_results_per_epoch.append(train_epoch_results)
+        train_results_per_epoch.append(train_epoch_results.metrics)
 
         metrics.validate_and_store_model_parameters(writers.train, epoch, model)
         # Run without adjusting weights on the validation set
@@ -159,8 +159,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
         training_steps = create_model_training_steps(config, train_val_params)
         val_epoch_results = train_or_validate_epoch(training_steps)
-        if train_val_params.save_metrics:
-            val_results_per_epoch.append(val_epoch_results)
+        val_results_per_epoch.append(val_epoch_results.metrics)
 
         if config.is_segmentation_model:
             metrics.store_epoch_stats_for_segmentation(config.outputs_folder, epoch, epoch_lrs,
@@ -174,7 +173,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                     temperature_scaling_steps(config, train_val_params, val_epoch_results)
                 optimal_temperature_scale_values.append(optimal_temperature)
                 # overwrite the metrics for the epoch with the metrics from the temperature scaled model
-                val_results_per_epoch.append(scaled_val_results)
+                val_results_per_epoch[-1] = scaled_val_results.metrics
 
             assert optimizer is not None
             save_checkpoint(model, optimizer, epoch, config)
