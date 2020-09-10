@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Tuple
 
 import pytest
-from _pytest.main import ExitCode
 from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
@@ -25,6 +24,7 @@ def run_pytest(pytest_mark: str, outputs_folder: Path) -> Tuple[bool, Path]:
     :return: True if PyTest found tests to execute and completed successfully, False otherwise.
     Also returns the path to the generated PyTest results file.
     """
+    from _pytest.main import ExitCode
     _outputs_file = outputs_folder / PYTEST_RESULTS_FILE
     # Only run on tests in Tests/, to avoid the Tests/ directory if this repo is consumed as a submodule
     pytest_args = ["Tests/", f"--junitxml={str(_outputs_file)}"]

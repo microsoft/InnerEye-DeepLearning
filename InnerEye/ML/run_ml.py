@@ -124,13 +124,17 @@ class MLRunner:
                                        self.model_deployment_hook, self.innereye_submodule_name)
             split_ml_runner.run()
 
-        for x in range(self.model_config.number_of_cross_validation_splits):
-            num_child_folds = self.model_config.number_of_cross_validation_splits_per_fold \
-                if isinstance(self.model_config, ScalarModelBase) else 0
-            if num_child_folds > 0:
-                for y in range(num_child_folds):
-                    _spawn_run(x, y)
-            else:
+        num_child_folds = self.model_config.number_of_cross_validation_splits_per_fold \
+            if isinstance(self.model_config, ScalarModelBase) else 0
+
+        if num_child_folds > 0:
+            runs = np.array_split(range(self.model_config.get_total_number_of_cross_validation_runs()),
+                                  num_child_folds)
+            for i, x in enumerate(runs):
+                for y in x:
+                    _spawn_run(i, y)
+        else:
+            for x in range(self.model_config.number_of_cross_validation_splits):
                 _spawn_run(x, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX)
 
         config_and_files = get_config_and_results_for_offline_runs(self.model_config)
