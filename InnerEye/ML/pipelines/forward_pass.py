@@ -117,7 +117,29 @@ class SegmentationForwardPass:
                 result = self._forward_pass(patches, mask, labels)
             if result.loss is not None and (math.isnan(result.loss) or math.isinf(result.loss)):
                 raise RuntimeError(f"The loss computation returned {result.loss}")
+            return result
         return self._forward_pass(patches, mask, labels)
+
+    def _compute_loss(self, patches: Tensor, labels: Optional[Tensor]) -> Tuple[Tensor, Optional[Tensor]]:
+        """
+        Do a forward pass on the model with the patches as input. If labels are provided, compute the loss.
+        Return a tuple of (logits, loss).
+        """
+        def compute() -> Tuple[Any, Optional[Tensor]]:
+            loss: Optional[torch.Tensor] = None
+            logits = self.model(patches)
+            # If labels *is* None, loss will also be None, which will stop the code below working (and
+            # currently correctly triggers mypy errors).
+            if labels is not None and self.criterion_fn is not None:
+                loss = self.criterion_fn(logits, labels)
+            return logits, loss
+
+        if self.gradient_scaler:
+            with torch.cuda.amp.autocast():
+                logits, loss = compute()
+        else:
+            logits, loss = compute()
+        return logits, loss
 
     def _forward_pass(self,
                       patches: torch.Tensor,
@@ -130,22 +152,7 @@ class SegmentationForwardPass:
         if mask is not None:
             mask = self.config.get_gpu_tensor_if_possible(mask)
 
-        # do a forward pass on the model with the patches as input
-        # this will give outputs in format: Batches x Classes x Z x Y x X
-        def compute_logits_and_loss() -> Tuple[Any, Optional[Tensor]]:
-            loss: Optional[torch.Tensor] = None
-            logits = self.model(patches)
-            # If labels *is* None, loss will also be None, which will stop the code below working (and
-            # currently correctly triggers mypy errors).
-            if labels is not None and self.criterion_fn is not None:
-                loss = self.criterion_fn(logits, labels)
-            return logits, loss
-
-        if self.gradient_scaler:
-            with torch.cuda.amp.autocast():
-                logits, loss = compute_logits_and_loss()
-        else:
-            logits, loss = compute_logits_and_loss()
+        logits, loss = self._compute_loss(patches, labels)
 
         if self.in_training_mode:
             if loss is None:

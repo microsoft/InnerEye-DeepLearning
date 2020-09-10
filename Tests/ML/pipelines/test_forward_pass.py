@@ -113,7 +113,7 @@ def test_amp_activated(use_model_parallel: bool,
                        execution_mode: ModelExecutionMode,
                        use_mixed_precision: bool) -> None:
     """
-    Tests the mix precision flag both for True and False.
+    Tests the mix precision flag and the model parallel flag.
     """
     assert machine_has_gpu, "This test must be executed on a GPU machine."
     assert torch.cuda.device_count() > 1, "This test must be executed on a multi-GPU machine"
@@ -157,7 +157,19 @@ def test_amp_activated(use_model_parallel: bool,
                                        optimizer=optimizer,
                                        gradient_scaler=gradient_scaler,
                                        criterion=criterion)
-
+    # This is the same logic spelt out in update_model_for_multiple_gpu
+    use_data_parallel = (execution_mode == ModelExecutionMode.TRAIN) or (not use_model_parallel)
+    logits, loss = pipeline._compute_loss(image, labels)
+    # When using DataParallel, we expect to get a list of tensors back, one per GPU.
+    if use_data_parallel:
+        assert isinstance(logits, list)
+        first_logit = logits[0]
+    else:
+        first_logit = logits
+    if use_mixed_precision:
+        assert first_logit.dtype == torch.float16
+    else:
+        assert first_logit.dtype == torch.float32
     # Verify that forward and backward passes do not throw an exception
     pipeline._forward_pass(patches=image, mask=mask, labels=labels)
 
