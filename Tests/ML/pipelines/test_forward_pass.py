@@ -21,7 +21,6 @@ from InnerEye.ML.model_training import model_train
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForScalarModel, TrainValidateParameters, \
     get_scalar_model_inputs_and_labels
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
-from InnerEye.ML.models.layers.pooling_layers import AveragePooling
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util, model_util
@@ -292,7 +291,7 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
         assert isinstance(model_and_info.model, DataParallelModel)
     data_loaders = config.create_data_loaders()
     gradient_scaler = GradScaler() if use_mixed_precision else None
-    train_val_parameters = TrainValidateParameters(
+    train_val_parameters: TrainValidateParameters = TrainValidateParameters(
         model=model_and_info.model,
         data_loader=data_loaders[execution_mode],
         in_training_mode=execution_mode == ModelExecutionMode.TRAIN,

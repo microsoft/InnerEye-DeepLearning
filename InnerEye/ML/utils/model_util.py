@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, List, Optional, Union
 
 import torch
-from torch.cuda.amp import GradScaler
 from torch.optim.optimizer import Optimizer
 from torch.optim.rmsprop import RMSprop
 
