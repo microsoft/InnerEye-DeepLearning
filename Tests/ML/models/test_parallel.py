@@ -13,8 +13,7 @@ from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConst
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion
 from InnerEye.ML.models.parallel.model_parallel import group_layers_with_balanced_memory, is_model_parallel, \
-    move_to_device, \
-    partition_layers
+    move_to_device, partition_layers
 from InnerEye.ML.utils.ml_util import is_gpu_available
 
 no_gpu = not is_gpu_available()

@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from collections import OrderedDict
-from typing import Generator, List, Optional
+from typing import Generator, Iterable, List, Optional
 
 import numpy as np
 import torch
@@ -11,7 +11,7 @@ import torch
 
 def move_to_device(input_tensors: List[torch.Tensor],
                    target_device: Optional[torch.device],
-                   non_blocking: bool = False) -> Generator[torch.Tensor]:
+                   non_blocking: bool = False) -> Iterable[torch.Tensor]:
     """
     Updates the memory location of tensors stored in a list.
     :param input_tensors: List of torch tensors
