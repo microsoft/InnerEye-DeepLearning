@@ -166,7 +166,7 @@ def _create_lr_scheduler_and_optimizer(config: SegmentationModelBase, optimizer:
 
 
 # This construct is to work around an issue where mypy does not think that MultiplicativeLR exists in lr_scheduler
-def multiplicative(optimizer) -> _LRScheduler:
+def multiplicative(optimizer: Optimizer) -> _LRScheduler:
     return lr_scheduler.MultiplicativeLR(optimizer, lr_lambda=lambda epoch: 0.5)  # type: ignore
 
 

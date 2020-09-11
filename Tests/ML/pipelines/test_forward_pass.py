@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 import torch
 from torch.cuda.amp import GradScaler
+from torch.nn import Softmax
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import MetricsDataframeLoggers
@@ -28,6 +29,7 @@ from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.metrics_util import SummaryWriters
 from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
+from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
 from Tests.ML.util import machine_has_gpu, no_gpu_available
 
 
@@ -113,8 +115,8 @@ def test_anomaly_detection(value_to_insert: float, in_training_mode: bool) -> No
 
 @pytest.mark.gpu
 @pytest.mark.skipif(no_gpu_available, reason="Testing AMP requires a GPU")
-@pytest.mark.parametrize("use_model_parallel", [False, True])
-@pytest.mark.parametrize("use_mixed_precision", [False, True])
+@pytest.mark.parametrize("use_model_parallel", [False])
+@pytest.mark.parametrize("use_mixed_precision", [True])
 @pytest.mark.parametrize("execution_mode", [ModelExecutionMode.TRAIN, ModelExecutionMode.TEST])
 def test_amp_activated(use_model_parallel: bool,
                        execution_mode: ModelExecutionMode,
@@ -265,7 +267,9 @@ def test_mean_teacher_model() -> None:
 
 @pytest.mark.gpu
 @pytest.mark.skipif(no_gpu_available, reason="Testing AMP requires a GPU")
-# @pytest.mark.parametrize("use_mixed_precision", [False, True])
+# This test should actually also pass with mixed_precision=True. We verified manually that the amp.autocast()
+# region is present at the right place, but still the output tensors are not float16. All operations involved are
+# eligible for autocast, as per https://pytorch.org/docs/stable/amp.html#ops-that-can-autocast-to-float16
 @pytest.mark.parametrize("use_mixed_precision", [False])
 @pytest.mark.parametrize("execution_mode", [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL])
 def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirectories,
@@ -278,7 +282,8 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
     assert torch.cuda.device_count() > 1, "This test must be executed on a multi-GPU machine"
     config = ClassificationModelForTesting()
     config.use_mixed_precision = use_mixed_precision
-    model = config.create_model()
+    model = DummyScalarModel(expected_image_size_zyx=config.expected_image_size_zyx,
+                             activation=Softmax())
     model_and_info = ModelAndInfo(
         model=model,
         model_execution_mode=execution_mode
