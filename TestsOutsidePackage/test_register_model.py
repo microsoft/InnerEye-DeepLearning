@@ -183,7 +183,6 @@ def test_get_child_paths(is_ensemble: bool, extra_code_directory: str) -> None:
     path_to_root = tests_root_directory().parent
     azure_config = AzureConfig(extra_code_directory=extra_code_directory)
     fake_model = ModelConfigBase(azure_dataset_id="fake_dataset_id")
-    fake_model._model_name = "FakeModelToTestRegistration"
     ml_runner = MLRunner(model_config=fake_model, azure_config=azure_config, project_root=path_to_root)
     child_paths = ml_runner.get_child_paths(checkpoints)
     assert fixed_paths.ENVIRONMENT_YAML_FILE_NAME in child_paths
