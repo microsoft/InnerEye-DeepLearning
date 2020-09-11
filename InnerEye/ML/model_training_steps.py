@@ -352,7 +352,6 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         label_gpu = self.get_label_tensor(model_inputs_and_labels.labels)
         logits, posteriors, loss = self._compute_model_output_and_loss(model_inputs_and_labels)
         gathered_logits = gather_tensor(logits)
-        # antonsc: Should switch the gradient scaler here to be that of the mean teacher
         if self.in_training_mode:
             single_optimizer_step(loss,
                                   self.train_val_params.optimizer,
