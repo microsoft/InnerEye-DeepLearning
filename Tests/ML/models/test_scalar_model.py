@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 import io
 import logging
-from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Optional
 from unittest import mock
@@ -34,6 +33,7 @@ from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelFo
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.models.test_parallel import no_gpu
 from Tests.ML.util import get_default_azure_config, machine_has_gpu
+from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.parametrize("use_mixed_precision", [False, True])
@@ -64,10 +64,10 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     use_mixed_precision_and_gpu = use_mixed_precision and machine_has_gpu
     if use_mixed_precision_and_gpu:
-        expected_train_loss = [0.701641, 0.713191, 0.690777, 0.712191]
+        expected_train_loss = [0.701649, 0.702895, 0.712559, 0.711975]
         expected_val_loss = [0.644326, 0.645163, 0.645881, 0.646391]
     else:
-        expected_train_loss = [0.701649, 0.713194, 0.690772, 0.712186]
+        expected_train_loss = [0.701641, 0.702897, 0.712556, 0.711973]
         expected_val_loss = [0.644326, 0.645163, 0.645881, 0.646391]
 
     def extract_loss(results: List[MetricsDict]) -> List[float]:
@@ -76,68 +76,44 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     actual_train_loss = extract_loss(model_training_result.train_results_per_epoch)
     actual_val_loss = extract_loss(model_training_result.val_results_per_epoch)
     actual_learning_rates = list(flatten(model_training_result.learning_rates_per_epoch))
-    assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6)
-    assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6)
+    assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-3)
+    assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-3)
     assert actual_learning_rates == pytest.approx(expected_learning_rates, rel=1e-5)
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN)
     assert isinstance(test_results, InferenceMetricsForClassification)
     assert list(test_results.epochs.keys()) == expected_epochs
     if use_mixed_precision_and_gpu:
         expected_metrics = {
-            2: [0.635924, 0.736720],
-            4: [0.636096, 0.735957],
+            2: [0.639107, 0.735125, 0.652860, 0.735125, 0.735125, 0.735125],
+            4: [0.640213, 0.733004, 0.654818, 0.733004, 0.733004, 0.733004],
         }
     else:
         expected_metrics = {
-            2: [0.635941, 0.736690],
-            4: [0.636084, 0.735952],
+            2: [0.639107, 0.735125, 0.652860, 0.735125, 0.735125, 0.735125],
+            4: [0.640214, 0.733001, 0.654820, 0.733001, 0.733001, 0.733001],
         }
     for epoch in expected_epochs:
         assert test_results.epochs[epoch].values()[MetricType.CROSS_ENTROPY.value] == \
-               pytest.approx(expected_metrics[epoch], abs=1e-6)
+               pytest.approx(expected_metrics[epoch], abs=1e-3)
     if check_logs:
         # Check log EPOCH_METRICS_FILE_NAME
-        epoch_metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME
+        epoch_metrics = pd.read_csv(config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME)
         # Auto-format will break the long header line, hence the strange way of writing it!
-        expected_epoch_metrics = \
-            "loss,cross_entropy,accuracy_at_threshold_05,seconds_per_batch,seconds_per_epoch,learning_rate," + \
-            "area_under_roc_curve,area_under_pr_curve,accuracy_at_optimal_threshold," \
-            "false_positive_rate_at_optimal_threshold,false_negative_rate_at_optimal_threshold," \
-            "optimal_threshold,subject_count,epoch,cross_validation_split_index\n" + \
-            """0.6866141557693481,0.6866141557693481,0.5,0,0,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,1,-1
-            0.6864652633666992,0.6864652633666992,0.5,0,0,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,2,-1
-            0.6863163113594055,0.6863162517547607,0.5,0,0,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,3,-1
-            0.6861673593521118,0.6861673593521118,0.5,0,0,9.998613801725043e-05,1.0,1.0,0.5,0.0,0.0,0.529399,2.0,4,-1
-            """
-        check_log_file(epoch_metrics_path, expected_epoch_metrics,
+        expected_epoch_metrics = pd.read_csv(full_ml_test_data_path("train_and_test_data") / "scalar_epoch_metrics.csv")
+        check_log_file(epoch_metrics, expected_epoch_metrics,
                        ignore_columns=[LoggingColumns.SecondsPerBatch.value, LoggingColumns.SecondsPerEpoch.value])
 
         # Check log METRICS_FILE_NAME
-        metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / METRICS_FILE_NAME
-        metrics_expected = \
-            """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
-Default,1,S4,0.5216594338417053,0.0,-1,Train
-Default,1,S2,0.5295137763023376,1.0,-1,Train
-Default,2,S4,0.5214819312095642,0.0,-1,Train
-Default,2,S2,0.5294750332832336,1.0,-1,Train
-Default,3,S4,0.5213046073913574,0.0,-1,Train
-Default,3,S2,0.5294366478919983,1.0,-1,Train
-Default,4,S4,0.5211275815963745,0.0,-1,Train
-Default,4,S2,0.5293986201286316,1.0,-1,Train
-"""
+        metrics_path = pd.read_csv(config.outputs_folder / ModelExecutionMode.TRAIN.value / METRICS_FILE_NAME)
+        metrics_expected = pd.read_csv(full_ml_test_data_path("train_and_test_data")
+                                       / "scalar_prediction_target_metrics.csv")
         check_log_file(metrics_path, metrics_expected, ignore_columns=[])
 
 
-def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> None:
-    df_expected = pd.read_csv(StringIO(expected_csv))
-    df_epoch_metrics_actual = pd.read_csv(path)
-    for ignore_column in ignore_columns:
-        assert ignore_column in df_epoch_metrics_actual
-        # We cannot compare time because in different machines this takes different times
-        del df_epoch_metrics_actual[ignore_column]
-        if ignore_column in df_expected:
-            del df_expected[ignore_column]
-    pd.testing.assert_frame_equal(df_expected, df_epoch_metrics_actual, check_less_precise=True)
+def check_log_file(actual: pd.DataFrame, expected: pd.DataFrame, ignore_columns: List[str]) -> None:
+    actual = actual.drop(ignore_columns, axis=1).reset_index(drop=True)
+    expected = expected.drop(ignore_columns, axis=1).reset_index(drop=True)
+    pd.testing.assert_frame_equal(actual, expected, check_less_precise=True)
 
 
 @pytest.mark.gpu
