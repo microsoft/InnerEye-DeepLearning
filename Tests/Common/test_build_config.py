@@ -74,7 +74,7 @@ def test_config_non_overridable_params() -> None:
 def test_config_with_typo() -> None:
     with pytest.raises(ValueError) as ex:
         ModelConfigBase(
-            num_epochsi = 100
+            num_epochsi=100
         )
         assert "The following parameters do not exist: num_epochsi" in ex.value.args[0]
 
@@ -92,5 +92,3 @@ def test_dataset_reader_workers() -> None:
         assert config.num_dataset_reader_workers == -1
     else:
         assert config.num_dataset_reader_workers == 0
-
-
