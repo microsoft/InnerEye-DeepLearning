@@ -113,11 +113,10 @@ class GenericConfig(param.Parameterized):
             unknown = [k for k, v in params.items() if (k not in self.params().keys())]
             if unknown:
                 raise ValueError(f"The following parameters do not exist: {unknown}")
-        else:
-            # set known arguments
-            super().__init__(**{k: v for k, v in params.items() if k in legal_params.keys()})
-            if should_validate:
-                self.validate()
+        # set known arguments
+        super().__init__(**{k: v for k, v in params.items() if k in legal_params.keys()})
+        if should_validate:
+            self.validate()
 
     def validate(self) -> None:
         """
