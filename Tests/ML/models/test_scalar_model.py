@@ -64,10 +64,10 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     use_mixed_precision_and_gpu = use_mixed_precision and machine_has_gpu
     if use_mixed_precision_and_gpu:
-        expected_train_loss = [0.686615, 0.686467, 0.686322, 0.686174]
-        expected_val_loss = [0.737038, 0.736720, 0.736338, 0.735957]
+        expected_train_loss = [0.701641, 0.713191, 0.690777, 0.712191]
+        expected_val_loss = [0.644326, 0.645244, 0.646060, 0.646902]
     else:
-        expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
+        expected_train_loss = [0.701649, 0.713194, 0.690772, 0.712186]
         expected_val_loss = [0.737061, 0.736690, 0.736321, 0.735952]
 
     def extract_loss(results: List[MetricsDict]) -> List[float]:
@@ -455,7 +455,7 @@ def test_dataset_stats_hook(test_output_dirs: TestOutputDirectories) -> None:
 
     model.create_and_set_torch_datasets()
     assert out_file.is_file()
-    assert out_file.read_text() == "\n".join(["Train: 2", "Test: 1", "Val: 1"])
+    assert out_file.read_text() == "\n".join(["Train: 6", "Test: 2", "Val: 2"])
 
 
 def test_dataset_stats_hook_failing(test_output_dirs: TestOutputDirectories) -> None:
