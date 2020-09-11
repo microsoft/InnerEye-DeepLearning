@@ -65,10 +65,10 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     use_mixed_precision_and_gpu = use_mixed_precision and machine_has_gpu
     if use_mixed_precision_and_gpu:
         expected_train_loss = [0.701641, 0.713191, 0.690777, 0.712191]
-        expected_val_loss = [0.644326, 0.645244, 0.646060, 0.646902]
+        expected_val_loss = [0.644326, 0.645163, 0.645881, 0.646391]
     else:
         expected_train_loss = [0.701649, 0.713194, 0.690772, 0.712186]
-        expected_val_loss = [0.737061, 0.736690, 0.736321, 0.735952]
+        expected_val_loss = [0.644326, 0.645163, 0.645881, 0.646391]
 
     def extract_loss(results: List[MetricsDict]) -> List[float]:
         return [d.values()[MetricType.LOSS.value][0] for d in results]
