@@ -104,9 +104,13 @@ class GenericConfig(param.Parameterized):
         # check if illegal arguments are passed in
         legal_params = self.get_overridable_parameters()
         illegal = [k for k, v in params.items() if (k in self.params().keys()) and (k not in legal_params)]
+        # check if parameters not defined by the config class are passed in
+        unknown = [k for k, v in params.items() if (k not in self.params().keys())]
         if illegal:
             raise ValueError(f"The following parameters cannot be overriden as they are either "
                              f"readonly, constant, or private members : {illegal}")
+        if unknown:
+            raise ValueError(f"The following parameters do not exist: {unknown}")
         else:
             # set known arguments
             super().__init__(**{k: v for k, v in params.items() if k in legal_params.keys()})
