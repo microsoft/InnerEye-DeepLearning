@@ -3,14 +3,13 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import random
-from typing import Any, Iterable, List, Tuple
+from typing import Any
 
 import pandas as pd
 
 from InnerEye.ML.config import MixtureLossComponent, PhotometricNormalizationMethod, SegmentationLoss, \
     SegmentationModelBase, SliceExclusionRule, SummedProbabilityRule, equally_weighted_classes
 from InnerEye.ML.deep_learning_config import OptimizerType
-from InnerEye.ML.utils.csv_util import CSV_SERIES_HEADER
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
@@ -129,18 +128,6 @@ class HeadAndNeckBase(SegmentationModelBase):
         self.add_and_validate(kwargs)
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
-        series_ids = dataset_df[CSV_SERIES_HEADER]
-        test_ids, val_ids, train_ids = self.decide_model_train_test_dataset_splits(series_ids)
-        test_df = DatasetSplits.get_df_from_ids(dataset_df, test_ids, CSV_SERIES_HEADER)
-        val_df = DatasetSplits.get_df_from_ids(dataset_df, val_ids, CSV_SERIES_HEADER)
-        train_df = DatasetSplits.get_df_from_ids(dataset_df, train_ids, CSV_SERIES_HEADER)
-        return DatasetSplits(train=train_df, val=val_df, test=test_df)
-
-    @classmethod
-    def decide_model_train_test_dataset_splits(cls, series_ids: Iterable[str]) \
-            -> Tuple[List[str], List[str], List[str]]:
-        """
-        :param series_ids: iterable of series IDs from which train, val and test sets should be chosen
-        :return: list of test IDs, list of validation IDs, list of training IDs.
-        """
-        raise NotImplementedError()
+        return DatasetSplits.from_proportions(dataset_df, proportion_train=0.8, proportion_val=0.05,
+                                              proportion_test=0.15,
+                                              random_seed=0)
