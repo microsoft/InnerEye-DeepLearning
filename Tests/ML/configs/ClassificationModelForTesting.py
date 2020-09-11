@@ -16,6 +16,7 @@ from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
 class ClassificationModelForTesting(ScalarModelBase):
     def __init__(self, conv_in_3d: bool = True, mean_teacher_model: bool = False) -> None:
         num_epochs = 4
+        mean_teacher_alpha = 0.99 if mean_teacher_model else None
         super().__init__(
             local_dataset=full_ml_test_data_path("classification_data"),
             image_channels=["image"],
@@ -28,7 +29,8 @@ class ClassificationModelForTesting(ScalarModelBase):
             num_epochs=num_epochs,
             num_dataload_workers=0,
             test_start_epoch=num_epochs,
-            subject_column="subjectID"
+            subject_column="subjectID",
+            mean_teacher_alpha=mean_teacher_alpha
         )
         self.expected_image_size_zyx = (4, 5, 7)
         self.conv_in_3d = conv_in_3d
