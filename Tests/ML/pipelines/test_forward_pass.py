@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 import torch
 from torch.cuda.amp import GradScaler
-from torch.nn import Softmax
+from torch.nn import Identity
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import MetricsDataframeLoggers
@@ -283,7 +283,7 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
     config = ClassificationModelForTesting()
     config.use_mixed_precision = use_mixed_precision
     model = DummyScalarModel(expected_image_size_zyx=config.expected_image_size_zyx,
-                             activation=Softmax())
+                             activation=Identity())
     model_and_info = ModelAndInfo(
         model=model,
         model_execution_mode=execution_mode
