@@ -64,11 +64,11 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     use_mixed_precision_and_gpu = use_mixed_precision and machine_has_gpu
     if use_mixed_precision_and_gpu:
-        expected_train_loss = [0.701649, 0.702895, 0.712559, 0.711975]
-        expected_val_loss = [0.644326, 0.645163, 0.645881, 0.646391]
+        expected_train_loss = [0.7016490995883942, 0.702895998954773, 0.7125596106052399, 0.7119755446910858]
+        expected_val_loss = [0.7016417980194092, 0.7028971016407013, 0.7125568389892578, 0.7119733691215515]
     else:
-        expected_train_loss = [0.701641, 0.702897, 0.712556, 0.711973]
-        expected_val_loss = [0.644326, 0.645163, 0.645881, 0.646391]
+        expected_train_loss = [0.701649, 0.713194, 0.690772, 0.712186]
+        expected_val_loss = [0.6443266272544861, 0.6452442407608032, 0.6460609436035156, 0.6469027996063232]
 
     def extract_loss(results: List[MetricsDict]) -> List[float]:
         return [d.values()[MetricType.LOSS.value][0] for d in results]
@@ -76,8 +76,8 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     actual_train_loss = extract_loss(model_training_result.train_results_per_epoch)
     actual_val_loss = extract_loss(model_training_result.val_results_per_epoch)
     actual_learning_rates = list(flatten(model_training_result.learning_rates_per_epoch))
-    assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-3)
-    assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-3)
+    assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6)
+    assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6)
     assert actual_learning_rates == pytest.approx(expected_learning_rates, rel=1e-5)
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN)
     assert isinstance(test_results, InferenceMetricsForClassification)
@@ -94,7 +94,7 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
         }
     for epoch in expected_epochs:
         assert test_results.epochs[epoch].values()[MetricType.CROSS_ENTROPY.value] == \
-               pytest.approx(expected_metrics[epoch], abs=1e-3)
+               pytest.approx(expected_metrics[epoch], abs=1e-6)
     if check_logs:
         # Check log EPOCH_METRICS_FILE_NAME
         epoch_metrics = pd.read_csv(config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME)
