@@ -84,12 +84,12 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     assert list(test_results.epochs.keys()) == expected_epochs
     if use_mixed_precision_and_gpu:
         expected_metrics = {
-            2: [0.639107, 0.735125, 0.652860, 0.735125, 0.735125, 0.735125],
+            2: [0.639776, 0.733572, 0.654292, 0.733572, 0.733572, 0.733572],
             4: [0.640213, 0.733004, 0.654818, 0.733004, 0.733004, 0.733004],
         }
     else:
         expected_metrics = {
-            2: [0.639107, 0.735125, 0.652860, 0.735125, 0.735125, 0.735125],
+            2: [0.639776, 0.733572, 0.654292, 0.733572, 0.733572, 0.733572],
             4: [0.640214, 0.733001, 0.654820, 0.733001, 0.733001, 0.733001],
         }
     for epoch in expected_epochs:
