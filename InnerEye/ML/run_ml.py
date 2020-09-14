@@ -123,9 +123,9 @@ class MLRunner:
             if cross_val_sub_fold_split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
                 _local_split_folder_name = str(cross_val_split_index)
             else:
-                _local_split_folder_name = str(
-                    (cross_val_split_index * split_model_config.number_of_cross_validation_splits_per_fold) +
-                    cross_val_sub_fold_split_index)
+                _local_split_folder_name = \
+                    str((cross_val_split_index * split_model_config.number_of_cross_validation_splits_per_fold)
+                        + cross_val_sub_fold_split_index)
 
             split_model_config.file_system_config = parent_run_file_system.add_subfolder(_local_split_folder_name)
 
