@@ -206,7 +206,8 @@ class ScalarModelBase(ModelConfigBase):
 
     def __init__(self, num_dataset_reader_workers: int = 0, **params: Any) -> None:
         super().__init__(**params)
-        self._model_category = ModelCategory.Scalar
+        self._model_category = ModelCategory.Regression \
+            if self.is_regression_model else ModelCategory.Classification
         if not self.is_offline_run:
             self.num_dataset_reader_workers = 0
             logging.info("dataset reader parallelization is supported only locally, setting "

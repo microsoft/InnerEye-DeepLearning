@@ -16,6 +16,7 @@ from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DA
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
@@ -37,7 +38,7 @@ def test_config_ensemble() -> PlotCrossValidationConfig:
     return PlotCrossValidationConfig(
         run_recovery_id=DEFAULT_ENSEMBLE_RUN_RECOVERY_ID,
         epoch=1,
-        is_classification=False
+        model_category=ModelCategory.Segmentation
     )
 
 
@@ -45,7 +46,8 @@ def test_config_ensemble() -> PlotCrossValidationConfig:
 def test_config() -> PlotCrossValidationConfig:
     return PlotCrossValidationConfig(
         run_recovery_id=DEFAULT_RUN_RECOVERY_ID,
-        epoch=1
+        epoch=1,
+        model_category=ModelCategory.Segmentation
     )
 
 
@@ -56,7 +58,7 @@ def test_config_comparison() -> PlotCrossValidationConfig:
         epoch=1,
         comparison_run_recovery_ids=[DEFAULT_ENSEMBLE_RUN_RECOVERY_ID + "_1"],
         comparison_epochs=[1],
-        is_classification=False
+        model_category=ModelCategory.Segmentation
     )
 
 
@@ -137,7 +139,7 @@ def load_result_files_for_classification(perform_sub_fold_cross_validation: bool
     plotting_config = PlotCrossValidationConfig(
         run_recovery_id=run_recovery_id,
         epoch=3,
-        is_segmentation=False
+        model_category=ModelCategory.Classification
     )
     return files, plotting_config
 
@@ -369,7 +371,7 @@ def test_download_or_get_local_blobs(is_current_run: bool,
 
 def test_download_or_get_local_file_2(test_output_dirs: TestOutputDirectories) -> None:
     config = PlotCrossValidationConfig(run_recovery_id=None,
-                                       is_segmentation=False,
+                                       model_category=ModelCategory.Classification,
                                        epoch=None,
                                        should_validate=False)
     download_to_folder = Path(test_output_dirs.root_dir) / CROSSVAL_RESULTS_FOLDER
@@ -429,7 +431,7 @@ def test_load_files_with_prediction_target() -> None:
     plotting_config = PlotCrossValidationConfig(
         run_recovery_id=run_id,
         epoch=1,
-        is_segmentation=False
+        model_category=ModelCategory.Classification
     )
     downloaded_metrics = load_dataframes(files, plotting_config)
     assert ModelExecutionMode.TEST not in downloaded_metrics
@@ -456,7 +458,7 @@ def test_aggregate_files_with_prediction_target(test_output_dirs: TestOutputDire
     plotting_config = PlotCrossValidationConfig(
         run_recovery_id=run_id,
         epoch=1,
-        is_segmentation=False,
+        model_category=ModelCategory.Classification
     )
     root_folder = Path(test_output_dirs.root_dir)
     print(f"Writing result files to {root_folder}")

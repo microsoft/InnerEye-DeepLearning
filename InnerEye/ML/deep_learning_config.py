@@ -65,7 +65,11 @@ class ModelCategory(Enum):
     Describes the different high-level model categories that the codebase supports.
     """
     Segmentation = "Segmentation"  # All models that perform segmentation: Classify each voxel in the input image.
-    Scalar = "Scalar"  # All models that predict a scalar (classification, regression) from an input image.
+    Classification = "Classification"  # All models that perform classification
+    Regression = "Regression"  # All models that perform regression
+
+    def is_scalar(self) -> bool:
+        return self in [ModelCategory.Classification, ModelCategory.Regression]
 
 
 @unique
@@ -424,7 +428,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         Returns True if the present model configuration belongs to the high-level category ModelCategory.Scalar
         i.e. for Classification or Regression models.
         """
-        return self.model_category == ModelCategory.Scalar
+        return self.model_category.is_scalar()
 
     @property
     def compute_grad_cam(self) -> bool:
@@ -580,7 +584,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         test_epochs = {self.num_epochs}
         if self.test_diff_epochs is not None and self.test_start_epoch is not None and \
-                self.test_step_epochs is not None:
+            self.test_step_epochs is not None:
             for j in range(self.test_diff_epochs):
                 epoch = self.test_start_epoch + self.test_step_epochs * j
                 if epoch > self.num_epochs:
