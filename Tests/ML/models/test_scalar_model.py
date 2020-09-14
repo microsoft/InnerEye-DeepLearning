@@ -65,7 +65,7 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     use_mixed_precision_and_gpu = use_mixed_precision and machine_has_gpu
     if use_mixed_precision_and_gpu:
         expected_train_loss = [0.701641, 0.713191, 0.690777, 0.712191]
-        expected_val_loss = [0.644326, 0.645163, 0.645881, 0.646391]
+        expected_val_loss = [0.644323, 0.645151, 0.645878, 0.646372]
     else:
         expected_train_loss = [0.701649, 0.713194, 0.690772, 0.712186]
         expected_val_loss = [0.644326, 0.645163, 0.645881, 0.646391]
@@ -90,7 +90,7 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     else:
         expected_metrics = {
             2: [0.639107, 0.735125, 0.652860, 0.735125, 0.735125, 0.735125],
-            4: [0.640214, 0.733001, 0.654820, 0.733001, 0.733001, 0.733001],
+            4: [0.639776, 0.733572, 0.654292, 0.733572, 0.733572, 0.733572],
         }
     for epoch in expected_epochs:
         assert test_results.epochs[epoch].values()[MetricType.CROSS_ENTROPY.value] == \
