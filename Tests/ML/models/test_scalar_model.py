@@ -129,7 +129,7 @@ Default,4,S2,0.5293986201286316,1.0,-1,Train
 
 
 def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> None:
-    df_expected = pd.read_csv(StringIO(expected_csv))
+    df_expected = pd.read_csv(io.StringIO(expected_csv))
     df_epoch_metrics_actual = pd.read_csv(path)
     for ignore_column in ignore_columns:
         assert ignore_column in df_epoch_metrics_actual

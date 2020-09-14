@@ -584,7 +584,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         test_epochs = {self.num_epochs}
         if self.test_diff_epochs is not None and self.test_start_epoch is not None and \
-            self.test_step_epochs is not None:
+                self.test_step_epochs is not None:
             for j in range(self.test_diff_epochs):
                 epoch = self.test_start_epoch + self.test_step_epochs * j
                 if epoch > self.num_epochs:

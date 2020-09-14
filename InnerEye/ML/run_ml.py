@@ -398,7 +398,7 @@ class MLRunner:
                                     run: Optional[Run] = None,
                                     workspace: Optional[Workspace] = None,
                                     tags: Optional[Dict[str, str]] = None) -> \
-        Tuple[Optional[Model], Optional[Path], Any]:
+            Tuple[Optional[Model], Optional[Path], Any]:
         """
         Registers a new model in the workspace's model registry to be deployed further,
         and creates a model zip for portal deployment (if required). This model, is the
@@ -526,7 +526,7 @@ class MLRunner:
     def model_inference_train_and_test(self, run_context: Optional[Run] = None,
                                        run_recovery: Optional[RunRecovery] = None,
                                        model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> \
-        Tuple[Optional[InferenceMetrics], Optional[InferenceMetrics], Optional[InferenceMetrics]]:
+            Tuple[Optional[InferenceMetrics], Optional[InferenceMetrics], Optional[InferenceMetrics]]:
         train_metrics = None
         val_metrics = None
         test_metrics = None

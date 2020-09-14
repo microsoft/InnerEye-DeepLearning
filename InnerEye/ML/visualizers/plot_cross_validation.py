@@ -895,7 +895,7 @@ def plot_cross_validation(config: PlotCrossValidationConfig) -> Path:
 
 
 def add_comparison_data(config: PlotCrossValidationConfig, metrics: pd.DataFrame) \
-    -> Tuple[pd.DataFrame, Optional[List[Any]]]:
+        -> Tuple[pd.DataFrame, Optional[List[Any]]]:
     """
     :param config: configuration of this plotting run
     :param metrics: on entry, metrics for just the focus (target) run
