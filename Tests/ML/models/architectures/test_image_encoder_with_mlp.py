@@ -191,7 +191,7 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
         config.stride_size_per_encoding_block = stride_size_per_encoding_block
 
     config.set_output_to(test_output_dirs.root_dir)
-    config.max_batch_grad_cam = 0
+    config.max_batch_grad_cam = 1
     model = create_model_with_temperature_scaling(config)
     input_size: List[Tuple] = [(len(config.image_channels), *scan_size)]
     if use_non_imaging_features:
