@@ -115,7 +115,8 @@ class MLRunner:
         parent_run_file_system = _config.file_system_config
 
         def _spawn_run(cross_val_split_index: int, cross_val_sub_fold_split_index: int) -> None:
-            split_model_config: ScalarModelBase = copy.deepcopy(_config)
+            split_model_config = copy.deepcopy(_config)
+            assert isinstance(split_model_config, ScalarModelBase)
             split_model_config.cross_validation_split_index = cross_val_split_index
             split_model_config.cross_validation_sub_fold_split_index = cross_val_sub_fold_split_index
 
