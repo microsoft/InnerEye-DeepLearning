@@ -90,6 +90,7 @@ class PlotCrossValidationConfig(GenericConfig):
     Configurations required to download results from the children of a HyperDrive runs.
     """
     model_category: ModelCategory = param.ClassSelector(class_=ModelCategory,
+                                                        default=ModelCategory.Segmentation,
                                                          doc="The high-level model category described by this config.")
     is_scalar: bool = param.Boolean(default=True,
                                     doc="Set to True if the model to evaluate is a classification model"
