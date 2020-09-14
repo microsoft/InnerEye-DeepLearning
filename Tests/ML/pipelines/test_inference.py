@@ -53,7 +53,6 @@ def test_inference_identity(image_size: Any,
         crop_size=crop_size,
         image_channels=list(map(str, range(num_channels))),
         ground_truth_ids=ground_truth_ids,
-        crop_size_multiple=1,
         should_validate=False,
         posterior_smoothing_mm=posterior_smoothing_mm
     )
