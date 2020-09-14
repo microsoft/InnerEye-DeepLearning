@@ -29,9 +29,9 @@ class DummyClassification(ScalarModelBase):
             num_dataload_workers=0,
             test_start_epoch=num_epochs,
             use_mixed_precision=True,
-            subject_column="subjectID",
-            conv_in_3d=True
+            subject_column="subjectID"
         )
+        self.conv_in_3d = True
         self.expected_image_size_zyx = (4, 5, 7)
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
