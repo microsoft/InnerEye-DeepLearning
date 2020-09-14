@@ -269,7 +269,8 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
 
 def load_checkpoint(model: torch.nn.Module,
                     path_to_checkpoint: Path,
-                    optimizer: Optional[Optimizer] = None) -> Optional[int]:
+                    optimizer: Optional[Optimizer] = None,
+                    optimizer_to_gpu: Optional[bool] = False) -> Optional[int]:
     """
     Loads a checkpoint of a model.
     The epoch of the stored model and the epoch provided as argument must match.
@@ -278,6 +279,7 @@ def load_checkpoint(model: torch.nn.Module,
     :param model: The DataParallel object representing the network. Must have the same architecture of the stored model.
     :param path_to_checkpoint: The path to the checkpoint file.
     :param optimizer: The optimizer used for training
+    :param optimizer_to_gpu: If true, move the optimizer to GPU, which we need to do if the model is also on GPU.
     :return: The checkpoint epoch if loaded and None if not loaded
     """
 
@@ -297,7 +299,13 @@ def load_checkpoint(model: torch.nn.Module,
         model.load_state_dict(checkpoint['state_dict'])
 
     if optimizer is not None:
-        optimizer.load_state_dict(checkpoint['opt_dict'])
+        opt_dict = checkpoint['opt_dict']
+        if optimizer_to_gpu:
+            # https://github.com/pytorch/pytorch/issues/2830
+            for key, val in opt_dict.items():
+                if isinstance(val, torch.Tensor):
+                    opt_dict[key] = val.cuda()
+        optimizer.load_state_dict(opt_dict)
 
     logging.info("Loaded checkpoint (epoch: {})".format(checkpoint['epoch']))
     return checkpoint['epoch']
@@ -349,7 +357,8 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     # Load the stored model. If there is no checkpoint present, return immediately.
     model_and_info.checkpoint_epoch = load_checkpoint(model=model_and_info.model,
                                                       path_to_checkpoint=path_to_checkpoint,
-                                                      optimizer=model_and_info.optimizer)
+                                                      optimizer=model_and_info.optimizer,
+                                                      optimizer_to_gpu=model_config.use_gpu)
     if model_and_info.checkpoint_epoch is None:
         return model_and_info
     # Enable data/model parallelization
