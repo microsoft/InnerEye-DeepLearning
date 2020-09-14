@@ -7,13 +7,13 @@ from pathlib import Path
 from typing import Tuple
 
 import pytest
-from _pytest.main import ExitCode
 from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
-
 # Test result file from running pytest inside the AzureML job. This file must have a prefix that
 # matches the string in the build definition build-pr.yml, in the TrainInAzureML job.
+from InnerEye.Azure.azure_util import download_outputs_from_run
+
 PYTEST_RESULTS_FILE = Path("test-results-on-azure-ml.xml")
 
 
@@ -25,6 +25,7 @@ def run_pytest(pytest_mark: str, outputs_folder: Path) -> Tuple[bool, Path]:
     :return: True if PyTest found tests to execute and completed successfully, False otherwise.
     Also returns the path to the generated PyTest results file.
     """
+    from _pytest.main import ExitCode
     _outputs_file = outputs_folder / PYTEST_RESULTS_FILE
     # Only run on tests in Tests/, to avoid the Tests/ directory if this repo is consumed as a submodule
     pytest_args = ["Tests/", f"--junitxml={str(_outputs_file)}"]
@@ -50,9 +51,10 @@ def download_pytest_result(azure_config: AzureConfig, run: Run, destination_fold
     """
     logging.info(f"Downloading pytest result file: {PYTEST_RESULTS_FILE}")
     try:
-        return azure_config.download_outputs_from_run(PYTEST_RESULTS_FILE,
-                                                      destination=destination_folder,
-                                                      run=run,
-                                                      is_file=True)
+        return download_outputs_from_run(
+            PYTEST_RESULTS_FILE,
+            destination=destination_folder,
+            run=run,
+            is_file=True)
     except:
         raise ValueError(f"No pytest result file {PYTEST_RESULTS_FILE} was found for run {run.id}")
