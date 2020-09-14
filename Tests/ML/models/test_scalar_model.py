@@ -146,7 +146,7 @@ def test_train_classification_model_with_amp(test_output_dirs: TestOutputDirecto
     test_train_classification_model(test_output_dirs, True, check_logs=False)
 
 
-@pytest.mark.skipif(not common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("model_name", ["DummyClassification", "DummyRegression"])
 @pytest.mark.parametrize("number_of_offline_cross_validation_splits", [2])
 @pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [2])
