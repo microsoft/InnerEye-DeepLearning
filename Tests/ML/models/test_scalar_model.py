@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import io
 import logging
+from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Optional
 from unittest import mock
@@ -33,7 +34,6 @@ from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelFo
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.models.test_parallel import no_gpu
 from Tests.ML.util import get_default_azure_config, machine_has_gpu
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.parametrize("use_mixed_precision", [False, True])
@@ -64,11 +64,11 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     use_mixed_precision_and_gpu = use_mixed_precision and machine_has_gpu
     if use_mixed_precision_and_gpu:
-        expected_train_loss = [0.701641, 0.713191, 0.690777, 0.712191]
-        expected_val_loss = [0.644323, 0.645151, 0.645878, 0.646372]
+        expected_train_loss = [0.686615, 0.686467, 0.686322, 0.686174]
+        expected_val_loss = [0.737038, 0.736720, 0.736338, 0.735957]
     else:
-        expected_train_loss = [0.701649, 0.713194, 0.690772, 0.712186]
-        expected_val_loss = [0.644326, 0.645163, 0.645881, 0.646391]
+        expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
+        expected_val_loss = [0.737061, 0.736690, 0.736321, 0.735952]
 
     def extract_loss(results: List[MetricsDict]) -> List[float]:
         return [d.values()[MetricType.LOSS.value][0] for d in results]
@@ -129,7 +129,7 @@ Default,4,S2,0.5293986201286316,1.0,-1,Train
 
 
 def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> None:
-    df_expected = pd.read_csv(io.StringIO(expected_csv))
+    df_expected = pd.read_csv(StringIO(expected_csv))
     df_epoch_metrics_actual = pd.read_csv(path)
     for ignore_column in ignore_columns:
         assert ignore_column in df_epoch_metrics_actual
@@ -162,7 +162,6 @@ def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectorie
     azure_config.is_train = True
     train_config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
         .create_model_config_from_name(model_name)
-    train_config.local_dataset = full_ml_test_data_path("classification_data") / "sub_fold_cv"
     train_config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
     train_config.number_of_cross_validation_splits_per_fold = number_of_cross_validation_splits_per_fold
     train_config.set_output_to(test_output_dirs.root_dir)
