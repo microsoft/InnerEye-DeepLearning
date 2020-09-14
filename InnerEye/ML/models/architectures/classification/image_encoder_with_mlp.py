@@ -251,7 +251,7 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
 
             return x
 
-        self.wrap_with_autocast_if_needed(_forward)
+        return self.wrap_with_autocast_if_needed(_forward)
 
     def encode_and_aggregate(self, x: torch.Tensor) -> torch.Tensor:
         return encode_and_aggregate(encoder=self.encoder,
@@ -358,7 +358,7 @@ class ImageEncoderWithMlp(ImageEncoder):
             x = self.classification_layer(x.view(-1, x.shape[1]))
             return self.final_activation(x)
 
-        self.wrap_with_autocast_if_needed(_forward)
+        return self.wrap_with_autocast_if_needed(_forward)
 
 
 def encode_and_aggregate(input_tensor: torch.Tensor,

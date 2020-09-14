@@ -103,4 +103,4 @@ class DataParallelCriterion(DataParallel):
         input_tuples: List[Tuple[torch.Tensor, ...]] = [(i, *t) for i, t in zip(inputs, _targets)]
         outputs = torch.nn.parallel.parallel_apply(replicas, input_tuples, _kwargs)
 
-        return self.gather(outputs, self.output_device)
+        return gather(outputs, self.output_device, dim=self.dim)

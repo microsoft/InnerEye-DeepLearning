@@ -147,7 +147,7 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         loss_function = self.create_loss_function()
         if self.model_config.use_data_parallel:
             return DataParallelCriterion(module=loss_function,
-                                         device_ids=self.model_config.get_cuda_devices(),
+                                         device_ids=self.model_config.get_cuda_devices(),  # type:ignore
                                          use_mixed_precision=self.model_config.use_mixed_precision)
         else:
             return loss_function
