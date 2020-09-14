@@ -99,7 +99,7 @@ class GenericConfig(param.Parameterized):
         """
         Instantiates the config class, ignoring parameters that are not overridable.
         :param should_validate: If True, the validate() method is called directly after init.
-        :param throw_if_unknown_param: If True, raise an error if the provided "params" contains any key that do not
+        :param throw_if_unknown_param: If True, raise an error if the provided "params" contains any key that does not
                                 correspond to an attribute of the class.
         :param params: Parameters to set.
         """
