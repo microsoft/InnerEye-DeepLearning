@@ -240,12 +240,7 @@ class PlotCrossValidationConfig(GenericConfig):
             return None
         else:
             try:
-                return self.azure_config.download_outputs_from_run(
-                    blobs_path=blob_path,
-                    destination=destination,
-                    run=run,
-                    is_file=True
-                )
+                return run.download_file(str(blob_path), str(destination), True)
             except Exception as ex:
                 logging.warning(f"File {blob_to_download} not found in output of run {run.id}: {ex}")
                 return None

@@ -86,11 +86,7 @@ class RunRecovery:
             root_output_dir = Path(config.checkpoint_folder) / run.id
             checkpoint_subdir_name = None
         # download checkpoints for the run
-        azure_config.download_outputs_from_run(
-            blobs_path=Path(CHECKPOINT_FOLDER),
-            destination=root_output_dir,
-            run=run
-        )
+        run.download_files(CHECKPOINT_FOLDER, str(root_output_dir))
         if len(child_runs) > 0:
             tag_to_use = 'cross_validation_split_index'
             can_use_split_indices = tag_values_all_distinct(child_runs, tag_to_use)
@@ -106,11 +102,7 @@ class RunRecovery:
                         child_dst = root_output_dir / subdir / checkpoint_subdir_name
                     else:
                         child_dst = root_output_dir / subdir
-                    azure_config.download_outputs_from_run(
-                        blobs_path=Path(CHECKPOINT_FOLDER),
-                        destination=child_dst,
-                        run=child
-                    )
+                    child.download_files(CHECKPOINT_FOLDER, str(child_dst))
                 child_runs_checkpoints_roots.append(child_dst)
             return RunRecovery(checkpoints_roots=child_runs_checkpoints_roots)
         else:

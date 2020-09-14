@@ -50,9 +50,6 @@ def download_pytest_result(azure_config: AzureConfig, run: Run, destination_fold
     """
     logging.info(f"Downloading pytest result file: {PYTEST_RESULTS_FILE}")
     try:
-        return azure_config.download_outputs_from_run(PYTEST_RESULTS_FILE,
-                                                      destination=destination_folder,
-                                                      run=run,
-                                                      is_file=True)
+        run.download_file(PYTEST_RESULTS_FILE, str(destination_folder), _validate_checksum=True)
     except:
         raise ValueError(f"No pytest result file {PYTEST_RESULTS_FILE} was found for run {run.id}")

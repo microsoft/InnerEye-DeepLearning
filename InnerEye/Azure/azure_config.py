@@ -19,13 +19,11 @@ from azureml.train.estimator import MMLBaseEstimator
 from azureml.train.hyperdrive import HyperDriveConfig
 from git import Repo
 
-from InnerEye.Azure.azure_util import get_results_blob_path, get_run_id, \
-    is_offline_run_context, to_azure_friendly_container_path
+from InnerEye.Azure.azure_util import is_offline_run_context
 from InnerEye.Azure.secrets_handling import APPLICATION_KEY, SecretsHandling, read_variables_from_yaml
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import GenericConfig
-from InnerEye.ML.utils.blobxfer_util import download_blobs
 
 
 class VMPriority(Enum):
@@ -256,33 +254,6 @@ class AzureConfig(GenericConfig):
             service_principal_id=self.application_id,
             service_principal_password=application_key)
 
-    def download_outputs_from_run(self, blobs_path: Path,
-                                  destination: Path,
-                                  run: Optional[Run] = None,
-                                  is_file: bool = False) -> Path:
-        """
-        Download the blobs from the run's storage container / DEFAULT_AML_UPLOAD_DIR.
-        Silently returns for offline runs.
-        :param blobs_path: Blobs path in DEFAULT_AML_UPLOAD_DIR of the run's storage container to download from
-        :param run: Run to download from (default to current run if None)
-        :param destination: Local path to save the downloaded blobs to
-        :param is_file: Set to True if downloading a single file.
-        :return: Destination root to the downloaded files
-        """
-        if self.storage_account is None:
-            raise ValueError("self.storage_account cannot be None")
-        key = self.get_storage_account_key()
-        if key is None:
-            raise ValueError("self.storage_account_key cannot be None")
-        return download_blobs(
-            account=self.storage_account,
-            account_key=key,
-            blobs_root_path=to_azure_friendly_container_path(
-                Path(get_results_blob_path(get_run_id(run))) / fixed_paths.DEFAULT_AML_UPLOAD_DIR / blobs_path
-            ),
-            destination=destination,
-            is_file=is_file
-        )
 
 
 @dataclass

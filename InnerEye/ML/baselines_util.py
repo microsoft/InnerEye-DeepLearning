@@ -15,7 +15,8 @@ from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, fetch_run, stri
 from InnerEye.Common import common_util
 from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig
-from InnerEye.Common.common_util import BASELINE_WILCOXON_RESULTS_FILE, ENSEMBLE_SPLIT_NAME, EPOCH_FOLDER_NAME_PATTERN, \
+from InnerEye.Common.common_util import BASELINE_WILCOXON_RESULTS_FILE, ENSEMBLE_SPLIT_NAME, \
+    EPOCH_FOLDER_NAME_PATTERN, \
     FULL_METRICS_DATAFRAME_FILE, \
     METRICS_FILE_NAME, \
     ModelProcessing, OTHER_RUNS_SUBDIR_NAME, remove_file_or_directory
@@ -169,8 +170,8 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
         # Look for dataset.csv inside epoch_NNN/Test, epoch_NNN/ and at top level
         for blob_path_parent in step_up_directories(blob_path):
             try:
-                comparison_dataset_path = azure_config.download_outputs_from_run(
-                    blob_path_parent / DATASET_CSV_FILE_NAME, destination_folder, run, True)
+                comparison_dataset_path = run.download_file(
+                    blob_path_parent / DATASET_CSV_FILE_NAME, destination_folder, True)
                 break
             except ValueError:
                 logging.warning(f"cannot find {DATASET_CSV_FILE_NAME} at {blob_path_parent} in {run_rec_id}")
@@ -182,8 +183,8 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
                 logging.warning(f"cannot find {DATASET_CSV_FILE_NAME} at or above {blob_path} in {run_rec_id}")
         # Look for epoch_NNN/Test/metrics.csv
         try:
-            comparison_metrics_path = azure_config.download_outputs_from_run(
-                blob_path / METRICS_FILE_NAME, destination_folder, run, True)
+            comparison_metrics_path = run.download_file(
+                blob_path / METRICS_FILE_NAME, destination_folder, True)
         except ValueError:
             logging.warning(f"cannot find {METRICS_FILE_NAME} at {blob_path} in {run_rec_id}")
         # If both dataset.csv and metrics.csv were downloaded successfully, read their contents and
