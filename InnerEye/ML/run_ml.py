@@ -115,11 +115,14 @@ class MLRunner:
         parent_run_file_system = _config.file_system_config
 
         def _spawn_run(cross_val_split_index: int, cross_val_sub_fold_split_index: int) -> None:
-            split_model_config = copy.deepcopy(_config)
+            split_model_config: ScalarModelBase = copy.deepcopy(_config)
             split_model_config.cross_validation_split_index = cross_val_split_index
             split_model_config.cross_validation_sub_fold_split_index = cross_val_sub_fold_split_index
-            split_model_config.file_system_config = parent_run_file_system.add_subfolder(
-                str(split_model_config.get_effective_random_seed()))
+
+            _local_split_folder_name = str(cross_val_sub_fold_split_index
+                                           if split_model_config.perform_sub_fold_cross_validation
+                                           else cross_val_split_index)
+            split_model_config.file_system_config = parent_run_file_system.add_subfolder(_local_split_folder_name)
 
             logging.info(f"Running model train and test on cross validation split: {x}")
             split_ml_runner = MLRunner(split_model_config, self.azure_config, self.project_root,
