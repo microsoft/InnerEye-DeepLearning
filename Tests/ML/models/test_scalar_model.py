@@ -85,7 +85,7 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     if use_mixed_precision_and_gpu:
         expected_metrics = {
             2: [0.639118, 0.735130, 0.652855, 0.735130, 0.735130, 0.735130],
-            4: [0.640213, 0.733004, 0.654818, 0.733004, 0.733004, 0.733004],
+            4: [0.639752, 0.733606, 0.654261, 0.733606, 0.733606, 0.733606],
         }
     else:
         expected_metrics = {
