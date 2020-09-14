@@ -44,7 +44,7 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     Test training and testing of classification models, asserting on the individual results from training and testing.
     This executes correctly only on CPU machines - there it will return the same results for both
     use_mixed_precision==True and ==False. It will fail on a SurfaceBook where it recognizes the GPU (loss values
-    don't match when use_mi xed_precision==True)
+    don't match when use_mixed_precision==True)
     """
     logging_to_stdout(logging.DEBUG)
     config = ClassificationModelForTesting()
@@ -84,36 +84,60 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     assert list(test_results.epochs.keys()) == expected_epochs
     if use_mixed_precision_and_gpu:
         expected_metrics = {
-            2: [0.639118, 0.735130, 0.652855, 0.735130, 0.735130, 0.735130],
-            4: [0.639752, 0.733606, 0.654261, 0.733606, 0.733606, 0.733606],
+            2: [0.635924, 0.736720],
+            4: [0.636096, 0.735957],
         }
     else:
         expected_metrics = {
-            2: [0.639107, 0.735125, 0.652860, 0.735125, 0.735125, 0.735125],
-            4: [0.639776, 0.733572, 0.654292, 0.733572, 0.733572, 0.733572],
+            2: [0.635941, 0.736690],
+            4: [0.636084, 0.735952],
         }
     for epoch in expected_epochs:
         assert test_results.epochs[epoch].values()[MetricType.CROSS_ENTROPY.value] == \
                pytest.approx(expected_metrics[epoch], abs=1e-6)
     if check_logs:
         # Check log EPOCH_METRICS_FILE_NAME
-        epoch_metrics = pd.read_csv(config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME)
+        epoch_metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME
         # Auto-format will break the long header line, hence the strange way of writing it!
-        expected_epoch_metrics = pd.read_csv(full_ml_test_data_path("train_and_test_data") / "scalar_epoch_metrics.csv")
-        check_log_file(epoch_metrics, expected_epoch_metrics,
+        expected_epoch_metrics = \
+            "loss,cross_entropy,accuracy_at_threshold_05,seconds_per_batch,seconds_per_epoch,learning_rate," + \
+            "area_under_roc_curve,area_under_pr_curve,accuracy_at_optimal_threshold," \
+            "false_positive_rate_at_optimal_threshold,false_negative_rate_at_optimal_threshold," \
+            "optimal_threshold,subject_count,epoch,cross_validation_split_index\n" + \
+            """0.6866141557693481,0.6866141557693481,0.5,0,0,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,1,-1
+            0.6864652633666992,0.6864652633666992,0.5,0,0,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,2,-1
+            0.6863163113594055,0.6863162517547607,0.5,0,0,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,3,-1
+            0.6861673593521118,0.6861673593521118,0.5,0,0,9.998613801725043e-05,1.0,1.0,0.5,0.0,0.0,0.529399,2.0,4,-1
+            """
+        check_log_file(epoch_metrics_path, expected_epoch_metrics,
                        ignore_columns=[LoggingColumns.SecondsPerBatch.value, LoggingColumns.SecondsPerEpoch.value])
 
         # Check log METRICS_FILE_NAME
-        metrics_path = pd.read_csv(config.outputs_folder / ModelExecutionMode.TRAIN.value / METRICS_FILE_NAME)
-        metrics_expected = pd.read_csv(full_ml_test_data_path("train_and_test_data")
-                                       / "scalar_prediction_target_metrics.csv")
+        metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / METRICS_FILE_NAME
+        metrics_expected = \
+            """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
+Default,1,S4,0.5216594338417053,0.0,-1,Train
+Default,1,S2,0.5295137763023376,1.0,-1,Train
+Default,2,S4,0.5214819312095642,0.0,-1,Train
+Default,2,S2,0.5294750332832336,1.0,-1,Train
+Default,3,S4,0.5213046073913574,0.0,-1,Train
+Default,3,S2,0.5294366478919983,1.0,-1,Train
+Default,4,S4,0.5211275815963745,0.0,-1,Train
+Default,4,S2,0.5293986201286316,1.0,-1,Train
+"""
         check_log_file(metrics_path, metrics_expected, ignore_columns=[])
 
 
-def check_log_file(actual: pd.DataFrame, expected: pd.DataFrame, ignore_columns: List[str]) -> None:
-    actual = actual.drop(ignore_columns, axis=1).reset_index(drop=True)
-    expected = expected.drop(ignore_columns, axis=1).reset_index(drop=True)
-    pd.testing.assert_frame_equal(actual, expected, check_less_precise=True, check_like=True)
+def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> None:
+    df_expected = pd.read_csv(StringIO(expected_csv))
+    df_epoch_metrics_actual = pd.read_csv(path)
+    for ignore_column in ignore_columns:
+        assert ignore_column in df_epoch_metrics_actual
+        # We cannot compare time because in different machines this takes different times
+        del df_epoch_metrics_actual[ignore_column]
+        if ignore_column in df_expected:
+            del df_expected[ignore_column]
+    pd.testing.assert_frame_equal(df_expected, df_epoch_metrics_actual, check_less_precise=True)
 
 
 @pytest.mark.gpu
@@ -122,7 +146,7 @@ def test_train_classification_model_with_amp(test_output_dirs: TestOutputDirecto
     test_train_classification_model(test_output_dirs, True, check_logs=False)
 
 
-@pytest.mark.skipif(not common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("model_name", ["DummyClassification", "DummyRegression"])
 @pytest.mark.parametrize("number_of_offline_cross_validation_splits", [2])
 @pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [2])
@@ -138,6 +162,7 @@ def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectorie
     azure_config.is_train = True
     train_config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
         .create_model_config_from_name(model_name)
+    train_config.local_dataset = full_ml_test_data_path("classification_data") / "sub_fold_cv_dataset.csv"
     train_config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
     train_config.number_of_cross_validation_splits_per_fold = number_of_cross_validation_splits_per_fold
     train_config.set_output_to(test_output_dirs.root_dir)
@@ -431,7 +456,7 @@ def test_dataset_stats_hook(test_output_dirs: TestOutputDirectories) -> None:
 
     model.create_and_set_torch_datasets()
     assert out_file.is_file()
-    assert out_file.read_text() == "\n".join(["Train: 6", "Test: 2", "Val: 2"])
+    assert out_file.read_text() == "\n".join(["Train: 2", "Test: 1", "Val: 1"])
 
 
 def test_dataset_stats_hook_failing(test_output_dirs: TestOutputDirectories) -> None:
