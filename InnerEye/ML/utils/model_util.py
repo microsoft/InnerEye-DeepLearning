@@ -33,7 +33,7 @@ from InnerEye.ML.utils.ml_util import RandomStateSnapshot, is_gpu_available
 from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 
-BaseModelOrDataParallelModel = Union[BaseModel, DataParallelModel]
+BaseModelOrDataParallelModel = Union[DeviceAwareModule, DataParallelModel]
 
 
 @dataclass
