@@ -34,6 +34,7 @@ from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelFo
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.models.test_parallel import no_gpu
 from Tests.ML.util import get_default_azure_config, machine_has_gpu
+from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.parametrize("use_mixed_precision", [False, True])
@@ -146,7 +147,7 @@ def test_train_classification_model_with_amp(test_output_dirs: TestOutputDirecto
     test_train_classification_model(test_output_dirs, True, check_logs=False)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.skipif(not common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("model_name", ["DummyClassification", "DummyRegression"])
 @pytest.mark.parametrize("number_of_offline_cross_validation_splits", [2])
 @pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [2])
@@ -165,6 +166,8 @@ def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectorie
     train_config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
     train_config.number_of_cross_validation_splits_per_fold = number_of_cross_validation_splits_per_fold
     train_config.set_output_to(test_output_dirs.root_dir)
+    if train_config.perform_sub_fold_cross_validation:
+        train_config.local_dataset = full_ml_test_data_path("classification_data_sub_fold_cv")
     MLRunner(train_config, azure_config).run()
     _check_offline_cross_validation_output_files(train_config)
 
@@ -464,7 +467,7 @@ def test_dataset_stats_hook_failing(test_output_dirs: TestOutputDirectories) -> 
     """
     model = ClassificationModelForTesting()
 
-    def hook(datasets: Dict[ModelExecutionMode, ScalarDataset]) -> None:
+    def hook(_: Dict[ModelExecutionMode, ScalarDataset]) -> None:
         raise ValueError()
 
     model.dataset_stats_hook = hook
@@ -476,6 +479,7 @@ def test_get_dataset_splits() -> None:
     Test if dataset splits are created as expected for scalar models.
     """
     model = ClassificationModelForTesting()
+    model.local_dataset = full_ml_test_data_path("classification_data_sub_fold_cv")
     model.number_of_cross_validation_splits = 2
     dataset_splits = model.get_dataset_splits()
     assert list(dataset_splits[ModelExecutionMode.TRAIN].subjectID.unique()) == ['S4', 'S5', 'S2', 'S10']
