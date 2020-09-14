@@ -156,7 +156,8 @@ class UNet3D(BaseModel):
             # When using the new DataParallel of PyTorch 1.6, self.parameters would be empty. Do not attempt to move
             # the tensors in this case. If self.parameters is present, the module is used inside of a model parallel
             # construct.
-            [x] = move_to_device(input_tensors=[x], target_device=get_device_from_parameters(self))
+            target_device = get_device_from_parameters(self)
+            [x] = move_to_device(input_tensors=[x], target_device=target_device)
             x = self.block1(x)
             return self.block2(x) + x if self.use_residual else self.block2(x)
 

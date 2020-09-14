@@ -156,12 +156,15 @@ class MultiSegmentationEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
     def __init__(self,
                  num_image_channels: int,
                  encode_channels_jointly: bool = False,
+                 use_mixed_precision: bool = True,
                  ) -> None:
         """
         :param encode_channels_jointly: If False, create an encoder structure separately for each channel. If True,
         encode all channels jointly (convolution will run over all channels).
         :param num_image_channels: Number of channels of the input. Input is expected to be of size
         B x (num_image_channels * 10) x Z x Y x X, where B is the batch dimension.
+        :param use_mixed_precision: If True, assume that training happens with mixed precision. Segmentations will
+        be converted to float16 tensors right away. If False, segmentations will be converted to float32 tensors.
         """
         super().__init__()
         self.encoder_input_channels = \
@@ -170,6 +173,7 @@ class MultiSegmentationEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
         self.encode_channels_jointly = encode_channels_jointly
         self.num_image_channels = num_image_channels
         self.encoder = SegmentationEncoder(in_channels=self.encoder_input_channels)
+        self.use_mixed_precision = use_mixed_precision
         num_dense_layer_inputs = \
             self.encoder.out_channels if encode_channels_jointly \
                 else self.encoder.out_channels * num_image_channels
@@ -196,4 +200,5 @@ class MultiSegmentationEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
         if item.segmentations is None:
             raise ValueError("Expected item.segmentations to not be None")
         use_gpu = self.is_model_on_gpu()
-        return [segmentation_to_one_hot(item.segmentations, use_gpu=use_gpu)]
+        result_dtype = torch.float16 if self.use_mixed_precision and use_gpu else torch.float32
+        return [segmentation_to_one_hot(item.segmentations, use_gpu=use_gpu, result_dtype=result_dtype)]

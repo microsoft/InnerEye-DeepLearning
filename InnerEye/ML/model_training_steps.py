@@ -13,6 +13,7 @@ import param
 import torch.cuda
 import torch.utils.data
 from torch import Tensor
+from torch.cuda import amp
 from torch.cuda.amp import GradScaler
 from torch.nn import MSELoss
 from torch.optim.optimizer import Optimizer
@@ -145,7 +146,9 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         """
         loss_function = self.create_loss_function()
         if self.model_config.use_data_parallel:
-            return DataParallelCriterion(loss_function, self.model_config.get_cuda_devices())
+            return DataParallelCriterion(module=loss_function,
+                                         device_ids=self.model_config.get_cuda_devices(),
+                                         use_mixed_precision=self.model_config.use_mixed_precision)
         else:
             return loss_function
 
@@ -158,7 +161,7 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         """
         # ensure that the labels are loaded into the GPU
         labels = self.model_config.get_gpu_tensor_if_possible(labels)
-        loss = self.forward_criterion(model_output, labels)
+        loss = self.forward_criterion_with_autocast(model_output, labels)
         if self.model_config.use_data_parallel:
             # Aggregate the loss values for each parallelized batch element.
             loss = torch.mean(loss)
@@ -173,6 +176,22 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         :return: loss tensor.
         """
         return self.criterion(model_output, labels)
+
+    def forward_criterion_with_autocast(self,
+                                        model_output: Union[torch.Tensor, List[torch.Tensor]],
+                                        labels: NumpyOrTorch) -> torch.Tensor:
+        """
+        Handles the forward pass for the loss function, possibly taking mixed precision into account.
+        :param model_output: A single Tensor, or a list if using DataParallelCriterion
+        :param labels: Labels to compute loss against.
+        :return: loss tensor. This can be a float16 or float32 tensor, which should be cast to float32 before further
+        use.
+        """
+        if self.model_config.use_mixed_precision:
+            with amp.autocast():
+                return self.forward_criterion(model_output, labels)
+        else:
+            return self.forward_criterion(model_output, labels)
 
 
 @dataclass
@@ -318,6 +337,8 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         """
         model = self.train_val_params.model
         label_gpu = self.get_label_tensor(model_inputs_and_labels.labels)
+        if self.model_config.use_mixed_precision and self.model_config.use_gpu:
+            label_gpu = label_gpu.to(dtype=torch.float16)
 
         def compute() -> Tuple[Tensor, Tensor, Tensor]:
             if self.in_training_mode:
@@ -371,7 +392,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
 
         # Autocast may have returned float16 tensors. Documentation suggests to simply cast back to float32.
         # If tensor was already float32, no overhead is incurred.
-        posteriors = posteriors.float()
+        posteriors = posteriors.detach().float()
         gathered_logits = gathered_logits.detach().float().cpu()
         loss_scalar = loss.float().item()
 
@@ -529,7 +550,7 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
             _model = _model.get_module()
 
         def _forward_criterion(_logits: torch.Tensor, _labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-            loss = self.forward_criterion(_logits, _labels)
+            loss = self.forward_criterion_with_autocast(_logits, _labels).to(torch.float32)
             masked_model_outputs_and_labels = get_masked_model_outputs_and_labels(_logits, _labels)
             assert masked_model_outputs_and_labels is not None
             ece = ece_criterion(masked_model_outputs_and_labels.model_outputs.data.unsqueeze(dim=0),

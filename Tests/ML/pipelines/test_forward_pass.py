@@ -115,8 +115,8 @@ def test_anomaly_detection(value_to_insert: float, in_training_mode: bool) -> No
 
 @pytest.mark.gpu
 @pytest.mark.skipif(no_gpu_available, reason="Testing AMP requires a GPU")
-@pytest.mark.parametrize("use_model_parallel", [False])
-@pytest.mark.parametrize("use_mixed_precision", [True])
+@pytest.mark.parametrize("use_model_parallel", [False, True])
+@pytest.mark.parametrize("use_mixed_precision", [False, True])
 @pytest.mark.parametrize("execution_mode", [ModelExecutionMode.TRAIN, ModelExecutionMode.TEST])
 def test_amp_activated(use_model_parallel: bool,
                        execution_mode: ModelExecutionMode,
@@ -170,7 +170,7 @@ def test_amp_activated(use_model_parallel: bool,
                                        optimizer=optimizer,
                                        gradient_scaler=gradient_scaler,
                                        criterion=criterion)
-    logits, loss = pipeline._compute_loss(image, labels)
+    logits, _ = pipeline._compute_loss(image, labels)
     # When using DataParallel, we expect to get a list of tensors back, one per GPU.
     if use_data_parallel:
         assert isinstance(logits, list)
@@ -267,10 +267,7 @@ def test_mean_teacher_model() -> None:
 
 @pytest.mark.gpu
 @pytest.mark.skipif(no_gpu_available, reason="Testing AMP requires a GPU")
-# This test should actually also pass with mixed_precision=True. We verified manually that the amp.autocast()
-# region is present at the right place, but still the output tensors are not float16. All operations involved are
-# eligible for autocast, as per https://pytorch.org/docs/stable/amp.html#ops-that-can-autocast-to-float16
-@pytest.mark.parametrize("use_mixed_precision", [False])
+@pytest.mark.parametrize("use_mixed_precision", [False, True])
 @pytest.mark.parametrize("execution_mode", [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL])
 def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirectories,
                                             execution_mode: ModelExecutionMode,
@@ -284,6 +281,7 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
     config.use_mixed_precision = use_mixed_precision
     model = DummyScalarModel(expected_image_size_zyx=config.expected_image_size_zyx,
                              activation=Identity())
+    model.use_mixed_precision = use_mixed_precision
     model_and_info = ModelAndInfo(
         model=model,
         model_execution_mode=execution_mode
@@ -307,7 +305,7 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
     training_steps = ModelTrainingStepsForScalarModel(config, train_val_parameters)
     sample = list(data_loaders[execution_mode])[0]
     model_input = get_scalar_model_inputs_and_labels(config, model, sample)
-    logits, _, _ = training_steps._compute_model_output_and_loss(model_input)
+    logits, posteriors, loss = training_steps._compute_model_output_and_loss(model_input)
     # When using DataParallel, we expect to get a list of tensors back, one per GPU.
     if use_data_parallel:
         assert isinstance(logits, list)
@@ -316,8 +314,13 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
         first_logit = logits
     if use_mixed_precision:
         assert first_logit.dtype == torch.float16
+        assert posteriors.dtype == torch.float16
+        # BCEWithLogitsLoss outputs float32, even with float16 args
+        assert loss.dtype == torch.float32
     else:
         assert first_logit.dtype == torch.float32
+        assert posteriors.dtype == torch.float32
+        assert loss.dtype == torch.float32
     # Verify that forward pass does not throw. It would for example if it fails to gather tensors or not convert
     # float16 to float32
     _, _, _ = training_steps._compute_model_output_and_loss(model_input)

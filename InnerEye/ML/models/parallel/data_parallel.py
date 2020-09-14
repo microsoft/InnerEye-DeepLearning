@@ -2,9 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 import torch
+from torch.cuda import amp
 from torch.nn.parallel.data_parallel import DataParallel
 from torch.nn.parallel.scatter_gather import gather, scatter_kwargs
 
@@ -49,6 +50,23 @@ class DataParallelModel(DataParallel, DeviceAwareModule):
         return outputs
 
 
+class CriterionWithAutocast(torch.nn.Module):
+
+    def __init__(self, module: torch.nn.Module, use_mixed_precision: bool) -> None:
+        super().__init__()
+        self.module = module
+        self.use_mixed_precision = use_mixed_precision
+
+    def forward(self,  # type: ignore
+                *inputs: torch.Tensor,
+                **kwargs: Dict[str, Any]) -> torch.Tensor:
+        if self.use_mixed_precision:
+            with amp.autocast():
+                return self.module(*inputs, **kwargs)
+        else:
+            return self.module(*inputs, **kwargs)
+
+
 # noinspection PyUnresolvedReferences
 class DataParallelCriterion(DataParallel):
     """
@@ -63,6 +81,13 @@ class DataParallelCriterion(DataParallel):
         >>> loss = criterion(y, target)
     """
 
+    def __init__(self,
+                 module: torch.nn.Module,
+                 device_ids: List[Union[int, torch.device]],
+                 use_mixed_precision: bool):
+        super().__init__(module=module, device_ids=device_ids)
+        self.use_mixed_precision = use_mixed_precision
+
     def forward(self,  # type: ignore
                 inputs: List[torch.Tensor],
                 *targets: Tuple[torch.Tensor],
@@ -74,7 +99,8 @@ class DataParallelCriterion(DataParallel):
         _targets, _kwargs = scatter_kwargs(targets, kwargs, self.device_ids, dim=self.dim)
         if len(self.device_ids) == 1:
             return self.module(inputs, *_targets[0], **_kwargs[0])
-        replicas = self.replicate(self.module, self.device_ids[:len(inputs)])  # type: ignore
+        autocast_module = CriterionWithAutocast(module=self.module, use_mixed_precision=self.use_mixed_precision)
+        replicas = self.replicate(autocast_module, self.device_ids[:len(inputs)])  # type: ignore
 
         input_tuples: List[Tuple[torch.Tensor, ...]] = [(i, *t) for i, t in zip(inputs, _targets)]
         outputs = torch.nn.parallel.parallel_apply(replicas, input_tuples, _kwargs)

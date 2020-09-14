@@ -236,8 +236,6 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
         model_inputs = get_scalar_model_inputs_and_labels(config, model, train_item_0).model_inputs
         # The model inputs may already be converted to float16, assuming that we would do mixed precision.
         # However, the model is not yet converted to float16 when this function is called, hence convert back to float32
-        if config.use_gpu:
-            model_inputs = [x.float() for x in model_inputs]
         summary = ModelSummary(model)
         summary.generate_summary(input_tensors=model_inputs, log_summaries_to_files=config.log_summaries_to_files)
     elif config.is_segmentation_model:

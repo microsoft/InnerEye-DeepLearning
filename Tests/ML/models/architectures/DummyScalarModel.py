@@ -6,6 +6,8 @@
 import torch
 from typing import List
 
+from torch.cuda import amp
+
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
@@ -28,6 +30,7 @@ class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
         self.activation = activation
         self.last_encoder_layer: List[str] = ["_layers", "0"]
         self.conv_in_3d = False
+        self.use_mixed_precision = False
 
     def get_last_encoder_layer_names(self) -> List[str]:
         return self.last_encoder_layer
@@ -41,12 +44,20 @@ class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
         return [item.images]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
-        if x.shape[-3:] != self.expected_image_size_zyx:
-            raise ValueError(f"Expected a tensor with trailing size {self.expected_image_size_zyx}, but got "
-                             f"{x.shape}")
+        def _forward(x: torch.Tensor) -> torch.Tensor:
+            if x.shape[-3:] != self.expected_image_size_zyx:
+                raise ValueError(f"Expected a tensor with trailing size {self.expected_image_size_zyx}, but got "
+                                 f"{x.shape}")
 
-        for layer in self._layers.__iter__():
-            x = layer(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-        return self.activation(x)
+            for layer in self._layers.__iter__():
+                x = layer(x)
+            x = x.view(x.size(0), -1)
+            x = self.fc(x)
+            return self.activation(x)
+
+        if self.use_mixed_precision:
+            # Models that will be used inside of DataParallel need to do their own autocast
+            with amp.autocast():
+                return _forward(x)
+        else:
+            return _forward(x)

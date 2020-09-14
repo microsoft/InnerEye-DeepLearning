@@ -8,6 +8,7 @@ from typing import Any, Callable, List, Optional, Union
 import numpy as np
 import torch
 from torch.nn import ModuleList, Sequential
+from torch.cuda import amp
 
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import PaddingMode
@@ -60,6 +61,7 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
                  encoder_dimensionality_reduction_factor: float = 0.8,
                  aggregation_type: AggregationType = AggregationType.Average,
                  scan_size: Optional[TupleInt3] = None,
+                 use_mixed_precision: bool = True,
                  ) -> None:
         """
         Creates an image classifier that has UNet encoders sections for each image channel. The encoder output
@@ -81,11 +83,13 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
         combined model to balance with non imaging features.
         :param scan_size: should be a tuple representing 3D tensor shape and if specified it's usedd in initializing
         gated pooling or z-adaptive. The first element should be representing the z-direction for classification images
+        :param use_mixed_precision: If True, assume that training happens with mixed precision. Segmentations will
+        be converted to float16 tensors right away. If False, segmentations will be converted to float32 tensors.
         """
         super().__init__()
         self.num_non_image_features = num_non_image_features
         self.imaging_feature_type = imaging_feature_type
-
+        self.use_mixed_precision = use_mixed_precision
         if isinstance(kernel_size_per_encoding_block, list):
             if len(kernel_size_per_encoding_block) != num_encoder_blocks:
                 raise ValueError(f"expected kernel_size_per_encoding_block to be of "
@@ -195,40 +199,46 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
         :param item: ClassificationItem
         :return: Tensor
         """
+        use_gpu = self.is_model_on_gpu()
+        result_dtype = torch.float16 if self.use_mixed_precision and use_gpu else torch.float32
         if self.imaging_feature_type == ImagingFeatureType.Segmentation \
                 or self.imaging_feature_type == ImagingFeatureType.ImageAndSegmentation:
             if item.segmentations is None:
                 raise ValueError("Expected item.segmentations to not be None")
-            use_gpu = self.is_model_on_gpu()
             # Special case need for the loading of individual positions in the sequence model,
             # the images are loaded as [C, Z, X, Y] but the segmentation_to_one_hot expects [B, C, Z, X, Y]
-            if item.segmentations.ndimension() == 4:
-                input_tensors = [segmentation_to_one_hot(item.segmentations.unsqueeze(dim=0),
-                                                         use_gpu=use_gpu).squeeze(dim=0)]
-            else:
-                input_tensors = [
-                    segmentation_to_one_hot(item.segmentations, use_gpu=use_gpu)]
+            segmentation_multilabel = item.segmentations
+            is_4dim = segmentation_multilabel.ndimension() == 4
+            if is_4dim:
+                segmentation_multilabel = segmentation_multilabel.unsqueeze(dim=0)
+            segmentation_one_hot = segmentation_to_one_hot(segmentation_multilabel,
+                                                           use_gpu=use_gpu,
+                                                           result_dtype=result_dtype)
+            if is_4dim:
+                segmentation_one_hot = segmentation_one_hot.squeeze(dim=0)
+            input_tensors = [segmentation_one_hot]
 
             if self.imaging_feature_type == ImagingFeatureType.ImageAndSegmentation:
-                input_tensors.append(item.images.to(dtype=torch.float, copy=True))
+                input_tensors.append(item.images.to(dtype=result_dtype, copy=True))
                 _dim = 0 if item.images.ndimension() == 4 else 1
                 input_tensors = [torch.cat(input_tensors, dim=_dim)]
         else:
-            input_tensors = [item.images]
+            input_tensors = [item.images.to(dtype=result_dtype, copy=True)]
 
         if self.image_and_non_image_features_aggregator:
             input_tensors.append(item.get_all_non_imaging_features())
         return input_tensors
 
     def forward(self, *item: torch.Tensor, **kwargs: Any) -> torch.Tensor:
-        x = item[0]
-        x = self.encode_and_aggregate(x)
+        with amp.autocast():
+            x = item[0]
+            x = self.encode_and_aggregate(x)
 
-        # combine non image features if required
-        if self.image_and_non_image_features_aggregator:
-            x = self.image_and_non_image_features_aggregator(x, item[1].float())
+            # combine non image features if required
+            if self.image_and_non_image_features_aggregator:
+                x = self.image_and_non_image_features_aggregator(x, item[1].float())
 
-        return x
+            return x
 
     def encode_and_aggregate(self, x: torch.Tensor) -> torch.Tensor:
         return encode_and_aggregate(encoder=self.encoder,
@@ -253,7 +263,8 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
                     kernel_size=self.kernel_size_per_encoding_block[i],
                     downsampling_stride=self.stride_size_per_encoding_block[i],
                     padding_mode=self.padding_mode,
-                    use_residual=False
+                    use_residual=False,
+                    depth=i,
                 )
             )
         return ModuleList(layers)
@@ -283,6 +294,7 @@ class ImageEncoderWithMlp(ImageEncoder):
                  encoder_dimensionality_reduction_factor: float = 0.8,
                  aggregation_type: AggregationType = AggregationType.Average,
                  scan_size: Optional[TupleInt3] = None,
+                 use_mixed_precision: bool = True,
                  ) -> None:
         """
         Creates an image classifier that has UNet encoders sections for each image channel. The encoder output
@@ -307,6 +319,8 @@ class ImageEncoderWithMlp(ImageEncoder):
         combined model to balance with non imaging features.
         :param scan_size: should be a tuple representing 3D tensor shape and if specified it's usedd in initializing
         gated pooling or z-adaptive. The first element should be representing the z-direction for classification images
+        :param use_mixed_precision: If True, assume that training happens with mixed precision. Segmentations will
+        be converted to float16 tensors right away. If False, segmentations will be converted to float32 tensors.
         """
         super().__init__(imaging_feature_type=imaging_feature_type,
                          encode_channels_jointly=encode_channels_jointly,
@@ -319,15 +333,17 @@ class ImageEncoderWithMlp(ImageEncoder):
                          stride_size_per_encoding_block=stride_size_per_encoding_block,
                          encoder_dimensionality_reduction_factor=encoder_dimensionality_reduction_factor,
                          aggregation_type=aggregation_type,
-                         scan_size=scan_size)
+                         scan_size=scan_size,
+                         use_mixed_precision=use_mixed_precision)
         self.classification_layer = create_mlp(self.final_num_feature_channels, mlp_dropout)
         self.final_activation = final_activation
 
     def forward(self, *item: torch.Tensor, **kwargs: Any) -> torch.Tensor:
-        x = super().forward(*item)
-        # pass all the features to the MLP
-        x = self.classification_layer(x.view(-1, x.shape[1]))
-        return self.final_activation(x)
+        with amp.autocast():
+            x = super().forward(*item)
+            # pass all the features to the MLP
+            x = self.classification_layer(x.view(-1, x.shape[1]))
+            return self.final_activation(x)
 
 
 def encode_and_aggregate(input_tensor: torch.Tensor,
