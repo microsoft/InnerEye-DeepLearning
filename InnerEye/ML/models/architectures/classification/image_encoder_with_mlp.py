@@ -7,8 +7,8 @@ from typing import Any, Callable, List, Optional, Union
 
 import numpy as np
 import torch
-from torch.nn import ModuleList, Sequential
 from torch.cuda import amp
+from torch.nn import ModuleList, Sequential
 
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import PaddingMode
@@ -229,8 +229,19 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
             input_tensors.append(item.get_all_non_imaging_features())
         return input_tensors
 
+    def wrap_with_autocast_if_needed(self, func: Callable[[], Any]) -> Any:
+        """
+        Returns the result of executing the given function. Execution is wrapped with an autocast
+        context manager if the mixed precision flag is set.
+        """
+        if self.use_mixed_precision:
+            with amp.autocast():
+                return func()
+        else:
+            return func()
+
     def forward(self, *item: torch.Tensor, **kwargs: Any) -> torch.Tensor:
-        with amp.autocast():
+        def _forward() -> torch.Tensor:
             x = item[0]
             x = self.encode_and_aggregate(x)
 
@@ -239,6 +250,8 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
                 x = self.image_and_non_image_features_aggregator(x, item[1].float())
 
             return x
+
+        self.wrap_with_autocast_if_needed(_forward)
 
     def encode_and_aggregate(self, x: torch.Tensor) -> torch.Tensor:
         return encode_and_aggregate(encoder=self.encoder,
@@ -339,11 +352,13 @@ class ImageEncoderWithMlp(ImageEncoder):
         self.final_activation = final_activation
 
     def forward(self, *item: torch.Tensor, **kwargs: Any) -> torch.Tensor:
-        with amp.autocast():
-            x = super().forward(*item)
+        def _forward() -> torch.Tensor:
+            x = super(ImageEncoderWithMlp, self).forward(*item)
             # pass all the features to the MLP
             x = self.classification_layer(x.view(-1, x.shape[1]))
             return self.final_activation(x)
+
+        self.wrap_with_autocast_if_needed(_forward)
 
 
 def encode_and_aggregate(input_tensor: torch.Tensor,

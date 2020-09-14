@@ -51,19 +51,17 @@ class DataParallelModel(DataParallel, DeviceAwareModule):
 
 
 class CriterionWithAutocast(torch.nn.Module):
-
-    def __init__(self, module: torch.nn.Module, use_mixed_precision: bool) -> None:
+    """
+    A wrapper around a single module, that runs the forward pass in an autocast context manager.
+    """
+    def __init__(self, module: torch.nn.Module) -> None:
         super().__init__()
         self.module = module
-        self.use_mixed_precision = use_mixed_precision
 
     def forward(self,  # type: ignore
                 *inputs: torch.Tensor,
                 **kwargs: Dict[str, Any]) -> torch.Tensor:
-        if self.use_mixed_precision:
-            with amp.autocast():
-                return self.module(*inputs, **kwargs)
-        else:
+        with amp.autocast():
             return self.module(*inputs, **kwargs)
 
 
@@ -99,10 +97,10 @@ class DataParallelCriterion(DataParallel):
         _targets, _kwargs = scatter_kwargs(targets, kwargs, self.device_ids, dim=self.dim)
         if len(self.device_ids) == 1:
             return self.module(inputs, *_targets[0], **_kwargs[0])
-        autocast_module = CriterionWithAutocast(module=self.module, use_mixed_precision=self.use_mixed_precision)
-        replicas = self.replicate(autocast_module, self.device_ids[:len(inputs)])  # type: ignore
+        autocast_if_needed = CriterionWithAutocast(module=self.module) if self.use_mixed_precision else self.module
+        replicas = self.replicate(autocast_if_needed, self.device_ids[:len(inputs)])  # type: ignore
 
         input_tuples: List[Tuple[torch.Tensor, ...]] = [(i, *t) for i, t in zip(inputs, _targets)]
         outputs = torch.nn.parallel.parallel_apply(replicas, input_tuples, _kwargs)
 
-        return gather(outputs, self.output_device, dim=self.dim)
+        return self.gather(outputs, self.output_device)
