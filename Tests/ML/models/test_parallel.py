@@ -15,7 +15,6 @@ from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion
 from InnerEye.ML.models.parallel.model_parallel import group_layers_with_balanced_memory, \
     move_to_device, partition_layers
 from InnerEye.ML.utils.ml_util import is_gpu_available, set_random_seed
-from Tests.ML.util import assert_tensors_equal
 
 no_gpu = not is_gpu_available()
 no_or_single_gpu = not torch.cuda.is_available() or torch.cuda.device_count() <= 1
@@ -143,7 +142,7 @@ def test_dataparallel_criterion(use_mixed_precision: bool) -> None:
     assert isinstance(computed_loss_values, torch.Tensor)
     if num_batches == 1:
         target_loss_values = target_loss_values[0]
-    diff = (target_loss_values-computed_loss_values).abs().sum().item()
+    diff = (target_loss_values - computed_loss_values).abs().sum().item()
     # Even with autocast turned on, the result tensor always comes back as float32, and we can't run any more
     # detailed asserts on it. Best thing to do is to check if there are signs of lower precision computation.
     if use_mixed_precision:
