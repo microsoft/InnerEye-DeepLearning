@@ -549,7 +549,6 @@ S4,0,True,4,40,M2,B1
         categorical_columns=["META", "BETA"],
         sequence_column="seq",
         num_dataload_workers=0,
-        num_datsource=0,
         train_batch_size=2,
         should_validate=False,
         shuffle=False
