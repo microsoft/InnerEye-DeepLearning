@@ -73,10 +73,8 @@ def test_config_non_overridable_params() -> None:
 @pytest.mark.gpu
 def test_config_with_typo() -> None:
     with pytest.raises(ValueError) as ex:
-        ModelConfigBase(
-            num_epochsi=100
-        )
-        assert "The following parameters do not exist: num_epochsi" in ex.value.args[0]
+        ModelConfigBase(num_epochsi=100)
+    assert "The following parameters do not exist: ['num_epochsi']" in ex.value.args[0]
 
 
 @pytest.mark.gpu

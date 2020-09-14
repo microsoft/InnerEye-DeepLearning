@@ -95,11 +95,11 @@ class GenericConfig(param.Parameterized):
     Base class for all configuration classes provides helper functionality to create argparser.
     """
 
-    def __init__(self, should_validate: bool = True, throw_if_unknown: bool = False, **params: Any):
+    def __init__(self, should_validate: bool = True, throw_if_unknown_param: bool = False, **params: Any):
         """
         Instantiates the config class, ignoring parameters that are not overridable.
         :param should_validate: If True, the validate() method is called directly after init.
-        :param throw_if_unknown: If True, raise an error if the provided "params" contains any key that do not
+        :param throw_if_unknown_param: If True, raise an error if the provided "params" contains any key that do not
                                 correspond to an attribute of the class.
         :param params: Parameters to set.
         """
@@ -110,7 +110,7 @@ class GenericConfig(param.Parameterized):
         if illegal:
             raise ValueError(f"The following parameters cannot be overriden as they are either "
                              f"readonly, constant, or private members : {illegal}")
-        if throw_if_unknown:
+        if throw_if_unknown_param:
             # check if parameters not defined by the config class are passed in
             unknown = [k for k, v in params.items() if (k not in self.params().keys())]
             if unknown:

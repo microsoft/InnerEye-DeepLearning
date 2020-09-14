@@ -361,7 +361,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         # This should be annotated as torch.utils.data.Dataset, but we don't want to import torch here.
         self._datasets_for_training: Optional[Dict[ModelExecutionMode, Any]] = None
         self._datasets_for_inference: Optional[Dict[ModelExecutionMode, Any]] = None
-        super().__init__(throw_if_unknown=True, **params)
+        super().__init__(throw_if_unknown_param=True, **params)
         logging.info("Creating the default output folder structure.")
         self.create_filesystem(fixed_paths.repository_root_directory())
 
