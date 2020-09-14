@@ -147,9 +147,9 @@ def test_amp_activated(use_model_parallel: bool,
     optimizer = model_util.create_optimizer(model_config, model)
     model_and_info = ModelAndInfo(model, optimizer)
     try:
-        model_and_info_amp = model_util.update_model_for_multiple_gpu(model_and_info,
-                                                                      model_config,
-                                                                      execution_mode)
+        model_and_info_amp = model_util.update_model_for_multiple_gpus(model_and_info,
+                                                                       model_config,
+                                                                       execution_mode)
     except NotImplementedError as ex:
         if use_model_parallel:
             # The SimpleModel does not implement model partitioning, and should hence fail at this step.
@@ -289,7 +289,7 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
     # This is the same logic spelt out in update_model_for_multiple_gpu
     # execution_mode == ModelExecutionMode.TRAIN or (not use_model_parallel), which is always True in our case
     use_data_parallel = True
-    model_and_info = model_util.update_model_for_multiple_gpu(model_and_info, config)
+    model_and_info = model_util.update_model_for_multiple_gpus(model_and_info, config)
     if use_data_parallel:
         assert isinstance(model_and_info.model, DataParallelModel)
     data_loaders = config.create_data_loaders()

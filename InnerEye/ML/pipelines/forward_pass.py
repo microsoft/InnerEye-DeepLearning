@@ -189,7 +189,6 @@ def single_optimizer_step(loss: torch.Tensor,
     This will update the loss tensor with auto scaling for mixed
     precision training and anomaly detection to identify NaN values in gradient updates.
     :param loss: Torch tensor representing the training loss.
-    :param config: The object containing all relevant settings like use of mixed precision and anomaly detection.
     :param optimizer: The torch optimizer.
     :param gradient_scaler: The Torch gradient scaler object to handle mixed precision training.
     """

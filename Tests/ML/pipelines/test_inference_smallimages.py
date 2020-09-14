@@ -91,7 +91,7 @@ def test_invalid_stride_size() -> None:
     )
     with pytest.raises(ValueError) as ex:
         model = create_model_with_temperature_scaling(config)
-        model_util.update_model_for_multiple_gpu(ModelAndInfo(model), config)
+        model_util.update_model_for_multiple_gpus(ModelAndInfo(model), config)
     assert "inference stride size must be smaller" in ex.value.args[0]
     assert str(config.inference_stride_size) in ex.value.args[0]
     assert str(config.test_crop_size) in ex.value.args[0]

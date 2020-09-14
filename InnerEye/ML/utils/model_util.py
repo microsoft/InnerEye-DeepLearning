@@ -124,9 +124,9 @@ def build_net(args: SegmentationModelBase) -> BaseModel:
     return network
 
 
-def update_model_for_multiple_gpu(model_and_info: ModelAndInfo,
-                                  args: ModelConfigBase,
-                                  execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
+def update_model_for_multiple_gpus(model_and_info: ModelAndInfo,
+                                   args: ModelConfigBase,
+                                   execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
         ModelAndInfo:
     """
     Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
@@ -136,7 +136,6 @@ def update_model_for_multiple_gpu(model_and_info: ModelAndInfo,
     :param args: The arguments object with attributes used to enable amp training and create the parallel model.
     :param execution_mode: mode, i.e. train or test
     :return: Updated torch model and optimizer.
-    :return: Updated torch model and a torch gradient scaler object, if using mixed predictions..
     """
     if model_and_info.is_adjusted:
         logging.debug("model_and_info.is_adjusted is already True")
@@ -337,7 +336,7 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     if model_config.is_segmentation_model:
         # Generate the model summary, which is required for model partitioning across GPUs.
         summary_for_segmentation_models(model_config, model_and_info.model)
-    return update_model_for_multiple_gpu(
+    return update_model_for_multiple_gpus(
         model_and_info, args=model_config, execution_mode=model_and_info.model_execution_mode)
 
 
