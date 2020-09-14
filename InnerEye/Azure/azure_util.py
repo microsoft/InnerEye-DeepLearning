@@ -356,16 +356,17 @@ def download_outputs_from_run(blobs_path: Path,
                               is_file: bool = False,
                               append_prefix: bool = False) -> Path:
     """
-    Download the blobs from the run's storage container / DEFAULT_AML_UPLOAD_DIR.
+    Download the blobs from the run's default output directory: DEFAULT_AML_UPLOAD_DIR.
     Silently returns for offline runs.
-    :param blobs_path: Blobs path in DEFAULT_AML_UPLOAD_DIR of the run's storage container to download from
+    :param blobs_path: Blobs path in DEFAULT_AML_UPLOAD_DIR to download from
     :param run: Run to download from (default to current run if None)
     :param destination: Local path to save the downloaded blobs to
     :param is_file: Set to True if downloading a single file.
     :param append_prefix: An optional flag whether to append the specified prefix from the final output file path.
     If False then the prefix is removed from the output file path.
-    :return: Destination root to the downloaded files
+    :return: Destination path to the downloaded file(s)
     """
+    run = run or Run.get_context()
     if not is_offline_run_context(run):
         blobs_root_path = str(fixed_paths.DEFAULT_AML_UPLOAD_DIR / blobs_path)
         if is_file:
