@@ -2,24 +2,34 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from pathlib import Path
 from typing import Any, List, Optional, Union
 
 import numpy as np
 import pytest
 import torch
+from torch.cuda.amp import GradScaler
+from torch.nn import Identity
 
 from InnerEye.Common import common_util
+from InnerEye.Common.common_util import MetricsDataframeLoggers
+from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_training import model_train
+from InnerEye.ML.model_training_steps import ModelTrainingStepsForScalarModel, TrainValidateParameters, \
+    get_scalar_model_inputs_and_labels
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util, model_util
 from InnerEye.ML.utils.io_util import ImageDataType
+from InnerEye.ML.utils.metrics_util import SummaryWriters
 from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
+from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
+from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
 from Tests.ML.util import machine_has_gpu, no_gpu_available
 
 
@@ -112,7 +122,7 @@ def test_amp_activated(use_model_parallel: bool,
                        execution_mode: ModelExecutionMode,
                        use_mixed_precision: bool) -> None:
     """
-    Tests the amp flag both for True and False states. Verifys that the mixed precision training functions as expected.
+    Tests the mix precision flag and the model parallel flag.
     """
     assert machine_has_gpu, "This test must be executed on a GPU machine."
     assert torch.cuda.device_count() > 1, "This test must be executed on a multi-GPU machine"
@@ -137,9 +147,9 @@ def test_amp_activated(use_model_parallel: bool,
     optimizer = model_util.create_optimizer(model_config, model)
     model_and_info = ModelAndInfo(model, optimizer)
     try:
-        model_and_info_amp = model_util.update_model_for_mixed_precision_and_parallel(model_and_info,
-                                                                                      model_config,
-                                                                                      execution_mode)
+        model_and_info_amp = model_util.update_model_for_multiple_gpus(model_and_info,
+                                                                       model_config,
+                                                                       execution_mode)
     except NotImplementedError as ex:
         if use_model_parallel:
             # The SimpleModel does not implement model partitioning, and should hence fail at this step.
@@ -148,20 +158,29 @@ def test_amp_activated(use_model_parallel: bool,
         else:
             raise ValueError(f"Expected this call to succeed, but got: {ex}")
 
-    # Check if the optimizer is updated with AMP mixed precision features. The attribute should be present
-    # if and only if mixed precision is switched on.
-    optimizer_amp = model_and_info_amp.optimizer
-    assert optimizer_amp is not None
-    assert hasattr(optimizer_amp, '_amp_stash') == use_mixed_precision
-    assert hasattr(optimizer_amp, '_post_amp_backward') == use_mixed_precision
-
+    # This is the same logic spelt out in update_model_for_multiple_gpu
+    use_data_parallel = (execution_mode == ModelExecutionMode.TRAIN) or (not use_model_parallel)
+    if use_data_parallel:
+        assert isinstance(model_and_info.model, DataParallelModel)
+    gradient_scaler = GradScaler() if use_mixed_precision else None
     criterion = lambda x, y: torch.tensor([0.0], requires_grad=True).cuda()
     pipeline = SegmentationForwardPass(model_and_info_amp.model,
                                        model_config,
                                        batch_size=1,
-                                       optimizer=optimizer_amp,
+                                       optimizer=optimizer,
+                                       gradient_scaler=gradient_scaler,
                                        criterion=criterion)
-
+    logits, _ = pipeline._compute_loss(image, labels)
+    # When using DataParallel, we expect to get a list of tensors back, one per GPU.
+    if use_data_parallel:
+        assert isinstance(logits, list)
+        first_logit = logits[0]
+    else:
+        first_logit = logits
+    if use_mixed_precision:
+        assert first_logit.dtype == torch.float16
+    else:
+        assert first_logit.dtype == torch.float32
     # Verify that forward and backward passes do not throw an exception
     pipeline._forward_pass(patches=image, mask=mask, labels=labels)
 
@@ -195,6 +214,7 @@ def test_mean_teacher_model() -> None:
     """
     Test training and weight updates of the mean teacher model computation.
     """
+
     def _get_parameters_of_model(model: Union[torch.nn.Module, DataParallelModel]) -> Any:
         """
         Returns the iterator of model parameters
@@ -243,3 +263,64 @@ def test_mean_teacher_model() -> None:
 
     # Check the update of the parameters
     assert torch.all(alpha * initial_weight_mean_teacher_model + (1 - alpha) * student_model_weight == result_weight)
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(no_gpu_available, reason="Testing AMP requires a GPU")
+@pytest.mark.parametrize("use_mixed_precision", [False, True])
+@pytest.mark.parametrize("execution_mode", [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL])
+def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirectories,
+                                            execution_mode: ModelExecutionMode,
+                                            use_mixed_precision: bool) -> None:
+    """
+    Tests the mix precision flag and data parallel for scalar models.
+    """
+    assert machine_has_gpu, "This test must be executed on a GPU machine."
+    assert torch.cuda.device_count() > 1, "This test must be executed on a multi-GPU machine"
+    config = ClassificationModelForTesting()
+    config.use_mixed_precision = use_mixed_precision
+    model = DummyScalarModel(expected_image_size_zyx=config.expected_image_size_zyx,
+                             activation=Identity())
+    model.use_mixed_precision = use_mixed_precision
+    model_and_info = ModelAndInfo(
+        model=model,
+        model_execution_mode=execution_mode
+    )
+    # This is the same logic spelt out in update_model_for_multiple_gpu
+    # execution_mode == ModelExecutionMode.TRAIN or (not use_model_parallel), which is always True in our case
+    use_data_parallel = True
+    model_and_info = model_util.update_model_for_multiple_gpus(model_and_info, config)
+    if use_data_parallel:
+        assert isinstance(model_and_info.model, DataParallelModel)
+    data_loaders = config.create_data_loaders()
+    gradient_scaler = GradScaler() if use_mixed_precision else None
+    train_val_parameters: TrainValidateParameters = TrainValidateParameters(
+        model=model_and_info.model,
+        data_loader=data_loaders[execution_mode],
+        in_training_mode=execution_mode == ModelExecutionMode.TRAIN,
+        gradient_scaler=gradient_scaler,
+        dataframe_loggers=MetricsDataframeLoggers(Path(test_output_dirs.root_dir)),
+        summary_writers=SummaryWriters(train=None, val=None)  # type: ignore
+    )
+    training_steps = ModelTrainingStepsForScalarModel(config, train_val_parameters)
+    sample = list(data_loaders[execution_mode])[0]
+    model_input = get_scalar_model_inputs_and_labels(config, model, sample)
+    logits, posteriors, loss = training_steps._compute_model_output_and_loss(model_input)
+    # When using DataParallel, we expect to get a list of tensors back, one per GPU.
+    if use_data_parallel:
+        assert isinstance(logits, list)
+        first_logit = logits[0]
+    else:
+        first_logit = logits
+    if use_mixed_precision:
+        assert first_logit.dtype == torch.float16
+        assert posteriors.dtype == torch.float16
+        # BCEWithLogitsLoss outputs float32, even with float16 args
+        assert loss.dtype == torch.float32
+    else:
+        assert first_logit.dtype == torch.float32
+        assert posteriors.dtype == torch.float32
+        assert loss.dtype == torch.float32
+    # Verify that forward pass does not throw. It would for example if it fails to gather tensors or not convert
+    # float16 to float32
+    _, _, _ = training_steps._compute_model_output_and_loss(model_input)
