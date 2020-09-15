@@ -92,6 +92,22 @@ The dataset splits for those `N` child runs will be
 computed from the union of the Training and Validation sets. The Test set is unchanged. Note that the Test set can be
 empty, in which case the training and validation sets for the `N` child runs will be the full dataset.
 
+#### Sub-fold cross validation
+
+For scalar models (ie: classification or regression) sub fold cross validation can also be performed by adding
+the switch `--number_of_cross_validation_splits_per_fold=P`, for some `P` greater than
+1; a value of 5 is typical. This will start a HyperDrive run similar to a normal K-Fold model training run as 
+described above but now with `number_of_cross_validation_splits * number_of_cross_validation_splits_per_fold` 
+child runs.
+
+Each sub-fold is associated with a parent cross validation fold, and the dataset splits for those `P` sub-fold child 
+runs will be computed from the training set of the parent cross validation
+fold they belong to. with the validation set being the validation set of the parent cross validation fold.
+The Test set is unchanged.
+
+One all the child runs have finished the results of each of the sub-folds created from the parent cross validation
+folds are averaged to generate the results for each of the parent cross validation folds.
+
 ### Recovering failed runs and continuing training
 
 To train further with an already-created model, give the above command with additional switches like these:
