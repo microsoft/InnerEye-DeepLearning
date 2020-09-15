@@ -91,7 +91,7 @@ def test_get_total_number_of_validation_epochs() -> None:
                           temperature_scaling_config=TemperatureScalingConfig())
     assert c.get_total_number_of_validation_epochs() == 3
     c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1], temperature_scaling_config=None,
-                          save_start_epoch=1, save_step_epoch=1, should_validate=False)
+                          save_start_epoch=1, save_step_epochs=1, should_validate=False)
     assert c.get_total_number_of_validation_epochs() == 2
     c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1],
                           save_start_epoch=1, save_step_epochs=1, should_validate=False,
@@ -153,13 +153,13 @@ def _test_model_train(output_dirs: TestOutputDirectories,
     assert isinstance(model_training_result, ModelTrainingResults)
 
     # check to make sure training batches are NOT all the same across epochs
-    _check_patch_centers([x.metrics for x in model_training_result.train_results_per_epoch], should_equal=False)
+    _check_patch_centers(model_training_result.train_results_per_epoch, should_equal=False)
     # check to make sure validation batches are all the same across epochs
-    _check_patch_centers([x.metrics for x in model_training_result.val_results_per_epoch], should_equal=True)
-    assert isinstance(model_training_result.train_results_per_epoch[0].metrics, MetricsDict)
-    actual_train_losses = [m.metrics.get_single_metric(MetricType.LOSS)
+    _check_patch_centers(model_training_result.val_results_per_epoch, should_equal=True)
+    assert isinstance(model_training_result.train_results_per_epoch[0], MetricsDict)
+    actual_train_losses = [m.get_single_metric(MetricType.LOSS)
                            for m in model_training_result.train_results_per_epoch]
-    actual_val_losses = [m.metrics.get_single_metric(MetricType.LOSS)
+    actual_val_losses = [m.get_single_metric(MetricType.LOSS)
                          for m in model_training_result.val_results_per_epoch]
     print("actual_train_losses = {}".format(actual_train_losses))
     print("actual_val_losses = {}".format(actual_val_losses))

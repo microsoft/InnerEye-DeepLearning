@@ -72,22 +72,6 @@ def download_metrics(config: PlotCrossValidationConfig) -> \
     return dataframes, root_folder
 
 
-@pytest.mark.skip(
-    reason="Long-running legacy test, most of the functionality is now covered in test_metrics_download_preparation")
-def test_download_metrics(test_config_ensemble: PlotCrossValidationConfig,
-                          test_output_dirs: TestOutputDirectories) -> None:
-    test_config_ensemble.outputs_directory = test_output_dirs.root_dir
-    downloaded_metrics, _ = download_metrics(test_config_ensemble)
-    for mode in [ModelExecutionMode.TEST]:
-        expected_df = _get_metrics_df(mode)
-        # Drop the "mode" column, because that was added after creating the test data
-        metrics = downloaded_metrics[mode]
-        assert metrics is not None
-        actual_df = metrics.drop(COL_MODE, axis=1)
-        actual_df = actual_df.sort_values(list(actual_df.columns), ascending=True).reset_index(drop=True)
-        pd.testing.assert_frame_equal(expected_df, actual_df, check_like=True, check_dtype=False)
-
-
 def create_run_result_file_list(run_recovery_id: str, folder: str) -> List[RunResultFiles]:
     """
     Creates a list of input files for cross validation analysis, from files stored inside of the test data folder.

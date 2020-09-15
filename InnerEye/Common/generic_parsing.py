@@ -95,23 +95,30 @@ class GenericConfig(param.Parameterized):
     Base class for all configuration classes provides helper functionality to create argparser.
     """
 
-    def __init__(self, should_validate: bool = True, **params: Any):
+    def __init__(self, should_validate: bool = True, throw_if_unknown_param: bool = False, **params: Any):
         """
         Instantiates the config class, ignoring parameters that are not overridable.
         :param should_validate: If True, the validate() method is called directly after init.
+        :param throw_if_unknown_param: If True, raise an error if the provided "params" contains any key that does not
+                                correspond to an attribute of the class.
         :param params: Parameters to set.
         """
         # check if illegal arguments are passed in
         legal_params = self.get_overridable_parameters()
         illegal = [k for k, v in params.items() if (k in self.params().keys()) and (k not in legal_params)]
+
         if illegal:
             raise ValueError(f"The following parameters cannot be overriden as they are either "
                              f"readonly, constant, or private members : {illegal}")
-        else:
-            # set known arguments
-            super().__init__(**{k: v for k, v in params.items() if k in legal_params.keys()})
-            if should_validate:
-                self.validate()
+        if throw_if_unknown_param:
+            # check if parameters not defined by the config class are passed in
+            unknown = [k for k, v in params.items() if (k not in self.params().keys())]
+            if unknown:
+                raise ValueError(f"The following parameters do not exist: {unknown}")
+        # set known arguments
+        super().__init__(**{k: v for k, v in params.items() if k in legal_params.keys()})
+        if should_validate:
+            self.validate()
 
     def validate(self) -> None:
         """
