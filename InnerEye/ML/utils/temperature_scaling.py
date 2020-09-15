@@ -90,7 +90,7 @@ class ModelWithTemperature(DeviceAwareModule):
             loss.backward()
             return loss
 
-        optimizer.step(eval_criterion)
+        optimizer.step(eval_criterion)  # type: ignore
 
         after_temperature_loss, after_temperature_ece = criterion_fn(self.temperature_scale(logits), labels)
         print('Optimal temperature: {:.3f}'.format(self.temperature.item()))
