@@ -43,7 +43,7 @@ class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
         return [item.images]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
-        def _forward():
+        def _forward() -> torch.Tensor:
             # Need to copy to a local variable, because we can't re-assign x here
             x2 = x
             if x2.shape[-3:] != self.expected_image_size_zyx:
