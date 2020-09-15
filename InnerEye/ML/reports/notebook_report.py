@@ -17,3 +17,16 @@ def generate_notebook(notebook_path: Path, notebook_params: Dict, result_path: P
                                output_path=str(result_path),
                                parameters=notebook_params,
                                progress_bar=False)
+    print(f"Running conversion to html for {result_path}")
+    with open(str(result_path)) as f:
+        notebook = nbformat.read(f, as_version=4)
+        html_exporter = HTMLExporter()
+        html_exporter.exclude_input = True
+        (body, resources) = html_exporter.from_notebook_node(notebook)
+        write_file = FilesWriter()
+        write_file.build_directory = str(result_path.parent)
+        write_file.write(
+            output=body,
+            resources=resources,
+            notebook_name=str(result_path.resolve().stem)
+        )

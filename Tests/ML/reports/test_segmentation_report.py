@@ -4,6 +4,8 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 import pandas as pd
+
+from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.reports.segmentation.segmentation_report import INNEREYE_PATH_PARAMETER_NAME, \
     SEGMENTATION_REPORT_NOTEBOOK_PATH, TEST_METRICS_CSV_PARAMETER_NAME, describe_score
 
@@ -11,15 +13,16 @@ from InnerEye.ML.reports.notebook_report import generate_notebook
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 
 
-def test_generate_segmentation_report() -> None:
-    current_dir = Path(__file__).parent.absolute()
-    metrics_path = current_dir / "metrics_hn.csv"
+def test_generate_segmentation_report(test_output_dirs: TestOutputDirectories) -> None:
+    current_dir = Path(test_output_dirs.make_sub_dir("test_segmentation_report"))
+    metrics_path = Path(__file__).parent.absolute() / "metrics_hn.csv"
     generate_notebook(notebook_path=SEGMENTATION_REPORT_NOTEBOOK_PATH,
                       notebook_params={TEST_METRICS_CSV_PARAMETER_NAME: str(metrics_path),
                                        INNEREYE_PATH_PARAMETER_NAME: str(Path(__file__).parent.parent.parent.parent)},
                       result_path=current_dir / "report.ipynb")
     chk_file = Path(current_dir / "report.ipynb")
-
+    assert chk_file.is_file()
+    chk_file = Path(current_dir / "report.html")
     assert chk_file.is_file()
 
 
