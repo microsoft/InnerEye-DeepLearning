@@ -369,8 +369,8 @@ def download_outputs_from_run(blobs_path: Path,
     run = run or Run.get_context()
     blobs_root_path = str(fixed_paths.DEFAULT_AML_UPLOAD_DIR / blobs_path)
     if is_file:
+        destination = destination / blobs_path.name
         run.download_file(blobs_root_path, str(destination), _validate_checksum=True)
-        return destination / blobs_path.name
     else:
         run.download_files(blobs_root_path, str(destination), append_prefix=append_prefix)
-        return destination
+    return destination
