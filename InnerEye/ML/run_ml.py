@@ -35,7 +35,7 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.runner import ModelDeploymentHookSignature
+from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
@@ -211,10 +211,11 @@ class MLRunner:
         best_epoch = self.run_inference_and_register_model(run_recovery, ModelProcessing.DEFAULT)
 
         # Generate report
-        self.generate_report(best_epoch, ModelProcessing.DEFAULT)
+        if best_epoch:
+            Runner.generate_report(self.model_config, best_epoch, ModelProcessing.DEFAULT)
 
     def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery],
-                                         model_proc: ModelProcessing) -> int:
+                                         model_proc: ModelProcessing) -> Optional[int]:
         """
         Run inference as required, and register the model, but not necessarily in that order:
         if we can identify the epoch to register at without running inference, we register first.

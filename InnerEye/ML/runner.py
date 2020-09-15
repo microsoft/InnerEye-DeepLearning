@@ -132,7 +132,7 @@ class Runner:
         self.create_ensemble_model()
 
     @staticmethod
-    def generate_report(config: DeepLearningConfig, best_epoch: int, model_proc: ModelProcessing):
+    def generate_report(config: DeepLearningConfig, best_epoch: int, model_proc: ModelProcessing) -> None:
         logging.info("Saving report in html")
         path_to_best_epoch_train = config.outputs_folder / get_epoch_results_path(best_epoch,
                                                                                   mode=ModelExecutionMode.TRAIN,

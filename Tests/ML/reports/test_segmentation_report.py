@@ -11,7 +11,7 @@ from InnerEye.ML.reports.notebook_report import generate_notebook
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 
 
-def test_generate_segmentation_report():
+def test_generate_segmentation_report() -> None:
     current_dir = Path(__file__).parent.absolute()
     metrics_path = current_dir / "metrics_hn.csv"
     generate_notebook(notebook_path=SEGMENTATION_REPORT_NOTEBOOK_PATH,
@@ -23,7 +23,7 @@ def test_generate_segmentation_report():
     assert chk_file.is_file()
 
 
-def test_describe_metric():
+def test_describe_metric() -> None:
     current_dir = Path(__file__).parent.absolute()
     metrics_path = current_dir / "metrics_hn.csv"
     df = pd.read_csv(metrics_path)

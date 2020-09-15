@@ -11,7 +11,7 @@ from nbconvert import HTMLExporter
 from nbconvert.writers import FilesWriter
 
 
-def generate_notebook(notebook_path: Path, notebook_params: Dict, result_path: Path):
+def generate_notebook(notebook_path: Path, notebook_params: Dict, result_path: Path) -> None:
     print(f"Writing report to {result_path}")
     papermill.execute_notebook(input_path=str(notebook_path),
                                output_path=str(result_path),

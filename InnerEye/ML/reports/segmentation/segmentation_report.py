@@ -16,19 +16,19 @@ VAL_METRICS_CSV_PARAMETER_NAME = "val_metrics_csv"
 INNEREYE_PATH_PARAMETER_NAME = "innereye_path"
 
 
-def plot_scores_for_csv(path_csv: str):
+def plot_scores_for_csv(path_csv: str) -> None:
     """
     Displays all the tables and figures given a csv file with segmentation metrics
     Columns expected: Patient,Structure,Dice,HausdorffDistance_mm,MeanDistance_mm
     """
     df = pd.read_csv(path_csv)
 
-    DisplayMetric(df, MetricsFileColumns.Dice.value)
-    DisplayMetric(df, MetricsFileColumns.HausdorffDistanceMM.value)
-    DisplayMetric(df, MetricsFileColumns.MeanDistanceMM.value)
+    display_metric(df, MetricsFileColumns.Dice.value)
+    display_metric(df, MetricsFileColumns.HausdorffDistanceMM.value)
+    display_metric(df, MetricsFileColumns.MeanDistanceMM.value)
 
 
-def DisplayMetric(df, metric_name: str):
+def display_metric(df: pd.DataFrame, metric_name: str) -> None:
     display(Markdown(f"##{metric_name}"))
     display(describe_score(df, MetricsFileColumns.Dice.value))
     display(Markdown(f"##Worse {metric_name} patients"))
@@ -37,12 +37,12 @@ def DisplayMetric(df, metric_name: str):
     plt.show()
 
 
-def worse_patients(df: pd.DataFrame, metric_name: str, ascending: bool):
+def worse_patients(df: pd.DataFrame, metric_name: str, ascending: bool) -> pd.DataFrame:
     df2 = df.sort_values(by=metric_name, ascending=ascending).head(20)
     return df2
 
 
-def describe_score(df: pd.DataFrame, metric_name: str):
+def describe_score(df: pd.DataFrame, metric_name: str) -> pd.DataFrame:
     df2 = df.groupby(MetricsFileColumns.Structure.value)[metric_name].describe() \
         .unstack(1).reset_index()
     df2 = pd.pivot_table(df2, values=[0], index=MetricsFileColumns.Structure.value,
