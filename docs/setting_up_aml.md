@@ -15,6 +15,10 @@ Once you're done with these steps, you will be ready for the next steps describe
 [Building models in Azure ML](building_models.md) and 
 [Sample segmentation and classification tasks](sample_tasks.md).
 
+## Automatic Deployment
+
+[![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fgithub.com%2FMicrosoft%2FInnerEye-DeepLearning%2Fblob%2Fantonsc%2Fdeploy%2Fazure-pipelines%2Fazure_deployment_template.json)
+
 
 ### Step 1: Create an AML workspace
 
