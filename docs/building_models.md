@@ -102,10 +102,10 @@ child runs.
 
 Each sub-fold is associated with a parent cross validation fold, and the dataset splits for those `P` sub-fold child 
 runs will be computed from the training set of the parent cross validation
-fold they belong to. with the validation set being the validation set of the parent cross validation fold.
+fold they belong to, with the validation set being the same as the validation set of the parent cross validation fold.
 The Test set is unchanged.
 
-One all the child runs have finished the results of each of the sub-folds created from the parent cross validation
+Once all the child runs have finished the results of each of the sub-folds created from the parent cross validation
 folds are averaged to generate the results for each of the parent cross validation folds.
 
 ### Recovering failed runs and continuing training
