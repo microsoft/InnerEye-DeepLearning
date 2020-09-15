@@ -44,7 +44,7 @@ def download_pytest_result(run: Run, destination_folder: Path = Path.cwd()) -> P
     Downloads the pytest result file that is stored in the output folder of the given AzureML run.
     If there is no pytest result file, throw an Exception.
     :param run: The run from which the files should be read.
-    :param destination_folder: The folder into which the pytest result file is downloaded.
+    :param destination_folder: The folder into which the PyTest result file is downloaded.
     :return: The path (folder and filename) of the downloaded file.
     """
     logging.info(f"Downloading pytest result file: {PYTEST_RESULTS_FILE}")
