@@ -24,6 +24,9 @@ def test_generate_segmentation_report(test_output_dirs: TestOutputDirectories) -
     assert chk_file.is_file()
     chk_file = Path(current_dir / "report.html")
     assert chk_file.is_file()
+    # Check html contains the name of a key structure
+    with open(chk_file) as f:
+        assert 'parotid_r' in f.read()
 
 
 def test_describe_metric() -> None:
