@@ -18,7 +18,7 @@ def test_generate_segmentation_report() -> None:
                       notebook_params={TEST_METRICS_CSV_PARAMETER_NAME: str(metrics_path),
                                        INNEREYE_PATH_PARAMETER_NAME: str(Path(__file__).parent.parent.parent.parent)},
                       result_path=current_dir / "report.ipynb")
-    chk_file = Path(current_dir / "report.html")
+    chk_file = Path(current_dir / "report.ipynb")
 
     assert chk_file.is_file()
 
