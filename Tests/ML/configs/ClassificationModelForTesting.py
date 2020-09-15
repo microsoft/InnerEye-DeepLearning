@@ -9,8 +9,8 @@ import torch
 
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
+from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 class ClassificationModelForTesting(ScalarModelBase):

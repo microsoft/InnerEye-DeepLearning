@@ -105,7 +105,7 @@ class Runner:
         """
         if (not self.model_config.is_offline_run) \
                 and (azure_util.is_cross_validation_child_run(RUN_CONTEXT)):
-            n_splits = self.model_config.number_of_cross_validation_splits
+            n_splits = self.model_config.get_total_number_of_cross_validation_runs()
             child_runs = azure_util.fetch_child_runs(PARENT_RUN_CONTEXT,
                                                      expected_number_cross_validation_splits=n_splits)
             pending_runs = [x.id for x in child_runs
@@ -316,7 +316,7 @@ class Runner:
             # A build step will pick up that file and publish it to Azure DevOps.
             # If pytest_mark is set, this file must exist.
             logging.info("Downloading pytest result file.")
-            download_pytest_result(self.azure_config, azure_run)
+            download_pytest_result(azure_run)
         else:
             logging.info("No pytest_mark present, hence not downloading the pytest result file.")
         status = azure_run.get_status()
@@ -362,7 +362,7 @@ class Runner:
                     pytest_failed = True
         finally:
             # wait for aggregation if required, and only if the training actually succeeded.
-            if not training_failed and self.model_config.should_wait_for_other_cross_val_child_runs:
+            if not training_failed and self.model_config.should_wait_for_other_cross_val_child_runs():
                 self.wait_for_cross_val_runs_to_finish_and_aggregate()
             disable_logging_to_file()
         if training_failed or pytest_failed or not pytest_passed:
