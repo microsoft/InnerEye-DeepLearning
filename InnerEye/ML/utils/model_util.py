@@ -281,6 +281,7 @@ def default_state_dict_reader(path_to_checkpoint: Path):
 def load_checkpoint(model: torch.nn.Module,
                     path_to_checkpoint: Path,
                     optimizer: Optional[Optimizer] = None,
+                    optimizer_to_gpu: Optional[bool] = False,
                     model_weight_reader: Callable = None) -> Optional[int]:
     """
     Loads a checkpoint of a model.
@@ -290,6 +291,7 @@ def load_checkpoint(model: torch.nn.Module,
     :param model: The DataParallel object representing the network. Must have the same architecture of the stored model.
     :param path_to_checkpoint: The path to the checkpoint file.
     :param optimizer: The optimizer used for training
+    :param optimizer_to_gpu: If true, move the optimizer to GPU, which we need to do if the model is also on GPU.
     :param model_weight_reader: A function which takes a Path argument and returns a state dict.
     :return: The checkpoint epoch if loaded and None if not loaded
     """
@@ -311,7 +313,13 @@ def load_checkpoint(model: torch.nn.Module,
         model.load_state_dict(checkpoint['state_dict'])
 
     if optimizer is not None and (not model_weight_reader or 'opt_dict' in checkpoint):
-        optimizer.load_state_dict(checkpoint['opt_dict'])
+        opt_dict = checkpoint['opt_dict']
+        if optimizer_to_gpu:
+            # https://github.com/pytorch/pytorch/issues/2830
+            for key, val in opt_dict.items():
+                if isinstance(val, torch.Tensor):
+                    opt_dict[key] = val.cuda()
+        optimizer.load_state_dict(opt_dict)
 
     logging.info("Loaded checkpoint (epoch: {})".format(checkpoint['epoch']))
     return checkpoint['epoch']
@@ -368,6 +376,7 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
         load_checkpoint(model=model_and_info.model,
                         path_to_checkpoint=path_to_checkpoint,
                         optimizer=model_and_info.optimizer,
+                        optimizer_to_gpu=model_config.use_gpu,
                         model_weight_reader=model_config.get_state_dict_from_model_weights if
                                                                 use_reader_function_from_config else None)
     if model_and_info.checkpoint_epoch is None:

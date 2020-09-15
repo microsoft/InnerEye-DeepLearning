@@ -219,7 +219,7 @@ def test_mean_teacher_model() -> None:
     model_weight = next(_get_parameters_of_model(model))
 
     # Get the starting weight of the mean teacher model
-    ml_util.set_random_seed(config.random_seed)
+    ml_util.set_random_seed(config.get_effective_random_seed())
     _ = create_model_with_temperature_scaling(config)
     mean_teach_model = create_model_with_temperature_scaling(config)
     initial_weight_mean_teacher_model = next(_get_parameters_of_model(mean_teach_model))

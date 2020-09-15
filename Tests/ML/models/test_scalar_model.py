@@ -73,8 +73,8 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     def extract_loss(results: List[MetricsDict]) -> List[float]:
         return [d.values()[MetricType.LOSS.value][0] for d in results]
 
-    actual_train_loss = extract_loss([x.metrics for x in model_training_result.train_results_per_epoch])
-    actual_val_loss = extract_loss([x.metrics for x in model_training_result.val_results_per_epoch])
+    actual_train_loss = extract_loss(model_training_result.train_results_per_epoch)
+    actual_val_loss = extract_loss(model_training_result.val_results_per_epoch)
     actual_learning_rates = list(flatten(model_training_result.learning_rates_per_epoch))
     assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6)
     assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6)
@@ -227,7 +227,7 @@ def test_runner1(test_output_dirs: TestOutputDirectories) -> None:
                                yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
     assert isinstance(config, ScalarModelBase)
     assert config.model_name == "DummyClassification"
-    assert config.random_seed == set_from_commandline
+    assert config.get_effective_random_seed() == set_from_commandline
     assert config.non_image_feature_channels == ["label"]
     assert str(config.outputs_folder).startswith(output_root)
     assert (config.logs_folder / runner.LOG_FILE_NAME).exists()
