@@ -69,6 +69,9 @@ class ModelCategory(Enum):
     Regression = "Regression"  # All models that perform regression
 
     def is_scalar(self) -> bool:
+        """
+        Return True if the current ModelCategory is either Classification or Regression
+        """
         return self in [ModelCategory.Classification, ModelCategory.Regression]
 
 
