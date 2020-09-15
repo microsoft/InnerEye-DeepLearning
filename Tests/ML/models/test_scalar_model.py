@@ -32,19 +32,16 @@ from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get
     unroll_aggregate_metrics
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.models.test_parallel import no_gpu
 from Tests.ML.util import get_default_azure_config, machine_has_gpu
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize("use_mixed_precision", [False, True])
 def test_train_classification_model(test_output_dirs: TestOutputDirectories,
-                                    use_mixed_precision: bool,
-                                    check_logs: bool = True) -> None:
+                                    use_mixed_precision: bool) -> None:
     """
     Test training and testing of classification models, asserting on the individual results from training and testing.
-    This executes correctly only on CPU machines - there it will return the same results for both
-    use_mixed_precision==True and ==False. It will fail on a SurfaceBook where it recognizes the GPU (loss values
-    don't match when use_mixed_precision==True)
+    Expected test results are stored for GPU with and without mixed precision.
     """
     logging_to_stdout(logging.DEBUG)
     config = ClassificationModelForTesting()
@@ -64,8 +61,8 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     use_mixed_precision_and_gpu = use_mixed_precision and machine_has_gpu
     if use_mixed_precision_and_gpu:
-        expected_train_loss = [0.686615, 0.686467, 0.686322, 0.686174]
-        expected_val_loss = [0.737038, 0.736720, 0.736338, 0.735957]
+        expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
+        expected_val_loss = [0.737039, 0.736721, 0.736339, 0.735957]
     else:
         expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
         expected_val_loss = [0.737061, 0.736690, 0.736321, 0.735952]
@@ -84,8 +81,8 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     assert list(test_results.epochs.keys()) == expected_epochs
     if use_mixed_precision_and_gpu:
         expected_metrics = {
-            2: [0.635924, 0.736720],
-            4: [0.636096, 0.735957],
+            2: [0.635942, 0.736691],
+            4: [0.636085, 0.735952],
         }
     else:
         expected_metrics = {
@@ -95,7 +92,9 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     for epoch in expected_epochs:
         assert test_results.epochs[epoch].values()[MetricType.CROSS_ENTROPY.value] == \
                pytest.approx(expected_metrics[epoch], abs=1e-6)
-    if check_logs:
+    # Run detailed logs file check only on CPU, it will contain slightly different metrics on GPU, but here
+    # we want to mostly assert that the files look reasonable
+    if not machine_has_gpu:
         # Check log EPOCH_METRICS_FILE_NAME
         epoch_metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME
         # Auto-format will break the long header line, hence the strange way of writing it!
@@ -138,12 +137,6 @@ def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> 
         if ignore_column in df_expected:
             del df_expected[ignore_column]
     pd.testing.assert_frame_equal(df_expected, df_epoch_metrics_actual, check_less_precise=True)
-
-
-@pytest.mark.gpu
-@pytest.mark.skipif(no_gpu, reason="CUDA capable GPU is not available")
-def test_train_classification_model_with_amp(test_output_dirs: TestOutputDirectories) -> None:
-    test_train_classification_model(test_output_dirs, True, check_logs=False)
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
