@@ -24,7 +24,7 @@ def test_download_pytest_file(test_output_dirs: TestOutputDirectories) -> None:
         runs = [run for run in experiment.get_runs() if run.number == number]
         if len(runs) != 1:
             raise ValueError(f"Expected to get exactly 1 run in experiment {experiment.name}")
-        return download_pytest_result(azure_config, runs[0], output_dir)
+        return download_pytest_result(runs[0], output_dir)
 
     # PR 49 is a recent successful build that generated a pytest file.
     # Run 6 in that experiment was canceled did not yet write the pytest file:

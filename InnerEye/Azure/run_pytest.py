@@ -9,7 +9,6 @@ from typing import Tuple
 import pytest
 from azureml.core import Run
 
-from InnerEye.Azure.azure_config import AzureConfig
 # Test result file from running pytest inside the AzureML job. This file must have a prefix that
 # matches the string in the build definition build-pr.yml, in the TrainInAzureML job.
 from InnerEye.Azure.azure_util import download_outputs_from_run
@@ -40,11 +39,10 @@ def run_pytest(pytest_mark: str, outputs_folder: Path) -> Tuple[bool, Path]:
     return status_code == ExitCode.OK, _outputs_file
 
 
-def download_pytest_result(azure_config: AzureConfig, run: Run, destination_folder: Path = Path.cwd()) -> Path:
+def download_pytest_result(run: Run, destination_folder: Path = Path.cwd()) -> Path:
     """
     Downloads the pytest result file that is stored in the output folder of the given AzureML run.
     If there is no pytest result file, throw an Exception.
-    :param azure_config: The settings for accessing Azure, in particular blob storage.
     :param run: The run from which the files should be read.
     :param destination_folder: The folder into which the pytest result file is downloaded.
     :return: The path (folder and filename) of the downloaded file.
