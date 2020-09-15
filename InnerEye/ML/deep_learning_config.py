@@ -211,7 +211,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                               " from a checkpoint.")
 
     l_rate: float = param.Number(1e-4, doc="The initial learning rate", bounds=(0, None))
-    _min_l_rate: float = param.Number(0.0, doc="The minimum learning rate", bounds=(0.0, None))
+    _min_l_rate: float = param.Number(0.0, doc="The minimum learning rate for the Polynomial and Cosine schedulers.",
+                                      bounds=(0.0, None))
     l_rate_scheduler: LRSchedulerType = param.ClassSelector(default=LRSchedulerType.Polynomial,
                                                             class_=LRSchedulerType,
                                                             instantiate=False,

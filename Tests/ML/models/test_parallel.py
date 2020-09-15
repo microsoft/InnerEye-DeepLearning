@@ -6,14 +6,15 @@ from typing import Any, List
 
 import pytest
 import torch
+from torch import Tensor
 
 from InnerEye.Common import common_util
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion
-from InnerEye.ML.models.parallel.model_parallel import group_layers_with_balanced_memory, move_to_device, \
-    partition_layers
-from InnerEye.ML.utils.ml_util import is_gpu_available
+from InnerEye.ML.models.parallel.model_parallel import group_layers_with_balanced_memory, \
+    move_to_device, partition_layers
+from InnerEye.ML.utils.ml_util import is_gpu_available, set_random_seed
 
 no_gpu = not is_gpu_available()
 no_or_single_gpu = not torch.cuda.is_available() or torch.cuda.device_count() <= 1
@@ -51,22 +52,26 @@ class SimpleModel(BaseModel):
 @pytest.mark.gpu
 @pytest.mark.skipif(no_gpu, reason="CUDA capable GPU is not available")
 def test_move_to_device() -> None:
+    def assert_device_matches(tensors: List[Tensor], target_device: torch.device) -> None:
+        for tensor in tensors:
+            assert tensor.device == target_device
+
     target_device = torch.device('cuda:0')
     input_tensor_1 = torch.tensor(3, device=torch.device('cpu'))
     input_tensor_2 = torch.tensor(3, device=torch.device('cuda:0'))
-    [moved_tensor_1, moved_tensor_2] = move_to_device([input_tensor_1, input_tensor_2],
-                                                      target_device=target_device)
-
-    assert moved_tensor_1.device == target_device
-    assert moved_tensor_2.device == target_device
+    tensors = [input_tensor_1, input_tensor_2]
+    moved = list(move_to_device(tensors, target_device=target_device))
+    assert_device_matches(moved, target_device)
 
     if torch.cuda.device_count() > 1:
         target_device = torch.device('cuda:1')
-        [moved_tensor_1, moved_tensor_2] = move_to_device([input_tensor_1, input_tensor_2],
-                                                          target_device=target_device)
+        moved = list(move_to_device(tensors, target_device=target_device))
+        assert_device_matches(moved, target_device)
 
-        assert moved_tensor_1.device == target_device
-        assert moved_tensor_2.device == target_device
+    # Not supplying a target device should leave the tensor untouched
+    moved = list(move_to_device(tensors, target_device=None))
+    assert moved[0].device == tensors[0].device
+    assert moved[1].device == tensors[1].device
 
 
 @pytest.mark.gpu
@@ -96,7 +101,8 @@ def test_partition_layers() -> None:
     all_layers = model.get_all_child_layers()
 
     if summary is None:
-        raise RuntimeError("Network summary is required to partition UNet3D. Call model.generate_model_summary() first.")
+        raise RuntimeError(
+            "Network summary is required to partition UNet3D. Call model.generate_model_summary() first.")
 
     partition_layers(layers=all_layers, summary=summary, target_devices=devices)
 
@@ -108,11 +114,15 @@ def test_partition_layers() -> None:
 
 @pytest.mark.gpu
 @pytest.mark.skipif(no_gpu, reason="CUDA capable GPU is not available")
-def test_dataparallel_criterion() -> None:
+@pytest.mark.parametrize("use_mixed_precision", [False, True])
+def test_dataparallel_criterion(use_mixed_precision: bool) -> None:
+    set_random_seed(1)
     num_batches = torch.cuda.device_count()
     array_shape = [num_batches, 2, 8, 4, 8]
     segmentation = torch.rand(array_shape).cuda()
     ground_truth = torch.rand(array_shape).cuda()
+    if use_mixed_precision:
+        segmentation = segmentation.to(dtype=torch.float16)
     target_loss_values = torch.zeros(num_batches).cuda()
 
     # Sequential computation with multi-hardware parallelisation
@@ -122,13 +132,20 @@ def test_dataparallel_criterion() -> None:
         target_loss_values[ii] = loss
 
     # Use parallel criterion
-    parallel_loss_fn = DataParallelCriterion(SoftDiceLoss(), device_ids=range(torch.cuda.device_count()))
+    parallel_loss_fn = DataParallelCriterion(loss_fn,
+                                             device_ids=list(range(torch.cuda.device_count())),
+                                             use_mixed_precision=use_mixed_precision)
     segmentation_as_parallel = [segmentation[ii:ii + 1].to("cuda:{}".format(ii)) for ii in range(num_batches)]
     computed_loss_values = \
         parallel_loss_fn(segmentation_as_parallel[0], ground_truth) if num_batches == 1 \
             else parallel_loss_fn(segmentation_as_parallel, ground_truth)
-
+    assert isinstance(computed_loss_values, torch.Tensor)
     if num_batches == 1:
-        assert torch.equal(target_loss_values[0], computed_loss_values)
+        target_loss_values = target_loss_values[0]
+    diff = (target_loss_values - computed_loss_values).abs().sum().item()
+    # Even with autocast turned on, the result tensor always comes back as float32, and we can't run any more
+    # detailed asserts on it. Best thing to do is to check if there are signs of lower precision computation.
+    if use_mixed_precision:
+        assert diff > 2e-5
     else:
-        assert torch.equal(target_loss_values, computed_loss_values)
+        assert diff < 1e-10
