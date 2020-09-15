@@ -17,6 +17,7 @@ from torch.optim import Optimizer  # type: ignore
 
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
+from InnerEye.ML.models.parallel.data_parallel import execute_within_autocast_if_needed
 from InnerEye.ML.utils import image_util, ml_util
 
 
@@ -125,6 +126,7 @@ class SegmentationForwardPass:
         Do a forward pass on the model with the patches as input. If labels are provided, compute the loss.
         Return a tuple of (logits, loss).
         """
+
         def compute() -> Tuple[Any, Optional[Tensor]]:
             loss: Optional[torch.Tensor] = None
             logits = self.model(patches)
@@ -134,12 +136,7 @@ class SegmentationForwardPass:
                 loss = self.criterion_fn(logits, labels)
             return logits, loss
 
-        if self.gradient_scaler:
-            with torch.cuda.amp.autocast():
-                logits, loss = compute()
-        else:
-            logits, loss = compute()
-        return logits, loss
+        return execute_within_autocast_if_needed(func=compute, use_autocast=True if self.gradient_scaler else False)
 
     def _forward_pass(self,
                       patches: torch.Tensor,

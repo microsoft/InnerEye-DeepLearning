@@ -36,7 +36,8 @@ from InnerEye.ML.models.losses.cross_entropy import CrossEntropyLoss
 from InnerEye.ML.models.losses.ece import ECELoss
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
-from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion, DataParallelModel
+from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion, DataParallelModel, \
+    execute_within_autocast_if_needed
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass, single_optimizer_step
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
@@ -352,11 +353,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             loss = self.compute_loss(logits, label_gpu)
             return logits, posteriors, loss
 
-        if self.model_config.use_mixed_precision:
-            with torch.cuda.amp.autocast():
-                return compute()
-        else:
-            return compute()
+        return execute_within_autocast_if_needed(func=compute, use_autocast=self.model_config.use_mixed_precision)
 
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
                                        batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:

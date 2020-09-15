@@ -7,7 +7,6 @@ from typing import Any, Callable, List, Optional, Union
 
 import numpy as np
 import torch
-from torch.cuda import amp
 from torch.nn import ModuleList, Sequential
 
 from InnerEye.Common.type_annotations import TupleInt3
@@ -20,6 +19,7 @@ from InnerEye.ML.models.layers.basic import BasicLayer
 from InnerEye.ML.models.layers.identity import Identity
 from InnerEye.ML.models.layers.pooling_layers import AveragePooling, Gated3dPoolingLayer, \
     MaxPooling, MixPooling, ZAdaptive3dAvgLayer
+from InnerEye.ML.models.parallel.data_parallel import execute_within_autocast_if_needed
 from InnerEye.ML.scalar_config import AggregationType
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES, segmentation_to_one_hot
 
@@ -229,29 +229,16 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
             input_tensors.append(item.get_all_non_imaging_features())
         return input_tensors
 
-    def wrap_with_autocast_if_needed(self, func: Callable[[], Any]) -> Any:
-        """
-        Returns the result of executing the given function. Execution is wrapped with an autocast
-        context manager if the mixed precision flag is set.
-        """
-        if self.use_mixed_precision:
-            with amp.autocast():
-                return func()
-        else:
-            return func()
-
     def forward(self, *item: torch.Tensor, **kwargs: Any) -> torch.Tensor:
         def _forward() -> torch.Tensor:
             x = item[0]
             x = self.encode_and_aggregate(x)
-
             # combine non image features if required
             if self.image_and_non_image_features_aggregator:
                 x = self.image_and_non_image_features_aggregator(x, item[1].float())
-
             return x
 
-        return self.wrap_with_autocast_if_needed(_forward)
+        return execute_within_autocast_if_needed(func=_forward, use_autocast=self.use_mixed_precision)
 
     def encode_and_aggregate(self, x: torch.Tensor) -> torch.Tensor:
         return encode_and_aggregate(encoder=self.encoder,
@@ -358,7 +345,7 @@ class ImageEncoderWithMlp(ImageEncoder):
             x = self.classification_layer(x.view(-1, x.shape[1]))
             return self.final_activation(x)
 
-        return self.wrap_with_autocast_if_needed(_forward)
+        return execute_within_autocast_if_needed(func=_forward, use_autocast=self.use_mixed_precision)
 
 
 def encode_and_aggregate(input_tensor: torch.Tensor,
