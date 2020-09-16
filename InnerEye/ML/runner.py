@@ -58,6 +58,23 @@ def may_initialize_rpdb() -> None:
                  f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}")
 
 
+def suppress_logging_noise() -> None:
+    """
+    Reduce the logging level for some of the used libraries, which are particularly talkative in DEBUG mode.
+    Usually when running in DEBUG mode, we want diagnostics about the model building itself, but not for the
+    underlying libraries.
+    """
+    # Numba code generation is extremely talkative in DEBUG mode, disable that.
+    logging.getLogger('numba').setLevel(logging.WARNING)
+    # Matplotlib is also very talkative in DEBUG mode, filling half of the log file in a PR build.
+    logging.getLogger('matplotlib').setLevel(logging.INFO)
+    # Urllib prints out connection information for each call to write metrics, etc
+    logging.getLogger('urllib').setLevel(logging.INFO)
+    # This is working around a spurious error message thrown by MKL, see
+    # https://github.com/pytorch/pytorch/issues/37377
+    os.environ['MKL_THREADING_LAYER'] = 'GNU'
+
+
 class Runner:
     """
     :param project_root: The root folder that contains all of the source code that should be executed.
@@ -71,6 +88,7 @@ class Runner:
     Suggested value is "innereye-deeplearning".
     :param command_line_args: command-line arguments to use; if None, use sys.argv.
     """
+
     def __init__(self,
                  project_root: Path,
                  yaml_config_file: Path,
@@ -164,7 +182,8 @@ class Runner:
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
-        self.create_ml_runner().run_inference_and_register_model(run_recovery, model_proc=ModelProcessing.ENSEMBLE_CREATION)
+        self.create_ml_runner().run_inference_and_register_model(run_recovery,
+                                                                 model_proc=ModelProcessing.ENSEMBLE_CREATION)
         crossval_dir = self.plot_cross_validation_and_upload_results()
         # CrossValResults should have been uploaded to the parent run, so we don't need it here.
         remove_file_or_directory(crossval_dir)
@@ -297,10 +316,7 @@ class Runner:
         # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(self.azure_config.log_level)
-        # Numba code generation is extremely talkative in DEBUG mode, disable that.
-        logging.getLogger('numba').setLevel(logging.WARNING)
-        # Matplotlib is also very talkative in DEBUG mode, filling half of the log file in a PR build.
-        logging.getLogger('matplotlib').setLevel(logging.INFO)
+        suppress_logging_noise()
         pytest_failed = False
         training_failed = False
         pytest_passed = True
@@ -376,9 +392,6 @@ def run(project_root: Path,
     :return: If submitting to AzureML, returns the model configuration that was used for training,
     including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
-    # This is working around a spurious error message thrown by MKL, see
-    # https://github.com/pytorch/pytorch/issues/37377
-    os.environ['MKL_THREADING_LAYER'] = 'GNU'
     runner = Runner(project_root, yaml_config_file, post_cross_validation_hook,
                     model_deployment_hook, innereye_submodule_name, command_line_args)
     return runner.run()
