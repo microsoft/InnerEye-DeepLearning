@@ -10,6 +10,7 @@ dependencies:
       - gitpython==3.1.7
       - numpy==1.19.1
       - nbconvert==6.0.2
+      - matplotlib==3.3.0
       - papermill==2.1.2
       - pandas==1.1.0
       - param==1.9.3
