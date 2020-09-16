@@ -31,6 +31,7 @@ from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline, InferencePipelineBase
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline, \
     ScalarInferencePipelineBase
+from InnerEye.ML.reports.notebook_report import boxplot_per_structure
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import io_util, ml_util
 from InnerEye.ML.utils.config_util import ModelConfigLoader
@@ -38,7 +39,7 @@ from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
 from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, \
     save_lines_to_file
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
-from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter, boxplot_per_structure
+from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 from InnerEye.ML.utils.run_recovery import RunRecovery
 
 BOXPLOT_FILE = "metrics_boxplot.png"

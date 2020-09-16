@@ -6,8 +6,9 @@ from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 from IPython.display import Markdown, display
+
+from InnerEye.ML.reports.notebook_report import boxplot_per_structure
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
-from InnerEye.ML.utils.metrics_util import boxplot_per_structure
 
 SEGMENTATION_REPORT_NOTEBOOK_PATH = Path(__file__).parent.absolute() / "segmentation_report.ipynb"
 TEST_METRICS_CSV_PARAMETER_NAME = "test_metrics_csv"
