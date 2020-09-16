@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, List, Optional, Union, Callable
 
 import torch
-from apex import amp
 from torch.optim.optimizer import Optimizer
 from torch.optim.rmsprop import RMSprop
 
@@ -34,7 +33,7 @@ from InnerEye.ML.utils.ml_util import RandomStateSnapshot, is_gpu_available
 from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 
-BaseModelOrDataParallelModel = Union[BaseModel, DataParallelModel]
+BaseModelOrDataParallelModel = Union[DeviceAwareModule, DataParallelModel]
 
 
 @dataclass
@@ -58,12 +57,6 @@ class ModelAndInfo:
     def to_cuda(self) -> None:
         assert self.model is not None
         self.model = self.model.cuda()
-
-    def apply_amp_output(self, amp_output: Any) -> None:
-        if isinstance(amp_output, tuple):
-            self.model, self.optimizer = amp_output
-        else:
-            self.model = amp_output
 
     def set_data_parallel(self, device_ids: Optional[List[Any]]) -> None:
         assert self.model is not None
@@ -131,17 +124,15 @@ def build_net(args: SegmentationModelBase) -> BaseModel:
     return network
 
 
-def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
-                                                  args: ModelConfigBase,
-                                                  execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
+def update_model_for_multiple_gpus(model_and_info: ModelAndInfo,
+                                   args: ModelConfigBase,
+                                   execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
         ModelAndInfo:
     """
     Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
     multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
-    perform full volume inference. Additionally, mixed precision training (amp) is utilised on both the model and
-    optimizer instances to improve the training performance.
-
-    :param model_and_info: The torch module object representing the network, and more
+    perform full volume inference.
+    :param model_and_info: The torch module object representing the network and the optimizer.
     :param args: The arguments object with attributes used to enable amp training and create the parallel model.
     :param execution_mode: mode, i.e. train or test
     :return: Updated torch model and optimizer.
@@ -158,19 +149,10 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
             devices = args.get_cuda_devices()
             assert devices is not None  # for mypy
             model_and_info.model.partition_model(devices=devices)  # type: ignore
-
-        # This is required to support sigmoid function
-        amp.register_float_function(torch, 'sigmoid')
-
-        # Activate automatic mixed precision
-        # With optimization GEMMs and convolutions are performed in FP16, see https://nvidia.github.io/apex/amp.html
-        amp_output = amp.initialize(model_and_info.model, model_and_info.optimizer, enabled=args.use_mixed_precision,
-                                    opt_level="O1", keep_batchnorm_fp32=None, loss_scale="dynamic", num_losses=1)
-        model_and_info.apply_amp_output(amp_output)
     else:
         logging.info("Making no adjustments to the model because no GPU was found.")
 
-    # Update model related config attributes (After AMP & Model Parallel Activated)
+    # Update model related config attributes (After Model Parallel Activated)
     args.adjust_after_mixed_precision_and_parallel(model_and_info.model)
 
     # DataParallel enables running the model with multiple gpus by splitting samples across GPUs
@@ -253,8 +235,6 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
         model_inputs = get_scalar_model_inputs_and_labels(config, model, train_item_0).model_inputs
         # The model inputs may already be converted to float16, assuming that we would do mixed precision.
         # However, the model is not yet converted to float16 when this function is called, hence convert back to float32
-        if config.use_gpu:
-            model_inputs = [x.float() for x in model_inputs]
         summary = ModelSummary(model)
         summary.generate_summary(input_tensors=model_inputs, log_summaries_to_files=config.log_summaries_to_files)
     elif config.is_segmentation_model:
@@ -385,7 +365,7 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     if model_config.is_segmentation_model:
         # Generate the model summary, which is required for model partitioning across GPUs.
         summary_for_segmentation_models(model_config, model_and_info.model)
-    return update_model_for_mixed_precision_and_parallel(
+    return update_model_for_multiple_gpus(
         model_and_info, args=model_config, execution_mode=model_and_info.model_execution_mode)
 
 

@@ -201,6 +201,4 @@ class MultiSegmentationEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
             raise ValueError("Expected item.segmentations to not be None")
         use_gpu = self.is_model_on_gpu()
         result_dtype = torch.float16 if self.use_mixed_precision and use_gpu else torch.float32
-        return [segmentation_to_one_hot(item.segmentations,
-                                        use_gpu=self.is_model_on_gpu(),
-                                        result_dtype=result_dtype)]
+        return [segmentation_to_one_hot(item.segmentations, use_gpu=use_gpu, result_dtype=result_dtype)]

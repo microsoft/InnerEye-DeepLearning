@@ -2,15 +2,31 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict, List, Tuple
-
 import torch
+from torch.cuda import amp
 from torch.nn.parallel.data_parallel import DataParallel
 from torch.nn.parallel.scatter_gather import gather, scatter_kwargs
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 from InnerEye.Common.type_annotations import T
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.utils.device_aware_module import E
+
+
+def execute_within_autocast_if_needed(func: Callable[[], T], use_autocast: bool) -> T:
+    """
+    Runs the given parameterless function, and returns the function result. If the use_autocast
+    flag is true, the function is evaluated inside of the torch.cuda.amp.autocast context manager,
+    that can automatically cast operations to mixed precision. If the flag is false, the function
+    is called as is.
+    :param func: The function that should be evaluated
+    :param use_autocast: If true, evaluate within the autocast context manager. If false, evaluate as is.
+    """
+    if use_autocast:
+        with amp.autocast():
+            return func()
+    else:
+        return func()
 
 
 class DataParallelModel(DataParallel, DeviceAwareModule):
@@ -49,6 +65,22 @@ class DataParallelModel(DataParallel, DeviceAwareModule):
         return outputs
 
 
+class CriterionWithAutocast(torch.nn.Module):
+    """
+    A wrapper around a single module, that runs the forward pass in an autocast context manager.
+    """
+
+    def __init__(self, module: torch.nn.Module) -> None:
+        super().__init__()
+        self.module = module
+
+    def forward(self,  # type: ignore
+                *inputs: torch.Tensor,
+                **kwargs: Dict[str, Any]) -> torch.Tensor:
+        with amp.autocast():
+            return self.module(*inputs, **kwargs)
+
+
 # noinspection PyUnresolvedReferences
 class DataParallelCriterion(DataParallel):
     """
@@ -63,6 +95,13 @@ class DataParallelCriterion(DataParallel):
         >>> loss = criterion(y, target)
     """
 
+    def __init__(self,
+                 module: torch.nn.Module,
+                 device_ids: List[Union[int, torch.device]],
+                 use_mixed_precision: bool):
+        super().__init__(module=module, device_ids=device_ids)
+        self.use_mixed_precision = use_mixed_precision
+
     def forward(self,  # type: ignore
                 inputs: List[torch.Tensor],
                 *targets: Tuple[torch.Tensor],
@@ -74,7 +113,8 @@ class DataParallelCriterion(DataParallel):
         _targets, _kwargs = scatter_kwargs(targets, kwargs, self.device_ids, dim=self.dim)
         if len(self.device_ids) == 1:
             return self.module(inputs, *_targets[0], **_kwargs[0])
-        replicas = self.replicate(self.module, self.device_ids[:len(inputs)])  # type: ignore
+        autocast_if_needed = CriterionWithAutocast(module=self.module) if self.use_mixed_precision else self.module
+        replicas = self.replicate(autocast_if_needed, self.device_ids[:len(inputs)])  # type: ignore
 
         input_tuples: List[Tuple[torch.Tensor, ...]] = [(i, *t) for i, t in zip(inputs, _targets)]
         outputs = torch.nn.parallel.parallel_apply(replicas, input_tuples, _kwargs)
