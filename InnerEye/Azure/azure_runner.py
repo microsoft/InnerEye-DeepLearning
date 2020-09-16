@@ -65,8 +65,8 @@ def submit_to_azureml(azure_config: AzureConfig,
     for s in [signal.SIGINT, signal.SIGTERM]:
         signal.signal(s, interrupt_handler)
 
-    # create an AzureML workspace
-    workspace = get_workspace(azure_config)
+    # Retrieve the AzureML workspace
+    workspace = azure_config.get_workspace()
 
     # create train/test experiment
     azure_run = create_and_submit_experiment(workspace, azure_config, source_config, model_config_overrides,
@@ -78,27 +78,6 @@ def submit_to_azureml(azure_config: AzureConfig,
         azure_run.wait_for_completion(show_output=True, raise_on_error=False)
 
     return azure_run
-
-
-def get_workspace(azure_config: AzureConfig) -> Workspace:
-    """
-    Gets an AzureML workspace for the build user to keep track of the experiments
-
-    :param azure_config: configurations for model execution ie: name, execution mode
-    :return: a configured workspace to run this experiment in
-    """
-    try:
-        return azure_config.get_workspace()
-    except WorkspaceException:
-        auth = azure_config.get_service_principal_auth()
-        return Workspace.create(name=azure_util.to_azure_friendly_string(azure_config.workspace_name),
-                                auth=auth,
-                                subscription_id=azure_config.subscription_id,
-                                storage_account=azure_config.storage_account,
-                                resource_group=azure_config.resource_group,
-                                location=azure_config.workspace_region,
-                                exist_ok=True,
-                                create_resource_group=True)
 
 
 def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: str) -> None:
