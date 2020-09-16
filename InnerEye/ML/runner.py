@@ -146,13 +146,16 @@ class Runner:
                                                                                  mode=ModelExecutionMode.TEST,
                                                                                  model_proc=model_proc) / \
                                   METRICS_FILE_NAME
+
+        output_dir = config.outputs_folder / OTHER_RUNS_SUBDIR_NAME \
+            if model_proc == ModelProcessing.ENSEMBLE_CREATION else config.outputs_folder
         generate_notebook(notebook_path=SEGMENTATION_REPORT_NOTEBOOK_PATH,
                           notebook_params={TRAIN_METRICS_CSV_PARAMETER_NAME: str(path_to_best_epoch_train),
                                            VAL_METRICS_CSV_PARAMETER_NAME: str(path_to_best_epoch_val),
                                            TEST_METRICS_CSV_PARAMETER_NAME: str(path_to_best_epoch_test),
                                            INNEREYE_PATH_PARAMETER_NAME: str(
                                                Path(__file__).parent.parent.parent.parent)},
-                          result_path=config.outputs_folder / "report.ipynb")
+                          result_path=output_dir / "report.ipynb")
 
     def plot_cross_validation_and_upload_results(self) -> Path:
         from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
