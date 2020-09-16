@@ -376,6 +376,9 @@ def run(project_root: Path,
     :return: If submitting to AzureML, returns the model configuration that was used for training,
     including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
+    # This is working around a spurious error message thrown by MKL, see
+    # https://github.com/pytorch/pytorch/issues/37377
+    os.environ['MKL_THREADING_LAYER'] = 'GNU'
     runner = Runner(project_root, yaml_config_file, post_cross_validation_hook,
                     model_deployment_hook, innereye_submodule_name, command_line_args)
     return runner.run()
