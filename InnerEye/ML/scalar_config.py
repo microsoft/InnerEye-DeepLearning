@@ -467,11 +467,14 @@ class ScalarModelBase(ModelConfigBase):
             return split_for_current_fold
 
     def get_effective_random_seed(self) -> int:
-        if self.cross_validation_sub_fold_split_index != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-            return (self.cross_validation_split_index * self.number_of_cross_validation_splits_per_fold) \
+        seed = super().get_effective_random_seed()
+        if self.perform_sub_fold_cross_validation:
+            # offset the random seed based on the cross validation split index so each
+            # sub fold with respect to the parent fold cross validation index so that
+            # each sub fold has a different initial random state.
+            seed += (self.cross_validation_split_index * self.number_of_cross_validation_splits_per_fold) \
                    + self.cross_validation_sub_fold_split_index
-        else:
-            return super().get_effective_random_seed()
+        return seed
 
     def get_total_number_of_cross_validation_runs(self) -> int:
         if self.perform_sub_fold_cross_validation:

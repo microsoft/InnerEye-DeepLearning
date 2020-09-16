@@ -612,13 +612,16 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     def get_effective_random_seed(self) -> int:
         """
         Returns the random seed set as part of this configuration. If the configuration corresponds
-        to a cross validation split, then the cross validation fold index is returned as the random seed.
+        to a cross validation split, then the cross validation fold index will be added to the
+        set random seed in order to return the effective random seed.
         :return:
         """
-        if self.cross_validation_split_index != DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-            return self.cross_validation_split_index
-        else:
-            return self.random_seed
+        seed = self.random_seed
+        if self.perform_cross_validation:
+            # offset the random seed based on the cross validation split index so each
+            # fold has a different initial random state.
+            seed += self.cross_validation_split_index
+        return seed
 
     @property  # type: ignore
     def use_gpu(self) -> bool:  # type: ignore
