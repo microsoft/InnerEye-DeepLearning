@@ -15,12 +15,12 @@ from azureml.core.model import Model
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import INPUT_DATA_KEY
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
-    IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, \
-    RUN_RECOVERY_FROM_ID_KEY_NAME, \
-    RUN_RECOVERY_ID_KEY_NAME, \
-    create_run_recovery_id, get_results_blob_path, has_input_datasets, storage_account_from_full_name, \
-    update_run_tags
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
+    CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
+    EFFECTIVE_RANDOM_SEED_KEY_NAME, \
+    IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME, PARENT_RUN_CONTEXT, \
+    PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
+    create_run_recovery_id, get_results_blob_path, has_input_datasets, storage_account_from_full_name, update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section, print_exception
@@ -34,6 +34,7 @@ from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.runner import ModelDeploymentHookSignature
+from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
@@ -109,15 +110,37 @@ class MLRunner:
         Trains and Tests k models based on their respective data splits sequentially.
         Stores the results on the Validation set to the outputs directory of the parent run.
         """
-        parent_run_file_system = self.model_config.file_system_config
-        for x in range(self.model_config.number_of_cross_validation_splits):
-            split_model_config = copy.deepcopy(self.model_config)
-            split_model_config.cross_validation_split_index = x
-            split_model_config.file_system_config = parent_run_file_system.add_subfolder(str(x))
+        _config = self.model_config
+        assert isinstance(_config, ScalarModelBase)
+        parent_run_file_system = _config.file_system_config
+
+        def _spawn_run(cross_val_split_index: int, cross_val_sub_fold_split_index: int) -> None:
+            split_model_config = copy.deepcopy(_config)
+            assert isinstance(split_model_config, ScalarModelBase)
+            split_model_config.cross_validation_split_index = cross_val_split_index
+            split_model_config.cross_validation_sub_fold_split_index = cross_val_sub_fold_split_index
+
+            if cross_val_sub_fold_split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
+                _local_split_folder_name = str(cross_val_split_index)
+            else:
+                _local_split_folder_name = \
+                    str((cross_val_split_index * split_model_config.number_of_cross_validation_splits_per_fold)
+                        + cross_val_sub_fold_split_index)
+
+            split_model_config.file_system_config = parent_run_file_system.add_subfolder(_local_split_folder_name)
+
             logging.info(f"Running model train and test on cross validation split: {x}")
             split_ml_runner = MLRunner(split_model_config, self.azure_config, self.project_root,
                                        self.model_deployment_hook, self.innereye_submodule_name)
             split_ml_runner.run()
+
+        cv_fold_indices = [list(range(_config.number_of_cross_validation_splits_per_fold))
+                           if _config.perform_sub_fold_cross_validation else [DEFAULT_CROSS_VALIDATION_SPLIT_INDEX]]
+        cv_fold_indices *= _config.number_of_cross_validation_splits
+
+        for i, x in enumerate(cv_fold_indices):
+            for y in x:
+                _spawn_run(i, int(y))
 
         config_and_files = get_config_and_results_for_offline_runs(self.model_config)
         plot_cross_validation_from_files(config_and_files, Path(config_and_files.config.outputs_directory))
@@ -147,6 +170,12 @@ class MLRunner:
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
         new_tags[RUN_RECOVERY_ID_KEY_NAME] = create_run_recovery_id(run=RUN_CONTEXT)
         new_tags[CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY] = str(self.model_config.cross_validation_split_index)
+        new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.model_config.get_effective_random_seed())
+        if isinstance(self.model_config, ScalarModelBase):
+            new_tags[NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME] = str(
+                self.model_config.number_of_cross_validation_splits_per_fold)
+            new_tags[CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY] = str(
+                self.model_config.cross_validation_sub_fold_split_index)
         RUN_CONTEXT.set_tags(new_tags)
 
     def run(self) -> None:
@@ -208,7 +237,8 @@ class MLRunner:
         # the current run is a single one. See the documentation of ModelProcessing for more details.
         self.run_inference_and_register_model(run_recovery, ModelProcessing.DEFAULT)
 
-    def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery], model_proc: ModelProcessing) -> None:
+    def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery],
+                                         model_proc: ModelProcessing) -> None:
         """
         Run inference as required, and register the model, but not necessarily in that order:
         if we can identify the epoch to register at without running inference, we register first.

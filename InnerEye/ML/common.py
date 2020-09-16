@@ -12,6 +12,7 @@ DATASET_CSV_FILE_NAME = "dataset.csv"
 CHECKPOINT_FILE_SUFFIX = "_checkpoint.pth.tar"
 MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX = "_mean_teacher_checkpoint.pth.tar"
 
+
 @unique
 class ModelExecutionMode(Enum):
     """

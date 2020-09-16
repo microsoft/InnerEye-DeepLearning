@@ -33,6 +33,7 @@ from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_azure_config, machine_has_gpu
+from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.gpu
@@ -142,8 +143,10 @@ def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("model_name", ["DummyClassification", "DummyRegression"])
 @pytest.mark.parametrize("number_of_offline_cross_validation_splits", [2])
+@pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [2])
 def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectories,
                                           number_of_offline_cross_validation_splits: int,
+                                          number_of_cross_validation_splits_per_fold: int,
                                           model_name: str) -> None:
     """
     Test training and testing of classification models, when it is started together via run_ml.
@@ -154,20 +157,23 @@ def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectorie
     train_config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
         .create_model_config_from_name(model_name)
     train_config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
+    train_config.number_of_cross_validation_splits_per_fold = number_of_cross_validation_splits_per_fold
     train_config.set_output_to(test_output_dirs.root_dir)
+    if train_config.perform_sub_fold_cross_validation:
+        train_config.local_dataset = full_ml_test_data_path("classification_data_sub_fold_cv")
     MLRunner(train_config, azure_config).run()
     _check_offline_cross_validation_output_files(train_config)
 
     if train_config.is_regression_model:
         assert (train_config.outputs_folder / "0" / "error_plot_4.png").is_file()
 
-    if number_of_offline_cross_validation_splits > 0:
+    if train_config.perform_cross_validation:
         # Test that the result files can be correctly picked up by the cross validation routine.
         # For that, we point the downloader to the local results folder. The core download method
         # recognizes run_recovery_id == None as the signal to read from the local_run_results folder.
         config_and_files = get_config_and_results_for_offline_runs(train_config)
         result_files = config_and_files.files
-        assert len(result_files) == number_of_offline_cross_validation_splits
+        assert len(result_files) == train_config.get_total_number_of_cross_validation_runs()
         for file in result_files:
             assert file.execution_mode == ModelExecutionMode.VAL
             assert file.dataset_csv_file is not None
@@ -344,7 +350,7 @@ def test_is_offline_cross_val_parent_run(offline_parent_cv_run: bool) -> None:
 def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) -> None:
     metrics: Dict[ModelExecutionMode, List[pd.DataFrame]] = dict()
     root = Path(train_config.file_system_config.outputs_folder)
-    for x in range(train_config.number_of_cross_validation_splits):
+    for x in range(train_config.get_total_number_of_cross_validation_runs()):
         expected_outputs_folder = root / str(x)
         assert expected_outputs_folder.exists()
         for m in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
@@ -359,7 +365,14 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         # test aggregates are as expected
         aggregate_metrics_path = root / CROSSVAL_RESULTS_FOLDER / METRICS_AGGREGATES_FILE
         assert aggregate_metrics_path.is_file()
+        # since we aggregate the outputs of each of the child folds
+        # we need to compare the outputs w.r.t to the parent folds
+        child_folds = train_config.number_of_cross_validation_splits_per_fold
+        if train_config.perform_sub_fold_cross_validation:
+            train_config.number_of_cross_validation_splits_per_fold = 0
         _dataset_splits = train_config.get_dataset_splits()
+        train_config.number_of_cross_validation_splits_per_fold = child_folds
+
         _val_dataset_split_count = len(_dataset_splits.val[train_config.subject_column].unique()) + len(
             _dataset_splits.train[train_config.subject_column].unique())
         _aggregates_csv = pd.read_csv(aggregate_metrics_path)
@@ -447,8 +460,32 @@ def test_dataset_stats_hook_failing(test_output_dirs: TestOutputDirectories) -> 
     """
     model = ClassificationModelForTesting()
 
-    def hook(datasets: Dict[ModelExecutionMode, ScalarDataset]) -> None:
+    def hook(_: Dict[ModelExecutionMode, ScalarDataset]) -> None:
         raise ValueError()
 
     model.dataset_stats_hook = hook
     model.create_and_set_torch_datasets()
+
+
+def test_get_dataset_splits() -> None:
+    """
+    Test if dataset splits are created as expected for scalar models.
+    """
+    model = ClassificationModelForTesting()
+    model.local_dataset = full_ml_test_data_path("classification_data_sub_fold_cv")
+    model.number_of_cross_validation_splits = 2
+    dataset_splits = model.get_dataset_splits()
+    assert list(dataset_splits[ModelExecutionMode.TRAIN].subjectID.unique()) == ['S4', 'S5', 'S2', 'S10']
+    assert list(dataset_splits[ModelExecutionMode.VAL].subjectID.unique()) == ['S1', 'S6', 'S7', 'S8']
+    assert list(dataset_splits[ModelExecutionMode.TEST].subjectID.unique()) == ['S3', 'S9']
+    # check if sub-folds are created as expected
+    model.number_of_cross_validation_splits_per_fold = 2
+    sub_fold_dataset_splits = model.get_dataset_splits()
+    # the validation and the test set must be the same for parent and sub fold
+    pd.testing.assert_frame_equal(dataset_splits.val, sub_fold_dataset_splits.val,
+                                         check_like=True, check_dtype=False)
+    pd.testing.assert_frame_equal(dataset_splits.test,
+                                         sub_fold_dataset_splits.test, check_like=True,
+                                         check_dtype=False)
+    # make sure the training set is the expected subset of the parent
+    assert list(sub_fold_dataset_splits[ModelExecutionMode.TRAIN].subjectID.unique()) == ['S2', 'S10']

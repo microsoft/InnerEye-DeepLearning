@@ -133,7 +133,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     :raises ValueError: When there are issues loading the model.
     :return A list with the mean dice score (across all structures apart from background) for each image.
     """
-    ml_util.set_random_seed(config.get_effective_random_seed())
+    ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
     results_folder = Path(results_folder)
     results_folder.mkdir(exist_ok=True)
 
@@ -417,7 +417,7 @@ def classification_model_test(config: ScalarModelBase,
         # for mypy
         assert isinstance(pipeline, ScalarInferencePipelineBase)
 
-        ml_util.set_random_seed(config.get_effective_random_seed())
+        ml_util.set_random_seed(config.get_effective_random_seed(), "Model Testing")
         ds = config.get_torch_dataset_for_inference(data_split).as_data_loader(
             shuffle=False,
             batch_size=1,

@@ -41,7 +41,7 @@ from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, ScalarMetricsDict
 from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.deep_learning_config import DeepLearningConfig, ModelCategory
 from InnerEye.ML.model_testing import METRICS_FILE_NAME, get_epoch_results_path
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER, CSV_SUBJECT_HEADER, OutlierType, \
     extract_outliers
@@ -90,12 +90,12 @@ class PlotCrossValidationConfig(GenericConfig):
     """
     Configurations required to download results from the children of a HyperDrive runs.
     """
-    is_segmentation: bool = param.Boolean(default=True,
-                                          doc="Set to True if the model to evaluate is a segmentation model"
-                                              "otherwise False for a scalar model")
-    is_classification: bool = param.Boolean(default=True,
-                                            doc="Set to True if the model to evaluate is a classification model"
-                                                "otherwise False for a regression model")
+    model_category: ModelCategory = param.ClassSelector(class_=ModelCategory,
+                                                        default=ModelCategory.Segmentation,
+                                                         doc="The high-level model category described by this config.")
+    is_scalar: bool = param.Boolean(default=True,
+                                    doc="Set to True if the model to evaluate is a classification model"
+                                        "otherwise False for a regression model")
     run_recovery_id: Optional[str] = param.String(default=None, allow_None=True,
                                                   doc="The run recovery id of the run to collect results from."
                                                       "If the run is an ensemble, then the results for each"
@@ -149,7 +149,7 @@ class PlotCrossValidationConfig(GenericConfig):
     def validate(self) -> None:
         if self.run_recovery_id is None:
             raise ValueError("--run_recovery_id is a mandatory parameter.")
-        if self.is_segmentation and self.epoch is None:
+        if self.model_category == ModelCategory.Segmentation and self.epoch is None:
             raise ValueError("When working on segmentation models, --epoch is a mandatory parameter.")
         if self.comparison_run_recovery_ids is not None:
             # Extend comparison_epochs to be the same length as comparison_run_recovery_ids, using
@@ -324,7 +324,7 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     :return: The path to the local file, or None if no metrics.csv file was found.
     """
     # setup the appropriate paths and readers for the metrics
-    if config.is_segmentation:
+    if config.model_category == ModelCategory.Segmentation:
         if epoch is None:
             raise ValueError("Epoch must be provided in segmentation runs")
         src = get_epoch_results_path(epoch, mode) / METRICS_FILE_NAME
@@ -416,7 +416,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
             shutil.copy(str(Path(config.outputs_directory) / DATASET_CSV_FILE_NAME), str(dataset_file))
         else:
             dataset_file = config.download_or_get_local_file(run, DATASET_CSV_FILE_NAME, folder_for_run)
-        if config.is_segmentation and not dataset_file:
+        if config.model_category == ModelCategory.Segmentation and not dataset_file:
             raise ValueError(f"Dataset file must be present for segmentation models, but is missing for run {run.id}")
         # Get metrics files.
         for mode in EXECUTION_MODES_TO_DOWNLOAD:
@@ -444,14 +444,13 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
     # Default to the last epoch for segmentation models. For classification models, the epoch does not need to be
     # specified because datafiles contain results for all epochs.
     epoch = train_config.num_epochs if train_config.is_segmentation_model else None
-    is_classification = False if train_config.is_segmentation_model else train_config.is_classification_model
-    number_of_cross_validation_splits = train_config.number_of_cross_validation_splits
-    return PlotCrossValidationConfig(run_recovery_id=None,
-                                     is_segmentation=train_config.is_segmentation_model,
-                                     is_classification=is_classification,
-                                     epoch=epoch,
-                                     should_validate=False,
-                                     number_of_cross_validation_splits=number_of_cross_validation_splits)
+
+    return PlotCrossValidationConfig(
+        run_recovery_id=None,
+        model_category=train_config.model_category,
+        epoch=epoch,
+        should_validate=False,
+        number_of_cross_validation_splits=train_config.get_total_number_of_cross_validation_runs())
 
 
 def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) -> OfflineCrossvalConfigAndFiles:
@@ -464,9 +463,8 @@ def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) ->
     download_to_folder = train_config.outputs_folder / CROSSVAL_RESULTS_FOLDER
     plot_crossval_config.outputs_directory = str(download_to_folder)
     plot_crossval_config.local_run_results = str(train_config.outputs_folder)
-    # Create splits as per crossval settings. If not running crossval, use a pseudo split "" that will make
-    # the code pick up the results of the present run.
-    splits = [str(i) for i in range(train_config.number_of_cross_validation_splits)] \
+
+    splits = [str(i) for i in range(plot_crossval_config.number_of_cross_validation_splits)] \
         if train_config.perform_cross_validation else [""]
     result_files, _ = download_crossval_result_files(plot_crossval_config,
                                                      download_to_folder=download_to_folder,
@@ -481,7 +479,10 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
     From a list of run result files on the local disk, create a dictionary of aggregate metrics.
     The dictionary maps from execution mode to metrics for that execution mode. The metrics
     for all cross validation splits are concatenated.
+    If sub fold cross validation is performed then the results for each sub fold are aggregated into their
+    parent fold by averaging.
     The resulting dictionary can contains only the execution modes for which metrics are present.
+
     :param result_files: The list of files to read.
     :param config: The overall configuration for the cross validation analysis.
     :return: A dictionary that maps from model execution mode (TEST, VAL) to concatenated metrics.
@@ -493,10 +494,11 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
 
     for result in result_files:
         mode = result.execution_mode
-        df = load_metrics_df(result.metrics_file, config.is_segmentation, config.epoch, result.execution_mode)
+        is_segmentation = config.model_category == ModelCategory.Segmentation
+        df = load_metrics_df(result.metrics_file, is_segmentation, config.epoch, result.execution_mode)
         if df is not None:
             # for segmentation models dataset.csv also needs to be downloaded and joined with the metrics.csv
-            if config.is_segmentation:
+            if config.model_category == ModelCategory.Segmentation:
                 assert result.dataset_csv_file is not None
                 dataset_df: pd.DataFrame = pd.read_csv(str(result.dataset_csv_file))
                 # Join the seriesId and institutionId columns in dataset.csv to metrics.csv
@@ -505,6 +507,14 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
 
     # concatenate the data frames per split, removing execution modes for which there is no data.
     combined_metrics = {k: pd.concat(v) for k, v in dataset_split_metrics.items() if v}
+
+    if config.model_category.is_scalar():
+        # if child folds are present then combine model outputs
+        for k, v in combined_metrics.items():
+            aggregation_column = LoggingColumns.ModelOutput.value
+            group_by_columns = [x for x in v.columns if x != aggregation_column]
+            combined_metrics[k] = v.groupby(group_by_columns, as_index=False)[aggregation_column].mean() \
+                .sort_values(list(v.columns), ascending=True).reset_index(drop=True)
     return combined_metrics
 
 
@@ -792,13 +802,13 @@ def check_result_file_counts(config_and_files: OfflineCrossvalConfigAndFiles) ->
 def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndFiles,
                                      root_folder: Path) -> None:
     config = config_and_files.config
-    if config.number_of_cross_validation_splits > 0:
+    if config.number_of_cross_validation_splits > 1:
         check_result_file_counts(config_and_files)
     result_files = config_and_files.files
     metrics_dfs = load_dataframes(result_files, config)
     full_csv_file = root_folder / FULL_METRICS_DATAFRAME_FILE
     initial_metrics = pd.concat(list(metrics_dfs.values()))
-    if config.is_segmentation:
+    if config.model_category == ModelCategory.Segmentation:
         if config.create_plots:
             plot_metrics(config, metrics_dfs, root_folder)
         save_outliers(config, metrics_dfs, root_folder)
@@ -809,7 +819,7 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
         initial_metrics.to_csv(full_csv_file, index=False)
         metrics = ScalarMetricsDict.load_execution_mode_metrics_from_df(
             initial_metrics,
-            config.is_classification)
+            config.model_category == ModelCategory.Classification)
         ScalarMetricsDict.aggregate_and_save_execution_mode_metrics(
             metrics=metrics,
             data_frame_logger=DataframeLogger(
