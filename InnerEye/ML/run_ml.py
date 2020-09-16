@@ -212,7 +212,7 @@ class MLRunner:
         if self.azure_config.register_model_only_for_epoch is None or run_recovery is None:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
-            self.mount_or_download_dataset()
+            self.model_config.local_dataset = self.mount_or_download_dataset()
             self.model_config.write_args_file()
             logging.info(str(self.model_config))
             # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
@@ -296,15 +296,25 @@ class MLRunner:
             activation_maps.extract_activation_maps(self.model_config)
             logging.info("Successfully extracted and saved activation maps")
 
-    def mount_or_download_dataset(self) -> None:
+    def mount_or_download_dataset(self) -> Path:
+        """
+        Makes the dataset that the model uses available on the executing machine. If the present training run is outside
+        of AzureML, it expects that either the model has a `local_dataset` field set, in which case no action will be
+        taken. If a dataset is specified in `azure_dataset_id`, it will attempt to download the dataset from Azure
+        into the local repository, in the "datasets" folder.
+        If the training run is inside of AzureML, the dataset that was specified at job submission time will be
+        mounted or downloaded.
+        Returns the path of the dataset on the executing machine.
+        """
         if is_offline_run_context(RUN_CONTEXT):
             # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
             # Otherwise, download the dataset specified by the azure_dataset_id
             if self.model_config.local_dataset:
                 expected_dir = Path(self.model_config.local_dataset)
                 if not expected_dir.is_dir():
-                    raise ValueError(f"The model uses a dataset in {expected_dir}, but that folder does not exist.")
-                return
+                    raise FileNotFoundError(f"The model uses a dataset in {expected_dir}, but that does not exist.")
+                logging.info(f"Model training will use the local dataset provided in {expected_dir}")
+                return expected_dir
             dataset_id = self.model_config.azure_dataset_id
             if dataset_id:
                 azure_dataset = get_or_create_dataset(self.azure_config.get_workspace(), azure_dataset_id=dataset_id)
@@ -314,21 +324,22 @@ class MLRunner:
                 # The downloaded dataset may already exist from a previous run.
                 expected_dataset_path = dataset_path / dataset_id
                 expected_dataset_file = expected_dataset_path / DATASET_CSV_FILE_NAME
+                logging.info(f"Model training will use dataset '{dataset_id}' in Azure.")
                 if expected_dataset_path.is_dir() and expected_dataset_file.is_file():
-                    logging.info(f"There is already a dataset present in {expected_dataset_path}. Skipping download.")
-                    return
-                azure_dataset.download(target_path=expected_dataset_path, overwrite=False)
-                return
-            raise ValueError("The model does not contain a dataset specification in local_dataset nor")
-
-
+                    logging.info(f"The dataset appears to be downloaded already in {expected_dataset_path}. Skipping.")
+                    return expected_dataset_path
+                logging.info("Starting to download the dataset - WARNING, this could take very long!")
+                with logging_section("Downloading dataset"):
+                    azure_dataset.download(target_path=str(expected_dataset_path), overwrite=False)
+                logging.info(f"Azure dataset '{dataset_id}' is now available in {expected_dataset_path}")
+                return expected_dataset_path
+            raise ValueError("The model must contain either local_dataset or azure_dataset_id.")
         if self.model_config.azure_dataset_id:
             mounted = try_to_mount_input_dataset(RUN_CONTEXT)
-            if mounted:
-                self.model_config.local_dataset = mounted
-        if self.model_config.local_dataset is None:
-            # We are not running inside AzureML: Try to download a dataset from blob storage.
-            self.model_config.local_dataset = self.download_dataset(RUN_CONTEXT, dataset_path=dataset_path)
+            if not mounted:
+                raise ValueError(f"Unable to mount or download input dataset.")
+            return mounted
+        raise ValueError("When running inside of Azure, an `azure_dataset_id` must be specified.")
 
     def register_model_for_best_epoch(self, run_recovery: Optional[RunRecovery],
                                       test_metrics: Optional[InferenceMetricsForSegmentation],
@@ -585,39 +596,3 @@ class MLRunner:
                         train_metrics=train_metrics, run_context=run_context)  # type: ignore
 
         return test_metrics, val_metrics, train_metrics
-
-    def download_dataset(self, run_context: Optional[Run] = None,
-                         dataset_path: Path = Path.cwd()) -> Optional[Path]:
-        """
-        Configures the dataset for model training/testing. The dataset is downloaded into dataset_path, only if the
-        dataset
-        does not exist in the given path.
-        Returns a path to the folder that contains the dataset.
-        """
-
-        # check if the dataset needs to be downloaded from Azure
-        config = self.model_config
-        if config.azure_dataset_id:
-            # log the dataset id being used for this run
-            if run_context is not None:
-                run_context.tag("dataset_id", config.azure_dataset_id)
-            target_folder = dataset_path / config.azure_dataset_id
-            # only download if hasn't already been downloaded
-            if target_folder.is_dir():
-                logging.info("Using cached dataset in folder %s", target_folder)
-            else:
-                logging.info("Starting to download dataset from Azure to folder %s", target_folder)
-                start_time = timer()
-                # download the dataset blobs from Azure to local
-                download_blobs(
-                    account=self.azure_config.datasets_storage_account,
-                    account_key=self.azure_config.get_dataset_storage_account_key(),
-                    # When specifying the blobs root path, ensure that there is a slash at the end, otherwise
-                    # all datasets with that dataset_id as a prefix get downloaded.
-                    blobs_root_path="{}/{}/".format(self.azure_config.datasets_container, config.azure_dataset_id),
-                    destination=target_folder
-                )
-                elapsed_seconds = timer() - start_time
-                logging.info("Downloading dataset from Azure took {} sec".format(elapsed_seconds))
-            return target_folder
-        return config.local_dataset

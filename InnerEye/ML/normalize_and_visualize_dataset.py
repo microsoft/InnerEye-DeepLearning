@@ -73,7 +73,7 @@ def main(yaml_file_path: Path) -> None:
     In addition, the arguments '--image_channel' and '--gt_channel' must be specified (see below).
     """
     config, runner_config, args = get_configs(SegmentationModelBase(should_validate=False), yaml_file_path)
-    local_dataset = MLRunner(config, runner_config).download_dataset()
+    local_dataset = MLRunner(config, runner_config).mount_or_download_dataset()
     assert local_dataset is not None
     dataframe = pd.read_csv(local_dataset / DATASET_CSV_FILE_NAME)
     normalizer_config = NormalizeAndVisualizeConfig(**args)
