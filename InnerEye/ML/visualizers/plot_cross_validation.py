@@ -29,7 +29,8 @@ from matplotlib import pyplot
 
 import InnerEye.Common.Statistics.mann_whitney_test as mann_whitney
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetch_child_runs, \
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, download_outputs_from_run, \
+    fetch_child_runs, \
     fetch_run, is_offline_run_context, is_parent_run
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
@@ -240,7 +241,7 @@ class PlotCrossValidationConfig(GenericConfig):
             return None
         else:
             try:
-                return self.azure_config.download_outputs_from_run(
+                return download_outputs_from_run(
                     blobs_path=blob_path,
                     destination=destination,
                     run=run,
