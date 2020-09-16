@@ -12,20 +12,22 @@ import numpy as np
 import torch.multiprocessing
 from azureml.core import Run, Workspace  # , Dataset
 from azureml.core.model import Model
+from azureml.data import FileDataset
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_runner import INPUT_DATA_KEY
+from InnerEye.Azure.azure_runner import INPUT_DATA_KEY, get_or_create_dataset
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
     EFFECTIVE_RANDOM_SEED_KEY_NAME, \
     IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME, PARENT_RUN_CONTEXT, \
     PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
-    create_run_recovery_id, get_results_blob_path, has_input_datasets, storage_account_from_full_name, update_run_tags
+    create_run_recovery_id, get_results_blob_path, has_input_datasets, is_offline_run_context, \
+    storage_account_from_full_name, update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section, print_exception
 from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PACKAGE_NAME
-from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
@@ -295,14 +297,37 @@ class MLRunner:
             logging.info("Successfully extracted and saved activation maps")
 
     def mount_or_download_dataset(self) -> None:
+        if is_offline_run_context(RUN_CONTEXT):
+            # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
+            # Otherwise, download the dataset specified by the azure_dataset_id
+            if self.model_config.local_dataset:
+                expected_dir = Path(self.model_config.local_dataset)
+                if not expected_dir.is_dir():
+                    raise ValueError(f"The model uses a dataset in {expected_dir}, but that folder does not exist.")
+                return
+            dataset_id = self.model_config.azure_dataset_id
+            if dataset_id:
+                azure_dataset = get_or_create_dataset(self.azure_config.get_workspace(), azure_dataset_id=dataset_id)
+                if not isinstance(azure_dataset, FileDataset):
+                    raise ValueError(f"Expected to get a FileDataset, but got {type(azure_dataset)}")
+                dataset_path = self.project_root / fixed_paths.DATASETS_DIR_NAME
+                # The downloaded dataset may already exist from a previous run.
+                expected_dataset_path = dataset_path / dataset_id
+                expected_dataset_file = expected_dataset_path / DATASET_CSV_FILE_NAME
+                if expected_dataset_path.is_dir() and expected_dataset_file.is_file():
+                    logging.info(f"There is already a dataset present in {expected_dataset_path}. Skipping download.")
+                    return
+                azure_dataset.download(target_path=expected_dataset_path, overwrite=False)
+                return
+            raise ValueError("The model does not contain a dataset specification in local_dataset nor")
+
+
         if self.model_config.azure_dataset_id:
             mounted = try_to_mount_input_dataset(RUN_CONTEXT)
             if mounted:
                 self.model_config.local_dataset = mounted
         if self.model_config.local_dataset is None:
             # We are not running inside AzureML: Try to download a dataset from blob storage.
-            # The downloaded dataset may already exist from a previous run.
-            dataset_path = self.project_root / fixed_paths.DATASETS_DIR_NAME
             self.model_config.local_dataset = self.download_dataset(RUN_CONTEXT, dataset_path=dataset_path)
 
     def register_model_for_best_epoch(self, run_recovery: Optional[RunRecovery],
