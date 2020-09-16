@@ -279,7 +279,7 @@ class Runner:
             # A build step will pick up that file and publish it to Azure DevOps.
             # If pytest_mark is set, this file must exist.
             logging.info("Downloading pytest result file.")
-            download_pytest_result(self.azure_config, azure_run)
+            download_pytest_result(azure_run)
         else:
             logging.info("No pytest_mark present, hence not downloading the pytest result file.")
         status = azure_run.get_status()

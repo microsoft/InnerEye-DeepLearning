@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 from InnerEye.Common import common_util
+from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.baselines_util import ComparisonBaseline, get_comparison_baselines, perform_score_comparisons
 from Tests.Common.test_util import DEFAULT_RUN_RECOVERY_ID
 from Tests.ML.util import get_default_azure_config
@@ -39,10 +40,11 @@ def test_perform_score_comparisons() -> None:
     assert list(result.plots.keys()) == [f"{comparison_name}_vs_CURRENT"]
 
 
-def test_get_comparison_data() -> None:
+def test_get_comparison_data(test_output_dirs: TestOutputDirectories) -> None:
     azure_config = get_default_azure_config()
     comparison_name = "DefaultName"
     comparison_path = DEFAULT_RUN_RECOVERY_ID + "/outputs/epoch_002/Test"
-    baselines = get_comparison_baselines(Path("outputs"), azure_config, [(comparison_name, comparison_path)])
+    baselines = get_comparison_baselines(Path(test_output_dirs.root_dir),
+                                         azure_config, [(comparison_name, comparison_path)])
     assert len(baselines) == 1
     assert baselines[0].name == comparison_name
