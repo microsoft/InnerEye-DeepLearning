@@ -315,7 +315,7 @@ def logging_section(gerund: str) -> Generator:
     from time import time
     logging.info("")
     msg = f"**** STARTING: {gerund} "
-    logging.info(msg + (200 - len(msg)) * "*")
+    logging.info(msg + (100 - len(msg)) * "*")
     logging.info("")
     start_time = time()
     yield
@@ -328,7 +328,7 @@ def logging_section(gerund: str) -> Generator:
     else:
         time_expr = f"{elapsed:0.2f} seconds"
     msg = f"**** FINISHED: {gerund} after {time_expr} "
-    logging.info(msg + (200 - len(msg)) * "*")
+    logging.info(msg + (100 - len(msg)) * "*")
     logging.info("")
 
 
