@@ -8,7 +8,7 @@ In short, you will need to:
 * Set up an Azure Machine Learning (AzureML) Workspace
 * Create a compute cluster to run your experiments.
 * Optional: Register your application to create a Service Principal Object.
-* Optional: Set up a storage account to store your data.
+* Optional: Set up a storage account to store your datasets.
 * Update your [train_variables.yml](/InnerEye/train_variables.yml) file and KeyVault with your own credentials.
 
 Once you're done with these steps, you will be ready for the next steps described in [Creating a dataset](https://github.com/microsoft/InnerEye-createdataset), 
@@ -26,11 +26,15 @@ for training. This replaces steps 1 and 2 below.
 [![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fgithub.com%2FMicrosoft%2FInnerEye-DeepLearning%2Fblob%2Fantonsc%2Fdeploy%2Fazure-pipelines%2Fazure_deployment_template.json)
 
 - You will be asked to create a new `Resource Group`, a logical grouping that will hold all the Azure resources that
-the script will create.
+the script will create. In doing that, you will need to choose a location where all your Azure resources live - here,
+pick a location that is compliant with the legal requirements that your own datasets have (for example, your data may
+need to be kept inside of the UK)
 - Then choose a name for your AzureML workspace. Use letters and numbers only, because other resources will be created
 using the workspace name as a prefix.
 
 ### Step 1: Create an AzureML workspace
+
+You can skip this if you have chosen automatic deployment above.
 
 Assuming you have an Azure account and an Azure subscription, to create an AzureML workspace you will need to:
 1. Connect to the [Azure portal](https://aka.ms/portal) with your account.
@@ -43,9 +47,8 @@ how to set up an AzureML workspace in
 the Azure documentation [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-manage-workspace).
 
 ### Step 2: Create a compute cluster for your experiments
-In order to be able to run experiments you will need to create a compute cluster attached to your AzureML workspace. In order
-to do so follow the steps described [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-set-up-training-targets#set-up-in-azure-machine-learning-studio).
-Note down the name of your compute target.
+
+In order to be able to run experiments you will need to create a compute cluster attached to your AzureML workspace.
 
 We recommend using [low priority](https://docs.microsoft.com/en-us/azure/batch/batch-low-pri-vms) clusters, since 
 they only cost a fraction of the dedicated VMs.
@@ -57,6 +60,10 @@ find your newly created AzureML workspace in the [Azure portal](http://portal.az
 top. Then choose "Usage and Quotas" in the left hand navigation. You should see your actual core usage and your quota,
 like "0/100" meaning that you are using 0 nodes out of a quota of 100. If you don't see a quota for both dedicated AND
 low priority nodes, click on the "Request Quota" button at the bottom of the page to create a ticket with Azure support.
+
+You can skip creating a compute cluster if you have chosen automatic deployment above. If you need to do this step
+manually, please follow the steps described [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-set-up-training-targets#set-up-in-azure-machine-learning-studio).
+Note down the name of your compute target.
 
 
 ### Step 3 (Optional): Register your application to create a Service Principal Authentication object.
