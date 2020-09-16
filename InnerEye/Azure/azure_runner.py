@@ -17,7 +17,6 @@ from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.datastore import Datastore
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-from azureml.exceptions import WorkspaceException
 from azureml.train.dnn import PyTorch
 
 from InnerEye.Azure import azure_util
