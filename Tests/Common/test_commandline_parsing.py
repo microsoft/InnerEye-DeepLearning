@@ -150,5 +150,5 @@ def test_parsing_with_custom_yaml(test_output_dirs: TestOutputDirectories) -> No
     # Settings in model config: num_epochs is only on commandline
     assert runner.model_config.num_epochs == 42
     # Settings in model config: random_seed is both in yaml and command line, the latter should be used
-    assert runner.model_config.random_seed == 2
+    assert runner.model_config.get_effective_random_seed() == 2
     assert loader_result.overrides == {"num_epochs": 42, "random_seed": 2}

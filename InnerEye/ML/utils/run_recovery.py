@@ -12,8 +12,8 @@ from typing import List, Optional
 from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import RUN_CONTEXT, fetch_child_runs, fetch_run, get_cross_validation_split_index, \
-    is_cross_validation_child_run, tag_values_all_distinct
+from InnerEye.Azure.azure_util import RUN_CONTEXT, download_outputs_from_run, fetch_child_runs, fetch_run, \
+    get_cross_validation_split_index, is_cross_validation_child_run, tag_values_all_distinct
 from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.ML.common import create_checkpoint_path
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
@@ -86,7 +86,7 @@ class RunRecovery:
             root_output_dir = Path(config.checkpoint_folder) / run.id
             checkpoint_subdir_name = None
         # download checkpoints for the run
-        azure_config.download_outputs_from_run(
+        download_outputs_from_run(
             blobs_path=Path(CHECKPOINT_FOLDER),
             destination=root_output_dir,
             run=run
@@ -106,7 +106,7 @@ class RunRecovery:
                         child_dst = root_output_dir / subdir / checkpoint_subdir_name
                     else:
                         child_dst = root_output_dir / subdir
-                    azure_config.download_outputs_from_run(
+                    download_outputs_from_run(
                         blobs_path=Path(CHECKPOINT_FOLDER),
                         destination=child_dst,
                         run=child

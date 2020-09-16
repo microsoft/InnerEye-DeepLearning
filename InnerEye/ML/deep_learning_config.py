@@ -13,7 +13,7 @@ import param
 from pandas import DataFrame
 from param import Parameterized
 
-from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
+from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
@@ -65,7 +65,14 @@ class ModelCategory(Enum):
     Describes the different high-level model categories that the codebase supports.
     """
     Segmentation = "Segmentation"  # All models that perform segmentation: Classify each voxel in the input image.
-    Scalar = "Scalar"  # All models that predict a scalar (classification, regression) from an input image.
+    Classification = "Classification"  # All models that perform classification
+    Regression = "Regression"  # All models that perform regression
+
+    def is_scalar(self) -> bool:
+        """
+        Return True if the current ModelCategory is either Classification or Regression
+        """
+        return self in [ModelCategory.Classification, ModelCategory.Regression]
 
 
 @unique
@@ -204,12 +211,13 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                               " from a checkpoint.")
 
     l_rate: float = param.Number(1e-4, doc="The initial learning rate", bounds=(0, None))
-    _min_l_rate: float = param.Number(0.0, doc="The minimum learning rate", bounds=(0.0, None))
+    _min_l_rate: float = param.Number(0.0, doc="The minimum learning rate for the Polynomial and Cosine schedulers.",
+                                      bounds=(0.0, None))
     l_rate_scheduler: LRSchedulerType = param.ClassSelector(default=LRSchedulerType.Polynomial,
                                                             class_=LRSchedulerType,
                                                             instantiate=False,
                                                             doc="Learning rate decay method (Cosine, Polynomial, "
-                                                            "Step, MultiStep or Exponential)")
+                                                                "Step, MultiStep or Exponential)")
     l_rate_exponential_gamma: float = param.Number(0.9, doc="Controls the rate of decay for the Exponential "
                                                             "LR scheduler.")
     l_rate_step_gamma: float = param.Number(0.1, doc="Controls the rate of decay for the "
@@ -267,7 +275,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     number_of_cross_validation_splits: int = param.Integer(0, bounds=(0, None),
                                                            doc="Number of cross validation splits for k-fold cross "
                                                                "validation")
-    cross_validation_split_index: int = param.Integer(-1, bounds=(-1, None),
+    cross_validation_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
                                                       doc="The index of the cross validation fold this model is "
                                                           "associated with when performing k-fold cross validation")
     file_system_config: DeepLearningFileSystemConfig = param.ClassSelector(default=DeepLearningFileSystemConfig(),
@@ -361,7 +369,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         # This should be annotated as torch.utils.data.Dataset, but we don't want to import torch here.
         self._datasets_for_training: Optional[Dict[ModelExecutionMode, Any]] = None
         self._datasets_for_inference: Optional[Dict[ModelExecutionMode, Any]] = None
-        super().__init__(**params)
+        super().__init__(throw_if_unknown_param=True, **params)
         logging.info("Creating the default output folder structure.")
         self.create_filesystem(fixed_paths.repository_root_directory())
 
@@ -377,6 +385,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         if self.azure_dataset_id is None and self.local_dataset is None:
             raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
 
+        if self.number_of_cross_validation_splits == 1:
+            raise ValueError(f"At least two splits required to perform cross validation found "
+                             f"number_of_cross_validation_splits={self.number_of_cross_validation_splits}")
         if 0 < self.number_of_cross_validation_splits <= self.cross_validation_split_index:
             raise ValueError(f"Cross validation split index is out of bounds: {self.cross_validation_split_index}, "
                              f"which is invalid for CV with {self.number_of_cross_validation_splits} splits.")
@@ -421,7 +432,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         Returns True if the present model configuration belongs to the high-level category ModelCategory.Scalar
         i.e. for Classification or Regression models.
         """
-        return self.model_category == ModelCategory.Scalar
+        return self.model_category.is_scalar()
 
     @property
     def compute_grad_cam(self) -> bool:
@@ -463,7 +474,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         True if cross validation will be be performed as part of the training procedure.
         :return:
         """
-        return self.number_of_cross_validation_splits > 0
+        return self.number_of_cross_validation_splits > 1
 
     @property
     def overrides(self) -> Optional[Dict[str, Any]]:
@@ -598,6 +609,20 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                / self.checkpoint_folder \
                / f"{epoch}{filename}"
 
+    def get_effective_random_seed(self) -> int:
+        """
+        Returns the random seed set as part of this configuration. If the configuration corresponds
+        to a cross validation split, then the cross validation fold index will be added to the
+        set random seed in order to return the effective random seed.
+        :return:
+        """
+        seed = self.random_seed
+        if self.perform_cross_validation:
+            # offset the random seed based on the cross validation split index so each
+            # fold has a different initial random state.
+            seed += self.cross_validation_split_index
+        return seed
+
     @property  # type: ignore
     def use_gpu(self) -> bool:  # type: ignore
         """
@@ -639,7 +664,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         dst = (root or self.outputs_folder) / ARGS_TXT
         dst.write_text(data=str(self))
 
-    @property
     def should_wait_for_other_cross_val_child_runs(self) -> bool:
         """
         Returns True if the current run is an online run and is the 0th cross validation split.
