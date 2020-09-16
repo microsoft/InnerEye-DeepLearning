@@ -58,7 +58,7 @@ def set_random_seed_for_dataloader_worker(worker_id: int) -> None:
     # Set the seeds for numpy and python random based on the offset of the worker_id and initial seed,
     # converting the initial_seed which is a long to modulo int32 which is what numpy expects.
     random_seed = (torch.initial_seed() + worker_id) % (2 ** 32)
-    ml_util.set_random_seed(random_seed)
+    ml_util.set_random_seed(random_seed, f"Data loader worker ({worker_id})")
 
 
 class _RepeatSampler(BatchSampler):
