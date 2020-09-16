@@ -68,8 +68,8 @@ def suppress_logging_noise() -> None:
     logging.getLogger('numba').setLevel(logging.WARNING)
     # Matplotlib is also very talkative in DEBUG mode, filling half of the log file in a PR build.
     logging.getLogger('matplotlib').setLevel(logging.INFO)
-    # Urllib prints out connection information for each call to write metrics, etc
-    logging.getLogger('urllib').setLevel(logging.INFO)
+    # Urllib3 prints out connection information for each call to write metrics, etc
+    logging.getLogger('urllib3').setLevel(logging.INFO)
     # This is working around a spurious error message thrown by MKL, see
     # https://github.com/pytorch/pytorch/issues/37377
     os.environ['MKL_THREADING_LAYER'] = 'GNU'

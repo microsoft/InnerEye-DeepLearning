@@ -95,7 +95,7 @@ AzureML job, with `N` child runs that will execute in parallel. You can see the 
 
 The dataset splits for those `N` child runs will be
 computed from the union of the Training and Validation sets. The Test set is unchanged. Note that the Test set can be
-empty, in which case the union all validation sets for the `N` child runs will be the full dataset.
+empty, in which case the union of all validation sets for the `N` child runs will be the full dataset.
 
 #### Sub-fold cross validation
 
