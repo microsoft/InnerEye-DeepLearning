@@ -80,7 +80,8 @@ def test_conv_constant_filter() -> None:
                                           kernel_size=kernel_size,
                                           bias=True)
     conv_layer.weight.data.fill_(1)
-    conv_layer.bias.data.fill_(0)  # we aren't normalizing bias  # type: ignore
+    assert conv_layer.bias is not None  # for mypy
+    conv_layer.bias.data.fill_(0)  # we aren't normalizing bias
     image = torch.ones(size=image_size)
     result = conv_layer(image)
     assert result.shape == expected_output_size
