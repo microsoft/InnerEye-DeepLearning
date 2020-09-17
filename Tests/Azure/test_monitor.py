@@ -24,9 +24,9 @@ def test_monitor_args_run_ids() -> None:
     Checks run ids are assigned from commandline args correctly.
     """
     parsed = patch_and_parse(["--run_ids=foo"])
-    assert parsed.run_ids == "foo"
+    assert parsed.run_ids == ["foo"]
     parsed = patch_and_parse(["--run_ids", "foo"])
-    assert parsed.run_ids == "foo"
+    assert parsed.run_ids == ["foo"]
     assert parsed.experiment_name is None
     assert parsed.run_status == "Running,Completed"
 
