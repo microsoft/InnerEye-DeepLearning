@@ -48,12 +48,11 @@ def monitor(monitor_config: MonitorConfig, azure_config: AzureConfig) -> None:
     # Fetch AzureML workspace and the experiment runs in it
     workspace = azure_config.get_workspace()
 
-    if monitor_config.run_ids:
-        run_ids = common_util.get_items_from_string(monitor_config.run_ids)
-        if len(run_ids) == 0:
+    if monitor_config.run_ids is not None:
+        if len(monitor_config.run_ids) == 0:
             print("At least one run_recovery_id must be given for monitoring.")
             exit(-1)
-        exp_runs = [azure_util.fetch_run(workspace, run_id) for run_id in run_ids]
+        exp_runs = [azure_util.fetch_run(workspace, run_id) for run_id in monitor_config.run_ids]
     else:
         if monitor_config.experiment_name not in workspace.experiments:
             print(
