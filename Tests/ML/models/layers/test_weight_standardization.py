@@ -75,7 +75,10 @@ def test_conv_constant_filter() -> None:
     kernel_size = (3, 3)
     expected_output_size = (batch_size, out_channels, image_size[2]-kernel_size[0]+1, image_size[3]-kernel_size[1]+1)
 
-    conv_layer = WeightStandardizedConv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size)
+    conv_layer = WeightStandardizedConv2d(in_channels=in_channels,
+                                          out_channels=out_channels,
+                                          kernel_size=kernel_size,
+                                          bias=True)
     conv_layer.weight.data.fill_(1)
     conv_layer.bias.data.fill_(0)  # we aren't normalizing bias
     image = torch.ones(size=image_size)

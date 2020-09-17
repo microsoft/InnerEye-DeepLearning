@@ -3,14 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import torch
-import numpy as np
 
 from torch import nn
-from typing import Tuple, Dict, Optional, List
+from typing import Tuple, Optional
 
 from InnerEye.ML.models.layers.weight_standardization import WeightStandardizedConv2d
-from InnerEye.ML.dataset.scalar_sample import ScalarItem
-from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 
 
 class ResNetV2Block(nn.Module):
