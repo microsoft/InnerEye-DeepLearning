@@ -108,54 +108,53 @@ class BiTResNetV2(nn.Module):
                  width_factor: int = 1):
         super().__init__()
         self.initial = nn.Sequential(
-                            WeightStandardizedConv2d(in_channels=3,
-                                                     out_channels=64 * width_factor,
-                                                     kernel_size=(7, 7),
-                                                     stride=(2, 2),
-                                                     padding=(3, 3),
-                                                     bias=False),
-                            nn.ConstantPad2d(padding=1, value=0),
-                            nn.MaxPool2d(kernel_size=3, stride=2, padding=0, dilation=1))
+                                WeightStandardizedConv2d(in_channels=3,
+                                                         out_channels=64 * width_factor,
+                                                         kernel_size=(7, 7),
+                                                         stride=(2, 2),
+                                                         padding=(3, 3),
+                                                         bias=False),
+                                nn.ConstantPad2d(padding=1, value=0),
+                                nn.MaxPool2d(kernel_size=3, stride=2, padding=0, dilation=1))
 
-        self.layer1 = ResNetV2Layer(in_channels=64 * width_factor,
-                                    out_channels=256 * width_factor,
-                                    bottleneck_channels=64 * width_factor,
-                                    num_groups=num_groups,
-                                    downsample_stride=1,
-                                    num_blocks=num_blocks_in_layer[0])
-        self.layer2 = ResNetV2Layer(in_channels=256 * width_factor,
-                                    out_channels=512 * width_factor,
-                                    bottleneck_channels=128 * width_factor,
-                                    num_groups=num_groups,
-                                    downsample_stride=2,
-                                    num_blocks=num_blocks_in_layer[1])
-        self.layer3 = ResNetV2Layer(in_channels=512 * width_factor,
-                                    out_channels=1024 * width_factor,
-                                    bottleneck_channels=256 * width_factor,
-                                    num_groups=num_groups,
-                                    downsample_stride=2,
-                                    num_blocks=num_blocks_in_layer[2])
-        self.layer4 = ResNetV2Layer(in_channels=1024 * width_factor,
-                                    out_channels=2048 * width_factor,
-                                    bottleneck_channels=512 * width_factor,
-                                    num_groups=num_groups,
-                                    downsample_stride=2,
-                                    num_blocks=num_blocks_in_layer[3])
+        self.conv_stack = nn.Sequential(
+                                ResNetV2Layer(in_channels=64 * width_factor,
+                                              out_channels=256 * width_factor,
+                                              bottleneck_channels=64 * width_factor,
+                                              num_groups=num_groups,
+                                              downsample_stride=1,
+                                              num_blocks=num_blocks_in_layer[0]),
+                                ResNetV2Layer(in_channels=256 * width_factor,
+                                              out_channels=512 * width_factor,
+                                              bottleneck_channels=128 * width_factor,
+                                              num_groups=num_groups,
+                                              downsample_stride=2,
+                                              num_blocks=num_blocks_in_layer[1]),
+                                ResNetV2Layer(in_channels=512 * width_factor,
+                                              out_channels=1024 * width_factor,
+                                              bottleneck_channels=256 * width_factor,
+                                              num_groups=num_groups,
+                                              downsample_stride=2,
+                                              num_blocks=num_blocks_in_layer[2]),
+                                ResNetV2Layer(in_channels=1024 * width_factor,
+                                              out_channels=2048 * width_factor,
+                                              bottleneck_channels=512 * width_factor,
+                                              num_groups=num_groups,
+                                              downsample_stride=2,
+                                              num_blocks=num_blocks_in_layer[3]))
 
-        self.linear = nn.Sequential(nn.GroupNorm(num_groups=num_groups, num_channels=2048 * width_factor),
-                                    nn.ReLU(inplace=True),
-                                    nn.AdaptiveAvgPool2d(output_size=1),
-                                    nn.Conv2d(in_channels=2048 * width_factor,
-                                              out_channels=num_classes,
-                                              kernel_size=(1, 1),
-                                              bias=True))
+        self.linear = nn.Sequential(
+                                nn.GroupNorm(num_groups=num_groups, num_channels=2048 * width_factor),
+                                nn.ReLU(inplace=True),
+                                nn.AdaptiveAvgPool2d(output_size=1),
+                                nn.Conv2d(in_channels=2048 * width_factor,
+                                          out_channels=num_classes,
+                                          kernel_size=(1, 1),
+                                          bias=True))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
         x = self.initial(x)
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+        x = self.conv_stack(x)
         x = self.linear(x)
         return x
 
