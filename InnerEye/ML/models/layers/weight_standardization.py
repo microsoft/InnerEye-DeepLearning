@@ -51,4 +51,4 @@ class WeightStandardizedConv2d(nn.Conv2d):
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:  # type: ignore
         standardized_weights = WeightStandardizedConv2d.standardize(self.weight)
-        return self.conv2d_forward(input, standardized_weights)  # type: ignore
+        return self._conv_forward(input, standardized_weights)  # type: ignore
