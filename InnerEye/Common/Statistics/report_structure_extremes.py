@@ -35,6 +35,7 @@ import param
 from azure.storage.blob import BlockBlobService
 
 from InnerEye.Azure.azure_config import AzureConfig
+from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import DATASETS_ACCOUNT_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.utils.blobxfer_util import download_blobs
@@ -234,6 +235,7 @@ def main() -> None:
     """
     Main function.
     """
+    logging_to_stdout()
     config = ReportStructureExtremesConfig.parse_args()
     report_structure_extremes(config.dataset, config.yaml_file)
 
