@@ -400,12 +400,11 @@ class MLRunner:
             return download_dataset(azure_dataset_id=azure_dataset_id,
                                     target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
                                     azure_config=self.azure_config)
-        if self.model_config.azure_dataset_id:
-            mounted = try_to_mount_input_dataset(RUN_CONTEXT)
-            if not mounted:
-                raise ValueError("Unable to mount or download input dataset.")
-            return mounted
-        raise ValueError("When running inside of Azure, an `azure_dataset_id` must be specified.")
+        # Inside of AzureML, datasets can be either mounted or downloaded.
+        mounted = try_to_mount_input_dataset(RUN_CONTEXT)
+        if not mounted:
+            raise ValueError("Unable to mount or download input dataset.")
+        return mounted
 
     def register_model_for_best_epoch(self, run_recovery: Optional[RunRecovery],
                                       test_metrics: Optional[InferenceMetricsForSegmentation],

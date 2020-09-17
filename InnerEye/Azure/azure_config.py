@@ -62,9 +62,12 @@ class AzureConfig(GenericConfig):
     tenant_id: str = param.String(None, doc="The Azure tenant ID.")
     application_id: str = param.String(None, doc="The ID of the Service Principal to use for authentication to Azure.")
     datasets_storage_account: str = \
-        param.String(None, doc="The blob storage account to use to access datasets in AML jobs")
+        param.String(None, doc="Optional: The blob storage account to use when downloading datasets for use outside of "
+                               "AzureML. This storage account must be the same as the one configured as a 'datastore' "
+                               "in AzureML.")
     datasets_storage_account_key: str = \
-        param.String(None, doc="The access key for the storage account that holds the datasets.")
+        param.String(None, doc="Optional: The access key for the storage account that holds the datasets. "
+                               "This is only used for downloading datasets outside of AzureML.")
     datasets_container: str = param.String(None, doc="The blob storage container to use to access datasets in AML jobs")
     workspace_name: str = param.String(None, doc="The name of the AzureML workspace that should be used.")
     resource_group: str = param.String(None, doc="The resource group to create AML workspaces in")
@@ -136,6 +139,7 @@ class AzureConfig(GenericConfig):
         commit_message = self.build_source_message
         repository = self.build_source_repository or self.project_root.name
         is_dirty = True
+        # noinspection PyBroadException
         try:
             logging.debug(f"Trying to read git repository on {self.project_root}")
             git_repo = Repo(self.project_root)
@@ -152,9 +156,8 @@ class AzureConfig(GenericConfig):
             commit_message = commit_message or last_commit.message[:120].strip()
             # Is_dirty in the present settings ignores untracked files.
             is_dirty = git_repo.is_dirty()
-        except Exception as ex:
-            print_exception(ex, "Error when reading git repository.", logger_fn=logging.debug)
-            logging.info(f"Folder {self.project_root} does not seem to be a git repository.")
+        except:
+            logging.info("This folder does not seem to be a git repository.")
         return GitInformation(
             repository=repository,
             branch=branch,
