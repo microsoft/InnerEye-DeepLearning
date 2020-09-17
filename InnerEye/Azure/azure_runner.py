@@ -24,6 +24,7 @@ from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME, \
     RUN_RECOVERY_ID_KEY_NAME, \
     merge_conda_dependencies
+from InnerEye.Azure.monitor import MonitorConfig, monitor
 from InnerEye.Azure.secrets_handling import read_variables_from_yaml
 from InnerEye.Common.fixed_paths import AZUREML_DATASTORE_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
@@ -156,6 +157,12 @@ def create_and_submit_experiment(
           f"--run_recovery_id={recovery_id}")
     print(f"The run recovery ID has been written to this file: {recovery_file}")
     print("==============================================================================")
+
+    if azure_config.monitor:
+        monitor(monitor_config=MonitorConfig(run_ids=[run.id]), azure_config=azure_config)
+    else:
+        print(f"To monitor this run locally, run the script: InnerEye/Azure/monitor.py --run_ids={run.id}")
+        print("==============================================================================")
     return run
 
 

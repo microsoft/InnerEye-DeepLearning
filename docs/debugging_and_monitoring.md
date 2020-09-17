@@ -1,5 +1,13 @@
 # Debugging and Monitoring Jobs
 
+### Using TensorBoard to monitor AzureML jobs
+
+* **Existing jobs**: execute [`InnerEye/Azure/monitor.py`](/InnerEye/Azure/monitor.py) with either an experiment id or 
+a list of run ids. If an experiment id is provided then all of the runs in that experiment will be monitored.
+* **New jobs**: when queuing a new AzureML job, pass `--monitor=True`, which will automatically start a new TensorBoard
+session, monitoring the newly queued job. 
+
+
 ### Debugging setup on local machine
 
 For full debugging of any non-trivial model, you will need a GPU. Some basic debugging can also be carried out on

@@ -78,6 +78,8 @@ class AzureConfig(GenericConfig):
     pip_extra_index_url: Optional[str] = param.String(None, doc="An additional URL where PIP packages should be "
                                                                 "loaded from.")
     submit_to_azureml: bool = param.Boolean(False, doc="If True, submit the executing script to run on AzureML.")
+    monitor: bool = param.Boolean(False, doc="If True, then automatically launch TensorBoard to monitor the"
+                                             " latest submitted AzureML run.")
     is_train: bool = param.Boolean(True,
                                    doc="If True, train a new model. If False, run inference on an existing model.")
     model: str = param.String(doc="The name of the model to train/test.")

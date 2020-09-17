@@ -7,17 +7,16 @@ from unittest import mock
 
 import pytest
 
-from InnerEye.Azure import monitor
-from InnerEye.Azure.monitor import MonitorArguments
+from InnerEye.Azure.monitor import MonitorConfig
 from Tests.ML.util import get_default_azure_config
 
 
-def patch_and_parse(args: List[str]) -> MonitorArguments:
+def patch_and_parse(args: List[str]) -> MonitorConfig:
     """
     Returns a MonitorArguments object created using the mock arguments.
     """
     with mock.patch("sys.argv", [""] + args):
-        return monitor.parse_and_create_monitor()
+        return MonitorConfig.parse_args()
 
 
 def test_monitor_args_run_ids() -> None:
