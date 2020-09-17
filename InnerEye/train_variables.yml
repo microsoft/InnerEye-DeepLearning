@@ -14,7 +14,6 @@ variables:
   docker_shm_size: '440g'
   node_count: 1
   workers_per_node: 1
-  workspace_region: 'West Europe'
   workspace_name: 'InnerEye-DeepLearning'
   gpu_cluster_name: 'training-nd24'
   model_configs_namespace: ''

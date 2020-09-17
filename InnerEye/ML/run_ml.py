@@ -232,7 +232,7 @@ class MLRunner:
 
             # train a new model if required
             if self.azure_config.is_train:
-                with logging_section("model training"):
+                with logging_section("Model training"):
                     model_train(self.model_config, run_recovery)
                     # Set this to None here, otherwise we will end up reading these weights again in inference runs.
                     self.model_config.local_model_weights = None
@@ -387,7 +387,7 @@ class MLRunner:
             # No point continuing
             logging.warning("Abandoning model registration - no valid checkpoint paths found")
             return
-        with logging_section(f"registering {model_proc.value} model"):
+        with logging_section(f"Registering {model_proc.value} model"):
             self.register_segmentation_model(
                 run=run_context,
                 best_epoch=best_epoch,
@@ -403,7 +403,7 @@ class MLRunner:
             return
         try:
             from InnerEye.ML.baselines_util import compare_scores_against_baselines
-            with logging_section("comparing scores against baselines"):
+            with logging_section("Comparing scores against baselines"):
                 compare_scores_against_baselines(self.model_config, self.azure_config, model_proc)
         except Exception as ex:
             print_exception(ex, "Model baseline comparison failed.")

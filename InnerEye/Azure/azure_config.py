@@ -76,7 +76,6 @@ class AzureConfig(GenericConfig):
     model_weights_container: str = param.String(None, doc="The blob storage container to use to access "
                                                           "model weights in AML jobs")
     workspace_name: str = param.String(None, doc="The name of the AzureML workspace that should be used.")
-    workspace_region: str = param.String(None, doc="The region to create AML workspaces in")
     resource_group: str = param.String(None, doc="The resource group to create AML workspaces in")
     docker_shm_size: str = param.String("440g", doc="The amount of memory available to experiments")
     node_count: int = param.Integer(1, bounds=(1, None), doc="Number of concurrent runs to launch")

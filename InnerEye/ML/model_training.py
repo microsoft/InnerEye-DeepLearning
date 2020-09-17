@@ -78,7 +78,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     # set the random seed for all libraries
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
 
-    logging.debug("Creating the pytorch model.")
+    logging.debug("Creating the PyTorch model.")
 
     # Create the train loader and validation loader to load images from the dataset
     data_loaders = config.create_data_loaders()
