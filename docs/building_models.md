@@ -9,7 +9,7 @@ create a directory `InnerEyeLocal` beside `InnerEye`.
 
 As well as your configurations (dealt with below) you will need these files:
 * `train_variables.yml`: A file similar to `InnerEye\train_variables.yml` containing all your Azure settings.
-The value of `inference_code_directory` should (in our example) be `'InnerEyeLocal'`, 
+The value of `extra_code_directory` should (in our example) be `'InnerEyeLocal'`, 
 and model_configs_namespace should be `'InnerEyeLocal.ML.configs'`. 
 * A folder like `InnerEyeLocal` that contains your additional code, and model configurations.
 * A file `InnerEyeLocal/ML/runner.py` that invokes the InnerEye training runner, but that points the code to your environment and Azure
