@@ -33,7 +33,6 @@ def runner_config() -> AzureConfig:
     config = get_default_azure_config()
     config.model = ""
     config.is_train = False
-    config.datasets_storage_account = ""
     config.datasets_container = ""
     return config
 
@@ -148,7 +147,7 @@ def test_download_blobxfer(test_output_dirs: TestOutputDirectories, is_file: boo
     stripping leading directory names, blobs got overwritten.
     """
     root = Path(test_output_dirs.root_dir)
-    account_key = runner_config.get_storage_account_key()
+    account_key = runner_config.get_dataset_storage_account_key()
     assert account_key is not None
     # Expected test data in Azure blobs:
     # folder1/folder1.txt with content "folder1.txt"
@@ -158,7 +157,7 @@ def test_download_blobxfer(test_output_dirs: TestOutputDirectories, is_file: boo
     blobs_root_path = "data-for-testsuite/folder1"
     if is_file:
         blobs_root_path += "/folder1.txt"
-    download_blobs(runner_config.storage_account, account_key, blobs_root_path, root, is_file)
+    download_blobs(runner_config.datasets_storage_account, account_key, blobs_root_path, root, is_file)
 
     folder1 = root / "folder1.txt"
     assert folder1.exists()
