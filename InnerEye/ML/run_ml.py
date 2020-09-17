@@ -61,6 +61,47 @@ def try_to_mount_input_dataset(run_context: Any) -> Optional[Path]:
     return None
 
 
+def download_dataset(local_dataset: Path,
+                     azure_dataset_id: str,
+                     target_folder: Path,
+                     workspace: Workspace) -> Path:
+    """
+    Downloads or checks for an existing dataset on the executing machine. If a local_dataset is supplied and the
+    directory is present, return that. Otherwise, download the dataset specified by the azure_dataset_id from the
+    AzureML dataset attached to the given AzureML workspace. The dataset is downloaded into the `target_folder`,
+    in a subfolder that has the same name as the dataset. If there already appears to be such a folder, and the folder
+    contains a dataset.csv file, no download is started.
+    :param local_dataset: The path to an existing local dataset.
+    :param azure_dataset_id: The name of a dataset that is registered in the AzureML workspace.
+    :param target_folder: The folder in which to download the dataset from Azure.
+    :param workspace: An AzureML workspace to read the datasets from.
+    :return: A path on the local machine that contains the dataset.
+    """
+    if local_dataset:
+        expected_dir = Path(local_dataset)
+        if not expected_dir.is_dir():
+            raise FileNotFoundError(f"The model uses a dataset in {expected_dir}, but that does not exist.")
+        logging.info(f"Model training will use the local dataset provided in {expected_dir}")
+        return expected_dir
+    if azure_dataset_id:
+        azure_dataset = get_or_create_dataset(workspace, azure_dataset_id)
+        if not isinstance(azure_dataset, FileDataset):
+            raise ValueError(f"Expected to get a FileDataset, but got {type(azure_dataset)}")
+        # The downloaded dataset may already exist from a previous run.
+        expected_dataset_path = target_folder / azure_dataset_id
+        expected_dataset_file = expected_dataset_path / DATASET_CSV_FILE_NAME
+        logging.info(f"Model training will use dataset '{azure_dataset_id}' in Azure.")
+        if expected_dataset_path.is_dir() and expected_dataset_file.is_file():
+            logging.info(f"The dataset appears to be downloaded already in {expected_dataset_path}. Skipping.")
+            return expected_dataset_path
+        logging.info("Starting to download the dataset - WARNING, this could take very long!")
+        with logging_section("Downloading dataset"):
+            azure_dataset.download(target_path=str(expected_dataset_path), overwrite=False)
+        logging.info(f"Azure dataset '{azure_dataset_id}' is now available in {expected_dataset_path}")
+        return expected_dataset_path
+    raise ValueError("The model must contain either local_dataset or azure_dataset_id.")
+
+
 def log_metrics(val_metrics: Optional[InferenceMetricsForSegmentation],
                 test_metrics: Optional[InferenceMetricsForSegmentation],
                 train_metrics: Optional[InferenceMetricsForSegmentation],
@@ -309,31 +350,10 @@ class MLRunner:
         if is_offline_run_context(RUN_CONTEXT):
             # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
             # Otherwise, download the dataset specified by the azure_dataset_id
-            if self.model_config.local_dataset:
-                expected_dir = Path(self.model_config.local_dataset)
-                if not expected_dir.is_dir():
-                    raise FileNotFoundError(f"The model uses a dataset in {expected_dir}, but that does not exist.")
-                logging.info(f"Model training will use the local dataset provided in {expected_dir}")
-                return expected_dir
-            dataset_id = self.model_config.azure_dataset_id
-            if dataset_id:
-                azure_dataset = get_or_create_dataset(self.azure_config.get_workspace(), azure_dataset_id=dataset_id)
-                if not isinstance(azure_dataset, FileDataset):
-                    raise ValueError(f"Expected to get a FileDataset, but got {type(azure_dataset)}")
-                dataset_path = self.project_root / fixed_paths.DATASETS_DIR_NAME
-                # The downloaded dataset may already exist from a previous run.
-                expected_dataset_path = dataset_path / dataset_id
-                expected_dataset_file = expected_dataset_path / DATASET_CSV_FILE_NAME
-                logging.info(f"Model training will use dataset '{dataset_id}' in Azure.")
-                if expected_dataset_path.is_dir() and expected_dataset_file.is_file():
-                    logging.info(f"The dataset appears to be downloaded already in {expected_dataset_path}. Skipping.")
-                    return expected_dataset_path
-                logging.info("Starting to download the dataset - WARNING, this could take very long!")
-                with logging_section("Downloading dataset"):
-                    azure_dataset.download(target_path=str(expected_dataset_path), overwrite=False)
-                logging.info(f"Azure dataset '{dataset_id}' is now available in {expected_dataset_path}")
-                return expected_dataset_path
-            raise ValueError("The model must contain either local_dataset or azure_dataset_id.")
+            return download_dataset(local_dataset=self.model_config.local_dataset,
+                                    azure_dataset_id=self.model_config.azure_dataset_id,
+                                    target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
+                                    workspace=self.azure_config.get_workspace())
         if self.model_config.azure_dataset_id:
             mounted = try_to_mount_input_dataset(RUN_CONTEXT)
             if not mounted:
