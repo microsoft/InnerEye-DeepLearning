@@ -5,7 +5,6 @@
 import copy
 import logging
 from pathlib import Path
-from timeit import default_timer as timer
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -21,9 +20,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     EFFECTIVE_RANDOM_SEED_KEY_NAME, \
     IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME, PARENT_RUN_CONTEXT, \
     PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
-    create_run_recovery_id, get_results_blob_path, has_input_datasets, is_offline_run_context, \
-    storage_account_from_full_name, update_run_tags
-    create_run_recovery_id, get_results_blob_path, has_input_datasets, update_run_tags
+    create_run_recovery_id, get_results_blob_path, has_input_datasets, is_offline_run_context, update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section, print_exception
@@ -62,10 +59,49 @@ def try_to_mount_input_dataset(run_context: Any) -> Optional[Path]:
     return None
 
 
+def download_dataset_via_blobxfer(dataset_id: str,
+                                  azure_config: AzureConfig,
+                                  target_folder: Path) -> Optional[Path]:
+    """
+    Attempts to downloads a dataset from the Azure storage account for datasets, with download happening via
+    blobxfer. This is only possible if the datasets storage account and keyword are present in the `azure_config`.
+    The function returns None if the required settings were not present.
+    :param dataset_id: The folder of the dataset, expected in the container given by azure_config.datasets_container.
+    :param azure_config: The object with all Azure-related settings.
+    :param target_folder: The local folder into which the dataset should be downloaded.
+    :return: The folder that contains the downloaded dataset. Returns None if the datasets account name or password
+    were not present.
+    """
+    datasets_account_key = azure_config.get_dataset_storage_account_key()
+    if not datasets_account_key:
+        logging.info("No account key for the dataset storage account was found.")
+        logging.info(f"We checked in environment variables and in the file {PROJECT_SECRETS_FILE}")
+        return None
+    if (not azure_config.datasets_container) or (not azure_config.datasets_storage_account):
+        logging.info("Datasets storage account or container missing.")
+        return None
+    target_folder.mkdir(exist_ok=True)
+    result_folder = target_folder / dataset_id
+    # only download if hasn't already been downloaded
+    if result_folder.is_dir():
+        logging.info(f"Folder already exists, skipping download: {result_folder}")
+        return result_folder
+    with logging_section(f"Downloading dataset {dataset_id}"):
+        download_blobs(
+            account=azure_config.datasets_storage_account,
+            account_key=datasets_account_key,
+            # When specifying the blobs root path, ensure that there is a slash at the end, otherwise
+            # all datasets with that dataset_id as a prefix get downloaded.
+            blobs_root_path=f"{azure_config.datasets_container}/{dataset_id}/",
+            destination=result_folder
+        )
+    return result_folder
+
+
 def download_dataset(local_dataset: Path,
                      azure_dataset_id: str,
                      target_folder: Path,
-                     workspace: Workspace) -> Path:
+                     azure_config: AzureConfig) -> Path:
     """
     Downloads or checks for an existing dataset on the executing machine. If a local_dataset is supplied and the
     directory is present, return that. Otherwise, download the dataset specified by the azure_dataset_id from the
@@ -75,7 +111,7 @@ def download_dataset(local_dataset: Path,
     :param local_dataset: The path to an existing local dataset.
     :param azure_dataset_id: The name of a dataset that is registered in the AzureML workspace.
     :param target_folder: The folder in which to download the dataset from Azure.
-    :param workspace: An AzureML workspace to read the datasets from.
+    :param azure_config: All Azure-related configuration options.
     :return: A path on the local machine that contains the dataset.
     """
     if local_dataset:
@@ -85,6 +121,16 @@ def download_dataset(local_dataset: Path,
         logging.info(f"Model training will use the local dataset provided in {expected_dir}")
         return expected_dir
     if azure_dataset_id:
+        workspace = azure_config.get_workspace()
+        try:
+            downloaded_via_blobxfer = download_dataset_via_blobxfer(dataset_id=azure_dataset_id,
+                                                                    azure_config=azure_config,
+                                                                    target_folder=target_folder)
+            if downloaded_via_blobxfer:
+                return downloaded_via_blobxfer
+        except Exception as ex:
+            print_exception(ex, message="Unable to download dataset via blobxfer.")
+        logging.info(f"Trying to download dataset via AzureML datastore now.")
         azure_dataset = get_or_create_dataset(workspace, azure_dataset_id)
         if not isinstance(azure_dataset, FileDataset):
             raise ValueError(f"Expected to get a FileDataset, but got {type(azure_dataset)}")
@@ -353,7 +399,7 @@ class MLRunner:
             return download_dataset(local_dataset=self.model_config.local_dataset,
                                     azure_dataset_id=self.model_config.azure_dataset_id,
                                     target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
-                                    workspace=self.azure_config.get_workspace())
+                                    azure_config=self.azure_config)
         if self.model_config.azure_dataset_id:
             mounted = try_to_mount_input_dataset(RUN_CONTEXT)
             if not mounted:
@@ -615,42 +661,3 @@ class MLRunner:
                         train_metrics=train_metrics, run_context=run_context)  # type: ignore
 
         return test_metrics, val_metrics, train_metrics
-
-
-def download_dataset_via_blobxfer(dataset_id: str,
-                                  azure_config: AzureConfig,
-                                  target_folder: Path) -> Optional[Path]:
-    """
-    Attempts to downloads a dataset from the Azure storage account for datasets, with download happening via
-    blobxfer. This is only possible if the datasets storage account and keyword are present in the `azure_config`.
-    The function returns None if the required settings were not present.
-    :param dataset_id: The folder of the dataset, expected in the container given by azure_config.datasets_container.
-    :param azure_config: The object with all Azure-related settings.
-    :param target_folder: The local folder into which the dataset should be downloaded.
-    :return: The folder that contains the downloaded dataset. Returns None if the datasets account name or password
-    were not present.
-    """
-    datasets_account_key = azure_config.get_dataset_storage_account_key()
-    if not datasets_account_key:
-        logging.info("No account key for the dataset storage account was found.")
-        logging.info(f"We checked in environment variables and in the file {PROJECT_SECRETS_FILE}")
-        return None
-    if (not azure_config.datasets_container) or (not azure_config.datasets_storage_account):
-        logging.info("Datasets storage account or container missing.")
-        return None
-    target_folder.mkdir(exist_ok=True)
-    result_folder = target_folder / dataset_id
-    # only download if hasn't already been downloaded
-    if result_folder.is_dir():
-        logging.info(f"Folder already exists, skipping download: {result_folder}")
-        return result_folder
-    with logging_section(f"Downloading dataset {dataset_id}"):
-        download_blobs(
-            account=azure_config.datasets_storage_account,
-            account_key=datasets_account_key,
-            # When specifying the blobs root path, ensure that there is a slash at the end, otherwise
-            # all datasets with that dataset_id as a prefix get downloaded.
-            blobs_root_path=f"{azure_config.datasets_container}/{dataset_id}/",
-            destination=result_folder
-        )
-    return result_folder
