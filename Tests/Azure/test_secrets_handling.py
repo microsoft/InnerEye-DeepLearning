@@ -9,8 +9,6 @@ import pytest
 from InnerEye.Azure import secrets_handling
 from InnerEye.Azure.secrets_handling import SecretsHandling, read_variables_from_yaml
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import logging_to_stdout
-from Tests.ML.util import get_default_azure_config
 from Tests.fixed_paths_for_tests import full_azure_test_data_path
 
 

@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch.multiprocessing
-from azureml.core import Run, Workspace  # , Dataset
+from azureml.core import Run, Workspace
 from azureml.core.model import Model
 from azureml.data import FileDataset
 
@@ -98,8 +98,8 @@ def download_dataset_via_blobxfer(dataset_id: str,
     return result_folder
 
 
-def download_dataset(local_dataset: Path,
-                     azure_dataset_id: str,
+def download_dataset(local_dataset: Optional[Path],
+                     azure_dataset_id: Optional[str],
                      target_folder: Path,
                      azure_config: AzureConfig) -> Path:
     """
@@ -130,7 +130,7 @@ def download_dataset(local_dataset: Path,
                 return downloaded_via_blobxfer
         except Exception as ex:
             print_exception(ex, message="Unable to download dataset via blobxfer.")
-        logging.info(f"Trying to download dataset via AzureML datastore now.")
+        logging.info("Trying to download dataset via AzureML datastore now.")
         azure_dataset = get_or_create_dataset(workspace, azure_dataset_id)
         if not isinstance(azure_dataset, FileDataset):
             raise ValueError(f"Expected to get a FileDataset, but got {type(azure_dataset)}")
@@ -403,7 +403,7 @@ class MLRunner:
         if self.model_config.azure_dataset_id:
             mounted = try_to_mount_input_dataset(RUN_CONTEXT)
             if not mounted:
-                raise ValueError(f"Unable to mount or download input dataset.")
+                raise ValueError("Unable to mount or download input dataset.")
             return mounted
         raise ValueError("When running inside of Azure, an `azure_dataset_id` must be specified.")
 

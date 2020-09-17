@@ -165,35 +165,6 @@ def get_or_create_dataset(workspace: Workspace,
     Looks in the AzureML datastore for a dataset of the given name. If there is no such dataset, a dataset is created
     and registered, assuming that the files are in a folder that has the same name as the dataset. For example, if
     azure_dataset_id is 'foo', then the 'foo' dataset is pointing to <container_root>/datasets/foo folder.
-    """
-    logging.info(f"Retrieving datastore '{AZUREML_DATASTORE_NAME}' from AzureML workspace")
-    datastore = Datastore.get(workspace, AZUREML_DATASTORE_NAME)
-    try:
-        logging.info(f"Trying to retrieve AzureML Dataset '{azure_dataset_id}'")
-        azureml_dataset = Dataset.get_by_name(workspace, name=azure_dataset_id)
-        logging.info("Dataset found.")
-    except:
-        logging.info(f"Dataset does not yet exist, creating a new one from data in folder '{azure_dataset_id}'")
-        # See WARNING above before changing the from_files call!
-        azureml_dataset = Dataset.File.from_files([(datastore, azure_dataset_id)])
-        logging.info("Registering the dataset for future use.")
-        azureml_dataset.register(workspace, name=azure_dataset_id)
-    return azureml_dataset
-
-
-
-def create_pytorch_environment(workspace: Workspace,
-                               azure_config: AzureConfig,
-                               source_config: SourceConfig,
-                               azure_dataset_id: str) -> PyTorch:
-    """
-    Creates an Estimator environment required for model execution
-
-    :param workspace: The AzureML workspace
-    :param azure_config: azure related configurations to use for model scaleout behaviour
-    :param source_config: configurations for model execution, such as name and execution mode
-    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
-    :return: The configured PyTorch environment to be used for experimentation
 
     WARNING: the behaviour of Dataset.File.from_files, used below, is idiosyncratic. For example,
     if "mydataset" storage has two "foo..." subdirectories each containing
@@ -211,6 +182,34 @@ def create_pytorch_environment(workspace: Workspace,
                                    (datastore, "foo-bar01/ABC/abc_files/*/*.nii.gz")])
 
     These behaviours can be verified by calling "ds.download()" on each dataset ds.
+    """
+    logging.info(f"Retrieving datastore '{AZUREML_DATASTORE_NAME}' from AzureML workspace")
+    datastore = Datastore.get(workspace, AZUREML_DATASTORE_NAME)
+    try:
+        logging.info(f"Trying to retrieve AzureML Dataset '{azure_dataset_id}'")
+        azureml_dataset = Dataset.get_by_name(workspace, name=azure_dataset_id)
+        logging.info("Dataset found.")
+    except:
+        logging.info(f"Dataset does not yet exist, creating a new one from data in folder '{azure_dataset_id}'")
+        # See WARNING above before changing the from_files call!
+        azureml_dataset = Dataset.File.from_files([(datastore, azure_dataset_id)])
+        logging.info("Registering the dataset for future use.")
+        azureml_dataset.register(workspace, name=azure_dataset_id)
+    return azureml_dataset
+
+
+def create_pytorch_environment(workspace: Workspace,
+                               azure_config: AzureConfig,
+                               source_config: SourceConfig,
+                               azure_dataset_id: str) -> PyTorch:
+    """
+    Creates an Estimator environment required for model execution
+
+    :param workspace: The AzureML workspace
+    :param azure_config: azure related configurations to use for model scaleout behaviour
+    :param source_config: configurations for model execution, such as name and execution mode
+    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
+    :return: The configured PyTorch environment to be used for experimentation
     """
     azureml_dataset = get_or_create_dataset(workspace, azure_dataset_id=azure_dataset_id)
     if azureml_dataset:

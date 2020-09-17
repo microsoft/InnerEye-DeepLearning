@@ -173,7 +173,7 @@ class AzureConfig(GenericConfig):
         """
         return AzureConfig(**read_variables_from_yaml(yaml_file_path))
 
-    def get_dataset_storage_account_key(self) -> str:
+    def get_dataset_storage_account_key(self) -> Optional[str]:
         """
         Gets the storage account key for the storage account that holds the dataset.
         """
