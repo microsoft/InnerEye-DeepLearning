@@ -71,7 +71,7 @@ You may need to vary this if it does not yield exactly one line of output.
 kill -TRAP nnnn
 nc 127.0.0.1 4444
 ```
-where nnnn is the process identifier. If the python process is in a state where it can
+where `nnnn` is the process identifier. If the python process is in a state where it can
 accept the connection, the "nc" command will print a prompt from which you can issue pdb
 commands.
 
@@ -81,5 +81,3 @@ Thus if you might want a colleague to carry out the debugging, think carefully b
 issuing these commands yourself.
 * This procedure will not work on processes other than the main "runner.py" one, because
 only that process has the required trap handling set up.
-
-
