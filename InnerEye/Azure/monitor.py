@@ -62,12 +62,14 @@ def monitor(monitor_config: MonitorConfig, azure_config: AzureConfig) -> None:
             exit(-1)
 
         experiment = Experiment(workspace, monitor_config.experiment_name)
-        filters = common_util.get_items_from_string(monitor_config.run_status)
+        filters = common_util.get_items_from_string(monitor_config.run_status) if monitor_config.run_status else []
 
         exp_runs = azure_util.fetch_runs(experiment, filters)
 
         if len(exp_runs) == 0:
-            print(f"No runs to monitor with status [{monitor_config.run_status}].")
+            _msg = "No runs to monitor"
+            if monitor_config.run_status:
+                _msg += f"with status [{monitor_config.run_status}]."
             exit(-1)
 
     # Start TensorBoard on executing machine
