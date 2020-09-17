@@ -41,7 +41,7 @@ class GlaucomaPublicExt(GlaucomaPublic):
         super().__init__(azure_dataset_id="name_of_your_dataset_on_azure")
     ``` 
 1. In `train_variables.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
-is found by the runner. Set `inference_code_directory` to `InnerEyeLocal`.
+is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.
 
 ### Start Training
 Run the following to start a job on AzureML
@@ -91,7 +91,7 @@ class LungExt(Lung):
         super().__init__(azure_dataset_id="name_of_your_dataset_on_azure")
     ``` 
 1. In `train_variables.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
-is found by the runner. Set `inference_code_directory` to `InnerEyeLocal`.
+is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.
 
 ### Start Training
 Run the following to start a job on AzureML
