@@ -33,7 +33,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
         model_configs_namespace = "Tests.ML.configs"
         model_name = "DummyModel"
 
-    args_list = [f"--model={model_name}", "--is_train=True", "--l_rate=100.0", "datasets_storage_account=hello_world",
+    args_list = [f"--model={model_name}", "--is_train=True", "--l_rate=100.0", "--datasets_storage_account=hello_world",
                  "--norm_method=Simple Norm", "--subscription_id", "Test1", "--tenant_id=Test2",
                  "--application_id", "Test3", "--datasets_storage_account=Test4", "--datasets_container", "Test5",
                  "--pytest_mark", "gpu", f"--output_to={outputs_folder}"]

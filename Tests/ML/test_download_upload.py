@@ -10,7 +10,7 @@ import pytest
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run, get_results_blob_path
 from InnerEye.Common import common_util, fixed_paths
-from InnerEye.Common.common_util import logging_to_stdout
+from InnerEye.Common.common_util import logging_section, logging_to_stdout
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML import run_ml
 from InnerEye.ML.run_ml import MLRunner
@@ -113,7 +113,8 @@ def test_download_azureml_dataset(test_output_dirs: TestOutputDirectories) -> No
     # Pointing the model to a dataset in Azure should trigger a download
     runner.model_config.local_dataset = None
     runner.model_config.azure_dataset_id = dataset_name
-    result_path = runner.mount_or_download_dataset()
+    with logging_section("Starting download"):
+        result_path = runner.mount_or_download_dataset()
     # Download goes into <project_root> / "datasets" / "test_dataset"
     expected_path = runner.project_root / fixed_paths.DATASETS_DIR_NAME / dataset_name
     assert result_path == expected_path
