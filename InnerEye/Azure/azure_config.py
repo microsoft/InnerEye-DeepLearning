@@ -23,7 +23,6 @@ from InnerEye.Azure.azure_util import is_offline_run_context
 from InnerEye.Azure.secrets_handling import APPLICATION_KEY, DATASETS_ACCOUNT_KEY, SecretsHandling, \
     read_variables_from_yaml
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import GenericConfig
 
 

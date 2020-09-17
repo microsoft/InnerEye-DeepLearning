@@ -107,7 +107,7 @@ dependencies:
     assert list(conda_dep.pip_packages) == ["foo==1.0", "azureml-sdk==1.6.0", "bar==2.0"]
 
 
-def test_experiment_name():
+def test_experiment_name() -> None:
     c = AzureConfig()
     c.build_branch = "branch"
     c.get_git_information()
