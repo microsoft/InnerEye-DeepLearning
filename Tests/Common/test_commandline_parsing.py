@@ -33,7 +33,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
         model_configs_namespace = "Tests.ML.configs"
         model_name = "DummyModel"
 
-    args_list = [f"--model={model_name}", "--is_train=True", "--l_rate=100.0", "--storage_account=hello_world",
+    args_list = [f"--model={model_name}", "--is_train=True", "--l_rate=100.0", "datasets_storage_account=hello_world",
                  "--norm_method=Simple Norm", "--subscription_id", "Test1", "--tenant_id=Test2",
                  "--application_id", "Test3", "--datasets_storage_account=Test4", "--datasets_container", "Test5",
                  "--pytest_mark", "gpu", f"--output_to={outputs_folder}"]
@@ -46,7 +46,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
             runner.parse_and_load_model()
             azure_config = runner.azure_config
             model_config = runner.model_config
-    assert azure_config.storage_account == "hello_world"
+    assert azure_config.datasets_storage_account == "hello_world"
     assert azure_config.model == model_name
     assert model_config.l_rate == 100.0
     assert model_config.norm_method == PhotometricNormalizationMethod.SimpleNorm
@@ -125,7 +125,7 @@ def test_parsing_with_custom_yaml(test_output_dirs: TestOutputDirectories) -> No
     yaml_file = Path(test_output_dirs.root_dir) / "custom.yml"
     yaml_file.write_text("""variables:
   tenant_id: 'foo'
-  storage_account: 'account'
+  datasets_storage_account: 'account'
   start_epoch: 7
   random_seed: 1
 """)
@@ -142,7 +142,7 @@ def test_parsing_with_custom_yaml(test_output_dirs: TestOutputDirectories) -> No
     assert loader_result is not None
     assert runner.azure_config is not None
     # This is only present in yaml
-    assert runner.azure_config.storage_account == "account"
+    assert runner.azure_config.datasets_storage_account == "account"
     # This is present in yaml and command line, and the latter should be used.
     assert runner.azure_config.tenant_id == "bar"
     # Settings in model config: start_epoch is only in yaml

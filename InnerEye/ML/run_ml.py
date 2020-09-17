@@ -20,11 +20,11 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     EFFECTIVE_RANDOM_SEED_KEY_NAME, \
     IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME, PARENT_RUN_CONTEXT, \
     PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
-    create_run_recovery_id, get_results_blob_path, has_input_datasets, storage_account_from_full_name, update_run_tags
+    create_run_recovery_id, get_results_blob_path, has_input_datasets, update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section, print_exception
-from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PACKAGE_NAME
+from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod
@@ -194,8 +194,7 @@ class MLRunner:
             logging.info("Setting tags from parent run.")
             self.set_run_tags_from_parent()
 
-        if self.azure_config.storage_account:
-            self.save_build_info_for_dotnet_consumers()
+        self.save_build_info_for_dotnet_consumers()
 
         # Set data loader start method
         self.set_multiprocessing_start_method()
@@ -323,8 +322,7 @@ class MLRunner:
         self.register_model_for_epoch(RUN_CONTEXT, run_recovery, best_epoch, best_epoch_dice, model_proc)
 
     def save_build_info_for_dotnet_consumers(self) -> None:
-        results_container = storage_account_from_full_name(self.azure_config.storage_account) \
-                            + "/" + get_results_blob_path(RUN_CONTEXT.id)
+        results_container = get_results_blob_path(RUN_CONTEXT.id)
         result_location = ExperimentResultLocation(
             azure_job_name=RUN_CONTEXT.id,
             dataset_folder=self.model_config.azure_dataset_id,
@@ -561,38 +559,41 @@ class MLRunner:
 
         return test_metrics, val_metrics, train_metrics
 
-    def download_dataset(self, run_context: Optional[Run] = None,
-                         dataset_path: Path = Path.cwd()) -> Optional[Path]:
-        """
-        Configures the dataset for model training/testing. The dataset is downloaded into dataset_path, only if the
-        dataset
-        does not exist in the given path.
-        Returns a path to the folder that contains the dataset.
-        """
 
-        # check if the dataset needs to be downloaded from Azure
-        config = self.model_config
-        if config.azure_dataset_id:
-            # log the dataset id being used for this run
-            if run_context is not None:
-                run_context.tag("dataset_id", config.azure_dataset_id)
-            target_folder = dataset_path / config.azure_dataset_id
-            # only download if hasn't already been downloaded
-            if target_folder.is_dir():
-                logging.info("Using cached dataset in folder %s", target_folder)
-            else:
-                logging.info("Starting to download dataset from Azure to folder %s", target_folder)
-                start_time = timer()
-                # download the dataset blobs from Azure to local
-                download_blobs(
-                    account=self.azure_config.datasets_storage_account,
-                    account_key=self.azure_config.get_dataset_storage_account_key(),
-                    # When specifying the blobs root path, ensure that there is a slash at the end, otherwise
-                    # all datasets with that dataset_id as a prefix get downloaded.
-                    blobs_root_path="{}/{}/".format(self.azure_config.datasets_container, config.azure_dataset_id),
-                    destination=target_folder
-                )
-                elapsed_seconds = timer() - start_time
-                logging.info("Downloading dataset from Azure took {} sec".format(elapsed_seconds))
-            return target_folder
-        return config.local_dataset
+def download_dataset_via_blobxfer(dataset_id: str,
+                                  azure_config: AzureConfig,
+                                  target_folder: Path) -> Optional[Path]:
+    """
+    Attempts to downloads a dataset from the Azure storage account for datasets, with download happening via
+    blobxfer. This is only possible if the datasets storage account and keyword are present in the `azure_config`.
+    The function returns None if the required settings were not present.
+    :param dataset_id: The folder of the dataset, expected in the container given by azure_config.datasets_container.
+    :param azure_config: The object with all Azure-related settings.
+    :param target_folder: The local folder into which the dataset should be downloaded.
+    :return: The folder that contains the downloaded dataset. Returns None if the datasets account name or password
+    were not present.
+    """
+    datasets_account_key = azure_config.get_dataset_storage_account_key()
+    if not datasets_account_key:
+        logging.info("No account key for the dataset storage account was found.")
+        logging.info(f"We checked in environment variables and in the file {PROJECT_SECRETS_FILE}")
+        return None
+    if (not azure_config.datasets_container) or (not azure_config.datasets_storage_account):
+        logging.info("Datasets storage account or container missing.")
+        return None
+    target_folder.mkdir(exist_ok=True)
+    result_folder = target_folder / dataset_id
+    # only download if hasn't already been downloaded
+    if result_folder.is_dir():
+        logging.info(f"Folder already exists, skipping download: {result_folder}")
+        return result_folder
+    with logging_section(f"Downloading dataset {dataset_id}"):
+        download_blobs(
+            account=azure_config.datasets_storage_account,
+            account_key=datasets_account_key,
+            # When specifying the blobs root path, ensure that there is a slash at the end, otherwise
+            # all datasets with that dataset_id as a prefix get downloaded.
+            blobs_root_path=f"{azure_config.datasets_container}/{dataset_id}/",
+            destination=result_folder
+        )
+    return result_folder

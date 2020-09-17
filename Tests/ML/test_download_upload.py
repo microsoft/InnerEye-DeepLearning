@@ -12,9 +12,9 @@ from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run, get_results_b
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.ML import run_ml
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
@@ -89,10 +89,12 @@ def test_download_checkpoints_hyperdrive_run(test_output_dirs: TestOutputDirecto
 
 
 def test_download_dataset(test_output_dirs: TestOutputDirectories) -> None:
-    config = SegmentationModelBase(azure_dataset_id="test-dataset", should_validate=False)
     azure_config = get_default_azure_config()
-    result_path = MLRunner(config, azure_config).download_dataset(None, dataset_path=Path(test_output_dirs.root_dir))
+    result_path = run_ml.download_dataset_via_blobxfer(dataset_id="test-dataset",
+                                                       azure_config=azure_config,
+                                                       target_folder=Path(test_output_dirs.root_dir))
     assert result_path
+    assert result_path.is_dir()
     dataset_csv = Path(result_path) / DATASET_CSV_FILE_NAME
     assert dataset_csv.exists()
 
