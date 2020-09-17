@@ -158,7 +158,7 @@ def create_and_submit_experiment(
     print(f"The run recovery ID has been written to this file: {recovery_file}")
     print("==============================================================================")
 
-    if azure_config.monitor:
+    if azure_config.monitor and azure_config.submit_to_azureml:
         monitor(monitor_config=MonitorConfig(run_ids=[run.id]), azure_config=azure_config)
     else:
         print(f"To monitor this run locally, run the script: InnerEye/Azure/monitor.py --run_ids={run.id}")
