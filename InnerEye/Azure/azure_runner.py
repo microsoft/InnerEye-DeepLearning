@@ -108,6 +108,20 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
     })
 
 
+def create_experiment_name(azure_config: AzureConfig) -> str:
+    """
+    Gets the name of the AzureML experiment. This is taken from the commandline, or from the git branch.
+    :param azure_config: The object containing all Azure-related settings.
+    :return: The name to use for the AzureML experiment.
+    """
+    if azure_config.experiment_name:
+        return azure_config.experiment_name
+    branch = azure_config.get_git_information().branch
+    # If no branch information is found anywhere, create an experiment name that is the user alias and a timestamp
+    # at monthly granularity, so that not too many runs accumulate in that experiment.
+    return branch or getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
+
+
 def create_and_submit_experiment(
         workspace: Workspace,
         azure_config: AzureConfig,
@@ -124,10 +138,7 @@ def create_and_submit_experiment(
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
     :returns: Run object for the submitted AzureML run
     """
-    branch = azure_config.get_git_information().branch
-    # If no branch information is found anywhere, create an experiment name that is the user alias and a timestamp
-    # at monthly granularity, so that not too many runs accumulate in that experiment.
-    experiment_name = branch or getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
+    experiment_name = create_experiment_name(azure_config)
     exp = Experiment(workspace=workspace, name=azure_util.to_azure_friendly_string(experiment_name))
     pt_env = create_pytorch_environment(workspace, azure_config, source_config, azure_dataset_id)
 
