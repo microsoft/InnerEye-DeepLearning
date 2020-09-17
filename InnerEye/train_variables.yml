@@ -9,8 +9,6 @@ variables:
   datasets_container: 'datasets'
   resource_group: 'InnerEye-DeepLearning'
   docker_shm_size: '440g'
-  node_count: 1
-  workers_per_node: 1
   workspace_name: 'InnerEye-DeepLearning'
   gpu_cluster_name: 'training-nd24'
   model_configs_namespace: ''

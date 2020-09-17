@@ -71,8 +71,6 @@ class AzureConfig(GenericConfig):
     workspace_name: str = param.String(None, doc="The name of the AzureML workspace that should be used.")
     resource_group: str = param.String(None, doc="The resource group to create AML workspaces in")
     docker_shm_size: str = param.String("440g", doc="The amount of memory available to experiments")
-    node_count: int = param.Integer(1, bounds=(1, None), doc="Number of concurrent runs to launch")
-    workers_per_node: int = param.Integer(1, bounds=(1, None), doc="Number of child runs for a run")
     hyperdrive: bool = param.Boolean(False, doc="Use HyperDrive for run execution")
     gpu_cluster_name: str = param.String(None, doc="GPU cluster to use if executing a run")
     pip_extra_index_url: Optional[str] = param.String(None, doc="An additional URL where PIP packages should be "

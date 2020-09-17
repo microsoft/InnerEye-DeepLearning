@@ -121,7 +121,6 @@ def test_create_runner_parser(with_config: bool) -> None:
     from_yaml = {
         "workspace_name": "InnerEye-DeepLearning",
         "datasets_container": "datasets",
-        "workers_per_node": 1
     }
     for prop, value in from_yaml.items():
         assert prop in parser_result.args, f"Property {prop} missing in args"
