@@ -288,9 +288,9 @@ def load_checkpoint(model: torch.nn.Module,
         checkpoint = default_state_dict_reader(path_to_checkpoint)
 
     if isinstance(model, torch.nn.DataParallel):
-        model.module.load_state_dict(checkpoint['state_dict'])
+        model.module.load_state_dict(checkpoint['state_dict'], strict=False)
     else:
-        model.load_state_dict(checkpoint['state_dict'])
+        model.load_state_dict(checkpoint['state_dict'], strict=False)
 
     if optimizer is not None and (not model_weight_reader or 'opt_dict' in checkpoint):
         opt_dict = checkpoint['opt_dict']
