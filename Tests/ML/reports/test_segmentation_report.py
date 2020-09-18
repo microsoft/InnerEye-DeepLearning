@@ -25,7 +25,7 @@ def test_generate_segmentation_report(test_output_dirs: TestOutputDirectories) -
     chk_file = Path(current_dir / "report.html")
     assert chk_file.is_file()
     # Check html contains the name of a key structure
-    with open(chk_file) as f:
+    with open(chk_file, "r", encoding='utf-8') as f:
         assert 'parotid_r' in f.read()
 
 
