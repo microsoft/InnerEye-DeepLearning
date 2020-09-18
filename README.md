@@ -78,10 +78,11 @@ Detailed instructions, including setup in Azure, are here:
 
 ## Contact
 
-Please send an email to:
+Please send an email to InnerEyeInfo@microsoft.com if you would like further information on this project.
 
-* InnerEyeInfo@microsoft.com if you would like further information about Innereye.
-* InnerEyeCommercial@microsoft.com if would like to know more about InnerEye on Azure or Azure Stack.
+If you have any requests or issues with the InnerEye-DeepLearning, please submit an Issue via GitHub.
+
+If you are interested in using the InnerEye Deep Learning Toolkit to develop your own products and services, including using Azure Stack Hub, please email InnerEyeCommercial@microsoft.com 
 
 ## Contributing
 
