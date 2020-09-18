@@ -114,7 +114,7 @@ if is_dev_package:
     published_package_name += "-dev"
     package_data[INNEREYE_PACKAGE_NAME] += [
         fixed_paths.TRAIN_YAML_FILE_NAME,
-        INNEREYE_PACKAGE_ROOT / r"ML/reports/segmentation/segmentation_report.ipynb"
+        str(INNEREYE_PACKAGE_ROOT / r"ML/reports/segmentation/segmentation_report.ipynb")
     ]
     print("\n ***** NOTE: This package is built for development purpose only. DO NOT RELEASE THIS! *****")
     print(f"\n ***** Will install dev package data: {package_data} *****\n")
