@@ -100,8 +100,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     # Otherwise, create checkpoint directory for this run
     else:
         logging.info("Models are saved at {}".format(config.checkpoint_folder))
-        if not os.path.isdir(config.checkpoint_folder):
-            os.makedirs(config.checkpoint_folder)
+    if not os.path.isdir(config.checkpoint_folder):
+        os.makedirs(config.checkpoint_folder)
 
     # Print out a detailed breakdown of layers, memory consumption and time.
     generate_and_print_model_summary(config, model)
