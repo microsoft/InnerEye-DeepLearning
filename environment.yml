@@ -22,7 +22,7 @@ dependencies:
       - joblib==0.16.0
       - jupyter==1.0.0
       - matplotlib==3.3.0
-      - mlflow==1.11.0
+      - mlflow==1.8.0
       - mypy==0.770
       - mypy-extensions==0.4.3
       - numpy==1.19.1
