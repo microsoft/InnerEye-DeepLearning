@@ -33,7 +33,7 @@ jobs:
         parameters:
           wait_for_completion: 'True'
           pytest_mark: 'gpu'
-          more_switches: '--use_dataset_mount=True'
+          more_switches: '--use_dataset_mount=True --tensorboard=True'
       - task: PublishTestResults@2
         inputs:
           testResultsFiles: '**/test-*.xml'
