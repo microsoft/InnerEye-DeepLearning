@@ -15,7 +15,7 @@ from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
 
 
-class MonitorConfig(GenericConfig):
+class AMLTensorBoardMonitorConfig(GenericConfig):
     """
     Stores all information that is need to start TensorBoard monitoring.
     """
@@ -39,7 +39,7 @@ class MonitorConfig(GenericConfig):
             raise ValueError("You must provide either a list of run ids or an experiment name.")
 
 
-def monitor(monitor_config: MonitorConfig, azure_config: AzureConfig) -> None:
+def monitor(monitor_config: AMLTensorBoardMonitorConfig, azure_config: AzureConfig) -> None:
     """
     Starts TensorBoard monitoring as per the provided arguments.
     :param monitor_config: The config containing information on which runs that need be monitored.
@@ -56,7 +56,7 @@ def monitor(monitor_config: MonitorConfig, azure_config: AzureConfig) -> None:
     else:
         if monitor_config.experiment_name not in workspace.experiments:
             print(
-                f"The experiment: {monitor_config.experiment_name} doest not "
+                f"The experiment: {monitor_config.experiment_name} doesnt not "
                 f"exist in the {monitor_config.workspace_name} workspace.")
             exit(-1)
 
@@ -91,7 +91,7 @@ def main(yaml_file_path: Path) -> None:
     :param yaml_file_path: The path to the YAML config file that contains all Azure-related options (which workspace
     to access, etc)
     """
-    monitor(monitor_config=MonitorConfig.parse_args(), azure_config=AzureConfig.from_yaml(yaml_file_path))
+    monitor(monitor_config=AMLTensorBoardMonitorConfig.parse_args(), azure_config=AzureConfig.from_yaml(yaml_file_path))
 
 
 if __name__ == '__main__':
