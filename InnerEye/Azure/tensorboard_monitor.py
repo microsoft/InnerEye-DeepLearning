@@ -56,7 +56,7 @@ def monitor(monitor_config: AMLTensorBoardMonitorConfig, azure_config: AzureConf
     else:
         if monitor_config.experiment_name not in workspace.experiments:
             print(
-                f"The experiment: {monitor_config.experiment_name} doesnt not "
+                f"The experiment: {monitor_config.experiment_name} doesn't "
                 f"exist in the {monitor_config.workspace_name} workspace.")
             exit(-1)
 
