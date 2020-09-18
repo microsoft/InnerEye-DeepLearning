@@ -43,6 +43,9 @@ from InnerEye.ML.reports.segmentation.segmentation_report import INNEREYE_PATH_P
     VAL_METRICS_CSV_PARAMETER_NAME
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 
+REPORT_IPYNB = "report.ipynb"
+REPORT_HTML = "report.html"
+
 LOG_FILE_NAME = "stdout.txt"
 
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
@@ -172,7 +175,7 @@ class Runner:
                                            TEST_METRICS_CSV_PARAMETER_NAME: str(path_to_best_epoch_test),
                                            INNEREYE_PATH_PARAMETER_NAME: str(
                                                Path(__file__).parent.parent.parent.parent)},
-                          result_path=output_dir / "report.ipynb")
+                          result_path=output_dir / REPORT_IPYNB)
 
     def plot_cross_validation_and_upload_results(self) -> Path:
         from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
@@ -228,9 +231,10 @@ class Runner:
         other_runs_ensemble_dir = other_runs_dir / ENSEMBLE_SPLIT_NAME
         if PARENT_RUN_CONTEXT is not None:
             if other_runs_ensemble_dir.exists():
-                # Only keep baseline Wilcoxon results and scatterplots:
+                # Only keep baseline Wilcoxon results and scatterplots and reports
                 for subdir in other_runs_ensemble_dir.glob("*"):
-                    if subdir.name not in [BASELINE_WILCOXON_RESULTS_FILE, SCATTERPLOTS_SUBDIR_NAME]:
+                    if subdir.name not in [BASELINE_WILCOXON_RESULTS_FILE, SCATTERPLOTS_SUBDIR_NAME, REPORT_HTML,
+                                           REPORT_IPYNB]:
                         remove_file_or_directory(subdir)
                 PARENT_RUN_CONTEXT.upload_folder(name=BASELINE_COMPARISONS_FOLDER, path=str(other_runs_ensemble_dir))
             else:
