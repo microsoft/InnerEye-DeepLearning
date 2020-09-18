@@ -256,14 +256,3 @@ runs are uploaded to the parent run, in the `CrossValResults` directory. This co
 There is also a directory `BaselineComparisons`, containing the Wilcoxon test results and
 scatterplots for the ensemble, as described above for single runs.
 
-
-### Using Tensorboard
-
-You can use `InnerEye/Azure/monitor.py` to run a Tensorboard locally. All you need to do is call the script with the following
-commandline arguments: `--run_ids job1,job2,job3`, where you provide the `run_recovery_id` of the run(s) you want to monitor.
-Or you can run it with: `--experiment_name`, where you provide the name of the experiment to get all the runs in it.
-You can also filter runs by type by the run's status, setting the `--filters Running,Completed` parameter to a subset of
-`[Running, Completed, Failed, Canceled]`. By default Failed and Canceled runs are excluded.
-
-To quickly access that, there is a template PyCharm run configuration `Template: Tensorboard monitoring` in the repository. Create
-a copy of that, and modify the commandline arguments with your jobs to monitor.
