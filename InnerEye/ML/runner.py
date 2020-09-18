@@ -164,7 +164,7 @@ class Runner:
                                                                                  model_proc=model_proc) / \
                                   METRICS_FILE_NAME
 
-        output_dir = config.outputs_folder / ENSEMBLE_SPLIT_NAME \
+        output_dir = config.outputs_folder / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME \
             if model_proc == ModelProcessing.ENSEMBLE_CREATION else config.outputs_folder
         generate_notebook(notebook_path=SEGMENTATION_REPORT_NOTEBOOK_PATH,
                           notebook_params={TRAIN_METRICS_CSV_PARAMETER_NAME: str(path_to_best_epoch_train),
