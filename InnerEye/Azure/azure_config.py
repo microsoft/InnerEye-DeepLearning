@@ -34,8 +34,8 @@ class VMPriority(Enum):
     Dedicated = 'dedicated'
 
 
-# The name of the submit_to_azureml property of AzureConfig
-AZURECONFIG_SUBMIT_TO_AZUREML = "submit_to_azureml"
+# The name of the "azureml" property of AzureConfig
+AZURECONFIG_SUBMIT_TO_AZUREML = "azureml"
 
 
 @dataclass(frozen=True)
@@ -54,7 +54,7 @@ class GitInformation:
 class AzureConfig(GenericConfig):
     """
     Azure related configurations to set up valid workspace. Note that for a parameter to be settable (when not given
-    on the command line) to a value from train_variables.yaml, its default here needs to be None and not the empty
+    on the command line) to a value from settings.yml, its default here needs to be None and not the empty
     string, and its type will be Optional[str], not str.
     """
     subscription_id: str = param.String(doc="The ID of your Azure subscription.")
@@ -72,14 +72,16 @@ class AzureConfig(GenericConfig):
     resource_group: str = param.String(None, doc="The Azure resource group that contains the AzureML workspace.")
     docker_shm_size: str = param.String("440g", doc="The shared memory in the docker image for the AzureML VMs.")
     hyperdrive: bool = param.Boolean(False, doc="If True, use AzureML HyperDrive for run execution.")
-    gpu_cluster_name: str = param.String(doc="GPU cluster to use when running inside AzureML.")
+    cluster: str = param.String(doc="The name of the GPU cluster inside the AzureML workspace, that should "
+                                    "execute the job.")
     pip_extra_index_url: str = \
         param.String(doc="An additional URL where PIP packages should be loaded from.")
-    submit_to_azureml: bool = param.Boolean(False, doc="If True, submit the executing script to run on AzureML.")
+    azureml: bool = param.Boolean(False, doc="If True, submit the executing script to run on AzureML.")
     tensorboard: bool = param.Boolean(False, doc="If True, then automatically launch TensorBoard to monitor the"
                                                  " latest submitted AzureML run.")
-    is_train: bool = param.Boolean(True,
-                                   doc="If True, train a new model. If False, run inference on an existing model.")
+    train: bool = param.Boolean(True,
+                                doc="If True, train a new model. If False, run inference on an existing model. For "
+                                    "inference, you need to specify a --run_recovery_id=... as well.")
     model: str = param.String(doc="The name of the model to train/test.")
     register_model_only_for_epoch: Optional[int] = param.Integer(None,
                                                                  doc="If set, and run_recovery_id is also set, "
@@ -248,7 +250,7 @@ class SourceConfig:
     def set_script_params_except_submit_flag(self) -> None:
         """
         Populates the script_param field of the present object from the arguments in sys.argv, with the exception
-        of the "submit_to_azureml" flag.
+        of the "azureml" flag.
         """
         args = sys.argv[1:]
         submit_flag = f"--{AZURECONFIG_SUBMIT_TO_AZUREML}"
@@ -258,10 +260,10 @@ class SourceConfig:
             arg = args[i]
             if arg.startswith(submit_flag):
                 if len(arg) == len(submit_flag):
-                    # The argument list contains something like ["--submit_to_azureml", "True]: Skip 2 entries
+                    # The argument list contains something like ["--azureml", "True]: Skip 2 entries
                     i = i + 1
                 elif arg[len(submit_flag)] != "=":
-                    # The argument list contains a flag like "--submit_to_azureml_foo": Keep that.
+                    # The argument list contains a flag like "--azureml_foo": Keep that.
                     retained_args.append(arg)
             else:
                 retained_args.append(arg)

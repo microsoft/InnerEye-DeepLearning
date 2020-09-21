@@ -21,7 +21,7 @@ def test_visualize_commandline1() -> None:
     new_dataset = "new_dataset"
     assert default_config.azure_dataset_id != new_dataset
     with mock.patch("sys.argv", ["", f"--azure_dataset_id={new_dataset}"]):
-        updated_config, runner_config, _ = get_configs(default_config, yaml_file_path=fixed_paths.TRAIN_YAML_FILE)
+        updated_config, runner_config, _ = get_configs(default_config, yaml_file_path=fixed_paths.SETTINGS_YAML_FILE)
     assert updated_config.azure_dataset_id == new_dataset
     # These two values were not specified on the commandline, and should be at their original values.
     assert updated_config.norm_method == old_photonorm

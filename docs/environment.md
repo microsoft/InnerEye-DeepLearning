@@ -9,7 +9,7 @@ submodule.
 If you go down the second route, here's the list of files you will need in your project (that's the same as those
 given in [this document](building_models.md))
 * `environment.yml`: Conda environment with python, pip, pytorch
-* `train_variables.yml`: A file similar to `InnerEye\train_variables.yml` containing all your Azure settings
+* `settings.yml`: A file similar to `InnerEye\settings.yml` containing all your Azure settings
 * A folder like `ML` that contains your additional code, and model configurations.
 * A file `ML/runner.py` that invokes the InnerEye training runner, but that points the code to your environment and Azure
 settings; see the [Building models](building_models.md) instructions for details.

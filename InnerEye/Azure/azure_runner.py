@@ -93,7 +93,7 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
         "tag": azure_config.tag,
         "model_name": azure_config.model,
         "friendly_name": azure_config.user_friendly_name,
-        "execution_mode": ModelExecutionMode.TRAIN.value if azure_config.is_train else ModelExecutionMode.TEST.value,
+        "execution_mode": ModelExecutionMode.TRAIN.value if azure_config.train else ModelExecutionMode.TEST.value,
         RUN_RECOVERY_ID_KEY_NAME: azure_util.create_run_recovery_id(run=run),
         RUN_RECOVERY_FROM_ID_KEY_NAME: azure_config.run_recovery_id,
         "build_number": str(azure_config.build_number),
@@ -168,7 +168,7 @@ def create_and_submit_experiment(
           f"--run_recovery_id={recovery_id}")
     print(f"The run recovery ID has been written to this file: {recovery_file}")
     print("==============================================================================")
-    if azure_config.tensorboard and azure_config.submit_to_azureml:
+    if azure_config.tensorboard and azure_config.azureml:
         print("Starting TensorBoard now because you specified --tensorboard")
         monitor(monitor_config=AMLTensorBoardMonitorConfig(run_ids=[run.id]), azure_config=azure_config)
     else:
@@ -297,7 +297,7 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
         source_directory=source_config.root_folder,
         entry_script=entry_script_relative_path,
         script_params=source_config.script_params,
-        compute_target=azure_config.gpu_cluster_name,
+        compute_target=azure_config.cluster,
         # Use blob storage for storing the source, rather than the FileShares section of the storage account.
         source_directory_data_store=workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME),
         inputs=estimator_inputs,

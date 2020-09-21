@@ -264,7 +264,7 @@ class Runner:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None
-        if self.azure_config.submit_to_azureml:
+        if self.azure_config.azureml:
             run_object = self.submit_to_azureml()
         else:
             self.run_in_situ()
@@ -401,7 +401,7 @@ def run(project_root: Path,
 
 def main() -> None:
     run(project_root=fixed_paths.repository_root_directory(),
-        yaml_config_file=fixed_paths.TRAIN_YAML_FILE,
+        yaml_config_file=fixed_paths.SETTINGS_YAML_FILE,
         post_cross_validation_hook=default_post_cross_validation_hook)
 
 
