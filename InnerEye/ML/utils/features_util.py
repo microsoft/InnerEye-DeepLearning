@@ -64,12 +64,16 @@ class FeatureStatistics(Generic[FT]):
     def compute_masked_statistics(input: torch.Tensor, mask: torch.Tensor,
                                   apply_bias_correction: bool = True) -> FeatureStatistics:
         """
-        Returns masked mean and standard deviation. The mask is used to mark valid values to use
-        for the computation.
-        :param input: input including values to mask
-        :param mask: binary tensor of the same shape as input
+        If the input features contains invalid values (e.g. from padding) they should be ignored in the
+        computation of the standardization statistics. This function allows to provide a boolean mask (of the same
+        shape as the input) to indicate which values should be taken into account for the computation of the
+        statistics. All values for which mask == True will be used for computation, the other will be ignored.
+        The statistics are computed for each feature i.e. column of the input (shape [batch_size, n_numerical_features])
+
+        :param input: input including all values, of dimension [batch_size, n_numerical_features]
+        :param mask: boolean tensor of the same shape as input
         :param apply_bias_correction: if True applies Bessel's correction to the standard deviation estimate
-        :return: FeatureStatistics (mean and std) computed on the masked values
+        :return: FeatureStatistics (mean and std) computed on the masked values.
         """
         n_obs_per_feature = mask.sum(dim=0).float()
         masked_values = torch.zeros_like(input)
