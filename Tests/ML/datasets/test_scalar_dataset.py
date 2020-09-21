@@ -95,7 +95,7 @@ S2,label,,False,2.1,2.2,B1,A2
     assert items[0].channel_files == ["foo.nii"]
     assert items[0].numerical_non_image_features.shape == (2,)
     assert items[0].numerical_non_image_features.tolist() == pytest.approx(
-        [-0.7071067094802856, -0.7071067690849304])
+        [-1, -1])
     assert items[0].categorical_non_image_features.tolist() == [1.0, 0.0, 1.0]
     assert items[1].categorical_non_image_features.tolist() == [0.0, 1.0, 1.0]
     metadata1 = items[1].metadata
@@ -104,7 +104,7 @@ S2,label,,False,2.1,2.2,B1,A2
     assert items[1].label.tolist() == [0.0]
     assert items[1].channel_files == ["bar.nii"]
     assert items[1].numerical_non_image_features.shape == (2,)
-    assert items[1].numerical_non_image_features.tolist() == pytest.approx([0.7071068286895752, 0.7071067690849304])
+    assert items[1].numerical_non_image_features.tolist() == pytest.approx([1, 1])
 
 
 def test_load_items_classification_versus_regression(test_output_dirs: TestOutputDirectories) -> None:
