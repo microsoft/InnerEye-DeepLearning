@@ -147,7 +147,7 @@ class PlotCrossValidationConfig(GenericConfig):
         super().__init__(**params)
 
     def validate(self) -> None:
-        if self.run_recovery_id is None:
+        if not self.run_recovery_id:
             raise ValueError("--run_recovery_id is a mandatory parameter.")
         if self.model_category == ModelCategory.Segmentation and self.epoch is None:
             raise ValueError("When working on segmentation models, --epoch is a mandatory parameter.")

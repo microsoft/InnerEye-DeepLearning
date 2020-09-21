@@ -33,7 +33,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
         model_configs_namespace = "Tests.ML.configs"
         model_name = "DummyModel"
 
-    args_list = [f"--model={model_name}", "--is_train=True", "--l_rate=100.0", "--storage_account=hello_world",
+    args_list = [f"--model={model_name}", "--is_train=True", "--l_rate=100.0",
                  "--norm_method=Simple Norm", "--subscription_id", "Test1", "--tenant_id=Test2",
                  "--application_id", "Test3", "--datasets_storage_account=Test4", "--datasets_container", "Test5",
                  "--pytest_mark", "gpu", f"--output_to={outputs_folder}"]
@@ -46,7 +46,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
             runner.parse_and_load_model()
             azure_config = runner.azure_config
             model_config = runner.model_config
-    assert azure_config.storage_account == "hello_world"
+    assert azure_config.datasets_storage_account == "Test4"
     assert azure_config.model == model_name
     assert model_config.l_rate == 100.0
     assert model_config.norm_method == PhotometricNormalizationMethod.SimpleNorm
@@ -61,7 +61,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
         assert model_config.outputs_folder == (project_root / DEFAULT_AML_UPLOAD_DIR)
         assert model_config.logs_folder == (project_root / DEFAULT_LOGS_DIR_NAME)
 
-    assert not hasattr(model_config, "storage_account")
+    assert not hasattr(model_config, "datasets_storage_account")
     assert azure_config.pytest_mark == "gpu"
 
 
@@ -109,13 +109,13 @@ def test_read_yaml_file_into_args(test_output_dirs: TestOutputDirectories) -> No
         runner1 = Runner(project_root=fixed_paths.repository_root_directory(),
                          yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
         runner1.parse_and_load_model()
-        assert runner1.azure_config.application_id is not None
+        assert len(runner1.azure_config.application_id) > 0
         # When specifying a dummy YAML file that does not contain the application ID, it should not
         # be set.
         runner2 = Runner(project_root=fixed_paths.repository_root_directory(),
                          yaml_config_file=empty_yaml)
         runner2.parse_and_load_model()
-        assert runner2.azure_config.application_id is None
+        assert runner2.azure_config.application_id == ""
 
 
 def test_parsing_with_custom_yaml(test_output_dirs: TestOutputDirectories) -> None:
@@ -125,7 +125,7 @@ def test_parsing_with_custom_yaml(test_output_dirs: TestOutputDirectories) -> No
     yaml_file = Path(test_output_dirs.root_dir) / "custom.yml"
     yaml_file.write_text("""variables:
   tenant_id: 'foo'
-  storage_account: 'account'
+  datasets_storage_account: 'account'
   start_epoch: 7
   random_seed: 1
 """)
@@ -142,7 +142,7 @@ def test_parsing_with_custom_yaml(test_output_dirs: TestOutputDirectories) -> No
     assert loader_result is not None
     assert runner.azure_config is not None
     # This is only present in yaml
-    assert runner.azure_config.storage_account == "account"
+    assert runner.azure_config.datasets_storage_account == "account"
     # This is present in yaml and command line, and the latter should be used.
     assert runner.azure_config.tenant_id == "bar"
     # Settings in model config: start_epoch is only in yaml
