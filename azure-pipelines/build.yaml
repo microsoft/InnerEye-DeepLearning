@@ -82,6 +82,7 @@ steps:
       pytest ./Tests/ --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html -n 2 --dist=loadscope --verbose
     env:
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
+      DATASETS_ACCOUNT_KEY: $(InnerEyePublicDatasetsStorageKey)
     failOnStderr: false
     condition: succeededOrFailed()
     displayName: Run pytests on InnerEye package

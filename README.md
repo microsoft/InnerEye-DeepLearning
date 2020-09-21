@@ -48,9 +48,13 @@ Once training in AzureML is done, the models can be deployed from within AzureML
 
 ## Getting started
 
-At a bare minimum, you will need to
+Clone the repository via
+```shell script
+git lfs install
+git clone https://github.com/microsoft/InnerEye-DeepLearning
+```
+After that, you need to set up your Python environment:
 - Install `conda` or `miniconda` for your operating system
-- Clone the repository
 - Create a Conda environment from the `environment.yml` file in the repository, by running 
 `conda env create --file environment.yml`
 - Activate the environment by running `conda activate InnerEye`
