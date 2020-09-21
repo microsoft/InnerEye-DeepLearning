@@ -390,7 +390,7 @@ S2,1,,False,2.0,2.0,M4
             assert un_batched[i].items[j].metadata.id == dataset.items[i].items[j].metadata.id
 
 
-def test_normalize_features() -> None:
+def test_standardize_features() -> None:
     """
     Test if the non-image feature can be normalized to mean 0, std 1.
     :return:
@@ -407,6 +407,8 @@ def test_normalize_features() -> None:
             # All features are random Gaussian, apart from feature 0 which is constant.
             # Normalization must be able to deal with constant features when dividing by standard deviation.
             features = torch.randn(size=feature_size, dtype=torch.float32) * expected_std + expected_mean
+            # Randomly put some infinite values in the vector
+            features[s % 2, s % 3] = np.inf if torch.rand(1) > 0.9 else features[s % 2, s % 3]
             features[0, 0] = expected_mean[0, 0]
             item = ScalarItem(metadata=GeneralSampleMetadata(id="foo"),
                               numerical_non_image_features=features,
@@ -424,22 +426,22 @@ def test_normalize_features() -> None:
     assert_tensors_equal(mean_std.std, expected_std, 0.07)
 
     # After normalization, mean should be 0, and std should be 1.
-    normalized_seq = mean_std.standardize(sequences)
-    mean_std_from_normalized = FeatureStatistics.from_data_sources(normalized_seq)
+    standardized_seq = mean_std.standardize(sequences)
+    mean_std_from_standardized = FeatureStatistics.from_data_sources(standardized_seq)
     # After normalization, the mean should be 0, apart from the constant feature, which should be left untouched,
     # hence its mean is the original feature value.
-    expected_mean_from_normalized = torch.zeros(feature_size)
-    expected_mean_from_normalized[0, 0] = expected_mean[0, 0]
-    expected_std_from_normalized = torch.ones(feature_size)
-    expected_std_from_normalized[0, 0] = 0.0
-    assert_tensors_equal(mean_std_from_normalized.mean, expected_mean_from_normalized, abs=1e-5)
-    assert_tensors_equal(mean_std_from_normalized.std, expected_std_from_normalized, abs=1e-5)
+    expected_mean_from_standardized = torch.zeros(feature_size)
+    expected_mean_from_standardized[0, 0] = expected_mean[0, 0]
+    expected_std_from_standardized = torch.ones(feature_size)
+    expected_std_from_standardized[0, 0] = 0.0
+    assert_tensors_equal(mean_std_from_standardized.mean, expected_mean_from_standardized, abs=1e-5)
+    assert_tensors_equal(mean_std_from_standardized.std, expected_std_from_standardized, abs=1e-5)
 
 
 @pytest.mark.parametrize("is_sequence", [True, False])
-def test_normalize_features_when_singleton(is_sequence: bool) -> None:
+def test_standardize_features_when_singleton(is_sequence: bool) -> None:
     """
-    Test how feature normalization copes with datasets that only have 1 entry.
+    Test how feature standardize copes with datasets that only have 1 entry.
     """
     numerical_features = torch.ones((1, 3))
     categorical_features = torch.tensor([[0, 1, 1], [1, 0, 0]])
@@ -466,15 +468,15 @@ def test_normalize_features_when_singleton(is_sequence: bool) -> None:
     assert_tensors_equal(mean_std.mean, numerical_features)
     # Standard deviation can't be computed because there is only one element, hence becomes nan.
     assert torch.all(torch.isnan(mean_std.std))
-    # When applying such a normalization to the sequences, they should not be changed (similar to features that
+    # When applying such a standardization to the sequences, they should not be changed (similar to features that
     # are constant)
-    normalized_sources = mean_std.standardize(sources)
+    standardized_sources = mean_std.standardize(sources)
     if is_sequence:
-        assert_tensors_equal(normalized_sources[0].items[0].numerical_non_image_features, numerical_features)
-        assert_tensors_equal(normalized_sources[0].items[0].categorical_non_image_features, categorical_features)
+        assert_tensors_equal(standardized_sources[0].items[0].numerical_non_image_features, numerical_features)
+        assert_tensors_equal(standardized_sources[0].items[0].categorical_non_image_features, categorical_features)
     else:
-        assert_tensors_equal(normalized_sources[0].numerical_non_image_features, numerical_features)
-        assert_tensors_equal(normalized_sources[0].categorical_non_image_features, categorical_features)
+        assert_tensors_equal(standardized_sources[0].numerical_non_image_features, numerical_features)
+        assert_tensors_equal(standardized_sources[0].categorical_non_image_features, categorical_features)
 
 
 def test_add_difference_features() -> None:

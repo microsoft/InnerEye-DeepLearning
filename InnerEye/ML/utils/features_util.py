@@ -58,10 +58,13 @@ class FeatureStatistics(Generic[FT]):
         # If the input features contain infinite values (e.g. from padding)
         # we need to ignore them for the computation of the normalization statistics.
         mask = torch.isfinite(all_stacked)
-        masked_values = torch.mul(all_stacked, mask)
+        masked_values = torch.zeros_like(all_stacked)
+        masked_values[mask] = all_stacked[mask]
         mean = masked_values.sum(dim=0) / mask.sum(dim=0)
         second_moment = torch.pow(masked_values, 2).sum(dim=0) / mask.sum(dim=0)
-        std = second_moment - torch.pow(mean, 2)
+        variance = second_moment - torch.pow(mean, 2)
+        # Need to make sure variance is positive (numerical instability can make it slightly <0)
+        std = torch.sqrt(torch.max(variance, torch.zeros_like(variance)))
         return FeatureStatistics(mean=mean, std=std)
 
     def standardize(self, sources: List[FT]) -> List[FT]:
