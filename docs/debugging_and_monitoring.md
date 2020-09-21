@@ -1,5 +1,21 @@
 # Debugging and Monitoring Jobs
 
+### Using TensorBoard to monitor AzureML jobs
+
+* **Existing jobs**: execute [`InnerEye/Azure/tensorboard_monitor.py`](/InnerEye/Azure/tensorboard_monitor.py) 
+with either an experiment id `--experiment_name` or a list of run ids `--run_ids job1,job2,job3`. 
+If an experiment id is provided then all of the runs in that experiment will be monitored. Additionally You can also 
+filter runs by type by the run's status, setting the `--filters Running,Completed` parameter to a subset of
+`[Running, Completed, Failed, Canceled]`. By default Failed and Canceled runs are excluded.
+
+To quickly access this script from PyCharm, there is a template PyCharm run configuration 
+`Template: Tensorboard monitoring` in the repository. Create a copy of that, and modify the commandline 
+arguments with your jobs to monitor.
+
+* **New jobs**: when queuing a new AzureML job, pass `--tensorboard=True`, which will automatically start a new TensorBoard
+session, monitoring the newly queued job. 
+
+
 ### Debugging setup on local machine
 
 For full debugging of any non-trivial model, you will need a GPU. Some basic debugging can also be carried out on

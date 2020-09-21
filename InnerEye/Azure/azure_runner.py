@@ -25,6 +25,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_
     RUN_RECOVERY_ID_KEY_NAME, \
     merge_conda_dependencies
 from InnerEye.Azure.secrets_handling import read_variables_from_yaml
+from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
 from InnerEye.Common.fixed_paths import AZUREML_DATASTORE_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import ModelExecutionMode
@@ -156,6 +157,13 @@ def create_and_submit_experiment(
           f"--run_recovery_id={recovery_id}")
     print(f"The run recovery ID has been written to this file: {recovery_file}")
     print("==============================================================================")
+    if azure_config.tensorboard and azure_config.submit_to_azureml:
+        print("Starting TensorBoard now because you specified --tensorboard")
+        monitor(monitor_config=AMLTensorBoardMonitorConfig(run_ids=[run.id]), azure_config=azure_config)
+    else:
+        print(f"To monitor this run locally using TensorBoard, run the script: "
+              f"InnerEye/Azure/tensorboard_monitor.py --run_ids={run.id}")
+        print("==============================================================================")
     return run
 
 
