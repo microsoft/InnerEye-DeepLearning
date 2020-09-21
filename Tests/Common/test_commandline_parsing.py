@@ -109,13 +109,13 @@ def test_read_yaml_file_into_args(test_output_dirs: TestOutputDirectories) -> No
         runner1 = Runner(project_root=fixed_paths.repository_root_directory(),
                          yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
         runner1.parse_and_load_model()
-        assert runner1.azure_config.application_id is not None
+        assert len(runner1.azure_config.application_id) > 0
         # When specifying a dummy YAML file that does not contain the application ID, it should not
         # be set.
         runner2 = Runner(project_root=fixed_paths.repository_root_directory(),
                          yaml_config_file=empty_yaml)
         runner2.parse_and_load_model()
-        assert runner2.azure_config.application_id is None
+        assert runner2.azure_config.application_id == ""
 
 
 def test_parsing_with_custom_yaml(test_output_dirs: TestOutputDirectories) -> None:
