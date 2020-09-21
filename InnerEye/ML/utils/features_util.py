@@ -55,8 +55,13 @@ class FeatureStatistics(Generic[FT]):
                 f"All non-image features must have the same size, but got these sizes: {unique_shapes}")
 
         all_stacked = torch.stack(numerical_non_image_features, dim=0)
-        mean = torch.mean(all_stacked, dim=0)
-        std = torch.std(all_stacked, dim=0)
+        # If the input features contain infinite values (e.g. from padding)
+        # we need to ignore them for the computation of the normalization statistics.
+        mask = torch.isfinite(all_stacked)
+        masked_values = torch.mul(all_stacked, mask)
+        mean = masked_values.sum(dim=0) / mask.sum(dim=0)
+        second_moment = torch.pow(masked_values, 2).sum(dim=0) / mask.sum(dim=0)
+        std = second_moment - torch.pow(mean, 2)
         return FeatureStatistics(mean=mean, std=std)
 
     def standardize(self, sources: List[FT]) -> List[FT]:
