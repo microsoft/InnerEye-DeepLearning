@@ -52,6 +52,7 @@ class HelloWorld(SegmentationModelBase):
             # Model training and testing - in this section we define configurations pertaining to the model
             # training loop (ie: batch size, how many epochs to train, number of epochs to save)
             # and testing (ie: how many epochs to test)
+            use_gpu=False,
             num_dataload_workers=0,
             train_batch_size=2,
             start_epoch=0,
