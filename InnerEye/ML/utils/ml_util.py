@@ -217,8 +217,6 @@ def is_tensor_nan(tensor: torch.Tensor) -> bool:
 
     :param tensor: The tensor to check.
     :return: True if any of the tensor elements is Not a Number, False if all entries are valid numbers.
+    If the tensor is empty, the function returns False.
     """
-    result = torch.isnan(tensor).any().item()
-    if isinstance(result, bool):
-        return result
-    raise ValueError("torch not returning bool as we expected")
+    return torch.isnan(tensor).any().item()
