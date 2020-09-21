@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 from azureml.train.estimator import Estimator
-from azureml.train.hyperdrive import BanditPolicy, HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, \
+from azureml.train.hyperdrive import HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, \
     choice, \
     uniform
 
@@ -169,22 +169,12 @@ def test_get_hyperdrive_config(number_of_cross_validation_splits: int,
 
 
 def _create_dummy_hyperdrive_param_search_config(estimator: Estimator) -> HyperDriveConfig:
-    parameter_space = {
-        'l_rate': uniform(0.0005, 0.01)
-    }
-
-    param_sampling = RandomParameterSampling(parameter_space)
-
-    # early terminate poorly performing runs
-    early_termination_policy = BanditPolicy(slack_factor=0.15, evaluation_interval=1, delay_evaluation=10)
-
-    config = HyperDriveConfig(estimator=estimator,
-                              hyperparameter_sampling=param_sampling,
-                              policy=early_termination_policy,
-                              primary_metric_name=TrackedMetrics.Val_Loss.value,
-                              primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-                              max_total_runs=HYPERDRIVE_TOTAL_RUNS,
-                              max_concurrent_runs=8
-                              )
-
-    return config
+    return HyperDriveConfig(
+        estimator=estimator,
+        hyperparameter_sampling=RandomParameterSampling({
+            'l_rate': uniform(0.0005, 0.01)
+        }),
+        primary_metric_name=TrackedMetrics.Val_Loss.value,
+        primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
+        max_total_runs=HYPERDRIVE_TOTAL_RUNS
+    )
