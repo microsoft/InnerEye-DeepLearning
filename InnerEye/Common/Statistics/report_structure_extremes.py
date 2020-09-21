@@ -35,7 +35,7 @@ import param
 from azure.storage.blob import BlockBlobService
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Common.fixed_paths import DATASETS_ACCOUNT_NAME
+from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.io_util import read_image_as_array_with_header
@@ -132,10 +132,10 @@ def download_dataset_directory(azure_config: AzureConfig, dataset_dir: str) -> b
     if os.path.isdir(dataset_dir):
         return False
     account_key = azure_config.get_dataset_storage_account_key()
-    blobs_root_path = os.path.join("datasets", os.path.basename(dataset_dir)) + "/"
+    blobs_root_path = os.path.join(azure_config.datasets_container, os.path.basename(dataset_dir)) + "/"
     sys.stdout.write(f"Downloading data to {dataset_dir} ...")
     assert account_key is not None  # for mypy
-    download_blobs(DATASETS_ACCOUNT_NAME, account_key, blobs_root_path, Path(dataset_dir))
+    download_blobs(azure_config.datasets_storage_account, account_key, blobs_root_path, Path(dataset_dir))
     sys.stdout.write("done\n")
     return True
 
@@ -144,12 +144,12 @@ def upload_to_dataset_directory(azure_config: AzureConfig, dataset_dir: str, fil
     if not files:
         return
     account_key = azure_config.get_dataset_storage_account_key()
-    block_blob_service = BlockBlobService(account_name=DATASETS_ACCOUNT_NAME, account_key=account_key)
-    container_name = os.path.join("datasets", os.path.basename(dataset_dir))
+    block_blob_service = BlockBlobService(account_name=azure_config.datasets_storage_account, account_key=account_key)
+    container_name = os.path.join(azure_config.datasets_container, os.path.basename(dataset_dir))
     for path in files:
         blob_name = path[len(dataset_dir) + 1:]
         block_blob_service.create_blob_from_path(container_name, blob_name, path)
-        print(f"Uploaded {path} to {DATASETS_ACCOUNT_NAME}:{container_name}/{blob_name}")
+        print(f"Uploaded {path} to {azure_config.datasets_storage_account}:{container_name}/{blob_name}")
 
 
 def report_structure_extremes_for_subject(subj_dir: str, series_id: str) -> Iterator[str]:
@@ -234,6 +234,7 @@ def main() -> None:
     """
     Main function.
     """
+    logging_to_stdout()
     config = ReportStructureExtremesConfig.parse_args()
     report_structure_extremes(config.dataset, config.yaml_file)
 

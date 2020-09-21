@@ -109,6 +109,20 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
     })
 
 
+def create_experiment_name(azure_config: AzureConfig) -> str:
+    """
+    Gets the name of the AzureML experiment. This is taken from the commandline, or from the git branch.
+    :param azure_config: The object containing all Azure-related settings.
+    :return: The name to use for the AzureML experiment.
+    """
+    if azure_config.experiment_name:
+        return azure_config.experiment_name
+    branch = azure_config.get_git_information().branch
+    # If no branch information is found anywhere, create an experiment name that is the user alias and a timestamp
+    # at monthly granularity, so that not too many runs accumulate in that experiment.
+    return branch or getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
+
+
 def create_and_submit_experiment(
         workspace: Workspace,
         azure_config: AzureConfig,
@@ -125,10 +139,7 @@ def create_and_submit_experiment(
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
     :returns: Run object for the submitted AzureML run
     """
-    branch = azure_config.get_git_information().branch
-    # If no branch information is found anywhere, create an experiment name that is the user alias and a timestamp
-    # at monthly granularity, so that not too many runs accumulate in that experiment.
-    experiment_name = branch or getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
+    experiment_name = create_experiment_name(azure_config)
     exp = Experiment(workspace=workspace, name=azure_util.to_azure_friendly_string(experiment_name))
     pt_env = create_pytorch_environment(workspace, azure_config, source_config, azure_dataset_id)
 
@@ -157,8 +168,8 @@ def create_and_submit_experiment(
           f"--run_recovery_id={recovery_id}")
     print(f"The run recovery ID has been written to this file: {recovery_file}")
     print("==============================================================================")
-    print(f"Starting TensorBoard now because you specified --tensorboard")
     if azure_config.tensorboard and azure_config.submit_to_azureml:
+        print("Starting TensorBoard now because you specified --tensorboard")
         monitor(monitor_config=AMLTensorBoardMonitorConfig(run_ids=[run.id]), azure_config=azure_config)
     else:
         print(f"To monitor this run locally using TensorBoard, run the script: "
@@ -167,18 +178,12 @@ def create_and_submit_experiment(
     return run
 
 
-def create_pytorch_environment(workspace: Workspace,
-                               azure_config: AzureConfig,
-                               source_config: SourceConfig,
-                               azure_dataset_id: str) -> PyTorch:
+def get_or_create_dataset(workspace: Workspace,
+                          azure_dataset_id: str) -> Dataset:
     """
-    Creates an Estimator environment required for model execution
-
-    :param workspace: The AzureML workspace
-    :param azure_config: azure related configurations to use for model scaleout behaviour
-    :param source_config: configurations for model execution, such as name and execution mode
-    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
-    :return: The configured PyTorch environment to be used for experimentation
+    Looks in the AzureML datastore for a dataset of the given name. If there is no such dataset, a dataset is created
+    and registered, assuming that the files are in a folder that has the same name as the dataset. For example, if
+    azure_dataset_id is 'foo', then the 'foo' dataset is pointing to <container_root>/datasets/foo folder.
 
     WARNING: the behaviour of Dataset.File.from_files, used below, is idiosyncratic. For example,
     if "mydataset" storage has two "foo..." subdirectories each containing
@@ -197,7 +202,6 @@ def create_pytorch_environment(workspace: Workspace,
 
     These behaviours can be verified by calling "ds.download()" on each dataset ds.
     """
-
     logging.info(f"Retrieving datastore '{AZUREML_DATASTORE_NAME}' from AzureML workspace")
     datastore = Datastore.get(workspace, AZUREML_DATASTORE_NAME)
     try:
@@ -210,6 +214,23 @@ def create_pytorch_environment(workspace: Workspace,
         azureml_dataset = Dataset.File.from_files([(datastore, azure_dataset_id)])
         logging.info("Registering the dataset for future use.")
         azureml_dataset.register(workspace, name=azure_dataset_id)
+    return azureml_dataset
+
+
+def create_pytorch_environment(workspace: Workspace,
+                               azure_config: AzureConfig,
+                               source_config: SourceConfig,
+                               azure_dataset_id: str) -> PyTorch:
+    """
+    Creates an Estimator environment required for model execution
+
+    :param workspace: The AzureML workspace
+    :param azure_config: azure related configurations to use for model scaleout behaviour
+    :param source_config: configurations for model execution, such as name and execution mode
+    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
+    :return: The configured PyTorch environment to be used for experimentation
+    """
+    azureml_dataset = get_or_create_dataset(workspace, azure_dataset_id=azure_dataset_id)
     if azureml_dataset:
         if azure_config.use_dataset_mount:
             logging.info("Inside AzureML, the dataset will be provided as a mounted folder.")

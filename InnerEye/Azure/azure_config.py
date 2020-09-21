@@ -13,16 +13,16 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import param
-from azureml.core import Keyvault, Run, Workspace
+from azureml.core import Run, Workspace
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.train.estimator import MMLBaseEstimator
 from azureml.train.hyperdrive import HyperDriveConfig
 from git import Repo
 
 from InnerEye.Azure.azure_util import is_offline_run_context
-from InnerEye.Azure.secrets_handling import APPLICATION_KEY, SecretsHandling, read_variables_from_yaml
+from InnerEye.Azure.secrets_handling import APPLICATION_KEY, DATASETS_ACCOUNT_KEY, SecretsHandling, \
+    read_variables_from_yaml
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import GenericConfig
 
 
@@ -57,29 +57,27 @@ class AzureConfig(GenericConfig):
     on the command line) to a value from train_variables.yaml, its default here needs to be None and not the empty
     string, and its type will be Optional[str], not str.
     """
-    subscription_id: str = param.String(None, doc="The subscription to use for AML jobs")
-    tenant_id: str = param.String(None, doc="The tenant to use for AML jobs")
-    application_id: str = param.String(None, doc="The application to use for AML jobs")
-    storage_account: str = param.String(None, doc="The blob storage account to use to store outputs from AML jobs")
-    datasets_storage_account: str = param.String(None,
-                                                 doc="The blob storage account to use to access datasets in AML jobs")
-    storage_account_secret_name: str = \
-        param.String(None, doc="The name of the keyvault secret that contains the storage account key.")
-    datasets_storage_account_secret_name: str = \
-        param.String(None, doc="The name of the keyvault secret that contains the dataset storage account key.")
-    datasets_container: str = param.String(None, doc="The blob storage container to use to access datasets in AML jobs")
-    workspace_name: str = param.String(None, doc="The name of the AzureML workspace that should be used.")
-    resource_group: str = param.String(None, doc="The resource group to create AML workspaces in")
-    docker_shm_size: str = param.String("440g", doc="The amount of memory available to experiments")
-    node_count: int = param.Integer(1, bounds=(1, None), doc="Number of concurrent runs to launch")
-    workers_per_node: int = param.Integer(1, bounds=(1, None), doc="Number of child runs for a run")
-    hyperdrive: bool = param.Boolean(False, doc="Use HyperDrive for run execution")
-    gpu_cluster_name: str = param.String(None, doc="GPU cluster to use if executing a run")
-    pip_extra_index_url: Optional[str] = param.String(None, doc="An additional URL where PIP packages should be "
-                                                                "loaded from.")
+    subscription_id: str = param.String(doc="The ID of your Azure subscription.")
+    tenant_id: str = param.String(doc="The Azure tenant ID.")
+    application_id: str = param.String(doc="Optional: The ID of the Service Principal for authentication to Azure.")
+    datasets_storage_account: str = \
+        param.String(doc="Optional: The blob storage account to use when downloading datasets for use outside of "
+                         "AzureML. This storage account must be the same as the one configured as a 'datastore' "
+                         "in AzureML.")
+    datasets_storage_account_key: str = \
+        param.String(doc="Optional: The access key for the storage account that holds the datasets. "
+                         "This is only used for downloading datasets outside of AzureML.")
+    datasets_container: str = param.String(doc="Optional: The blob storage container with the datasets.")
+    workspace_name: str = param.String(doc="The name of the AzureML workspace that should be used.")
+    resource_group: str = param.String(None, doc="The Azure resource group that contains the AzureML workspace.")
+    docker_shm_size: str = param.String("440g", doc="The shared memory in the docker image for the AzureML VMs.")
+    hyperdrive: bool = param.Boolean(False, doc="If True, use AzureML HyperDrive for run execution.")
+    gpu_cluster_name: str = param.String(doc="GPU cluster to use when running inside AzureML.")
+    pip_extra_index_url: str = \
+        param.String(doc="An additional URL where PIP packages should be loaded from.")
     submit_to_azureml: bool = param.Boolean(False, doc="If True, submit the executing script to run on AzureML.")
     tensorboard: bool = param.Boolean(False, doc="If True, then automatically launch TensorBoard to monitor the"
-                                             " latest submitted AzureML run.")
+                                                 " latest submitted AzureML run.")
     is_train: bool = param.Boolean(True,
                                    doc="If True, train a new model. If False, run inference on an existing model.")
     model: str = param.String(doc="The name of the model to train/test.")
@@ -87,14 +85,14 @@ class AzureConfig(GenericConfig):
                                                                  doc="If set, and run_recovery_id is also set, "
                                                                      "register the model for this epoch and do no "
                                                                      "training or testing")
-    pytest_mark: Optional[str] = param.String(None,
-                                              doc="If provided, run pytest after model training. pytest will only "
-                                                  "run the tests that have the mark given in this argument "
-                                                  "('--pytest_mark gpu' will run all tests marked with "
-                                                  "'pytest.mark.gpu')")
-    run_recovery_id: Optional[str] = param.String(None,
-                                                  doc="A run recovery id string in the form 'experiment name:run id'"
-                                                      " to use for inference or recovering a model training run.")
+    pytest_mark: str = param.String(doc="If provided, run pytest after model training. pytest will only "
+                                        "run the tests that have the mark given in this argument "
+                                        "('--pytest_mark gpu' will run all tests marked with "
+                                        "'pytest.mark.gpu')")
+    run_recovery_id: str = param.String(doc="A run recovery id string in the form 'experiment name:run id'"
+                                            " to use for inference or recovering a model training run.")
+    experiment_name: str = param.String(doc="If provided, use this string as the name of the AzureML experiment. "
+                                            "If not provided, create the experiment off the git branch name.")
     build_number: int = param.Integer(0, doc="The numeric ID of the Azure pipeline that triggered this training run.")
     build_user: str = param.String(getpass.getuser(),
                                    doc="The user to associate this experiment with.")
@@ -104,8 +102,8 @@ class AzureConfig(GenericConfig):
     build_source_message: str = param.String(doc="The message associated with the git commit that was used to create "
                                                  "this build.")
     build_source_author: str = param.String(doc="The author of the git commit that was used to create this build.")
-    user_friendly_name: Optional[str] = param.String(None, doc="A user friendly name to identify this experiment.")
-    tag: Optional[str] = param.String(None, doc="A string that will be added as a tag to this experiment.")
+    user_friendly_name: str = param.String(doc="A user friendly name to identify this experiment.")
+    tag: str = param.String(doc="A string that will be added as a tag to this experiment.")
     log_level: str = param.String("INFO",
                                   doc="The level of diagnostic information that should be printed out to the console.")
     wait_for_completion: bool = param.Boolean(False, doc="If true, wait until the AzureML job has completed or failed. "
@@ -114,9 +112,9 @@ class AzureConfig(GenericConfig):
                                                        "at job start. If false, consume it by downloading it at job "
                                                        "start. When running outside AzureML, datasets will always be "
                                                        "downloaded via blobxfer.")
-    extra_code_directory: Optional[str] = param.String(None, doc="Directory (relative to project root) containing code "
-                                                                 "(e.g. model config) to be included in the model for "
-                                                                 "inference. Ignored by default.")
+    extra_code_directory: str = param.String(doc="Directory (relative to project root) containing code "
+                                                 "(e.g. model config) to be included in the model for "
+                                                 "inference. Ignored by default.")
     project_root: Path = param.ClassSelector(class_=Path, default=fixed_paths.repository_root_directory(),
                                              doc="The root folder that contains all code of the project that starts "
                                                  "the InnerEye run.")
@@ -142,6 +140,7 @@ class AzureConfig(GenericConfig):
         commit_message = self.build_source_message
         repository = self.build_source_repository or self.project_root.name
         is_dirty = True
+        # noinspection PyBroadException
         try:
             logging.debug(f"Trying to read git repository on {self.project_root}")
             git_repo = Repo(self.project_root)
@@ -158,9 +157,8 @@ class AzureConfig(GenericConfig):
             commit_message = commit_message or last_commit.message[:120].strip()
             # Is_dirty in the present settings ignores untracked files.
             is_dirty = git_repo.is_dirty()
-        except Exception as ex:
-            print_exception(ex, "Error when reading git repository.", logger_fn=logging.debug)
-            logging.info(f"Folder {self.project_root} does not seem to be a git repository.")
+        except:
+            logging.info("This folder does not seem to be a git repository.")
         return GitInformation(
             repository=repository,
             branch=branch,
@@ -179,35 +177,12 @@ class AzureConfig(GenericConfig):
         """
         return AzureConfig(**read_variables_from_yaml(yaml_file_path))
 
-    def get_storage_account_key(self) -> str:
-        """
-        Gets the storage account key for the storage account that holds the AzureML run outputs.
-        """
-        return self.get_secret_from_keyvault(self.storage_account_secret_name)
-
-    def get_dataset_storage_account_key(self) -> str:
+    def get_dataset_storage_account_key(self) -> Optional[str]:
         """
         Gets the storage account key for the storage account that holds the dataset.
         """
-        return self.get_secret_from_keyvault(self.datasets_storage_account_secret_name)
-
-    def get_secret_from_keyvault(self, secret_name: str) -> str:
-        """
-        Retrieves a secret from AzureML's workspace keyvault. If the secret is not found there, resort to reading from
-        environment variables of the same name. Returns None if the secret was not found.
-        :param secret_name: The name of the secret to retrieve.
-        :return: The value of the secret, or None if it was not found in the keyvault or environment variable.
-        """
-        # Secrets can also be read from the run_context, but that is not available in an offline run.
-        # Hence, creating a Keyvault instance from the workspace is easier.
-        value = None
-        try:
-            value = Keyvault(self.get_workspace()).get_secret(secret_name)
-        except:
-            pass
-        if value is None:
-            raise ValueError(f"Unable to access secret '{secret_name}' in the workspace keyvault.")
-        return value
+        secrets_handler = SecretsHandling(project_root=self.project_root)
+        return secrets_handler.get_secret_from_environment(DATASETS_ACCOUNT_KEY, allow_missing=True)
 
     def get_workspace(self) -> Workspace:
         """
