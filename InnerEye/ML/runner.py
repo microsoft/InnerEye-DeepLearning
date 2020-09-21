@@ -32,10 +32,7 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.reports.notebook_report import generate_notebook
-from InnerEye.ML.reports.segmentation.segmentation_report import INNEREYE_PATH_PARAMETER_NAME, \
-    SEGMENTATION_REPORT_NOTEBOOK_PATH, TEST_METRICS_CSV_PARAMETER_NAME, TRAIN_METRICS_CSV_PARAMETER_NAME, \
-    VAL_METRICS_CSV_PARAMETER_NAME
+from InnerEye.ML.reports.notebook_report import generate_segmentation_notebook
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 
 REPORT_IPYNB = "report.ipynb"
@@ -151,24 +148,26 @@ class Runner:
     @staticmethod
     def generate_report(config: DeepLearningConfig, best_epoch: int, model_proc: ModelProcessing) -> None:
         logging.info("Saving report in html")
+        if not config.is_segmentation_model:
+            return
 
-        def get_epoch_path(mode: ModelExecutionMode) -> Path:
-            p = get_epoch_results_path(best_epoch, mode=mode, model_proc=model_proc)
-            return config.outputs_folder / p / METRICS_FILE_NAME
+        try:
+            def get_epoch_path(mode: ModelExecutionMode) -> Path:
+                p = get_epoch_results_path(best_epoch, mode=mode, model_proc=model_proc)
+                return config.outputs_folder / p / METRICS_FILE_NAME
 
-        path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
-        path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
-        path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
+            path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
+            path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
+            path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
 
-        output_dir = config.outputs_folder / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME \
-            if model_proc == ModelProcessing.ENSEMBLE_CREATION else config.outputs_folder
-        generate_notebook(notebook_path=SEGMENTATION_REPORT_NOTEBOOK_PATH,
-                          notebook_params={TRAIN_METRICS_CSV_PARAMETER_NAME: str(path_to_best_epoch_train),
-                                           VAL_METRICS_CSV_PARAMETER_NAME: str(path_to_best_epoch_val),
-                                           TEST_METRICS_CSV_PARAMETER_NAME: str(path_to_best_epoch_test),
-                                           INNEREYE_PATH_PARAMETER_NAME: str(
-                                               Path(__file__).parent.parent.parent.parent)},
-                          result_path=output_dir / REPORT_IPYNB)
+            output_dir = config.outputs_folder / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME \
+                if model_proc == ModelProcessing.ENSEMBLE_CREATION else config.outputs_folder
+            generate_segmentation_notebook(result_notebook=output_dir / REPORT_IPYNB,
+                                           train_metrics=path_to_best_epoch_train,
+                                           val_metrics=path_to_best_epoch_val,
+                                           test_metrics=path_to_best_epoch_test)
+        except Exception as ex:
+            print_exception(ex, "Failed to generated reporting notebook.")
 
     def plot_cross_validation_and_upload_results(self) -> Path:
         from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \

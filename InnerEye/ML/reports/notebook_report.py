@@ -3,55 +3,66 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
-import papermill
 import nbformat
+import papermill
+from IPython.display import Markdown, display
 from nbconvert import HTMLExporter
 from nbconvert.writers import FilesWriter
-from pandas import DataFrame
-import matplotlib.pyplot as plt
-from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
+
+from InnerEye.Common import fixed_paths
+
+SEGMENTATION_REPORT_NOTEBOOK_PATH = Path(__file__).absolute().parent.absolute() / "segmentation_report.ipynb"
 
 
-def boxplot_per_structure(df: DataFrame, column_name: str,
-                          title: str) -> None:
+def print_header(message: str, level: int = 2) -> None:
     """
-    Creates a box-and-whisker plot for a score per structure. Structures are on the x-axis,
-    box plots are drawn vertically. The plot is created in the currently active figure or subplot.
+    Displays a message, and afterwards repeat it as Markdown with the given indentation level (level=1 is the
+    outermost, `# Foo`.
+    :param message: The header string to display.
+    :param level: The Markdown indentation level. level=1 for top level, level=3 for `### Foo`
     """
-    structure = MetricsFileColumns.Structure.value
-    dice_numeric = column_name
-    structure_series = df[structure]
-    unique_structures = structure_series.unique()
-    dice_per_structure = [df[dice_numeric][structure_series == s] for s in unique_structures]
-    # If there are only single entries per structure, do not generate a box plot
-    if all([len(dps) == 1 for dps in dice_per_structure]):
-        return
+    prefix = "#" * level
+    display(Markdown(f"{prefix} {message}"))
 
-    plt.title(title)
-    plt.boxplot(dice_per_structure, labels=unique_structures)
-    plt.xlabel("Structure")
-    plt.ylabel(column_name)
-    plt.xticks(rotation=75)
-    plt.grid()
 
-def generate_notebook(notebook_path: Path, notebook_params: Dict, result_path: Path) -> None:
-    print(f"Writing report to {result_path}")
-    papermill.execute_notebook(input_path=str(notebook_path),
-                               output_path=str(result_path),
+def generate_notebook(template_notebook: Path, notebook_params: Dict, result_notebook: Path) -> Path:
+    print(f"Writing report to {result_notebook}")
+    papermill.execute_notebook(input_path=str(template_notebook),
+                               output_path=str(result_notebook),
                                parameters=notebook_params,
                                progress_bar=False)
-    print(f"Running conversion to html for {result_path}")
-    with open(str(result_path)) as f:
+    print(f"Running conversion to HTML for {result_notebook}")
+    with result_notebook.open() as f:
         notebook = nbformat.read(f, as_version=4)
         html_exporter = HTMLExporter()
         html_exporter.exclude_input = True
         (body, resources) = html_exporter.from_notebook_node(notebook)
         write_file = FilesWriter()
-        write_file.build_directory = str(result_path.parent)
+        write_file.build_directory = str(result_notebook.parent)
         write_file.write(
             output=body,
             resources=resources,
-            notebook_name=str(result_path.resolve().stem)
+            notebook_name=str(result_notebook.stem)
         )
+    return result_notebook.with_suffix(resources['output_extension'])
+
+
+def generate_segmentation_notebook(result_notebook: Path,
+                                   train_metrics: Optional[Path] = None,
+                                   val_metrics: Optional[Path] = None,
+                                   test_metrics: Optional[Path] = None) -> None:
+    def str_or_empty(p: Optional[Path]) -> str:
+        return str(p) if p else ""
+
+    notebook_params = \
+        {
+            'innereye_path': str(fixed_paths.repository_root_directory()),
+            'train_metrics_csv': str_or_empty(train_metrics),
+            'val_metrics_csv': str_or_empty(val_metrics),
+            'test_metrics_csv': str_or_empty(test_metrics),
+        }
+    generate_notebook(SEGMENTATION_REPORT_NOTEBOOK_PATH,
+                      notebook_params=notebook_params,
+                      result_notebook=result_notebook)
