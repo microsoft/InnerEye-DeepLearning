@@ -58,11 +58,14 @@ class FeatureStatistics(Generic[FT]):
         # If the input features contain infinite values (e.g. from padding)
         # we need to ignore them for the computation of the normalization statistics.
         mask = torch.isfinite(all_stacked)
+        n_obs_per_feature = mask.sum(dim=0).float()
         masked_values = torch.zeros_like(all_stacked)
         masked_values[mask] = all_stacked[mask]
-        mean = masked_values.sum(dim=0) / mask.sum(dim=0)
-        second_moment = torch.pow(masked_values, 2).sum(dim=0) / mask.sum(dim=0)
+        mean = masked_values.sum(dim=0) / n_obs_per_feature
+        second_moment = torch.pow(masked_values, 2).sum(dim=0) / n_obs_per_feature
         variance = second_moment - torch.pow(mean, 2)
+        # Applies Bessel's bias correction (as in PyTorch's default behavior)
+        variance *= torch.div(n_obs_per_feature, (n_obs_per_feature - 1))
         # Need to make sure variance is positive (numerical instability can make it slightly <0)
         std = torch.sqrt(torch.max(variance, torch.zeros_like(variance)))
         return FeatureStatistics(mean=mean, std=std)

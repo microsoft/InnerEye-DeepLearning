@@ -467,7 +467,7 @@ def test_standardize_features_when_singleton(is_sequence: bool) -> None:
 
     assert_tensors_equal(mean_std.mean, numerical_features)
     # Standard deviation of one element is 0.
-    assert torch.all(mean_std.std == 0)
+    assert torch.all(torch.isnan(mean_std.std))
     # When applying such a standardization to the sequences, they should not be changed (similar to features that
     # are constant)
     standardized_sources = mean_std.standardize(sources)
@@ -571,35 +571,31 @@ S4,0,True,4,40,M2,B1
         feature_stats = config.get_torch_dataset_for_inference(ModelExecutionMode.TRAIN).feature_statistics
         assert feature_stats is not None
         assert_tensors_equal(feature_stats.mean, [1, 10])
-        assert_tensors_equal(feature_stats.std, [0.816496551, 8.164966583])
+        assert_tensors_equal(feature_stats.std, [1, 10])
 
         train_items = list(ClassificationItemSequence.from_minibatch(b)
                            for b in train_val_loaders[ModelExecutionMode.TRAIN])
         assert len(train_items) == 1, "2 items in training set with batch size of 2 should return 1 minibatch"
         assert len(train_items[0]) == 2
         assert train_items[0][0].id == "S1"
-        assert_tensors_equal(train_items[0][0].items[0].get_all_non_imaging_features(),
-                             [-1.22474, -1.22474, 1., 0., 1., 0.], abs=1e-5)
+        assert_tensors_equal(train_items[0][0].items[0].get_all_non_imaging_features(), [-1., -1., 1., 0., 1., 0.])
         assert_tensors_equal(train_items[0][0].items[1].get_all_non_imaging_features(), [0., 0., 0., 1., 0., 1.])
         assert train_items[0][1].id == "S2"
-        assert_tensors_equal(train_items[0][1].items[0].get_all_non_imaging_features(),
-                             [1.22474, 1.22474, 0., 1., 1., 0.], abs=1e-5)
+        assert_tensors_equal(train_items[0][1].items[0].get_all_non_imaging_features(), [1., 1., 0., 1., 1., 0.])
         val_items = list(ClassificationItemSequence.from_minibatch(b)
                          for b in train_val_loaders[ModelExecutionMode.VAL])
         assert len(val_items) == 1
         assert len(val_items[0]) == 1
         assert val_items[0][0].id == "S3"
         # Items in the validation set should be normalized using the mean and std on the training data.
-        assert_tensors_equal(val_items[0][0].items[0].get_all_non_imaging_features(),
-                             [2.44949,  2.44949, 1., 0., 1., 0.], abs=1e-5)
+        assert_tensors_equal(val_items[0][0].items[0].get_all_non_imaging_features(), [2., 2., 1., 0., 1., 0.])
 
         # Check that the test set is also normalized correctly using the training mean and std.
         test_items = list(ClassificationItemSequence(**b)
                           for b in config.get_torch_dataset_for_inference(ModelExecutionMode.TEST))
         assert test_items[0].id == "S4"
         # Check Non-image features of (4, 40)
-        assert_tensors_equal(test_items[0].items[0].get_all_non_imaging_features(),
-                             [3.674235, 3.674235, 0., 1., 1., 0.], abs=1e-5)
+        assert_tensors_equal(test_items[0].items[0].get_all_non_imaging_features(), [3., 3., 0., 1., 1., 0.])
 
 
 def test_get_class_weights_dataset(test_output_dirs: TestOutputDirectories) -> None:
