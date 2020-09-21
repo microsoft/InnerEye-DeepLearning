@@ -13,8 +13,6 @@ from nbconvert.writers import FilesWriter
 
 from InnerEye.Common import fixed_paths
 
-SEGMENTATION_REPORT_NOTEBOOK_PATH = Path(__file__).absolute().parent.absolute() / "segmentation_report.ipynb"
-
 
 def print_header(message: str, level: int = 2) -> None:
     """
@@ -52,7 +50,11 @@ def generate_notebook(template_notebook: Path, notebook_params: Dict, result_not
 def generate_segmentation_notebook(result_notebook: Path,
                                    train_metrics: Optional[Path] = None,
                                    val_metrics: Optional[Path] = None,
-                                   test_metrics: Optional[Path] = None) -> None:
+                                   test_metrics: Optional[Path] = None) -> Path:
+    """
+    Creates a reporting notebook for a segmentation model, using the given training, validation, and test set metrics.
+    Returns the report file after HTML conversion.
+    """
     def str_or_empty(p: Optional[Path]) -> str:
         return str(p) if p else ""
 
@@ -63,6 +65,7 @@ def generate_segmentation_notebook(result_notebook: Path,
             'val_metrics_csv': str_or_empty(val_metrics),
             'test_metrics_csv': str_or_empty(test_metrics),
         }
-    generate_notebook(SEGMENTATION_REPORT_NOTEBOOK_PATH,
-                      notebook_params=notebook_params,
-                      result_notebook=result_notebook)
+    template = Path(__file__).absolute().parent / "segmentation_report.ipynb"
+    return generate_notebook(template,
+                             notebook_params=notebook_params,
+                             result_notebook=result_notebook)

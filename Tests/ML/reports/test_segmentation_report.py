@@ -18,13 +18,13 @@ def test_generate_segmentation_report(test_output_dirs: TestOutputDirectories) -
     metrics_file = reports_folder / "metrics_hn.csv"
     current_dir = Path(test_output_dirs.make_sub_dir("test_segmentation_report"))
     result_file = current_dir / "report.ipynb"
-    generate_segmentation_notebook(result_notebook=result_file,
-                                   test_metrics=metrics_file)
+    result_html = generate_segmentation_notebook(result_notebook=result_file,
+                                                 test_metrics=metrics_file)
     assert result_file.is_file()
-    html_file = result_file.with_suffix(".html")
-    assert html_file.is_file()
+    assert result_html.is_file()
+    assert result_html.suffix == ".html"
     # Check html contains the name of a key structure
-    contents = html_file.read_text(encoding='utf-8')
+    contents = result_html.read_text(encoding='utf-8')
     assert 'parotid_r' in contents
 
 
