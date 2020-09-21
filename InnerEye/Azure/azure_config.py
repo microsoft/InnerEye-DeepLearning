@@ -54,7 +54,7 @@ class GitInformation:
 class AzureConfig(GenericConfig):
     """
     Azure related configurations to set up valid workspace. Note that for a parameter to be settable (when not given
-    on the command line) to a value from train_variables.yaml, its default here needs to be None and not the empty
+    on the command line) to a value from settings.yml, its default here needs to be None and not the empty
     string, and its type will be Optional[str], not str.
     """
     subscription_id: str = param.String(doc="The ID of your Azure subscription.")

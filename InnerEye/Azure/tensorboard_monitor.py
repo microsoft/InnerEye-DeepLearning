@@ -95,4 +95,4 @@ def main(yaml_file_path: Path) -> None:
 
 
 if __name__ == '__main__':
-    main(fixed_paths.TRAIN_YAML_FILE)
+    main(fixed_paths.SETTINGS_YAML_FILE)

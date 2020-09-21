@@ -223,7 +223,7 @@ def test_runner1(test_output_dirs: TestOutputDirectories) -> None:
             ]
     with mock.patch("sys.argv", args):
         config, _ = runner.run(project_root=fixed_paths.repository_root_directory(),
-                               yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
+                               yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
     assert isinstance(config, ScalarModelBase)
     assert config.model_name == "DummyClassification"
     assert config.get_effective_random_seed() == set_from_commandline
@@ -246,7 +246,7 @@ def test_runner2(test_output_dirs: TestOutputDirectories) -> None:
             ]
     with mock.patch("sys.argv", args):
         config, _ = runner.run(project_root=fixed_paths.repository_root_directory(),
-                               yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
+                               yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
     assert isinstance(config, ScalarModelBase)
     assert config.name.startswith("DummyClassification")
 

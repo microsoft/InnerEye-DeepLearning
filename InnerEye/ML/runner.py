@@ -401,7 +401,7 @@ def run(project_root: Path,
 
 def main() -> None:
     run(project_root=fixed_paths.repository_root_directory(),
-        yaml_config_file=fixed_paths.TRAIN_YAML_FILE,
+        yaml_config_file=fixed_paths.SETTINGS_YAML_FILE,
         post_cross_validation_hook=default_post_cross_validation_hook)
 
 

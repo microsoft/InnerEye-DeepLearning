@@ -8,7 +8,7 @@ We recommend the latter as it offers more flexibility and better separation of c
 create a directory `InnerEyeLocal` beside `InnerEye`.
 
 As well as your configurations (dealt with below) you will need these files:
-* `train_variables.yml`: A file similar to `InnerEye\train_variables.yml` containing all your Azure settings.
+* `settings.yml`: A file similar to `InnerEye\settings.yml` containing all your Azure settings.
 The value of `extra_code_directory` should (in our example) be `'InnerEyeLocal'`, 
 and model_configs_namespace should be `'InnerEyeLocal.ML.configs'`. 
 * A folder like `InnerEyeLocal` that contains your additional code, and model configurations.
@@ -24,7 +24,7 @@ def main() -> None:
     current = os.path.dirname(os.path.realpath(__file__))
     project_root = Path(os.path.realpath(os.path.join(current, "..", "..")))
     runner.run(project_root=project_root,
-               yaml_config_file=project_root / "relative/path/to/train_variables.yml",
+               yaml_config_file=project_root / "relative/path/to/settings.yml",
                post_cross_validation_hook=None)
 
 
@@ -50,7 +50,7 @@ class Prostate(ProstateBase):
 ```
 The allowed parameters and their meanings are defined in [`SegmentationModelBase`](/InnerEye/ML/config.py).
 The class name must be the same as the basename of the file containing it, so `Prostate.py` must contain `Prostate`. 
-In `train_variables.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
+In `settings.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
 is found by the runner.
 
 ### Training a new model
@@ -147,7 +147,7 @@ Alternatively, to submit an AzureML run to apply a model to a single image on yo
 you can use the script `submit_for_inference.py`, with a command of this form:
 ```shell script
 python InnerEye/Scripts/submit_for_inference.py --image_file ~/somewhere/ct.nii.gz --model_id Prostate:555 \
-  --yaml_file ../somewhere_else/train_variables.yml --download_folder ~/my_existing_folder
+  --yaml_file ../somewhere_else/settings.yml --download_folder ~/my_existing_folder
 ```
 
 ### Model Ensembles

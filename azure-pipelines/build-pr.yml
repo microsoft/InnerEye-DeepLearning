@@ -23,7 +23,7 @@ jobs:
 
   - job: TrainInAzureML
     variables:
-      - template: ../InnerEye/train_variables.yml
+      - template: ../InnerEye/settings.yml
       - name: cluster
         value: 'training-nc12'
     pool:
@@ -43,7 +43,7 @@ jobs:
 
   - job: TrainInAzureMLViaSubmodule
     variables:
-      - template: ../InnerEye/train_variables.yml
+      - template: ../InnerEye/settings.yml
       - name: cluster
         value: 'training-nc12'
     pool:

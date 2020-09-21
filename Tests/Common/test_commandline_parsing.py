@@ -42,7 +42,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
 
     with mock.patch("sys.argv", [""] + args_list):
         with mock.patch("InnerEye.ML.deep_learning_config.is_offline_run_context", return_value=is_offline_run):
-            runner = Runner(project_root=project_root, yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
+            runner = Runner(project_root=project_root, yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
             runner.parse_and_load_model()
             azure_config = runner.azure_config
             model_config = runner.model_config
@@ -107,7 +107,7 @@ def test_read_yaml_file_into_args(test_output_dirs: TestOutputDirectories) -> No
     with mock.patch("sys.argv", ["", "--model=Lung"]):
         # Default behaviour: Application ID (service principal) should be picked up from YAML
         runner1 = Runner(project_root=fixed_paths.repository_root_directory(),
-                         yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
+                         yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
         runner1.parse_and_load_model()
         assert runner1.azure_config.application_id is not None
         # When specifying a dummy YAML file that does not contain the application ID, it should not

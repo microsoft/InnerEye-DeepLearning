@@ -122,8 +122,8 @@ class PlotCrossValidationConfig(GenericConfig):
     ignore_subjects: List[int] = param.List(None, class_=int, bounds=(1, None), allow_None=True, instantiate=False,
                                             doc="List of the subject ids to ignore from the results")
     is_zero_index: bool = param.Boolean(True, doc="If True, start cross validation split indices from 0 otherwise 1")
-    train_yaml_path: str = param.String(default=str(fixed_paths.TRAIN_YAML_FILE),
-                                        doc="Path to train_variables.yml file containing the Azure configuration "
+    train_yaml_path: str = param.String(default=str(fixed_paths.SETTINGS_YAML_FILE),
+                                        doc="Path to settings.yml file containing the Azure configuration "
                                             "for the workspace")
     _azure_config: Optional[AzureConfig] = \
         param.ClassSelector(class_=AzureConfig, allow_None=True,
