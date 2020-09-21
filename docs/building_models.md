@@ -139,7 +139,7 @@ run recovery ID without the final underscore and digit.
 
 As for continuing training, but set `--is_train` to `False`. Thus your command should look like this:
 ```shell script
-python Inner/ML/runner.py --azureml=True --model=Prostate --is_train=False --gpu_cluster_name=my_cluster_name \
+python Inner/ML/runner.py --azureml=True --model=Prostate --is_train=False --cluster=my_cluster_name \
    --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
 ```
 

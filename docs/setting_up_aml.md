@@ -75,7 +75,7 @@ low priority nodes, click on the "Request Quota" button at the bottom of the pag
 
 Details about creating compute clusters can be found 
 [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-set-up-training-targets#set-up-in-azure-machine-learning-studio).
-Note down the name of your compute cluster - this will later go into the `gpu_cluster_name` entry of your settings
+Note down the name of your compute cluster - this will later go into the `cluster` entry of your settings
 file `train_variables.yml`.
 
 
@@ -186,7 +186,7 @@ field of [train_variables.yml](/InnerEye/train_variables.yml).
 If you did not set up a Service Principal, fill that with an empty string or leave out altogether.
 6. Update the `resource_group:` field with your resource group name (created in Step 1).
 7. Update the `workspace_name:` field with the name of the AzureML workspace created in Step 1.
-8. Update the `gpu_cluster_name:` field with the name of your own compute cluster (Step 2). If you chose automatic
+8. Update the `cluster:` field with the name of your own compute cluster (Step 2). If you chose automatic
 deployment, this cluster will be called "NC24-LowPrio"
 
 Leave all other fields as they are for now.

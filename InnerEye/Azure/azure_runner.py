@@ -297,7 +297,7 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
         source_directory=source_config.root_folder,
         entry_script=entry_script_relative_path,
         script_params=source_config.script_params,
-        compute_target=azure_config.gpu_cluster_name,
+        compute_target=azure_config.cluster,
         # Use blob storage for storing the source, rather than the FileShares section of the storage account.
         source_directory_data_store=workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME),
         inputs=estimator_inputs,

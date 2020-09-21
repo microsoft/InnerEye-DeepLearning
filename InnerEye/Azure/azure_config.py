@@ -72,7 +72,8 @@ class AzureConfig(GenericConfig):
     resource_group: str = param.String(None, doc="The Azure resource group that contains the AzureML workspace.")
     docker_shm_size: str = param.String("440g", doc="The shared memory in the docker image for the AzureML VMs.")
     hyperdrive: bool = param.Boolean(False, doc="If True, use AzureML HyperDrive for run execution.")
-    gpu_cluster_name: str = param.String(doc="GPU cluster to use when running inside AzureML.")
+    cluster: str = param.String(doc="The name of the GPU cluster inside the AzureML workspace, that should "
+                                    "execute the job.")
     pip_extra_index_url: str = \
         param.String(doc="An additional URL where PIP packages should be loaded from.")
     azureml: bool = param.Boolean(False, doc="If True, submit the executing script to run on AzureML.")

@@ -4,7 +4,7 @@ steps:
 
   # Create a directory structure with a runner script and the InnerEye submodule, starting training from there.
   # Then do a recovery run in AzureML to see if that works well.
-  # python $(Agent.TempDirectory)/InnerEye/TestSubmodule/test_submodule_runner.py --run_recovery_id=`cat most_recent_run.txt` --start_epoch=2 --num_epochs=4 --perform_validation_and_test_set_inference=False --azureml=True --model="$(model)" --is_train="$(is_train)" $(more_switches) --wait_for_completion="${{parameters.wait_for_completion}}" --gpu_cluster_name="$(gpu_cluster_name)" --tag="$(tags)" --build_number=$(Build.BuildId) --build_user="$(Build.RequestedFor)" --build_branch="$branch_name_without_prefix" --build_source_id="$(Build.SourceVersion)" --build_source_message="$source_version_message" --build_source_author="$(Build.SourceVersionAuthor)" --build_source_repository="$(Build.Repository.Name)"
+  # python $(Agent.TempDirectory)/InnerEye/TestSubmodule/test_submodule_runner.py --run_recovery_id=`cat most_recent_run.txt` --start_epoch=2 --num_epochs=4 --perform_validation_and_test_set_inference=False --azureml=True --model="$(model)" --is_train="$(is_train)" $(more_switches) --wait_for_completion="${{parameters.wait_for_completion}}" --cluster="$(gpu_cluster_name)" --tag="$(tags)" --build_number=$(Build.BuildId) --build_user="$(Build.RequestedFor)" --build_branch="$branch_name_without_prefix" --build_source_id="$(Build.SourceVersion)" --build_source_message="$source_version_message" --build_source_author="$(Build.SourceVersionAuthor)" --build_source_repository="$(Build.Repository.Name)"
   - bash: |
       source activate AzureRunner
       mkdir $(Agent.TempDirectory)/InnerEye/
@@ -15,7 +15,7 @@ steps:
       full_branch_name=$(Build.SourceBranch)
       branch_name_without_prefix=${full_branch_name#$branch_prefix}
       source_version_message="`echo $(Build.SourceVersionMessage) | tr -dc 'A-Za-z0-9_ ' | cut -c1-120`"
-      python $(Agent.TempDirectory)/InnerEye/TestSubmodule/test_submodule_runner.py --perform_validation_and_test_set_inference=False --azureml=True --model="$(model)" --is_train="$(is_train)" $(more_switches) --wait_for_completion="${{parameters.wait_for_completion}}" --gpu_cluster_name="$(gpu_cluster_name)" --tag="$(tags)" --build_number=$(Build.BuildId) --build_user="$(Build.RequestedFor)" --build_branch="$branch_name_without_prefix" --build_source_id="$(Build.SourceVersion)" --build_source_message="$source_version_message" --build_source_author="$(Build.SourceVersionAuthor)" --build_source_repository="$(Build.Repository.Name)"
+      python $(Agent.TempDirectory)/InnerEye/TestSubmodule/test_submodule_runner.py --perform_validation_and_test_set_inference=False --azureml=True --model="$(model)" --is_train="$(is_train)" $(more_switches) --wait_for_completion="${{parameters.wait_for_completion}}" --cluster="$(gpu_cluster_name)" --tag="$(tags)" --build_number=$(Build.BuildId) --build_user="$(Build.RequestedFor)" --build_branch="$branch_name_without_prefix" --build_source_id="$(Build.SourceVersion)" --build_source_message="$source_version_message" --build_source_author="$(Build.SourceVersionAuthor)" --build_source_repository="$(Build.Repository.Name)"
     env:
       PYTHONPATH: $(Agent.TempDirectory)/InnerEye
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)

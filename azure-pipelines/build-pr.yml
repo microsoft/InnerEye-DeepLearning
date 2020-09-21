@@ -24,7 +24,7 @@ jobs:
   - job: TrainInAzureML
     variables:
       - template: ../InnerEye/train_variables.yml
-      - name: gpu_cluster_name
+      - name: cluster
         value: 'training-nc12'
     pool:
       vmImage: 'ubuntu-18.04'
@@ -44,7 +44,7 @@ jobs:
   - job: TrainInAzureMLViaSubmodule
     variables:
       - template: ../InnerEye/train_variables.yml
-      - name: gpu_cluster_name
+      - name: cluster
         value: 'training-nc12'
     pool:
       vmImage: 'ubuntu-18.04'
