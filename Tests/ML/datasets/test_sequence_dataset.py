@@ -466,7 +466,7 @@ def test_standardize_features_when_singleton(is_sequence: bool) -> None:
         mean_std = FeatureStatistics.from_data_sources(sources)
 
     assert_tensors_equal(mean_std.mean, numerical_features)
-    # Standard deviation of one element is 0.
+    # Standard deviation can't be computed because there is only one element, hence becomes nan.
     assert torch.all(torch.isnan(mean_std.std))
     # When applying such a standardization to the sequences, they should not be changed (similar to features that
     # are constant)
