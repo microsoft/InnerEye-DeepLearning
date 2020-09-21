@@ -69,7 +69,7 @@ class FeatureStatistics(Generic[FT]):
         :param input: input including values to mask
         :param mask: binary tensor of the same shape as input
         :param apply_bias_correction: if True applies Bessel's correction to the standard deviation estimate
-        :return:
+        :return: FeatureStatistics (mean and std) computed on the masked values
         """
         n_obs_per_feature = mask.sum(dim=0).float()
         masked_values = torch.zeros_like(input)
