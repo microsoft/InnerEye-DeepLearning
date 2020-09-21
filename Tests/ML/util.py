@@ -170,9 +170,9 @@ def get_model_loader(namespace: Optional[str] = None) -> ModelConfigLoader[Segme
 
 def get_default_azure_config() -> AzureConfig:
     """
-    Gets the Azure-related configuration options, using the default settings file train_variables.yaml.
+    Gets the Azure-related configuration options, using the default settings file settings.yaml.
     """
-    return AzureConfig.from_yaml(yaml_file_path=fixed_paths.TRAIN_YAML_FILE)
+    return AzureConfig.from_yaml(yaml_file_path=fixed_paths.SETTINGS_YAML_FILE)
 
 
 def get_default_workspace() -> Workspace:

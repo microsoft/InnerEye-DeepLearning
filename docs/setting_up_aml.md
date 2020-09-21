@@ -10,7 +10,7 @@ In short, you will need to:
 * Optional: Register your application to create a Service Principal Object.
 * Optional: Set up a storage account to store your datasets. You may already have such a storage account, or you may
 want to re-use the storage account that is created with the AzureML workspace - in both cases, you can skip this step.
-* Update your [train_variables.yml](/InnerEye/train_variables.yml) file and KeyVault with your own credentials.
+* Update your [settings.yml](/InnerEye/settings.yml) file and KeyVault with your own credentials.
 
 Once you're done with these steps, you will be ready for the next steps described in [Creating a dataset](https://github.com/microsoft/InnerEye-createdataset), 
 [Building models in Azure ML](building_models.md) and 
@@ -75,8 +75,8 @@ low priority nodes, click on the "Request Quota" button at the bottom of the pag
 
 Details about creating compute clusters can be found 
 [here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-set-up-training-targets#set-up-in-azure-machine-learning-studio).
-Note down the name of your compute cluster - this will later go into the `gpu_cluster_name` entry of your settings
-file `train_variables.yml`.
+Note down the name of your compute cluster - this will later go into the `cluster` entry of your settings
+file `settings.yml`.
 
 
 ### Step 3 (Optional): Create a Service Principal Authentication object.
@@ -105,7 +105,7 @@ To create the Service Principal:
  a few minutes. Click on the resource to access its properties. In particular, you will need the application ID. 
  You can find this ID in the `Overview` tab (accessible from the list on the left of the page). 
  Note it down for later - this will go into the `application_id` entry of your settings
-file `train_variables.yml`.
+file `settings.yml`.
  1. You need to create an application secret to access the resources managed by this service principal. 
  On the pane on the left find `Certificates & Secrets`. Click on `+ New client secret` (bottom of the page), note down your token. 
  Warning: this token will only appear once at the creation of the token, you will not be able to re-display it again later. 
@@ -169,11 +169,11 @@ on your local machine:
 - Create a file called `InnerEyeTestVariables.txt` in the root directory of your git repository, and add a line
 `DATASETS_ACCOUNT_KEY=TheKeyThatYouJustCopied`.
 - Copy the name of the datasets storage account into the field `datasets_storage_account` of your settings file
-`train_variables.yml`.
+`settings.yml`.
 
 
-### Step 6: Update the variables in `train_variables.yml`
-The [train_variables.yml](/InnerEye/train_variables.yml) file is used to store your Azure setup. In order to be able to
+### Step 6: Update the variables in `settings.yml`
+The [settings.yml](/InnerEye/settings.yml) file is used to store your Azure setup. In order to be able to
 train your model you will need to update this file using the settings for your Azure subscription.
 1. You will first need to retrieve your `tenant_id`. You can find your tenant id by navigating to
 `Azure Active Directory > Properties > Tenant ID` (use the search bar above to access the `Azure Active Directory` 
@@ -181,12 +181,12 @@ resource. Copy and paste the GUID to the `tenant_id` field of the `.yml` file. M
 [here](https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-create-new-tenant).
 2. You then need to retrieve your subscription id. In the search bar look for `Subscriptions`. Then in the subscriptions list,
 look for the subscription you are using for your workspace. Copy the value of the `Subscription ID` in the corresponding 
-field of [train_variables.yml](/InnerEye/train_variables.yml).
+field of [settings.yml](/InnerEye/settings.yml).
 3. Copy the application ID of your Service Principal that you retrieved earlier (cf. Step 3) to the `application_id` field.
 If you did not set up a Service Principal, fill that with an empty string or leave out altogether.
 6. Update the `resource_group:` field with your resource group name (created in Step 1).
 7. Update the `workspace_name:` field with the name of the AzureML workspace created in Step 1.
-8. Update the `gpu_cluster_name:` field with the name of your own compute cluster (Step 2). If you chose automatic
+8. Update the `cluster:` field with the name of your own compute cluster (Step 2). If you chose automatic
 deployment, this cluster will be called "NC24-LowPrio"
 
 Leave all other fields as they are for now.

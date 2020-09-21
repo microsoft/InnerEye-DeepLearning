@@ -20,7 +20,7 @@ def test_git_info() -> None:
     Test if git branch information can be read correctly.
     """
     logging_to_stdout(log_level=logging.DEBUG)
-    azure_config = AzureConfig.from_yaml(fixed_paths.TRAIN_YAML_FILE)
+    azure_config = AzureConfig.from_yaml(fixed_paths.SETTINGS_YAML_FILE)
     azure_config.project_root = project_root
     assert azure_config.build_branch == ""
     assert azure_config.build_source_id == ""
@@ -41,7 +41,7 @@ def test_git_info_from_commandline() -> None:
     """
     Test if git branch information can be overriden on the commandline
     """
-    azure_config = AzureConfig.from_yaml(fixed_paths.TRAIN_YAML_FILE)
+    azure_config = AzureConfig.from_yaml(fixed_paths.SETTINGS_YAML_FILE)
     azure_config.project_root = project_root
     azure_config.build_branch = "branch"
     azure_config.build_source_id = "id"

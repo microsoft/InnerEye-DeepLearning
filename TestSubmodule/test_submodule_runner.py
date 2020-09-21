@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 
-# This file here mimics how the InnerEye code would be used as a git submodule. The test script will
+# This file here mimics how the InnerEye code would be used as a git submoTestdule. The test script will
 # copy the InnerEye code to a folder Submodule. The test will then invoke the present file as a runner,
 # and train a model in AzureML.
 
@@ -40,7 +40,7 @@ def main() -> None:
     from InnerEye.Common import fixed_paths
     print(f"Repository root: {repository_root}")
     runner.run(project_root=repository_root,
-               yaml_config_file=fixed_paths.TRAIN_YAML_FILE,
+               yaml_config_file=fixed_paths.SETTINGS_YAML_FILE,
                post_cross_validation_hook=None)
 
 
