@@ -46,7 +46,7 @@ is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.
 ### Start Training
 Run the following to start a job on AzureML
 ```
-python InnerEyeLocal/ML/runner.py --submit_to_azureml=True --model=GlaucomaPublicExt --is_train=True
+python InnerEyeLocal/ML/runner.py --azureml=True --model=GlaucomaPublicExt --is_train=True
 ```
 See [Model Training](building_models.md) for details on training outputs, resuming training, testing models and model ensembles.
 
@@ -96,7 +96,7 @@ is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.
 ### Start Training
 Run the following to start a job on AzureML
 ```
-python InnerEyeLocal/ML/runner.py --submit_to_azureml=True --model=LungExt --is_train=True
+python InnerEyeLocal/ML/runner.py --azureml=True --model=LungExt --is_train=True
 ```
 See [Model Training](building_models.md) for details on training outputs, resuming training, testing models and model ensembles.
  

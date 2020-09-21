@@ -34,8 +34,8 @@ class VMPriority(Enum):
     Dedicated = 'dedicated'
 
 
-# The name of the submit_to_azureml property of AzureConfig
-AZURECONFIG_SUBMIT_TO_AZUREML = "submit_to_azureml"
+# The name of the "azureml" property of AzureConfig
+AZURECONFIG_SUBMIT_TO_AZUREML = "azureml"
 
 
 @dataclass(frozen=True)
@@ -75,7 +75,7 @@ class AzureConfig(GenericConfig):
     gpu_cluster_name: str = param.String(doc="GPU cluster to use when running inside AzureML.")
     pip_extra_index_url: str = \
         param.String(doc="An additional URL where PIP packages should be loaded from.")
-    submit_to_azureml: bool = param.Boolean(False, doc="If True, submit the executing script to run on AzureML.")
+    azureml: bool = param.Boolean(False, doc="If True, submit the executing script to run on AzureML.")
     tensorboard: bool = param.Boolean(False, doc="If True, then automatically launch TensorBoard to monitor the"
                                                  " latest submitted AzureML run.")
     is_train: bool = param.Boolean(True,
@@ -248,7 +248,7 @@ class SourceConfig:
     def set_script_params_except_submit_flag(self) -> None:
         """
         Populates the script_param field of the present object from the arguments in sys.argv, with the exception
-        of the "submit_to_azureml" flag.
+        of the "azureml" flag.
         """
         args = sys.argv[1:]
         submit_flag = f"--{AZURECONFIG_SUBMIT_TO_AZUREML}"
@@ -258,10 +258,10 @@ class SourceConfig:
             arg = args[i]
             if arg.startswith(submit_flag):
                 if len(arg) == len(submit_flag):
-                    # The argument list contains something like ["--submit_to_azureml", "True]: Skip 2 entries
+                    # The argument list contains something like ["--azureml", "True]: Skip 2 entries
                     i = i + 1
                 elif arg[len(submit_flag)] != "=":
-                    # The argument list contains a flag like "--submit_to_azureml_foo": Keep that.
+                    # The argument list contains a flag like "--azureml_foo": Keep that.
                     retained_args.append(arg)
             else:
                 retained_args.append(arg)

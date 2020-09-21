@@ -59,11 +59,11 @@ is found by the runner.
 
 * Train a new model, for example `Prostate`:
 ```shell script
-python InnerEyeLocal/ML/runner.py --submit_to_azureml=True --model=Prostate --is_train=True
+python InnerEyeLocal/ML/runner.py --azureml=True --model=Prostate --is_train=True
 ```
 
 Alternatively, you can train the model on your current machine if it is powerful enough. In
-this case, you should specify `--submit_to_azureml=False`, and instead of specifying
+this case, you would simply omit the `azureml` flag, and instead of specifying
 `azure_dataset_id` in the class constructor, you can instead use `local_dataset="my/data/folder"`,
 where the folder `my/data/folder` contains a `dataset.csv` file and subfolders `0`, `1`, `2`, ...,
 one for each image.
@@ -139,7 +139,7 @@ run recovery ID without the final underscore and digit.
 
 As for continuing training, but set `--is_train` to `False`. Thus your command should look like this:
 ```shell script
-python Inner/ML/runner.py --submit_to_azureml=True --model=Prostate --is_train=False --gpu_cluster_name=my_cluster_name \
+python Inner/ML/runner.py --azureml=True --model=Prostate --is_train=False --gpu_cluster_name=my_cluster_name \
    --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
 ```
 

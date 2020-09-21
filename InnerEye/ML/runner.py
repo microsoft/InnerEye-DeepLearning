@@ -264,7 +264,7 @@ class Runner:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None
-        if self.azure_config.submit_to_azureml:
+        if self.azure_config.azureml:
             run_object = self.submit_to_azureml()
         else:
             self.run_in_situ()

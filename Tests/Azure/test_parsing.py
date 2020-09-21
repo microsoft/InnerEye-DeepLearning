@@ -151,7 +151,7 @@ def test_azureml_submit_constant() -> None:
 def test_source_config_set_params() -> None:
     """
     Check that commandline arguments are set correctly when submitting the script to AzureML.
-    In particular, the submit_to_azureml flag should be omitted, irrespective of how the argument is written.
+    In particular, the azureml flag should be omitted, irrespective of how the argument is written.
     """
     s = SourceConfig(root_folder="", entry_script="something.py", conda_dependencies_files=[])
 
@@ -166,7 +166,7 @@ def test_source_config_set_params() -> None:
     with mock.patch("sys.argv", ["", "some", "--param", "1", f"--{AZURECONFIG_SUBMIT_TO_AZUREML}", "False", "more"]):
         s.set_script_params_except_submit_flag()
     assert_has_params("some --param 1 more")
-    # Arguments where submit_to_azureml is just the prefix should not be removed.
+    # Arguments where azureml is just the prefix should not be removed.
     with mock.patch("sys.argv", ["", "some", f"--{AZURECONFIG_SUBMIT_TO_AZUREML}foo", "False", "more"]):
         s.set_script_params_except_submit_flag()
     assert_has_params(f"some --{AZURECONFIG_SUBMIT_TO_AZUREML}foo False more")

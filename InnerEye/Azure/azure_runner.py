@@ -168,7 +168,7 @@ def create_and_submit_experiment(
           f"--run_recovery_id={recovery_id}")
     print(f"The run recovery ID has been written to this file: {recovery_file}")
     print("==============================================================================")
-    if azure_config.tensorboard and azure_config.submit_to_azureml:
+    if azure_config.tensorboard and azure_config.azureml:
         print("Starting TensorBoard now because you specified --tensorboard")
         monitor(monitor_config=AMLTensorBoardMonitorConfig(run_ids=[run.id]), azure_config=azure_config)
     else:
