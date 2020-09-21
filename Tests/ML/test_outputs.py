@@ -18,7 +18,7 @@ from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME, METRICS_AGGREGA
     store_run_information
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.plotting import resize_and_save
-from InnerEye.ML.reports.notebook_report import boxplot_per_structure
+from InnerEye.ML.reports.segmentation_report import boxplot_per_structure
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.io_util import ImageHeader
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
