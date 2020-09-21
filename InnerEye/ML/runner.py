@@ -70,6 +70,8 @@ def suppress_logging_noise() -> None:
     logging.getLogger('matplotlib').setLevel(logging.INFO)
     # Urllib3 prints out connection information for each call to write metrics, etc
     logging.getLogger('urllib3').setLevel(logging.INFO)
+    # AzureML prints too many details about logging metrics
+    logging.getLogger('azureml').setLevel(logging.INFO)
     # This is working around a spurious error message thrown by MKL, see
     # https://github.com/pytorch/pytorch/issues/37377
     os.environ['MKL_THREADING_LAYER'] = 'GNU'
@@ -262,7 +264,7 @@ class Runner:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None
-        if self.azure_config.submit_to_azureml:
+        if self.azure_config.azureml:
             run_object = self.submit_to_azureml()
         else:
             self.run_in_situ()
@@ -399,7 +401,7 @@ def run(project_root: Path,
 
 def main() -> None:
     run(project_root=fixed_paths.repository_root_directory(),
-        yaml_config_file=fixed_paths.TRAIN_YAML_FILE,
+        yaml_config_file=fixed_paths.SETTINGS_YAML_FILE,
         post_cross_validation_hook=default_post_cross_validation_hook)
 
 

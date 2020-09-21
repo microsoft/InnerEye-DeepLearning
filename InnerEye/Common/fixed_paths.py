@@ -33,8 +33,8 @@ DEFAULT_AML_LOGS_DIR = "azureml-logs"
 
 DEFAULT_LOGS_DIR_NAME = "logs"
 DEFAULT_MODEL_SUMMARIES_DIR_PATH = Path(DEFAULT_LOGS_DIR_NAME) / "model_summaries"
+# The folder at the project root directory that holds datasets for local execution.
 DATASETS_DIR_NAME = "datasets"
-DATASETS_ACCOUNT_NAME = "innereyepublicdatasets"
 # Inside of the AzureML workspace, a Datastore has to be created manually. That Datastore
 # points to a container inside of a storage account.
 AZUREML_DATASTORE_NAME = "innereyedatasets"
@@ -49,8 +49,8 @@ VISUALIZATION_NOTEBOOK_PATH = os.path.join("ML", "visualizers", "gradcam_visuali
 PROJECT_SECRETS_FILE = "InnerEyeTestVariables.txt"
 
 INNEREYE_PACKAGE_ROOT = repository_root_directory(INNEREYE_PACKAGE_NAME)
-TRAIN_YAML_FILE_NAME = "train_variables.yml"
-TRAIN_YAML_FILE = INNEREYE_PACKAGE_ROOT / TRAIN_YAML_FILE_NAME
+SETTINGS_YAML_FILE_NAME = "settings.yml"
+SETTINGS_YAML_FILE = INNEREYE_PACKAGE_ROOT / SETTINGS_YAML_FILE_NAME
 
 MODEL_INFERENCE_JSON_FILE_NAME = 'model_inference_config.json'
 AZURE_RUNNER_ENVIRONMENT_YAML_FILE_NAME = "azure_runner.yml"

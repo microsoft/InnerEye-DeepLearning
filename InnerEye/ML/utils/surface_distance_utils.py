@@ -63,8 +63,8 @@ def get_first_child_run(azure_config: AzureConfig) -> Run:
     :param azure_config:
     :return: first child run
     """
-    if azure_config.run_recovery_id is None:
-        raise ValueError("azure_config.run_recovery_id is None")
+    if not azure_config.run_recovery_id:
+        raise ValueError("azure_config.run_recovery_id is not provided.")
     workspace = azure_config.get_workspace()
     hyperdrive_run = fetch_run(workspace, azure_config.run_recovery_id)
     child_runs = fetch_child_runs(hyperdrive_run, status=RunStatus.COMPLETED)
@@ -97,8 +97,8 @@ def get_run_output_dir(azure_config: AzureConfig, model_config: SegmentationMode
     :param model_config:
     :return output_dir: directory that all artifact paths use as a prefix
     """
-    if azure_config.run_recovery_id is None:
-        raise ValueError("azure_config.run_recovery_id is None")
+    if not azure_config.run_recovery_id:
+        raise ValueError("azure_config.run_recovery_id is not provided")
 
     run_recovery_id = azure_config.run_recovery_id
     output_dir = model_config.outputs_folder / run_recovery_id

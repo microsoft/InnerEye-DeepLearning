@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 from azureml.core import Run
 
+from InnerEye.Azure.azure_config import AzureConfig
+from InnerEye.Azure.azure_runner import create_experiment_name
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, fetch_child_runs, fetch_run, \
     get_cross_validation_split_index, is_cross_validation_child_run, merge_conda_dependencies, \
     to_azure_friendly_container_path
@@ -103,3 +105,12 @@ dependencies:
     assert list(conda_dep.conda_packages) == ["conda1=1.0", "conda2=2.0", "conda_both=3.0", "conda1=1.1"]
     # For pip packages, the version in the second argument takes precedence.
     assert list(conda_dep.pip_packages) == ["foo==1.0", "azureml-sdk==1.6.0", "bar==2.0"]
+
+
+def test_experiment_name() -> None:
+    c = AzureConfig()
+    c.build_branch = "branch"
+    c.get_git_information()
+    assert create_experiment_name(c) == "branch"
+    c.experiment_name = "foo"
+    assert create_experiment_name(c) == "foo"

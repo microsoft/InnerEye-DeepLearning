@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from io import StringIO
+from pathlib import Path
 from typing import Any, List, Optional, Tuple
 from unittest import mock
 
@@ -247,7 +248,7 @@ def test_run_ml_with_sequence_model(use_combined_model: bool,
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         azure_config = get_default_azure_config()
-        azure_config.is_train = True
+        azure_config.train = True
         MLRunner(config, azure_config).run()
 
 
@@ -441,12 +442,14 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: TestOutputDire
     metrics_dict = SequenceMetricsDict.create_from_config(config)
     assert metrics_dict.get_hue_names(include_default=False) == expected_prediction_targets
     config.set_output_to(test_output_dirs.root_dir)
+    # Create a fake dataset directory to make config validation pass
+    config.local_dataset = Path(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_multi_label_sequence_dataframe()
     config.pre_process_dataset_dataframe()
     config.num_epochs = 1
     config.max_batch_grad_cam = 1
     azure_config = get_default_azure_config()
-    azure_config.is_train = True
+    azure_config.train = True
     MLRunner(config, azure_config).run()
     # The metrics file should have one entry per epoch per subject per prediction target,
     # for all the 3 prediction targets.

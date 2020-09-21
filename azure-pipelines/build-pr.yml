@@ -1,7 +1,7 @@
 name: PR-$(Date:yyyyMMdd)$(Rev:-r)
 variables:
   model: 'BasicModel2Epochs'
-  is_train: 'True'
+  train: 'True'
   more_switches: '--log_level=DEBUG'
   run_recovery_id: ''
   tags: 'PR'
@@ -23,8 +23,8 @@ jobs:
 
   - job: TrainInAzureML
     variables:
-      - template: ../InnerEye/train_variables.yml
-      - name: gpu_cluster_name
+      - template: ../InnerEye/settings.yml
+      - name: cluster
         value: 'training-nc12'
     pool:
       vmImage: 'ubuntu-18.04'
@@ -43,8 +43,8 @@ jobs:
 
   - job: TrainInAzureMLViaSubmodule
     variables:
-      - template: ../InnerEye/train_variables.yml
-      - name: gpu_cluster_name
+      - template: ../InnerEye/settings.yml
+      - name: cluster
         value: 'training-nc12'
     pool:
       vmImage: 'ubuntu-18.04'

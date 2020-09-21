@@ -30,7 +30,7 @@ class SubmitForInferenceConfig(GenericConfig):
     model_id: str = param.String(doc="Id of model, e.g. Prostate:123")
     image_file: Path = param.ClassSelector(class_=Path, doc="Image file to segment, ending in .nii.gz")
     yaml_file: Path = param.ClassSelector(
-        class_=Path, doc="File containing subscription details, typically your train_variables.yml")
+        class_=Path, doc="File containing subscription details, typically your settings.yml")
     download_folder: Optional[Path] = param.ClassSelector(default=None,
                                                           class_=Path,
                                                           doc="Folder into which to download the segmentation result")

@@ -9,8 +9,6 @@ import pytest
 from InnerEye.Azure import secrets_handling
 from InnerEye.Azure.secrets_handling import SecretsHandling, read_variables_from_yaml
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import logging_to_stdout
-from Tests.ML.util import get_default_azure_config
 from Tests.fixed_paths_for_tests import full_azure_test_data_path
 
 
@@ -66,30 +64,18 @@ def test_read_variables_from_yaml() -> None:
     Test that variables are read from a yaml file correctly.
     """
     # this will return a dictionary of all variables in the yaml file
-    yaml_path = full_azure_test_data_path('dummy_train_variables.yml')
+    yaml_path = full_azure_test_data_path('settings.yml')
     vars_dict = secrets_handling.read_variables_from_yaml(yaml_path)
     assert vars_dict == {'some_key': 'some_val'}
     # YAML file missing "variables" key should raise key error
+    fail_yaml_path = full_azure_test_data_path('settings_with_missing_section.yml')
     with pytest.raises(KeyError):
-        fail_yaml_path = full_azure_test_data_path('dummy_train_missing_variables.yml')
         secrets_handling.read_variables_from_yaml(fail_yaml_path)
 
 
-def test_read_from_keyvault() -> None:
-    """
-    Test if all storage account access keys can be read from the workspace keyvault.
-    """
-    logging_to_stdout()
-    azure_config = get_default_azure_config()
-    key1 = azure_config.get_storage_account_key()
-    assert key1 is not None, "get_storage_account_key"
-    key2 = azure_config.get_dataset_storage_account_key()
-    assert key2 is not None, "get_dataset_storage_account_key"
-
-
 def test_parse_yaml() -> None:
-    assert os.path.isfile(fixed_paths.TRAIN_YAML_FILE)
-    variables = read_variables_from_yaml(fixed_paths.TRAIN_YAML_FILE)
+    assert os.path.isfile(fixed_paths.SETTINGS_YAML_FILE)
+    variables = read_variables_from_yaml(fixed_paths.SETTINGS_YAML_FILE)
     # Check that there are at least two of the variables that we know of
     tenant_id = "tenant_id"
     assert tenant_id in variables
