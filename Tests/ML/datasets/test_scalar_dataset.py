@@ -718,8 +718,8 @@ def test_filter_dataset_with_empty_list(expected_column_value: List[Tuple[str, s
                              (["foo"], torch.tensor([]), torch.tensor([]), True),
                              ([""], torch.tensor([]), torch.tensor([]), True),
                              ([None], torch.tensor([]), torch.tensor([]), False),
-                             ([], torch.tensor([1.0, math.inf]), torch.tensor([[0, 0, 1]]), False),
-                             ([], torch.tensor([1.0, math.nan]), torch.tensor([[0, 0, 1]]), False),
+                             ([], torch.tensor([1.0, math.inf]), torch.tensor([[0, 0, 1]]), True),
+                             ([], torch.tensor([1.0, math.nan, math.inf]), torch.tensor([[0, 0, 1]]), False),
                          ])
 def test_item_is_valid(channel_files: List[Optional[str]],
                        numerical_features: torch.Tensor,
