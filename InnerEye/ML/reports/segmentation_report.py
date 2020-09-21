@@ -17,6 +17,7 @@ def plot_scores_for_csv(path_csv: str) -> None:
     Displays all the tables and figures given a csv file with segmentation metrics
     Columns expected: Patient,Structure,Dice,HausdorffDistance_mm,MeanDistance_mm
     """
+    print(f"Reading raw metrics data from: {path_csv}")
     df = pd.read_csv(path_csv)
     with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', 150):
         display_metric(df, MetricsFileColumns.Dice.value, high_values_are_good=True)
