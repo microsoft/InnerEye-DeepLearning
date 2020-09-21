@@ -13,9 +13,9 @@ from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import logging_section, logging_to_stdout
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML import run_ml
-from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
