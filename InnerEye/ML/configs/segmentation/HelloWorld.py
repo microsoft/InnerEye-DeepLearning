@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from random import Random
 from typing import Any
 
 from azureml.train.estimator import Estimator
@@ -9,7 +10,8 @@ from azureml.train.hyperdrive import BanditPolicy, HyperDriveConfig, PrimaryMetr
 from networkx.tests.test_convert_pandas import pd
 
 from InnerEye.ML.common import TrackedMetrics
-from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
+from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase, equally_weighted_classes
+from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -24,23 +26,32 @@ class HelloWorld(SegmentationModelBase):
     2) Configure the UNet3D implemented in this package
     3) Configure Azure HyperDrive based parameter search
 
-    - This model can be trained from the commandline: ../InnerEye/runner.py --model=HelloWorld --train=True
-    - If you have setup AzureML then parameter search can be performed for this model by running:
+    - This model can be trained from the commandline: ../InnerEye/runner.py --model=HelloWorld
+    - If you have set up AzureML then parameter search can be performed for this model by running:
     ../InnerEye/runner.py --model=HelloWorld --hyperdrive=True
+
+    In this example, the model is trained on 2 input image channels channel1 and channel2, and
+    predicts 2 foreground classes region, region_1.
     """
 
     def __init__(self, **kwargs: Any) -> None:
+        fg_classes = ["region", "region_1"]
         super().__init__(
-            architecture="UNet3D",
+            # Data definition - in this section we define where to load the dataset from
             local_dataset=full_ml_test_data_path(),
-            feature_channels=[2] * 8,
+
+            # Model definition - in this section we define what model to use and some related configurations
+            architecture="UNet3D",
+            feature_channels=[4],
             crop_size=(64, 64, 64),
             image_channels=["channel1", "channel2"],
-            ground_truth_ids=["region", "region_1"],
+            ground_truth_ids=fg_classes,
+            class_weights=equally_weighted_classes(fg_classes, background_weight=0.02),
             mask_id="mask",
-            norm_method=PhotometricNormalizationMethod.CtWindow,
-            level=50,
-            window=200,
+
+            # Model training and testing - in this section we define configurations pertaining to the model
+            # training loop (ie: batch size, how many epochs to train, number of epochs to save)
+            # and testing (ie: how many epochs to test)
             num_dataload_workers=0,
             train_batch_size=2,
             start_epoch=0,
@@ -50,7 +61,22 @@ class HelloWorld(SegmentationModelBase):
             test_start_epoch=2,
             test_diff_epochs=1,
             test_step_epochs=1,
-            use_mixed_precision=True
+            use_mixed_precision=True,
+
+            # Pre-processing - in this section we define how to normalize our inputs, in this case we are doing
+            # CT Level and Window based normalization.
+            norm_method=PhotometricNormalizationMethod.CtWindow,
+            level=50,
+            window=200,
+
+            # Post-processing - in this section we define our post processing configurations, in this case
+            # we are filling holes in the generated segmentation masks for all of the foreground classes.
+            fill_holes=[True] * len(fg_classes),
+
+            # Output - in this section we define settings that determine how our output looks like in this case
+            # we define the structure names and colours to use.
+            ground_truth_ids_display_names=fg_classes,
+            colours=generate_random_colours_list(Random(5), len(fg_classes)),
         )
         self.add_and_validate(kwargs)
 
@@ -67,7 +93,8 @@ class HelloWorld(SegmentationModelBase):
         Specify an Azure HyperDrive configuration.
         Further details are described in the tutorial
         https://docs.microsoft.com/en-us/azure/machine-learning/service/how-to-tune-hyperparameters
-        A reference is provided at https://docs.microsoft.com/en-us/python/api/azureml-train-core/azureml.train.hyperdrive?view=azure-ml-py
+        A reference is provided at https://docs.microsoft.com/en-us/python/api/azureml-train-core/azureml.train
+        .hyperdrive?view=azure-ml-py
         :param estimator: The estimator (configured PyTorch environment) of the experiment.
         :return: An Azure HyperDrive run configuration (configured PyTorch environment).
         """
