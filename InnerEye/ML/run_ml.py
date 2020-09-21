@@ -303,7 +303,7 @@ class MLRunner:
                 ml_util.validate_dataset_paths(self.model_config.local_dataset)
 
             # train a new model if required
-            if self.azure_config.is_train:
+            if self.azure_config.train:
                 with logging_section("Model training"):
                     model_train(self.model_config, run_recovery)
             else:
@@ -359,7 +359,7 @@ class MLRunner:
         model (from the run we recovered) should already have been registered, so we should only
         do so if this run is specifically for that purpose.
         """
-        return self.azure_config.is_train or self.azure_config.register_model_only_for_epoch is not None
+        return self.azure_config.train or self.azure_config.register_model_only_for_epoch is not None
 
     def decide_registration_epoch_without_evaluating(self) -> Optional[int]:
         """

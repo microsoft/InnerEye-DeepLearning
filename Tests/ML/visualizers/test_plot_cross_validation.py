@@ -416,7 +416,7 @@ def test_run_ml_with_multi_label_sequence_in_crossval(test_output_dirs: TestOutp
     config.num_epochs = 1
     config.number_of_cross_validation_splits = 2
     azure_config = get_default_azure_config()
-    azure_config.is_train = True
+    azure_config.train = True
     MLRunner(config, azure_config).run()
 
 
