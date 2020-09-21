@@ -1,7 +1,7 @@
 name: PR-$(Date:yyyyMMdd)$(Rev:-r)
 variables:
   model: 'BasicModel2Epochs'
-  is_train: 'True'
+  train: 'True'
   more_switches: '--log_level=DEBUG'
   run_recovery_id: ''
   tags: 'PR'

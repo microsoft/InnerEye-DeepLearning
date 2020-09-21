@@ -82,7 +82,7 @@ def test_create_runner_parser(with_config: bool) -> None:
     Check that default and non-default arguments are set correctly and recognized as default/non-default.
     """
     azure_parser = create_runner_parser(SegmentationModelBase if with_config else None)
-    args_list = ["--model=Lung", "--is_train=False", "--l_rate=100.0",
+    args_list = ["--model=Lung", "--train=False", "--l_rate=100.0",
                  "--unknown=1", "--subscription_id", "Test1", "--tenant_id=Test2",
                  "--application_id", "Test3", "--datasets_storage_account=Test4",
                  "--log_level=INFO",
@@ -96,7 +96,7 @@ def test_create_runner_parser(with_config: bool) -> None:
     # These values have been set on the commandline, to values that are not the parser defaults.
     non_default_args = {
         "datasets_storage_account": "Test4",
-        "is_train": False,
+        "train": False,
         "model": "Lung",
         "subscription_id": "Test1",
         "application_id": "Test3",

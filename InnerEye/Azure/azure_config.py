@@ -79,8 +79,9 @@ class AzureConfig(GenericConfig):
     azureml: bool = param.Boolean(False, doc="If True, submit the executing script to run on AzureML.")
     tensorboard: bool = param.Boolean(False, doc="If True, then automatically launch TensorBoard to monitor the"
                                                  " latest submitted AzureML run.")
-    is_train: bool = param.Boolean(True,
-                                   doc="If True, train a new model. If False, run inference on an existing model.")
+    train: bool = param.Boolean(True,
+                                doc="If True, train a new model. If False, run inference on an existing model. For "
+                                    "inference, you need to specify a --run_recovery_id=... as well.")
     model: str = param.String(doc="The name of the model to train/test.")
     register_model_only_for_epoch: Optional[int] = param.Integer(None,
                                                                  doc="If set, and run_recovery_id is also set, "

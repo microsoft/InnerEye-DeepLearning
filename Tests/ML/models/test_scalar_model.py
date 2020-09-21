@@ -153,7 +153,7 @@ def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectorie
     """
     logging_to_stdout()
     azure_config = get_default_azure_config()
-    azure_config.is_train = True
+    azure_config.train = True
     train_config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
         .create_model_config_from_name(model_name)
     train_config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
@@ -198,7 +198,7 @@ def test_run_ml_with_segmentation_model(test_output_dirs: TestOutputDirectories)
     train_config.perform_validation_and_test_set_inference = True
     train_config.set_output_to(test_output_dirs.root_dir)
     azure_config = get_default_azure_config()
-    azure_config.is_train = True
+    azure_config.train = True
     MLRunner(train_config, azure_config).run()
 
 
@@ -216,7 +216,7 @@ def test_runner1(test_output_dirs: TestOutputDirectories) -> None:
     output_root = str(test_output_dirs.root_dir)
     args = ["",
             "--model", model_name,
-            "--is_train", "True",
+            "--train", "True",
             "--random_seed", str(set_from_commandline),
             "--non_image_feature_channels", scalar1,
             "--output_to", output_root,
@@ -241,7 +241,7 @@ def test_runner2(test_output_dirs: TestOutputDirectories) -> None:
     output_root = str(test_output_dirs.root_dir)
     args = ["",
             "--model", "DummyClassification",
-            "--is_train", "True",
+            "--train", "True",
             "--output_to", output_root,
             ]
     with mock.patch("sys.argv", args):

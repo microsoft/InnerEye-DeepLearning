@@ -93,7 +93,7 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
         "tag": azure_config.tag,
         "model_name": azure_config.model,
         "friendly_name": azure_config.user_friendly_name,
-        "execution_mode": ModelExecutionMode.TRAIN.value if azure_config.is_train else ModelExecutionMode.TEST.value,
+        "execution_mode": ModelExecutionMode.TRAIN.value if azure_config.train else ModelExecutionMode.TEST.value,
         RUN_RECOVERY_ID_KEY_NAME: azure_util.create_run_recovery_id(run=run),
         RUN_RECOVERY_FROM_ID_KEY_NAME: azure_config.run_recovery_id,
         "build_number": str(azure_config.build_number),
