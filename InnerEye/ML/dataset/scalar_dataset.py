@@ -218,8 +218,8 @@ def load_single_data_source(subject_rows: pd.DataFrame,
         return x is None or len(x) == 0
 
     def none_if_missing_in_csv(x: Any) -> Optional[str]:
-        # Missing values in the CSV file turn into NaN here, but mark them as None rather.
-        return None if isinstance(x, float) else x
+        # If the CSV contains missing values they turn into NaN here, but mark them as None rather.
+        return None if isinstance(x, float) and np.isnan(x) else x
 
     subject_rows = subject_rows.fillna('')
     labels = []
