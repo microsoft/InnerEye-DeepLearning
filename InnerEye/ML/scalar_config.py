@@ -483,11 +483,14 @@ class ScalarModelBase(ModelConfigBase):
             return super().get_total_number_of_cross_validation_runs()
 
     def get_cross_validation_hyperdrive_sampler(self) -> GridParameterSampling:
-        return GridParameterSampling(parameter_space={
-            CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
-            CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY: choice(list(range(
-                self.number_of_cross_validation_splits_per_fold))),
-        })
+        if self.perform_sub_fold_cross_validation:
+            return GridParameterSampling(parameter_space={
+                CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
+                CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY: choice(list(range(
+                    self.number_of_cross_validation_splits_per_fold))),
+            })
+        else:
+            super().get_cross_validation_hyperdrive_sampler()
 
     def should_wait_for_other_cross_val_child_runs(self) -> bool:
         """

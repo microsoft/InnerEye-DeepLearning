@@ -47,3 +47,4 @@ class DummyClassification(ScalarModelBase):
         # Use a local import so that we don't need to import pytorch when creating configs in the runner
         from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
         return DummyScalarModel(self.expected_image_size_zyx)
+
