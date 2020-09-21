@@ -532,7 +532,7 @@ def test_seq_to_tensor() -> None:
 
 def test_sequence_dataset_all(test_output_dirs: TestOutputDirectories) -> None:
     """
-    Check that the sequence dataset works end-to-end, including applying the right normalization.
+    Check that the sequence dataset works end-to-end, including applying the right standardization.
     """
     csv_string = """subject,seq,value,scalar1,scalar2,META,BETA
 S1,0,False,0,0,M1,B1
@@ -567,7 +567,7 @@ S4,0,True,4,40,M2,B1
                            return_value=splits):
         train_val_loaders = config.create_data_loaders()
         # Expected feature mean: Mean of the training data (0, 0), (1, 10), (2, 20) = (1, 10)
-        # Exepcted std: Std of .(0, 0), (1, 10), (2, 20) = (0.816, 8.165)
+        # Expected (baised corrected) std estimate: Std of .(0, 0), (1, 10), (2, 20) = (1, 10)
         feature_stats = config.get_torch_dataset_for_inference(ModelExecutionMode.TRAIN).feature_statistics
         assert feature_stats is not None
         assert_tensors_equal(feature_stats.mean, [1, 10])
