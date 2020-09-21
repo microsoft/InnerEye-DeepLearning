@@ -23,14 +23,9 @@ from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOV
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
-    CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
-    FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_AGGREGATES_FILE, \
+    CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
     METRICS_FILE_NAME, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, disable_logging_to_file, \
-    get_epoch_results_path, \
-    is_linux, \
-    logging_section, logging_to_file, \
-    logging_to_stdout, \
+    get_epoch_results_path, is_linux, logging_section, logging_to_file, logging_to_stdout, \
     print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import get_environment_yaml_file
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
@@ -156,18 +151,14 @@ class Runner:
     @staticmethod
     def generate_report(config: DeepLearningConfig, best_epoch: int, model_proc: ModelProcessing) -> None:
         logging.info("Saving report in html")
-        path_to_best_epoch_train = config.outputs_folder / get_epoch_results_path(best_epoch,
-                                                                                  mode=ModelExecutionMode.TRAIN,
-                                                                                  model_proc=model_proc) / \
-                                   METRICS_FILE_NAME
-        path_to_best_epoch_val = config.outputs_folder / get_epoch_results_path(best_epoch,
-                                                                                mode=ModelExecutionMode.VAL,
-                                                                                model_proc=model_proc) / \
-                                 METRICS_FILE_NAME
-        path_to_best_epoch_test = config.outputs_folder / get_epoch_results_path(best_epoch,
-                                                                                 mode=ModelExecutionMode.TEST,
-                                                                                 model_proc=model_proc) / \
-                                  METRICS_FILE_NAME
+
+        def get_epoch_path(mode: ModelExecutionMode) -> Path:
+            p = get_epoch_results_path(best_epoch, mode=mode, model_proc=model_proc)
+            return config.outputs_folder / p / METRICS_FILE_NAME
+
+        path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
+        path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
+        path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
 
         output_dir = config.outputs_folder / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME \
             if model_proc == ModelProcessing.ENSEMBLE_CREATION else config.outputs_folder
