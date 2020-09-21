@@ -57,27 +57,27 @@ class AzureConfig(GenericConfig):
     on the command line) to a value from train_variables.yaml, its default here needs to be None and not the empty
     string, and its type will be Optional[str], not str.
     """
-    subscription_id: str = param.String(None, doc="The ID of your Azure subscription.")
-    tenant_id: str = param.String(None, doc="The Azure tenant ID.")
-    application_id: str = param.String(None, doc="The ID of the Service Principal to use for authentication to Azure.")
+    subscription_id: str = param.String(doc="The ID of your Azure subscription.")
+    tenant_id: str = param.String(doc="The Azure tenant ID.")
+    application_id: str = param.String(doc="Optional: The ID of the Service Principal for authentication to Azure.")
     datasets_storage_account: str = \
-        param.String(None, doc="Optional: The blob storage account to use when downloading datasets for use outside of "
-                               "AzureML. This storage account must be the same as the one configured as a 'datastore' "
-                               "in AzureML.")
+        param.String(doc="Optional: The blob storage account to use when downloading datasets for use outside of "
+                         "AzureML. This storage account must be the same as the one configured as a 'datastore' "
+                         "in AzureML.")
     datasets_storage_account_key: str = \
-        param.String(None, doc="Optional: The access key for the storage account that holds the datasets. "
-                               "This is only used for downloading datasets outside of AzureML.")
-    datasets_container: str = param.String(None, doc="The blob storage container to use to access datasets in AML jobs")
-    workspace_name: str = param.String(None, doc="The name of the AzureML workspace that should be used.")
-    resource_group: str = param.String(None, doc="The resource group to create AML workspaces in")
+        param.String(doc="Optional: The access key for the storage account that holds the datasets. "
+                         "This is only used for downloading datasets outside of AzureML.")
+    datasets_container: str = param.String(doc="Optional: The blob storage container with the datasets.")
+    workspace_name: str = param.String(doc="The name of the AzureML workspace that should be used.")
+    resource_group: str = param.String(None, doc="The Azure resource group that contains the AzureML workspace.")
     docker_shm_size: str = param.String("440g", doc="The shared memory in the docker image for the AzureML VMs.")
-    hyperdrive: bool = param.Boolean(False, doc="Use HyperDrive for run execution")
-    gpu_cluster_name: str = param.String(None, doc="GPU cluster to use if executing a run")
-    pip_extra_index_url: Optional[str] = \
-        param.String(None, doc="An additional URL where PIP packages should be loaded from.")
+    hyperdrive: bool = param.Boolean(False, doc="If True, use AzureML HyperDrive for run execution.")
+    gpu_cluster_name: str = param.String(doc="GPU cluster to use when running inside AzureML.")
+    pip_extra_index_url: str = \
+        param.String(doc="An additional URL where PIP packages should be loaded from.")
     submit_to_azureml: bool = param.Boolean(False, doc="If True, submit the executing script to run on AzureML.")
     tensorboard: bool = param.Boolean(False, doc="If True, then automatically launch TensorBoard to monitor the"
-                                             " latest submitted AzureML run.")
+                                                 " latest submitted AzureML run.")
     is_train: bool = param.Boolean(True,
                                    doc="If True, train a new model. If False, run inference on an existing model.")
     model: str = param.String(doc="The name of the model to train/test.")
@@ -85,14 +85,12 @@ class AzureConfig(GenericConfig):
                                                                  doc="If set, and run_recovery_id is also set, "
                                                                      "register the model for this epoch and do no "
                                                                      "training or testing")
-    pytest_mark: Optional[str] = param.String(None,
-                                              doc="If provided, run pytest after model training. pytest will only "
-                                                  "run the tests that have the mark given in this argument "
-                                                  "('--pytest_mark gpu' will run all tests marked with "
-                                                  "'pytest.mark.gpu')")
-    run_recovery_id: Optional[str] = param.String(None,
-                                                  doc="A run recovery id string in the form 'experiment name:run id'"
-                                                      " to use for inference or recovering a model training run.")
+    pytest_mark: str = param.String(doc="If provided, run pytest after model training. pytest will only "
+                                        "run the tests that have the mark given in this argument "
+                                        "('--pytest_mark gpu' will run all tests marked with "
+                                        "'pytest.mark.gpu')")
+    run_recovery_id: str = param.String(doc="A run recovery id string in the form 'experiment name:run id'"
+                                            " to use for inference or recovering a model training run.")
     experiment_name: str = param.String(doc="If provided, use this string as the name of the AzureML experiment. "
                                             "If not provided, create the experiment off the git branch name.")
     build_number: int = param.Integer(0, doc="The numeric ID of the Azure pipeline that triggered this training run.")
@@ -104,8 +102,8 @@ class AzureConfig(GenericConfig):
     build_source_message: str = param.String(doc="The message associated with the git commit that was used to create "
                                                  "this build.")
     build_source_author: str = param.String(doc="The author of the git commit that was used to create this build.")
-    user_friendly_name: Optional[str] = param.String(None, doc="A user friendly name to identify this experiment.")
-    tag: Optional[str] = param.String(None, doc="A string that will be added as a tag to this experiment.")
+    user_friendly_name: str = param.String(doc="A user friendly name to identify this experiment.")
+    tag: str = param.String(doc="A string that will be added as a tag to this experiment.")
     log_level: str = param.String("INFO",
                                   doc="The level of diagnostic information that should be printed out to the console.")
     wait_for_completion: bool = param.Boolean(False, doc="If true, wait until the AzureML job has completed or failed. "
@@ -114,9 +112,9 @@ class AzureConfig(GenericConfig):
                                                        "at job start. If false, consume it by downloading it at job "
                                                        "start. When running outside AzureML, datasets will always be "
                                                        "downloaded via blobxfer.")
-    extra_code_directory: Optional[str] = param.String(None, doc="Directory (relative to project root) containing code "
-                                                                 "(e.g. model config) to be included in the model for "
-                                                                 "inference. Ignored by default.")
+    extra_code_directory: str = param.String(doc="Directory (relative to project root) containing code "
+                                                 "(e.g. model config) to be included in the model for "
+                                                 "inference. Ignored by default.")
     project_root: Path = param.ClassSelector(class_=Path, default=fixed_paths.repository_root_directory(),
                                              doc="The root folder that contains all code of the project that starts "
                                                  "the InnerEye run.")
