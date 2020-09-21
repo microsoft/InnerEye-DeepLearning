@@ -80,6 +80,14 @@ Detailed instructions, including setup in Azure, are here:
 
 **You are responsible for the performance and any necessary testing or regulatory clearances for any models generated**
 
+## Contact
+
+Please send an email to InnerEyeInfo@microsoft.com if you would like further information on this project.
+
+If you have any requests or issues with the InnerEye-DeepLearning, please submit an Issue via GitHub.
+
+If you are interested in using the InnerEye Deep Learning Toolkit to develop your own products and services, including using Azure Stack Hub, please email InnerEyeCommercial@microsoft.com 
+
 ## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
