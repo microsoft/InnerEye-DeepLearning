@@ -9,8 +9,6 @@ import pytest
 from InnerEye.Azure import secrets_handling
 from InnerEye.Azure.secrets_handling import SecretsHandling, read_variables_from_yaml
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import logging_to_stdout
-from Tests.ML.util import get_default_azure_config
 from Tests.fixed_paths_for_tests import full_azure_test_data_path
 
 
@@ -73,18 +71,6 @@ def test_read_variables_from_yaml() -> None:
     with pytest.raises(KeyError):
         fail_yaml_path = full_azure_test_data_path('dummy_train_missing_variables.yml')
         secrets_handling.read_variables_from_yaml(fail_yaml_path)
-
-
-def test_read_from_keyvault() -> None:
-    """
-    Test if all storage account access keys can be read from the workspace keyvault.
-    """
-    logging_to_stdout()
-    azure_config = get_default_azure_config()
-    key1 = azure_config.get_storage_account_key()
-    assert key1 is not None, "get_storage_account_key"
-    key2 = azure_config.get_dataset_storage_account_key()
-    assert key2 is not None, "get_dataset_storage_account_key"
 
 
 def test_parse_yaml() -> None:
