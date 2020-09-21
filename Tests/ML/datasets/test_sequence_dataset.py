@@ -588,6 +588,7 @@ S4,0,True,4,40,M2,B1
         assert len(val_items[0]) == 1
         assert val_items[0][0].id == "S3"
         # Items in the validation set should be normalized using the mean and std on the training data.
+        # Hence, the non-image features (3, 30) should turn into (2, 2)
         assert_tensors_equal(val_items[0][0].items[0].get_all_non_imaging_features(), [2., 2., 1., 0., 1., 0.])
 
         # Check that the test set is also normalized correctly using the training mean and std.
