@@ -567,7 +567,7 @@ S4,0,True,4,40,M2,B1
                            return_value=splits):
         train_val_loaders = config.create_data_loaders()
         # Expected feature mean: Mean of the training data (0, 0), (1, 10), (2, 20) = (1, 10)
-        # Expected (baised corrected) std estimate: Std of .(0, 0), (1, 10), (2, 20) = (1, 10)
+        # Expected (biased corrected) std estimate: Std of (0, 0), (1, 10), (2, 20) = (1, 10)
         feature_stats = config.get_torch_dataset_for_inference(ModelExecutionMode.TRAIN).feature_statistics
         assert feature_stats is not None
         assert_tensors_equal(feature_stats.mean, [1, 10])
