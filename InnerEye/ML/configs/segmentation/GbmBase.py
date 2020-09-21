@@ -5,10 +5,7 @@
 from typing import Any
 
 import pandas as pd
-from azureml.train.estimator import Estimator
-from azureml.train.hyperdrive import BanditPolicy, HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, uniform
 
-from InnerEye.ML.common import TrackedMetrics
 from InnerEye.ML.config import ModelArchitectureConfig, PhotometricNormalizationMethod, SegmentationModelBase, \
     equally_weighted_classes
 from InnerEye.ML.deep_learning_config import OptimizerType
@@ -71,36 +68,3 @@ class GbmBase(SegmentationModelBase):
             proportion_val=0.2,
             shuffle=True
         )
-
-    def get_cross_validation_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
-        return super().get_cross_validation_hyperdrive_config(estimator)
-
-    def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
-        """
-        Specify an Azure Hyperdrive configuration.
-        Further details are described in the tutorial
-        https://docs.microsoft.com/en-us/azure/machine-learning/service/how-to-tune-hyperparameters
-        A reference is provided at https://docs.microsoft.com/en-us/python/api/azureml-train-core/azureml.train
-        .hyperdrive?view=azure-ml-py
-        :param estimator: The estimator (configured PyTorch environment) of the experiment.
-        :return: An Azure Hyperdrive run configuration (configured PyTorch environment).
-        """
-        parameter_space = {
-            'l_rate': uniform(0.0005, 0.01)
-        }
-
-        param_sampling = RandomParameterSampling(parameter_space)
-
-        # early terminate poorly performing runs
-        early_termination_policy = BanditPolicy(slack_factor=0.15, evaluation_interval=1, delay_evaluation=10)
-
-        config = HyperDriveConfig(estimator=estimator,
-                                  hyperparameter_sampling=param_sampling,
-                                  policy=early_termination_policy,
-                                  primary_metric_name=TrackedMetrics.Val_Loss.value,
-                                  primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-                                  max_total_runs=64,
-                                  max_concurrent_runs=8
-                                  )
-
-        return config

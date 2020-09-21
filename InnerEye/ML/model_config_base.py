@@ -66,14 +66,6 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         # because this would prevent us from easily instantiating this class in tests.
         raise NotImplementedError("get_model_train_test_dataset_splits must be overridden")
 
-    def create_torch_datasets(self, dataset_splits: DatasetSplits) -> Dict[ModelExecutionMode, Any]:
-        """
-        Create torch datasets from the provided dataset splits
-        :param dataset_splits: Torch dataset for each model execution mode.
-        :return:
-        """
-        raise NotImplementedError("create_torch_datasets must be overridden")
-
     def create_and_set_torch_datasets(self, for_training: bool = True, for_inference: bool = True) -> None:
         """
         Creats and sets torch datasets for training and validation, and stores them in the self._datasets_for_training
