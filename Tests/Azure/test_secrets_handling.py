@@ -64,18 +64,18 @@ def test_read_variables_from_yaml() -> None:
     Test that variables are read from a yaml file correctly.
     """
     # this will return a dictionary of all variables in the yaml file
-    yaml_path = full_azure_test_data_path('dummy_train_variables.yml')
+    yaml_path = full_azure_test_data_path('settings.yml')
     vars_dict = secrets_handling.read_variables_from_yaml(yaml_path)
     assert vars_dict == {'some_key': 'some_val'}
     # YAML file missing "variables" key should raise key error
+    fail_yaml_path = full_azure_test_data_path('settings_with_missing_section.yml')
     with pytest.raises(KeyError):
-        fail_yaml_path = full_azure_test_data_path('dummy_train_missing_variables.yml')
         secrets_handling.read_variables_from_yaml(fail_yaml_path)
 
 
 def test_parse_yaml() -> None:
-    assert os.path.isfile(fixed_paths.TRAIN_YAML_FILE)
-    variables = read_variables_from_yaml(fixed_paths.TRAIN_YAML_FILE)
+    assert os.path.isfile(fixed_paths.SETTINGS_YAML_FILE)
+    variables = read_variables_from_yaml(fixed_paths.SETTINGS_YAML_FILE)
     # Check that there are at least two of the variables that we know of
     tenant_id = "tenant_id"
     assert tenant_id in variables

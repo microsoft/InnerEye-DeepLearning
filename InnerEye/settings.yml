@@ -7,6 +7,6 @@ variables:
   resource_group: 'InnerEye-DeepLearning'
   docker_shm_size: '440g'
   workspace_name: 'InnerEye-DeepLearning'
-  gpu_cluster_name: 'training-nd24'
+  cluster: 'training-nd24'
   model_configs_namespace: ''
   extra_code_directory: ''

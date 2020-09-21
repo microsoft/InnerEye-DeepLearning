@@ -23,7 +23,7 @@ standard Linux or Windows machines.
 
 The main entry point into the code is [`InnerEye/ML/runner.py`](/InnerEye/ML/runner.py). The code takes its 
 configuration elements from commandline arguments and a settings file, 
-[`InnerEye/train_variables.yml`](/InnerEye/train_variables.yml). 
+[`InnerEye/settings.yml`](/InnerEye/settings.yml). 
 
 A password for the (optional) Azure Service 
 Principal is read from `InnerEyeTestVariables.txt` in the repository root directory. The file 
@@ -33,7 +33,7 @@ APPLICATION_KEY=<app key for your AML workspace>
 ```
 
 For developing and running your own models, you will probably find it convenient to create your own variants of
-`runner.py` and `train_variables.yml`, as detailed in the page on [model building](building_models.md).
+`runner.py` and `settings.yml`, as detailed in the page on [model building](building_models.md).
 
 To quickly access both runner scripts for local debugging, we created template PyCharm run configurations, called
 "Template: Azure runner" and "Template: ML runner". If you want to execute the runners on your machine, then
