@@ -43,6 +43,7 @@ def test_random_state_snapshot() -> None:
     """
     Test get and reset all random states via RandomStateSnapshot classes.
     """
+
     def _get_random_ints_from_libs() -> Tuple[List[int], np.ndarray, torch.Tensor]:
         _python_random = [random.randint(0, 100) for _ in range(0, 20)]
         _numpy_random = np.random.randint(0, 100, 20)
