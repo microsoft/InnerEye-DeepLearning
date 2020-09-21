@@ -6,6 +6,7 @@ from typing import Any
 
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import BanditPolicy, HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, uniform
+from networkx.tests.test_convert_pandas import pd
 
 from InnerEye.ML.common import TrackedMetrics
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
