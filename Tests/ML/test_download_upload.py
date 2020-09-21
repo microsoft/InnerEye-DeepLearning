@@ -9,12 +9,13 @@ import pytest
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run, get_results_blob_path
-from InnerEye.Common import common_util
-from InnerEye.Common.common_util import logging_to_stdout
+from InnerEye.Common import common_util, fixed_paths
+from InnerEye.Common.common_util import logging_section, logging_to_stdout
 from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.ML import run_ml
+from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
@@ -32,7 +33,6 @@ def runner_config() -> AzureConfig:
     config = get_default_azure_config()
     config.model = ""
     config.is_train = False
-    config.datasets_storage_account = ""
     config.datasets_container = ""
     return config
 
@@ -88,23 +88,67 @@ def test_download_checkpoints_hyperdrive_run(test_output_dirs: TestOutputDirecto
         assert all([expected_file.exists() for expected_file in expected_files])
 
 
-def test_download_dataset(test_output_dirs: TestOutputDirectories) -> None:
-    config = SegmentationModelBase(azure_dataset_id="test-dataset", should_validate=False)
+def test_download_azureml_dataset(test_output_dirs: TestOutputDirectories) -> None:
+    dataset_name = "test-dataset"
+    config = SegmentationModelBase(should_validate=False)
     azure_config = get_default_azure_config()
-    result_path = MLRunner(config, azure_config).download_dataset(None, dataset_path=Path(test_output_dirs.root_dir))
+    runner = MLRunner(config, azure_config)
+    runner.project_root = Path(test_output_dirs.root_dir)
+
+    # If the model has neither local_dataset or azure_dataset_id, mount_or_download_dataset should fail.
+    with pytest.raises(ValueError):
+        runner.mount_or_download_dataset()
+
+    # Pointing the model to a dataset folder that does not exist should raise an Exception
+    fake_folder = runner.project_root / "foo"
+    runner.model_config.local_dataset = fake_folder
+    with pytest.raises(FileNotFoundError):
+        runner.mount_or_download_dataset()
+
+    # If the local dataset folder exists, mount_or_download_dataset should not do anything.
+    fake_folder.mkdir()
+    local_dataset = runner.mount_or_download_dataset()
+    assert local_dataset == fake_folder
+
+    # Pointing the model to a dataset in Azure should trigger a download
+    runner.model_config.local_dataset = None
+    runner.model_config.azure_dataset_id = dataset_name
+    with logging_section("Starting download"):
+        result_path = runner.mount_or_download_dataset()
+    # Download goes into <project_root> / "datasets" / "test_dataset"
+    expected_path = runner.project_root / fixed_paths.DATASETS_DIR_NAME / dataset_name
+    assert result_path == expected_path
+    assert result_path.is_dir()
+    dataset_csv = Path(result_path) / DATASET_CSV_FILE_NAME
+    assert dataset_csv.is_file()
+    # Check that each individual file in the dataset is present
+    for folder in [1, *range(10, 20)]:
+        sub_folder = result_path / str(folder)
+        sub_folder.is_dir()
+        for file in ["ct", "esophagus", "heart", "lung_l", "lung_r", "spinalcord"]:
+            f = (sub_folder / file).with_suffix(".nii.gz")
+            assert f.is_file()
+
+
+def test_download_dataset_via_blobxfer(test_output_dirs: TestOutputDirectories) -> None:
+    azure_config = get_default_azure_config()
+    result_path = run_ml.download_dataset_via_blobxfer(dataset_id="test-dataset",
+                                                       azure_config=azure_config,
+                                                       target_folder=Path(test_output_dirs.root_dir))
     assert result_path
+    assert result_path.is_dir()
     dataset_csv = Path(result_path) / DATASET_CSV_FILE_NAME
     assert dataset_csv.exists()
 
 
 @pytest.mark.parametrize("is_file", [True, False])
-def test_download_blobs(test_output_dirs: TestOutputDirectories, is_file: bool, runner_config: AzureConfig) -> None:
+def test_download_blobxfer(test_output_dirs: TestOutputDirectories, is_file: bool, runner_config: AzureConfig) -> None:
     """
     Test for a bug in early versions of download_blobs: download is happening via prefixes, but because of
     stripping leading directory names, blobs got overwritten.
     """
     root = Path(test_output_dirs.root_dir)
-    account_key = runner_config.get_storage_account_key()
+    account_key = runner_config.get_dataset_storage_account_key()
     assert account_key is not None
     # Expected test data in Azure blobs:
     # folder1/folder1.txt with content "folder1.txt"
@@ -114,7 +158,7 @@ def test_download_blobs(test_output_dirs: TestOutputDirectories, is_file: bool, 
     blobs_root_path = "data-for-testsuite/folder1"
     if is_file:
         blobs_root_path += "/folder1.txt"
-    download_blobs(runner_config.storage_account, account_key, blobs_root_path, root, is_file)
+    download_blobs(runner_config.datasets_storage_account, account_key, blobs_root_path, root, is_file)
 
     folder1 = root / "folder1.txt"
     assert folder1.exists()

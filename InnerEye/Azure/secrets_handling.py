@@ -15,11 +15,14 @@ from InnerEye.Common import fixed_paths
 # lives in the repository root.
 # All values must be in upper case. On Windows, os.environ is case insensitive, on Linux it
 # is case sensitive.
+
 # The application key to access the subscription via ServicePrincipal authentication.
 APPLICATION_KEY = "APPLICATION_KEY"
+# The access key for the Azure storage account that holds the datasets.
+DATASETS_ACCOUNT_KEY = "DATASETS_ACCOUNT_KEY"
 
 # A list of all secrets that are stored in environment variables or local secrets files.
-SECRETS_IN_ENVIRONMENT = [APPLICATION_KEY]
+SECRETS_IN_ENVIRONMENT = [APPLICATION_KEY, DATASETS_ACCOUNT_KEY]
 
 
 def set_environment_variables(variables: Dict[str, str]) -> None:
