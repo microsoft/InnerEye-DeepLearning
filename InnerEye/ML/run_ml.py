@@ -413,7 +413,7 @@ class MLRunner:
 
         # Inside of AzureML, datasets can be either mounted or downloaded.
         if not azure_dataset_id:
-            raise ValueError(f"The model must contain azure_dataset_id for running on AML")
+            raise ValueError("The model must contain azure_dataset_id for running on AML")
         mounted = try_to_mount_input_dataset(RUN_CONTEXT)
         if not mounted:
             raise ValueError("Unable to mount or download input dataset.")
