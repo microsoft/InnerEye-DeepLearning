@@ -59,6 +59,10 @@ After that, you need to set up your Python environment:
 `conda env create --file environment.yml`
 - Activate the environment by running `conda activate InnerEye`
 
+Now try to run the Hello World segmentation model, by running 
+`python InnerEye/runner.py --model=HelloWorld`
+If that works: Congratulations! You have successfully built your first model using the InnerEye toolbox
+
 Detailed instructions, including setup in Azure, are here:
 1. [Setting up your environment](docs/environment.md)
 1. [Training a Hello World segmentation model](docs/hello_world_model.md)

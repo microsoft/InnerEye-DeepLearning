@@ -1,5 +1,8 @@
 # Training a Hello World segmentation model
 
+In the configs folder, you will find a config file called [HelloWorld.py](../InnerEye/ML/configs/segmentation/HelloWorld.py) 
+We have created this file to demonstrate how to:
+
 The aim of this guide is to demonstrate how to:
 1. Subclass SegmentationModelBase which is the base config for all segmentation model configs
 1. Configure the UNet3D implemented in this package
