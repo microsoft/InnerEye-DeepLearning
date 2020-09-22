@@ -10,7 +10,7 @@ import pytest
 import torch
 
 from InnerEye.ML.utils import ml_util
-from InnerEye.ML.utils.ml_util import RandomStateSnapshot, check_size_matches
+from InnerEye.ML.utils.ml_util import RandomStateSnapshot, check_size_matches, is_tensor_nan
 
 
 def test_check_size() -> None:
@@ -43,6 +43,7 @@ def test_random_state_snapshot() -> None:
     """
     Test get and reset all random states via RandomStateSnapshot classes.
     """
+
     def _get_random_ints_from_libs() -> Tuple[List[int], np.ndarray, torch.Tensor]:
         _python_random = [random.randint(0, 100) for _ in range(0, 20)]
         _numpy_random = np.random.randint(0, 100, 20)
@@ -82,3 +83,11 @@ def test_random_state_snapshot() -> None:
     assert restored_python_random == original_python_random
     assert np.array_equal(restored_numpy_random, original_numpy_random)
     assert torch.equal(restored_torch_random, original_torch_random)
+
+
+def test_is_tensor_nan() -> None:
+    assert not is_tensor_nan(torch.tensor([0, 1, 3]))
+    assert is_tensor_nan(torch.tensor([0, np.nan, 3]))
+    assert is_tensor_nan(torch.tensor([0, np.nan, np.inf]))
+    assert not is_tensor_nan(torch.tensor([0, np.inf, 3]))
+    assert not is_tensor_nan(torch.tensor([]))
