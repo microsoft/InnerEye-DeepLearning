@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 from azureml.train.estimator import Estimator
-from azureml.train.hyperdrive import BanditPolicy, HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, \
+from azureml.train.hyperdrive import HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, \
     choice, \
     uniform
 
@@ -117,6 +117,22 @@ def test_dataset_reader_workers() -> None:
         assert config.num_dataset_reader_workers == 0
 
 
+@pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [0, 2])
+def test_get_total_number_of_cross_validation_runs(number_of_cross_validation_splits_per_fold: int) -> None:
+    config = ScalarModelBase(should_validate=False)
+    config.number_of_cross_validation_splits = 2
+    config.number_of_cross_validation_splits_per_fold = number_of_cross_validation_splits_per_fold
+    assert config.perform_cross_validation
+
+    if number_of_cross_validation_splits_per_fold > 0:
+        assert config.perform_sub_fold_cross_validation
+        assert config.get_total_number_of_cross_validation_runs() \
+               == config.number_of_cross_validation_splits * number_of_cross_validation_splits_per_fold
+    else:
+        assert not config.perform_sub_fold_cross_validation
+        assert config.get_total_number_of_cross_validation_runs() == config.number_of_cross_validation_splits
+
+
 @pytest.mark.parametrize("number_of_cross_validation_splits", [0, 2])
 @pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [0, 2])
 def test_get_hyperdrive_config(number_of_cross_validation_splits: int,
@@ -147,8 +163,14 @@ def test_get_hyperdrive_config(number_of_cross_validation_splits: int,
     assert hd_config.estimator.source_directory == source_config.root_folder
     assert hd_config.estimator.run_config.script == source_config.entry_script
     assert hd_config.estimator._script_params == source_config.script_params
-    assert hd_config._max_total_runs == config.get_total_number_of_cross_validation_runs() \
-        if config.perform_cross_validation else HYPERDRIVE_TOTAL_RUNS
+
+    if number_of_cross_validation_splits > 0 and number_of_cross_validation_splits_per_fold > 0:
+        assert hd_config._max_total_runs == number_of_cross_validation_splits * \
+               number_of_cross_validation_splits_per_fold
+    elif number_of_cross_validation_splits > 0:
+        assert hd_config._max_total_runs == number_of_cross_validation_splits
+    else:
+        assert hd_config._max_total_runs == HYPERDRIVE_TOTAL_RUNS
 
     if config.perform_cross_validation:
         # check sampler is as expected
@@ -169,22 +191,12 @@ def test_get_hyperdrive_config(number_of_cross_validation_splits: int,
 
 
 def _create_dummy_hyperdrive_param_search_config(estimator: Estimator) -> HyperDriveConfig:
-    parameter_space = {
-        'l_rate': uniform(0.0005, 0.01)
-    }
-
-    param_sampling = RandomParameterSampling(parameter_space)
-
-    # early terminate poorly performing runs
-    early_termination_policy = BanditPolicy(slack_factor=0.15, evaluation_interval=1, delay_evaluation=10)
-
-    config = HyperDriveConfig(estimator=estimator,
-                              hyperparameter_sampling=param_sampling,
-                              policy=early_termination_policy,
-                              primary_metric_name=TrackedMetrics.Val_Loss.value,
-                              primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-                              max_total_runs=HYPERDRIVE_TOTAL_RUNS,
-                              max_concurrent_runs=8
-                              )
-
-    return config
+    return HyperDriveConfig(
+        estimator=estimator,
+        hyperparameter_sampling=RandomParameterSampling({
+            'l_rate': uniform(0.0005, 0.01)
+        }),
+        primary_metric_name=TrackedMetrics.Val_Loss.value,
+        primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
+        max_total_runs=HYPERDRIVE_TOTAL_RUNS
+    )
