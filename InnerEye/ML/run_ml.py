@@ -416,13 +416,7 @@ class MLRunner:
             raise ValueError(f"The model must contain azure_dataset_id for running on AML")
         mounted = try_to_mount_input_dataset(RUN_CONTEXT)
         if not mounted:
-            # If the dataset can not be mounted, try downloading instead
-            try:
-                return download_dataset(azure_dataset_id=azure_dataset_id,
-                                        target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
-                                        azure_config=self.azure_config)
-            except ValueError:
-                raise ValueError("Unable to mount or download input dataset.")
+            raise ValueError("Unable to mount or download input dataset.")
         return mounted
 
     def register_model_for_best_epoch(self, run_recovery: Optional[RunRecovery],
