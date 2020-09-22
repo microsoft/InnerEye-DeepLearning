@@ -61,6 +61,7 @@ After that, you need to set up your Python environment:
 
 Detailed instructions, including setup in Azure, are here:
 1. [Setting up your environment](docs/environment.md)
+1. [Training a Hello World segmentation model](docs/hello_world_model.md)
 1. [Setting up Azure Machine Learning](docs/setting_up_aml.md)
 1. [Creating a dataset](docs/creating_dataset.md)
 1. [Building models in Azure ML](docs/building_models.md)
