@@ -393,23 +393,27 @@ class MLRunner:
         mounted or downloaded.
         Returns the path of the dataset on the executing machine.
         """
-        local_dataset = self.model_config.local_dataset
-        if local_dataset:
-            expected_dir = Path(local_dataset)
-            if not expected_dir.is_dir():
-                raise FileNotFoundError(f"The model uses a dataset in {expected_dir}, but that does not exist.")
-            logging.info(f"Model training will use the local dataset provided in {expected_dir}")
-            return expected_dir
         azure_dataset_id = self.model_config.azure_dataset_id
-        if not azure_dataset_id:
-            raise ValueError("The model must contain either local_dataset or azure_dataset_id.")
+
         if is_offline_run_context(RUN_CONTEXT):
             # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
             # Otherwise, download the dataset specified by the azure_dataset_id
+            local_dataset = self.model_config.local_dataset
+            if (not azure_dataset_id) and (local_dataset is None):
+                raise ValueError("The model must contain either local_dataset or azure_dataset_id.")
+            if local_dataset:
+                expected_dir = Path(local_dataset)
+                if not expected_dir.is_dir():
+                    raise FileNotFoundError(f"The model uses a dataset in {expected_dir}, but that does not exist.")
+                logging.info(f"Model training will use the local dataset provided in {expected_dir}")
+                return expected_dir
             return download_dataset(azure_dataset_id=azure_dataset_id,
                                     target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
                                     azure_config=self.azure_config)
+
         # Inside of AzureML, datasets can be either mounted or downloaded.
+        if not azure_dataset_id:
+            raise ValueError("The model must contain azure_dataset_id for running on AML")
         mounted = try_to_mount_input_dataset(RUN_CONTEXT)
         if not mounted:
             raise ValueError("Unable to mount or download input dataset.")
