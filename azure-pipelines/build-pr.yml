@@ -2,7 +2,7 @@ name: PR-$(Date:yyyyMMdd)$(Rev:-r)
 variables:
   model: 'BasicModel2Epochs'
   train: 'True'
-  more_switches: '--log_level=DEBUG'
+  more_switches: '--log_level=DEBUG --local_dataset=F:\local'
   run_recovery_id: ''
   tags: 'PR'
   user_friendly_name: 'PR build'
@@ -33,7 +33,7 @@ jobs:
         parameters:
           wait_for_completion: 'True'
           pytest_mark: 'gpu'
-          more_switches: '--use_dataset_mount=True --local_dataset=F:\local'
+          more_switches: '--use_dataset_mount=True'
       - task: PublishTestResults@2
         inputs:
           testResultsFiles: '**/test-*.xml'

@@ -190,8 +190,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                               "usually set from the class name.")
 
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
-    azure_dataset_id: Optional[str] = param.String(None, allow_None=True,
-                                                   doc="The ID of the dataset to use. This dataset must exist as a "
+    azure_dataset_id: str = param.String(doc="If provided, the ID of the dataset to use. This dataset must exist as a "
                                                        "folder of the same name in the 'datasets' "
                                                        "container in the datasets storage account.")
     local_dataset: Optional[Path] = param.ClassSelector(class_=Path,
