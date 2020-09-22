@@ -24,7 +24,7 @@ steps:
     condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
     displayName: Take ownership of conda installation
 
-  -bash: |
+  - bash: |
       sed -i -e "s/subscription_id: ''/subscription_id: '$(InnerEyeDevSubscriptionID)'/" InnerEye/settings.yml
       sed -i -e "s/application_id: ''/application_id: '$(InnerEyeDeepLearningServicePrincipalID)'/" InnerEye/settings.yml
     displayName: Provide subscription information
