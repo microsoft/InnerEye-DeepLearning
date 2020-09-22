@@ -2,7 +2,7 @@ name: PR-$(Date:yyyyMMdd)$(Rev:-r)
 variables:
   model: 'BasicModel2Epochs'
   train: 'True'
-  more_switches: '--log_level=DEBUG'
+  more_switches: '--log_level=DEBUG --local_dataset=F:\local'
   run_recovery_id: ''
   tags: 'PR'
   user_friendly_name: 'PR build'

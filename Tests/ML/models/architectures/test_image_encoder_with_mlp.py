@@ -61,6 +61,7 @@ class ImageEncoder(ScalarModelBase):
             l_rate=1e-1,
             use_mixed_precision=True,
             aggregation_type=aggregation_type,
+            azure_dataset_id="test-dataset",
             **kwargs
         )
         self.encode_channels_jointly = encode_channels_jointly
