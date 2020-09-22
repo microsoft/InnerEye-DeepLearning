@@ -192,7 +192,7 @@ deployment, this cluster will be called "NC24-LowPrio"
 Leave all other fields as they are for now.
 
 ## Done!
-You should be all set now! 
+You should be all set now.
 
-You can now go to the next step [Creating a dataset](https://github.com/microsoft/InnerEye-createdataset) to learn
-how to upload and make your dataset ready for training. 
+You can now go to the next step, [creating a dataset](creating_dataset.md), to learn how segmentation
+datasets should be structured, and how to get your data ready for use in training.
