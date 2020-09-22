@@ -17,8 +17,8 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import INPUT_DATA_KEY, get_or_create_dataset
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
-    EFFECTIVE_RANDOM_SEED_KEY_NAME, \
-    IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME, PARENT_RUN_CONTEXT, \
+    EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, \
+    NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME, PARENT_RUN_CONTEXT, \
     PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
     create_run_recovery_id, get_results_blob_path, has_input_datasets, is_offline_run_context, update_run_tags
 from InnerEye.Common import fixed_paths
@@ -33,7 +33,7 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.runner import ModelDeploymentHookSignature
+from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
@@ -315,10 +315,14 @@ class MLRunner:
 
         # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
         # the current run is a single one. See the documentation of ModelProcessing for more details.
-        self.run_inference_and_register_model(run_recovery, ModelProcessing.DEFAULT)
+        best_epoch = self.run_inference_and_register_model(run_recovery, ModelProcessing.DEFAULT)
+
+        # Generate report
+        if best_epoch:
+            Runner.generate_report(self.model_config, best_epoch, ModelProcessing.DEFAULT)
 
     def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery],
-                                         model_proc: ModelProcessing) -> None:
+                                         model_proc: ModelProcessing) -> Optional[int]:
         """
         Run inference as required, and register the model, but not necessarily in that order:
         if we can identify the epoch to register at without running inference, we register first.
@@ -330,19 +334,24 @@ class MLRunner:
         if registration_epoch is not None:
             self.register_model_for_epoch(RUN_CONTEXT, run_recovery, registration_epoch, np.nan, model_proc)
             if self.azure_config.register_model_only_for_epoch is not None:
-                return
+                return self.azure_config.register_model_only_for_epoch
+
         # run full image inference on existing or newly trained model on the training, and testing set
         test_metrics, val_metrics, _ = self.model_inference_train_and_test(RUN_CONTEXT, run_recovery, model_proc)
+
         # register the generated model from the run if we haven't already done so
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
             if registration_epoch is None:
                 if self.should_register_model():
                     assert test_metrics is None or isinstance(test_metrics, InferenceMetricsForSegmentation)
                     assert val_metrics is None or isinstance(val_metrics, InferenceMetricsForSegmentation)
-                    self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics, model_proc)
+                    registration_epoch = self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics,
+                                                                            model_proc)
             self.try_compare_scores_against_baselines(model_proc)
         else:
             logging.warning("Couldn't register model in offline mode")
+
+        return registration_epoch
 
     def should_register_model(self) -> bool:
         """
@@ -409,7 +418,7 @@ class MLRunner:
     def register_model_for_best_epoch(self, run_recovery: Optional[RunRecovery],
                                       test_metrics: Optional[InferenceMetricsForSegmentation],
                                       val_metrics: Optional[InferenceMetricsForSegmentation],
-                                      model_proc: ModelProcessing) -> None:
+                                      model_proc: ModelProcessing) -> int:
         if val_metrics is not None:
             best_epoch = val_metrics.get_best_epoch()
         elif test_metrics is not None:
@@ -422,6 +431,7 @@ class MLRunner:
             best_epoch_dice = 0.0  # dummy value
         assert isinstance(self.model_config, SegmentationModelBase)
         self.register_model_for_epoch(RUN_CONTEXT, run_recovery, best_epoch, best_epoch_dice, model_proc)
+        return best_epoch
 
     def save_build_info_for_dotnet_consumers(self) -> None:
         results_container = get_results_blob_path(RUN_CONTEXT.id)
