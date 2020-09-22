@@ -13,7 +13,7 @@ from ruamel.yaml.comments import CommentedMap
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import namespace_to_path
-from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME
+from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, INNEREYE_PACKAGE_ROOT
 
 ML_NAMESPACE = "InnerEye.ML"
 
@@ -113,10 +113,14 @@ for requirements_line in pip_list:
 if is_dev_package:
     published_package_name += "-dev"
     package_data[INNEREYE_PACKAGE_NAME] += [
-        fixed_paths.SETTINGS_YAML_FILE_NAME
+        fixed_paths.SETTINGS_YAML_FILE_NAME,
     ]
     print("\n ***** NOTE: This package is built for development purpose only. DO NOT RELEASE THIS! *****")
     print(f"\n ***** Will install dev package data: {package_data} *****\n")
+
+package_data[INNEREYE_PACKAGE_NAME] += [
+    str(INNEREYE_PACKAGE_ROOT / r"ML/reports/segmentation_report.ipynb")
+]
 
 pre_processed_packages = _pre_process_packages()
 try:
