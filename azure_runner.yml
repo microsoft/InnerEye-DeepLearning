@@ -11,6 +11,9 @@ dependencies:
       - blobxfer==1.9.4
       - gitpython==3.1.7
       - numpy==1.19.1
+      - jupyter==1.0.0
+      - matplotlib==3.3.0
+      - papermill==2.1.2
       - pandas==1.1.0
       - param==1.9.3
       - pytest==6.0.1
