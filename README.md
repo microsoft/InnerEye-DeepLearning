@@ -105,7 +105,7 @@ Detailed instructions, including setup in Azure, are here:
 Please send an email to InnerEyeInfo@microsoft.com if you would like further information about this project.
 
 If you have any feature requests, or find issues in the code, please create an 
-[issue on GitHub] (https://github.com/microsoft/InnerEye-DeepLearning/issues).
+[issue on GitHub](https://github.com/microsoft/InnerEye-DeepLearning/issues).
 
 If you are interested in using the InnerEye Deep Learning Toolkit to develop your own products and services,
 please email InnerEyeCommercial@microsoft.com. We can also provide input on using the toolbox with 
