@@ -113,13 +113,6 @@ please email InnerEyeCommercial@microsoft.com. We can also provide input on usin
 that allows for on-premise medical image analysis that complies with data handling regulations.
 
 
-## Credits
-
-This toolbox arose out of the work of (Yao Quin)[http://cseweb.ucsd.edu/~yaq007/] on AutoFocus networks. It was
-improved by (Patricia Gillespie)[https://www.microsoft.com/en-us/research/people/t-pagill/] and
-(Guilherme Ilunga)[https://gilunga.github.io/], before being extended further to become the main workhorse for 
-the whole InnerEye team across all our projects.
-
 ## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
@@ -133,3 +126,11 @@ provided by the bot. You will only need to do this once across all repos using o
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+
+## Credits
+
+This toolbox arose out of the work of (Yao Quin)[http://cseweb.ucsd.edu/~yaq007/] on AutoFocus networks. It was
+improved by (Patricia Gillespie)[https://www.microsoft.com/en-us/research/people/t-pagill/] and
+(Guilherme Ilunga)[https://gilunga.github.io/], before being extended further to become the main workhorse for 
+the whole InnerEye team across all our projects.
