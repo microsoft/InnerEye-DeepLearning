@@ -98,7 +98,7 @@ Detailed instructions, including setup in Azure, are here:
 [MIT License](LICENSE)
 
 **You are responsible for the performance, the necessary testing, and if needed any regulatory clearance for
- any of the models producd by this toolbox.**
+ any of the models produced by this toolbox.**
 
 ## Contact
 
