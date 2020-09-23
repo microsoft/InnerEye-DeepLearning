@@ -107,8 +107,10 @@ Please send an email to InnerEyeInfo@microsoft.com if you would like further inf
 If you have any feature requests, or find issues in the code, please create an 
 [issue on GitHub] (https://github.com/microsoft/InnerEye-DeepLearning/issues).
 
-If you are interested in using the InnerEye Deep Learning Toolkit to develop your own products and services, 
-or if you would like information about using it with Azure Stack Hub, please email InnerEyeCommercial@microsoft.com.
+If you are interested in using the InnerEye Deep Learning Toolkit to develop your own products and services,
+please email InnerEyeCommercial@microsoft.com. We can also provide input on using the toolbox with 
+[Azure Stack Hub](https://azure.microsoft.com/en-us/products/azure-stack/hub/), a hybrid cloud solution
+that allows for on-premise medical image analysis that complies with data handling regulations.
 
 
 ## Credits
