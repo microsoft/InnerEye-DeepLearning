@@ -130,7 +130,12 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
 ## Credits
 
-This toolbox arose out of the work of (Yao Quin)[http://cseweb.ucsd.edu/~yaq007/] on AutoFocus networks. It was
-improved by (Patricia Gillespie)[https://www.microsoft.com/en-us/research/people/t-pagill/] and
-(Guilherme Ilunga)[https://gilunga.github.io/], before being extended further to become the main workhorse for 
-the whole InnerEye team across all our projects.
+This toolbox is maintained by the 
+[Microsoft InnerEye team](https://www.microsoft.com/en-us/research/project/medical-image-analysis/), 
+and has received valuable contributions from a number
+of people outside our team. We would like to thank in particular our interns, 
+[Yao Quin](http://cseweb.ucsd.edu/~yaq007/), [Zoe Landgraf](https://www.linkedin.com/in/zoe-landgraf-a2212293),
+[Padmaja Jonnalagedda](https://www.linkedin.com/in/jspadmaja/),
+[Mathias Perslev](https://github.com/perslev), as well as the AI Residents 
+[Patricia Gillespie](https://www.microsoft.com/en-us/research/people/t-pagill/) and
+[Guilherme Ilunga](https://gilunga.github.io/).
