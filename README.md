@@ -30,7 +30,8 @@ nodes can be used to further reduce costs (up to 80% cheaper).
 - **Scale out**: Large numbers of VMs can be requested easily to cope with a burst in jobs.
 
 Despite the cloud focus, all training and model testing works just as well on local compute, which is important for
-model prototyping, debugging, and in cases where the cloud can't be used.
+model prototyping, debugging, and in cases where the cloud can't be used. In particular, if you already have GPU
+machines available, you will be able to utilize them with the InnerEye toolbox.
 
 In addition, our toolbox supports:
  - Cross-validation using AzureML's built-in support, where the models for 
