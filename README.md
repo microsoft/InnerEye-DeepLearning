@@ -83,15 +83,26 @@ Detailed instructions, including setup in Azure, are here:
 
 [MIT License](LICENSE)
 
-**You are responsible for the performance and any necessary testing or regulatory clearances for any models generated**
+**You are responsible for the performance, the necessary testing, and if needed any regulatory clearance for
+ any of the models producd by this toolbox.**
 
 ## Contact
 
-Please send an email to InnerEyeInfo@microsoft.com if you would like further information on this project.
+Please send an email to InnerEyeInfo@microsoft.com if you would like further information about this project.
 
-If you have any requests or issues with the InnerEye-DeepLearning, please submit an Issue via GitHub.
+If you have any feature requests, or find issues in the code, please create an 
+[issue on GitHub] (https://github.com/microsoft/InnerEye-DeepLearning/issues).
 
-If you are interested in using the InnerEye Deep Learning Toolkit to develop your own products and services, including using Azure Stack Hub, please email InnerEyeCommercial@microsoft.com 
+If you are interested in using the InnerEye Deep Learning Toolkit to develop your own products and services, 
+or if you would like information about using it with Azure Stack Hub, please email InnerEyeCommercial@microsoft.com.
+
+
+## Credits
+
+This toolbox arose out of the work of (Yao Quin)[http://cseweb.ucsd.edu/~yaq007/] on AutoFocus networks. It was
+improved by (Patricia Gillespie)[https://www.microsoft.com/en-us/research/people/t-pagill/] and
+(Guilherme Ilunga)[https://gilunga.github.io/], before being extended further to become the main workhorse for 
+the whole InnerEye team across all our projects.
 
 ## Contributing
 
