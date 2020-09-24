@@ -35,8 +35,8 @@ This replaces steps 1 and 2 below.
 the script will create. In doing that, you will need to choose a location where all your Azure resources live - here,
 pick a location that is compliant with the legal requirements that your own datasets have (for example, your data may
 need to be kept inside of the UK)
-- Then choose a name for your AzureML workspace. Use letters and numbers only, because other resources will be created
-using the workspace name as a prefix.
+- Then choose a name for your AzureML workspace. **Use letters and numbers only**, because other resources will be
+ created using the workspace name as a prefix!
 
 You can invoke the deployment also by going to [Azure](https://ms.portal.azure.com/#create/Microsoft.Template), 
 selecting "Build your own template", and in the editor upload the 
