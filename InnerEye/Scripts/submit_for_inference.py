@@ -109,14 +109,15 @@ def choose_download_path(download_folder: Path) -> Path:
         base = ".".join([f"{components[0]}_{index:03d}"] + components[1:])
 
 
-def submit_for_inference(args: SubmitForInferenceConfig) -> Optional[Path]:
+def submit_for_inference(args: SubmitForInferenceConfig,
+                         project_root: Optional[Path] = None) -> Optional[Path]:
     """
     Create and submit an inference to AzureML, and optionally download the resulting segmentation.
     :param args: configuration, see SubmitForInferenceConfig
     :return: path to downloaded segmentation on local disc, or None if none.
     """
     logging.info(f"Building Azure configuration from {args.yaml_file}")
-    azure_config = AzureConfig.from_yaml(args.yaml_file)
+    azure_config = AzureConfig.from_yaml(args.yaml_file, project_root=project_root)
     logging.info("Getting workspace")
     workspace = azure_config.get_workspace()
     logging.info("Identifying model")
@@ -162,12 +163,13 @@ def submit_for_inference(args: SubmitForInferenceConfig) -> Optional[Path]:
     return download_path
 
 
-def main(args: Optional[List[str]] = None) -> None:
+def main(args: Optional[List[str]] = None, project_root: Optional[Path] = None) -> None:
     """
     Main function.
     """
     logging_to_stdout()
-    submit_for_inference(SubmitForInferenceConfig.parse_args(args))
+    submit_for_inference(SubmitForInferenceConfig.parse_args(args),
+                         project_root=project_root)
 
 
 if __name__ == '__main__':

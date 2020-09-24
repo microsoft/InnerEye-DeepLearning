@@ -3,13 +3,25 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+from pathlib import Path
+from typing import Dict
 
 import pytest
 
 from InnerEye.Azure import secrets_handling
-from InnerEye.Azure.secrets_handling import SecretsHandling, read_variables_from_yaml
+from InnerEye.Azure.secrets_handling import SecretsHandling
 from InnerEye.Common import fixed_paths
-from Tests.fixed_paths_for_tests import full_azure_test_data_path
+from InnerEye.Common.output_directories import TestOutputDirectories
+
+
+def set_environment_variables(variables: Dict[str, str]) -> None:
+    """
+    Creates an environment variable for each entry in the given dictionary. The dictionary key is the variable
+    name, it will be converted to uppercase before setting.
+    :param variables: The variable names and their associated values that should be set.
+    """
+    for name, value in variables.items():
+        os.environ[name.upper()] = value
 
 
 def test_environ_get_set() -> None:
@@ -20,7 +32,7 @@ def test_environ_get_set() -> None:
     for name in variables.keys():
         if name in os.environ:
             del os.environ[name]
-    secrets_handling.set_environment_variables(variables)
+    set_environment_variables(variables)
     for name, value in variables.items():
         name = name.upper()
         assert name in os.environ
@@ -59,23 +71,57 @@ def test_all_secrets_is_upper() -> None:
         assert name == name.upper(), "Secret '{}' should have a only uppercase value".format(name)
 
 
-def test_read_variables_from_yaml() -> None:
+def test_read_variables_from_yaml(test_output_dirs: TestOutputDirectories) -> None:
     """
     Test that variables are read from a yaml file correctly.
     """
+    root = Path(test_output_dirs.root_dir)
     # this will return a dictionary of all variables in the yaml file
-    yaml_path = full_azure_test_data_path('settings.yml')
-    vars_dict = secrets_handling.read_variables_from_yaml(yaml_path)
-    assert vars_dict == {'some_key': 'some_val'}
+    yaml_path = root / "foo.yml"
+    yaml_path.write_text("""variables:
+  some_key: 'some_val'
+  key2: 'val2'""")
+    vars_dict = secrets_handling.read_all_settings(yaml_path)
+    assert vars_dict == {"some_key": "some_val", "key2": "val2"}
     # YAML file missing "variables" key should raise key error
-    fail_yaml_path = full_azure_test_data_path('settings_with_missing_section.yml')
+    fail_yaml_path = root / "error.yml"
+    fail_yaml_path.write_text("""some_key: 'some_val'""")
     with pytest.raises(KeyError):
-        secrets_handling.read_variables_from_yaml(fail_yaml_path)
+        secrets_handling.read_all_settings(fail_yaml_path)
+    # Write a private settings file, and check if that is merged correctly.
+    # Keys in the private settings file should have higher priority than those in the normal file.
+    private_file = root / secrets_handling.PRIVATE_SETTINGS_FILE
+    private_file.write_text("""variables:
+  some_key: 'private_value'
+  key42: 42
+""")
+    vars_with_private = secrets_handling.read_all_settings(yaml_path, project_root=root)
+    assert vars_with_private == \
+           {
+               "some_key": "private_value",
+               "key42": 42,
+               "key2": "val2"
+           }
+    # Providing no files should return an empty dictionary
+    vars_from_no_file = secrets_handling.read_all_settings()
+    assert vars_from_no_file == {}
+    # Provide only a project root with a private file:
+    private_only = secrets_handling.read_all_settings(project_root=root)
+    assert private_only == \
+           {
+               "some_key": "private_value",
+               "key42": 42,
+           }
+    # Invalid file name should raise an exception
+    does_not_exist = "does_not_exist"
+    with pytest.raises(FileNotFoundError) as ex:
+        secrets_handling.read_all_settings(project_settings_file=root / does_not_exist)
+    assert does_not_exist in str(ex)
 
 
 def test_parse_yaml() -> None:
     assert os.path.isfile(fixed_paths.SETTINGS_YAML_FILE)
-    variables = read_variables_from_yaml(fixed_paths.SETTINGS_YAML_FILE)
+    variables = secrets_handling.read_settings_yaml_file(fixed_paths.SETTINGS_YAML_FILE)
     # Check that there are at least two of the variables that we know of
     tenant_id = "tenant_id"
     assert tenant_id in variables

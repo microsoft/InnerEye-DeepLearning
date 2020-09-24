@@ -11,6 +11,7 @@
     <option name="IS_MODULE_SDK" value="true" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
+    <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="InnerEye/Azure/tensorboard_monitor.py" />
     <option name="PARAMETERS" value="--experiment_name=my_unet2d" />
     <option name="SHOW_COMMAND_LINE" value="false" />

@@ -21,8 +21,7 @@ from git import Repo
 
 from InnerEye.Azure.azure_util import is_offline_run_context
 from InnerEye.Azure.secrets_handling import APPLICATION_KEY, DATASETS_ACCOUNT_KEY, SecretsHandling, \
-    read_variables_from_yaml
-from InnerEye.Common import fixed_paths
+    read_all_settings
 from InnerEye.Common.generic_parsing import GenericConfig
 
 
@@ -117,9 +116,9 @@ class AzureConfig(GenericConfig):
     extra_code_directory: str = param.String(doc="Directory (relative to project root) containing code "
                                                  "(e.g. model config) to be included in the model for "
                                                  "inference. Ignored by default.")
-    project_root: Path = param.ClassSelector(class_=Path, default=fixed_paths.repository_root_directory(),
-                                             doc="The root folder that contains all code of the project that starts "
-                                                 "the InnerEye run.")
+    project_root: Optional[Path] = param.ClassSelector(class_=Path, allow_None=True, default=None,
+                                                       doc="The root folder that contains all code of the project "
+                                                           "that starts the InnerEye run.")
     _workspace: Workspace = param.ClassSelector(class_=Workspace,
                                                 doc="The cached workspace object that has been created in the first"
                                                     "call to get_workspace")
@@ -171,13 +170,18 @@ class AzureConfig(GenericConfig):
         )
 
     @staticmethod
-    def from_yaml(yaml_file_path: Path) -> AzureConfig:
+    def from_yaml(yaml_file_path: Path, project_root: Optional[Path]) -> AzureConfig:
         """
-        Creates an AzureConfig object with default values, with the keys/secrets populated from values in YAML files.
-        :param yaml_file_path: path to the yaml to load as AzureConfig
-        :return: AzureConfig with values populated from the yaml file.
+        Creates an AzureConfig object with default values, with the keys/secrets populated from values in the
+         given YAML file. If a `project_root` folder is provided, a private settings file is read from there as well.
+        :param yaml_file_path: Path to the YAML file that contains values to create the AzureConfig
+        :param project_root: A folder in which to search for a private settings file.
+        :return: AzureConfig with values populated from the yaml files.
         """
-        return AzureConfig(**read_variables_from_yaml(yaml_file_path))
+        config = AzureConfig(**read_all_settings(project_settings_file=yaml_file_path,
+                                                 project_root=project_root))
+        config.project_root = project_root
+        return config
 
     def get_dataset_storage_account_key(self) -> Optional[str]:
         """
