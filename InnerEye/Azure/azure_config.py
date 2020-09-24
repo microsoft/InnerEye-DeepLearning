@@ -22,6 +22,7 @@ from git import Repo
 from InnerEye.Azure.azure_util import is_offline_run_context
 from InnerEye.Azure.secrets_handling import APPLICATION_KEY, DATASETS_ACCOUNT_KEY, SecretsHandling, \
     read_all_settings
+from InnerEye.Common import fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
 
 
@@ -116,9 +117,9 @@ class AzureConfig(GenericConfig):
     extra_code_directory: str = param.String(doc="Directory (relative to project root) containing code "
                                                  "(e.g. model config) to be included in the model for "
                                                  "inference. Ignored by default.")
-    project_root: Optional[Path] = param.ClassSelector(class_=Path, allow_None=True, default=None,
-                                                       doc="The root folder that contains all code of the project "
-                                                           "that starts the InnerEye run.")
+    project_root: Path = param.ClassSelector(class_=Path, default=fixed_paths.repository_root_directory(),
+                                             doc="The root folder that contains all code of the project "
+                                                 "that starts the InnerEye run.")
     _workspace: Workspace = param.ClassSelector(class_=Workspace,
                                                 doc="The cached workspace object that has been created in the first"
                                                     "call to get_workspace")

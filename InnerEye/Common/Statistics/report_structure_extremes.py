@@ -70,20 +70,14 @@ def open_with_header(path: str, path_set: Set[str]) -> TextIO:
     return file
 
 
-def report_structure_extremes(dataset_dir: str,
-                              settings_yaml_file: Path,
-                              project_root: Optional[Path] = None) -> None:
+def report_structure_extremes(dataset_dir: str, azure_config: AzureConfig) -> None:
     """
     Writes structure-extreme lines for the subjects in a directory.
     If there are any structures with missing slices, a ValueError is raised after writing all the lines.
     This allows a build failure to be triggered when such structures exist.
-    :param settings_yaml_file: The path to the YAML file that contains all Azure-related options.
+    :param azure_config: An object with all necessary information for accessing Azure.
     :param dataset_dir: directory containing subject subdirectories with integer names.
-    :param project_root: The root folder of the project that starts the script. This is only used to locate the
-    optional InnerEyePrivateSettings.yml file.
     """
-    azure_config = AzureConfig.from_yaml(yaml_file_path=settings_yaml_file,
-                                         project_root=project_root)
     download_dataset_directory(azure_config, dataset_dir)
     subjects: Set[int] = set()
     series_map = None
@@ -244,9 +238,9 @@ def main(settings_yaml_file: Optional[Path] = None,
     """
     logging_to_stdout()
     config = ReportStructureExtremesConfig.parse_args()
-    report_structure_extremes(config.dataset,
-                              settings_yaml_file=settings_yaml_file or config.settings,
-                              project_root=project_root)
+    azure_config = AzureConfig.from_yaml(yaml_file_path=settings_yaml_file or config.settings,
+                                         project_root=project_root)
+    report_structure_extremes(config.dataset, azure_config)
 
 
 if __name__ == '__main__':

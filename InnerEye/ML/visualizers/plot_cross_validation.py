@@ -189,7 +189,7 @@ class PlotCrossValidationConfig(GenericConfig):
         :return:
         """
         if self._azure_config is None:
-            self._azure_config = AzureConfig.from_yaml(Path(self.settings_yaml_file))
+            self._azure_config = AzureConfig.from_yaml(Path(self.settings_yaml_file), project_root=None)
         return self._azure_config
 
     def download_or_get_local_file(self,

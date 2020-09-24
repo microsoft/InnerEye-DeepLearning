@@ -21,7 +21,7 @@ from Tests.Common.test_util import DEFAULT_MODEL_ID_NUMERIC
 def test_submit_for_inference() -> None:
     args = ["--image_file", "Tests/ML/test_data/train_and_test_data/id1_channel1.nii.gz",
             "--model_id", DEFAULT_MODEL_ID_NUMERIC,
-            "--yaml_file", "InnerEye/settings.yml",
+            "--settings", "InnerEye/settings.yml",
             "--download_folder", "."]
     seg_path = Path(DEFAULT_RESULT_IMAGE_NAME)
     if seg_path.exists():

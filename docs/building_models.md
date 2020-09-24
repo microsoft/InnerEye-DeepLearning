@@ -147,7 +147,7 @@ Alternatively, to submit an AzureML run to apply a model to a single image on yo
 you can use the script `submit_for_inference.py`, with a command of this form:
 ```shell script
 python InnerEye/Scripts/submit_for_inference.py --image_file ~/somewhere/ct.nii.gz --model_id Prostate:555 \
-  --yaml_file ../somewhere_else/settings.yml --download_folder ~/my_existing_folder
+  --settings ../somewhere_else/settings.yml --download_folder ~/my_existing_folder
 ```
 
 ### Model Ensembles
