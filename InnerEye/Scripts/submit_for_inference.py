@@ -29,8 +29,8 @@ class SubmitForInferenceConfig(GenericConfig):
                                         doc="Name of experiment the run should belong to")
     model_id: str = param.String(doc="Id of model, e.g. Prostate:123")
     image_file: Path = param.ClassSelector(class_=Path, doc="Image file to segment, ending in .nii.gz")
-    yaml_file: Path = param.ClassSelector(
-        class_=Path, doc="File containing subscription details, typically your settings.yml")
+    settings: Path = param.ClassSelector(class_=Path,
+                                         doc="File containing subscription details, typically your settings.yml")
     download_folder: Optional[Path] = param.ClassSelector(default=None,
                                                           class_=Path,
                                                           doc="Folder into which to download the segmentation result")
@@ -38,7 +38,7 @@ class SubmitForInferenceConfig(GenericConfig):
         default=False, doc="Whether to keep the temporary upload folder after the inference run is submitted")
 
     def validate(self) -> None:
-        assert self.yaml_file is not None
+        assert self.settings is not None
         # The image file must be specified, must exist, and must end in .nii.gz, i.e. be
         # a compressed Nifti file.
         assert self.image_file is not None
@@ -109,14 +109,14 @@ def choose_download_path(download_folder: Path) -> Path:
         base = ".".join([f"{components[0]}_{index:03d}"] + components[1:])
 
 
-def submit_for_inference(args: SubmitForInferenceConfig) -> Optional[Path]:
+def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConfig) -> Optional[Path]:
     """
     Create and submit an inference to AzureML, and optionally download the resulting segmentation.
+    :param azure_config: An object with all necessary information for accessing Azure.
     :param args: configuration, see SubmitForInferenceConfig
     :return: path to downloaded segmentation on local disc, or None if none.
     """
-    logging.info(f"Building Azure configuration from {args.yaml_file}")
-    azure_config = AzureConfig.from_yaml(args.yaml_file)
+    logging.info(f"Building Azure configuration from {args.settings}")
     logging.info("Getting workspace")
     workspace = azure_config.get_workspace()
     logging.info("Identifying model")
@@ -162,12 +162,14 @@ def submit_for_inference(args: SubmitForInferenceConfig) -> Optional[Path]:
     return download_path
 
 
-def main(args: Optional[List[str]] = None) -> None:
+def main(args: Optional[List[str]] = None, project_root: Optional[Path] = None) -> None:
     """
     Main function.
     """
     logging_to_stdout()
-    submit_for_inference(SubmitForInferenceConfig.parse_args(args))
+    inference_config = SubmitForInferenceConfig.parse_args(args)
+    azure_config = AzureConfig.from_yaml(inference_config.settings, project_root=project_root)
+    submit_for_inference(inference_config, azure_config)
 
 
 if __name__ == '__main__':
