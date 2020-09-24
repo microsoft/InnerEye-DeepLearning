@@ -181,7 +181,8 @@ class AzureConfig(GenericConfig):
         """
         config = AzureConfig(**read_all_settings(project_settings_file=yaml_file_path,
                                                  project_root=project_root))
-        config.project_root = project_root
+        if project_root:
+            config.project_root = project_root
         return config
 
     def get_dataset_storage_account_key(self) -> Optional[str]:
