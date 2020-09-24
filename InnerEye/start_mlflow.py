@@ -23,7 +23,7 @@ class MLFlowSettings(GenericConfig):
     port: int = param.Integer(default=8008, doc="The port on which the MLFlow server will operate.")
 
 
-def aml_ui(backend_store_uri, default_artifact_root, port, host):
+def aml_ui(backend_store_uri, default_artifact_root, port, host) -> None:
     try:
         initialize_backend_stores(backend_store_uri, default_artifact_root)
     except Exception as ex:
