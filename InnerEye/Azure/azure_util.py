@@ -200,7 +200,7 @@ def estimator_to_string(estimator: Estimator) -> Optional[str]:
     """
     Convert a given AzureML estimator object to a string with its run configurations
     """
-    return ruamel.yaml.round_trip_dump(_serialize_to_dict(estimator.run_config))
+    return ruamel.yaml.round_trip_dump(_serialize_to_dict(estimator.run_config))  # type: ignore
 
 
 def to_azure_friendly_container_path(path: Path) -> str:
