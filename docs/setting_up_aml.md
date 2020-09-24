@@ -29,7 +29,7 @@ Click on this link to automatically create
 - and a computer cluster for training.
 This replaces steps 1 and 2 below.
 
-[![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fgithub.com%2FMicrosoft%2FInnerEye-DeepLearning%2Fblob%2Fmaster%2Fazure-pipelines%2Fazure_deployment_template.json)
+[![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FInnerEye-DeepLearning%2Fmaster%2Fazure-pipelines%2Fazure_deployment_template.json)
 
 - You will be asked to create a new `Resource Group`, a logical grouping that will hold all the Azure resources that
 the script will create. In doing that, you will need to choose a location where all your Azure resources live - here,
