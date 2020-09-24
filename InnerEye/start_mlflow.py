@@ -47,5 +47,8 @@ def start_ui(project_root: Path) -> None:
     aml_ui(backend_store_uri=uri, default_artifact_root=uri, port=server_settings.port, host="0.0.0.0")
 
 
+# Script to start an MLFlow server on localhost:8008 by default. The MLFlow server talks to the AzureML
+# workspace that is configured for the InnerEye toolbox, via the settings.yml file.
+# Script options: --settings <settings_yaml_file> --port <http_server_port>
 if __name__ == "__main__":
     start_ui(project_root=fixed_paths.repository_root_directory())

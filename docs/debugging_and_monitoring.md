@@ -1,6 +1,6 @@
-# Debugging and Monitoring Jobs
+# Monitoring and Debugging Jobs
 
-### Using TensorBoard to monitor AzureML jobs
+## Using TensorBoard to monitor AzureML jobs
 
 * **Existing jobs**: execute [`InnerEye/Azure/tensorboard_monitor.py`](/InnerEye/Azure/tensorboard_monitor.py) 
 with either an experiment id `--experiment_name` or a list of run ids `--run_ids job1,job2,job3`. 
@@ -15,6 +15,18 @@ arguments with your jobs to monitor.
 * **New jobs**: when queuing a new AzureML job, pass `--tensorboard=True`, which will automatically start a new TensorBoard
 session, monitoring the newly queued job. 
 
+
+## Using MLFlow to monitor AzureML jobs
+
+As an alternative to monitoring the AzureML jobs on the AzureML UI, you can start an
+[MLFlow](http://mlflow.org) server that takes information from AzureML as its back-end.
+
+To start the MLFlow server, start the Python script `InnerEye/start_mlflow.py`. It will take all its
+settings to access Azure from the `settings.yml` file that also the rest of the toolbox uses.
+Open the URL that is printed out in a browser.
+
+
+## Debugging
 
 ### Debugging setup on local machine
 
@@ -62,7 +74,7 @@ imported by those), validate them using a model training run in Azure. You can q
 simplified `BasicModel2Epochs` model.
 
 
-# Debugging on an AzureML node
+## Debugging on an AzureML node
 
 It is sometimes possible to get a Python debugging (pdb) session on the main process for a model
 training run on an  AzureML compute cluster, for example if a run produces unexpected output,
