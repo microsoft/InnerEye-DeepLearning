@@ -25,6 +25,5 @@ steps:
     displayName: Take ownership of conda installation
 
   - bash: |
-      sed -i -e "s/subscription_id: ''/subscription_id: '$(InnerEyeDevSubscriptionID)'/" InnerEye/settings.yml
-      sed -i -e "s/application_id: ''/application_id: '$(InnerEyeDeepLearningServicePrincipalID)'/" InnerEye/settings.yml
+      echo -e "variables:\n  subscription_id: '$(InnerEyeDevSubscriptionID)'\n  application_id: '$(InnerEyeDeepLearningServicePrincipalID)'" > InnerEyePrivateSettings.yml
     displayName: Provide subscription information
