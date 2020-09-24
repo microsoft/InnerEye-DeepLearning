@@ -23,13 +23,11 @@ for more information on how to set up your account and your subscription. Here a
 
 ## Automatic Deployment
 
-Click on this link to automatically create
+Click on the button below to automatically create
 - an AzureML workspace
 - an associated storage account that will hold all training results
 - and a computer cluster for training.
 This replaces steps 1 and 2 below.
-
-[![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FInnerEye-DeepLearning%2Fmaster%2Fazure-pipelines%2Fazure_deployment_template.json)
 
 - You will be asked to create a new `Resource Group`, a logical grouping that will hold all the Azure resources that
 the script will create. In doing that, you will need to choose a location where all your Azure resources live - here,
@@ -37,6 +35,8 @@ pick a location that is compliant with the legal requirements that your own data
 need to be kept inside of the UK)
 - Then choose a name for your AzureML workspace. **Use letters and numbers only**, because other resources will be
  created using the workspace name as a prefix!
+
+[![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FInnerEye-DeepLearning%2Fmaster%2Fazure-pipelines%2Fazure_deployment_template.json)
 
 You can invoke the deployment also by going to [Azure](https://ms.portal.azure.com/#create/Microsoft.Template), 
 selecting "Build your own template", and in the editor upload the 
