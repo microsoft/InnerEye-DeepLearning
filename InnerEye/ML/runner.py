@@ -74,6 +74,9 @@ def suppress_logging_noise() -> None:
     logging.getLogger('urllib3').setLevel(logging.INFO)
     # AzureML prints too many details about logging metrics
     logging.getLogger('azureml').setLevel(logging.INFO)
+    # Jupyter notebook report generation
+    logging.getLogger('papermill').setLevel(logging.INFO)
+    logging.getLogger('nbconvert').setLevel(logging.INFO)
     # This is working around a spurious error message thrown by MKL, see
     # https://github.com/pytorch/pytorch/issues/37377
     os.environ['MKL_THREADING_LAYER'] = 'GNU'
@@ -176,7 +179,7 @@ class Runner:
         plot_crossval_config = crossval_config_from_model_config(self.model_config)
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
         plot_crossval_config.outputs_directory = str(self.model_config.outputs_folder)
-        plot_crossval_config.train_yaml_path = str(self.yaml_config_file)
+        plot_crossval_config.settings_yaml_file = str(self.yaml_config_file)
         cross_val_results_root = plot_cross_validation(plot_crossval_config)
         if self.post_cross_validation_hook:
             self.post_cross_validation_hook(self.model_config, cross_val_results_root)
@@ -242,6 +245,7 @@ class Runner:
         parser1 = create_runner_parser()
         parser1_result = parse_args_and_add_yaml_variables(parser1,
                                                            yaml_config_file=self.yaml_config_file,
+                                                           project_root=self.project_root,
                                                            args=self.command_line_args,
                                                            fail_on_unknown_args=False)
         azure_config = AzureConfig(**parser1_result.args)

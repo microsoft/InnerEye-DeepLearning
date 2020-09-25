@@ -45,6 +45,13 @@ steps:
     condition: succeededOrFailed()
     displayName: mypy
 
+  # Pytest needs subscription information directly in settings.yml. Local package install will cause use of
+  # the wrong default project root, hence InnerEyePrivateSettings.yml can't be picked up.
+  - bash: |
+      sed -i -e "s/subscription_id: ''/subscription_id: '$(InnerEyeDevSubscriptionID)'/" InnerEye/settings.yml
+      sed -i -e "s/application_id: ''/application_id: '$(InnerEyeDeepLearningServicePrincipalID)'/" InnerEye/settings.yml
+    displayName: Store subscription in settings.yml
+
   - bash: |
       source activate InnerEye
       python setup.py install
