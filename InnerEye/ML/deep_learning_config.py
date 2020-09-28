@@ -19,6 +19,7 @@ from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
+from InnerEye.Datasets.kaggle_dataset_downloader import KaggleDataset
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, \
     create_unique_timestamp_id
 
@@ -191,8 +192,20 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     azure_dataset_id: str = param.String(doc="If provided, the ID of the dataset to use. This dataset must exist as a "
-                                                       "folder of the same name in the 'datasets' "
-                                                       "container in the datasets storage account.")
+                                             "folder of the same name in the 'datasets' "
+                                             "container in the datasets storage account.")
+    kaggle_dataset: Optional[KaggleDataset] = param.ClassSelector(class_=KaggleDataset,
+                                                                  default=None,
+                                                                  allow_None=True,
+                                                                  doc="If set then the provided dataset will be "
+                                                                      "downloaded from Kaggle and pre-processed. "
+                                                                      "username and key will be picked up from a "
+                                                                      "kaggle.json which is expected in"
+                                                                      "~/.kaggle/ (Linux) or "
+                                                                      "C:\\Users\\<username>\\.kaggle\\ (Windows). "
+                                                                      "Otherwise the environment variables "
+                                                                      "KAGGLE_USERNAME and KAGGLE_KEY must be "
+                                                                      "set.")
     local_dataset: Optional[Path] = param.ClassSelector(class_=Path,
                                                         default=None,
                                                         allow_None=True,
@@ -381,8 +394,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                 "The adam_betas parameter should be the coefficients used for computing running averages of "
                 "gradient and its square")
 
-        if self.azure_dataset_id is None and self.local_dataset is None:
-            raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
+        if self.azure_dataset_id is None and self.local_dataset is None and self.kaggle_dataset is None:
+            raise ValueError("Either of local_dataset, kaggle_dataset or azure_dataset_id must be set.")
 
         if self.number_of_cross_validation_splits == 1:
             raise ValueError(f"At least two splits required to perform cross validation found "
@@ -587,7 +600,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         test_epochs = {self.num_epochs}
         if self.test_diff_epochs is not None and self.test_start_epoch is not None and \
-                self.test_step_epochs is not None:
+            self.test_step_epochs is not None:
             for j in range(self.test_diff_epochs):
                 epoch = self.test_start_epoch + self.test_step_epochs * j
                 if epoch > self.num_epochs:

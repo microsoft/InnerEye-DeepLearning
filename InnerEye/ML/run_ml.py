@@ -25,6 +25,7 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section, print_exception
 from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
+from InnerEye.Datasets.kaggle_dataset_downloader import KaggleDataset, KaggleDatasetDownloader
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod
@@ -395,7 +396,13 @@ class MLRunner:
         """
         azure_dataset_id = self.model_config.azure_dataset_id
 
-        if is_offline_run_context(RUN_CONTEXT):
+        dataset_dst = self.project_root / fixed_paths.DATASETS_DIR_NAME
+
+        if self.model_config.kaggle_dataset:
+            return KaggleDatasetDownloader(dataset=KaggleDataset.MedMNIST,
+                                           outputs_dir=dataset_dst).download_and_pre_process()
+
+        elif is_offline_run_context(RUN_CONTEXT):
             # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
             # Otherwise, download the dataset specified by the azure_dataset_id
             local_dataset = self.model_config.local_dataset
@@ -408,16 +415,16 @@ class MLRunner:
                 logging.info(f"Model training will use the local dataset provided in {expected_dir}")
                 return expected_dir
             return download_dataset(azure_dataset_id=azure_dataset_id,
-                                    target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
+                                    target_folder=dataset_dst,
                                     azure_config=self.azure_config)
-
-        # Inside of AzureML, datasets can be either mounted or downloaded.
-        if not azure_dataset_id:
-            raise ValueError("The model must contain azure_dataset_id for running on AML")
-        mounted = try_to_mount_input_dataset(RUN_CONTEXT)
-        if not mounted:
-            raise ValueError("Unable to mount or download input dataset.")
-        return mounted
+        else:
+            # Inside of AzureML, datasets can be either mounted or downloaded.
+            if not azure_dataset_id:
+                raise ValueError("The model must contain azure_dataset_id for running on AML")
+            mounted = try_to_mount_input_dataset(RUN_CONTEXT)
+            if not mounted:
+                raise ValueError("Unable to mount or download input dataset.")
+            return mounted
 
     def register_model_for_best_epoch(self, run_recovery: Optional[RunRecovery],
                                       test_metrics: Optional[InferenceMetricsForSegmentation],
@@ -520,7 +527,7 @@ class MLRunner:
                                     run: Optional[Run] = None,
                                     workspace: Optional[Workspace] = None,
                                     tags: Optional[Dict[str, str]] = None) -> \
-            Tuple[Optional[Model], Optional[Path], Any]:
+        Tuple[Optional[Model], Optional[Path], Any]:
         """
         Registers a new model in the workspace's model registry to be deployed further,
         and creates a model zip for portal deployment (if required). This model, is the
@@ -648,7 +655,7 @@ class MLRunner:
     def model_inference_train_and_test(self, run_context: Optional[Run] = None,
                                        run_recovery: Optional[RunRecovery] = None,
                                        model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> \
-            Tuple[Optional[InferenceMetrics], Optional[InferenceMetrics], Optional[InferenceMetrics]]:
+        Tuple[Optional[InferenceMetrics], Optional[InferenceMetrics], Optional[InferenceMetrics]]:
         train_metrics = None
         val_metrics = None
         test_metrics = None
