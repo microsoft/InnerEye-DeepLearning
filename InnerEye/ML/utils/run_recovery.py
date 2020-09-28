@@ -56,16 +56,14 @@ class RunRecovery:
             run_to_recover = next(x for x in fetch_child_runs(run_to_recover) if
                                   get_cross_validation_split_index(x) == get_cross_validation_split_index(run_context))
 
-        return RunRecovery.download_checkpoints_from_run(azure_config, config, run_to_recover)
+        return RunRecovery.download_checkpoints_from_run(config, run_to_recover)
 
     @staticmethod
-    def download_checkpoints_from_run(azure_config: AzureConfig,
-                                      config: ModelConfigBase,
+    def download_checkpoints_from_run(config: ModelConfigBase,
                                       run: Run,
                                       output_subdir_name: Optional[str] = None) -> RunRecovery:
         """
         Downloads checkpoints of the provided run or, if applicable, its children.
-        :param azure_config: Azure related configs.
         :param config: Model related configs.
         :param run: Run whose checkpoints should be recovered
         :return: run recovery information
@@ -91,7 +89,9 @@ class RunRecovery:
             destination=root_output_dir,
             run=run
         )
-        if len(child_runs) > 0:
+        if len(child_runs) == 0:
+            return RunRecovery(checkpoints_roots=[root_output_dir])
+        else:
             tag_to_use = 'cross_validation_split_index'
             can_use_split_indices = tag_values_all_distinct(child_runs, tag_to_use)
             # download checkpoints for the child runs in the root of the parent
@@ -113,8 +113,6 @@ class RunRecovery:
                     )
                 child_runs_checkpoints_roots.append(child_dst)
             return RunRecovery(checkpoints_roots=child_runs_checkpoints_roots)
-        else:
-            return RunRecovery(checkpoints_roots=[root_output_dir])
 
     def get_checkpoint_paths(self, epoch: int, for_mean_teacher_model: bool = False) -> List[Path]:
         return [create_checkpoint_path(x, epoch, for_mean_teacher_model) for x in self.checkpoints_roots]

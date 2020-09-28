@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+from pathlib import Path
 from typing import Any, List
 
 import numpy as np
@@ -19,10 +20,12 @@ from InnerEye.ML.configs.classification.DummyClassification import DummyClassifi
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, TemperatureScalingConfig
 from InnerEye.ML.metrics import TRAIN_STATS_FILE
-from InnerEye.ML.model_training import model_train
+from InnerEye.ML.model_training import load_checkpoint_from_model_and_info, model_train
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForSegmentation
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.sequence_config import SequenceModelBase
+from InnerEye.ML.utils.model_util import ModelAndInfo
+from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contents
@@ -108,21 +111,31 @@ def test_get_total_number_of_training_epochs() -> None:
 
 @pytest.mark.parametrize("image_channels", [["region"], ["random_123"]])
 @pytest.mark.parametrize("ground_truth_ids", [["region", "region"], ["region", "other_region"]])
-def test_invalid_model_train(test_output_dirs: TestOutputDirectories, image_channels: Any,
+def test_invalid_model_train(test_output_dirs: TestOutputDirectories,
+                             image_channels: Any,
                              ground_truth_ids: Any) -> None:
     with pytest.raises(ValueError):
         _test_model_train(test_output_dirs, image_channels, ground_truth_ids)
 
 
-@pytest.mark.parametrize("no_mask_channel", [True, False])
-def test_valid_model_train(test_output_dirs: TestOutputDirectories, no_mask_channel: bool) -> None:
-    _test_model_train(test_output_dirs, ["channel1", "channel2"], ["region", "region_1"], no_mask_channel)
+@pytest.mark.parametrize(["no_mask_channel", "run_model_recovery"],
+                         [(True, True),
+                          (False, False)])
+def test_valid_model_train(test_output_dirs: TestOutputDirectories,
+                           no_mask_channel: bool,
+                           run_model_recovery: bool) -> None:
+    _test_model_train(test_output_dirs,
+                      image_channels=["channel1", "channel2"],
+                      ground_truth_ids=["region", "region_1"],
+                      no_mask_channel=no_mask_channel,
+                      run_model_recovery=run_model_recovery)
 
 
 def _test_model_train(output_dirs: TestOutputDirectories,
                       image_channels: Any,
                       ground_truth_ids: Any,
-                      no_mask_channel: bool = False) -> None:
+                      no_mask_channel: bool = False,
+                      run_model_recovery: bool = False) -> None:
     def _check_patch_centers(epoch_results: List[MetricsDict], should_equal: bool) -> None:
         diagnostics_per_epoch = [m.diagnostics[MetricType.PATCH_CENTER.value] for m in epoch_results]
         patch_centers_epoch1 = diagnostics_per_epoch[0]
@@ -194,6 +207,35 @@ def _test_model_train(output_dirs: TestOutputDirectories,
     assert os.path.isdir(train_config.example_images_folder)
     example_files = os.listdir(train_config.example_images_folder)
     assert len(example_files) == 3 * 2
+
+    if run_model_recovery:
+        trained_epochs = train_config.num_epochs
+        train_config.start_epoch = trained_epochs
+        train_config.num_epochs = trained_epochs + 1
+        # This is in an if clause that guards whether checkpoints should be loaded
+        assert train_config.should_load_checkpoint_for_training()
+        # RunRecovery only needs to point to the root folder where the checkpoints are stored
+        run_recovery = RunRecovery(checkpoints_roots=[Path(train_config.checkpoint_folder)])
+        # Loading from a checkpoint will take start_epoch into account, and load only that checkpoint
+        loaded = load_checkpoint_from_model_and_info(run_recovery,
+                                                     config=train_config,
+                                                     model_and_info=ModelAndInfo(model=train_config.create_model()))
+        assert loaded.checkpoint_epoch == train_config.start_epoch
+        # When starting at epoch 2, get_train_epochs should be [3]
+        assert train_config.get_train_epochs() == [trained_epochs + 1]
+        # Train off the loaded model
+        recovery_result = model_training.model_train(train_config, run_recovery)
+        # Expecting to get results for epoch 3 back
+        assert len(recovery_result.train_results_per_epoch) == 1
+        # Loss in epoch 3 should have further decreased
+        loss_epoch2 = model_training_result.train_results_per_epoch[-1].get_single_metric(MetricType.LOSS)
+        loss_epoch3 = recovery_result.train_results_per_epoch[0].get_single_metric(MetricType.LOSS)
+        assert loss_epoch3 < loss_epoch2, "Loss values should be decreasing"
+        # Learning rate scheduler should be initialized correctly to produce a learning rate that is smaller than
+        # what it was at epoch 2
+        lr_epoch2 = model_training_result.train_results_per_epoch[-1].get_single_metric(MetricType.LEARNING_RATE)
+        lr_epoch3 = recovery_result.train_results_per_epoch[0].get_single_metric(MetricType.LEARNING_RATE)
+        assert lr_epoch3 < lr_epoch2, "Learning rates should be decreasing"
 
 
 @pytest.mark.parametrize(["rates", "expected"],
