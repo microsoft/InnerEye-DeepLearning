@@ -12,7 +12,7 @@ On PowerShell as Administrator:
 dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
 dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
 wsl --set-default-version 2
-winget install ubuntu
+winget install ubuntu --version 20.04
 wsl --list --verbose
 wsl --set-version <distribution name> <versionNumber>
 wsl --set-default-version 2
