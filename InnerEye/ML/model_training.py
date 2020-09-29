@@ -43,8 +43,9 @@ T = TypeVar('T')
 def load_checkpoint_from_model_and_info(run_recovery: Optional[RunRecovery], config: ModelConfigBase,
                                         model_and_info: ModelAndInfo) -> ModelAndInfo:
     is_mean_teacher = model_and_info.is_mean_teacher
-    checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch, is_mean_teacher)[0] \
-        if run_recovery else config.get_path_to_checkpoint(config.start_epoch, is_mean_teacher)
+    checkpoint_path = config.get_recovery_path_train(run_recovery=run_recovery,
+                                                     is_mean_teacher=is_mean_teacher,
+                                                     epoch=config.start_epoch)
     result = model_util.load_from_checkpoint_and_adjust(config, checkpoint_path, model_and_info)
     if result.checkpoint_epoch is None:
         raise ValueError("There was no checkpoint file available for the given start_epoch {}"

@@ -356,14 +356,9 @@ def create_inference_pipeline(config: ModelConfigBase,
     :param run_recovery: RunRecovery data if applicable
     :return: FullImageInferencePipelineBase or ScalarInferencePipelineBase
     """
-    if run_recovery:
-        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, config.compute_mean_teacher_model)
-        pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
-        if pipeline is not None:
-            # We found the checkpoint(s) in the run being recovered. If we didn't, it's probably because the epoch
-            # is from the current run, which has been doing more training, so we look for it there.
-            return pipeline
-    checkpoint_paths = [config.get_path_to_checkpoint(epoch, config.compute_mean_teacher_model)]
+    checkpoint_paths = config.get_recovery_path_test(run_recovery=run_recovery,
+                                                     is_mean_teacher=config.compute_mean_teacher_model,
+                                                     epoch=epoch)
     return create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
 
 
@@ -398,8 +393,7 @@ def create_pipeline_from_checkpoint_paths(config: ModelConfigBase,
 
 def classification_model_test(config: ScalarModelBase,
                               data_split: ModelExecutionMode,
-                              run_recovery: Optional[RunRecovery],
-                              model_proc: ModelProcessing) -> InferenceMetricsForClassification:
+                              run_recovery: Optional[RunRecovery]) -> InferenceMetricsForClassification:
     """
     The main testing loop for classification models. It runs a loop over all epochs for which testing should be done.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
