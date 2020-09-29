@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import param
 from pandas import DataFrame
@@ -21,6 +21,9 @@ from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, \
     create_unique_timestamp_id
+
+if TYPE_CHECKING:
+    from InnerEye.ML.utils.run_recovery import RunRecovery
 
 VISUALIZATION_FOLDER = "Visualizations"
 CHECKPOINT_FOLDER = "checkpoints"
@@ -608,14 +611,14 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                / self.checkpoint_folder \
                / f"{epoch}{filename}"
 
-    def get_recovery_path_train(self, run_recovery, is_mean_teacher: bool, epoch: int):
+    def get_recovery_path_train(self, run_recovery: RunRecovery, is_mean_teacher: bool, epoch: int) -> Path:
         if run_recovery:
             checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, is_mean_teacher)[0]
         else:
             checkpoint_paths = self.get_path_to_checkpoint(epoch, is_mean_teacher)
         return checkpoint_paths
 
-    def get_recovery_path_test(self, run_recovery, is_mean_teacher: bool, epoch: int):
+    def get_recovery_path_test(self, run_recovery: RunRecovery, is_mean_teacher: bool, epoch: int) -> List[Path]:
         if run_recovery:
             checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, is_mean_teacher)
             checkpoint_exists = []

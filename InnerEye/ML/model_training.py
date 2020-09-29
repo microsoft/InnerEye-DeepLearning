@@ -24,13 +24,12 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
     TrainValidateParameters
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
-from InnerEye.ML.utils import ml_util, model_util
+from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
-from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling, \
-    generate_and_print_model_summary, save_checkpoint
+from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary, save_checkpoint
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 
@@ -38,19 +37,6 @@ MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
 
 T = TypeVar('T')
-
-
-def load_checkpoint_from_model_and_info(run_recovery: Optional[RunRecovery], config: ModelConfigBase,
-                                        model_and_info: ModelAndInfo) -> ModelAndInfo:
-    is_mean_teacher = model_and_info.is_mean_teacher
-    checkpoint_path = config.get_recovery_path_train(run_recovery=run_recovery,
-                                                     is_mean_teacher=is_mean_teacher,
-                                                     epoch=config.start_epoch)
-    result = model_util.load_from_checkpoint_and_adjust(config, checkpoint_path, model_and_info)
-    if result.checkpoint_epoch is None:
-        raise ValueError("There was no checkpoint file available for the given start_epoch {}"
-                         .format(config.start_epoch))
-    return result
 
 
 def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResults:
@@ -75,33 +61,43 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     data_loaders = config.create_data_loaders()
 
     # Create models, optimizers, and whether is_mean_teacher
-    model = create_model_with_temperature_scaling(config)
-    models_and_optimizers = [ModelAndInfo(model, model_util.create_optimizer(config, model),
-                                          model_execution_mode=ModelExecutionMode.TRAIN)]
-    if config.compute_mean_teacher_model:
-        models_and_optimizers.append(ModelAndInfo(create_model_with_temperature_scaling(config),
-                                                  is_mean_teacher=True,
-                                                  model_execution_mode=ModelExecutionMode.TRAIN))
+    checkpoint_path = config.get_recovery_path_train(run_recovery=run_recovery,
+                                                     is_mean_teacher=False,
+                                                     epoch=config.start_epoch)
+    models_and_optimizers = [ModelAndInfo(config=config,
+                                          model_execution_mode=ModelExecutionMode.TRAIN,
+                                          is_mean_teacher=False,
+                                          checkpoint_path=checkpoint_path if config.should_load_checkpoint_for_training() else None)]
 
+    if config.compute_mean_teacher_model:
+        checkpoint_path = config.get_recovery_path_train(run_recovery=run_recovery,
+                                                         is_mean_teacher=True,
+                                                         epoch=config.start_epoch)
+        models_and_optimizers.append(ModelAndInfo(config=config,
+                                                  model_execution_mode=ModelExecutionMode.TRAIN,
+                                                  is_mean_teacher=True,
+                                                  checkpoint_path=checkpoint_path if config.should_load_checkpoint_for_training() else None))
+
+    # Create the models and adjust to run on multiple GPUs
     # If continuing from a previous run at a specific epoch, then load the previous model
-    if config.should_load_checkpoint_for_training():
-        models_and_optimizers = [load_checkpoint_from_model_and_info(run_recovery, config, model_and_info)
-                                 for model_and_info in models_and_optimizers]
-    # Otherwise, create checkpoint directory for this run
-    else:
-        logging.info("Models are saved at {}".format(config.checkpoint_folder))
-        if not os.path.isdir(config.checkpoint_folder):
-            os.makedirs(config.checkpoint_folder)
+    for model_and_info in models_and_optimizers:
+        model_and_info.create_model_load_from_checkpoint_and_adjust()
+        if config.should_load_checkpoint_for_training() and model_and_info.checkpoint_epoch is None:
+            raise ValueError("There was no checkpoint file available for the given start_epoch {}"
+                             .format(config.start_epoch))
+
+    # Create optimizers
+    for model_and_info in models_and_optimizers:
+        model_and_info.create_optimizer_and_load_from_checkpoint()
 
     # Print out a detailed breakdown of layers, memory consumption and time.
-    generate_and_print_model_summary(config, model)
+    assert models_and_optimizers[0].model is not None  # for mypy, it should never get this far if None
+    generate_and_print_model_summary(config, models_and_optimizers[0].model)
 
-    # Prepare for mixed precision training and data parallelization (no-op if already done).
-    # This relies on the information generated in the model summary.
-    # We only want to do this if we didn't call load_checkpoint above, because attempting updating twice
-    # causes an error.
-    models_and_optimizers = [model_util.update_model_for_multiple_gpus(model_and_info, config)
-                             for model_and_info in models_and_optimizers]
+    # Create checkpoint directory for this run if it doesn't already exist
+    logging.info("Models are saved at {}".format(config.checkpoint_folder))
+    if not os.path.isdir(config.checkpoint_folder):
+        os.makedirs(config.checkpoint_folder)
 
     # Create the SummaryWriters for Tensorboard
     writers = create_summary_writers(config)

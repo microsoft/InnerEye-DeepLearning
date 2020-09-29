@@ -212,7 +212,11 @@ class InferencePipeline(FullImageInferencePipelineBase):
         :return InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint
         file for this epoch.
         """
-        model_and_info = model_util.load_from_checkpoint_and_adjust(model_config, path_to_checkpoint)
+        model_and_info = model_util.ModelAndInfo(config=model_config,
+                                                 model_execution_mode=ModelExecutionMode.TEST,
+                                                 is_mean_teacher=False,
+                                                 checkpoint_path=path_to_checkpoint)
+        model_and_info.create_model_load_from_checkpoint_and_adjust()
         if model_and_info.checkpoint_epoch is None or model_and_info.model is None:
             return None
         for name, param in model_and_info.model.named_parameters():

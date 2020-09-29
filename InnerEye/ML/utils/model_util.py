@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import os
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional, Union
 
@@ -36,7 +35,6 @@ from InnerEye.ML.visualizers.model_summary import ModelSummary
 BaseModelOrDataParallelModel = Union[DeviceAwareModule, DataParallelModel]
 
 
-@dataclass
 class ModelAndInfo:
     """
     A holder for a model and, optionally, associated information.
@@ -47,12 +45,20 @@ class ModelAndInfo:
       checkpoint_epoch: the training epoch this model was created, if loaded from disk
       model_execution_mode: mode this model will be run in
     """
-    model: BaseModelOrDataParallelModel
-    optimizer: Optional[Optimizer] = None
-    is_mean_teacher: bool = False
-    is_adjusted: bool = False
-    checkpoint_epoch: Optional[int] = None
-    model_execution_mode: ModelExecutionMode = ModelExecutionMode.TEST
+    def __init__(self,
+                 config: ModelConfigBase,
+                 model_execution_mode: ModelExecutionMode,
+                 is_mean_teacher: bool = False,
+                 checkpoint_path: Path = None):
+        self.config = config
+        self.is_mean_teacher = is_mean_teacher
+        self.checkpoint_path = checkpoint_path
+        self.model_execution_mode = model_execution_mode
+
+        self.model = None
+        self.optimizer = None
+        self.is_adjusted = False
+        self.checkpoint_epoch = None
 
     def to_cuda(self) -> None:
         assert self.model is not None
@@ -61,6 +67,148 @@ class ModelAndInfo:
     def set_data_parallel(self, device_ids: Optional[List[Any]]) -> None:
         assert self.model is not None
         self.model = DataParallelModel(self.model, device_ids=device_ids)
+
+    def create_model(self) -> None:
+        return create_model_with_temperature_scaling(self.config)
+
+    def load_checkpoint_for_model(self) -> None:
+        """
+        Loads a checkpoint of a model.
+        The provided model must match the stored model.
+        """
+        if not self.checkpoint_path:
+            raise ValueError("No checkpoint provided")
+
+        if not self.checkpoint_path.is_file():
+            logging.warning(f'No checkpoint found at {self.checkpoint_path} current working dir {os.getcwd()}')
+            return None
+
+        logging.info(f"Loading checkpoint {self.checkpoint_path}")
+        # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
+        # if the model is small.
+        map_location = None if is_gpu_available() else 'cpu'
+        checkpoint = torch.load(str(self.checkpoint_path), map_location=map_location)
+
+        if isinstance(self.model, torch.nn.DataParallel):
+            self.model.module.load_state_dict(checkpoint['state_dict'])
+        else:
+            self.model.load_state_dict(checkpoint['state_dict'])
+
+        logging.info("Loaded model from checkpoint (epoch: {})".format(checkpoint['epoch']))
+        self.checkpoint_epoch = checkpoint['epoch']
+
+    def adjust_model_for_gpus(self) -> None:
+        """
+        Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
+        multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
+        perform full volume inference.
+        """
+        # Adjusting twice causes an error.
+        if self.is_adjusted:
+            logging.debug("model_and_info.is_adjusted is already True")
+
+        if self.optimizer is not None:
+            raise ValueError("Create an optimizer only after creating and adjusting the model.")
+
+        if self.config.use_gpu:
+            # In the normal training codepath, the model should already be on the GPU, but in some tests not.
+            self.to_cuda()
+            logging.info("Adjusting the model to use mixed precision training.")
+            # If model parallel is set to True, then partition the network across all available gpus.
+            if self.config.use_model_parallel:
+                devices = self.config.get_cuda_devices()
+                assert devices is not None  # for mypy
+                self.model.partition_model(devices=devices)  # type: ignore
+        else:
+            logging.info("Making no adjustments to the model because no GPU was found.")
+
+        # Update model related config attributes (After Model Parallel Activated)
+        self.config.adjust_after_mixed_precision_and_parallel(self.model)
+
+        # DataParallel enables running the model with multiple gpus by splitting samples across GPUs
+        # If the model is used in training mode, data parallel is activated by default.
+        # Similarly, if model parallel is not activated, data parallel is used as a backup option
+        use_data_parallel = (self.model_execution_mode == ModelExecutionMode.TRAIN) or (not self.config.use_model_parallel)
+        if self.config.use_gpu and use_data_parallel:
+            logging.info("Adjusting the model to use DataParallel")
+            # Move all layers to the default GPU before activating data parallel.
+            # This needs to happen even though we put the model to the GPU at the beginning of the method,
+            # but we may have spread it across multiple GPUs later.
+            self.to_cuda()
+            self.set_data_parallel(device_ids=self.config.get_cuda_devices())
+
+        self.is_adjusted = True
+        logging.debug("model_and_info.is_adjusted set to True")
+
+    def create_model_load_from_checkpoint_and_adjust(self) -> None:
+        """
+        Creates a model as per the configuration, and loads the parameters from the given checkpoint path.
+        The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
+        If the checkpoint_epoch is None, there is no model file at the given path.
+        """
+        if self.checkpoint_path is not None:
+            # Load the stored model. If there is no checkpoint present, return immediately.
+            self.load_checkpoint_for_model()
+        if self.checkpoint_epoch is None:
+            return
+
+        # Enable data/model parallelization
+        if self.config.is_segmentation_model:
+            # Generate the model summary, which is required for model partitioning across GPUs.
+            summary_for_segmentation_models(self.config, self.model)
+        # Prepare for mixed precision training and data parallelization (no-op if already done).
+        # This relies on the information generated in the model summary.
+        self.adjust_model_for_gpus()
+
+    def create_optimizer(self) -> None:
+        """
+        Creates a torch optimizer for the given model.
+        """
+        # Make sure model is loaded before we load optimizer
+        if self.model is None:
+            raise ValueError("Model checkpoint must be created before optimizer checkpoint can be loaded.")
+
+        # Select optimizer type
+        if self.config.optimizer_type in [OptimizerType.Adam, OptimizerType.AMSGrad]:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), self.config.l_rate,
+                                    self.config.adam_betas, self.config.opt_eps, self.config.weight_decay,
+                                    amsgrad=self.config.optimizer_type == OptimizerType.AMSGrad)
+        elif self.config.optimizer_type == OptimizerType.SGD:
+            self.optimizer = torch.optim.SGD(self.model.parameters(), self.config.l_rate, self.config.momentum,
+                                   weight_decay=self.config.weight_decay)
+        elif self.config.optimizer_type == OptimizerType.RMSprop:
+            self.optimizer = RMSprop(self.model.parameters(), self.config.l_rate, self.config.rms_alpha, self.config.opt_eps,
+                           self.config.weight_decay, self.config.momentum)
+        else:
+            raise NotImplementedError(f"Optimizer type {self.config.optimizer_type.value} is not implemented")
+
+    def load_checkpoint_for_optimizer(self) -> None:
+        """
+        Loads a checkpoint of an optimizer.
+        """
+
+        if self.optimizer is None:
+            raise ValueError("Optimizer must be created before optimizer checkpoint can be loaded.")
+
+        if not self.checkpoint_path.is_file():
+            logging.warning(f'No checkpoint found at {self.checkpoint_path} current working dir {os.getcwd()}')
+            return None
+
+        logging.info(f"Loading checkpoint {self.checkpoint_path}")
+        # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
+        # if the model is small.
+        map_location = None if is_gpu_available() else 'cpu'
+        checkpoint = torch.load(str(self.checkpoint_path), map_location=map_location)
+
+        if self.optimizer is not None:
+            self.optimizer.load_state_dict(checkpoint['opt_dict'])
+
+        logging.info("Loaded optimizer from checkpoint (epoch: {})".format(checkpoint['epoch']))
+        self.checkpoint_epoch = checkpoint['epoch']
+
+    def create_optimizer_and_load_from_checkpoint(self) -> None:
+        self.create_optimizer()
+        self.load_checkpoint_for_optimizer()
 
 
 def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:
@@ -124,76 +272,6 @@ def build_net(args: SegmentationModelBase) -> BaseModel:
     return network
 
 
-def update_model_for_multiple_gpus(model_and_info: ModelAndInfo,
-                                   args: ModelConfigBase,
-                                   execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
-        ModelAndInfo:
-    """
-    Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
-    multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
-    perform full volume inference.
-    :param model_and_info: The torch module object representing the network and the optimizer.
-    :param args: The arguments object with attributes used to enable amp training and create the parallel model.
-    :param execution_mode: mode, i.e. train or test
-    :return: Updated torch model and optimizer.
-    """
-    if model_and_info.is_adjusted:
-        logging.debug("model_and_info.is_adjusted is already True")
-        return model_and_info
-    if args.use_gpu:
-        # In the normal training codepath, the model should already be on the GPU, but in some tests not.
-        model_and_info.to_cuda()
-        logging.info("Adjusting the model to use mixed precision training.")
-        # If model parallel is set to True, then partition the network across all available gpus.
-        if args.use_model_parallel:
-            devices = args.get_cuda_devices()
-            assert devices is not None  # for mypy
-            model_and_info.model.partition_model(devices=devices)  # type: ignore
-    else:
-        logging.info("Making no adjustments to the model because no GPU was found.")
-
-    # Update model related config attributes (After Model Parallel Activated)
-    args.adjust_after_mixed_precision_and_parallel(model_and_info.model)
-
-    # DataParallel enables running the model with multiple gpus by splitting samples across GPUs
-    # If the model is used in training mode, data parallel is activated by default.
-    # Similarly, if model parallel is not activated, data parallel is used as a backup option
-    use_data_parallel = (execution_mode == ModelExecutionMode.TRAIN) or (not args.use_model_parallel)
-    if args.use_gpu and use_data_parallel:
-        logging.info("Adjusting the model to use DataParallel")
-        # Move all layers to the default GPU before activating data parallel.
-        # This needs to happen even though we put the model to the GPU at the beginning of the method,
-        # but we may have spread it across multiple GPUs later.
-        model_and_info.to_cuda()
-        model_and_info.set_data_parallel(device_ids=args.get_cuda_devices())
-
-    model_and_info.is_adjusted = True
-    logging.debug("model_and_info.is_adjusted set to True")
-    return model_and_info
-
-
-def create_optimizer(args: ModelConfigBase, model: torch.nn.Module) -> Optimizer:
-    """
-    Creates a torch optimizer for the given model.
-
-    :param args: The arguments object with attributes used to create the optimizer_type.
-    :param model: The DataParallel object representing the network.
-    :return: An instance of torch.optim.Optimizer
-    """
-    # Select optimizer type
-    if args.optimizer_type in [OptimizerType.Adam, OptimizerType.AMSGrad]:
-        return torch.optim.Adam(model.parameters(), args.l_rate, args.adam_betas, args.opt_eps, args.weight_decay,
-                                amsgrad=args.optimizer_type == OptimizerType.AMSGrad)
-    elif args.optimizer_type == OptimizerType.SGD:
-        return torch.optim.SGD(model.parameters(), args.l_rate, args.momentum,
-                               weight_decay=args.weight_decay)
-    elif args.optimizer_type == OptimizerType.RMSprop:
-        return RMSprop(model.parameters(), args.l_rate, args.rms_alpha, args.opt_eps,
-                       args.weight_decay, args.momentum)
-    else:
-        raise NotImplementedError(f"Optimizer type {args.optimizer_type.value} is not implemented")
-
-
 def summary_for_segmentation_models(config: ModelConfigBase, model: DeviceAwareModule) -> None:
     """
     Generates a human readable summary of the present segmentation model, writes it to logging.info, and
@@ -247,50 +325,6 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
     random_state.restore_random_state()
 
 
-def load_checkpoint(model: torch.nn.Module,
-                    path_to_checkpoint: Path,
-                    optimizer: Optional[Optimizer] = None,
-                    optimizer_to_gpu: Optional[bool] = False) -> Optional[int]:
-    """
-    Loads a checkpoint of a model.
-    The epoch of the stored model and the epoch provided as argument must match.
-    The provided model must match the stored model.
-
-    :param model: The DataParallel object representing the network. Must have the same architecture of the stored model.
-    :param path_to_checkpoint: The path to the checkpoint file.
-    :param optimizer: The optimizer used for training
-    :param optimizer_to_gpu: If true, move the optimizer to GPU, which we need to do if the model is also on GPU.
-    :return: The checkpoint epoch if loaded and None if not loaded
-    """
-
-    if not path_to_checkpoint.is_file():
-        logging.warning(f'No checkpoint found at {path_to_checkpoint} current working dir {os.getcwd()}')
-        return None
-
-    logging.info(f"Loading checkpoint {path_to_checkpoint}")
-    # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
-    # if the model is small.
-    map_location = None if is_gpu_available() else 'cpu'
-    checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
-
-    if isinstance(model, torch.nn.DataParallel):
-        model.module.load_state_dict(checkpoint['state_dict'])
-    else:
-        model.load_state_dict(checkpoint['state_dict'])
-
-    if optimizer is not None:
-        opt_dict = checkpoint['opt_dict']
-        if optimizer_to_gpu:
-            # https://github.com/pytorch/pytorch/issues/2830
-            for key, val in opt_dict.items():
-                if isinstance(val, torch.Tensor):
-                    opt_dict[key] = val.cuda()
-        optimizer.load_state_dict(opt_dict)
-
-    logging.info("Loaded checkpoint (epoch: {})".format(checkpoint['epoch']))
-    return checkpoint['epoch']
-
-
 def save_checkpoint(model: torch.nn.Module, optimizer: Optimizer, epoch: int,
                     args: ModelConfigBase, mean_teacher_model: bool = False) -> None:
     """
@@ -316,37 +350,6 @@ def save_checkpoint(model: torch.nn.Module, optimizer: Optimizer, epoch: int,
     torch.save(info_to_store, checkpoint_file_path)
     logging.getLogger().disabled = False
     logging.info("Saved model checkpoint for epoch {} to {}".format(epoch, checkpoint_file_path))
-
-
-def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
-                                    path_to_checkpoint: Path,
-                                    model_and_info: Optional[ModelAndInfo] = None) -> ModelAndInfo:
-    """
-    Creates a model as per the configuration, and loads the parameters from the given checkpoint path.
-    The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
-
-    :param model_config: The configuration from which an empty model will be created (if existing_model is None)
-    :param path_to_checkpoint: The path to the checkpoint file.
-    :param model_and_info: optional model and associated info; created from model_config if None
-    :return: The model with all loaded parameters, the (adjusted) optimizer, and the epoch in which the model was saved.
-    If the checkpoint_epoch is None, there is no model file at the given path.
-    """
-    # Create model if necessary
-    if model_and_info is None:
-        model_and_info = ModelAndInfo(create_model_with_temperature_scaling(model_config))
-    # Load the stored model. If there is no checkpoint present, return immediately.
-    model_and_info.checkpoint_epoch = load_checkpoint(model=model_and_info.model,
-                                                      path_to_checkpoint=path_to_checkpoint,
-                                                      optimizer=model_and_info.optimizer,
-                                                      optimizer_to_gpu=model_config.use_gpu)
-    if model_and_info.checkpoint_epoch is None:
-        return model_and_info
-    # Enable data/model parallelization
-    if model_config.is_segmentation_model:
-        # Generate the model summary, which is required for model partitioning across GPUs.
-        summary_for_segmentation_models(model_config, model_and_info.model)
-    return update_model_for_multiple_gpus(
-        model_and_info, args=model_config, execution_mode=model_and_info.model_execution_mode)
 
 
 def create_model_with_temperature_scaling(config: ModelConfigBase) -> Any:

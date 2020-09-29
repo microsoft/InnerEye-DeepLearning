@@ -16,6 +16,7 @@ from InnerEye.ML.pipelines.inference import InferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType, ScalarModelBase
 from InnerEye.ML.utils import model_util, image_util
 from InnerEye.ML.utils.model_util import BaseModelOrDataParallelModel
+from InnerEye.ML.common import ModelExecutionMode
 
 
 class ScalarInferencePipelineBase(InferencePipelineBase):
@@ -84,7 +85,11 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         :param pipeline_id: ID for the pipeline to be created.
         :return: ScalarInferencePipeline if recovery from checkpoint successful. None if unsuccessful.
         """
-        model_and_info = model_util.load_from_checkpoint_and_adjust(config, path_to_checkpoint)
+        model_and_info = model_util.ModelAndInfo(config=config,
+                                                 model_execution_mode=ModelExecutionMode.TEST,
+                                                 is_mean_teacher=False,
+                                                 checkpoint_path=path_to_checkpoint)
+        model_and_info.create_model_load_from_checkpoint_and_adjust()
         if model_and_info.model is None or model_and_info.checkpoint_epoch is None:
             # not raising a value error here: This is used to create individual pipelines for ensembles,
             #                                   possible one model cannot be created but others can
