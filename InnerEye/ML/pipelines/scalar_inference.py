@@ -14,7 +14,7 @@ import torch
 from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
 from InnerEye.ML.pipelines.inference import InferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType, ScalarModelBase
-from InnerEye.ML.utils import model_util
+from InnerEye.ML.utils import model_util, image_util
 from InnerEye.ML.utils.model_util import BaseModelOrDataParallelModel
 
 
@@ -90,6 +90,11 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
             #                                   possible one model cannot be created but others can
             logging.warning(f"Could not recover model from checkpoint path {path_to_checkpoint}")
             return None
+
+        for name, param in model_and_info.model.named_parameters():
+            param_numpy = param.clone().cpu().data.numpy()
+            image_util.check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
+
         return ScalarInferencePipeline(model_and_info.model, config, model_and_info.checkpoint_epoch, pipeline_id)
 
     def predict(self, sample: Dict[str, Any]) -> ScalarInferencePipelineBase.Result:
