@@ -64,7 +64,7 @@ COL_SPLIT = "split"
 COL_MODE = "mode"
 FLOAT_FORMAT = "%.3f"
 
-EXECUTION_MODES_TO_DOWNLOAD = [ModelExecutionMode.TEST, ModelExecutionMode.VAL]
+EXECUTION_MODES_TO_DOWNLOAD = [ModelExecutionMode.TEST, ModelExecutionMode.VAL, ModelExecutionMode.TRAIN]
 
 DEFAULT_PD_DISPLAY_CONTEXT = pd.option_context('display.max_colwidth', -1,
                                                'display.max_columns', None,
