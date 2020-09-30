@@ -93,7 +93,7 @@ def test_anomaly_detection(value_to_insert: float, in_training_mode: bool) -> No
 
     model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TRAIN,
                                   is_mean_teacher=False, checkpoint_path=None)
-    model_and_info.model = SimpleModel(1, [1], 2, 2)
+    model_and_info.model: BaseModel = SimpleModel(1, [1], 2, 2)  # type: ignore
     summary_for_segmentation_models(config, model_and_info.model)
     model_and_info.adjust_model_for_gpus()
     model_and_info.try_create_optimizer_and_load_from_checkpoint()

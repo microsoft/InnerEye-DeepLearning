@@ -222,8 +222,11 @@ class ModelAndInfo:
 
     def try_create_optimizer_and_load_from_checkpoint(self) -> bool:
         self.create_optimizer()
-        success = self.try_load_checkpoint_for_optimizer()
-        return success
+        if self.checkpoint_path is not None:
+            success = self.try_load_checkpoint_for_optimizer()
+            if not success:
+                return False
+        return True
 
 
 def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:
