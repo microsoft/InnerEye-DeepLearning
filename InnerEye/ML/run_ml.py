@@ -471,19 +471,21 @@ class MLRunner:
                                  best_epoch: int,
                                  best_epoch_dice: float,
                                  model_proc: ModelProcessing) -> None:
-        checkpoint_paths = self.model_config.get_recovery_path_test(run_recovery=run_recovery,
-                                                                    is_mean_teacher=False,
-                                                                    epoch=best_epoch)
+        try:
+            checkpoint_paths = self.model_config.get_recovery_path_test(run_recovery=run_recovery,
+                                                                        is_mean_teacher=False,
+                                                                        epoch=best_epoch)
+        except ValueError:
+            # No point continuing, since no checkpoints were found
+            logging.warning("Abandoning model registration - no valid checkpoint paths found")
+            return
+
         if not self.model_config.is_offline_run:
             split_index = run_context.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
             if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
                 update_run_tags(run_context, {IS_ENSEMBLE_KEY_NAME: model_proc == ModelProcessing.ENSEMBLE_CREATION})
             elif PARENT_RUN_CONTEXT is not None:
                 update_run_tags(run_context, {PARENT_RUN_ID_KEY_NAME: PARENT_RUN_CONTEXT.id})
-        if not checkpoint_paths:
-            # No point continuing
-            logging.warning("Abandoning model registration - no valid checkpoint paths found")
-            return
         with logging_section(f"Registering {model_proc.value} model"):
             self.register_segmentation_model(
                 run=run_context,

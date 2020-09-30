@@ -94,6 +94,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # Print out a detailed breakdown of layers, memory consumption and time.
     assert models_and_optimizers[0].model is not None  # for mypy, it should never get this far if None
+    logging.info(f"Model type: {type(models_and_optimizers[0].model)}")
     generate_and_print_model_summary(config, models_and_optimizers[0].model)
 
     # Create checkpoint directory for this run if it doesn't already exist

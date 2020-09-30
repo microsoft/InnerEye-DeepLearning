@@ -143,7 +143,6 @@ def test_amp_activated(use_model_parallel: bool,
 
     crop_size = (4, 4, 4)
 
-    model = SimpleModel(1, [1], 2, 2)
     model_config = SegmentationModelBase(crop_size=crop_size,
                                          image_channels=["ct"],
                                          ground_truth_ids=["Lung"],
@@ -151,15 +150,15 @@ def test_amp_activated(use_model_parallel: bool,
                                          use_model_parallel=use_model_parallel,
                                          should_validate=False)
     assert model_config.use_gpu
+    model_and_info = ModelAndInfo(config=model_config, model_execution_mode=execution_mode,
+                                  is_mean_teacher=False, checkpoint_path=None)
+    model_and_info.model = SimpleModel(1, [1], 2, 2)  # type: ignore
+
     # Move the model to the GPU. This is mostly to avoid issues with AMP, which has trouble
     # with first using a GPU model and later using a CPU-based one.
-    model = model.cuda()
-    optimizer = model_util.create_optimizer(model_config, model)
-    model_and_info = ModelAndInfo(model, optimizer)
     try:
-        model_and_info_amp = model_util.update_model_for_multiple_gpus(model_and_info,
-                                                                       model_config,
-                                                                       execution_mode)
+        summary_for_segmentation_models(model_config, model_and_info.model)
+        model_and_info.adjust_model_for_gpus()
     except NotImplementedError as ex:
         if use_model_parallel:
             # The SimpleModel does not implement model partitioning, and should hence fail at this step.
@@ -168,13 +167,22 @@ def test_amp_activated(use_model_parallel: bool,
         else:
             raise ValueError(f"Expected this call to succeed, but got: {ex}")
 
-    # This is the same logic spelt out in update_model_for_multiple_gpu
+    model_and_info.try_create_optimizer_and_load_from_checkpoint()
+
+    model = model_and_info.model
+    optimizer = model_and_info.optimizer
+
+    # for mypy
+    assert model is not None
+    assert optimizer is not None
+
+    # This is the same logic spelt out in adjust_model_for_gpus
     use_data_parallel = (execution_mode == ModelExecutionMode.TRAIN) or (not use_model_parallel)
     if use_data_parallel:
         assert isinstance(model_and_info.model, DataParallelModel)
     gradient_scaler = GradScaler() if use_mixed_precision else None
     criterion = lambda x, y: torch.tensor([0.0], requires_grad=True).cuda()
-    pipeline = SegmentationForwardPass(model_and_info_amp.model,
+    pipeline = SegmentationForwardPass(model_and_info.model,
                                        model_config,
                                        batch_size=1,
                                        optimizer=optimizer,
