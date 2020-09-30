@@ -248,15 +248,23 @@ def test_mean_teacher_model() -> None:
     model_train(config)
 
     # Retrieve the weight after one epoch
-    model = create_model_with_temperature_scaling(config)
-    print(config.get_path_to_checkpoint(1))
-    _ = model_util.load_checkpoint(model, config.get_path_to_checkpoint(1))
+    model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
+                                  is_mean_teacher=False, checkpoint_path=config.get_path_to_checkpoint(epoch=1))
+    model_and_info.try_create_model_and_load_from_checkpoint()
+    model = model_and_info.model
     model_weight = next(_get_parameters_of_model(model))
 
     # Get the starting weight of the mean teacher model
     ml_util.set_random_seed(config.get_effective_random_seed())
-    _ = create_model_with_temperature_scaling(config)
-    mean_teach_model = create_model_with_temperature_scaling(config)
+    
+    _ = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
+                                  is_mean_teacher=False, checkpoint_path=None)\
+        .try_create_model_and_load_from_checkpoint()
+
+    model_and_info_mean_teacher = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
+                                               is_mean_teacher=True, checkpoint_path=None)
+    model_and_info_mean_teacher.try_create_model_and_load_from_checkpoint()
+    mean_teach_model = model_and_info_mean_teacher.model
     initial_weight_mean_teacher_model = next(_get_parameters_of_model(mean_teach_model))
 
     # Now train with mean teacher and check the update of the weight
@@ -265,12 +273,19 @@ def test_mean_teacher_model() -> None:
     model_train(config)
 
     # Retrieve weight of mean teacher model saved in the checkpoint
-    mean_teacher_model = create_model_with_temperature_scaling(config)
-    _ = model_util.load_checkpoint(mean_teacher_model, config.get_path_to_checkpoint(1, for_mean_teacher_model=True))
+    model_and_info_mean_teacher = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
+                                               is_mean_teacher=True,
+                                               checkpoint_path=config.get_path_to_checkpoint(1, for_mean_teacher_model=True))
+    model_and_info_mean_teacher.try_create_model_and_load_from_checkpoint()
+    mean_teacher_model = model_and_info_mean_teacher.model
     result_weight = next(_get_parameters_of_model(mean_teacher_model))
     # Retrieve the associated student weight
-    _ = model_util.load_checkpoint(model, config.get_path_to_checkpoint(1))
-    student_model_weight = next(_get_parameters_of_model(model))
+    model_and_info_student = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
+                                               is_mean_teacher=False,
+                                               checkpoint_path=config.get_path_to_checkpoint(1))
+    model_and_info_student.try_create_model_and_load_from_checkpoint()
+    student_model = model_and_info_student.model
+    student_model_weight = next(_get_parameters_of_model(student_model))
 
     # Assert that the student weight corresponds to the weight of a simple training without mean teacher
     # computation
