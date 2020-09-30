@@ -818,7 +818,8 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
         all_metrics.to_csv(full_csv_file, index=False)
         run_statistical_tests_on_file(root_folder, full_csv_file, config, focus_splits)
     else:
-        initial_metrics.to_csv(full_csv_file, index=False)
+        # For classification runs, we also want to compute the aggregated training metrics for
+        # each fold.
         metrics = ScalarMetricsDict.load_execution_mode_metrics_from_df(
             initial_metrics,
             config.model_category == ModelCategory.Classification)
@@ -828,6 +829,12 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
                 csv_path=root_folder / METRICS_AGGREGATES_FILE
             )
         )
+        # The full metrics file saves the prediction for each individual subject. Do not include the training
+        # results in this file (as in cross-validation a subject is used in several folds.)
+        val_and_test_metrics = initial_metrics.loc[
+            initial_metrics[LoggingColumns.DataSplit != ModelExecutionMode.TRAIN.value]]
+        val_and_test_metrics.to_csv(full_csv_file, index=False)
+
         # Copy one instance of the dataset.CSV files to the root of the results folder. It is possible
         # that the different CV folds run with different dataset files, but not expected for classification
         # models at the moment (could change with ensemble models)
