@@ -832,7 +832,7 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
         # The full metrics file saves the prediction for each individual subject. Do not include the training
         # results in this file (as in cross-validation a subject is used in several folds.)
         val_and_test_metrics = initial_metrics.loc[
-            initial_metrics[LoggingColumns.DataSplit != ModelExecutionMode.TRAIN.value]]
+            initial_metrics[LoggingColumns.DataSplit.value != ModelExecutionMode.TRAIN.value]]
         val_and_test_metrics.to_csv(full_csv_file, index=False)
 
         # Copy one instance of the dataset.CSV files to the root of the results folder. It is possible
