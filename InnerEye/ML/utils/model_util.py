@@ -69,7 +69,7 @@ class ModelAndInfo:
         self.model = DataParallelModel(self.model, device_ids=device_ids)
 
     def create_model(self) -> None:
-        return create_model_with_temperature_scaling(self.config)
+        self.model = create_model_with_temperature_scaling(self.config)
 
     def try_load_checkpoint_for_model(self) -> bool:
         """
@@ -154,6 +154,9 @@ class ModelAndInfo:
         If the checkpoint_epoch is None, there is no model file at the given path.
         """
         self.create_model()
+
+        # for mypy
+        assert self.model is not None
 
         if self.checkpoint_path is not None:
             # Load the stored model. If there is no checkpoint present, return immediately.

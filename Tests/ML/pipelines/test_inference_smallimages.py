@@ -11,7 +11,7 @@ from InnerEye.Common.common_util import ModelExecutionMode, is_windows
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.pipelines.inference import InferencePipeline
-from InnerEye.ML.utils import image_util, model_util
+from InnerEye.ML.utils import image_util
 from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
 
 

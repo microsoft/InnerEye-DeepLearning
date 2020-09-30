@@ -96,12 +96,17 @@ def test_anomaly_detection(value_to_insert: float, in_training_mode: bool) -> No
     model_and_info.model = SimpleModel(1, [1], 2, 2)
     summary_for_segmentation_models(config, model_and_info.model)
     model_and_info.adjust_model_for_gpus()
-    # instantiate the model
-    config.adjust_after_mixed_precision_and_parallel(model)
+    model_and_info.try_create_optimizer_and_load_from_checkpoint()
     config.use_gpu = False
 
-    # Create the optimizer_type and loss criterion
-    optimizer = model_util.create_optimizer(config, model)
+    model = model_and_info.model
+    optimizer = model_and_info.optimizer
+
+    # for mypy
+    assert model is not None
+    assert optimizer is not None
+
+    # Create the loss criterion
     criterion = lambda x, y: torch.tensor(value_to_insert, requires_grad=True)
     pipeline = SegmentationForwardPass(model,
                                        config,

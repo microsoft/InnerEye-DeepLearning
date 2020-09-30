@@ -611,14 +611,16 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                / self.checkpoint_folder \
                / f"{epoch}{filename}"
 
-    def get_recovery_path_train(self, run_recovery: RunRecovery, is_mean_teacher: bool, epoch: int) -> Path:
+    def get_recovery_path_train(self, run_recovery: Optional[RunRecovery],
+                                is_mean_teacher: bool, epoch: int) -> Path:
         if run_recovery:
             checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, is_mean_teacher)[0]
         else:
             checkpoint_paths = self.get_path_to_checkpoint(epoch, is_mean_teacher)
         return checkpoint_paths
 
-    def get_recovery_path_test(self, run_recovery: RunRecovery, is_mean_teacher: bool, epoch: int) -> List[Path]:
+    def get_recovery_path_test(self, run_recovery: Optional[RunRecovery],
+                               is_mean_teacher: bool, epoch: int) -> List[Path]:
         if run_recovery:
             checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, is_mean_teacher)
             checkpoint_exists = []

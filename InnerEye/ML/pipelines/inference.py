@@ -219,6 +219,11 @@ class InferencePipeline(FullImageInferencePipelineBase):
         model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
         if not model_loaded:
             return None
+
+        # for mypy, if model has been loaded these will not be None
+        assert model_and_info.model is not None
+        assert model_and_info.checkpoint_epoch is not None
+
         for name, param in model_and_info.model.named_parameters():
             param_numpy = param.clone().cpu().data.numpy()
             image_util.check_array_range(param_numpy, error_prefix="Parameter {}".format(name))

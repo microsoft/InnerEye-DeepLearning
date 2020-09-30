@@ -71,7 +71,7 @@ def model_test(config: ModelConfigBase,
         if isinstance(config, SegmentationModelBase):
             return segmentation_model_test(config, data_split, run_recovery, model_proc)
         if isinstance(config, ScalarModelBase):
-            return classification_model_test(config, data_split, run_recovery, model_proc)
+            return classification_model_test(config, data_split, run_recovery)
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 
