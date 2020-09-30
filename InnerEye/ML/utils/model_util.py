@@ -71,17 +71,20 @@ class ModelAndInfo:
     def create_model(self) -> None:
         return create_model_with_temperature_scaling(self.config)
 
-    def load_checkpoint_for_model(self) -> None:
+    def try_load_checkpoint_for_model(self) -> bool:
         """
         Loads a checkpoint of a model.
         The provided model must match the stored model.
         """
+        if self.model is None:
+            raise ValueError("Model must be created before it can be adjusted.")
+
         if not self.checkpoint_path:
             raise ValueError("No checkpoint provided")
 
         if not self.checkpoint_path.is_file():
             logging.warning(f'No checkpoint found at {self.checkpoint_path} current working dir {os.getcwd()}')
-            return None
+            return False
 
         logging.info(f"Loading checkpoint {self.checkpoint_path}")
         # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
@@ -96,6 +99,7 @@ class ModelAndInfo:
 
         logging.info("Loaded model from checkpoint (epoch: {})".format(checkpoint['epoch']))
         self.checkpoint_epoch = checkpoint['epoch']
+        return True
 
     def adjust_model_for_gpus(self) -> None:
         """
@@ -103,6 +107,9 @@ class ModelAndInfo:
         multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
         perform full volume inference.
         """
+        if self.model is None:
+            raise ValueError("Model must be created before it can be adjusted.")
+
         # Adjusting twice causes an error.
         if self.is_adjusted:
             logging.debug("model_and_info.is_adjusted is already True")
@@ -140,17 +147,19 @@ class ModelAndInfo:
         self.is_adjusted = True
         logging.debug("model_and_info.is_adjusted set to True")
 
-    def create_model_load_from_checkpoint_and_adjust(self) -> None:
+    def try_create_model_load_from_checkpoint_and_adjust(self) -> bool:
         """
         Creates a model as per the configuration, and loads the parameters from the given checkpoint path.
         The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
         If the checkpoint_epoch is None, there is no model file at the given path.
         """
+        self.create_model()
+
         if self.checkpoint_path is not None:
             # Load the stored model. If there is no checkpoint present, return immediately.
-            self.load_checkpoint_for_model()
-        if self.checkpoint_epoch is None:
-            return
+            success = self.try_load_checkpoint_for_model()
+            if not success:
+                return False
 
         # Enable data/model parallelization
         if self.config.is_segmentation_model:
@@ -159,30 +168,31 @@ class ModelAndInfo:
         # Prepare for mixed precision training and data parallelization (no-op if already done).
         # This relies on the information generated in the model summary.
         self.adjust_model_for_gpus()
+        return True
 
     def create_optimizer(self) -> None:
         """
         Creates a torch optimizer for the given model.
         """
-        # Make sure model is loaded before we load optimizer
+        # Make sure model is created before we create optimizer
         if self.model is None:
             raise ValueError("Model checkpoint must be created before optimizer checkpoint can be loaded.")
 
         # Select optimizer type
         if self.config.optimizer_type in [OptimizerType.Adam, OptimizerType.AMSGrad]:
             self.optimizer = torch.optim.Adam(self.model.parameters(), self.config.l_rate,
-                                    self.config.adam_betas, self.config.opt_eps, self.config.weight_decay,
-                                    amsgrad=self.config.optimizer_type == OptimizerType.AMSGrad)
+                                              self.config.adam_betas, self.config.opt_eps, self.config.weight_decay,
+                                              amsgrad=self.config.optimizer_type == OptimizerType.AMSGrad)
         elif self.config.optimizer_type == OptimizerType.SGD:
             self.optimizer = torch.optim.SGD(self.model.parameters(), self.config.l_rate, self.config.momentum,
-                                   weight_decay=self.config.weight_decay)
+                                             weight_decay=self.config.weight_decay)
         elif self.config.optimizer_type == OptimizerType.RMSprop:
             self.optimizer = RMSprop(self.model.parameters(), self.config.l_rate, self.config.rms_alpha, self.config.opt_eps,
                            self.config.weight_decay, self.config.momentum)
         else:
             raise NotImplementedError(f"Optimizer type {self.config.optimizer_type.value} is not implemented")
 
-    def load_checkpoint_for_optimizer(self) -> None:
+    def try_load_checkpoint_for_optimizer(self) -> bool:
         """
         Loads a checkpoint of an optimizer.
         """
@@ -192,7 +202,7 @@ class ModelAndInfo:
 
         if not self.checkpoint_path.is_file():
             logging.warning(f'No checkpoint found at {self.checkpoint_path} current working dir {os.getcwd()}')
-            return None
+            return False
 
         logging.info(f"Loading checkpoint {self.checkpoint_path}")
         # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
@@ -205,10 +215,12 @@ class ModelAndInfo:
 
         logging.info("Loaded optimizer from checkpoint (epoch: {})".format(checkpoint['epoch']))
         self.checkpoint_epoch = checkpoint['epoch']
+        return True
 
-    def create_optimizer_and_load_from_checkpoint(self) -> None:
+    def try_create_optimizer_and_load_from_checkpoint(self) -> bool:
         self.create_optimizer()
-        self.load_checkpoint_for_optimizer()
+        success = self.try_load_checkpoint_for_optimizer()
+        return success
 
 
 def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:

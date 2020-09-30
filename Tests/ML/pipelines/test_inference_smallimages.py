@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from InnerEye.Common import common_util
+from InnerEye.Common.common_util import ModelExecutionMode, is_windows
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.pipelines.inference import InferencePipeline
@@ -56,7 +56,7 @@ def run_inference_on_unet(size: TupleInt3) -> None:
         image_util.check_array_range(p)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_inference_on_too_small_image() -> None:
     """
     Running inference on a simplified Unet model when the input image is too small along an axis.
@@ -65,7 +65,7 @@ def test_inference_on_too_small_image() -> None:
         run_inference_on_unet((5, 10, 64))
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("size", [(26, 20, 50), (16, 16, 16)])
 def test_inference_on_small_image(size: TupleInt3) -> None:
     """
@@ -90,8 +90,11 @@ def test_invalid_stride_size() -> None:
         should_validate=False
     )
     with pytest.raises(ValueError) as ex:
-        model = create_model_with_temperature_scaling(config)
-        model_util.update_model_for_multiple_gpus(ModelAndInfo(model), config)
+        model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
+                                      is_mean_teacher=False, checkpoint_path=None)
+        model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+        assert model_loaded
+
     assert "inference stride size must be smaller" in ex.value.args[0]
     assert str(config.inference_stride_size) in ex.value.args[0]
     assert str(config.test_crop_size) in ex.value.args[0]

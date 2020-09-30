@@ -216,8 +216,8 @@ class InferencePipeline(FullImageInferencePipelineBase):
                                                  model_execution_mode=ModelExecutionMode.TEST,
                                                  is_mean_teacher=False,
                                                  checkpoint_path=path_to_checkpoint)
-        model_and_info.create_model_load_from_checkpoint_and_adjust()
-        if model_and_info.checkpoint_epoch is None or model_and_info.model is None:
+        model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+        if not model_loaded:
             return None
         for name, param in model_and_info.model.named_parameters():
             param_numpy = param.clone().cpu().data.numpy()

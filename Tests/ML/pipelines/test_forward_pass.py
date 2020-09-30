@@ -27,7 +27,8 @@ from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util, model_util
 from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.metrics_util import SummaryWriters
-from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
+from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling, \
+    summary_for_segmentation_models
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
 from Tests.ML.util import machine_has_gpu, no_gpu_available
@@ -90,8 +91,12 @@ def test_anomaly_detection(value_to_insert: float, in_training_mode: bool) -> No
         detect_anomaly=True
     )
 
+    model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TRAIN,
+                                  is_mean_teacher=False, checkpoint_path=None)
+    model_and_info.model = SimpleModel(1, [1], 2, 2)
+    summary_for_segmentation_models(config, model_and_info.model)
+    model_and_info.adjust_model_for_gpus()
     # instantiate the model
-    model = SimpleModel(1, [1], 2, 2)
     config.adjust_after_mixed_precision_and_parallel(model)
     config.use_gpu = False
 

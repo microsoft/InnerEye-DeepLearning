@@ -89,8 +89,8 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
                                                  model_execution_mode=ModelExecutionMode.TEST,
                                                  is_mean_teacher=False,
                                                  checkpoint_path=path_to_checkpoint)
-        model_and_info.create_model_load_from_checkpoint_and_adjust()
-        if model_and_info.model is None or model_and_info.checkpoint_epoch is None:
+        model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+        if not model_loaded:
             # not raising a value error here: This is used to create individual pipelines for ensembles,
             #                                   possible one model cannot be created but others can
             logging.warning(f"Could not recover model from checkpoint path {path_to_checkpoint}")
