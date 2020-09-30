@@ -156,6 +156,8 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
     :param rank: For distributed data parallel, this is the global rank of the current process
     :return: Updated torch model and optimizer.
     """
+    device = torch.device('cuda', rank) if torch.cuda.is_available() else torch.device('cpu')
+
     if model_and_info.is_adjusted:
         logging.debug("model_and_info.is_adjusted is already True")
         return model_and_info
@@ -167,7 +169,7 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
             model_and_info.to_cuda(device_rank=rank)
             model_and_info.set_distributed_data_parallel([rank])
         else:
-            args.adjust_after_mixed_precision_and_parallel(model_and_info.model)
+            args.adjust_after_mixed_precision_and_parallel(model_and_info.model, device)
         logging.debug("Skipping model update")
         return model_and_info
 
@@ -193,7 +195,7 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
         logging.info("Making no adjustments to the model because no GPU was found.")
 
     # Update model related config attributes (After AMP & Model Parallel Activated)
-    args.adjust_after_mixed_precision_and_parallel(model_and_info.model)
+    args.adjust_after_mixed_precision_and_parallel(model_and_info.model, device)
 
     # DataParallel enables running the model with multiple gpus by splitting samples across GPUs
     # If the model is used in training mode, data parallel is activated by default.
@@ -305,7 +307,6 @@ def load_checkpoint(model: torch.nn.Module,
     :param optimizer: The optimizer used for training
     :return: The checkpoint epoch if loaded and None if not loaded
     """
-
     if not path_to_checkpoint.is_file():
         logging.warning(f'No checkpoint found at {path_to_checkpoint} current working dir {os.getcwd()}')
         return None

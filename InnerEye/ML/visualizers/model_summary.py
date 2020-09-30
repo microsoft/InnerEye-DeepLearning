@@ -190,7 +190,7 @@ class ModelSummary:
         # Register the forward-pass hooks, profile the model, and restore its state
         self.model.apply(self._register_hook)
         with torchprof.Profile(self.model, use_cuda=self.use_gpu) as prof:
-            forward_preserve_state(self.model, input_tensors)  # type: ignore
+            forward_preserve_state(self.model, input_tensors, device=device)  # type: ignore
 
         # Log the model summary: tensor shapes, num of parameters, memory requirement, and forward pass time
         logging.info(self.model)
@@ -202,7 +202,7 @@ class ModelSummary:
             h.remove()
 
 
-def forward_preserve_state(module: DeviceAwareModule, inputs: List[torch.Tensor]
+def forward_preserve_state(module: DeviceAwareModule, inputs: List[torch.Tensor], device: torch.device
                            ) -> torch.Tensor:
     """
     Perform forward pass on input module with given list of torch tensors. The function preserves the random state
@@ -210,6 +210,7 @@ def forward_preserve_state(module: DeviceAwareModule, inputs: List[torch.Tensor]
     evaluation mode for inference and then restores its previous state.
     :param module: Callable torch module
     :param inputs: List of input torch tensors
+    :param device: The Torch device to allocate tensors to.
     :return output: Output torch tensors
     """
 
@@ -217,7 +218,6 @@ def forward_preserve_state(module: DeviceAwareModule, inputs: List[torch.Tensor]
         raise RuntimeError("Inputs object has to be a list of torch tensors")
 
     if module.is_model_on_gpu():
-        device = module.get_devices()[0]
         inputs = [input_tensor.to(device) for input_tensor in inputs]
 
     # collect the current state of the model

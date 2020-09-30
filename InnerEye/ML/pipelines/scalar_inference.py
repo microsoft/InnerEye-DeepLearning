@@ -105,7 +105,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         device = torch.device('cpu')
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, self.model, sample, device)
         subject_ids = model_inputs_and_labels.subject_ids
-        labels = self.model_config.get_gpu_tensor_if_possible(model_inputs_and_labels.labels)
+        labels = self.model_config.get_gpu_tensor_if_possible(model_inputs_and_labels.labels, device=device)
 
         model_output: torch.Tensor = self.model.forward(*model_inputs_and_labels.model_inputs)
         if isinstance(model_output, list):

@@ -138,14 +138,22 @@ class BaseModel(DeviceAwareModule, ABC):
             crop_size_constraints = CropSizeConstraints(multiple_of=1)
         self.crop_size_constraints = crop_size_constraints
 
-    def get_output_shape(self, input_shape: Union[TupleInt2, TupleInt3]) -> Tuple[int, ...]:
+    def get_output_shape(self, input_shape: Union[TupleInt2, TupleInt3], device: torch.device)\
+            -> Tuple[int, ...]:
         """
         Computes model's output tensor shape for given input tensor shape.
         The argument is expected to be either a 2-tuple or a 3-tuple. A batch dimension (1)
         and the number of channels are added as the first dimensions. The result tuple has batch and channel dimension
         stripped off.
         :param input_shape: A tuple (2D or 3D) representing incoming tensor shape.
+        :param device: The Torch device to allocate to.
         """
+        if device is None:
+            if torch.cuda.is_available():
+                device = torch.device('cuda')
+            else:
+                device = torch.device('cpu')
+
         # Create a sample tensor for inference
         batch_size = 1
         if len(input_shape) not in [2, 3]:
@@ -154,7 +162,7 @@ class BaseModel(DeviceAwareModule, ABC):
             [torch.zeros(batch_size, self.input_channels, *input_shape, dtype=torch.float)]
 
         # Perform a forward pass then restore the state of the module
-        output_shape = forward_preserve_state(module=self, inputs=input_tensors).size()
+        output_shape = forward_preserve_state(module=self, inputs=input_tensors, device=device).size()
         return tuple(output_shape[2:])
 
     def partition_model(self, devices: List[torch.device]) -> None:
