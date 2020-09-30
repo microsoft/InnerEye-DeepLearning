@@ -27,8 +27,7 @@ from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util, model_util
 from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.metrics_util import SummaryWriters
-from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling, \
-    summary_for_segmentation_models
+from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
 from Tests.ML.util import machine_has_gpu, no_gpu_available
@@ -291,21 +290,25 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
     """
     Tests the mix precision flag and data parallel for scalar models.
     """
+    class ClassificationModelWithIdentity(ClassificationModelForTesting):
+        def create_model(self) -> Any:
+            return DummyScalarModel(expected_image_size_zyx=config.expected_image_size_zyx,
+                                    activation=Identity(),
+                                    use_mixed_precision=use_mixed_precision)
+
     assert machine_has_gpu, "This test must be executed on a GPU machine."
     assert torch.cuda.device_count() > 1, "This test must be executed on a multi-GPU machine"
-    config = ClassificationModelForTesting()
+    config = ClassificationModelWithIdentity()
     config.use_mixed_precision = use_mixed_precision
-    model = DummyScalarModel(expected_image_size_zyx=config.expected_image_size_zyx,
-                             activation=Identity())
-    model.use_mixed_precision = use_mixed_precision
-    model_and_info = ModelAndInfo(
-        model=model,
-        model_execution_mode=execution_mode
-    )
+
+    model_and_info = ModelAndInfo(config=config, model_execution_mode=execution_mode,
+                                  is_mean_teacher=False, checkpoint_path=None)
+    model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+    model = model_and_info.model
+
     # This is the same logic spelt out in update_model_for_multiple_gpu
     # execution_mode == ModelExecutionMode.TRAIN or (not use_model_parallel), which is always True in our case
     use_data_parallel = True
-    model_and_info = model_util.update_model_for_multiple_gpus(model_and_info, config)
     if use_data_parallel:
         assert isinstance(model_and_info.model, DataParallelModel)
     data_loaders = config.create_data_loaders()
