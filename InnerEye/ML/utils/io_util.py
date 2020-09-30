@@ -7,12 +7,13 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Generic, Iterable, List, Optional, Tuple, Type, TypeVar, Union
-from skimage.transform import resize
 
 import SimpleITK as sitk
 import numpy as np
 import pandas as pd
 import torch
+from PIL import Image
+from skimage.transform import resize
 from tabulate import tabulate
 
 from InnerEye.Common import common_util
@@ -73,10 +74,19 @@ class DicomFileType(Enum):
     Dicom = ".dcm"
 
 
+class JpegFileType(Enum):
+    """
+    Supported file extensions that indicate Jpeg data.
+    """
+    JPEG = ".jpeg"
+    JPG = ".jpg"
+
+
 VALID_NIFTI_EXTENSIONS_TUPLE = tuple([f.value for f in MedicalImageFileType])
 VALID_HDF5_EXTENSIONS_TUPLE = tuple([f.value for f in HDF5FileType])
 VALID_NUMPY_EXTENSIONS_TUPLE = tuple([f.value for f in NumpyFile])
 VALID_DICOM_EXTENSIONS_TUPLE = tuple([f.value for f in DicomFileType])
+VALID_JPEG_EXTENSIONS_TUPLE = tuple([f.value for f in JpegFileType])
 
 
 def _file_matches_extension(file: PathOrString, valid_extensions: Iterable[str]) -> bool:
@@ -134,6 +144,17 @@ def is_dicom_file_path(file: PathOrString) -> bool:
     :return: True if the file name indicates a Dicom file.
     """
     return _file_matches_extension(file, VALID_DICOM_EXTENSIONS_TUPLE)
+
+
+def is_jpeg_file_path(file: PathOrString) -> bool:
+    """
+    Returns true if the given file name appears to belong to a JPEG file.
+    This is done based on extensions only. The file does not need to exist.
+
+    :param file: The file name to check.
+    :return: True if the file name indicates a JPEG file.
+    """
+    return _file_matches_extension(file, VALID_JPEG_EXTENSIONS_TUPLE)
 
 
 def read_image_as_array_with_header(file_path: Path) -> Tuple[np.ndarray, ImageHeader]:
@@ -213,6 +234,15 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
     return pixels.astype(np.float)
 
 
+def load_jpeg_image(path: PathOrString) -> np.ndarray:
+    """
+    Loads an array from a single jpeg file.
+    :param path: The path to the jpeg file.
+    """
+    image = Image.open(str(path))
+    return np.asarray(image).astype(np.float)
+
+
 def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) -> HDF5Object:
     """
     Loads a single HDF5 file.
@@ -245,9 +275,9 @@ class ImageAndSegmentations(Generic[TensorOrNumpyArray]):
 
 
 def load_images_and_stack(files: Iterable[Path],
-                             load_segmentation: bool,
-                             center_crop_size: Optional[TupleInt3] = None,
-                             image_size: Optional[TupleInt3] = None) -> ImageAndSegmentations[torch.Tensor]:
+                          load_segmentation: bool,
+                          center_crop_size: Optional[TupleInt3] = None,
+                          image_size: Optional[TupleInt3] = None) -> ImageAndSegmentations[torch.Tensor]:
     """
     Attempts to load a set of files, all of which are expected to contain 3D images of the same size (Z, X, Y)
     They are all stacked along dimension 0 and returned as a torch tensor of size (B, Z, X, Y)
@@ -323,6 +353,8 @@ def load_image_in_known_formats(file: Path,
         return ImageAndSegmentations(images=load_numpy_image(path=file))
     elif is_dicom_file_path(file):
         return ImageAndSegmentations(images=load_dicom_image(path=file))
+    elif is_jpeg_file_path(file):
+        return ImageAndSegmentations(images=load_jpeg_image(path=file))
     else:
         raise ValueError(f"Unsupported image file type for path {file}")
 

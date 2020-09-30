@@ -25,7 +25,6 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section, print_exception
 from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
-from InnerEye.Datasets.kaggle_dataset_downloader import KaggleDataset, KaggleDatasetDownloader
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod
@@ -399,8 +398,8 @@ class MLRunner:
         dataset_dst = self.project_root / fixed_paths.DATASETS_DIR_NAME
 
         if self.model_config.kaggle_dataset:
-            return KaggleDatasetDownloader(dataset=KaggleDataset.MedMNIST,
-                                           outputs_dir=dataset_dst).download_and_pre_process()
+            downloader = self.model_config.kaggle_dataset.create_downloader(self.model_config.outputs_folder)
+            return downloader.download_and_prepare()
 
         elif is_offline_run_context(RUN_CONTEXT):
             # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
