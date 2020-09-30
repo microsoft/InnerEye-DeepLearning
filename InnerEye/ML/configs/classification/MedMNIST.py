@@ -11,9 +11,20 @@ from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 
-class HelloWorldClassification(ScalarModelBase):
+class MedMNIST(ScalarModelBase):
     """
-    A config file for dummy image classification model for debugging purposes
+    This is a very basic model that is pre-configured to train on the CPU for 2 epochs on a Kaggle medical image
+    classification dataset MedMNIST.
+
+    The aim of this config is to demonstrate how to:
+    1) Subclass ScalarModelBase which is the base config for all classification and regression model configs
+    2) Configure a simple FCN scalar model implemented in this package
+    3) Use Kaggle datasets
+
+    - This model can be trained from the commandline: ../InnerEye/runner.py --model=MedMNIST
+
+    In this example, the model is trained on 2 input image channels channel1 and channel2, and
+    predicts 2 foreground classes region, region_1.
     """
 
     def __init__(self) -> None:
@@ -26,7 +37,7 @@ class HelloWorldClassification(ScalarModelBase):
             label_value_column="label",
             non_image_feature_channels=[],
             numerical_columns=[],
-            loss_type=ScalarLoss.MeanSquaredError,
+            loss_type=ScalarLoss.BinaryCrossEntropyWithLogits,
             num_epochs=num_epochs,
             num_dataload_workers=0,
             test_start_epoch=num_epochs,
