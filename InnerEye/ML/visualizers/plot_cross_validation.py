@@ -135,7 +135,6 @@ class PlotCrossValidationConfig(GenericConfig):
     create_plots: bool = param.Boolean(default=True, doc="Whether to create plots; if False, just find outliers "
                                                          "and do statistical tests")
 
-
     def __init__(self, **params: Any):
         # Mapping from run IDs to short names used in graphs
         self.short_names: Dict[str, str] = {}

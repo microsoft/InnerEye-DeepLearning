@@ -140,7 +140,7 @@ def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> 
     pd.testing.assert_frame_equal(df_expected, df_epoch_metrics_actual, check_less_precise=True)
 
 
-#@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("model_name", ["DummyClassification", "DummyRegression"])
 @pytest.mark.parametrize("number_of_offline_cross_validation_splits", [2])
 @pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [2])

@@ -102,7 +102,7 @@ def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str,
                 file = RunResultFiles(execution_mode=mode,
                                       metrics_file=metrics_file,
                                       dataset_csv_file=dataset_file,
-                                      run_recovery_id=config.run_recovery_id + "_" + split,
+                                      run_recovery_id=config.run_recovery_id + "_" + split,  # type: ignore
                                       split_index=split)
                 files.append(file)
     return files
