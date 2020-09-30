@@ -34,6 +34,8 @@ from InnerEye.ML.models.losses.ece import ECELoss
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion, DataParallelModel
+from InnerEye.ML.models.parallel.distributed_data_parallel import DistributedDataParallelModel, \
+    DistributedDataParallelCriterion
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass, single_optimizer_step
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
@@ -109,12 +111,14 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
 
     @abstractmethod
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
-                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
+                                       batch_index: int, epoch: int, device: Optional[torch.device]
+                                       ) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and returns the loss.
         :param sample: The batched sample on which the model should be trained.
         :param batch_index: The index of the present batch (supplied only for diagnostics).
         :param epoch: The number of the present epoch.
+        :param device: The Torch device to allocate to. If None, sets to default GPU if available, else CPU.
         """
         raise NotImplementedError("forward_minibatch must be implemented by derived class.")
 
@@ -146,15 +150,16 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         else:
             return loss_function
 
-    def compute_loss(self, model_output: torch.Tensor, labels: NumpyOrTorch) -> torch.Tensor:
+    def compute_loss(self, model_output: torch.Tensor, labels: NumpyOrTorch, device: torch.device) -> torch.Tensor:
         """
         Provided model outputs (logits) applies the criterion function and returns the loss tensor.
         If data parallel is used, then the independent loss values are aggregated by averaging.
         :param model_output: Model output logits (unnormalised)
         :param labels: A tensor or numpy array of labels.
+        :param device: The Torch device to allocate to. If None, sets to default GPU if available, else CPU.
         """
         # ensure that the labels are loaded into the GPU
-        labels = self.model_config.get_gpu_tensor_if_possible(labels)
+        labels = self.model_config.get_gpu_tensor_if_possible(labels, device)
         loss = self.forward_criterion(model_output, labels)
         if self.model_config.use_data_parallel:
             # Aggregate the loss values for each parallelized batch element.
@@ -190,17 +195,23 @@ class ScalarModelInputsAndLabels(Generic[E, T]):
 
 def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
                                        model: torch.nn.Module,
-                                       sample: Dict[str, Any]) -> ScalarModelInputsAndLabels:
+                                       sample: Dict[str, Any],
+                                       device: torch.device) -> ScalarModelInputsAndLabels:
     """
     For a model that predicts scalars, gets the model input tensors from a sample returned by the data loader.
     :param model_config: The configuration object for the model.
     :param model: The instantiated PyTorch model.
     :param sample: A training sample, as returned by a PyTorch data loader (dictionary mapping from field name to value)
+    :param device: The Torch device to allocate to. If None, sets to default GPU if available, else CPU.
     :return: An instance of ScalarModelInputsAndLabels, containing the list of model input tensors,
     label tensor, subject IDs, and the data item reconstructed from the data loader output
     """
     if isinstance(model, DataParallelModel):
         model = model.get_module()
+
+    for key, value in sample.items():
+        if isinstance(value, torch.Tensor):
+            sample[key] = value.to(device)
 
     if isinstance(model_config, SequenceModelBase):
         sequence_model: DeviceAwareModule[List[ClassificationItemSequence], torch.Tensor] = model  # type: ignore
@@ -277,16 +288,16 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         else:
             raise NotImplementedError("Loss type {} is not implemented".format(self.model_config.loss_type))
 
-    def get_label_tensor(self, labels: torch.Tensor) -> torch.Tensor:
+    def get_label_tensor(self, labels: torch.Tensor, device) -> torch.Tensor:
         """
         Converts the given tensor to the right data format, depending on the chosen loss function.
         :param labels: The label tensor that should be converted.
         """
         try:
-            labels = labels.to(dtype=self.label_tensor_dtype)
+            labels = labels.to(device, dtype=self.label_tensor_dtype)
         except ValueError as ex:
             raise ValueError(f"Unable to convert tensor {labels} to data type {self.label_tensor_dtype}: {str(ex)}")
-        return self.model_config.get_gpu_tensor_if_possible(labels)
+        return self.model_config.get_gpu_tensor_if_possible(labels, device)
 
     def get_logits_and_posteriors(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
             -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -310,17 +321,20 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         return logits, gathered_logits, posteriors
 
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
-                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
+                                       batch_index: int, epoch: int, device: Optional[torch.device]
+                                       ) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and computes all metrics.
         :param sample: The batched sample on which the model should be trained.
         :param batch_index: The index of the present batch (supplied only for diagnostics).
         :param epoch: The number of the present epoch.
+        :param device: The Torch device to allocate to. If None, sets to default GPU if available, else CPU.
         """
+
         start_time = time.time()
         model = self.train_val_params.model
         mean_teacher_model = self.train_val_params.mean_teacher_model
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, model, sample)
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, model, sample, device)
 
         if self.in_training_mode:
             model.train()
@@ -333,8 +347,8 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                     self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
             model.train()
 
-        label_gpu = self.get_label_tensor(model_inputs_and_labels.labels)
-        loss = self.compute_loss(logits, label_gpu)
+        label_gpu = self.get_label_tensor(model_inputs_and_labels.labels, device)
+        loss = self.compute_loss(logits, label_gpu, device)
 
         if self.in_training_mode:
             single_optimizer_step(self.model_config, loss, self.train_val_params.optimizer)
@@ -463,7 +477,7 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
     """
 
     def forward_criterion(self, model_output: Union[torch.Tensor, List[torch.Tensor]],
-                          labels: NumpyOrTorch) -> torch.Tensor:
+                          labels: NumpyOrTorch, device) -> torch.Tensor:
         _model_output: torch.Tensor
         # we need to gather the model outputs before masking them for the criterion.
         if isinstance(model_output, list):
@@ -594,15 +608,17 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
             raise NotImplementedError("Loss type {} is not implemented".format(loss_type))
 
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
-                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
+                                       batch_index: int, epoch: int, device: Optional[torch.device]
+                                       ) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and computes all metrics.
         :param sample: The batched sample on which the model should be trained.
         :param batch_index: The index of the present batch (supplied only for diagnostics).
         :param epoch: The number of the present epoch.
+        :param device: The Torch device to allocate to. If None, sets to default GPU if available, else CPU.
         """
         cropped_sample: CroppedSample = CroppedSample.from_dict(sample=sample)
-        labels = self.model_config.get_gpu_tensor_if_possible(cropped_sample.labels_center_crop)
+        labels = self.model_config.get_gpu_tensor_if_possible(cropped_sample.labels_center_crop, device)
 
         mask = None if self.train_val_params.in_training_mode else cropped_sample.mask_center_crop
         forward_pass_result = self.pipeline.forward_pass_patches(patches=cropped_sample.image,

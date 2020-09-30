@@ -11,7 +11,8 @@ from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar, Union
 import pandas as pd
 import torch.utils.data
 from torch._six import container_abcs
-from torch.utils.data import BatchSampler, DataLoader, Dataset, RandomSampler, Sampler, SequentialSampler
+from torch.utils.data import BatchSampler, DataLoader, Dataset, RandomSampler, Sampler, SequentialSampler, \
+    DistributedSampler
 from torch.utils.data.dataloader import default_collate  # type: ignore
 
 from InnerEye.Common.type_annotations import IntOrString, TupleFloat3
@@ -177,7 +178,9 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
                        num_dataload_workers: Optional[int] = None,
                        use_imbalanced_sampler: bool = False,
                        drop_last_batch: bool = False,
-                       max_repeats: Optional[int] = None) -> DataLoader:
+                       max_repeats: Optional[int] = None,
+                       distribute=False
+                       ) -> DataLoader:
         num_dataload_workers = num_dataload_workers or self.args.num_dataload_workers
         batch_size = batch_size or self.args.train_batch_size
         if self.args.avoid_process_spawn_in_data_loaders:
@@ -195,6 +198,15 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
                 use_imbalanced_sampler=use_imbalanced_sampler,
                 drop_last=drop_last_batch
             )
+        elif distribute:
+            # distributed data loader
+            sampler: DistributedSampler = DistributedSampler(self)
+            return DataLoader(self,
+                              batch_size=batch_size,
+                              shuffle=False,
+                              num_workers=0,
+                              collate_fn=collate_with_metadata,
+                              sampler=sampler)
         else:
             if use_imbalanced_sampler:
                 sampler: Optional[Sampler] = ImbalancedSampler(self)

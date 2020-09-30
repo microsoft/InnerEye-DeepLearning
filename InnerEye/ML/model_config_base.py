@@ -11,6 +11,7 @@ import pandas as pd
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 from pandas import DataFrame
+from torch import device as torch_device
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES, TrackedMetrics
@@ -76,7 +77,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
 
     def create_and_set_torch_datasets(self, for_training: bool = True, for_inference: bool = True) -> None:
         """
-        Creats and sets torch datasets for training and validation, and stores them in the self._datasets_for_training
+        Creates and sets torch datasets for training and validation, and stores them in the self._datasets_for_training
         field. Similarly, create torch datasets in the form required for model inference, for all of the
         3 splits of the full data, and stored them in the self._datasets_for_training and/or
         self._datasets_for_inference fields.
@@ -128,12 +129,14 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
             .as_data_loader(shuffle=self.shuffle,
                             use_imbalanced_sampler=self.use_imbalanced_sampler_for_training,
                             drop_last_batch=self.drop_last_batch_in_training,
-                            max_repeats=self.get_total_number_of_training_epochs())
+                            max_repeats=self.get_total_number_of_training_epochs(),
+                            distribute=self.use_ddp)
         logging.info("Creating the data loader for the validation set.")
 
         val_loader = self._datasets_for_training[ModelExecutionMode.VAL].as_data_loader(
             shuffle=False,
-            max_repeats=self.get_total_number_of_validation_epochs()
+            max_repeats=self.get_total_number_of_validation_epochs(),
+            distribute=self.use_ddp
         )
         logging.info("Finished creating the data loaders.")
         return {

@@ -102,7 +102,8 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         :return: Returns ScalarInferencePipelineBase.Result with  the subject ids, ground truth labels and predictions.
         """
         assert isinstance(self.model_config, ScalarModelBase)
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, self.model, sample)
+        device = torch.device('cpu')
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, self.model, sample, device)
         subject_ids = model_inputs_and_labels.subject_ids
         labels = self.model_config.get_gpu_tensor_if_possible(model_inputs_and_labels.labels)
 

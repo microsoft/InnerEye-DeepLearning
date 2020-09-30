@@ -4,12 +4,14 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import os
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional, Union
 
 import torch
 from apex import amp
+from numpy import logical_and
 from torch.optim.optimizer import Optimizer
 from torch.optim.rmsprop import RMSprop
 
@@ -26,6 +28,7 @@ from InnerEye.ML.models.architectures.unet_2d import UNet2D
 from InnerEye.ML.models.architectures.unet_3d import UNet3D
 from InnerEye.ML.models.layers.basic import BasicLayer
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
+from InnerEye.ML.models.parallel.distributed_data_parallel import DistributedDataParallelModel
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
@@ -55,9 +58,10 @@ class ModelAndInfo:
     checkpoint_epoch: Optional[int] = None
     model_execution_mode: ModelExecutionMode = ModelExecutionMode.TEST
 
-    def to_cuda(self) -> None:
+    def to_cuda(self, device_rank: Optional[int] = None) -> None:
         assert self.model is not None
-        self.model = self.model.cuda()
+        device = torch.device('cuda') if device_rank is None else torch.device('cuda', device_rank)
+        self.model = self.model.to(device)
 
     def apply_amp_output(self, amp_output: Any) -> None:
         if isinstance(amp_output, tuple):
@@ -68,6 +72,10 @@ class ModelAndInfo:
     def set_data_parallel(self, device_ids: Optional[List[Any]]) -> None:
         assert self.model is not None
         self.model = DataParallelModel(self.model, device_ids=device_ids)
+
+    def set_distributed_data_parallel(self, device_ids: Optional[List[Any]]) -> None:
+        assert self.model is not None
+        self.model = DistributedDataParallelModel(self.model, device_ids=device_ids)
 
 
 def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:
@@ -133,7 +141,8 @@ def build_net(args: SegmentationModelBase) -> BaseModel:
 
 def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
                                                   args: ModelConfigBase,
-                                                  execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN) -> \
+                                                  execution_mode: ModelExecutionMode = ModelExecutionMode.TRAIN,
+                                                  rank: Optional[int] = 0) -> \
         ModelAndInfo:
     """
     Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
@@ -144,11 +153,24 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
     :param model_and_info: The torch module object representing the network, and more
     :param args: The arguments object with attributes used to enable amp training and create the parallel model.
     :param execution_mode: mode, i.e. train or test
+    :param rank: For distributed data parallel, this is the global rank of the current process
     :return: Updated torch model and optimizer.
     """
     if model_and_info.is_adjusted:
         logging.debug("model_and_info.is_adjusted is already True")
         return model_and_info
+
+    use_ddp = args.use_gpu and args.use_ddp
+    if use_ddp:
+        if execution_mode == ModelExecutionMode.TRAIN:
+            # Move the model to the device with global rank
+            model_and_info.to_cuda(device_rank=rank)
+            model_and_info.set_distributed_data_parallel([rank])
+        else:
+            args.adjust_after_mixed_precision_and_parallel(model_and_info.model)
+        logging.debug("Skipping model update")
+        return model_and_info
+
     if args.use_gpu:
         # In the normal training codepath, the model should already be on the GPU, but in some tests not.
         model_and_info.to_cuda()
@@ -176,7 +198,9 @@ def update_model_for_mixed_precision_and_parallel(model_and_info: ModelAndInfo,
     # DataParallel enables running the model with multiple gpus by splitting samples across GPUs
     # If the model is used in training mode, data parallel is activated by default.
     # Similarly, if model parallel is not activated, data parallel is used as a backup option
-    use_data_parallel = (execution_mode == ModelExecutionMode.TRAIN) or (not args.use_model_parallel)
+    use_data_parallel = logical_and(
+        (execution_mode == ModelExecutionMode.TRAIN) or (not args.use_model_parallel),
+        not args.use_ddp)
     if args.use_gpu and use_data_parallel:
         logging.info("Adjusting the model to use DataParallel")
         # Move all layers to the default GPU before activating data parallel.
@@ -243,14 +267,14 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
     # when another model is later built on the CPU (for example, before loading from a checkpoint)
     # https://github.com/NVIDIA/apex/issues/694
     # Hence, move the model to the GPU before doing model summary.
-    if config.use_gpu:
+    if config.use_gpu and not config.use_ddp:
         model = model.cuda()
     if isinstance(config, ScalarModelBase):
         # To generate the model summary, read the first item of the dataset. Then use the model's own
         # get_model_input function to convert the dataset item to input tensors, and feed them through the model.
         train_dataset = config.get_torch_dataset_for_inference(ModelExecutionMode.TRAIN)
         train_item_0 = next(iter(train_dataset.as_data_loader(shuffle=False, batch_size=1, num_dataload_workers=0)))
-        model_inputs = get_scalar_model_inputs_and_labels(config, model, train_item_0).model_inputs
+        model_inputs = get_scalar_model_inputs_and_labels(config, model, train_item_0, torch.device('cpu')).model_inputs
         # The model inputs may already be converted to float16, assuming that we would do mixed precision.
         # However, the model is not yet converted to float16 when this function is called, hence convert back to float32
         if config.use_gpu:
@@ -269,7 +293,8 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
 
 def load_checkpoint(model: torch.nn.Module,
                     path_to_checkpoint: Path,
-                    optimizer: Optional[Optimizer] = None) -> Optional[int]:
+                    optimizer: Optional[Optimizer] = None,
+                    config=None) -> Optional[int]:
     """
     Loads a checkpoint of a model.
     The epoch of the stored model and the epoch provided as argument must match.
@@ -291,7 +316,15 @@ def load_checkpoint(model: torch.nn.Module,
     map_location = None if is_gpu_available() else 'cpu'
     checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
 
-    if isinstance(model, torch.nn.DataParallel):
+    if config.use_ddp:
+        # Model was stored with DistributedDataParallel which stores the model in module, now loading without
+        new_state_dict = OrderedDict()
+        for k, v in checkpoint['state_dict'].items():
+            name = k.replace('module.', '')  # remove `module.`
+            new_state_dict[name] = v
+        model.load_state_dict(new_state_dict)
+
+    elif isinstance(model, torch.nn.DataParallel):
         model.module.load_state_dict(checkpoint['state_dict'])
     else:
         model.load_state_dict(checkpoint['state_dict'])
@@ -349,13 +382,16 @@ def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
     # Load the stored model. If there is no checkpoint present, return immediately.
     model_and_info.checkpoint_epoch = load_checkpoint(model=model_and_info.model,
                                                       path_to_checkpoint=path_to_checkpoint,
-                                                      optimizer=model_and_info.optimizer)
+                                                      optimizer=model_and_info.optimizer,
+                                                      config=model_config)
+
     if model_and_info.checkpoint_epoch is None:
         return model_and_info
     # Enable data/model parallelization
     if model_config.is_segmentation_model:
         # Generate the model summary, which is required for model partitioning across GPUs.
         summary_for_segmentation_models(model_config, model_and_info.model)
+
     return update_model_for_mixed_precision_and_parallel(
         model_and_info, args=model_config, execution_mode=model_and_info.model_execution_mode)
 

@@ -11,6 +11,7 @@ from typing import Any, Callable, Dict, Generic, List, Optional, Set, Type, Unio
 import param
 from azureml.core import Run
 from azureml.core.run import _OfflineRun
+from torch import device as torch_device
 
 from InnerEye.Common.common_util import is_gpu_tensor, is_private_field_name
 from InnerEye.Common.type_annotations import T
@@ -75,7 +76,7 @@ class CudaAwareConfig(param.Parameterized, Generic[T]):
         else:
             return None
 
-    def get_gpu_tensor_if_possible(self, data: T) -> Any:
+    def get_gpu_tensor_if_possible(self, data: T, device: Optional[torch_device] = None) -> Any:
         """"
         Get a cuda tensor if this transform was cuda enabled and a GPU is available, otherwise
         return the input.
@@ -83,7 +84,9 @@ class CudaAwareConfig(param.Parameterized, Generic[T]):
         import torch
         if isinstance(data, torch.Tensor):
             if self.use_gpu and not is_gpu_tensor(data):
-                return data.cuda()
+                # use default CUDA device if not specified
+                device = torch.device('cuda') if device is None else device
+                return data.to(device)
             else:
                 return data
         else:

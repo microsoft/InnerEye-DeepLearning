@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 from functools import reduce
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -155,19 +155,28 @@ class MetricsPerPatientWriter:
         return df
 
 
-def create_summary_writers(args: ModelConfigBase) -> SummaryWriters:
+def create_summary_writers(args: ModelConfigBase, rank: Optional[int] = -1) -> SummaryWriters:
     """
     Creates two tensorboard writers, one for training and one for
     validation. Stored in a SummaryWriters objects.
 
-    :param args: config of the model
+    :param args: config of the model.
+    :param rank: the global rank of the current process.
     :return: SummaryWriters with tensorboard summary writers.
     """
     # Disable tensorboardX's logs
     logging.getLogger().disabled = True
 
-    writer_train = tensorboardX.SummaryWriter(str(args.logs_folder / "train"))
-    writer_val = tensorboardX.SummaryWriter(str(args.logs_folder / "val"))
+    train_summary_path = str(args.logs_folder / "train")
+    val_summary_path = str(args.logs_folder / "val")
+
+    # create additional logs for distributed training
+    if rank > -1:
+        train_summary_path += f'_proc{rank}'
+        val_summary_path += f'_proc{rank}'
+
+    writer_train = tensorboardX.SummaryWriter(train_summary_path)
+    writer_val = tensorboardX.SummaryWriter(val_summary_path)
 
     # Reset logger
     logging.getLogger().disabled = False

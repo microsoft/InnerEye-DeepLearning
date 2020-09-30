@@ -84,6 +84,7 @@ class AzureConfig(GenericConfig):
     is_train: bool = param.Boolean(True,
                                    doc="If True, train a new model. If False, run inference on an existing model.")
     model: str = param.String(doc="The name of the model to train/test.")
+    use_distributed_data_parallel: bool = param.Boolean(default=False)
     register_model_only_for_epoch: Optional[int] = param.Integer(None,
                                                                  doc="If set, and run_recovery_id is also set, "
                                                                      "register the model for this epoch and do no "

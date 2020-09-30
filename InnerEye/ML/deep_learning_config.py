@@ -181,7 +181,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                          doc="The high-level model category described by this config.")
     _model_name: str = param.String(None, doc="The human readable name of the model (for example, Liver). This is "
                                               "usually set from the class name.")
-
+    use_distributed_data_parallel: bool = param.Boolean(False,
+                                                        doc="If True, will attempt to train with "
+                                                            "DistributedDataParallel")
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     azure_dataset_id: Optional[str] = param.String(None, allow_None=True,
                                                    doc="The ID of the dataset to use. This dataset must exist as a "
@@ -355,6 +357,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "weights are updated using mean_teacher_"
                                                  "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
+
+    dist_backend: str = param.String(default='nccl', doc="Communication package to use for distributed training")
+    init_method: str = param.String(default='env://', doc="URL specifying where to find peer processes")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
@@ -629,7 +634,17 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         :return:
         """
         _devices = self.get_cuda_devices()
-        return _devices is not None and len(_devices) > 1
+        return _devices is not None and len(_devices) > 1 and not self.use_distributed_data_parallel
+
+    @property
+    def use_ddp(self) -> bool:
+        """
+        Data parallel may used if GPUs are usable and the number of CUDA devices are greater than 1
+        and the OS is not windows
+        :return:
+        """
+        _devices = self.get_cuda_devices()
+        return (_devices is not None) & (len(_devices) > 1) & (not is_windows()) & self.use_distributed_data_parallel
 
     def write_args_file(self, root: Optional[Path] = None) -> None:
         """

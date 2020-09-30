@@ -12,12 +12,13 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from azureml.core import Dataset, Experiment, Run, Workspace
+from azureml.core import Dataset, Experiment, Run, Workspace, ComputeTarget
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.datastore import Datastore
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.exceptions import WorkspaceException
+from azureml.train._distributed_training import Mpi
 from azureml.train.dnn import PyTorch
 
 from InnerEye.Azure import azure_util
@@ -286,11 +287,19 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
     # create Estimator environment
     framework_version = pytorch_version_from_conda_dependencies(conda_dependencies)
     logging.info(f"PyTorch framework version: {framework_version}")
+
+    if azure_config.use_distributed_data_parallel:
+        distributed_training_backend = Mpi(azure_config.workers_per_node)
+    else:
+        distributed_training_backend = None
+
+    compute_target = ComputeTarget(workspace, azure_config.gpu_cluster_name)
+
     estimator = PyTorch(
         source_directory=source_config.root_folder,
         entry_script=entry_script_relative_path,
         script_params=source_config.script_params,
-        compute_target=azure_config.gpu_cluster_name,
+        compute_target=compute_target,
         # Use blob storage for storing the source, rather than the FileShares section of the storage account.
         source_directory_data_store=workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME),
         inputs=estimator_inputs,
@@ -298,7 +307,10 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
         shm_size=azure_config.docker_shm_size,
         use_docker=True,
         use_gpu=True,
-        framework_version=framework_version
+        framework_version=framework_version,
+        node_count=azure_config.node_count,
+        distributed_training=distributed_training_backend,
+        pip_packages=['azureml-dataprep[pandas,fuse]']
     )
     estimator.run_config.environment.python.conda_dependencies = conda_dependencies
     # We'd like to log the estimator config, but conversion to string fails when the Estimator has some inputs.

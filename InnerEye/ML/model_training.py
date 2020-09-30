@@ -8,6 +8,8 @@ import os
 from time import time
 from typing import Optional, Tuple, TypeVar
 
+import torch
+
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common.common_util import empty_string_to_none
 from InnerEye.Common.metrics_dict import MetricsDict
@@ -23,6 +25,7 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util, model_util
+from InnerEye.ML.utils.aml_distributed_utils import get_local_rank, get_global_rank, get_global_size
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import LRScheduler
 from InnerEye.ML.utils.metrics_util import create_summary_writers
@@ -50,7 +53,8 @@ def load_checkpoint_from_model_and_info(run_recovery: Optional[RunRecovery], con
     return result
 
 
-def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResults:
+def model_train(config: ModelConfigBase,
+                run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResults:
     """
     The main training loop. It creates the model, dataset, optimizer_type, and criterion, then proceeds
     to train the model. If a checkpoint was specified, then it loads the checkpoint before resuming training.
@@ -68,11 +72,55 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     logging.debug("Creating the pytorch model.")
 
+    # create model
+    model = create_model_with_temperature_scaling(config)
+
+    if config.use_ddp:
+
+        world_size = get_global_size(config.is_offline_run)
+
+        if config.is_offline_run:
+            # set the environment variable for master node address
+            os.environ['MASTER_ADDR'] = 'localhost'
+            os.environ['MASTER_PORT'] = '12355'
+            # spawn processes
+            torch.multiprocessing.spawn(train,
+                                        args=(model, config),
+                                        nprocs=world_size)
+
+        else:
+            # AzureML MPI configuration handles spawn
+            rank = get_global_rank()
+            train(None, model, config)
+    else:
+        single_process_rank = 0
+        train(single_process_rank, model, config)
+
+
+def train(rank: Optional[int], model, config,  run_recovery: Optional[RunRecovery] = None):
+    """
+
+    :param rank: The global rank of the current process (for DistributedDataParallel). For single process, rank=0
+    :param model:
+    :param config:
+    :param run_recovery:
+    :return:
+    """
+    rank = get_global_rank() if rank is None else rank  # get rank for AML run
+    device = torch.device('cuda', rank) if torch.cuda.is_available() else torch.device('cpu')
+
+    if config.use_ddp:
+        print(f"Running distributed training on device with global rank {rank}")
+        torch.distributed.init_process_group(  # type: ignore
+            backend=config.dist_backend,
+            init_method=config.init_method,
+            world_size=get_global_size(config.is_offline_run),
+            rank=rank)
+
     # Create the train loader and validation loader to load images from the dataset
     data_loaders = config.create_data_loaders()
 
     # Create models, optimizers, and whether is_mean_teacher
-    model = create_model_with_temperature_scaling(config)
     models_and_optimizers = [ModelAndInfo(model, model_util.create_optimizer(config, model),
                                           model_execution_mode=ModelExecutionMode.TRAIN)]
     if config.compute_mean_teacher_model:
@@ -88,21 +136,22 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     else:
         logging.info("Models are saved at {}".format(config.checkpoint_folder))
         if not os.path.isdir(config.checkpoint_folder):
-            os.makedirs(config.checkpoint_folder)
+            os.makedirs(config.checkpoint_folder, exist_ok=True)
 
     # Print out a detailed breakdown of layers, memory consumption and time.
     generate_and_print_model_summary(config, model)
 
     # Enable mixed precision training and data parallelization (no-op if already done).
     # This relies on the information generated in the model summary.
-
     # We only want to do this if we didn't call load_checkpoint above, because attempting updating twice
     # causes an error.
-    models_and_optimizers = [model_util.update_model_for_mixed_precision_and_parallel(model_and_info, config)
+    models_and_optimizers = [model_util.update_model_for_mixed_precision_and_parallel(model_and_info, config,
+                                                                                      rank=rank)
                              for model_and_info in models_and_optimizers]
 
     # Create the SummaryWriters for Tensorboard
-    writers = create_summary_writers(config)
+    writers = create_summary_writers(config, rank=rank)
+
     config.create_dataframe_loggers()
 
     model = models_and_optimizers[0].model
@@ -144,7 +193,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                     dataframe_loggers=config.metrics_data_frame_loggers,
                                     in_training_mode=True)
         training_steps = create_model_training_steps(config, train_val_params)
-        train_epoch_results = train_or_validate_epoch(training_steps)
+        train_epoch_results = train_or_validate_epoch(training_steps, device)
         train_results_per_epoch.append(train_epoch_results)
 
         metrics.validate_and_store_model_parameters(writers.train, epoch, model)
@@ -157,7 +206,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
             train_val_params.save_metrics = not (save_epoch and config.temperature_scaling_config)
 
         training_steps = create_model_training_steps(config, train_val_params)
-        val_epoch_results = train_or_validate_epoch(training_steps)
+        val_epoch_results = train_or_validate_epoch(training_steps, device)
         if train_val_params.save_metrics:
             val_results_per_epoch.append(val_epoch_results)
 
@@ -166,7 +215,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                                        train_epoch_results.metrics,
                                                        val_epoch_results.metrics)
 
-        if save_epoch:
+        if save_epoch and rank==0:
             # perform temperature scaling if required
             if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
                 optimal_temperature, scaled_val_results = \
@@ -238,7 +287,7 @@ def temperature_scaling_steps(config: SequenceModelBase,
     return temperature_value, val_epoch_results
 
 
-def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutputsAndMetricsForEpoch:
+def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, device) -> ModelOutputsAndMetricsForEpoch:
     """
     Trains or validates the model for one epoch.
     :param training_steps: Training pipeline to use.
@@ -280,7 +329,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutp
                                 f"{MAX_LOAD_TIME_WARNINGS} times.")
                 num_load_time_warnings += 1
         model_outputs_minibatch = training_steps.forward_and_backward_minibatch(
-            sample, batch_index, train_val_params.epoch)
+            sample, batch_index, train_val_params.epoch, device)
         model_outputs_epoch.append(model_outputs_minibatch)
         train_finish_time = time()
         logging.debug(f"Epoch {train_val_params.epoch} {status_string} batch {batch_index}: "
@@ -337,7 +386,11 @@ def main() -> None:
     parser.add_argument("--model", help="The name of the model to train", type=empty_string_to_none,
                         required=True)
     args = parser.parse_args()
-    model_train(ModelConfigLoader().create_model_config_from_name(args.model))
+
+    model_config = ModelConfigLoader().create_model_config_from_name(args.model)
+
+    not_distributed_rank = 0
+    model_train(not_distributed_rank, model_config)
 
 
 if __name__ == '__main__':

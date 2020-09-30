@@ -159,6 +159,7 @@ class ModelSummary:
         and intermediate tensor size.
         :param input_tensors: A list of tensors which are fed into the torch model.
         """
+        device = self._get_device(self.model)
 
         def print_summary() -> None:
             logging.info("-------------------------------------------------------------------------------")
@@ -201,7 +202,8 @@ class ModelSummary:
             h.remove()
 
 
-def forward_preserve_state(module: DeviceAwareModule, inputs: List[torch.Tensor]) -> torch.Tensor:
+def forward_preserve_state(module: DeviceAwareModule, inputs: List[torch.Tensor]
+                           ) -> torch.Tensor:
     """
     Perform forward pass on input module with given list of torch tensors. The function preserves the random state
     of the backend libraries to avoid reproducibility issues. Additionally, it temporarily sets the model in
@@ -210,11 +212,13 @@ def forward_preserve_state(module: DeviceAwareModule, inputs: List[torch.Tensor]
     :param inputs: List of input torch tensors
     :return output: Output torch tensors
     """
+
     if not isinstance(inputs, list):
         raise RuntimeError("Inputs object has to be a list of torch tensors")
 
     if module.is_model_on_gpu():
-        inputs = [input_tensor.cuda() for input_tensor in inputs]
+        device = module.get_devices()[0]
+        inputs = [input_tensor.to(device) for input_tensor in inputs]
 
     # collect the current state of the model
     is_train = module.training

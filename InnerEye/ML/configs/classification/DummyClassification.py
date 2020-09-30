@@ -15,7 +15,7 @@ class DummyClassification(ScalarModelBase):
     "A config file for dummy image classification model for debugging purposes" 
 
     def __init__(self) -> None:
-        num_epochs = 4
+        num_epochs = 10
         super().__init__(
             local_dataset=full_ml_test_data_path("classification_data"),
             image_channels=["image"],
@@ -28,9 +28,10 @@ class DummyClassification(ScalarModelBase):
             num_epochs=num_epochs,
             num_dataload_workers=0,
             test_start_epoch=num_epochs,
-            use_mixed_precision=True,
+            use_mixed_precision=False,
             subject_column="subjectID",
-            conv_in_3d=True
+            conv_in_3d=True,
+            use_distributed_data_parallel=True
         )
         self.expected_image_size_zyx = (4, 5, 7)
 
