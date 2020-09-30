@@ -24,10 +24,10 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsForScalarModel, T
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
-from InnerEye.ML.utils import ml_util, model_util
+from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.metrics_util import SummaryWriters
-from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
+from InnerEye.ML.utils.model_util import ModelAndInfo
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
 from Tests.ML.util import machine_has_gpu, no_gpu_available
@@ -252,11 +252,12 @@ def test_mean_teacher_model() -> None:
                                   is_mean_teacher=False, checkpoint_path=config.get_path_to_checkpoint(epoch=1))
     model_and_info.try_create_model_and_load_from_checkpoint()
     model = model_and_info.model
+    assert model is not None  # for mypy
     model_weight = next(_get_parameters_of_model(model))
 
     # Get the starting weight of the mean teacher model
     ml_util.set_random_seed(config.get_effective_random_seed())
-    
+
     _ = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
                                   is_mean_teacher=False, checkpoint_path=None)\
         .try_create_model_and_load_from_checkpoint()
@@ -265,6 +266,7 @@ def test_mean_teacher_model() -> None:
                                                is_mean_teacher=True, checkpoint_path=None)
     model_and_info_mean_teacher.try_create_model_and_load_from_checkpoint()
     mean_teach_model = model_and_info_mean_teacher.model
+    assert mean_teach_model is not None  # for mypy
     initial_weight_mean_teacher_model = next(_get_parameters_of_model(mean_teach_model))
 
     # Now train with mean teacher and check the update of the weight
@@ -278,6 +280,7 @@ def test_mean_teacher_model() -> None:
                                                checkpoint_path=config.get_path_to_checkpoint(1, for_mean_teacher_model=True))
     model_and_info_mean_teacher.try_create_model_and_load_from_checkpoint()
     mean_teacher_model = model_and_info_mean_teacher.model
+    assert mean_teacher_model is not None  # for mypy
     result_weight = next(_get_parameters_of_model(mean_teacher_model))
     # Retrieve the associated student weight
     model_and_info_student = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
@@ -285,6 +288,7 @@ def test_mean_teacher_model() -> None:
                                                checkpoint_path=config.get_path_to_checkpoint(1))
     model_and_info_student.try_create_model_and_load_from_checkpoint()
     student_model = model_and_info_student.model
+    assert student_model is not None  # for mypy
     student_model_weight = next(_get_parameters_of_model(student_model))
 
     # Assert that the student weight corresponds to the weight of a simple training without mean teacher
@@ -320,6 +324,7 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
                                   is_mean_teacher=False, checkpoint_path=None)
     model_and_info.try_create_model_load_from_checkpoint_and_adjust()
     model = model_and_info.model
+    assert model is not None  # for mypy
 
     # This is the same logic spelt out in update_model_for_multiple_gpu
     # execution_mode == ModelExecutionMode.TRAIN or (not use_model_parallel), which is always True in our case
