@@ -140,7 +140,7 @@ def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> 
     pd.testing.assert_frame_equal(df_expected, df_epoch_metrics_actual, check_less_precise=True)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+#@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("model_name", ["DummyClassification", "DummyRegression"])
 @pytest.mark.parametrize("number_of_offline_cross_validation_splits", [2])
 @pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [2])
@@ -173,9 +173,10 @@ def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectorie
         # recognizes run_recovery_id == None as the signal to read from the local_run_results folder.
         config_and_files = get_config_and_results_for_offline_runs(train_config)
         result_files = config_and_files.files
-        assert len(result_files) == train_config.get_total_number_of_cross_validation_runs()
+        # One file for VAL and one for TRAIN for each child run
+        assert len(result_files) == train_config.get_total_number_of_cross_validation_runs() * 2
         for file in result_files:
-            assert file.execution_mode == ModelExecutionMode.VAL
+            assert file.execution_mode != ModelExecutionMode.TEST
             assert file.dataset_csv_file is not None
             assert file.dataset_csv_file.exists()
             assert file.metrics_file is not None
@@ -379,8 +380,11 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         _counts_for_splits = list(_aggregates_csv[LoggingColumns.SubjectCount.value])
         assert all([x == _val_dataset_split_count for x in _counts_for_splits])
         _epochs = list(_aggregates_csv[LoggingColumns.Epoch.value])
-        assert len(_epochs) == train_config.num_epochs
-        assert all([x + 1 in _epochs for x in range(train_config.num_epochs)])
+        # Each epoch is recorded twice once for the training split and once for the validation
+        # split
+        assert len(_epochs) == train_config.num_epochs * 2
+        assert all([x + 1 in _epochs for x in list(range(train_config.num_epochs)) * 2])
+        # Only the validation mode is kept for unrolled aggregates
         unrolled = unroll_aggregate_metrics(_aggregates_csv)
         if train_config.is_classification_model:
             expected_metrics = {LoggingColumns.CrossEntropy.value,
@@ -396,7 +400,7 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
                                 LoggingColumns.MeanSquaredError.value,
                                 LoggingColumns.R2Score.value}
         expected_metrics = expected_metrics.union({LoggingColumns.SubjectCount.value})
-        assert len(unrolled) == len(_epochs) * len(expected_metrics)
+        assert len(unrolled) == train_config.num_epochs * len(expected_metrics)
         actual_metrics = set(m.metric_name for m in unrolled)
         assert actual_metrics == expected_metrics
         actual_epochs = set(m.epoch for m in unrolled)
