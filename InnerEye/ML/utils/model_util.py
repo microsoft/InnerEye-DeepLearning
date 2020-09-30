@@ -57,24 +57,31 @@ class ModelAndInfo:
 
         self.model = None
         self.optimizer = None
-        self.is_adjusted = False
         self.checkpoint_epoch = None
+        self.is_adjusted = False
 
     def to_cuda(self) -> None:
-        assert self.model is not None
+        """
+        Moves the model to GPU
+        """
+        if self.model is None:
+            raise ValueError("Model must be created before it can be moved to GPU.")
         self.model = self.model.cuda()
 
     def set_data_parallel(self, device_ids: Optional[List[Any]]) -> None:
-        assert self.model is not None
+        if self.model is None:
+            raise ValueError("Model must be created before it can be moved to Data Parellel.")
         self.model = DataParallelModel(self.model, device_ids=device_ids)
 
     def create_model(self) -> None:
+        """
+        Creates a model (with temperature scaling) according to the config given.
+        """
         self.model = create_model_with_temperature_scaling(self.config)
 
     def try_load_checkpoint_for_model(self) -> bool:
         """
-        Loads a checkpoint of a model.
-        The provided model must match the stored model.
+        Loads a checkpoint of a model. The provided model checkpoint must match the stored model.
         """
         if self.model is None:
             raise ValueError("Model must be created before it can be adjusted.")
@@ -103,7 +110,7 @@ class ModelAndInfo:
 
     def adjust_model_for_gpus(self) -> None:
         """
-        Updates a given torch model as such input mini-batches are parallelized across the batch dimension to utilise
+        Updates the torch model so that input mini-batches are parallelized across the batch dimension to utilise
         multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
         perform full volume inference.
         """
@@ -118,7 +125,6 @@ class ModelAndInfo:
             raise ValueError("Create an optimizer only after creating and adjusting the model.")
 
         if self.config.use_gpu:
-            # In the normal training codepath, the model should already be on the GPU, but in some tests not.
             self.to_cuda()
             logging.info("Adjusting the model to use mixed precision training.")
             # If model parallel is set to True, then partition the network across all available gpus.
@@ -148,12 +154,14 @@ class ModelAndInfo:
         logging.debug("model_and_info.is_adjusted set to True")
 
     def create_summary_and_adjust_model_for_gpus(self) -> None:
+        """
+        Generates the model summary, which is required for model partitioning across GPUs, and then moves the model to
+        GPU with data parallel/model parallel by calling adjust_model_for_gpus.
+        """
         if self.model is None:
             raise ValueError("Model must be created before it can be adjusted.")
 
-        # Enable data/model parallelization
         if self.config.is_segmentation_model:
-            # Generate the model summary, which is required for model partitioning across GPUs.
             summary_for_segmentation_models(self.config, self.model)
         # Prepare for mixed precision training and data parallelization (no-op if already done).
         # This relies on the information generated in the model summary.
@@ -161,9 +169,9 @@ class ModelAndInfo:
 
     def try_create_model_and_load_from_checkpoint(self) -> bool:
         """
-        Creates a model as per the configuration, and loads the parameters from the given checkpoint path.
-        The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
-        If the checkpoint_epoch is None, there is no model file at the given path.
+        Creates a model as per the config, and loads the parameters from the given checkpoint path.
+        Also updates the checkpoint_epoch.
+        :return True if checkpoint exists and was loaded, False otherwise.
         """
         self.create_model()
 
@@ -179,9 +187,10 @@ class ModelAndInfo:
 
     def try_create_model_load_from_checkpoint_and_adjust(self) -> bool:
         """
-        Creates a model as per the configuration, and loads the parameters from the given checkpoint path.
+        Creates a model as per the config, and loads the parameters from the given checkpoint path.
         The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
-        If the checkpoint_epoch is None, there is no model file at the given path.
+        Also updates the checkpoint_epoch.
+        :return True if checkpoint exists and was loaded, False otherwise.
         """
         self.create_model()
 
@@ -221,6 +230,7 @@ class ModelAndInfo:
     def try_load_checkpoint_for_optimizer(self) -> bool:
         """
         Loads a checkpoint of an optimizer.
+        :return True if the checkpoint exists and optimizer state loaded, False otherwise
         """
 
         if self.optimizer is None:
@@ -244,6 +254,10 @@ class ModelAndInfo:
         return True
 
     def try_create_optimizer_and_load_from_checkpoint(self) -> bool:
+        """
+        Creates an optimizer and loads its state from a checkpoint.
+        :return True if the checkpoint exists and optimizer state loaded, False otherwise
+        """
         self.create_optimizer()
         if self.checkpoint_path is not None:
             success = self.try_load_checkpoint_for_optimizer()
