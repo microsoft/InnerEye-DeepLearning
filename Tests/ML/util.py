@@ -172,7 +172,8 @@ def get_default_azure_config() -> AzureConfig:
     """
     Gets the Azure-related configuration options, using the default settings file settings.yaml.
     """
-    return AzureConfig.from_yaml(yaml_file_path=fixed_paths.SETTINGS_YAML_FILE)
+    return AzureConfig.from_yaml(yaml_file_path=fixed_paths.SETTINGS_YAML_FILE,
+                                 project_root=fixed_paths.repository_root_directory())
 
 
 def get_default_workspace() -> Workspace:

@@ -20,7 +20,7 @@ class AMLTensorBoardMonitorConfig(GenericConfig):
     Stores all information that is need to start TensorBoard monitoring.
     """
     run_ids: Optional[List[str]] = param.List(class_=str, default=None, allow_None=True,
-                                                doc="A list of run ids to be monitored.")
+                                              doc="A list of run ids to be monitored.")
     experiment_name: Optional[str] = param.String(default=None, allow_None=True,
                                                   doc="The name of the experiment to monitor. This will fetch all "
                                                       "runs in the experiment.")
@@ -30,6 +30,8 @@ class AMLTensorBoardMonitorConfig(GenericConfig):
                                              doc="A list of run status to filter the runs. Must be subset of "
                                                  "[Running, Completed, Failed, Canceled]. Set to 'None' to not filter.")
     port: int = param.Integer(default=6006, bounds=(1, None), doc="Port to serve TensorBoard on. Default port is 6006")
+    settings: Path = param.ClassSelector(class_=Path, default=fixed_paths.SETTINGS_YAML_FILE,
+                                         doc="YAML file that contains settings to access Azure.")
 
     def __init__(self, **params: Any) -> None:
         super().__init__(**params)
@@ -84,15 +86,20 @@ def monitor(monitor_config: AMLTensorBoardMonitorConfig, azure_config: AzureConf
     ts.stop()
 
 
-def main(yaml_file_path: Path) -> None:
+def main(settings_yaml_file: Optional[Path] = None,
+         project_root: Optional[Path] = None) -> None:
     """
     Parses the commandline arguments, and based on those, starts the Tensorboard monitoring for the AzureML runs
     supplied on the commandline.
-    :param yaml_file_path: The path to the YAML config file that contains all Azure-related options (which workspace
-    to access, etc)
+    :param settings_yaml_file: The YAML file that contains all information for accessing Azure.
+    :param project_root: The root folder that contains all code for the present run. This is only used to locate
+    a private settings file InnerEyePrivateSettings.yml.
     """
-    monitor(monitor_config=AMLTensorBoardMonitorConfig.parse_args(), azure_config=AzureConfig.from_yaml(yaml_file_path))
+    monitor_config = AMLTensorBoardMonitorConfig.parse_args()
+    settings_yaml_file = settings_yaml_file or monitor_config.settings
+    monitor(monitor_config=monitor_config,
+            azure_config=AzureConfig.from_yaml(settings_yaml_file, project_root=project_root))
 
 
 if __name__ == '__main__':
-    main(fixed_paths.SETTINGS_YAML_FILE)
+    main(project_root=fixed_paths.repository_root_directory())

@@ -8,8 +8,9 @@ steps:
       source activate AzureRunner
       mkdir $(Agent.TempDirectory)/InnerEye/
       cp -r $(Build.SourcesDirectory)/TestSubmodule $(Agent.TempDirectory)/InnerEye/TestSubmodule
-      cp -r $(Build.SourcesDirectory)/TestSubmodule/environment.yml $(Agent.TempDirectory)/InnerEye
       cp -r $(Build.SourcesDirectory) $(Agent.TempDirectory)/InnerEye/Submodule
+      cp -r $(Build.SourcesDirectory)/TestSubmodule/environment.yml $(Agent.TempDirectory)/InnerEye
+      cp -r $(Build.SourcesDirectory)/InnerEyePrivateSettings.yml $(Agent.TempDirectory)/InnerEye
       branch_prefix="refs/heads/"
       full_branch_name=$(Build.SourceBranch)
       branch_name_without_prefix=${full_branch_name#$branch_prefix}

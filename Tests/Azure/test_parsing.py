@@ -89,8 +89,7 @@ def test_create_runner_parser(with_config: bool) -> None:
                  # Normally we don't use extra index URLs in InnerEye, hence this won't be set in YAML.
                  "--pip_extra_index_url=foo"]
     with mock.patch("sys.argv", [""] + args_list):
-        parser_result = parse_args_and_add_yaml_variables(azure_parser,
-                                                          yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
+        parser_result = parse_args_and_add_yaml_variables(azure_parser, yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
     azure_config = AzureConfig(**parser_result.args)
 
     # These values have been set on the commandline, to values that are not the parser defaults.

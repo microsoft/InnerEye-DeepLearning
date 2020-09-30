@@ -28,13 +28,14 @@ import csv
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Iterator, List, Set, TextIO, Tuple
+from typing import Dict, Iterator, List, Optional, Set, TextIO, Tuple
 
 import numpy as np
 import param
 from azure.storage.blob import BlockBlobService
 
 from InnerEye.Azure.azure_config import AzureConfig
+from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.utils.blobxfer_util import download_blobs
@@ -46,7 +47,8 @@ NIFTI_SUFFIX = ".nii.gz"
 
 class ReportStructureExtremesConfig(GenericConfig):
     dataset: str = param.String(default=".", doc="Dataset name or directory to process")
-    yaml_file: str = param.String(default="", doc="YAML file that contains settings to access Azure.")
+    settings: Path = param.ClassSelector(class_=Path, default=fixed_paths.SETTINGS_YAML_FILE,
+                                         doc="YAML file that contains settings to access Azure.")
 
 
 def populate_series_maps(dataset_csv_path: str) -> Tuple[Dict[str, str], Dict[str, str]]:
@@ -68,15 +70,14 @@ def open_with_header(path: str, path_set: Set[str]) -> TextIO:
     return file
 
 
-def report_structure_extremes(dataset_dir: str, yaml_file: str) -> None:
+def report_structure_extremes(dataset_dir: str, azure_config: AzureConfig) -> None:
     """
     Writes structure-extreme lines for the subjects in a directory.
     If there are any structures with missing slices, a ValueError is raised after writing all the lines.
     This allows a build failure to be triggered when such structures exist.
-    :param yaml_file: The path to the YAML file that contains all Azure-related options.
+    :param azure_config: An object with all necessary information for accessing Azure.
     :param dataset_dir: directory containing subject subdirectories with integer names.
     """
-    azure_config = AzureConfig.from_yaml(yaml_file_path=Path(yaml_file))
     download_dataset_directory(azure_config, dataset_dir)
     subjects: Set[int] = set()
     series_map = None
@@ -230,14 +231,17 @@ def derive_missing_ranges(presence: np.array) -> List[str]:
     return missing_ranges
 
 
-def main() -> None:
+def main(settings_yaml_file: Optional[Path] = None,
+         project_root: Optional[Path] = None) -> None:
     """
     Main function.
     """
     logging_to_stdout()
     config = ReportStructureExtremesConfig.parse_args()
-    report_structure_extremes(config.dataset, config.yaml_file)
+    azure_config = AzureConfig.from_yaml(yaml_file_path=settings_yaml_file or config.settings,
+                                         project_root=project_root)
+    report_structure_extremes(config.dataset, azure_config)
 
 
 if __name__ == '__main__':
-    main()
+    main(project_root=fixed_paths.repository_root_directory())

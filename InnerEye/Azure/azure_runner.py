@@ -24,7 +24,7 @@ from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME, \
     RUN_RECOVERY_ID_KEY_NAME, \
     merge_conda_dependencies
-from InnerEye.Azure.secrets_handling import read_variables_from_yaml
+from InnerEye.Azure.secrets_handling import read_all_settings
 from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
 from InnerEye.Common.fixed_paths import AZUREML_DATASTORE_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
@@ -334,11 +334,13 @@ def create_runner_parser(model_config_class: type = None) -> argparse.ArgumentPa
 
 def parse_args_and_add_yaml_variables(parser: ArgumentParser,
                                       yaml_config_file: Optional[Path] = None,
+                                      project_root: Optional[Path] = None,
                                       fail_on_unknown_args: bool = False,
                                       args: List[str] = None) -> ParserResult:
     """
     Reads arguments from sys.argv, modifies them with secrets from local YAML files,
     and parses them using the given argument parser.
+    :param project_root: The root folder for the whole project. Only used to access a private settings file.
     :param parser: The parser to use.
     :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.
     :param fail_on_unknown_args: If True, raise an exception if the parser encounters an argument that it does not
@@ -346,7 +348,7 @@ def parse_args_and_add_yaml_variables(parser: ArgumentParser,
     :param args: arguments to parse
     :return: The parsed arguments, and overrides
     """
-    settings_from_yaml = read_variables_from_yaml(yaml_config_file)
+    settings_from_yaml = read_all_settings(yaml_config_file, project_root=project_root)
     return parse_arguments(parser,
                            settings_from_yaml=settings_from_yaml,
                            fail_on_unknown_args=fail_on_unknown_args,

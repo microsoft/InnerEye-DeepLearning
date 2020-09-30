@@ -92,7 +92,7 @@ class PlotCrossValidationConfig(GenericConfig):
     """
     model_category: ModelCategory = param.ClassSelector(class_=ModelCategory,
                                                         default=ModelCategory.Segmentation,
-                                                         doc="The high-level model category described by this config.")
+                                                        doc="The high-level model category described by this config.")
     is_scalar: bool = param.Boolean(default=True,
                                     doc="Set to True if the model to evaluate is a classification model"
                                         "otherwise False for a regression model")
@@ -122,9 +122,9 @@ class PlotCrossValidationConfig(GenericConfig):
     ignore_subjects: List[int] = param.List(None, class_=int, bounds=(1, None), allow_None=True, instantiate=False,
                                             doc="List of the subject ids to ignore from the results")
     is_zero_index: bool = param.Boolean(True, doc="If True, start cross validation split indices from 0 otherwise 1")
-    train_yaml_path: str = param.String(default=str(fixed_paths.SETTINGS_YAML_FILE),
-                                        doc="Path to settings.yml file containing the Azure configuration "
-                                            "for the workspace")
+    settings_yaml_file: str = param.String(default=str(fixed_paths.SETTINGS_YAML_FILE),
+                                           doc="Path to settings.yml file containing the Azure configuration "
+                                               "for the workspace")
     _azure_config: Optional[AzureConfig] = \
         param.ClassSelector(class_=AzureConfig, allow_None=True,
                             doc="Azure-related options created from YAML file.")
@@ -189,7 +189,7 @@ class PlotCrossValidationConfig(GenericConfig):
         :return:
         """
         if self._azure_config is None:
-            self._azure_config = AzureConfig.from_yaml(Path(self.train_yaml_path))
+            self._azure_config = AzureConfig.from_yaml(Path(self.settings_yaml_file), project_root=None)
         return self._azure_config
 
     def download_or_get_local_file(self,
