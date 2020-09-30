@@ -24,7 +24,7 @@ see [Setting up AzureML](setting_up_aml.md#step-4-create-a-storage-account-for-y
 ### Setting up training
 1. Set up a directory outside of InnerEye to holds your configs, as in 
 [Setting Up Training](building_models.md#setting-up-training). After this step, you should have a folder InnerEyeLocal
- beside InnerEye with files train_variables.yml and ML/runner.py.
+ beside InnerEye with files `settings.yml` and `ML/runner.py`.
 
 ### Creating the classification model configuration
 The full configuration for the Glaucoma model is at InnerEye/ML/configs/classification/GlaucomaPublic. 
@@ -40,13 +40,13 @@ class GlaucomaPublicExt(GlaucomaPublic):
     def __init__(self) -> None:
         super().__init__(azure_dataset_id="name_of_your_dataset_on_azure")
     ``` 
-1. In `train_variables.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
-is found by the runner. Set `inference_code_directory` to `InnerEyeLocal`.
+1. In `settings.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
+is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.
 
 ### Start Training
 Run the following to start a job on AzureML
 ```
-python InnerEyeLocal/ML/runner.py --submit_to_azureml=True --model=GlaucomaPublicExt --is_train=True
+python InnerEyeLocal/ML/runner.py --azureml=True --model=GlaucomaPublicExt --train=True
 ```
 See [Model Training](building_models.md) for details on training outputs, resuming training, testing models and model ensembles.
 
@@ -74,7 +74,7 @@ see [Setting up AzureML](setting_up_aml.md#step-4-create-a-storage-account-for-y
 ### Setting up training
 1. Set up a directory outside of InnerEye to holds your configs, as in 
 [Setting Up Training](building_models.md#setting-up-training). After this step, you should have a folder InnerEyeLocal 
-beside InnerEye with files train_variables.yml and ML/runner.py.
+beside InnerEye with files settings.yml and ML/runner.py.
 
 ### Creating the segmentation model configuration
 The full configuration for the Lung model is at InnerEye/ML/configs/segmentation/Lung. 
@@ -90,13 +90,13 @@ class LungExt(Lung):
     def __init__(self) -> None:
         super().__init__(azure_dataset_id="name_of_your_dataset_on_azure")
     ``` 
-1. In `train_variables.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
-is found by the runner. Set `inference_code_directory` to `InnerEyeLocal`.
+1. In `settings.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
+is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.
 
 ### Start Training
 Run the following to start a job on AzureML
 ```
-python InnerEyeLocal/ML/runner.py --submit_to_azureml=True --model=LungExt --is_train=True
+python InnerEyeLocal/ML/runner.py --azureml=True --model=LungExt --train=True
 ```
 See [Model Training](building_models.md) for details on training outputs, resuming training, testing models and model ensembles.
  

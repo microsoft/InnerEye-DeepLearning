@@ -15,21 +15,16 @@ from InnerEye.Common import fixed_paths
 # lives in the repository root.
 # All values must be in upper case. On Windows, os.environ is case insensitive, on Linux it
 # is case sensitive.
+
 # The application key to access the subscription via ServicePrincipal authentication.
+from InnerEye.Common.fixed_paths import PRIVATE_SETTINGS_FILE
+
 APPLICATION_KEY = "APPLICATION_KEY"
+# The access key for the Azure storage account that holds the datasets.
+DATASETS_ACCOUNT_KEY = "DATASETS_ACCOUNT_KEY"
 
 # A list of all secrets that are stored in environment variables or local secrets files.
-SECRETS_IN_ENVIRONMENT = [APPLICATION_KEY]
-
-
-def set_environment_variables(variables: Dict[str, str]) -> None:
-    """
-    Creates an environment variable for each entry in the given dictionary. The dictionary key is the variable
-    name, it will be converted to uppercase before setting.
-    :param variables: The variable names and their associated values that should be set.
-    """
-    for name, value in variables.items():
-        os.environ[name.upper()] = value
+SECRETS_IN_ENVIRONMENT = [APPLICATION_KEY, DATASETS_ACCOUNT_KEY]
 
 
 class SecretsHandling:
@@ -46,9 +41,9 @@ class SecretsHandling:
 
     def read_secrets_from_file(self) -> Optional[Dict[str, str]]:
         """
-        Reads the secrets from a file, and returns the relevant secrets as a dictionary.
-        Searches for the secrets file in the project root.
-        :return: A dictionary with secrets.
+        Reads the secrets from file in YAML format, and returns the contents as a dictionary. The YAML file is expected
+        in the project root directory.
+        :return: A dictionary with secrets, or None if the file does not exist.
         """
         secrets_file = self.project_root / fixed_paths.PROJECT_SECRETS_FILE
         if not secrets_file.is_file():
@@ -99,10 +94,53 @@ class SecretsHandling:
         return value
 
 
-def read_variables_from_yaml(yaml_file: Optional[Path] = None) -> Dict[str, Any]:
+def read_all_settings(project_settings_file: Optional[Path] = None,
+                      project_root: Optional[Path] = None) -> Dict[str, Any]:
+    """
+    Reads settings from files in YAML format, and returns the union of settings found. The first settings file
+    to read is `project_settings_file`. The second settings file is 'InnerEyePrivateSettings.yml' expected in
+     the `project_root` folder. Settings in the private settings file
+    override those in the project settings. Both settings files are expected in YAML format, with an entry called
+    'variables'.
+    :param project_settings_file: The first YAML settings file to read.
+    :param project_root: The folder that can contain a 'InnerEyePrivateSettings.yml' file.
+    :return: A dictionary mapping from string to variable value. The dictionary key is the union of variable names
+    found in the two settings files.
+    """
+    private_settings_file = None
+    if project_root and project_root.is_dir():
+        private_settings_file = project_root / PRIVATE_SETTINGS_FILE
+    return read_settings_and_merge(project_settings_file, private_settings_file)
+
+
+def read_settings_and_merge(project_settings_file: Optional[Path] = None,
+                            private_settings_file: Optional[Path] = None) -> Dict[str, Any]:
+    """
+    Reads settings from files in YAML format, and returns the union of settings found. First, the project settings
+    file is read into a dictionary, then the private settings file is read. Settings in the private settings file
+    override those in the project settings. Both settings files are expected in YAML format, with an entry called
+    'variables'.
+    :param project_settings_file: The first YAML settings file to read.
+    :param private_settings_file: The second YAML settings file to read. Settings in this file has higher priority.
+    :return: A dictionary mapping from string to variable value. The dictionary key is the union of variable names
+    found in the two settings files.
+    """
+    result = dict()
+    if project_settings_file:
+        if not project_settings_file.is_file():
+            raise FileNotFoundError(f"Settings file does not exist: {project_settings_file}")
+        result = read_settings_yaml_file(yaml_file=project_settings_file)
+    if private_settings_file and private_settings_file.is_file():
+        dict2 = read_settings_yaml_file(yaml_file=private_settings_file)
+        for key, value in dict2.items():
+            result[key] = value
+    return result
+
+
+def read_settings_yaml_file(yaml_file: Path) -> Dict[str, Any]:
     """
     Reads a YAML file, that is expected to contain an entry 'variables'. Returns the dictionary for the 'variables'
-    section of the file. If the file name is not given, an empty dictionary will be returned.
+    section of the file.
     :param yaml_file: The yaml file to read.
     :return: A dictionary with the variables from the yaml file.
     """
@@ -113,4 +151,4 @@ def read_variables_from_yaml(yaml_file: Optional[Path] = None) -> Dict[str, Any]
     if v in yaml_contents:
         return cast(Dict[str, Any], yaml_contents[v])
     else:
-        raise KeyError(f"The Yaml file was expected to contain a section '{v}'")
+        raise KeyError(f"The Yaml file must contain a section '{v}', but that was not found in {yaml_file}")

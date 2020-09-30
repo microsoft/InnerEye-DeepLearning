@@ -27,7 +27,7 @@ from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util, model_util
 from InnerEye.ML.utils.aml_distributed_utils import get_local_rank, get_global_rank, get_global_size
 from InnerEye.ML.utils.config_util import ModelConfigLoader
-from InnerEye.ML.utils.lr_scheduler import LRScheduler
+from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling, \
@@ -64,13 +64,13 @@ def model_train(config: ModelConfigBase,
     :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading a previous checkpoint.
     """
-    # save the datasets csv for record
+    # Save the dataset files for later use in cross validation analysis
     config.write_dataset_files()
 
     # set the random seed for all libraries
-    ml_util.set_random_seed(config.random_seed)
+    ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
 
-    logging.debug("Creating the pytorch model.")
+    logging.debug("Creating the PyTorch model.")
 
     # create model
     model = create_model_with_temperature_scaling(config)
@@ -141,12 +141,11 @@ def train(rank: Optional[int], model, config,  run_recovery: Optional[RunRecover
     # Print out a detailed breakdown of layers, memory consumption and time.
     generate_and_print_model_summary(config, model)
 
-    # Enable mixed precision training and data parallelization (no-op if already done).
+    # Prepare for mixed precision training and data parallelization (no-op if already done).
     # This relies on the information generated in the model summary.
     # We only want to do this if we didn't call load_checkpoint above, because attempting updating twice
     # causes an error.
-    models_and_optimizers = [model_util.update_model_for_mixed_precision_and_parallel(model_and_info, config,
-                                                                                      rank=rank)
+    models_and_optimizers = [model_util.update_model_for_multiple_gpus(model_and_info, config, rank=rank)
                              for model_and_info in models_and_optimizers]
 
     # Create the SummaryWriters for Tensorboard
@@ -160,7 +159,7 @@ def train(rank: Optional[int], model, config,  run_recovery: Optional[RunRecover
     mean_teacher_model = models_and_optimizers[1].model if len(models_and_optimizers) > 1 else None
 
     # Create LR scheduler
-    l_rate_scheduler = LRScheduler(config, optimizer)
+    l_rate_scheduler = SchedulerWithWarmUp(config, optimizer)
 
     # Training loop
     logging.info("Starting training")
@@ -173,6 +172,7 @@ def train(rank: Optional[int], model, config,  run_recovery: Optional[RunRecover
                                            tb_log_file_path=str(config.logs_folder / "diagnostics"))
         resource_monitor.start()
 
+    gradient_scaler = torch.cuda.amp.GradScaler() if config.use_gpu and config.use_mixed_precision else None
     optimal_temperature_scale_values = []
     for epoch in config.get_train_epochs():
         logging.info("Starting epoch {}".format(epoch))
@@ -188,13 +188,14 @@ def train(rank: Optional[int], model, config,  run_recovery: Optional[RunRecover
                                     mean_teacher_model=mean_teacher_model,
                                     epoch=epoch,
                                     optimizer=optimizer,
+                                    gradient_scaler=gradient_scaler,
                                     epoch_learning_rate=epoch_lrs,
                                     summary_writers=writers,
                                     dataframe_loggers=config.metrics_data_frame_loggers,
                                     in_training_mode=True)
         training_steps = create_model_training_steps(config, train_val_params)
         train_epoch_results = train_or_validate_epoch(training_steps, device)
-        train_results_per_epoch.append(train_epoch_results)
+        train_results_per_epoch.append(train_epoch_results.metrics)
 
         metrics.validate_and_store_model_parameters(writers.train, epoch, model)
         # Run without adjusting weights on the validation set
@@ -207,22 +208,21 @@ def train(rank: Optional[int], model, config,  run_recovery: Optional[RunRecover
 
         training_steps = create_model_training_steps(config, train_val_params)
         val_epoch_results = train_or_validate_epoch(training_steps, device)
-        if train_val_params.save_metrics:
-            val_results_per_epoch.append(val_epoch_results)
+        val_results_per_epoch.append(val_epoch_results.metrics)
 
         if config.is_segmentation_model:
             metrics.store_epoch_stats_for_segmentation(config.outputs_folder, epoch, epoch_lrs,
                                                        train_epoch_results.metrics,
                                                        val_epoch_results.metrics)
 
-        if save_epoch and rank==0:
+        if save_epoch and rank == 0:
             # perform temperature scaling if required
             if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
                 optimal_temperature, scaled_val_results = \
                     temperature_scaling_steps(config, train_val_params, val_epoch_results)
                 optimal_temperature_scale_values.append(optimal_temperature)
                 # overwrite the metrics for the epoch with the metrics from the temperature scaled model
-                val_results_per_epoch.append(scaled_val_results)
+                val_results_per_epoch[-1] = scaled_val_results.metrics
 
             assert optimizer is not None
             save_checkpoint(model, optimizer, epoch, config)
@@ -301,7 +301,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, device) -> M
         # take the snapshot of the existing random state
         training_random_state = RandomStateSnapshot.snapshot_random_state()
         # reset the random state for validation
-        ml_util.set_random_seed(config.random_seed)
+        ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
 
     status_string = "training" if train_val_params.in_training_mode else "validation"
     item_start_time = time()

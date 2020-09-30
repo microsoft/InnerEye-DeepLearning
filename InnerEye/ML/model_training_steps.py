@@ -12,6 +12,8 @@ import numpy as np
 import param
 import torch.cuda
 import torch.utils.data
+from torch import Tensor
+from torch.cuda import amp
 from torch.nn import MSELoss
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
@@ -33,7 +35,8 @@ from InnerEye.ML.models.losses.cross_entropy import CrossEntropyLoss
 from InnerEye.ML.models.losses.ece import ECELoss
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
-from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion, DataParallelModel
+from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion, DataParallelModel,\
+    execute_within_autocast_if_needed
 from InnerEye.ML.models.parallel.distributed_data_parallel import DistributedDataParallelModel, \
     DistributedDataParallelCriterion
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass, single_optimizer_step
@@ -73,6 +76,7 @@ class TrainValidateParameters(param.Parameterized, Generic[M]):
     in_training_mode: bool = param.Boolean(default=True)
     dataframe_loggers: MetricsDataframeLoggers = param.ClassSelector(class_=MetricsDataframeLoggers, instantiate=False)
     save_metrics: bool = param.Boolean(default=True)
+    gradient_scaler = param.ClassSelector(class_=amp.GradScaler, instantiate=False)
 
 
 class ModelTrainingStepsBase(Generic[C, M], ABC):
@@ -146,7 +150,9 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         """
         loss_function = self.create_loss_function()
         if self.model_config.use_data_parallel:
-            return DataParallelCriterion(loss_function, self.model_config.get_cuda_devices())
+            return DataParallelCriterion(module=loss_function,
+                                         device_ids=self.model_config.get_cuda_devices(),  # type:ignore
+                                         use_mixed_precision=self.model_config.use_mixed_precision)
         else:
             return loss_function
 
@@ -160,7 +166,7 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         """
         # ensure that the labels are loaded into the GPU
         labels = self.model_config.get_gpu_tensor_if_possible(labels, device)
-        loss = self.forward_criterion(model_output, labels)
+        loss = self.forward_criterion_with_autocast(model_output, labels)
         if self.model_config.use_data_parallel:
             # Aggregate the loss values for each parallelized batch element.
             loss = torch.mean(loss)
@@ -175,6 +181,22 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         :return: loss tensor.
         """
         return self.criterion(model_output, labels)
+
+    def forward_criterion_with_autocast(self,
+                                        model_output: Union[torch.Tensor, List[torch.Tensor]],
+                                        labels: NumpyOrTorch) -> torch.Tensor:
+        """
+        Handles the forward pass for the loss function, possibly taking mixed precision into account.
+        :param model_output: A single Tensor, or a list if using DataParallelCriterion
+        :param labels: Labels to compute loss against.
+        :return: loss tensor. This can be a float16 or float32 tensor, which should be cast to float32 before further
+        use.
+        """
+        if self.model_config.use_mixed_precision:
+            with amp.autocast():
+                return self.forward_criterion(model_output, labels)
+        else:
+            return self.forward_criterion(model_output, labels)
 
 
 @dataclass
@@ -300,25 +322,49 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         return self.model_config.get_gpu_tensor_if_possible(labels, device)
 
     def get_logits_and_posteriors(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
-            -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+            -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns a Tuple containing the logits and the final model output. Note that the logits might be
         distributed over multiple GPU if the model is an instance of DataParallel. In this case,
-        the gathered_logits and posteriors will be gathered to GPU_0.
-
+        the posteriors will be gathered to GPU_0.
         :param model_inputs: input to evaluate the model on
         :param use_mean_teacher_model: If True, logits and posteriors are produced for the mean teacher model. Else
         logits and posteriors are produced for the standard (student) model.
-        :return: Tuple (logits, gathered_logits, posteriors).
+        :return: Tuple (logits, posteriors).
         """
         if use_mean_teacher_model:
             logits = self.train_val_params.mean_teacher_model(*model_inputs)
         else:
             logits = self.train_val_params.model(*model_inputs)
+        posteriors = self.model_config.get_post_loss_logits_normalization_function()(gather_tensor(logits))
+        return logits, posteriors
 
-        gathered_logits = gather_tensor(logits)
-        posteriors = self.model_config.get_post_loss_logits_normalization_function()(gathered_logits)
-        return logits, gathered_logits, posteriors
+    def _compute_model_output_and_loss(self, model_inputs_and_labels: ScalarModelInputsAndLabels, device: torch.device
+                                       ) -> \
+            Tuple[Tensor, Tensor, Tensor]:
+        """
+        Computes the output of the model for a given set of inputs and labels.
+        Returns a tuple of (logits, posteriors, loss). For multi-GPU computation, the logits are returned
+        as a list.
+        """
+        model = self.train_val_params.model
+        label_gpu = self.get_label_tensor(model_inputs_and_labels.labels, device=device)
+        if self.model_config.use_mixed_precision and self.model_config.use_gpu:
+            label_gpu = label_gpu.to(dtype=torch.float16)
+
+        def compute() -> Tuple[Tensor, Tensor, Tensor]:
+            if self.in_training_mode:
+                model.train()
+                logits, posteriors = self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
+            else:
+                model.eval()
+                with torch.no_grad():
+                    logits, posteriors = self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
+                model.train()
+            loss = self.compute_loss(logits, label_gpu, device=device)
+            return logits, posteriors, loss
+
+        return execute_within_autocast_if_needed(func=compute, use_autocast=self.model_config.use_mixed_precision)
 
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
                                        batch_index: int, epoch: int, device: Optional[torch.device]
@@ -334,24 +380,30 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         start_time = time.time()
         model = self.train_val_params.model
         mean_teacher_model = self.train_val_params.mean_teacher_model
+        # <<<<<<< HEAD
+        #
+        #         if self.in_training_mode:
+        #             model.train()
+        #             logits, gathered_logits, posteriors = \
+        #                 self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
+        #         else:
+        #             model.eval()
+        #             with torch.no_grad():
+        #                 logits, gathered_logits, posteriors = \
+        #                     self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
+        #             model.train()
+        #
+        #         loss = self.compute_loss(logits, label_gpu, device)
+        #
+        # =======
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, model, sample, device)
-
-        if self.in_training_mode:
-            model.train()
-            logits, gathered_logits, posteriors = \
-                self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
-        else:
-            model.eval()
-            with torch.no_grad():
-                logits, gathered_logits, posteriors = \
-                    self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
-            model.train()
-
         label_gpu = self.get_label_tensor(model_inputs_and_labels.labels, device)
-        loss = self.compute_loss(logits, label_gpu, device)
-
+        logits, posteriors, loss = self._compute_model_output_and_loss(model_inputs_and_labels, device)
+        gathered_logits = gather_tensor(logits)
         if self.in_training_mode:
-            single_optimizer_step(self.model_config, loss, self.train_val_params.optimizer)
+            single_optimizer_step(loss,
+                                  self.train_val_params.optimizer,
+                                  self.train_val_params.gradient_scaler)
             if self.model_config.compute_mean_teacher_model:
                 self.update_mean_teacher_parameters()
 
@@ -360,9 +412,16 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             # instead of the output of the student model.
             mean_teacher_model.eval()
             with torch.no_grad():
-                logits, gathered_logits, posteriors = self.get_logits_and_posteriors(
+                logits, posteriors = self.get_logits_and_posteriors(
                     *model_inputs_and_labels.model_inputs,
                     use_mean_teacher_model=True)
+                gathered_logits = gather_tensor(logits)
+
+        # Autocast may have returned float16 tensors. Documentation suggests to simply cast back to float32.
+        # If tensor was already float32, no overhead is incurred.
+        posteriors = posteriors.detach().float()
+        gathered_logits = gathered_logits.detach().float().cpu()
+        loss_scalar = loss.float().item()
 
         if self.train_val_params.save_metrics:
             if self._should_save_grad_cam_output(epoch=epoch, batch_index=batch_index):
@@ -371,15 +430,15 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                                    model_inputs_and_labels.model_inputs,
                                    label_gpu)
 
-            self.metrics.add_metric(MetricType.LOSS, loss.item())
+            self.metrics.add_metric(MetricType.LOSS, loss_scalar)
             self.update_metrics(model_inputs_and_labels.subject_ids, posteriors, label_gpu)
             logging.debug(f"Batch {batch_index}: {self.metrics.to_string()}")
             minibatch_time = time.time() - start_time
             self.metrics.add_metric(MetricType.SECONDS_PER_BATCH, minibatch_time)
 
         return ModelForwardAndBackwardsOutputs(
-            loss=loss.item(),
-            logits=gathered_logits.detach().cpu(),
+            loss=loss_scalar,
+            logits=gathered_logits,
             labels=model_inputs_and_labels.labels
         )
 
@@ -518,7 +577,7 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
             _model = _model.get_module()
 
         def _forward_criterion(_logits: torch.Tensor, _labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-            loss = self.forward_criterion(_logits, _labels)
+            loss = self.forward_criterion_with_autocast(_logits, _labels).to(torch.float32)
             masked_model_outputs_and_labels = get_masked_model_outputs_and_labels(_logits, _labels)
             assert masked_model_outputs_and_labels is not None
             ece = ece_criterion(masked_model_outputs_and_labels.model_outputs.data.unsqueeze(dim=0),
@@ -554,7 +613,8 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
                                                 batch_size=self.model_config.train_batch_size,
                                                 optimizer=self.train_val_params.optimizer,
                                                 in_training_mode=self.train_val_params.in_training_mode,
-                                                criterion=self.compute_loss)
+                                                criterion=self.compute_loss,
+                                                gradient_scaler=train_val_params.gradient_scaler)
         self.metrics = MetricsDict(hues=[BACKGROUND_CLASS_NAME] + model_config.ground_truth_ids)
 
     def create_loss_function(self) -> torch.nn.Module:

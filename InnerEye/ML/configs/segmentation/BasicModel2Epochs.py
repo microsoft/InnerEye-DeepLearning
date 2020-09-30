@@ -5,8 +5,6 @@
 from typing import Any
 
 import pandas as pd
-from azureml.train.estimator import Estimator
-from azureml.train.hyperdrive import HyperDriveConfig
 
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.configs.segmentation.Lung import AZURE_DATASET_ID
@@ -61,9 +59,3 @@ class BasicModel2Epochs(SegmentationModelBase):
             test_ids=[5],
             val_ids=[2]
         )
-
-    def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
-        return super().get_parameter_search_hyperdrive_config(estimator)
-
-    def get_cross_validation_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
-        return super().get_cross_validation_hyperdrive_config(estimator)

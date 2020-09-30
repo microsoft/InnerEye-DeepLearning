@@ -67,14 +67,6 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         # because this would prevent us from easily instantiating this class in tests.
         raise NotImplementedError("get_model_train_test_dataset_splits must be overridden")
 
-    def create_torch_datasets(self, dataset_splits: DatasetSplits) -> Dict[ModelExecutionMode, Any]:
-        """
-        Create torch datasets from the provided dataset splits
-        :param dataset_splits: Torch dataset for each model execution mode.
-        :return:
-        """
-        raise NotImplementedError("create_torch_datasets must be overridden")
-
     def create_and_set_torch_datasets(self, for_training: bool = True, for_inference: bool = True) -> None:
         """
         Creates and sets torch datasets for training and validation, and stores them in the self._datasets_for_training
@@ -112,7 +104,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         assert self._datasets_for_inference is not None  # for mypy
         return self._datasets_for_inference[mode]
 
-    def create_data_loaders(self, max_repeats: Optional[int] = None) -> Dict[ModelExecutionMode, Any]:
+    def create_data_loaders(self) -> Dict[ModelExecutionMode, Any]:
         """
         Creates the torch DataLoaders that supply the training and the validation set during training only.
         :return: A dictionary, with keys ModelExecutionMode.TRAIN and ModelExecutionMode.VAL, and their respective
@@ -154,27 +146,34 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         # because this would prevent us from easily instantiating this class in tests.
         raise NotImplementedError("create_model must be overridden")
 
+    def get_total_number_of_cross_validation_runs(self) -> int:
+        """
+        Returns the total number of HyperDrive/offline runs required to sample the entire
+        cross validation parameter space.
+        """
+        return self.number_of_cross_validation_splits
+
+    def get_cross_validation_hyperdrive_sampler(self) -> GridParameterSampling:
+        """
+        Returns the cross validation sampler, required to sample the entire parameter space for cross validation.
+        """
+        return GridParameterSampling(parameter_space={
+            CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
+        })
+
     def get_cross_validation_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
         """
         Returns a configuration for AzureML Hyperdrive that varies the cross validation split index.
         :param estimator: The AzureML estimator object that runs model training.
         :return: A hyperdrive configuration object.
         """
-        parameter_space = {
-            CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits)))
-        }
-
-        param_sampling = GridParameterSampling(parameter_space)
-
-        config = HyperDriveConfig(
+        return HyperDriveConfig(
             estimator=estimator,
-            hyperparameter_sampling=param_sampling,
+            hyperparameter_sampling=self.get_cross_validation_hyperdrive_sampler(),
             primary_metric_name=TrackedMetrics.Val_Loss.value,
             primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-            max_total_runs=self.number_of_cross_validation_splits
+            max_total_runs=self.get_total_number_of_cross_validation_runs()
         )
-
-        return config
 
     def get_cross_validation_dataset_splits(self, dataset_split: DatasetSplits) -> DatasetSplits:
         """
@@ -190,7 +189,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
     def get_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
         """
         Returns the HyperDrive config for either parameter search or cross validation
-        (if number_of_cross_validation_splits > 0).
+        (if number_of_cross_validation_splits > 1).
         :param estimator: AzureML estimator
         :return: HyperDriveConfigs
         """

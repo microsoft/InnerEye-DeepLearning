@@ -61,6 +61,7 @@ class ImageEncoder(ScalarModelBase):
             l_rate=1e-1,
             use_mixed_precision=True,
             aggregation_type=aggregation_type,
+            azure_dataset_id="test-dataset",
             **kwargs
         )
         self.encode_channels_jointly = encode_channels_jointly
@@ -260,7 +261,7 @@ def test_image_encoder_with_segmentation(test_output_dirs: TestOutputDirectories
                                                       segmentations=np.ones(scan_size, dtype=np.uint8))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         azure_config = get_default_azure_config()
-        azure_config.is_train = True
+        azure_config.train = True
         MLRunner(config, azure_config).run()
         # No further asserts here because the models are still in experimental state. Most errors would come
         # from having invalid model architectures, which would throw runtime errors during training.

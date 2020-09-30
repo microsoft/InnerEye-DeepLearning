@@ -32,19 +32,17 @@ from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get
     unroll_aggregate_metrics
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.models.test_parallel import no_gpu
 from Tests.ML.util import get_default_azure_config, machine_has_gpu
+from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize("use_mixed_precision", [False, True])
 def test_train_classification_model(test_output_dirs: TestOutputDirectories,
-                                    use_mixed_precision: bool,
-                                    check_logs: bool = True) -> None:
+                                    use_mixed_precision: bool) -> None:
     """
     Test training and testing of classification models, asserting on the individual results from training and testing.
-    This executes correctly only on CPU machines - there it will return the same results for both
-    use_mixed_precision==True and ==False. It will fail on a SurfaceBook where it recognizes the GPU (loss values
-    don't match when use_mixed_precision==True)
+    Expected test results are stored for GPU with and without mixed precision.
     """
     logging_to_stdout(logging.DEBUG)
     config = ClassificationModelForTesting()
@@ -64,8 +62,8 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     use_mixed_precision_and_gpu = use_mixed_precision and machine_has_gpu
     if use_mixed_precision_and_gpu:
-        expected_train_loss = [0.686615, 0.686467, 0.686322, 0.686174]
-        expected_val_loss = [0.737038, 0.736720, 0.736338, 0.735957]
+        expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
+        expected_val_loss = [0.737039, 0.736721, 0.736339, 0.735957]
     else:
         expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
         expected_val_loss = [0.737061, 0.736690, 0.736321, 0.735952]
@@ -73,8 +71,8 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     def extract_loss(results: List[MetricsDict]) -> List[float]:
         return [d.values()[MetricType.LOSS.value][0] for d in results]
 
-    actual_train_loss = extract_loss([x.metrics for x in model_training_result.train_results_per_epoch])
-    actual_val_loss = extract_loss([x.metrics for x in model_training_result.val_results_per_epoch])
+    actual_train_loss = extract_loss(model_training_result.train_results_per_epoch)
+    actual_val_loss = extract_loss(model_training_result.val_results_per_epoch)
     actual_learning_rates = list(flatten(model_training_result.learning_rates_per_epoch))
     assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6)
     assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6)
@@ -84,8 +82,8 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     assert list(test_results.epochs.keys()) == expected_epochs
     if use_mixed_precision_and_gpu:
         expected_metrics = {
-            2: [0.635924, 0.736720],
-            4: [0.636096, 0.735957],
+            2: [0.635942, 0.736691],
+            4: [0.636085, 0.735952],
         }
     else:
         expected_metrics = {
@@ -95,7 +93,9 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     for epoch in expected_epochs:
         assert test_results.epochs[epoch].values()[MetricType.CROSS_ENTROPY.value] == \
                pytest.approx(expected_metrics[epoch], abs=1e-6)
-    if check_logs:
+    # Run detailed logs file check only on CPU, it will contain slightly different metrics on GPU, but here
+    # we want to mostly assert that the files look reasonable
+    if not machine_has_gpu:
         # Check log EPOCH_METRICS_FILE_NAME
         epoch_metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME
         # Auto-format will break the long header line, hence the strange way of writing it!
@@ -140,41 +140,40 @@ def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> 
     pd.testing.assert_frame_equal(df_expected, df_epoch_metrics_actual, check_less_precise=True)
 
 
-@pytest.mark.gpu
-@pytest.mark.skipif(no_gpu, reason="CUDA capable GPU is not available")
-def test_train_classification_model_with_amp(test_output_dirs: TestOutputDirectories) -> None:
-    test_train_classification_model(test_output_dirs, True, check_logs=False)
-
-
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("model_name", ["DummyClassification", "DummyRegression"])
 @pytest.mark.parametrize("number_of_offline_cross_validation_splits", [2])
+@pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [2])
 def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectories,
                                           number_of_offline_cross_validation_splits: int,
+                                          number_of_cross_validation_splits_per_fold: int,
                                           model_name: str) -> None:
     """
     Test training and testing of classification models, when it is started together via run_ml.
     """
     logging_to_stdout()
     azure_config = get_default_azure_config()
-    azure_config.is_train = True
+    azure_config.train = True
     train_config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
         .create_model_config_from_name(model_name)
     train_config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
+    train_config.number_of_cross_validation_splits_per_fold = number_of_cross_validation_splits_per_fold
     train_config.set_output_to(test_output_dirs.root_dir)
+    if train_config.perform_sub_fold_cross_validation:
+        train_config.local_dataset = full_ml_test_data_path("classification_data_sub_fold_cv")
     MLRunner(train_config, azure_config).run()
     _check_offline_cross_validation_output_files(train_config)
 
     if train_config.is_regression_model:
         assert (train_config.outputs_folder / "0" / "error_plot_4.png").is_file()
 
-    if number_of_offline_cross_validation_splits > 0:
+    if train_config.perform_cross_validation:
         # Test that the result files can be correctly picked up by the cross validation routine.
         # For that, we point the downloader to the local results folder. The core download method
         # recognizes run_recovery_id == None as the signal to read from the local_run_results folder.
         config_and_files = get_config_and_results_for_offline_runs(train_config)
         result_files = config_and_files.files
-        assert len(result_files) == number_of_offline_cross_validation_splits
+        assert len(result_files) == train_config.get_total_number_of_cross_validation_runs()
         for file in result_files:
             assert file.execution_mode == ModelExecutionMode.VAL
             assert file.dataset_csv_file is not None
@@ -199,7 +198,7 @@ def test_run_ml_with_segmentation_model(test_output_dirs: TestOutputDirectories)
     train_config.perform_validation_and_test_set_inference = True
     train_config.set_output_to(test_output_dirs.root_dir)
     azure_config = get_default_azure_config()
-    azure_config.is_train = True
+    azure_config.train = True
     MLRunner(train_config, azure_config).run()
 
 
@@ -217,17 +216,17 @@ def test_runner1(test_output_dirs: TestOutputDirectories) -> None:
     output_root = str(test_output_dirs.root_dir)
     args = ["",
             "--model", model_name,
-            "--is_train", "True",
+            "--train", "True",
             "--random_seed", str(set_from_commandline),
             "--non_image_feature_channels", scalar1,
             "--output_to", output_root,
             ]
     with mock.patch("sys.argv", args):
         config, _ = runner.run(project_root=fixed_paths.repository_root_directory(),
-                               yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
+                               yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
     assert isinstance(config, ScalarModelBase)
     assert config.model_name == "DummyClassification"
-    assert config.random_seed == set_from_commandline
+    assert config.get_effective_random_seed() == set_from_commandline
     assert config.non_image_feature_channels == ["label"]
     assert str(config.outputs_folder).startswith(output_root)
     assert (config.logs_folder / runner.LOG_FILE_NAME).exists()
@@ -242,12 +241,12 @@ def test_runner2(test_output_dirs: TestOutputDirectories) -> None:
     output_root = str(test_output_dirs.root_dir)
     args = ["",
             "--model", "DummyClassification",
-            "--is_train", "True",
+            "--train", "True",
             "--output_to", output_root,
             ]
     with mock.patch("sys.argv", args):
         config, _ = runner.run(project_root=fixed_paths.repository_root_directory(),
-                               yaml_config_file=fixed_paths.TRAIN_YAML_FILE)
+                               yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
     assert isinstance(config, ScalarModelBase)
     assert config.name.startswith("DummyClassification")
 
@@ -351,7 +350,7 @@ def test_is_offline_cross_val_parent_run(offline_parent_cv_run: bool) -> None:
 def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) -> None:
     metrics: Dict[ModelExecutionMode, List[pd.DataFrame]] = dict()
     root = Path(train_config.file_system_config.outputs_folder)
-    for x in range(train_config.number_of_cross_validation_splits):
+    for x in range(train_config.get_total_number_of_cross_validation_runs()):
         expected_outputs_folder = root / str(x)
         assert expected_outputs_folder.exists()
         for m in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
@@ -366,7 +365,14 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         # test aggregates are as expected
         aggregate_metrics_path = root / CROSSVAL_RESULTS_FOLDER / METRICS_AGGREGATES_FILE
         assert aggregate_metrics_path.is_file()
+        # since we aggregate the outputs of each of the child folds
+        # we need to compare the outputs w.r.t to the parent folds
+        child_folds = train_config.number_of_cross_validation_splits_per_fold
+        if train_config.perform_sub_fold_cross_validation:
+            train_config.number_of_cross_validation_splits_per_fold = 0
         _dataset_splits = train_config.get_dataset_splits()
+        train_config.number_of_cross_validation_splits_per_fold = child_folds
+
         _val_dataset_split_count = len(_dataset_splits.val[train_config.subject_column].unique()) + len(
             _dataset_splits.train[train_config.subject_column].unique())
         _aggregates_csv = pd.read_csv(aggregate_metrics_path)
@@ -454,8 +460,32 @@ def test_dataset_stats_hook_failing(test_output_dirs: TestOutputDirectories) -> 
     """
     model = ClassificationModelForTesting()
 
-    def hook(datasets: Dict[ModelExecutionMode, ScalarDataset]) -> None:
+    def hook(_: Dict[ModelExecutionMode, ScalarDataset]) -> None:
         raise ValueError()
 
     model.dataset_stats_hook = hook
     model.create_and_set_torch_datasets()
+
+
+def test_get_dataset_splits() -> None:
+    """
+    Test if dataset splits are created as expected for scalar models.
+    """
+    model = ClassificationModelForTesting()
+    model.local_dataset = full_ml_test_data_path("classification_data_sub_fold_cv")
+    model.number_of_cross_validation_splits = 2
+    dataset_splits = model.get_dataset_splits()
+    assert list(dataset_splits[ModelExecutionMode.TRAIN].subjectID.unique()) == ['S4', 'S5', 'S2', 'S10']
+    assert list(dataset_splits[ModelExecutionMode.VAL].subjectID.unique()) == ['S1', 'S6', 'S7', 'S8']
+    assert list(dataset_splits[ModelExecutionMode.TEST].subjectID.unique()) == ['S3', 'S9']
+    # check if sub-folds are created as expected
+    model.number_of_cross_validation_splits_per_fold = 2
+    sub_fold_dataset_splits = model.get_dataset_splits()
+    # the validation and the test set must be the same for parent and sub fold
+    pd.testing.assert_frame_equal(dataset_splits.val, sub_fold_dataset_splits.val,
+                                         check_like=True, check_dtype=False)
+    pd.testing.assert_frame_equal(dataset_splits.test,
+                                         sub_fold_dataset_splits.test, check_like=True,
+                                         check_dtype=False)
+    # make sure the training set is the expected subset of the parent
+    assert list(sub_fold_dataset_splits[ModelExecutionMode.TRAIN].subjectID.unique()) == ['S2', 'S10']

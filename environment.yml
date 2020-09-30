@@ -5,19 +5,15 @@ channels:
 dependencies:
   - pip=20.1.1
   - python=3.7.3
-  - pytorch=1.3.0
+  - pytorch=1.6.0
   - python-blosc==1.7.0
+  - torchvision=0.7.0
   - pip:
-      # We need a recent apex, as nvidia-apex=0.1 from conda-forge suffers from
-      # https://github.com/NVIDIA/apex/issues/552
-      # However this stops installation on CPU-only machines, and the alleged fix does not fix it:
-      # https://github.com/NVIDIA/apex/issues/931
-      # Commit a0d99fd, from 2020-07-09, seems to avoid both bugs.
-      - git+https://github.com/NVIDIA/apex.git@a0d99fd#egg=apex
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - azureml-mlflow==1.12.0
       - azureml-sdk==1.12.0
       - azureml-tensorboard==1.12.0
+      - azure-mgmt-resource==10.2.0
       - blobxfer==1.9.4
       - dataclasses-json==0.5.2
       - flake8==3.8.3
@@ -26,6 +22,7 @@ dependencies:
       - h5py==2.10.0
       - joblib==0.16.0
       - jupyter==1.0.0
+      - jupyter-client==6.1.5
       - matplotlib==3.3.0
       - mlflow==1.8.0
       - mypy==0.770
@@ -55,5 +52,4 @@ dependencies:
       - tensorboard==2.3.0
       - tensorboardX==2.1
       - torchprof==1.1.1
-      - torchvision==0.4.1
 

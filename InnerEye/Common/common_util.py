@@ -119,14 +119,14 @@ class ModelProcessing(Enum):
     (3) Inference on an ensemble model taking place in a HyperDrive child run that trained one of the component
     models of the ensemble and whose cross validation index is 0.
     (4) Inference on a single or ensemble model created in an another run specified by the value of run_recovery_id.
-    * Scenario (1) happens when we train a model (is_train=True) with number_of_cross_validation_splits=0. In this
+    * Scenario (1) happens when we train a model (train=True) with number_of_cross_validation_splits=0. In this
     case, the value of ModelProcessing passed around is DEFAULT.
-    * Scenario (2) happens when we train a model (is_train=True) with number_of_cross_validation_splits>0. In this
+    * Scenario (2) happens when we train a model (train=True) with number_of_cross_validation_splits>0. In this
     case, the value of ModelProcessing passed around is DEFAULT in each of the child runs while training and running
     inference on its own single model. However, the child run whose cross validation index is 0 then goes on to
     carry out Scenario (3), and does more processing with ModelProcessing value ENSEMBLE_CREATION, to create and
     register the ensemble model, run inference on it, and upload information about the ensemble model to the parent run.
-    * Scenario (4) happens when we do an inference-only run (is_train=False), and specify an existing model with
+    * Scenario (4) happens when we do an inference-only run (train=False), and specify an existing model with
     run_recovery_id (and necessarily number_of_cross_validation_splits=0, even if the recovered run was a HyperDrive
     one). This model may be either a single one or an ensemble one; in both cases, a ModelProcessing value of DEFAULT is
     used.
@@ -135,7 +135,8 @@ class ModelProcessing(Enum):
     ENSEMBLE_CREATION = 'ensemble_creation'
 
 
-def get_epoch_results_path(epoch: int, mode: ModelExecutionMode, model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Path:
+def get_epoch_results_path(epoch: int, mode: ModelExecutionMode,
+                           model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Path:
     """
     For a given model execution mode, and an epoch index, creates the relative results path
     in the form epoch_x/(Train, Test or Val)
@@ -314,7 +315,7 @@ def logging_section(gerund: str) -> Generator:
     from time import time
     logging.info("")
     msg = f"**** STARTING: {gerund} "
-    logging.info(msg + (200 - len(msg)) * "*")
+    logging.info(msg + (100 - len(msg)) * "*")
     logging.info("")
     start_time = time()
     yield
@@ -327,7 +328,7 @@ def logging_section(gerund: str) -> Generator:
     else:
         time_expr = f"{elapsed:0.2f} seconds"
     msg = f"**** FINISHED: {gerund} after {time_expr} "
-    logging.info(msg + (200 - len(msg)) * "*")
+    logging.info(msg + (100 - len(msg)) * "*")
     logging.info("")
 
 

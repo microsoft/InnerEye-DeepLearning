@@ -24,18 +24,20 @@ from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOV
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
-    CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
-    FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_AGGREGATES_FILE, \
-    ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, disable_logging_to_file, is_linux, \
-    logging_section, logging_to_file, \
-    logging_to_stdout, \
+    CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
+    METRICS_FILE_NAME, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, disable_logging_to_file, \
+    get_epoch_results_path, is_linux, logging_section, logging_to_file, logging_to_stdout, \
     print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import get_environment_yaml_file
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.reports.notebook_report import generate_segmentation_notebook
 from InnerEye.ML.utils.config_util import ModelConfigLoader
+
+REPORT_IPYNB = "report.ipynb"
+REPORT_HTML = "report.html"
 
 LOG_FILE_NAME = "stdout.txt"
 
@@ -59,6 +61,28 @@ def may_initialize_rpdb() -> None:
                  f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}")
 
 
+def suppress_logging_noise() -> None:
+    """
+    Reduce the logging level for some of the used libraries, which are particularly talkative in DEBUG mode.
+    Usually when running in DEBUG mode, we want diagnostics about the model building itself, but not for the
+    underlying libraries.
+    """
+    # Numba code generation is extremely talkative in DEBUG mode, disable that.
+    logging.getLogger('numba').setLevel(logging.WARNING)
+    # Matplotlib is also very talkative in DEBUG mode, filling half of the log file in a PR build.
+    logging.getLogger('matplotlib').setLevel(logging.INFO)
+    # Urllib3 prints out connection information for each call to write metrics, etc
+    logging.getLogger('urllib3').setLevel(logging.INFO)
+    # AzureML prints too many details about logging metrics
+    logging.getLogger('azureml').setLevel(logging.INFO)
+    # Jupyter notebook report generation
+    logging.getLogger('papermill').setLevel(logging.INFO)
+    logging.getLogger('nbconvert').setLevel(logging.INFO)
+    # This is working around a spurious error message thrown by MKL, see
+    # https://github.com/pytorch/pytorch/issues/37377
+    os.environ['MKL_THREADING_LAYER'] = 'GNU'
+
+
 class Runner:
     """
     :param project_root: The root folder that contains all of the source code that should be executed.
@@ -72,6 +96,7 @@ class Runner:
     Suggested value is "innereye-deeplearning".
     :param command_line_args: command-line arguments to use; if None, use sys.argv.
     """
+
     def __init__(self,
                  project_root: Path,
                  yaml_config_file: Path,
@@ -98,7 +123,7 @@ class Runner:
         """
         if (not self.model_config.is_offline_run) \
                 and (azure_util.is_cross_validation_child_run(RUN_CONTEXT)):
-            n_splits = self.model_config.number_of_cross_validation_splits
+            n_splits = self.model_config.get_total_number_of_cross_validation_runs()
             child_runs = azure_util.fetch_child_runs(PARENT_RUN_CONTEXT,
                                                      expected_number_cross_validation_splits=n_splits)
             pending_runs = [x.id for x in child_runs
@@ -118,11 +143,35 @@ class Runner:
         Wait for cross val runs (apart from the current one) to finish and then aggregate results of all.
         :param delay: How long to wait between polls to AML to get status of child runs
         """
-        with logging_section("waiting for sibling runs"):
+        with logging_section("Waiting for sibling runs"):
             while self.wait_until_cross_val_splits_are_ready_for_aggregation():
                 time.sleep(delay)
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
         self.create_ensemble_model()
+
+    @staticmethod
+    def generate_report(config: DeepLearningConfig, best_epoch: int, model_proc: ModelProcessing) -> None:
+        logging.info("Saving report in html")
+        if not config.is_segmentation_model:
+            return
+
+        try:
+            def get_epoch_path(mode: ModelExecutionMode) -> Path:
+                p = get_epoch_results_path(best_epoch, mode=mode, model_proc=model_proc)
+                return config.outputs_folder / p / METRICS_FILE_NAME
+
+            path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
+            path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
+            path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
+
+            output_dir = config.outputs_folder / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME \
+                if model_proc == ModelProcessing.ENSEMBLE_CREATION else config.outputs_folder
+            generate_segmentation_notebook(result_notebook=output_dir / REPORT_IPYNB,
+                                           train_metrics=path_to_best_epoch_train,
+                                           val_metrics=path_to_best_epoch_val,
+                                           test_metrics=path_to_best_epoch_test)
+        except Exception as ex:
+            print_exception(ex, "Failed to generated reporting notebook.")
 
     def plot_cross_validation_and_upload_results(self) -> Path:
         from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
@@ -131,7 +180,7 @@ class Runner:
         plot_crossval_config = crossval_config_from_model_config(self.model_config)
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
         plot_crossval_config.outputs_directory = str(self.model_config.outputs_folder)
-        plot_crossval_config.train_yaml_path = str(self.yaml_config_file)
+        plot_crossval_config.settings_yaml_file = str(self.yaml_config_file)
         cross_val_results_root = plot_cross_validation(plot_crossval_config)
         if self.post_cross_validation_hook:
             self.post_cross_validation_hook(self.model_config, cross_val_results_root)
@@ -154,7 +203,7 @@ class Runner:
         """
         # Import only here in case of dependency issues in reduced environment
         from InnerEye.ML.utils.run_recovery import RunRecovery
-        with logging_section("downloading checkpoints from sibling runs"):
+        with logging_section("Downloading checkpoints from sibling runs"):
             run_recovery = RunRecovery.download_checkpoints_from_run(
                 self.azure_config, self.model_config, PARENT_RUN_CONTEXT, output_subdir_name=OTHER_RUNS_SUBDIR_NAME)
             # Check paths are good, just in case
@@ -165,8 +214,11 @@ class Runner:
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
-        self.create_ml_runner().run_inference_and_register_model(run_recovery, model_proc=ModelProcessing.ENSEMBLE_CREATION)
+        best_epoch = self.create_ml_runner().run_inference_and_register_model(run_recovery,
+                                                                              model_proc=ModelProcessing.ENSEMBLE_CREATION)
+
         crossval_dir = self.plot_cross_validation_and_upload_results()
+        Runner.generate_report(self.model_config, best_epoch, ModelProcessing.ENSEMBLE_CREATION)
         # CrossValResults should have been uploaded to the parent run, so we don't need it here.
         remove_file_or_directory(crossval_dir)
         # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files
@@ -175,9 +227,10 @@ class Runner:
         other_runs_ensemble_dir = other_runs_dir / ENSEMBLE_SPLIT_NAME
         if PARENT_RUN_CONTEXT is not None:
             if other_runs_ensemble_dir.exists():
-                # Only keep baseline Wilcoxon results and scatterplots:
+                # Only keep baseline Wilcoxon results and scatterplots and reports
                 for subdir in other_runs_ensemble_dir.glob("*"):
-                    if subdir.name not in [BASELINE_WILCOXON_RESULTS_FILE, SCATTERPLOTS_SUBDIR_NAME]:
+                    if subdir.name not in [BASELINE_WILCOXON_RESULTS_FILE, SCATTERPLOTS_SUBDIR_NAME, REPORT_HTML,
+                                           REPORT_IPYNB]:
                         remove_file_or_directory(subdir)
                 PARENT_RUN_CONTEXT.upload_folder(name=BASELINE_COMPARISONS_FOLDER, path=str(other_runs_ensemble_dir))
             else:
@@ -193,6 +246,7 @@ class Runner:
         parser1 = create_runner_parser()
         parser1_result = parse_args_and_add_yaml_variables(parser1,
                                                            yaml_config_file=self.yaml_config_file,
+                                                           project_root=self.project_root,
                                                            args=self.command_line_args,
                                                            fail_on_unknown_args=False)
         azure_config = AzureConfig(**parser1_result.args)
@@ -244,7 +298,7 @@ class Runner:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None
-        if self.azure_config.submit_to_azureml:
+        if self.azure_config.azureml:
             run_object = self.submit_to_azureml()
         else:
             self.run_in_situ()
@@ -287,7 +341,7 @@ class Runner:
             # A build step will pick up that file and publish it to Azure DevOps.
             # If pytest_mark is set, this file must exist.
             logging.info("Downloading pytest result file.")
-            download_pytest_result(self.azure_config, azure_run)
+            download_pytest_result(azure_run)
         else:
             logging.info("No pytest_mark present, hence not downloading the pytest result file.")
         status = azure_run.get_status()
@@ -305,10 +359,7 @@ class Runner:
         # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(self.azure_config.log_level)
-        # Numba code generation is extremely talkative in DEBUG mode, disable that.
-        logging.getLogger('numba').setLevel(logging.WARNING)
-        # Matplotlib is also very talkative in DEBUG mode, filling half of the log file in a PR build.
-        logging.getLogger('matplotlib').setLevel(logging.INFO)
+        suppress_logging_noise()
         pytest_failed = False
         training_failed = False
         pytest_passed = True
@@ -333,7 +384,7 @@ class Runner:
                     pytest_failed = True
         finally:
             # wait for aggregation if required, and only if the training actually succeeded.
-            if not training_failed and self.model_config.should_wait_for_other_cross_val_child_runs:
+            if not training_failed and self.model_config.should_wait_for_other_cross_val_child_runs():
                 self.wait_for_cross_val_runs_to_finish_and_aggregate()
             disable_logging_to_file()
         if training_failed or pytest_failed or not pytest_passed:
@@ -391,7 +442,7 @@ def run(project_root: Path,
 
 def main() -> None:
     run(project_root=fixed_paths.repository_root_directory(),
-        yaml_config_file=fixed_paths.TRAIN_YAML_FILE,
+        yaml_config_file=fixed_paths.SETTINGS_YAML_FILE,
         post_cross_validation_hook=default_post_cross_validation_hook)
 
 

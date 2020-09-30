@@ -4,13 +4,14 @@
 #  ------------------------------------------------------------------------------------------
 
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from InnerEye.Common import common_util
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
-from Tests.Common.test_util import DEFAULT_MODEL_ID_NUMERIC
 from InnerEye.Scripts.submit_for_inference import main
+from Tests.Common.test_util import DEFAULT_MODEL_ID_NUMERIC
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Testing on Linux is enough")
@@ -20,7 +21,7 @@ from InnerEye.Scripts.submit_for_inference import main
 def test_submit_for_inference() -> None:
     args = ["--image_file", "Tests/ML/test_data/train_and_test_data/id1_channel1.nii.gz",
             "--model_id", DEFAULT_MODEL_ID_NUMERIC,
-            "--yaml_file", "InnerEye/train_variables.yml",
+            "--settings", "InnerEye/settings.yml",
             "--download_folder", "."]
     seg_path = Path(DEFAULT_RESULT_IMAGE_NAME)
     if seg_path.exists():

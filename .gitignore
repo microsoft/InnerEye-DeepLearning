@@ -1,6 +1,7 @@
 ### DATASETS
 /datasets/
 /logs/
+/outputs/
 /model_inference_config.json
 ## Results and Models
 result/
@@ -139,6 +140,7 @@ dmypy.json
 .idea/workspace.xml
 .idea/deployment.xml
 InnerEyeTestVariables.txt
+InnerEyePrivateSettings.yml
 Tests/ML/test_outputs
 /test_outputs
 /run_outputs

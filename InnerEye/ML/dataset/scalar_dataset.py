@@ -218,8 +218,8 @@ def load_single_data_source(subject_rows: pd.DataFrame,
         return x is None or len(x) == 0
 
     def none_if_missing_in_csv(x: Any) -> Optional[str]:
-        # Missing values in the CSV file turn into NaN here, but mark them as None rather.
-        return None if isinstance(x, float) else x
+        # If the CSV contains missing values they turn into NaN here, but mark them as None rather.
+        return None if isinstance(x, float) and np.isnan(x) else x
 
     subject_rows = subject_rows.fillna('')
     labels = []
@@ -662,7 +662,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
     def get_labels_for_imbalanced_sampler(self) -> List[float]:
         raise NotImplementedError
 
-    def normalize_non_image_features(self) -> None:
+    def standardize_non_imaging_features(self) -> None:
         """
         Modifies the non image features that this data loader stores, such that they have mean 0, variance 1.
         Mean and variances are either taken from the argument feature_mean_and_variance (use that when
@@ -726,7 +726,7 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
                          name=name,
                          sample_transforms=sample_transforms)
         self.items = self.load_all_data_sources()
-        self.normalize_non_image_features()
+        self.standardize_non_imaging_features()
 
     def get_status(self) -> str:
         """

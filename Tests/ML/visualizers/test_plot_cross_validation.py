@@ -16,6 +16,7 @@ from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DA
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
@@ -36,7 +37,8 @@ from Tests.fixed_paths_for_tests import full_ml_test_data_path
 def test_config_ensemble() -> PlotCrossValidationConfig:
     return PlotCrossValidationConfig(
         run_recovery_id=DEFAULT_ENSEMBLE_RUN_RECOVERY_ID,
-        epoch=1
+        epoch=1,
+        model_category=ModelCategory.Segmentation
     )
 
 
@@ -44,7 +46,8 @@ def test_config_ensemble() -> PlotCrossValidationConfig:
 def test_config() -> PlotCrossValidationConfig:
     return PlotCrossValidationConfig(
         run_recovery_id=DEFAULT_RUN_RECOVERY_ID,
-        epoch=1
+        epoch=1,
+        model_category=ModelCategory.Segmentation
     )
 
 
@@ -54,7 +57,8 @@ def test_config_comparison() -> PlotCrossValidationConfig:
         run_recovery_id=DEFAULT_ENSEMBLE_RUN_RECOVERY_ID + "_0",
         epoch=1,
         comparison_run_recovery_ids=[DEFAULT_ENSEMBLE_RUN_RECOVERY_ID + "_1"],
-        comparison_epochs=[1]
+        comparison_epochs=[1],
+        model_category=ModelCategory.Segmentation
     )
 
 
@@ -72,33 +76,19 @@ def download_metrics(config: PlotCrossValidationConfig) -> \
     return dataframes, root_folder
 
 
-@pytest.mark.skip(
-    reason="Long-running legacy test, most of the functionality is now covered in test_metrics_download_preparation")
-def test_download_metrics(test_config_ensemble: PlotCrossValidationConfig,
-                          test_output_dirs: TestOutputDirectories) -> None:
-    test_config_ensemble.outputs_directory = test_output_dirs.root_dir
-    downloaded_metrics, _ = download_metrics(test_config_ensemble)
-    for mode in [ModelExecutionMode.TEST]:
-        expected_df = _get_metrics_df(mode)
-        # Drop the "mode" column, because that was added after creating the test data
-        metrics = downloaded_metrics[mode]
-        assert metrics is not None
-        actual_df = metrics.drop(COL_MODE, axis=1)
-        actual_df = actual_df.sort_values(list(actual_df.columns), ascending=True).reset_index(drop=True)
-        pd.testing.assert_frame_equal(expected_df, actual_df, check_like=True, check_dtype=False)
-
-
-def create_run_result_file_list(run_recovery_id: str, folder: str) -> List[RunResultFiles]:
+def create_run_result_file_list(run_recovery_id: str, folder: str,
+                                perform_sub_fold_cross_validation: bool = False) -> List[RunResultFiles]:
     """
     Creates a list of input files for cross validation analysis, from files stored inside of the test data folder.
     :param run_recovery_id: The run recovery id, format experiment:run, without the split suffix (_0, _1)
     :param folder: The folder to read from, inside of test_data/plot_cross_validation.
+    :param perform_sub_fold_cross_validation: If True then create input files for sub fold cross validation analysis.
     :return:
     """
     full_folder = full_ml_test_data_path("plot_cross_validation") / folder
     files: List[RunResultFiles] = []
     previous_dataset_file = None
-    for split in ["0", "1"]:
+    for split in ["0", "1", "1", "1"] if perform_sub_fold_cross_validation else ["0", "1"]:
         for mode in EXECUTION_MODES_TO_DOWNLOAD:
             metrics_file = full_folder / split / mode.value / METRICS_FILE_NAME
             dataset_file: Optional[Path] = full_folder / split / DATASET_CSV_FILE_NAME
@@ -140,33 +130,38 @@ def test_metrics_preparation_for_segmentation(test_config_ensemble: PlotCrossVal
         pd.testing.assert_frame_equal(expected_df, actual_df, check_like=True, check_dtype=False)
 
 
-def load_result_files_for_classification() -> Tuple[List[RunResultFiles], PlotCrossValidationConfig]:
+def load_result_files_for_classification(perform_sub_fold_cross_validation: bool = False) -> \
+        Tuple[List[RunResultFiles], PlotCrossValidationConfig]:
     run_recovery_id = "local_branch:HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301"
     files = create_run_result_file_list(run_recovery_id=run_recovery_id,
-                                        folder="HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301")
+                                        folder="HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301",
+                                        perform_sub_fold_cross_validation=perform_sub_fold_cross_validation)
     plotting_config = PlotCrossValidationConfig(
         run_recovery_id=run_recovery_id,
         epoch=3,
-        is_segmentation=False
+        model_category=ModelCategory.Classification
     )
     return files, plotting_config
 
 
-def test_metrics_preparation_for_classification() -> None:
+@pytest.mark.parametrize("perform_sub_fold_cross_validation", [True, False])
+def test_metrics_preparation_for_classification(perform_sub_fold_cross_validation: bool) -> None:
     """
     Test if metrics from classification models can be loaded and prepared. The files in question are checked in,
     and were downloaded from a run on AzureML.
     """
-    files, plotting_config = load_result_files_for_classification()
+    files, plotting_config = load_result_files_for_classification(perform_sub_fold_cross_validation)
     downloaded_metrics = load_dataframes(files, plotting_config)
     assert ModelExecutionMode.TEST not in downloaded_metrics
     metrics = downloaded_metrics[ModelExecutionMode.VAL]
     assert metrics is not None
-    expected_df_csv = full_ml_test_data_path("plot_cross_validation") / "metrics_preparation_for_classification_VAL.csv"
+    expected_metrics_file = "metrics_preparation_for_sub_fold_classification_VAL.csv" \
+        if perform_sub_fold_cross_validation else "metrics_preparation_for_classification_VAL.csv"
+    expected_df_csv = full_ml_test_data_path("plot_cross_validation") / expected_metrics_file
     metrics = metrics.sort_values(list(metrics.columns), ascending=True).reset_index(drop=True)
     # To write new test results:
     # metrics.to_csv(expected_df_csv, index=False)
-    expected_df = pd.read_csv(expected_df_csv)
+    expected_df = pd.read_csv(expected_df_csv).sort_values(list(metrics.columns), ascending=True).reset_index(drop=True)
     pd.testing.assert_frame_equal(expected_df, metrics, check_like=True, check_dtype=False)
 
 
@@ -376,7 +371,7 @@ def test_download_or_get_local_blobs(is_current_run: bool,
 
 def test_download_or_get_local_file_2(test_output_dirs: TestOutputDirectories) -> None:
     config = PlotCrossValidationConfig(run_recovery_id=None,
-                                       is_segmentation=False,
+                                       model_category=ModelCategory.Classification,
                                        epoch=None,
                                        should_validate=False)
     download_to_folder = Path(test_output_dirs.root_dir) / CROSSVAL_RESULTS_FOLDER
@@ -421,7 +416,7 @@ def test_run_ml_with_multi_label_sequence_in_crossval(test_output_dirs: TestOutp
     config.num_epochs = 1
     config.number_of_cross_validation_splits = 2
     azure_config = get_default_azure_config()
-    azure_config.is_train = True
+    azure_config.train = True
     MLRunner(config, azure_config).run()
 
 
@@ -436,7 +431,7 @@ def test_load_files_with_prediction_target() -> None:
     plotting_config = PlotCrossValidationConfig(
         run_recovery_id=run_id,
         epoch=1,
-        is_segmentation=False
+        model_category=ModelCategory.Classification
     )
     downloaded_metrics = load_dataframes(files, plotting_config)
     assert ModelExecutionMode.TEST not in downloaded_metrics
@@ -463,7 +458,7 @@ def test_aggregate_files_with_prediction_target(test_output_dirs: TestOutputDire
     plotting_config = PlotCrossValidationConfig(
         run_recovery_id=run_id,
         epoch=1,
-        is_segmentation=False,
+        model_category=ModelCategory.Classification
     )
     root_folder = Path(test_output_dirs.root_dir)
     print(f"Writing result files to {root_folder}")

@@ -105,8 +105,8 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         device = torch.device('cpu')
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, self.model, sample, device)
         subject_ids = model_inputs_and_labels.subject_ids
-        labels = self.model_config.get_gpu_tensor_if_possible(model_inputs_and_labels.labels, device=device)
 
+        labels = self.model_config.get_gpu_tensor_if_possible(model_inputs_and_labels.labels, device=device)
         model_output: torch.Tensor = self.model.forward(*model_inputs_and_labels.model_inputs)
         if isinstance(model_output, list):
             # Model output is a list if we are using data parallel. Here, this will be a degenerate list with
@@ -115,9 +115,8 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
 
         # Apply any post loss normalization to logits
         model_output = self.model_config.get_post_loss_logits_normalization_function()(model_output)
-        result = ScalarInferencePipelineBase.Result(subject_ids, labels, model_output)
-
-        return result
+        # Cast labels and model outputs back to float32, if the model had been run in mixed precision
+        return ScalarInferencePipelineBase.Result(subject_ids, labels.float(), model_output.float())
 
 
 class ScalarEnsemblePipeline(ScalarInferencePipelineBase):

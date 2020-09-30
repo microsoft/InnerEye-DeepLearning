@@ -146,9 +146,11 @@ def check_size_matches(arg1: Union[np.ndarray, torch.Tensor],
                                                     arg1.shape, arg2_name, arg2.shape))
 
 
-def set_random_seed(random_seed: int) -> None:
+def set_random_seed(random_seed: int, caller_name: Optional[str] = None) -> None:
     """
     Set the seed for the random number generators of python, numpy, torch.random, and torch.cuda for all gpus.
+    :param random_seed: random seed value to set.
+    :param caller_name: name of the caller for logging purposes.
     """
     random.seed(random_seed)
     np.random.seed(random_seed)
@@ -156,6 +158,10 @@ def set_random_seed(random_seed: int) -> None:
     if is_gpu_available():
         # noinspection PyUnresolvedReferences
         torch.cuda.manual_seed_all(random_seed)  # type: ignore
+    prefix = ""
+    if caller_name is not None:
+        prefix = caller_name + ": "
+    logging.info(f"{prefix}Random seed set to: {random_seed}")
 
 
 # noinspection PyUnresolvedReferences,PyTypeHints
@@ -203,3 +209,14 @@ def is_tensor_nan_or_inf(tensor: torch.Tensor) -> bool:
     if isinstance(result, bool):
         return result
     raise ValueError("torch not returning bool as we expected")
+
+
+def is_tensor_nan(tensor: torch.Tensor) -> bool:
+    """
+    Returns True if any of the tensor elements is Not a Number.
+
+    :param tensor: The tensor to check.
+    :return: True if any of the tensor elements is Not a Number, False if all entries are valid numbers.
+    If the tensor is empty, the function returns False.
+    """
+    return bool(torch.isnan(tensor).any().item())

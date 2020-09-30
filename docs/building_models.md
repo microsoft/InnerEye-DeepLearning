@@ -8,8 +8,8 @@ We recommend the latter as it offers more flexibility and better separation of c
 create a directory `InnerEyeLocal` beside `InnerEye`.
 
 As well as your configurations (dealt with below) you will need these files:
-* `train_variables.yml`: A file similar to `InnerEye\train_variables.yml` containing all your Azure settings.
-The value of `inference_code_directory` should (in our example) be `'InnerEyeLocal'`, 
+* `settings.yml`: A file similar to `InnerEye\settings.yml` containing all your Azure settings.
+The value of `extra_code_directory` should (in our example) be `'InnerEyeLocal'`, 
 and model_configs_namespace should be `'InnerEyeLocal.ML.configs'`. 
 * A folder like `InnerEyeLocal` that contains your additional code, and model configurations.
 * A file `InnerEyeLocal/ML/runner.py` that invokes the InnerEye training runner, but that points the code to your environment and Azure
@@ -24,7 +24,7 @@ def main() -> None:
     current = os.path.dirname(os.path.realpath(__file__))
     project_root = Path(os.path.realpath(os.path.join(current, "..", "..")))
     runner.run(project_root=project_root,
-               yaml_config_file=project_root / "relative/path/to/train_variables.yml",
+               yaml_config_file=project_root / "relative/path/to/settings.yml",
                post_cross_validation_hook=None)
 
 
@@ -50,7 +50,7 @@ class Prostate(ProstateBase):
 ```
 The allowed parameters and their meanings are defined in [`SegmentationModelBase`](/InnerEye/ML/config.py).
 The class name must be the same as the basename of the file containing it, so `Prostate.py` must contain `Prostate`. 
-In `train_variables.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
+In `settings.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
 is found by the runner.
 
 ### Training a new model
@@ -59,11 +59,11 @@ is found by the runner.
 
 * Train a new model, for example `Prostate`:
 ```shell script
-python InnerEyeLocal/ML/runner.py --submit_to_azureml=True --model=Prostate --is_train=True
+python InnerEyeLocal/ML/runner.py --azureml=True --model=Prostate --train=True
 ```
 
 Alternatively, you can train the model on your current machine if it is powerful enough. In
-this case, you should specify `--submit_to_azureml=False`, and instead of specifying
+this case, you would simply omit the `azureml` flag, and instead of specifying
 `azure_dataset_id` in the class constructor, you can instead use `local_dataset="my/data/folder"`,
 where the folder `my/data/folder` contains a `dataset.csv` file and subfolders `0`, `1`, `2`, ...,
 one for each image.
@@ -82,15 +82,36 @@ sets the experiment name to match the name of the current git branch.
 
 ### K-Fold Model Cross Validation
 
-As for training a new model, but add the switch `--number_of_cross_validation_splits=N`, for some `N` greater than
-1; a value of 5 is typical. This will start a 
+For running K-fold cross validation, the InnerEye toolbox schedules multiple training runs in the cloud that run
+at the same time (provided that the cluster has capacity). This means that a complete cross validation run usually
+takes as long as a single training run.
+
+To start cross validation, you can either modify the `number_of_cross_validation_splits` property of your model,
+or supply it on the command line: Provide all the usual switches, and add `--number_of_cross_validation_splits=N`, 
+for some `N` greater than 1; a value of 5 is typical. This will start a 
 [HyperDrive run](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters): A parent
 AzureML job, with `N` child runs that will execute in parallel. You can see the child runs in the AzureML UI in the
 "Child Runs" tab.
 
 The dataset splits for those `N` child runs will be
 computed from the union of the Training and Validation sets. The Test set is unchanged. Note that the Test set can be
-empty, in which case the training and validation sets for the `N` child runs will be the full dataset.
+empty, in which case the union of all validation sets for the `N` child runs will be the full dataset.
+
+#### Sub-fold cross validation
+
+For scalar models (ie: classification or regression) sub fold cross validation can also be performed by adding
+the switch `--number_of_cross_validation_splits_per_fold=P`, for some `P` greater than
+1; a value of 5 is typical. This will start a HyperDrive run similar to a normal K-Fold model training run as 
+described above but now with `number_of_cross_validation_splits * number_of_cross_validation_splits_per_fold` 
+child runs.
+
+Each sub-fold is associated with a parent cross validation fold, and the dataset splits for those `P` sub-fold child 
+runs will be computed from the training set of the parent cross validation
+fold they belong to, with the validation set being the same as the validation set of the parent cross validation fold.
+The Test set is unchanged.
+
+Once all the child runs have finished the results of each of the sub-folds created from the parent cross validation
+folds are averaged to generate the results for each of the parent cross validation folds.
 
 ### Recovering failed runs and continuing training
 
@@ -116,9 +137,9 @@ run recovery ID without the final underscore and digit.
 
 ### Testing an existing model
 
-As for continuing training, but set `--is_train` to `False`. Thus your command should look like this:
+As for continuing training, but set `--train` to `False`. Thus your command should look like this:
 ```shell script
-python Inner/ML/runner.py --submit_to_azureml=True --model=Prostate --is_train=False --gpu_cluster_name=my_cluster_name \
+python Inner/ML/runner.py --azureml=True --model=Prostate --train=False --cluster=my_cluster_name \
    --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
 ```
 
@@ -126,7 +147,7 @@ Alternatively, to submit an AzureML run to apply a model to a single image on yo
 you can use the script `submit_for_inference.py`, with a command of this form:
 ```shell script
 python InnerEye/Scripts/submit_for_inference.py --image_file ~/somewhere/ct.nii.gz --model_id Prostate:555 \
-  --yaml_file ../somewhere_else/train_variables.yml --download_folder ~/my_existing_folder
+  --settings ../somewhere_else/settings.yml --download_folder ~/my_existing_folder
 ```
 
 ### Model Ensembles
@@ -235,14 +256,3 @@ runs are uploaded to the parent run, in the `CrossValResults` directory. This co
 There is also a directory `BaselineComparisons`, containing the Wilcoxon test results and
 scatterplots for the ensemble, as described above for single runs.
 
-
-### Using Tensorboard
-
-You can use `InnerEye/Azure/monitor.py` to run a Tensorboard locally. All you need to do is call the script with the following
-commandline arguments: `--run_ids job1,job2,job3`, where you provide the `run_recovery_id` of the run(s) you want to monitor.
-Or you can run it with: `--experiment_name`, where you provide the name of the experiment to get all the runs in it.
-You can also filter runs by type by the run's status, setting the `--filters Running,Completed` parameter to a subset of
-`[Running, Completed, Failed, Canceled]`. By default Failed and Canceled runs are excluded.
-
-To quickly access that, there is a template PyCharm run configuration `Template: Tensorboard monitoring` in the repository. Create
-a copy of that, and modify the commandline arguments with your jobs to monitor.

@@ -31,12 +31,14 @@ from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline, InferencePipelineBase
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline, \
     ScalarInferencePipelineBase
+from InnerEye.ML.reports.segmentation_report import boxplot_per_structure
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import io_util, ml_util
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
 from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, \
     save_lines_to_file
+from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 from InnerEye.ML.utils.run_recovery import RunRecovery
 
@@ -65,7 +67,7 @@ def model_test(config: ModelConfigBase,
         logging.warning("Not performing any inference because avoid_process_spawn_in_data_loaders is set "
                         "and additional data loaders are likely to block.")
         return None
-    with logging_section(f"running {model_proc.value} model on {data_split.name.lower()} set"):
+    with logging_section(f"Running {model_proc.value} model on {data_split.name.lower()} set"):
         if isinstance(config, SegmentationModelBase):
             return segmentation_model_test(config, data_split, run_recovery, model_proc)
         if isinstance(config, ScalarModelBase):
@@ -133,7 +135,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     :raises ValueError: When there are issues loading the model.
     :return A list with the mean dice score (across all structures apart from background) for each image.
     """
-    ml_util.set_random_seed(config.random_seed)
+    ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
     results_folder = Path(results_folder)
     results_folder.mkdir(exist_ok=True)
 
@@ -204,10 +206,11 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     metrics_writer.save_aggregates_to_csv(results_folder / METRICS_AGGREGATES_FILE)
     if config.is_plotting_enabled:
         plt.figure()
-        metrics_writer.dice_boxplot_per_structure()
+        boxplot_per_structure(metrics_writer.to_data_frame(),
+                              column_name=MetricsFileColumns.DiceNumeric.value,
+                              title=f"Dice score for {epoch_and_split}")
         # The box plot file will be written to the output directory. AzureML will pick that up, and display
         # on the run overview page, without having to log to the run context.
-        plt.title("Dice score for {}".format(epoch_and_split))
         plotting.resize_and_save(5, 4, results_folder / BOXPLOT_FILE)
         plt.close()
     logging.info(f"Finished evaluation of model {config.model_name} on {epoch_and_split}")
@@ -417,7 +420,7 @@ def classification_model_test(config: ScalarModelBase,
         # for mypy
         assert isinstance(pipeline, ScalarInferencePipelineBase)
 
-        ml_util.set_random_seed(config.random_seed)
+        ml_util.set_random_seed(config.get_effective_random_seed(), "Model Testing")
         ds = config.get_torch_dataset_for_inference(data_split).as_data_loader(
             shuffle=False,
             batch_size=1,
