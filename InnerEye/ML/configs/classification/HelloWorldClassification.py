@@ -23,10 +23,10 @@ class HelloWorldClassification(ScalarModelBase):
             image_channels=["image"],
             image_file_column="path",
             label_channels=["image"],
-            label_value_column="value",
+            label_value_column="label",
             non_image_feature_channels=[],
             numerical_columns=[],
-            loss_type=ScalarLoss.BinaryCrossEntropyWithLogits,
+            loss_type=ScalarLoss.MeanSquaredError,
             num_epochs=num_epochs,
             num_dataload_workers=0,
             test_start_epoch=num_epochs,
@@ -34,7 +34,7 @@ class HelloWorldClassification(ScalarModelBase):
             subject_column="subjectID"
         )
         self.conv_in_3d = True
-        self.expected_image_size_zyx = (3, 64, 64)
+        self.expected_image_size_zyx = (1, 64, 64)
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits.from_proportions(
@@ -48,9 +48,10 @@ class HelloWorldClassification(ScalarModelBase):
     def create_model(self) -> Any:
         # Use a local import so that we don't need to import pytorch when creating configs in the runner
         from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
-        return DummyScalarModel(self.expected_image_size_zyx)
+        return DummyScalarModel(self.expected_image_size_zyx, kernel_size=(1, 3, 3))
 
     def pre_process_dataset_dataframe(self) -> None:
-        self.dataset_data_frame[self.dataset_data_frame.value != 0]["value"] = 0
-
-
+        zero_class = self.dataset_data_frame[self.dataset_data_frame.label == '0']
+        non_zero_class = self.dataset_data_frame[self.dataset_data_frame.label != '0']
+        non_zero_class.label = '1'
+        self.dataset_data_frame = pd.concat([zero_class, non_zero_class])

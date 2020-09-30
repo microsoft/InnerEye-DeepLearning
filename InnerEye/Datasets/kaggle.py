@@ -4,8 +4,10 @@
 #  ------------------------------------------------------------------------------------------
 from __future__ import annotations
 
+import abc
 import os
-from enum import Enum
+from abc import ABC
+from enum import Enum, unique
 from pathlib import Path
 
 import pandas as pd
@@ -54,9 +56,9 @@ class InnerEyeKaggleApi(KaggleApi):
                 print('\n', end='')
 
 
-class KaggleDataset:
+class KaggleDatasetDownloader(ABC):
     """
-    Dataset downloader to donwload datasets from Kaggle.
+    Base class for Kaggle dataset downloaders
     """
 
     def __init__(self, dataset_id: str, outputs_dir: Path):
@@ -75,11 +77,12 @@ class KaggleDataset:
         self.prepare()
         return self.dst
 
+    @abc.abstractmethod
     def prepare(self) -> None:
         raise ValueError("prepare must be defined by child classes")
 
 
-class MedMNISTDatasetDownloader(KaggleDataset):
+class MedMNISTDatasetDownloader(KaggleDatasetDownloader):
     """
     Med MNIST dataset downloader
     """
@@ -93,7 +96,7 @@ class MedMNISTDatasetDownloader(KaggleDataset):
         files = list(self.dst.rglob("*.jpeg"))
         for f in files:
             dataset_df = dataset_df.append({
-                "SubjectID": f.stem,
+                "subjectID": f.stem,
                 "channel": "image",
                 "path": f.relative_to(self.dst),
                 "value": classes.index(f.parent.name)
@@ -101,10 +104,11 @@ class MedMNISTDatasetDownloader(KaggleDataset):
         dataset_df.to_csv(self.dst / DATASET_CSV_FILE_NAME, index=False)
 
 
+@unique
 class KaggleDataset(Enum):
-    MedMNIST = "andrewmvd/medical-mnist"
+    MedMNIST = "MedMNIST"
 
-    def create_downloader(self, outputs_dir: Path) -> KaggleDataset:
+    def create_downloader(self, outputs_dir: Path) -> KaggleDatasetDownloader:
         if self == KaggleDataset.MedMNIST:
             return MedMNISTDatasetDownloader(outputs_dir)
         else:

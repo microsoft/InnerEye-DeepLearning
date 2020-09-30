@@ -3,8 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+from typing import List, Union
+
 import torch
-from typing import List
 
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
@@ -15,11 +16,12 @@ from InnerEye.ML.models.parallel.data_parallel import execute_within_autocast_if
 
 class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
     def __init__(self, expected_image_size_zyx: TupleInt3,
-                 activation: torch.nn.Module = Identity()) -> None:
+                 activation: torch.nn.Module = Identity(),
+                 kernel_size: Union[int, TupleInt3] = 3) -> None:
         super().__init__()
         self.expected_image_size_zyx = expected_image_size_zyx
         self._layers = torch.nn.ModuleList()
-        fc = torch.nn.Conv3d(1, 1, kernel_size=3)
+        fc = torch.nn.Conv3d(1, 1, kernel_size=kernel_size)
         torch.nn.init.normal_(fc.weight, 0, 0.01)
         with torch.no_grad():
             fc_out = fc(torch.zeros((1, 1) + self.expected_image_size_zyx))
