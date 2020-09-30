@@ -37,9 +37,12 @@ BaseModelOrDataParallelModel = Union[DeviceAwareModule, DataParallelModel]
 
 class ModelAndInfo:
     """
-    A holder for a model and, optionally, associated information.
-      model: any model
-      optimizer: associated optimizer if any
+    This class contains the model and optional associated information, as well as methods to create
+    models and optimizers, movethese to GPU and load state from checkpoints. Attributes are:
+      config: the model configuration information
+      model: the model created based on the config
+      optimizer: the optimizer created based on the config and associated with the model
+      checkpoint_path: the path load load checkpoint from, can be None
       is_mean_teacher: whether this is (intended to be) a mean teacher model
       is_adjusted: whether model adjustments (which cannot be done twice) have been applied
       checkpoint_epoch: the training epoch this model was created, if loaded from disk
@@ -49,7 +52,13 @@ class ModelAndInfo:
                  config: ModelConfigBase,
                  model_execution_mode: ModelExecutionMode,
                  is_mean_teacher: bool = False,
-                 checkpoint_path: Path = None):
+                 checkpoint_path: Optional[Path] = None):
+        """
+        :param config: the model configuration information
+        :param model_execution_mode: mode this model will be run in
+        :param is_mean_teacher: whether this is (intended to be) a mean teacher model
+        :param checkpoint_path: the path load load checkpoint from, can be None
+        """
         self.config = config
         self.is_mean_teacher = is_mean_teacher
         self.checkpoint_path = checkpoint_path
