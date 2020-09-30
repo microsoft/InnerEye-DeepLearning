@@ -24,6 +24,7 @@ from Tests.fixed_paths_for_tests import full_ml_test_data_path
                           (ClassificationModelForTesting(),
                            "classification_data_generated_random/checkpoints/1_checkpoint.pth.tar")])
 def test_try_create_model_and_load_from_checkpoint(config: ModelConfigBase, checkpoint_path: str) -> None:
+    # no checkpoint path provided
     model_and_info = ModelAndInfo(config,
                                   model_execution_mode=ModelExecutionMode.TEST,
                                   is_mean_teacher=False,
@@ -36,6 +37,7 @@ def test_try_create_model_and_load_from_checkpoint(config: ModelConfigBase, chec
     else:
         assert isinstance(model_and_info.model, DeviceAwareModule)
 
+    # Invalid checkpoint path provided
     model_and_info = ModelAndInfo(config,
                                   model_execution_mode=ModelExecutionMode.TEST,
                                   is_mean_teacher=False,
@@ -50,6 +52,7 @@ def test_try_create_model_and_load_from_checkpoint(config: ModelConfigBase, chec
     else:
         assert isinstance(model_and_info.model, DeviceAwareModule)
 
+    # Valid checkpoint path provided
     model_and_info = ModelAndInfo(config,
                                   model_execution_mode=ModelExecutionMode.TEST,
                                   is_mean_teacher=False,
@@ -69,6 +72,7 @@ def test_try_create_model_and_load_from_checkpoint(config: ModelConfigBase, chec
                           (ClassificationModelForTesting(),
                            "classification_data_generated_random/checkpoints/1_checkpoint.pth.tar")])
 def test_try_create_optimizer_and_load_from_checkpoint(config: ModelConfigBase, checkpoint_path: str) -> None:
+    # no checkpoint path provided
     model_and_info = ModelAndInfo(config,
                                   model_execution_mode=ModelExecutionMode.TEST,
                                   is_mean_teacher=False,
@@ -81,6 +85,7 @@ def test_try_create_optimizer_and_load_from_checkpoint(config: ModelConfigBase, 
     assert model_and_info.optimizer is not None
     assert isinstance(model_and_info.optimizer, Optimizer)
 
+    # Invalid checkpoint path provided
     model_and_info = ModelAndInfo(config,
                                   model_execution_mode=ModelExecutionMode.TEST,
                                   is_mean_teacher=False,
@@ -97,6 +102,7 @@ def test_try_create_optimizer_and_load_from_checkpoint(config: ModelConfigBase, 
     assert model_and_info.optimizer is not None
     assert isinstance(model_and_info.optimizer, Optimizer)
 
+    # Valid checkpoint path provided
     model_and_info = ModelAndInfo(config,
                                   model_execution_mode=ModelExecutionMode.TEST,
                                   is_mean_teacher=False,
