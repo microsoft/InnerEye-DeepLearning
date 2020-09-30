@@ -147,6 +147,36 @@ class ModelAndInfo:
         self.is_adjusted = True
         logging.debug("model_and_info.is_adjusted set to True")
 
+    def create_summary_and_adjust_model_for_gpus(self) -> None:
+        if self.model is None:
+            raise ValueError("Model must be created before it can be adjusted.")
+
+        # Enable data/model parallelization
+        if self.config.is_segmentation_model:
+            # Generate the model summary, which is required for model partitioning across GPUs.
+            summary_for_segmentation_models(self.config, self.model)
+        # Prepare for mixed precision training and data parallelization (no-op if already done).
+        # This relies on the information generated in the model summary.
+        self.adjust_model_for_gpus()
+
+    def try_create_model_and_load_from_checkpoint(self) -> bool:
+        """
+        Creates a model as per the configuration, and loads the parameters from the given checkpoint path.
+        The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
+        If the checkpoint_epoch is None, there is no model file at the given path.
+        """
+        self.create_model()
+
+        # for mypy
+        assert self.model is not None
+
+        if self.checkpoint_path is not None:
+            # Load the stored model. If there is no checkpoint present, return immediately.
+            success = self.try_load_checkpoint_for_model()
+            if not success:
+                return False
+        return True
+
     def try_create_model_load_from_checkpoint_and_adjust(self) -> bool:
         """
         Creates a model as per the configuration, and loads the parameters from the given checkpoint path.
@@ -163,14 +193,7 @@ class ModelAndInfo:
             success = self.try_load_checkpoint_for_model()
             if not success:
                 return False
-
-        # Enable data/model parallelization
-        if self.config.is_segmentation_model:
-            # Generate the model summary, which is required for model partitioning across GPUs.
-            summary_for_segmentation_models(self.config, self.model)
-        # Prepare for mixed precision training and data parallelization (no-op if already done).
-        # This relies on the information generated in the model summary.
-        self.adjust_model_for_gpus()
+        self.create_summary_and_adjust_model_for_gpus()
         return True
 
     def create_optimizer(self) -> None:

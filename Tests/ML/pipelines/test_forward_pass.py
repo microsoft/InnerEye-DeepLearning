@@ -94,8 +94,7 @@ def test_anomaly_detection(value_to_insert: float, in_training_mode: bool) -> No
     model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TRAIN,
                                   is_mean_teacher=False, checkpoint_path=None)
     model_and_info.model: BaseModel = SimpleModel(1, [1], 2, 2)  # type: ignore
-    summary_for_segmentation_models(config, model_and_info.model)
-    model_and_info.adjust_model_for_gpus()
+    model_and_info.create_summary_and_adjust_model_for_gpus()
     model_and_info.try_create_optimizer_and_load_from_checkpoint()
     config.use_gpu = False
 
@@ -157,8 +156,7 @@ def test_amp_activated(use_model_parallel: bool,
     # Move the model to the GPU. This is mostly to avoid issues with AMP, which has trouble
     # with first using a GPU model and later using a CPU-based one.
     try:
-        summary_for_segmentation_models(model_config, model_and_info.model)
-        model_and_info.adjust_model_for_gpus()
+        model_and_info.create_summary_and_adjust_model_for_gpus()
     except NotImplementedError as ex:
         if use_model_parallel:
             # The SimpleModel does not implement model partitioning, and should hence fail at this step.

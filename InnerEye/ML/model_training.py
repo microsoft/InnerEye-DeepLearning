@@ -78,24 +78,27 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                                   is_mean_teacher=True,
                                                   checkpoint_path=checkpoint_path if config.should_load_checkpoint_for_training() else None))
 
-    # Create the models and adjust to run on multiple GPUs
-    # If continuing from a previous run at a specific epoch, then load the previous model
+    # Create the models.
+    # If continuing from a previous run at a specific epoch, then load the previous model.
     for model_and_info in models_and_optimizers:
-        model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+        model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
         if not model_loaded:
             raise ValueError("There was no checkpoint file available for the model for given start_epoch {}"
                              .format(config.start_epoch))
+
+    # Print out a detailed breakdown of layers, memory consumption and time.
+    assert models_and_optimizers[0].model is not None  # for mypy, it should never get this far if None
+    generate_and_print_model_summary(config, models_and_optimizers[0].model)
+
+    # Move model to GPU and adjust for multiple GPUs
+    for model_and_info in models_and_optimizers:
+        model_and_info.create_summary_and_adjust_model_for_gpus()
 
     # Create optimizer
     optimizer_loaded = models_and_optimizers[0].try_create_optimizer_and_load_from_checkpoint()
     if not optimizer_loaded:
         raise ValueError("There was no checkpoint file available for the optimizer for given start_epoch {}"
                          .format(config.start_epoch))
-
-    # Print out a detailed breakdown of layers, memory consumption and time.
-    assert models_and_optimizers[0].model is not None  # for mypy, it should never get this far if None
-    logging.info(f"Model type: {type(models_and_optimizers[0].model)}")
-    generate_and_print_model_summary(config, models_and_optimizers[0].model)
 
     # Create checkpoint directory for this run if it doesn't already exist
     logging.info("Models are saved at {}".format(config.checkpoint_folder))
