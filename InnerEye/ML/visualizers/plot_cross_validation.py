@@ -64,8 +64,6 @@ COL_SPLIT = "split"
 COL_MODE = "mode"
 FLOAT_FORMAT = "%.3f"
 
-EXECUTION_MODES_TO_DOWNLOAD = [ModelExecutionMode.TEST, ModelExecutionMode.VAL, ModelExecutionMode.TRAIN]
-
 DEFAULT_PD_DISPLAY_CONTEXT = pd.option_context('display.max_colwidth', -1,
                                                'display.max_columns', None,
                                                'display.max_rows', None,
@@ -93,9 +91,6 @@ class PlotCrossValidationConfig(GenericConfig):
     model_category: ModelCategory = param.ClassSelector(class_=ModelCategory,
                                                         default=ModelCategory.Segmentation,
                                                         doc="The high-level model category described by this config.")
-    is_scalar: bool = param.Boolean(default=True,
-                                    doc="Set to True if the model to evaluate is a classification model"
-                                        "otherwise False for a regression model")
     run_recovery_id: Optional[str] = param.String(default=None, allow_None=True,
                                                   doc="The run recovery id of the run to collect results from."
                                                       "If the run is an ensemble, then the results for each"
@@ -140,6 +135,7 @@ class PlotCrossValidationConfig(GenericConfig):
     create_plots: bool = param.Boolean(default=True, doc="Whether to create plots; if False, just find outliers "
                                                          "and do statistical tests")
 
+
     def __init__(self, **params: Any):
         # Mapping from run IDs to short names used in graphs
         self.short_names: Dict[str, str] = {}
@@ -181,6 +177,13 @@ class PlotCrossValidationConfig(GenericConfig):
             if run_id not in self.short_names:
                 self.short_names[run_or_id] = run_id
         return self.short_names[run_id]
+
+    @property
+    def execution_mode_to_download(self) -> List[ModelExecutionMode]:
+        if self.model_category.is_scalar:
+            return [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL, ModelExecutionMode.TEST]
+        else:
+            return [ModelExecutionMode.VAL, ModelExecutionMode.TEST]
 
     @property
     def azure_config(self) -> AzureConfig:
@@ -419,7 +422,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         if config.model_category == ModelCategory.Segmentation and not dataset_file:
             raise ValueError(f"Dataset file must be present for segmentation models, but is missing for run {run.id}")
         # Get metrics files.
-        for mode in EXECUTION_MODES_TO_DOWNLOAD:
+        for mode in config.execution_mode_to_download:
             # download metrics.csv file for each split. metrics_file can be None if the file does not exist
             # (for example, if no output was written for execution mode Test)
             metrics_file = download_metrics_file(config, run, folder_for_run, epoch, mode)
@@ -490,7 +493,7 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
     ID and institution ID are added.
     """
     dataset_split_metrics: Dict[ModelExecutionMode, List[pd.DataFrame]] = \
-        {mode: [] for mode in EXECUTION_MODES_TO_DOWNLOAD}
+        {mode: [] for mode in config.execution_mode_to_download}
 
     for result in result_files:
         mode = result.execution_mode
@@ -508,7 +511,7 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
     # concatenate the data frames per split, removing execution modes for which there is no data.
     combined_metrics = {k: pd.concat(v) for k, v in dataset_split_metrics.items() if v}
 
-    if config.model_category.is_scalar():
+    if config.model_category.is_scalar:
         # if child folds are present then combine model outputs
         for k, v in combined_metrics.items():
             aggregation_column = LoggingColumns.ModelOutput.value
