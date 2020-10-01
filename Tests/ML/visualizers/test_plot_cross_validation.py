@@ -89,7 +89,7 @@ def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str,
     files: List[RunResultFiles] = []
     previous_dataset_file = None
     for split in ["0", "1", "1", "1"] if perform_sub_fold_cross_validation else ["0", "1"]:
-        for mode in config.execution_mode_to_download:
+        for mode in config.execution_modes_to_download():
             metrics_file = full_folder / split / mode.value / METRICS_FILE_NAME
             dataset_file: Optional[Path] = full_folder / split / DATASET_CSV_FILE_NAME
             if dataset_file.exists():  # type: ignore
@@ -120,7 +120,7 @@ def test_metrics_preparation_for_segmentation(test_config_ensemble: PlotCrossVal
     """
     files = create_file_list_for_segmentation_recovery_run(test_config_ensemble)
     downloaded_metrics = load_dataframes(files, test_config_ensemble)
-    for mode in test_config_ensemble.execution_mode_to_download:
+    for mode in test_config_ensemble.execution_modes_to_download():
         expected_df = _get_metrics_df(mode)
         # Drop the "mode" column, because that was added after creating the test data
         metrics = downloaded_metrics[mode]

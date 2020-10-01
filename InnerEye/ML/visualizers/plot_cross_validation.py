@@ -177,8 +177,7 @@ class PlotCrossValidationConfig(GenericConfig):
                 self.short_names[run_or_id] = run_id
         return self.short_names[run_id]
 
-    @property
-    def execution_mode_to_download(self) -> List[ModelExecutionMode]:
+    def execution_modes_to_download(self) -> List[ModelExecutionMode]:
         if self.model_category.is_scalar:
             return [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL, ModelExecutionMode.TEST]
         else:
@@ -421,7 +420,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         if config.model_category == ModelCategory.Segmentation and not dataset_file:
             raise ValueError(f"Dataset file must be present for segmentation models, but is missing for run {run.id}")
         # Get metrics files.
-        for mode in config.execution_mode_to_download:
+        for mode in config.execution_modes_to_download():
             # download metrics.csv file for each split. metrics_file can be None if the file does not exist
             # (for example, if no output was written for execution mode Test)
             metrics_file = download_metrics_file(config, run, folder_for_run, epoch, mode)
@@ -492,7 +491,7 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
     ID and institution ID are added.
     """
     dataset_split_metrics: Dict[ModelExecutionMode, List[pd.DataFrame]] = \
-        {mode: [] for mode in config.execution_mode_to_download}
+        {mode: [] for mode in config.execution_modes_to_download()}
 
     for result in result_files:
         mode = result.execution_mode
