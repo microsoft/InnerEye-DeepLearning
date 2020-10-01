@@ -47,8 +47,9 @@ def display_metric(df: pd.DataFrame, metric_name: str, outlier_range: float, hig
 def display_outliers(df: pd.DataFrame, outlier_range: float,
                      metric_name: str, high_values_are_good: bool) -> pd.DataFrame:
     """
-    Prints a dataframe that contains the 20 worst patients by the given metric. "Worst" is determined by
-    being at the start of the list when sorting by the metric either ascending or descending.
+    Prints a dataframe that contains the worst patients by the given metric.
+    "Worst" is determined by having a metric value which is less than the outlier_range
+    standard deviation from the mean.
     """
     return extract_outliers(df, outlier_range, metric_name,
                             OutlierType.LOW if high_values_are_good else OutlierType.HIGH)
