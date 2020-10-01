@@ -106,7 +106,7 @@ class ModelAndInfo:
         logging.info(f"Loading checkpoint {self.checkpoint_path}")
         # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
         # if the model is small.
-        map_location = None if is_gpu_available() else 'cpu'
+        map_location = None if self.config.use_gpu else 'cpu'
         checkpoint = torch.load(str(self.checkpoint_path), map_location=map_location)
 
         if isinstance(self.model, torch.nn.DataParallel):
@@ -257,7 +257,7 @@ class ModelAndInfo:
         logging.info(f"Loading checkpoint {self.checkpoint_path}")
         # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
         # if the model is small.
-        map_location = None if is_gpu_available() else 'cpu'
+        map_location = None if self.config.use_gpu else 'cpu'
         checkpoint = torch.load(str(self.checkpoint_path), map_location=map_location)
 
         if self.optimizer:
