@@ -92,7 +92,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # Move model to GPU and adjust for multiple GPUs
     models_and_optimizers[0].adjust_model_for_gpus()
-    models_and_optimizers[1].create_summary_and_adjust_model_for_gpus()
+    if len(models_and_optimizers) > 1:
+        models_and_optimizers[1].create_summary_and_adjust_model_for_gpus()
 
     # Create optimizer
     optimizer_loaded = models_and_optimizers[0].try_create_optimizer_and_load_from_checkpoint()

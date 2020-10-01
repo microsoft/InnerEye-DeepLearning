@@ -114,7 +114,7 @@ class ModelAndInfo:
         else:
             self.model.load_state_dict(checkpoint['state_dict'])
 
-        logging.info("Loaded model from checkpoint (epoch: {})".format(checkpoint['epoch']))
+        logging.info(f"Loaded model from checkpoint (epoch: {checkpoint['epoch']})")
         self.checkpoint_epoch = checkpoint['epoch']
         return True
 
@@ -217,7 +217,7 @@ class ModelAndInfo:
 
     def create_optimizer(self) -> None:
         """
-        Creates a torch optimizer for the given model.
+        Creates a torch optimizer for the given model, and stores it as an instance variable in the current object.
         """
         # Make sure model is created before we create optimizer
         if self.model is None:
@@ -259,7 +259,7 @@ class ModelAndInfo:
         if self.optimizer is not None:
             self.optimizer.load_state_dict(checkpoint['opt_dict'])
 
-        logging.info("Loaded optimizer from checkpoint (epoch: {})".format(checkpoint['epoch']))
+        logging.info("Loaded optimizer from checkpoint (epoch: {checkpoint['epoch']})")
         self.checkpoint_epoch = checkpoint['epoch']
         return True
 
@@ -328,7 +328,7 @@ def build_net(args: SegmentationModelBase) -> BaseModel:
         run_weight_initialization = False
 
     else:
-        raise ValueError("Unknown model architecture {}".format(args.architecture))
+        raise ValueError(f"Unknown model architecture {args.architecture}")
     network.validate_crop_size(args.crop_size, "Training crop size")
     network.validate_crop_size(args.test_crop_size, "Test crop size")  # type: ignore
     # Initialize network weights
@@ -414,7 +414,7 @@ def save_checkpoint(model: torch.nn.Module, optimizer: Optimizer, epoch: int,
     }
     torch.save(info_to_store, checkpoint_file_path)
     logging.getLogger().disabled = False
-    logging.info("Saved model checkpoint for epoch {} to {}".format(epoch, checkpoint_file_path))
+    logging.info("Saved model checkpoint for epoch {epoch} to {checkpoint_file_path}")
 
 
 def create_model_with_temperature_scaling(config: ModelConfigBase) -> Any:
