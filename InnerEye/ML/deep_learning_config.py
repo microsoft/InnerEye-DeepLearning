@@ -657,10 +657,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                         f"could not find any run recovery checkpoints for epoch {epoch}")
         # We found the checkpoint(s) in the run being recovered. If we didn't, it's probably because the epoch
         # is from the current run, which has been doing more training, so we look for it there.
-        checkpoint_paths = [self.get_path_to_checkpoint(epoch, is_mean_teacher)]
-        if not checkpoint_paths[0].is_file():
-            raise ValueError(f"Could not find checkpoint at path {checkpoint_paths[0]}")
-        return checkpoint_paths
+        checkpoint_paths = self.get_path_to_checkpoint(epoch, is_mean_teacher)
+        if not checkpoint_paths.is_file():
+            raise ValueError(f"Could not find checkpoint at path {checkpoint_paths}")
+        return [checkpoint_paths]
 
     def get_effective_random_seed(self) -> int:
         """

@@ -38,7 +38,7 @@ BaseModelOrDataParallelModel = Union[DeviceAwareModule, DataParallelModel]
 class ModelAndInfo:
     """
     This class contains the model and optional associated information, as well as methods to create
-    models and optimizers, movethese to GPU and load state from checkpoints. Attributes are:
+    models and optimizers, move these to GPU and load state from checkpoints. Attributes are:
       config: the model configuration information
       model: the model created based on the config
       optimizer: the optimizer created based on the config and associated with the model
@@ -91,6 +91,7 @@ class ModelAndInfo:
     def try_load_checkpoint_for_model(self) -> bool:
         """
         Loads a checkpoint of a model. The provided model checkpoint must match the stored model.
+        :return True if checkpoint exists and was loaded, False otherwise.
         """
         if self.model is None:
             raise ValueError("Model must be created before it can be adjusted.")
