@@ -471,11 +471,11 @@ class MLRunner:
                                  best_epoch: int,
                                  best_epoch_dice: float,
                                  model_proc: ModelProcessing) -> None:
-        try:
-            checkpoint_paths = self.model_config.get_recovery_path_test(run_recovery=run_recovery,
-                                                                        is_mean_teacher=False,
-                                                                        epoch=best_epoch)
-        except ValueError:
+
+        checkpoint_paths = self.model_config.get_recovery_path_test(run_recovery=run_recovery,
+                                                                    is_mean_teacher=False,
+                                                                    epoch=best_epoch)
+        if not checkpoint_paths:
             # No point continuing, since no checkpoints were found
             logging.warning("Abandoning model registration - no valid checkpoint paths found")
             return

@@ -628,7 +628,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         return checkpoint_paths
 
     def get_recovery_path_test(self, run_recovery: Optional[RunRecovery],
-                               is_mean_teacher: bool, epoch: int) -> List[Path]:
+                               is_mean_teacher: bool, epoch: int) -> Optional[List[Path]]:
         """
         Decides the checkpoint path to use for inference/registration. If a run recovery object is used, use the
         checkpoint from there. If this checkpoint does not exist, or a run recovery object is not supplied,
@@ -659,7 +659,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         # is from the current run, which has been doing more training, so we look for it there.
         checkpoint_paths = self.get_path_to_checkpoint(epoch, is_mean_teacher)
         if not checkpoint_paths.is_file():
-            raise ValueError(f"Could not find checkpoint at path {checkpoint_paths}")
+            logging.warning(f"Could not find checkpoint at path {checkpoint_paths}")
+            return None
         return [checkpoint_paths]
 
     def get_effective_random_seed(self) -> int:

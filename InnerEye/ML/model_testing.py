@@ -356,11 +356,10 @@ def create_inference_pipeline(config: ModelConfigBase,
     :param run_recovery: RunRecovery data if applicable
     :return: FullImageInferencePipelineBase or ScalarInferencePipelineBase
     """
-    try:
-        checkpoint_paths = config.get_recovery_path_test(run_recovery=run_recovery,
-                                                         is_mean_teacher=config.compute_mean_teacher_model,
-                                                         epoch=epoch)
-    except ValueError:
+    checkpoint_paths = config.get_recovery_path_test(run_recovery=run_recovery,
+                                                     is_mean_teacher=config.compute_mean_teacher_model,
+                                                     epoch=epoch)
+    if not checkpoint_paths:
         return None
 
     return create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
