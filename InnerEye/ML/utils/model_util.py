@@ -131,7 +131,7 @@ class ModelAndInfo:
         if self.is_adjusted:
             logging.debug("model_and_info.is_adjusted is already True")
 
-        if self.optimizer is not None:
+        if self.optimizer:
             raise ValueError("Create an optimizer only after creating and adjusting the model.")
 
         if self.config.use_gpu:
@@ -186,9 +186,9 @@ class ModelAndInfo:
         self.create_model()
 
         # for mypy
-        assert self.model is not None
+        assert self.model
 
-        if self.checkpoint_path is not None:
+        if self.checkpoint_path:
             # Load the stored model. If there is no checkpoint present, return immediately.
             success = self.try_load_checkpoint_for_model()
             if not success:
@@ -205,9 +205,9 @@ class ModelAndInfo:
         self.create_model()
 
         # for mypy
-        assert self.model is not None
+        assert self.model
 
-        if self.checkpoint_path is not None:
+        if self.checkpoint_path:
             # Load the stored model. If there is no checkpoint present, return immediately.
             success = self.try_load_checkpoint_for_model()
             if not success:
@@ -246,6 +246,10 @@ class ModelAndInfo:
         if self.optimizer is None:
             raise ValueError("Optimizer must be created before optimizer checkpoint can be loaded.")
 
+        if not self.checkpoint_path:
+            logging.warning(f'No checkpoint path provided.')
+            return False
+
         if not self.checkpoint_path.is_file():
             logging.warning(f'No checkpoint found at {self.checkpoint_path} current working dir {os.getcwd()}')
             return False
@@ -256,7 +260,7 @@ class ModelAndInfo:
         map_location = None if is_gpu_available() else 'cpu'
         checkpoint = torch.load(str(self.checkpoint_path), map_location=map_location)
 
-        if self.optimizer is not None:
+        if self.optimizer:
             self.optimizer.load_state_dict(checkpoint['opt_dict'])
 
         logging.info("Loaded optimizer from checkpoint (epoch: {checkpoint['epoch']})")
@@ -269,10 +273,8 @@ class ModelAndInfo:
         :return True if the checkpoint exists and optimizer state loaded, False otherwise
         """
         self.create_optimizer()
-        if self.checkpoint_path is not None:
-            success = self.try_load_checkpoint_for_optimizer()
-            if not success:
-                return False
+        if self.checkpoint_path:
+            return self.try_load_checkpoint_for_optimizer()
         return True
 
 
