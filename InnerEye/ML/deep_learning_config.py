@@ -21,9 +21,7 @@ from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, \
     create_unique_timestamp_id
-
-if TYPE_CHECKING:
-    from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.run_recovery import RunRecovery
 
 VISUALIZATION_FOLDER = "Visualizations"
 CHECKPOINT_FOLDER = "checkpoints"
@@ -613,6 +611,14 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     def get_recovery_path_train(self, run_recovery: Optional[RunRecovery],
                                 is_mean_teacher: bool, epoch: int) -> Path:
+        """
+        Decides the checkpoint path to use for the current training run. If a run recovery object is used, use the
+        checkpoint from there, otherwise use the checkpoints from the current run.
+        :param run_recovery: Optional run recovery object
+        :param is_mean_teacher: If this a mean teacher model.
+        :param epoch: Epoch to recover
+        :return: Constructed checkpoint path to recover from.
+        """
         if run_recovery:
             checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, is_mean_teacher)[0]
         else:
@@ -621,6 +627,15 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     def get_recovery_path_test(self, run_recovery: Optional[RunRecovery],
                                is_mean_teacher: bool, epoch: int) -> List[Path]:
+        """
+        Decides the checkpoint path to use for inference/registration. If a run recovery object is used, use the
+        checkpoint from there. If this checkpoint does not exist, or a run recovery object is not supplied,
+        use the checkpoints from the current run.
+        :param run_recovery: Optional run recovery object
+        :param is_mean_teacher: If this a mean teacher model.
+        :param epoch: Epoch to recover
+        :return: Constructed checkpoint path to recover from.
+        """
         if run_recovery:
             checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, is_mean_teacher)
             checkpoint_exists = []
