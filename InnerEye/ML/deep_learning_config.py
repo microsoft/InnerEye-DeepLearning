@@ -21,7 +21,9 @@ from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, \
     create_unique_timestamp_id
-from InnerEye.ML.utils.run_recovery import RunRecovery
+
+if TYPE_CHECKING:
+    from InnerEye.ML.utils.run_recovery import RunRecovery
 
 VISUALIZATION_FOLDER = "Visualizations"
 CHECKPOINT_FOLDER = "checkpoints"
