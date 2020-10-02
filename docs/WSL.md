@@ -8,6 +8,11 @@ of unclear origin, or internal conda errors.
 If you are facing issue of the above kind on a Windows machine, we would highly recommend working with the
 Windows Subsystem for Linux (WSL2) or a plain Ubuntu Linux box.
 
+## Enable CUDA in WSL2
+If you are running a Windows box with a GPU, please follow the documentation 
+[here](https://docs.microsoft.com/en-us/windows/win32/direct3d12/gpu-cuda-in-wsl) to access the GPU
+from within WSL2.
+
 ## Install WSL2
 
 Requirements: Windows 10 version 2004 or higher
