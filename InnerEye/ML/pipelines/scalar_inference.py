@@ -99,10 +99,6 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         # for mypy, if model has been loaded these will not be None
         assert model_and_info.checkpoint_epoch is not None
 
-        for name, param in model_and_info.model.named_parameters():
-            param_numpy = param.clone().cpu().data.numpy()
-            image_util.check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
-
         return ScalarInferencePipeline(model_and_info.model, config, model_and_info.checkpoint_epoch, pipeline_id)
 
     def predict(self, sample: Dict[str, Any]) -> ScalarInferencePipelineBase.Result:
