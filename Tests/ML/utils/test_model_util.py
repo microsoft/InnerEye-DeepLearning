@@ -16,6 +16,7 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
+from Tests.ML.util import no_gpu_available
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
@@ -69,6 +70,7 @@ def test_try_create_model_and_load_from_checkpoint(config: ModelConfigBase, chec
 
 
 @pytest.mark.gpu
+@pytest.mark.skipif(no_gpu_available, reason="Testing shift to DataParallelModel requires a GPU")
 @pytest.mark.parametrize("model_execution_mode", [ModelExecutionMode.TRAIN, ModelExecutionMode.TEST])
 @pytest.mark.parametrize("config, checkpoint_path",
                          [(DummyModel(), "checkpoints/1_checkpoint.pth.tar"),
