@@ -653,7 +653,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                     logging.warning(f"Could not recover checkpoint path {path}")
 
             if len(checkpoint_exists) > 0:
-                return checkpoint_paths
+                return checkpoint_exists
 
         logging.warning(f"Using checkpoints from current run, "
                         f"could not find any run recovery checkpoints for epoch {epoch}")
