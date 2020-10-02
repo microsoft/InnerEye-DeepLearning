@@ -93,7 +93,6 @@ def test_invalid_stride_size() -> None:
         model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
                                       is_mean_teacher=False, checkpoint_path=None)
         model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
-        assert model_loaded
 
     assert "inference stride size must be smaller" in ex.value.args[0]
     assert str(config.inference_stride_size) in ex.value.args[0]

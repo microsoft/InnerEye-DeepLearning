@@ -5,7 +5,6 @@
 
 import pytest
 
-from pathlib import Path
 from torch.optim import Optimizer
 
 from InnerEye.ML.utils.model_util import ModelAndInfo

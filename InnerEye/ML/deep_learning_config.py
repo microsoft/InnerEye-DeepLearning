@@ -612,7 +612,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                / f"{epoch}{filename}"
 
     def get_recovery_path_train(self, run_recovery: Optional[RunRecovery],
-                                is_mean_teacher: bool, epoch: int) -> Path:
+                                is_mean_teacher: bool, epoch: int) -> Optional[Path]:
         """
         Decides the checkpoint path to use for the current training run. If a run recovery object is used, use the
         checkpoint from there, otherwise use the checkpoints from the current run.
@@ -624,7 +624,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         if run_recovery:
             checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, is_mean_teacher)[0]
         else:
-            checkpoint_paths = self.get_path_to_checkpoint(epoch, is_mean_teacher)
+            logging.warning("No run recovery object provided to recover checkpoint from.")
+            checkpoint_paths = None
         return checkpoint_paths
 
     def get_recovery_path_test(self, run_recovery: Optional[RunRecovery],
