@@ -49,7 +49,7 @@ Once training in AzureML is done, the models can be deployed from within AzureML
 
 ## Getting started
 
-Clone the repository into a subfolder of the current directory
+Clone the repository into a subfolder of the current directory:
 ```shell script
 git lfs install
 git clone https://github.com/microsoft/InnerEye-DeepLearning
@@ -62,6 +62,8 @@ After that, you need to set up your Python environment:
 conda env create --file environment.yml
 conda activate InnerEye
 ``` 
+If you are struggling with that on a Windows machine, please [continue reading here](docs/WSL.md).
+
 Now try to run the HelloWorld segmentation model - that's a very simple model that will train for 2 epochs on any
 machine, no GPU required. You need to set the `PYTHONPATH` environment variable to point to the repository root first. 
 Assuming that your current directory is the repository root folder, on Linux `bash` that is: 
