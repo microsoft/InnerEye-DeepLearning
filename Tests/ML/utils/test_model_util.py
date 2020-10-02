@@ -68,14 +68,19 @@ def test_try_create_model_and_load_from_checkpoint(config: ModelConfigBase, chec
     assert model_and_info.checkpoint_epoch == 1
 
 
+@pytest.mark.gpu
+@pytest.mark.parametrize("model_execution_mode", [ModelExecutionMode.TRAIN, ModelExecutionMode.TEST])
 @pytest.mark.parametrize("config, checkpoint_path",
                          [(DummyModel(), "checkpoints/1_checkpoint.pth.tar"),
                           (ClassificationModelForTesting(),
                            "classification_data_generated_random/checkpoints/1_checkpoint.pth.tar")])
-def test_try_create_model_load_from_checkpoint_and_adjust(config: ModelConfigBase, checkpoint_path: str) -> None:
+def test_try_create_model_load_from_checkpoint_and_adjust(config: ModelConfigBase, checkpoint_path: str,
+                                                          model_execution_mode: ModelExecutionMode) -> None:
+    config.use_gpu = True
+
     # no checkpoint path provided
     model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=ModelExecutionMode.TEST,
+                                  model_execution_mode=model_execution_mode,
                                   is_mean_teacher=False,
                                   checkpoint_path=None)
 
@@ -88,7 +93,7 @@ def test_try_create_model_load_from_checkpoint_and_adjust(config: ModelConfigBas
 
     # Invalid checkpoint path provided
     model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=ModelExecutionMode.TEST,
+                                  model_execution_mode=model_execution_mode,
                                   is_mean_teacher=False,
                                   checkpoint_path=full_ml_test_data_path("non_exist.pth.tar"))
     model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
@@ -99,7 +104,7 @@ def test_try_create_model_load_from_checkpoint_and_adjust(config: ModelConfigBas
 
     # Valid checkpoint path provided
     model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=ModelExecutionMode.TEST,
+                                  model_execution_mode=model_execution_mode,
                                   is_mean_teacher=False,
                                   checkpoint_path=full_ml_test_data_path(checkpoint_path))
     model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()

@@ -621,6 +621,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         :param epoch: Epoch to recover
         :return: Constructed checkpoint path to recover from.
         """
+        checkpoint_paths: Optional[Path]
         if run_recovery:
             checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, is_mean_teacher)[0]
         else:
