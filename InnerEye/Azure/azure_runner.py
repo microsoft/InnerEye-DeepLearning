@@ -98,6 +98,8 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
         RUN_RECOVERY_FROM_ID_KEY_NAME: azure_config.run_recovery_id,
         "build_number": str(azure_config.build_number),
         "build_user": azure_config.build_user,
+        "build_user_alias": azure_config.build_user_alias,
+        "build_user_email": azure_config.build_user_email,
         "source_repository": git_information.repository,
         "source_branch": git_information.branch,
         "source_id": git_information.commit_id,
