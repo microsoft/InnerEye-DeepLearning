@@ -15,7 +15,7 @@ from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
 from InnerEye.ML.pipelines.inference import InferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType, ScalarModelBase
 from InnerEye.ML.utils import model_util
-from InnerEye.ML.utils.model_util import BaseModelOrDataParallelModelOrDeviceAwareModule
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.common import ModelExecutionMode
 
 
@@ -54,7 +54,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
     """
 
     def __init__(self,
-                 model: BaseModelOrDataParallelModelOrDeviceAwareModule,
+                 model: DeviceAwareModule,
                  model_config: ScalarModelBase,
                  epoch: int,
                  pipeline_id: int) -> None:
@@ -87,7 +87,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         """
         model_and_info = model_util.ModelAndInfo(config=config,
                                                  model_execution_mode=ModelExecutionMode.TEST,
-                                                 is_mean_teacher=False,
+                                                 is_mean_teacher=config.compute_mean_teacher_model,
                                                  checkpoint_path=path_to_checkpoint)
         model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
         if not model_loaded:

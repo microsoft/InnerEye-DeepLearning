@@ -32,8 +32,6 @@ from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 
-BaseModelOrDataParallelModelOrDeviceAwareModule = Union[DeviceAwareModule, DataParallelModel, BaseModel]
-
 
 class ModelAndInfo:
     """
@@ -70,7 +68,7 @@ class ModelAndInfo:
         self.is_adjusted = False
 
     @property
-    def model(self) -> BaseModelOrDataParallelModelOrDeviceAwareModule:
+    def model(self) -> DeviceAwareModule:
         if not self._model:
             raise ValueError("Model has not been created.")
         return self._model
@@ -202,9 +200,7 @@ class ModelAndInfo:
 
         if self.checkpoint_path:
             # Load the stored model. If there is no checkpoint present, return immediately.
-            success = self.try_load_checkpoint_for_model()
-            if not success:
-                return False
+            return self.try_load_checkpoint_for_model()
         return True
 
     def try_create_model_load_from_checkpoint_and_adjust(self) -> bool:
@@ -214,18 +210,9 @@ class ModelAndInfo:
         Also updates the checkpoint_epoch.
         :return True if checkpoint exists and was loaded, False otherwise.
         """
-        self.create_model()
-
-        # for mypy
-        assert self._model
-
-        if self.checkpoint_path:
-            # Load the stored model. If there is no checkpoint present, return immediately.
-            success = self.try_load_checkpoint_for_model()
-            if not success:
-                return False
+        success = self.try_create_model_and_load_from_checkpoint()
         self.create_summary_and_adjust_model_for_gpus()
-        return True
+        return success
 
     def create_optimizer(self) -> None:
         """
