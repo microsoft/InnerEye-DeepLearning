@@ -91,7 +91,7 @@ def test_anomaly_detection(value_to_insert: float, in_training_mode: bool) -> No
     )
 
     model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TRAIN,
-                                  is_mean_teacher=False, checkpoint_path=None)
+                                  checkpoint_path=None)
     model_and_info._model: BaseModel = SimpleModel(1, [1], 2, 2)  # type: ignore
     model_and_info.create_summary_and_adjust_model_for_gpus()
     model_and_info.try_create_optimizer_and_load_from_checkpoint()
@@ -145,7 +145,7 @@ def test_amp_activated(use_model_parallel: bool,
                                          should_validate=False)
     assert model_config.use_gpu
     model_and_info = ModelAndInfo(config=model_config, model_execution_mode=execution_mode,
-                                  is_mean_teacher=False, checkpoint_path=None)
+                                  checkpoint_path=None)
     model_and_info._model = SimpleModel(1, [1], 2, 2)  # type: ignore
 
     # Move the model to the GPU. This is mostly to avoid issues with AMP, which has trouble
@@ -241,7 +241,7 @@ def test_mean_teacher_model() -> None:
 
     # Retrieve the weight after one epoch
     model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
-                                  is_mean_teacher=False, checkpoint_path=config.get_path_to_checkpoint(epoch=1))
+                                  checkpoint_path=config.get_path_to_checkpoint(epoch=1))
     model_and_info.try_create_model_and_load_from_checkpoint()
     model = model_and_info.model
     model_weight = next(_get_parameters_of_model(model))
@@ -249,14 +249,13 @@ def test_mean_teacher_model() -> None:
     # Get the starting weight of the mean teacher model
     ml_util.set_random_seed(config.get_effective_random_seed())
 
-    _ = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
-                                  is_mean_teacher=False, checkpoint_path=None)\
-        .try_create_model_and_load_from_checkpoint()
-
-    model_and_info_mean_teacher = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
-                                               is_mean_teacher=True, checkpoint_path=None)
+    model_and_info_mean_teacher = ModelAndInfo(config=config,
+                                               model_execution_mode=ModelExecutionMode.TEST,
+                                               checkpoint_path=None)
     model_and_info_mean_teacher.try_create_model_and_load_from_checkpoint()
-    mean_teach_model = model_and_info_mean_teacher.model
+
+    model_and_info_mean_teacher.try_create_mean_teacher_model_and_load_from_checkpoint()
+    mean_teach_model = model_and_info_mean_teacher.mean_teacher_model
     initial_weight_mean_teacher_model = next(_get_parameters_of_model(mean_teach_model))
 
     # Now train with mean teacher and check the update of the weight
@@ -266,17 +265,13 @@ def test_mean_teacher_model() -> None:
 
     # Retrieve weight of mean teacher model saved in the checkpoint
     model_and_info_mean_teacher = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
-                                               is_mean_teacher=True,
-                                               checkpoint_path=config.get_path_to_checkpoint(1, for_mean_teacher_model=True))
-    model_and_info_mean_teacher.try_create_model_and_load_from_checkpoint()
-    mean_teacher_model = model_and_info_mean_teacher.model
+                                               checkpoint_path=config.get_path_to_checkpoint(1))
+    model_and_info_mean_teacher.try_create_mean_teacher_model_and_load_from_checkpoint()
+    mean_teacher_model = model_and_info_mean_teacher.mean_teacher_model
     result_weight = next(_get_parameters_of_model(mean_teacher_model))
     # Retrieve the associated student weight
-    model_and_info_student = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
-                                               is_mean_teacher=False,
-                                               checkpoint_path=config.get_path_to_checkpoint(1))
-    model_and_info_student.try_create_model_and_load_from_checkpoint()
-    student_model = model_and_info_student.model
+    model_and_info_mean_teacher.try_create_model_and_load_from_checkpoint()
+    student_model = model_and_info_mean_teacher.model
     student_model_weight = next(_get_parameters_of_model(student_model))
 
     # Assert that the student weight corresponds to the weight of a simple training without mean teacher
@@ -309,7 +304,7 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
     config.use_mixed_precision = use_mixed_precision
 
     model_and_info = ModelAndInfo(config=config, model_execution_mode=execution_mode,
-                                  is_mean_teacher=False, checkpoint_path=None)
+                                  checkpoint_path=None)
     model_and_info.try_create_model_load_from_checkpoint_and_adjust()
     model = model_and_info.model
 

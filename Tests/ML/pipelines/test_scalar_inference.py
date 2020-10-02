@@ -116,7 +116,7 @@ class ConstantScalarConfig(ClassificationModelForTesting):
 def test_predict_non_ensemble(batch_size: int, empty_labels: bool) -> None:
     config = ConstantScalarConfig(1.)
     model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
-                                  is_mean_teacher=False, checkpoint_path=None)
+                                  checkpoint_path=None)
     model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
     assert model_loaded
 
@@ -143,14 +143,14 @@ def test_predict_non_ensemble(batch_size: int, empty_labels: bool) -> None:
 def test_predict_ensemble(batch_size: int) -> None:
     config_returns_0 = ConstantScalarConfig(0.)
     model_and_info_returns_0 = ModelAndInfo(config=config_returns_0, model_execution_mode=ModelExecutionMode.TEST,
-                                            is_mean_teacher=False, checkpoint_path=None)
+                                            checkpoint_path=None)
     model_loaded = model_and_info_returns_0.try_create_model_load_from_checkpoint_and_adjust()
     assert model_loaded
     model_returns_0 = model_and_info_returns_0.model
 
     config_returns_1 = ConstantScalarConfig(1.)
     model_and_info_returns_1 = ModelAndInfo(config=config_returns_1, model_execution_mode=ModelExecutionMode.TEST,
-                                            is_mean_teacher=False, checkpoint_path=None)
+                                            checkpoint_path=None)
     model_loaded = model_and_info_returns_1.try_create_model_load_from_checkpoint_and_adjust()
     assert model_loaded
     model_returns_1 = model_and_info_returns_1.model

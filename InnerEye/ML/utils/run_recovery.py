@@ -116,8 +116,8 @@ class RunRecovery:
         else:
             return RunRecovery(checkpoints_roots=[root_output_dir])
 
-    def get_checkpoint_paths(self, epoch: int, for_mean_teacher_model: bool = False) -> List[Path]:
-        return [create_checkpoint_path(x, epoch, for_mean_teacher_model) for x in self.checkpoints_roots]
+    def get_checkpoint_paths(self, epoch: int) -> List[Path]:
+        return [create_checkpoint_path(x, epoch) for x in self.checkpoints_roots]
 
     def _validate(self) -> None:
         check_properties_are_not_none(self)
@@ -130,7 +130,7 @@ class RunRecovery:
 
 
 def get_recovery_path_train(run_recovery: Optional[RunRecovery],
-                            is_mean_teacher: bool, epoch: int) -> Optional[Path]:
+                            epoch: int) -> Optional[Path]:
     """
     Decides the checkpoint path to use for the current training run. If a run recovery object is used, use the
     checkpoint from there, otherwise use the checkpoints from the current run.
@@ -141,7 +141,7 @@ def get_recovery_path_train(run_recovery: Optional[RunRecovery],
     """
     checkpoint_paths: Optional[Path]
     if run_recovery:
-        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, is_mean_teacher)[0]
+        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch)[0]
     else:
         logging.warning("No run recovery object provided to recover checkpoint from.")
         checkpoint_paths = None
@@ -149,7 +149,7 @@ def get_recovery_path_train(run_recovery: Optional[RunRecovery],
 
 
 def get_recovery_path_test(config: DeepLearningConfig, run_recovery: Optional[RunRecovery],
-                           is_mean_teacher: bool, epoch: int) -> Optional[List[Path]]:
+                           epoch: int) -> Optional[List[Path]]:
     """
     Decides the checkpoint path to use for inference/registration. If a run recovery object is used, use the
     checkpoint from there. If this checkpoint does not exist, or a run recovery object is not supplied,
@@ -161,7 +161,7 @@ def get_recovery_path_test(config: DeepLearningConfig, run_recovery: Optional[Ru
     :return: Constructed checkpoint path to recover from.
     """
     if run_recovery:
-        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, is_mean_teacher)
+        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch)
         checkpoint_exists = []
         # Discard any checkpoint paths that do not exist - they will make inference/registration fail.
         # This can happen when some child runs fail; it may still be worth running inference
@@ -179,7 +179,7 @@ def get_recovery_path_test(config: DeepLearningConfig, run_recovery: Optional[Ru
                     f"could not find any run recovery checkpoints for epoch {epoch}")
     # We found the checkpoint(s) in the run being recovered. If we didn't, it's probably because the epoch
     # is from the current run, which has been doing more training, so we look for it there.
-    checkpoint_path = config.get_path_to_checkpoint(epoch, is_mean_teacher)
+    checkpoint_path = config.get_path_to_checkpoint(epoch)
     if not checkpoint_path.is_file():
         logging.warning(f"Could not find checkpoint at path {checkpoint_path}")
         return None

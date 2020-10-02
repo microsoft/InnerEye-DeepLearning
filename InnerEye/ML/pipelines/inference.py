@@ -214,9 +214,12 @@ class InferencePipeline(FullImageInferencePipelineBase):
         """
         model_and_info = model_util.ModelAndInfo(config=model_config,
                                                  model_execution_mode=ModelExecutionMode.TEST,
-                                                 is_mean_teacher=model_config.compute_mean_teacher_model,
                                                  checkpoint_path=path_to_checkpoint)
-        model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+        if model_config.compute_mean_teacher_model:
+            model_loaded = model_and_info.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
+        else:
+            model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+
         if not model_loaded:
             return None
 

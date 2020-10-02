@@ -87,9 +87,12 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         """
         model_and_info = model_util.ModelAndInfo(config=config,
                                                  model_execution_mode=ModelExecutionMode.TEST,
-                                                 is_mean_teacher=config.compute_mean_teacher_model,
                                                  checkpoint_path=path_to_checkpoint)
-        model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+        if config.compute_mean_teacher_model:
+            model_loaded = model_and_info.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
+        else:
+            model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+
         if not model_loaded:
             # not raising a value error here: This is used to create individual pipelines for ensembles,
             #                                   possible one model cannot be created but others can
