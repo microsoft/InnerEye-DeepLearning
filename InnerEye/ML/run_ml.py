@@ -38,7 +38,7 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
-from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_test
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
@@ -472,9 +472,10 @@ class MLRunner:
                                  best_epoch_dice: float,
                                  model_proc: ModelProcessing) -> None:
 
-        checkpoint_paths = self.model_config.get_recovery_path_test(run_recovery=run_recovery,
-                                                                    is_mean_teacher=False,
-                                                                    epoch=best_epoch)
+        checkpoint_paths = get_recovery_path_test(config=self.model_config,
+                                                  run_recovery=run_recovery,
+                                                  is_mean_teacher=False,
+                                                  epoch=best_epoch)
         if not checkpoint_paths:
             # No point continuing, since no checkpoints were found
             logging.warning("Abandoning model registration - no valid checkpoint paths found")

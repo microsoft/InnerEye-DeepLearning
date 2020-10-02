@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional
 
 import param
 from pandas import DataFrame
@@ -21,9 +21,6 @@ from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, \
     create_unique_timestamp_id
-
-if TYPE_CHECKING:
-    from InnerEye.ML.utils.run_recovery import RunRecovery
 
 VISUALIZATION_FOLDER = "Visualizations"
 CHECKPOINT_FOLDER = "checkpoints"
@@ -610,60 +607,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         return fixed_paths.repository_root_directory() \
                / self.checkpoint_folder \
                / f"{epoch}{filename}"
-
-    def get_recovery_path_train(self, run_recovery: Optional[RunRecovery],
-                                is_mean_teacher: bool, epoch: int) -> Optional[Path]:
-        """
-        Decides the checkpoint path to use for the current training run. If a run recovery object is used, use the
-        checkpoint from there, otherwise use the checkpoints from the current run.
-        :param run_recovery: Optional run recovery object
-        :param is_mean_teacher: If this a mean teacher model.
-        :param epoch: Epoch to recover
-        :return: Constructed checkpoint path to recover from.
-        """
-        checkpoint_paths: Optional[Path]
-        if run_recovery:
-            checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, is_mean_teacher)[0]
-        else:
-            logging.warning("No run recovery object provided to recover checkpoint from.")
-            checkpoint_paths = None
-        return checkpoint_paths
-
-    def get_recovery_path_test(self, run_recovery: Optional[RunRecovery],
-                               is_mean_teacher: bool, epoch: int) -> Optional[List[Path]]:
-        """
-        Decides the checkpoint path to use for inference/registration. If a run recovery object is used, use the
-        checkpoint from there. If this checkpoint does not exist, or a run recovery object is not supplied,
-        use the checkpoints from the current run.
-        :param run_recovery: Optional run recovery object
-        :param is_mean_teacher: If this a mean teacher model.
-        :param epoch: Epoch to recover
-        :return: Constructed checkpoint path to recover from.
-        """
-        if run_recovery:
-            checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, is_mean_teacher)
-            checkpoint_exists = []
-            # Discard any checkpoint paths that do not exist - they will make inference/registration fail.
-            # This can happen when some child runs fail; it may still be worth running inference
-            # or registering the model.
-            for path in checkpoint_paths:
-                if path.is_file():
-                    checkpoint_exists.append(path)
-                else:
-                    logging.warning(f"Could not recover checkpoint path {path}")
-
-            if len(checkpoint_exists) > 0:
-                return checkpoint_exists
-
-        logging.warning(f"Using checkpoints from current run, "
-                        f"could not find any run recovery checkpoints for epoch {epoch}")
-        # We found the checkpoint(s) in the run being recovered. If we didn't, it's probably because the epoch
-        # is from the current run, which has been doing more training, so we look for it there.
-        checkpoint_path = self.get_path_to_checkpoint(epoch, is_mean_teacher)
-        if not checkpoint_path.is_file():
-            logging.warning(f"Could not find checkpoint at path {checkpoint_path}")
-            return None
-        return [checkpoint_path]
 
     def get_effective_random_seed(self) -> int:
         """

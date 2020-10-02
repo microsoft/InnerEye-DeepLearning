@@ -40,7 +40,7 @@ from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_ni
     save_lines_to_file
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
-from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_test
 
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
@@ -356,9 +356,9 @@ def create_inference_pipeline(config: ModelConfigBase,
     :param run_recovery: RunRecovery data if applicable
     :return: FullImageInferencePipelineBase or ScalarInferencePipelineBase
     """
-    checkpoint_paths = config.get_recovery_path_test(run_recovery=run_recovery,
-                                                     is_mean_teacher=config.compute_mean_teacher_model,
-                                                     epoch=epoch)
+    checkpoint_paths = get_recovery_path_test(config=config, run_recovery=run_recovery,
+                                              is_mean_teacher=config.compute_mean_teacher_model,
+                                              epoch=epoch)
     if not checkpoint_paths:
         return None
 

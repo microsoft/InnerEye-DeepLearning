@@ -30,7 +30,7 @@ from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary, save_checkpoint
-from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_train
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
@@ -61,18 +61,18 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     data_loaders = config.create_data_loaders()
 
     # Create models, optimizers, and whether is_mean_teacher
-    checkpoint_path = config.get_recovery_path_train(run_recovery=run_recovery,
-                                                     is_mean_teacher=False,
-                                                     epoch=config.start_epoch)
+    checkpoint_path = get_recovery_path_train(run_recovery=run_recovery,
+                                              is_mean_teacher=False,
+                                              epoch=config.start_epoch)
     models_and_optimizers = [ModelAndInfo(config=config,
                                           model_execution_mode=ModelExecutionMode.TRAIN,
                                           is_mean_teacher=False,
                                           checkpoint_path=checkpoint_path if config.should_load_checkpoint_for_training() else None)]
 
     if config.compute_mean_teacher_model:
-        checkpoint_path = config.get_recovery_path_train(run_recovery=run_recovery,
-                                                         is_mean_teacher=True,
-                                                         epoch=config.start_epoch)
+        checkpoint_path = get_recovery_path_train(run_recovery=run_recovery,
+                                                  is_mean_teacher=True,
+                                                  epoch=config.start_epoch)
         models_and_optimizers.append(ModelAndInfo(config=config,
                                                   model_execution_mode=ModelExecutionMode.TRAIN,
                                                   is_mean_teacher=True,
