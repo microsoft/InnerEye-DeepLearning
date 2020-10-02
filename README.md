@@ -49,6 +49,10 @@ Once training in AzureML is done, the models can be deployed from within AzureML
 
 ## Getting started
 
+We recommend using our toolbox with Linux or with the Windows Subsystem for Linux (WSL2). Much of the core 
+functionality works fine on Windows, but PyTorch's full feature set is only available on Linux. Read [more about
+WSL here](docs/WSL.md).
+
 Clone the repository into a subfolder of the current directory:
 ```shell script
 git lfs install
@@ -56,13 +60,13 @@ git clone https://github.com/microsoft/InnerEye-DeepLearning
 cd InnerEye-DeepLearning
 ```
 After that, you need to set up your Python environment:
-- Install `conda` or `miniconda` for your operating system
+- Install `conda` or `miniconda` for your operating system. If that fails with odd error messages on a Windows
+machine, please [continue here](docs/WSL.md).
 - Create a Conda environment from the `environment.yml` file in the repository root, and activate it:
 ```shell script
 conda env create --file environment.yml
 conda activate InnerEye
 ``` 
-If you are struggling with that on a Windows machine, please [continue reading here](docs/WSL.md).
 
 Now try to run the HelloWorld segmentation model - that's a very simple model that will train for 2 epochs on any
 machine, no GPU required. You need to set the `PYTHONPATH` environment variable to point to the repository root first. 
