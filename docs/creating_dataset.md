@@ -14,7 +14,7 @@ Segmentation datasets should have the input scans and ground truth segmentations
 InnerEye expects segmentation datasets to have the following structure:
  * Each subject has one or more scans, and one or more segmentation masks. There should be one segmentation mask for
    each ground truth structure (anatomical structure that the model should segment)
- * For convenience, scans and ground truth masks for different subject can live in separate folders, but that's not a must.
+ * For convenience, scans and ground truth masks for different subjects can live in separate folders, but that's not a must.
  * Inside the root folder for the dataset, there should be a file `dataset.csv`, containing the following fields 
  at minimum:
     * `subject`: A unique positive integer assigned to every patient
