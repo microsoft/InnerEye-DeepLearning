@@ -15,7 +15,7 @@ from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
 from InnerEye.ML.pipelines.inference import InferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType, ScalarModelBase
 from InnerEye.ML.utils import model_util, image_util
-from InnerEye.ML.utils.model_util import BaseModelOrDataParallelModel
+from InnerEye.ML.utils.model_util import BaseModelOrDataParallelModelOrDeviceAwareModule
 from InnerEye.ML.common import ModelExecutionMode
 
 
@@ -54,7 +54,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
     """
 
     def __init__(self,
-                 model: BaseModelOrDataParallelModel,
+                 model: BaseModelOrDataParallelModelOrDeviceAwareModule,
                  model_config: ScalarModelBase,
                  epoch: int,
                  pipeline_id: int) -> None:
@@ -97,7 +97,6 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
             return None
 
         # for mypy, if model has been loaded these will not be None
-        assert model_and_info.model is not None
         assert model_and_info.checkpoint_epoch is not None
 
         for name, param in model_and_info.model.named_parameters():

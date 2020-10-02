@@ -29,9 +29,12 @@ def test_try_create_model_and_load_from_checkpoint(config: ModelConfigBase, chec
                                   model_execution_mode=ModelExecutionMode.TEST,
                                   is_mean_teacher=False,
                                   checkpoint_path=None)
+
+    with pytest.raises(ValueError):
+        model_and_info.model
+
     model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
     assert model_loaded
-    assert model_and_info.model is not None
     if isinstance(config, SegmentationModelBase):
         assert isinstance(model_and_info.model, BaseModel)
     else:
@@ -41,12 +44,11 @@ def test_try_create_model_and_load_from_checkpoint(config: ModelConfigBase, chec
     model_and_info = ModelAndInfo(config,
                                   model_execution_mode=ModelExecutionMode.TEST,
                                   is_mean_teacher=False,
-                                  checkpoint_path=full_ml_test_data_path(Path("non_exist.pth.tar")))
+                                  checkpoint_path=full_ml_test_data_path("non_exist.pth.tar"))
     model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
     assert not model_loaded
     # Current code assumes that even if this function returns False, the model itself was created, only the checkpoint
     # loading failed.
-    assert model_and_info.model is not None
     if isinstance(config, SegmentationModelBase):
         assert isinstance(model_and_info.model, BaseModel)
     else:
@@ -56,10 +58,9 @@ def test_try_create_model_and_load_from_checkpoint(config: ModelConfigBase, chec
     model_and_info = ModelAndInfo(config,
                                   model_execution_mode=ModelExecutionMode.TEST,
                                   is_mean_teacher=False,
-                                  checkpoint_path=full_ml_test_data_path(Path(checkpoint_path)))
+                                  checkpoint_path=full_ml_test_data_path(checkpoint_path))
     model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
     assert model_loaded
-    assert model_and_info.model is not None
     if isinstance(config, SegmentationModelBase):
         assert isinstance(model_and_info.model, BaseModel)
     else:
@@ -77,42 +78,40 @@ def test_try_create_optimizer_and_load_from_checkpoint(config: ModelConfigBase, 
                                   model_execution_mode=ModelExecutionMode.TEST,
                                   is_mean_teacher=False,
                                   checkpoint_path=None)
+
+    with pytest.raises(ValueError):
+        model_and_info.optimizer
+
     model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
     assert model_loaded
-    assert model_and_info.model is not None
     optimizer_loaded = model_and_info.try_create_optimizer_and_load_from_checkpoint()
     assert optimizer_loaded
-    assert model_and_info.optimizer is not None
     assert isinstance(model_and_info.optimizer, Optimizer)
 
     # Invalid checkpoint path provided
     model_and_info = ModelAndInfo(config,
                                   model_execution_mode=ModelExecutionMode.TEST,
                                   is_mean_teacher=False,
-                                  checkpoint_path=full_ml_test_data_path(Path("non_exist.pth.tar")))
+                                  checkpoint_path=full_ml_test_data_path("non_exist.pth.tar"))
     model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
     assert not model_loaded
     # Current code assumes that even if this function returns False, the model itself was created, only the checkpoint
     # loading failed.
-    assert model_and_info.model is not None
     optimizer_loaded = model_and_info.try_create_optimizer_and_load_from_checkpoint()
     assert not optimizer_loaded
     # Current code assumes that even if this function returns False,
     # the optimizer itself was created, only the checkpoint loading failed.
-    assert model_and_info.optimizer is not None
     assert isinstance(model_and_info.optimizer, Optimizer)
 
     # Valid checkpoint path provided
     model_and_info = ModelAndInfo(config,
                                   model_execution_mode=ModelExecutionMode.TEST,
                                   is_mean_teacher=False,
-                                  checkpoint_path=full_ml_test_data_path(Path(checkpoint_path)))
+                                  checkpoint_path=full_ml_test_data_path(checkpoint_path))
     model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
     assert model_loaded
-    assert model_and_info.model is not None
     assert model_and_info.checkpoint_epoch == 1
     optimizer_loaded = model_and_info.try_create_optimizer_and_load_from_checkpoint()
     assert optimizer_loaded
-    assert model_and_info.optimizer is not None
     assert isinstance(model_and_info.optimizer, Optimizer)
     assert model_and_info.checkpoint_epoch == 1

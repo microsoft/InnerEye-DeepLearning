@@ -122,8 +122,6 @@ def test_predict_non_ensemble(batch_size: int, empty_labels: bool) -> None:
 
     model = model_and_info.model
 
-    assert model is not None  # for mypy
-
     pipeline = ScalarInferencePipeline(model, config, 0, 0)
     actual_labels = torch.zeros((batch_size, 1)) * np.nan if empty_labels else torch.zeros((batch_size, 1))
     data = {"metadata": [GeneralSampleMetadata(id='2')] * batch_size,
@@ -156,9 +154,6 @@ def test_predict_ensemble(batch_size: int) -> None:
     model_loaded = model_and_info_returns_1.try_create_model_load_from_checkpoint_and_adjust()
     assert model_loaded
     model_returns_1 = model_and_info_returns_1.model
-
-    assert model_returns_0 is not None  # for mypy
-    assert model_returns_1 is not None  # for mypy
 
     pipeline_0 = ScalarInferencePipeline(model_returns_0, config_returns_0, 0, 0)
     pipeline_1 = ScalarInferencePipeline(model_returns_0, config_returns_0, 0, 1)

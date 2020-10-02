@@ -87,7 +87,6 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                              .format(config.start_epoch))
 
     # Print out a detailed breakdown of layers, memory consumption and time.
-    assert models_and_optimizers[0].model is not None  # for mypy, it should never get this far if None
     generate_and_print_model_summary(config, models_and_optimizers[0].model)
 
     # Move model to GPU and adjust for multiple GPUs
@@ -112,7 +111,6 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     model = models_and_optimizers[0].model
     optimizer = models_and_optimizers[0].optimizer
-    assert optimizer is not None  # for mypy
     mean_teacher_model = models_and_optimizers[1].model if len(models_and_optimizers) > 1 else None
 
     # Create LR scheduler

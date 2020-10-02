@@ -92,17 +92,13 @@ def test_anomaly_detection(value_to_insert: float, in_training_mode: bool) -> No
 
     model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TRAIN,
                                   is_mean_teacher=False, checkpoint_path=None)
-    model_and_info.model: BaseModel = SimpleModel(1, [1], 2, 2)  # type: ignore
+    model_and_info._model: BaseModel = SimpleModel(1, [1], 2, 2)  # type: ignore
     model_and_info.create_summary_and_adjust_model_for_gpus()
     model_and_info.try_create_optimizer_and_load_from_checkpoint()
     config.use_gpu = False
 
     model = model_and_info.model
     optimizer = model_and_info.optimizer
-
-    # for mypy
-    assert model is not None
-    assert optimizer is not None
 
     # Create the loss criterion
     criterion = lambda x, y: torch.tensor(value_to_insert, requires_grad=True)
@@ -150,7 +146,7 @@ def test_amp_activated(use_model_parallel: bool,
     assert model_config.use_gpu
     model_and_info = ModelAndInfo(config=model_config, model_execution_mode=execution_mode,
                                   is_mean_teacher=False, checkpoint_path=None)
-    model_and_info.model = SimpleModel(1, [1], 2, 2)  # type: ignore
+    model_and_info._model = SimpleModel(1, [1], 2, 2)  # type: ignore
 
     # Move the model to the GPU. This is mostly to avoid issues with AMP, which has trouble
     # with first using a GPU model and later using a CPU-based one.
@@ -169,17 +165,13 @@ def test_amp_activated(use_model_parallel: bool,
     model = model_and_info.model
     optimizer = model_and_info.optimizer
 
-    # for mypy
-    assert model is not None
-    assert optimizer is not None
-
     # This is the same logic spelt out in adjust_model_for_gpus
     use_data_parallel = (execution_mode == ModelExecutionMode.TRAIN) or (not use_model_parallel)
     if use_data_parallel:
-        assert isinstance(model_and_info.model, DataParallelModel)
+        assert isinstance(model, DataParallelModel)
     gradient_scaler = GradScaler() if use_mixed_precision else None
     criterion = lambda x, y: torch.tensor([0.0], requires_grad=True).cuda()
-    pipeline = SegmentationForwardPass(model_and_info.model,
+    pipeline = SegmentationForwardPass(model,
                                        model_config,
                                        batch_size=1,
                                        optimizer=optimizer,
@@ -252,7 +244,6 @@ def test_mean_teacher_model() -> None:
                                   is_mean_teacher=False, checkpoint_path=config.get_path_to_checkpoint(epoch=1))
     model_and_info.try_create_model_and_load_from_checkpoint()
     model = model_and_info.model
-    assert model is not None  # for mypy
     model_weight = next(_get_parameters_of_model(model))
 
     # Get the starting weight of the mean teacher model
@@ -266,7 +257,6 @@ def test_mean_teacher_model() -> None:
                                                is_mean_teacher=True, checkpoint_path=None)
     model_and_info_mean_teacher.try_create_model_and_load_from_checkpoint()
     mean_teach_model = model_and_info_mean_teacher.model
-    assert mean_teach_model is not None  # for mypy
     initial_weight_mean_teacher_model = next(_get_parameters_of_model(mean_teach_model))
 
     # Now train with mean teacher and check the update of the weight
@@ -280,7 +270,6 @@ def test_mean_teacher_model() -> None:
                                                checkpoint_path=config.get_path_to_checkpoint(1, for_mean_teacher_model=True))
     model_and_info_mean_teacher.try_create_model_and_load_from_checkpoint()
     mean_teacher_model = model_and_info_mean_teacher.model
-    assert mean_teacher_model is not None  # for mypy
     result_weight = next(_get_parameters_of_model(mean_teacher_model))
     # Retrieve the associated student weight
     model_and_info_student = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
@@ -288,7 +277,6 @@ def test_mean_teacher_model() -> None:
                                                checkpoint_path=config.get_path_to_checkpoint(1))
     model_and_info_student.try_create_model_and_load_from_checkpoint()
     student_model = model_and_info_student.model
-    assert student_model is not None  # for mypy
     student_model_weight = next(_get_parameters_of_model(student_model))
 
     # Assert that the student weight corresponds to the weight of a simple training without mean teacher
@@ -324,17 +312,16 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
                                   is_mean_teacher=False, checkpoint_path=None)
     model_and_info.try_create_model_load_from_checkpoint_and_adjust()
     model = model_and_info.model
-    assert model is not None  # for mypy
 
     # This is the same logic spelt out in update_model_for_multiple_gpu
     # execution_mode == ModelExecutionMode.TRAIN or (not use_model_parallel), which is always True in our case
     use_data_parallel = True
     if use_data_parallel:
-        assert isinstance(model_and_info.model, DataParallelModel)
+        assert isinstance(model, DataParallelModel)
     data_loaders = config.create_data_loaders()
     gradient_scaler = GradScaler() if use_mixed_precision else None
     train_val_parameters: TrainValidateParameters = TrainValidateParameters(
-        model=model_and_info.model,
+        model=model,
         data_loader=data_loaders[execution_mode],
         in_training_mode=execution_mode == ModelExecutionMode.TRAIN,
         gradient_scaler=gradient_scaler,

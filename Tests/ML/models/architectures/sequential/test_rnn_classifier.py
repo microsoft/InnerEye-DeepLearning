@@ -272,8 +272,6 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
 
     model = model_and_info.model
 
-    assert model is not None  # for mypy
-
     dataloader = SequenceDataset(config,
                                  data_frame=config.dataset_data_frame).as_data_loader(shuffle=False,
                                                                                       batch_size=2)

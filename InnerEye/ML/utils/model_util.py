@@ -28,11 +28,11 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.ml_util import RandomStateSnapshot, is_gpu_available
+from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 
-BaseModelOrDataParallelModel = Union[DeviceAwareModule, DataParallelModel]
+BaseModelOrDataParallelModelOrDeviceAwareModule = Union[DeviceAwareModule, DataParallelModel, BaseModel]
 
 
 class ModelAndInfo:
@@ -64,36 +64,48 @@ class ModelAndInfo:
         self.checkpoint_path = checkpoint_path
         self.model_execution_mode = model_execution_mode
 
-        self.model = None
-        self.optimizer = None
+        self._model = None
+        self._optimizer = None
         self.checkpoint_epoch = None
         self.is_adjusted = False
+
+    @property
+    def model(self) -> BaseModelOrDataParallelModelOrDeviceAwareModule:
+        if not self._model:
+            raise ValueError("Model has not been created.")
+        return self._model
+
+    @property
+    def optimizer(self) -> Optimizer:
+        if not self._optimizer:
+            raise ValueError("Optimizer has not been created.")
+        return self._optimizer
 
     def to_cuda(self) -> None:
         """
         Moves the model to GPU
         """
-        if self.model is None:
+        if self._model is None:
             raise ValueError("Model must be created before it can be moved to GPU.")
-        self.model = self.model.cuda()
+        self._model = self._model.cuda()
 
     def set_data_parallel(self, device_ids: Optional[List[Any]]) -> None:
-        if self.model is None:
+        if self._model is None:
             raise ValueError("Model must be created before it can be moved to Data Parellel.")
-        self.model = DataParallelModel(self.model, device_ids=device_ids)
+        self._model = DataParallelModel(self._model, device_ids=device_ids)
 
     def create_model(self) -> None:
         """
         Creates a model (with temperature scaling) according to the config given.
         """
-        self.model = create_model_with_temperature_scaling(self.config)
+        self._model = create_model_with_temperature_scaling(self.config)
 
     def try_load_checkpoint_for_model(self) -> bool:
         """
         Loads a checkpoint of a model. The provided model checkpoint must match the stored model.
         :return True if checkpoint exists and was loaded, False otherwise.
         """
-        if self.model is None:
+        if self._model is None:
             raise ValueError("Model must be created before it can be adjusted.")
 
         if not self.checkpoint_path:
@@ -109,10 +121,10 @@ class ModelAndInfo:
         map_location = None if self.config.use_gpu else 'cpu'
         checkpoint = torch.load(str(self.checkpoint_path), map_location=map_location)
 
-        if isinstance(self.model, torch.nn.DataParallel):
-            self.model.module.load_state_dict(checkpoint['state_dict'])
+        if isinstance(self._model, torch.nn.DataParallel):
+            self._model.module.load_state_dict(checkpoint['state_dict'])
         else:
-            self.model.load_state_dict(checkpoint['state_dict'])
+            self._model.load_state_dict(checkpoint['state_dict'])
 
         logging.info(f"Loaded model from checkpoint (epoch: {checkpoint['epoch']})")
         self.checkpoint_epoch = checkpoint['epoch']
@@ -124,14 +136,14 @@ class ModelAndInfo:
         multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
         perform full volume inference.
         """
-        if self.model is None:
+        if self._model is None:
             raise ValueError("Model must be created before it can be adjusted.")
 
         # Adjusting twice causes an error.
         if self.is_adjusted:
             logging.debug("model_and_info.is_adjusted is already True")
 
-        if self.optimizer:
+        if self._optimizer:
             raise ValueError("Create an optimizer only after creating and adjusting the model.")
 
         if self.config.use_gpu:
@@ -141,12 +153,12 @@ class ModelAndInfo:
             if self.config.use_model_parallel:
                 devices = self.config.get_cuda_devices()
                 assert devices is not None  # for mypy
-                self.model.partition_model(devices=devices)  # type: ignore
+                self._model.partition_model(devices=devices)  # type: ignore
         else:
             logging.info("Making no adjustments to the model because no GPU was found.")
 
         # Update model related config attributes (After Model Parallel Activated)
-        self.config.adjust_after_mixed_precision_and_parallel(self.model)
+        self.config.adjust_after_mixed_precision_and_parallel(self._model)
 
         # DataParallel enables running the model with multiple gpus by splitting samples across GPUs
         # If the model is used in training mode, data parallel is activated by default.
@@ -168,11 +180,11 @@ class ModelAndInfo:
         Generates the model summary, which is required for model partitioning across GPUs, and then moves the model to
         GPU with data parallel/model parallel by calling adjust_model_for_gpus.
         """
-        if self.model is None:
+        if self._model is None:
             raise ValueError("Model must be created before it can be adjusted.")
 
         if self.config.is_segmentation_model:
-            summary_for_segmentation_models(self.config, self.model)
+            summary_for_segmentation_models(self.config, self._model)
         # Prepare for mixed precision training and data parallelization (no-op if already done).
         # This relies on the information generated in the model summary.
         self.adjust_model_for_gpus()
@@ -186,7 +198,7 @@ class ModelAndInfo:
         self.create_model()
 
         # for mypy
-        assert self.model
+        assert self._model
 
         if self.checkpoint_path:
             # Load the stored model. If there is no checkpoint present, return immediately.
@@ -205,7 +217,7 @@ class ModelAndInfo:
         self.create_model()
 
         # for mypy
-        assert self.model
+        assert self._model
 
         if self.checkpoint_path:
             # Load the stored model. If there is no checkpoint present, return immediately.
@@ -220,20 +232,20 @@ class ModelAndInfo:
         Creates a torch optimizer for the given model, and stores it as an instance variable in the current object.
         """
         # Make sure model is created before we create optimizer
-        if self.model is None:
+        if self._model is None:
             raise ValueError("Model checkpoint must be created before optimizer checkpoint can be loaded.")
 
         # Select optimizer type
         if self.config.optimizer_type in [OptimizerType.Adam, OptimizerType.AMSGrad]:
-            self.optimizer = torch.optim.Adam(self.model.parameters(), self.config.l_rate,
-                                              self.config.adam_betas, self.config.opt_eps, self.config.weight_decay,
-                                              amsgrad=self.config.optimizer_type == OptimizerType.AMSGrad)
+            self._optimizer = torch.optim.Adam(self._model.parameters(), self.config.l_rate,
+                                               self.config.adam_betas, self.config.opt_eps, self.config.weight_decay,
+                                               amsgrad=self.config.optimizer_type == OptimizerType.AMSGrad)
         elif self.config.optimizer_type == OptimizerType.SGD:
-            self.optimizer = torch.optim.SGD(self.model.parameters(), self.config.l_rate, self.config.momentum,
-                                             weight_decay=self.config.weight_decay)
+            self._optimizer = torch.optim.SGD(self._model.parameters(), self.config.l_rate, self.config.momentum,
+                                              weight_decay=self.config.weight_decay)
         elif self.config.optimizer_type == OptimizerType.RMSprop:
-            self.optimizer = RMSprop(self.model.parameters(), self.config.l_rate, self.config.rms_alpha, self.config.opt_eps,
-                           self.config.weight_decay, self.config.momentum)
+            self._optimizer = RMSprop(self._model.parameters(), self.config.l_rate, self.config.rms_alpha, self.config.opt_eps,
+                                      self.config.weight_decay, self.config.momentum)
         else:
             raise NotImplementedError(f"Optimizer type {self.config.optimizer_type.value} is not implemented")
 
@@ -243,11 +255,11 @@ class ModelAndInfo:
         :return True if the checkpoint exists and optimizer state loaded, False otherwise
         """
 
-        if self.optimizer is None:
+        if self._optimizer is None:
             raise ValueError("Optimizer must be created before optimizer checkpoint can be loaded.")
 
         if not self.checkpoint_path:
-            logging.warning(f'No checkpoint path provided.')
+            logging.warning("No checkpoint path provided.")
             return False
 
         if not self.checkpoint_path.is_file():
@@ -260,8 +272,8 @@ class ModelAndInfo:
         map_location = None if self.config.use_gpu else 'cpu'
         checkpoint = torch.load(str(self.checkpoint_path), map_location=map_location)
 
-        if self.optimizer:
-            self.optimizer.load_state_dict(checkpoint['opt_dict'])
+        if self._optimizer:
+            self._optimizer.load_state_dict(checkpoint['opt_dict'])
 
         logging.info("Loaded optimizer from checkpoint (epoch: {checkpoint['epoch']})")
         self.checkpoint_epoch = checkpoint['epoch']
