@@ -508,6 +508,10 @@ class InferenceBatch(CTImagesMaskedBatch):
         # convert patches to Torch tensor
         patches = torch.from_numpy(patches).float()
 
+        # Send the model to GPU if available
+        device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu')
+        model = model.to(device)
+
         return SegmentationForwardPass(
             model=model,
             model_config=model_config,

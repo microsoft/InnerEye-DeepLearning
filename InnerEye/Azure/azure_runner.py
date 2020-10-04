@@ -297,11 +297,13 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
     logging.info(f"PyTorch framework version: {framework_version}")
 
     if azure_config.use_distributed_data_parallel:
+        source_config.script_params.update({'--dist_backend': 'nccl',
+                                            '--init_method': 'tcp://' + '$AZ_BATCH_MASTER_NODE'})
         distributed_training_backend = Mpi(azure_config.workers_per_node)
     else:
         distributed_training_backend = None
 
-    compute_target = ComputeTarget(workspace, azure_config.gpu_cluster_name)
+    compute_target = ComputeTarget(workspace, azure_config.cluster)
 
     estimator = PyTorch(
         source_directory=source_config.root_folder,

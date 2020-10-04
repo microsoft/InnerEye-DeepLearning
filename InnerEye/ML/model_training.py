@@ -25,7 +25,7 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util, model_util
-from InnerEye.ML.utils.aml_distributed_utils import get_local_rank, get_global_rank, get_global_size
+from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
@@ -89,24 +89,23 @@ def model_train(config: ModelConfigBase,
                                         nprocs=world_size)
 
         else:
-            # AzureML MPI configuration handles spawn
-            rank = get_global_rank()
+            # AzureML MPI configuration handles rank
             train(None, model, config)
     else:
         single_process_rank = 0
         train(single_process_rank, model, config)
 
 
-def train(rank: Optional[int], model, config,  run_recovery: Optional[RunRecovery] = None):
+def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None):
     """
 
     :param rank: The global rank of the current process (for DistributedDataParallel). For single process, rank=0
-    :param model:
-    :param config:
-    :param run_recovery:
+    :param model: The model to train.
+    :param config: The arguments which specify all required information.
+    :param run_recovery: Recovery information to restart training from an existing run.
     :return:
     """
-    rank = get_global_rank() if rank is None else rank  # get rank for AML run
+    rank = get_global_rank() if rank is None else rank  # If AML run, get rank from environment var
     device = torch.device('cuda', rank) if torch.cuda.is_available() else torch.device('cpu')
 
     if config.use_ddp:
@@ -194,7 +193,7 @@ def train(rank: Optional[int], model, config,  run_recovery: Optional[RunRecover
                                     dataframe_loggers=config.metrics_data_frame_loggers,
                                     in_training_mode=True)
         training_steps = create_model_training_steps(config, train_val_params)
-        train_epoch_results = train_or_validate_epoch(training_steps, device)
+        train_epoch_results = train_or_validate_epoch(training_steps, rank, device)
         train_results_per_epoch.append(train_epoch_results.metrics)
 
         metrics.validate_and_store_model_parameters(writers.train, epoch, model)
@@ -207,7 +206,7 @@ def train(rank: Optional[int], model, config,  run_recovery: Optional[RunRecover
             train_val_params.save_metrics = not (save_epoch and config.temperature_scaling_config)
 
         training_steps = create_model_training_steps(config, train_val_params)
-        val_epoch_results = train_or_validate_epoch(training_steps, device)
+        val_epoch_results = train_or_validate_epoch(training_steps, rank, device)
         val_results_per_epoch.append(val_epoch_results.metrics)
 
         if config.is_segmentation_model:
@@ -287,12 +286,13 @@ def temperature_scaling_steps(config: SequenceModelBase,
     return temperature_value, val_epoch_results
 
 
-def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, device) -> ModelOutputsAndMetricsForEpoch:
+def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank, device) -> ModelOutputsAndMetricsForEpoch:
     """
     Trains or validates the model for one epoch.
     :param training_steps: Training pipeline to use.
     :returns: The results for training or validation. Result type depends on the type of model that is trained.
     """
+
     epoch_start_time = time()
     training_random_state = None
     train_val_params = training_steps.train_val_params
@@ -329,12 +329,13 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, device) -> M
                                 f"{MAX_LOAD_TIME_WARNINGS} times.")
                 num_load_time_warnings += 1
         model_outputs_minibatch = training_steps.forward_and_backward_minibatch(
-            sample, batch_index, train_val_params.epoch, device)
+            sample, batch_index, train_val_params.epoch, rank, device)
         model_outputs_epoch.append(model_outputs_minibatch)
         train_finish_time = time()
+        status_time = train_finish_time - item_finish_time
         logging.debug(f"Epoch {train_val_params.epoch} {status_string} batch {batch_index}: "
                       f"Loaded in {item_load_time:0.2f}sec, "
-                      f"{status_string} in {(train_finish_time - item_finish_time):0.2f}sec. "
+                      f"{status_string} in {status_time:0.2f}sec. "
                       f"Loss = {model_outputs_minibatch.loss}")
         total_load_time += item_finish_time - item_start_time
         num_batches += 1
@@ -344,7 +345,8 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, device) -> M
     if training_random_state is not None:
         training_random_state.restore_random_state()
 
-    epoch_time_seconds = time() - epoch_start_time
+    epoch_end_time = time()
+    epoch_time_seconds = epoch_end_time - epoch_start_time
     logging.info(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f} sec "
                  f"of which data loading took {total_load_time:0.2f} sec")
     if num_load_time_exceeded > 0:
@@ -390,7 +392,7 @@ def main() -> None:
     model_config = ModelConfigLoader().create_model_config_from_name(args.model)
 
     not_distributed_rank = 0
-    model_train(not_distributed_rank, model_config)
+    model_train(model_config)
 
 
 if __name__ == '__main__':

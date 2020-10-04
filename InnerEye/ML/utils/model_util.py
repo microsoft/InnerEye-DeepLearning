@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, List, Optional, Union
 
 import torch
-from apex import amp
 from numpy import logical_and
 from torch.optim.optimizer import Optimizer
 from torch.optim.rmsprop import RMSprop
@@ -179,7 +178,6 @@ def update_model_for_multiple_gpus(model_and_info: ModelAndInfo,
 
     # Update model related config attributes (After Model Parallel Activated)
     args.adjust_after_mixed_precision_and_parallel(model_and_info.model, device)
-
 
     # DataParallel enables running the model with multiple gpus by splitting samples across GPUs
     # If the model is used in training mode, data parallel is activated by default.

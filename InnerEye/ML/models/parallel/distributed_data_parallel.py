@@ -2,9 +2,9 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict, List, Tuple
+from typing import List
 
-from torch import device, Tensor
+from torch import device
 from torch.nn.parallel import DistributedDataParallel
 
 from InnerEye.Common.type_annotations import T
@@ -29,19 +29,3 @@ class DistributedDataParallelModel(DistributedDataParallel, DeviceAwareModule):
         :return:
         """
         return [device(x) if isinstance(x, int) else x for x in self.device_ids]
-
-
-class DistributedDataParallelCriterion(DistributedDataParallel):
-    def forward(
-            self,  # type: ignore
-            inputs: List[Tensor],
-            *targets: Tuple[Tensor],
-            **kwargs: Dict[str, Any]) -> Tensor:
-        """
-
-        :param inputs:
-        :param targets:
-        :param kwargs:
-        :return:
-        """
-        return self.module(inputs, targets[0], kwargs[0])

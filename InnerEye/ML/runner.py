@@ -14,7 +14,6 @@ import stopit
 from azureml._base_sdk_common import user_agent
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run
-from azureml.train._distributed_training import Mpi
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
@@ -325,12 +324,6 @@ class Runner:
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
-
-        if self.model_config.use_distributed_data_parallel:
-            from torch.cuda import device_count
-            source_config.distributed_training = Mpi(process_count_per_node=device_count())
-            source_config.script_params.update({'--dist_backend': 'nccl',
-                                                '--init_method': 'tcp://' + '$AZ_BATCH_MASTER_NODE'})
 
         assert self.model_config.azure_dataset_id is not None  # to stop mypy complaining about next line
         azure_run = submit_to_azureml(self.azure_config, source_config, model_config_overrides,

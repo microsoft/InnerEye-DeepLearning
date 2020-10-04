@@ -28,9 +28,8 @@ class DummyClassification(ScalarModelBase):
             num_epochs=num_epochs,
             num_dataload_workers=0,
             test_start_epoch=num_epochs,
-            use_mixed_precision=False,
+            use_mixed_precision=True,
             subject_column="subjectID",
-            use_distributed_data_parallel=True
         )
         self.conv_in_3d = True
         self.expected_image_size_zyx = (4, 5, 7)

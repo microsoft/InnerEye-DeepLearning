@@ -14,11 +14,8 @@ def get_local_rank() -> int:
     return int(os.environ['OMPI_COMM_WORLD_LOCAL_RANK'])
 
 
-def get_global_rank(is_offline_run: Optional[bool] = True) -> int:
+def get_global_rank() -> int:
     """Returns the global rank of the current process for AML (online) runs."""
-    if is_offline_run:
-        # assume 1 machine only
-        return torch.cuda.device_count()
     return int(os.environ["OMPI_COMM_WORLD_RANK"])
 
 

@@ -108,7 +108,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
 
         labels = self.model_config.get_gpu_tensor_if_possible(model_inputs_and_labels.labels, device=device)
         model_output: torch.Tensor = self.model.forward(*model_inputs_and_labels.model_inputs)
-        if isinstance(model_output, list):
+        if isinstance(model_output, list) and not self.model_config.use_ddp:
             # Model output is a list if we are using data parallel. Here, this will be a degenerate list with
             # only 1 element
             model_output = torch.nn.parallel.gather(model_output, target_device=0)

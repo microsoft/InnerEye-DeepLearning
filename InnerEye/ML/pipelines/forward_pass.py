@@ -63,7 +63,8 @@ class SegmentationForwardPass:
     def forward_pass_patches(self, patches: torch.Tensor,
                              labels: Optional[torch.Tensor] = None,
                              mask: Optional[torch.Tensor] = None,
-                             rank = 0) -> \
+                             device: Optional[torch.device] = None,
+                             rank: Optional[int] = 0) -> \
             SegmentationForwardPass.Result:
         """
         Wrapper function to handle model forward pass, including updating of the optimizer_type with loss gradients
@@ -71,8 +72,9 @@ class SegmentationForwardPass:
         :param patches: Images patches to be passed to the model in format Batches x Channels x Z x Y x X.
         :param labels: Labels for image patches to be used for loss computation: Batches x Classes x Z x Y x X
         :param mask: optional mask patches channel in shape Batches x Z x Y x X  to be applied to the predictions.
+        :param rank: The global rank of the current process.
+        :param device: The Torch device to allocate to.
         """
-        device = torch.device('cuda', rank) if torch.cuda.is_available() else torch.device('cpu')
 
         # check that the patches are as expected w.r.t to the configuration
         if patches is None:
@@ -103,13 +105,18 @@ class SegmentationForwardPass:
         # handle model modes
         if self.in_training_mode:
             self.model.train()
-            result = self._forward_pass_with_anomaly_detection(patches=patches, mask=mask, labels=labels, device=device)
+            result = self._forward_pass_with_anomaly_detection(patches=patches, mask=mask,
+                                                               labels=labels, device=device)
         else:
-            self.model.eval()
-            # turn off autograd for memory optimizations
-            with torch.no_grad():
-                result = self._forward_pass_with_anomaly_detection(patches=patches, mask=mask, labels=labels, device=device)
-            self.model.train()
+            if rank == 0:
+                self.model.eval()
+                # turn off autograd for memory optimizations
+                with torch.no_grad():
+                    result = self._forward_pass_with_anomaly_detection(patches=patches, mask=mask,
+                                                                       labels=labels, device=device)
+                self.model.train()
+            else:
+                result = None
         return result
 
     def _forward_pass_with_anomaly_detection(self,
@@ -119,13 +126,14 @@ class SegmentationForwardPass:
                                              device=None) -> SegmentationForwardPass.Result:
         if self.detect_anomaly:
             with autograd.detect_anomaly():
-                result = self._forward_pass(patches, mask, labels, device)
+                result = self._forward_pass(patches, mask, labels, device=device)
             if result.loss is not None and (math.isnan(result.loss) or math.isinf(result.loss)):
                 raise RuntimeError(f"The loss computation returned {result.loss}")
             return result
-        return self._forward_pass(patches, mask, labels)
+        return self._forward_pass(patches, mask, labels, device=device)
 
-    def _compute_loss(self, patches: Tensor, labels: Optional[Tensor]) -> Tuple[Tensor, Optional[Tensor]]:
+    def _compute_loss(self, patches: Tensor, labels: Optional[Tensor], device: Optional[torch.device] = None
+                      ) -> Tuple[Tensor, Optional[Tensor]]:
         """
         Do a forward pass on the model with the patches as input. If labels are provided, compute the loss.
         Return a tuple of (logits, loss).
@@ -137,7 +145,7 @@ class SegmentationForwardPass:
             # If labels *is* None, loss will also be None, which will stop the code below working (and
             # currently correctly triggers mypy errors).
             if labels is not None and self.criterion_fn is not None:
-                loss = self.criterion_fn(logits, labels)
+                loss = self.criterion_fn(logits, labels, device=device)
             return logits, loss
 
         return execute_within_autocast_if_needed(func=compute, use_autocast=True if self.gradient_scaler else False)
@@ -150,11 +158,11 @@ class SegmentationForwardPass:
 
         # ensure that we always have float tensors as the model is defined over floats
         # and transfer the tensors to the GPU if possible before the forward pass
-        patches = self.config.get_gpu_tensor_if_possible(patches)
+        patches = self.config.get_gpu_tensor_if_possible(patches, device=device)
         if mask is not None:
-            mask = self.config.get_gpu_tensor_if_possible(mask)
+            mask = self.config.get_gpu_tensor_if_possible(mask, device=device)
 
-        logits, loss = self._compute_loss(patches, labels)
+        logits, loss = self._compute_loss(patches, labels, device=device)
 
         if self.in_training_mode:
             if loss is None:
@@ -163,7 +171,7 @@ class SegmentationForwardPass:
             single_optimizer_step(loss, self.optimizer, self.gradient_scaler)
 
         # Aggregate data parallel logits if multiple hardware are used in forward pass
-        if isinstance(logits, list):
+        if isinstance(logits, list) and not self.config.use_ddp:
             # When using multiple GPUs, logits is a list of tensors. Gather will concatenate them
             # across the first dimension, and move them to GPU0.
             logits = torch.nn.parallel.gather(logits, target_device=0)

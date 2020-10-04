@@ -124,6 +124,8 @@ class AzureConfig(GenericConfig):
     _workspace: Workspace = param.ClassSelector(class_=Workspace,
                                                 doc="The cached workspace object that has been created in the first"
                                                     "call to get_workspace")
+    workers_per_node: int = param.Integer(1, doc="The number of workers to assign per machine")
+    node_count: int = param.Integer(1, doc="The number of machines to run distributed training across")
 
     def __init__(self, **params: Any) -> None:
         super().__init__(**params)
