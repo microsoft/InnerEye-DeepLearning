@@ -395,7 +395,6 @@ def classification_model_test(config: ScalarModelBase,
     :param data_split: The name of the folder to store the results inside each epoch folder in the outputs_dir,
                        used mainly in model evaluation using different dataset splits.
     :param run_recovery: RunRecovery data if applicable
-    :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
 

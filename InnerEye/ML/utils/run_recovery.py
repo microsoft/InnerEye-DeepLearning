@@ -135,7 +135,6 @@ def get_recovery_path_train(run_recovery: Optional[RunRecovery],
     Decides the checkpoint path to use for the current training run. If a run recovery object is used, use the
     checkpoint from there, otherwise use the checkpoints from the current run.
     :param run_recovery: Optional run recovery object
-    :param is_mean_teacher: If this a mean teacher model.
     :param epoch: Epoch to recover
     :return: Constructed checkpoint path to recover from.
     """
@@ -156,7 +155,6 @@ def get_recovery_path_test(config: DeepLearningConfig, run_recovery: Optional[Ru
     use the checkpoints from the current run.
     :param config: configuration file
     :param run_recovery: Optional run recovery object
-    :param is_mean_teacher: If this a mean teacher model.
     :param epoch: Epoch to recover
     :return: Constructed checkpoint path to recover from.
     """
