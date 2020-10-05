@@ -223,7 +223,7 @@ def test_save_checkpoint(config) -> None:
     model_and_info.try_create_optimizer_and_load_from_checkpoint()
 
     def get_constant_init_function(constant: float) -> Callable:
-        def init(layer: nn.Module):
+        def init(layer: nn.Module) -> None:
             if type(layer) == nn.Conv3d:
                 layer.weight.data.fill_(constant)
         return init
@@ -247,7 +247,6 @@ def test_save_checkpoint(config) -> None:
 
     for module in model_and_info_restored.model.modules():
         if type(module) == nn.Conv3d:
-            print("Checked")
             assert torch.equal(module.weight.data, torch.full_like(module.weight.data, 1.0))
 
     for module in model_and_info_restored.mean_teacher_model.modules():

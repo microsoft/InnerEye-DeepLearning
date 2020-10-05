@@ -19,8 +19,7 @@ from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, \
-    create_unique_timestamp_id, create_checkpoint_path
+from InnerEye.ML.common import ModelExecutionMode, create_unique_timestamp_id, create_checkpoint_path
 
 VISUALIZATION_FOLDER = "Visualizations"
 CHECKPOINT_FOLDER = "checkpoints"

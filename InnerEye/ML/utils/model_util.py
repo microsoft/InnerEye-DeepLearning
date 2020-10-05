@@ -87,7 +87,7 @@ class ModelAndInfo:
         return self._optimizer
 
     @property
-    def mean_teacher_model(self) -> DeviceAwareModule:
+    def mean_teacher_model(self) -> Optional[DeviceAwareModule]:
         if not self._mean_teacher_model and self.config.compute_mean_teacher_model:
             raise ValueError("Mean teacher model has not been created.")
         return self._mean_teacher_model
