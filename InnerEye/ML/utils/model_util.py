@@ -87,7 +87,7 @@ class ModelAndInfo:
         return self._optimizer
 
     @property
-    def mean_teacher_model(self) -> BaseModelOrDataParallelModelOrDeviceAwareModule:
+    def mean_teacher_model(self) -> DeviceAwareModule:
         if not self._mean_teacher_model and self.config.compute_mean_teacher_model:
             raise ValueError("Mean teacher model has not been created.")
         return self._mean_teacher_model
@@ -230,10 +230,6 @@ class ModelAndInfo:
         :return True if checkpoint exists and was loaded, False otherwise.
         """
         self.create_model()
-
-        # for mypy
-        assert self._model
-
         if self.checkpoint_path:
             # Load the stored model. If there is no checkpoint present, return immediately.
             return self.try_load_checkpoint_for_model()
@@ -242,7 +238,7 @@ class ModelAndInfo:
     def try_create_model_load_from_checkpoint_and_adjust(self) -> bool:
         """
         Creates a model as per the config, and loads the parameters from the given checkpoint path.
-        The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
+        The model is then adjusted for data parallelism and mixed precision.
         Also updates the checkpoint_epoch.
         :return True if checkpoint exists and was loaded, False otherwise.
         """
@@ -321,10 +317,6 @@ class ModelAndInfo:
         :return True if checkpoint exists and was loaded, False otherwise.
         """
         self.create_mean_teacher_model()
-
-        # for mypy
-        assert self._mean_teacher_model
-
         if self.checkpoint_path:
             # Load the stored model. If there is no checkpoint present, return immediately.
             return self.try_load_checkpoint_for_mean_teacher_model()
@@ -333,11 +325,11 @@ class ModelAndInfo:
     def try_create_mean_teacher_model_load_from_checkpoint_and_adjust(self) -> bool:
         """
         Creates a model as per the config, and loads the parameters from the given checkpoint path.
-        The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
+        The model is then adjusted for data parallelism and mixed precision.
         Also updates the checkpoint_epoch.
         :return True if checkpoint exists and was loaded, False otherwise.
         """
-        success = self.try_create_model_and_load_from_checkpoint()
+        success = self.try_create_mean_teacher_model_and_load_from_checkpoint()
         self.create_summary_and_adjust_mean_teacher_model_for_gpus()
         return success
 
@@ -408,12 +400,7 @@ class ModelAndInfo:
         Saves a checkpoint of the current model and optimizer_type parameters in the specified folder
         and uploads it to the output blob storage of the current run context.
         The checkpoint's name for epoch 123 would be 123_checkpoint.pth.tar.
-
-        :param model: A DataParallel object representing the model.
-        :param optimizer: The optimizer_type used for training.
         :param epoch: The last epoch used to train the model.
-        :param args:
-        :param mean_teacher_model: If True save to the mean teacher model checkpoint path.
         """
         logging.getLogger().disabled = True
 
@@ -425,7 +412,7 @@ class ModelAndInfo:
             ModelAndInfo.MODEL_STATE_DICT_KEY: model_state_dict,
             ModelAndInfo.OPTIIMZER_STATE_DICT_KEY: self.optimizer.state_dict()
         }
-        if self.mean_teacher_model:
+        if self.config.compute_mean_teacher_model:
             mean_teacher_model_state_dict = self.mean_teacher_model.module.state_dict() \
                 if isinstance(self.mean_teacher_model, torch.nn.DataParallel) \
                 else self.mean_teacher_model.state_dict()

@@ -192,7 +192,7 @@ def test_is_dicom_file(input: Tuple[str, bool]) -> None:
     assert is_dicom_file_path(Path(file)) == expected
 
 
-def write_test_dicom(array: np.ndarray, path: Path, signed: bool = False) -> None:
+def write_test_dicom(array: np.ndarray, path: Path) -> None:
     """
     This saves the input array as a Dicom file.
     This function DOES NOT create a usable Dicom file and is meant only for testing: tags are set to
