@@ -177,6 +177,10 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
         logging.info("Starting epoch {}".format(epoch))
         save_epoch = config.should_save_epoch(epoch) and optimizer is not None
 
+        if config.use_ddp:
+            # set epoch for DistributedSampler to make shuffling work properly
+            data_loaders[ModelExecutionMode.TRAIN].sampler.set_epoch(epoch)
+
         # store the learning rates used for each epoch
         epoch_lrs = l_rate_scheduler.get_last_lr()
         learning_rates_per_epoch.append(epoch_lrs)

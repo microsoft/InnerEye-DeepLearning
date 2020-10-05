@@ -128,7 +128,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         val_loader = self._datasets_for_training[ModelExecutionMode.VAL].as_data_loader(
             shuffle=False,
             max_repeats=self.get_total_number_of_validation_epochs(),
-            distribute=self.use_ddp
+            distribute=False  # validation step is not distributed
         )
         logging.info("Finished creating the data loaders.")
         return {
