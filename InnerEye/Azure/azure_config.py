@@ -123,6 +123,9 @@ class AzureConfig(GenericConfig):
     project_root: Path = param.ClassSelector(class_=Path, default=fixed_paths.repository_root_directory(),
                                              doc="The root folder that contains all code of the project "
                                                  "that starts the InnerEye run.")
+    max_run_duration: str = param.String(doc="The maximum runtime that is allowed for this job when running in "
+                                             "AzureML. This is a floating point number with a string suffix s, m, h, d "
+                                             "for seconds, minutes, hours, day. Examples: '3.5h', '2d'")
     _workspace: Workspace = param.ClassSelector(class_=Workspace,
                                                 doc="The cached workspace object that has been created in the first"
                                                     "call to get_workspace")
