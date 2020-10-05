@@ -16,7 +16,7 @@ from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline, \
     ScalarInferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType
-from InnerEye.ML.utils.model_util import ModelAndInfo, update_model_for_multiple_gpus
+from InnerEye.ML.utils.model_util import ModelAndInfo
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -78,7 +78,7 @@ def test_create_result_dataclass() -> None:
 
 
 # Mock model, always predicts the same scalar value
-class ScalarOnesModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
+class ConstantScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
     def __init__(self, expected_image_size_zyx: TupleInt3, scalar_to_return: float) -> None:
         super().__init__()
         self.expected_image_size_zyx = expected_image_size_zyx
@@ -101,14 +101,27 @@ class ScalarOnesModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
         return torch.full((x.shape[0], 1), self.return_value)
 
 
+class ConstantScalarConfig(ClassificationModelForTesting):
+    def __init__(self, scalar_to_return: float):
+        super().__init__()
+        self.scalar_to_return = scalar_to_return
+
+    def create_model(self) -> Any:
+        return ConstantScalarModel(expected_image_size_zyx=self.expected_image_size_zyx,
+                                   scalar_to_return=self.scalar_to_return)
+
+
 @pytest.mark.parametrize('batch_size', [1, 3])
 @pytest.mark.parametrize("empty_labels", [True, False])
 def test_predict_non_ensemble(batch_size: int, empty_labels: bool) -> None:
-    config = ClassificationModelForTesting()
-    model: Any = ScalarOnesModel(config.expected_image_size_zyx, 1.)
-    update_model_for_multiple_gpus(ModelAndInfo(model),
-                                   args=config,
-                                   execution_mode=ModelExecutionMode.TEST)
+    config = ConstantScalarConfig(1.)
+    model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
+                                  is_mean_teacher=False, checkpoint_path=None)
+    model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+    assert model_loaded
+
+    model = model_and_info.model
+
     pipeline = ScalarInferencePipeline(model, config, 0, 0)
     actual_labels = torch.zeros((batch_size, 1)) * np.nan if empty_labels else torch.zeros((batch_size, 1))
     data = {"metadata": [GeneralSampleMetadata(id='2')] * batch_size,
@@ -128,27 +141,30 @@ def test_predict_non_ensemble(batch_size: int, empty_labels: bool) -> None:
 
 @pytest.mark.parametrize('batch_size', [1, 3])
 def test_predict_ensemble(batch_size: int) -> None:
-    config = ClassificationModelForTesting()
-    model_returns_0: Any = ScalarOnesModel(config.expected_image_size_zyx, 0.)
-    model_returns_1: Any = ScalarOnesModel(config.expected_image_size_zyx, 1.)
-    model_and_opt_0 = update_model_for_multiple_gpus(ModelAndInfo(model_returns_0),
-                                                     args=config,
-                                                     execution_mode=ModelExecutionMode.TEST)
-    model_returns_0 = model_and_opt_0.model
-    model_and_opt_1 = update_model_for_multiple_gpus(ModelAndInfo(model_returns_1),
-                                                     args=config,
-                                                     execution_mode=ModelExecutionMode.TEST)
-    model_returns_1 = model_and_opt_1.model
-    pipeline_0 = ScalarInferencePipeline(model_returns_0, config, 0, 0)
-    pipeline_1 = ScalarInferencePipeline(model_returns_0, config, 0, 1)
-    pipeline_2 = ScalarInferencePipeline(model_returns_0, config, 0, 2)
-    pipeline_3 = ScalarInferencePipeline(model_returns_1, config, 0, 3)
-    pipeline_4 = ScalarInferencePipeline(model_returns_1, config, 0, 4)
+    config_returns_0 = ConstantScalarConfig(0.)
+    model_and_info_returns_0 = ModelAndInfo(config=config_returns_0, model_execution_mode=ModelExecutionMode.TEST,
+                                            is_mean_teacher=False, checkpoint_path=None)
+    model_loaded = model_and_info_returns_0.try_create_model_load_from_checkpoint_and_adjust()
+    assert model_loaded
+    model_returns_0 = model_and_info_returns_0.model
+
+    config_returns_1 = ConstantScalarConfig(1.)
+    model_and_info_returns_1 = ModelAndInfo(config=config_returns_1, model_execution_mode=ModelExecutionMode.TEST,
+                                            is_mean_teacher=False, checkpoint_path=None)
+    model_loaded = model_and_info_returns_1.try_create_model_load_from_checkpoint_and_adjust()
+    assert model_loaded
+    model_returns_1 = model_and_info_returns_1.model
+
+    pipeline_0 = ScalarInferencePipeline(model_returns_0, config_returns_0, 0, 0)
+    pipeline_1 = ScalarInferencePipeline(model_returns_0, config_returns_0, 0, 1)
+    pipeline_2 = ScalarInferencePipeline(model_returns_0, config_returns_0, 0, 2)
+    pipeline_3 = ScalarInferencePipeline(model_returns_1, config_returns_1, 0, 3)
+    pipeline_4 = ScalarInferencePipeline(model_returns_1, config_returns_1, 0, 4)
     ensemble_pipeline = ScalarEnsemblePipeline([pipeline_0, pipeline_1, pipeline_2, pipeline_3, pipeline_4],
-                                               config, EnsembleAggregationType.Average)
+                                               config_returns_0, EnsembleAggregationType.Average)
     data = {"metadata": [GeneralSampleMetadata(id='2')] * batch_size,
             "label": torch.zeros((batch_size, 1)),
-            "images": torch.zeros(((batch_size, 1) + config.expected_image_size_zyx)),
+            "images": torch.zeros(((batch_size, 1) + config_returns_0.expected_image_size_zyx)),
             "numerical_non_image_features": torch.tensor([]),
             "categorical_non_image_features": torch.tensor([]),
             "segmentations": torch.tensor([])}

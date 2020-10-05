@@ -40,7 +40,7 @@ from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_ni
     save_lines_to_file
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
-from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_test
 
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
@@ -71,7 +71,7 @@ def model_test(config: ModelConfigBase,
         if isinstance(config, SegmentationModelBase):
             return segmentation_model_test(config, data_split, run_recovery, model_proc)
         if isinstance(config, ScalarModelBase):
-            return classification_model_test(config, data_split, run_recovery, model_proc)
+            return classification_model_test(config, data_split, run_recovery)
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 
@@ -356,14 +356,12 @@ def create_inference_pipeline(config: ModelConfigBase,
     :param run_recovery: RunRecovery data if applicable
     :return: FullImageInferencePipelineBase or ScalarInferencePipelineBase
     """
-    if run_recovery:
-        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, config.compute_mean_teacher_model)
-        pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
-        if pipeline is not None:
-            # We found the checkpoint(s) in the run being recovered. If we didn't, it's probably because the epoch
-            # is from the current run, which has been doing more training, so we look for it there.
-            return pipeline
-    checkpoint_paths = [config.get_path_to_checkpoint(epoch, config.compute_mean_teacher_model)]
+    checkpoint_paths = get_recovery_path_test(config=config, run_recovery=run_recovery,
+                                              is_mean_teacher=config.compute_mean_teacher_model,
+                                              epoch=epoch)
+    if not checkpoint_paths:
+        return None
+
     return create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
 
 
@@ -398,8 +396,7 @@ def create_pipeline_from_checkpoint_paths(config: ModelConfigBase,
 
 def classification_model_test(config: ScalarModelBase,
                               data_split: ModelExecutionMode,
-                              run_recovery: Optional[RunRecovery],
-                              model_proc: ModelProcessing) -> InferenceMetricsForClassification:
+                              run_recovery: Optional[RunRecovery]) -> InferenceMetricsForClassification:
     """
     The main testing loop for classification models. It runs a loop over all epochs for which testing should be done.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
