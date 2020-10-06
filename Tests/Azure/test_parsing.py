@@ -182,8 +182,9 @@ def test_source_config_set_params() -> None:
                          ])
 def test_run_duration(s: str, expected: Optional[float]) -> None:
     actual = run_duration_string_to_seconds(s)
-    assert isinstance(actual, int)
     assert actual == expected
+    if expected:
+        assert isinstance(actual, int)
 
 
 def test_run_duration_fails() -> None:
