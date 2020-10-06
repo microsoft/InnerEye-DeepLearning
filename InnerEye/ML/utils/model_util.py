@@ -413,6 +413,7 @@ class ModelAndInfo:
             ModelAndInfo.OPTIIMZER_STATE_DICT_KEY: self.optimizer.state_dict()
         }
         if self.config.compute_mean_teacher_model:
+            assert self.mean_teacher_model is not None # for mypy, getter has this built in
             mean_teacher_model_state_dict = self.mean_teacher_model.module.state_dict() \
                 if isinstance(self.mean_teacher_model, torch.nn.DataParallel) \
                 else self.mean_teacher_model.state_dict()

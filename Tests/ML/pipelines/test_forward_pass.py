@@ -28,6 +28,7 @@ from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.metrics_util import SummaryWriters
 from InnerEye.ML.utils.model_util import ModelAndInfo
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
 from Tests.ML.util import machine_has_gpu, no_gpu_available
@@ -222,7 +223,7 @@ def test_mean_teacher_model() -> None:
     Test training and weight updates of the mean teacher model computation.
     """
 
-    def _get_parameters_of_model(model: Union[torch.nn.Module, DataParallelModel]) -> Any:
+    def _get_parameters_of_model(model: DeviceAwareModule) -> Any:
         """
         Returns the iterator of model parameters
         """
@@ -256,6 +257,7 @@ def test_mean_teacher_model() -> None:
 
     model_and_info_mean_teacher.try_create_mean_teacher_model_and_load_from_checkpoint()
     mean_teach_model = model_and_info_mean_teacher.mean_teacher_model
+    assert mean_teach_model is not None  # for mypy
     initial_weight_mean_teacher_model = next(_get_parameters_of_model(mean_teach_model))
 
     # Now train with mean teacher and check the update of the weight
@@ -268,6 +270,7 @@ def test_mean_teacher_model() -> None:
                                                checkpoint_path=config.get_path_to_checkpoint(1))
     model_and_info_mean_teacher.try_create_mean_teacher_model_and_load_from_checkpoint()
     mean_teacher_model = model_and_info_mean_teacher.mean_teacher_model
+    assert mean_teacher_model is not None  # for mypy
     result_weight = next(_get_parameters_of_model(mean_teacher_model))
     # Retrieve the associated student weight
     model_and_info_mean_teacher.try_create_model_and_load_from_checkpoint()

@@ -208,7 +208,7 @@ def test_try_create_mean_teacher_model_and_load_from_checkpoint(config: ModelCon
 
 @pytest.mark.parametrize("config",
                          [DummyModel(), ClassificationModelForTesting()])
-def test_save_checkpoint(config) -> None:
+def test_save_checkpoint(config: ModelConfigBase) -> None:
     """
     Test that checkpoints are saved correctly
     """
@@ -225,8 +225,10 @@ def test_save_checkpoint(config) -> None:
     def get_constant_init_function(constant: float) -> Callable:
         def init(layer: nn.Module) -> None:
             if type(layer) == nn.Conv3d:
-                layer.weight.data.fill_(constant)
+                layer.weight.data.fill_(constant)  # type: ignore
         return init
+
+    assert model_and_info.mean_teacher_model is not None  # for mypy
 
     model_and_info.model.apply(get_constant_init_function(1.0))
     model_and_info.mean_teacher_model.apply(get_constant_init_function(2.0))
@@ -245,10 +247,12 @@ def test_save_checkpoint(config) -> None:
     model_and_info_restored.try_create_model_load_from_checkpoint_and_adjust()
     model_and_info_restored.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
 
+    assert model_and_info_restored.mean_teacher_model is not None  # for mypy
+
     for module in model_and_info_restored.model.modules():
         if type(module) == nn.Conv3d:
-            assert torch.equal(module.weight.data, torch.full_like(module.weight.data, 1.0))
+            assert torch.equal(module.weight.detach(), torch.full_like(module.weight.detach(), 1.0))  # type: ignore
 
     for module in model_and_info_restored.mean_teacher_model.modules():
         if type(module) == nn.Conv3d:
-            assert torch.equal(module.weight.data, torch.full_like(module.weight.data, 2.0))
+            assert torch.equal(module.weight.detach(), torch.full_like(module.weight.detach(), 2.0))  # type: ignore
