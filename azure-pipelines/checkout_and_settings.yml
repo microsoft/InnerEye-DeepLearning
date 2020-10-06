@@ -26,4 +26,4 @@ steps:
 
   - bash: |
       echo -e "variables:\n  subscription_id: '$(InnerEyeDevSubscriptionID)'\n  application_id: '$(InnerEyeDeepLearningServicePrincipalID)'" > InnerEyePrivateSettings.yml
-    displayName: Provide subscription information
+    displayName: Store subscription in InnerEyePrivateSettings.yml

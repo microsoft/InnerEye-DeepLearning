@@ -15,9 +15,11 @@ from azureml.core import Experiment, Model
 
 from InnerEye.Azure.azure_config import AzureConfig, SourceConfig
 from InnerEye.Azure.azure_runner import create_estimator_from_configs
+from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, ENVIRONMENT_YAML_FILE_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
+from InnerEye.ML.utils.io_util import MedicalImageFileType
 from score import DEFAULT_DATA_FOLDER, DEFAULT_TEST_IMAGE_NAME
 
 
@@ -27,26 +29,31 @@ class SubmitForInferenceConfig(GenericConfig):
     """
     experiment_name: str = param.String(default="model_inference",
                                         doc="Name of experiment the run should belong to")
-    model_id: str = param.String(doc="Id of model, e.g. Prostate:123")
-    image_file: Path = param.ClassSelector(class_=Path, doc="Image file to segment, ending in .nii.gz")
+    model_id: str = param.String(doc="Id of model, e.g. Prostate:123. Mandatory.")
+    image_file: Path = param.ClassSelector(class_=Path, doc="Image file to segment, ending in .nii.gz. Mandatory.")
     settings: Path = param.ClassSelector(class_=Path,
-                                         doc="File containing subscription details, typically your settings.yml")
-    download_folder: Optional[Path] = param.ClassSelector(default=None,
-                                                          class_=Path,
-                                                          doc="Folder into which to download the segmentation result")
+                                         doc="File containing Azure settings (typically your settings.yml). If not "
+                                             "provided, use the default settings file.")
+    download_folder: Optional[Path] = \
+        param.ClassSelector(class_=Path, default=None,
+                            doc="Folder into which to download the segmentation result. If this is provided, the "
+                                "script waits for the AzureML run to complete.")
     keep_upload_folder: bool = param.Boolean(
         default=False, doc="Whether to keep the temporary upload folder after the inference run is submitted")
+    cluster: str = param.String(doc="The name of the GPU cluster in which to run the experiment. If not provided, use "
+                                    "the cluster in the settings.yml file")
 
     def validate(self) -> None:
         assert self.settings is not None
         # The image file must be specified, must exist, and must end in .nii.gz, i.e. be
         # a compressed Nifti file.
-        assert self.image_file is not None
-        if not self.image_file.exists():
+        assert self.image_file
+        if not self.image_file.is_file():
             raise FileNotFoundError(self.image_file)
         basename = str(self.image_file.name)
-        if not basename.endswith(".nii.gz"):
-            raise ValueError(f"Bad image file name, does not end with .nii.gz: {self.image_file.name}")
+        extension = MedicalImageFileType.NIFTI_COMPRESSED_GZ.value
+        if not basename.endswith(extension):
+            raise ValueError(f"Bad image file name, does not end with {extension}: {self.image_file.name}")
         # If the user wants the result downloaded, the download folder must already exist
         if self.download_folder is not None:
             assert self.download_folder.exists()
@@ -168,9 +175,12 @@ def main(args: Optional[List[str]] = None, project_root: Optional[Path] = None) 
     """
     logging_to_stdout()
     inference_config = SubmitForInferenceConfig.parse_args(args)
-    azure_config = AzureConfig.from_yaml(inference_config.settings, project_root=project_root)
+    settings = inference_config.settings or fixed_paths.SETTINGS_YAML_FILE
+    azure_config = AzureConfig.from_yaml(settings, project_root=project_root)
+    if inference_config.cluster:
+        azure_config.cluster = inference_config.cluster
     submit_for_inference(inference_config, azure_config)
 
 
 if __name__ == '__main__':
-    main()
+    main(project_root=fixed_paths.repository_root_directory())

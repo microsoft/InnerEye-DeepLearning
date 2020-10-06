@@ -13,17 +13,17 @@ Segmentation datasets should have the input scans and ground truth segmentations
 
 InnerEye expects segmentation datasets to have the following structure:
  * Each subject has one or more scans, and one or more segmentation masks. There should be one segmentation mask for
-   each ground truth structure (anatomical structure that the model should predict)  
- * For convenience, scans and ground truth masks for each subject can live in separate folders, but that's not a must.
+   each ground truth structure (anatomical structure that the model should segment)
+ * For convenience, scans and ground truth masks for different subjects can live in separate folders, but that's not a must.
  * Inside the root folder for the dataset, there should be a file `dataset.csv`, containing the following fields 
  at minimum:
-    * subject: A unique positive integer assigned to every patient
-    * channel: The imaging channel or ground truth structure described by this row. 
-    * filePath: Path to the Nifti file for this scan or structure
+    * `subject`: A unique positive integer assigned to every patient
+    * `channel`: The imaging channel or ground truth structure described by this row. 
+    * `filePath`: Path to the Nifti file for this scan or structure
     
     Additional supported fields include `acquisition_date`, `institutionId`, `seriesID` and `tags` (meant for miscellaneous labels). 
 
-For example, for a CT dataset with two structures to be segmented, called structure1 and structure2, the dataset folder
+For example, for a CT dataset with two structures `heart` and `lung` to be segmented, the dataset folder
 could look like:
 
 ```
@@ -31,46 +31,68 @@ root_folder
 ├──dataset.csv
 ├──subjectID1/
 │  ├── ct.nii.gz
-│  ├── structure1.nii.gz
-│  └── structure2.nii.gz
-└──subjectID2/
-   ├── ct.nii.gz
-   ├── structure1.nii.gz
-   ├── structure2.nii.gz
-  .
+│  ├── heart.nii.gz
+│  └── lung.nii.gz
+├──subjectID2/
+|  ├── ct.nii.gz
+|  ├── heart.nii.gz
+|  ├── lung.nii.gz
+├──...
 ```
 
 The `dataset.csv` for this dataset would look like:
 ```
 subject,filePath,channel
 1,subjectID1/ct.nii.gz,ct
-1,subjectID1/structure1.nii.gz,structure1
-1,subjectID1/structure2.nii.gz,structure2
+1,subjectID1/heart.nii.gz,structure1
+1,subjectID1/lung.nii.gz,structure2
 2,subjectID2/ct.nii.gz,ct
-2,subjectID2/structure1.nii.gz,structure1
-2,subjectID2/structure2.nii.gz,structure2
+2,subjectID2/heart.nii.gz,structure1
+2,subjectID2/lung.nii.gz,structure2
 ```
 
 The images must adhere to these constraints:
 * All images (across all subjects) must have already undergone geometric normalization, i.e., all images must have
 approximately the same voxel size.
 * All images for a particular subject must have the same dimensions. In the above example, if `subjectID1/ct.nii.gz`
-has size 200 x 256 x 256, then `subjectID1/structure1.nii.gz` and `subjectID1/structure2.nii.gz` must have exactly the
+has size 200 x 256 x 256, then `subjectID1/heart.nii.gz` and `subjectID1/lung.nii.gz` must have exactly the
 same dimensions.
 * It is usually not required that images for different subjects have the same dimensions.
 
-For the above dataset structure, you would then create a model configuration that contains at least the following fields:
+All these constraints are automatically checked and guaranteed if the raw data is in DICOM format and you are using
+the [InnerEye-CreateDataset](https://github.com/microsoft/InnerEye-CreateDataset) tool to convert them to Nifti
+format. Geometric normalization can also be turned on as a pre-processing step.
+ 
+For the above dataset structure for heart and lung segmentation, you would then create a model configuration that 
+contains at least the following fields:
 ```python
-class FooModel(SegmentationModelBase):
+class HeartLungModel(SegmentationModelBase):
     def __init__(self) -> None:
         super().__init__(
-            architecture="UNet3D",
             azure_dataset_id="folder_name_in_azure",
-            local_dataset="/home/me/dataset_folder",
+            local_dataset="/home/me/folder_name_on_local_vm",
             image_channels=["ct"],
-            ground_truth_ids=["structure1", "structure2"],
+            ground_truth_ids=["heart", "lung"],
+            # Segmentation architecture
+            architecture="UNet3D",
+            feature_channels=[32],
+            # Size of patches that are used for training, as (z, y, x) tuple 
+            crop_size=(64, 224, 224),
+            # Reduce this if you see GPU out of memory errors
+            train_batch_size=8,
+            # Size of patches that are used when evaluating the model
+            test_crop_size=(128, 512, 512),
+            inference_stride_size=(64, 256, 256),
+            # Use CT Window and Level as image pre-processing
+            norm_method=PhotometricNormalizationMethod.CtWindow,
+            level=40,
+            window=400,
+            # Learning rate settings
+            l_rate=1e-3,
+            min_l_rate=1e-5,
+            l_rate_polynomial_gamma=0.9,
+            num_epochs=120,
             )
-
 ```
 The `local_dataset` field is required if you want to run the InnerEye toolbox on your own VM, and you want to consume
 the dataset from local storage. If you want to run the InnerEye toolbox inside of AzureML, you need to supply the

@@ -125,7 +125,7 @@ def read_settings_and_merge(project_settings_file: Optional[Path] = None,
     :return: A dictionary mapping from string to variable value. The dictionary key is the union of variable names
     found in the two settings files.
     """
-    result = {}
+    result = dict()
     if project_settings_file:
         if not project_settings_file.is_file():
             raise FileNotFoundError(f"Settings file does not exist: {project_settings_file}")

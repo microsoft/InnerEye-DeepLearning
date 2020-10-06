@@ -83,10 +83,9 @@ class HeadAndNeckBase(SegmentationModelBase):
                 summed_probability_rules.append(SummedProbabilityRule("optic_chiasm", "pituitary_gland", "external"))
         super().__init__(
             should_validate=False,  # we'll validate after kwargs are added
-            num_gpus=4,
             num_epochs=num_epochs,
             save_start_epoch=num_epochs,
-            save_step_epoch=num_epochs,
+            save_step_epochs=num_epochs,
             architecture="UNet3D",
             kernel_size=3,
             train_batch_size=4,
