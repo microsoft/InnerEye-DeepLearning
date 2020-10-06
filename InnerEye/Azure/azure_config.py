@@ -97,10 +97,10 @@ class AzureConfig(GenericConfig):
                                             "If not provided, create the experiment off the git branch name.")
     build_number: int = param.Integer(0, doc="The numeric ID of the Azure pipeline that triggered this training run.")
     build_user: str = param.String(getpass.getuser(),
-                                   doc="The user to associate this experiment with.")
-    build_user_alias: str = param.String(getpass.getuser(),
-                                         doc="The user to associate this experiment with.")
-    build_user_email: str = param.String(doc="The email address of the user who started this experiment.")
+                                   doc="The name of the user who started this run.")
+    build_user_email: str = param.String(getpass.getuser(),
+                                         doc="The email address of the user who started this run. Default: "
+                                             "alias of the current user")
     build_source_repository: str = param.String(doc="The name of the repository this source belongs to.")
     build_branch: str = param.String(doc="The branch this experiment has been triggered from.")
     build_source_id: str = param.String(doc="The git commit that was used to create this build.")

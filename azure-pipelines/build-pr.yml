@@ -4,7 +4,7 @@ variables:
   train: 'True'
   more_switches: '--log_level=DEBUG --local_dataset=F:\local'
   run_recovery_id: ''
-  tags: 'PR'
+  tag: 'PR Build'
   number_of_cross_validation_splits: 0
 
 jobs:
