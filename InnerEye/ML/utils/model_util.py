@@ -197,7 +197,7 @@ class ModelAndInfo:
 
         # Adjusting twice causes an error.
         if self.is_model_adjusted:
-            logging.debug("model_and_info.is_adjusted is already True")
+            logging.debug("model_and_info.is_model_adjusted is already True")
 
         if self._optimizer:
             raise ValueError("Create an optimizer only after creating and adjusting the model.")
@@ -287,7 +287,7 @@ class ModelAndInfo:
 
         # Adjusting twice causes an error.
         if self.is_mean_teacher_model_adjusted:
-            logging.debug("model_and_info.is_adjusted is already True")
+            logging.debug("model_and_info.is_mean_teacher_model_adjusted is already True")
 
         self._mean_teacher_model = ModelAndInfo._adjust_for_gpus(model=self._mean_teacher_model,
                                                                  config=self.config,
