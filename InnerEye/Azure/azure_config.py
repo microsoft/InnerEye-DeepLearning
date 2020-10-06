@@ -107,7 +107,6 @@ class AzureConfig(GenericConfig):
     build_source_message: str = param.String(doc="The message associated with the git commit that was used to create "
                                                  "this build.")
     build_source_author: str = param.String(doc="The author of the git commit that was used to create this build.")
-    user_friendly_name: str = param.String(doc="A user friendly name to identify this experiment.")
     tag: str = param.String(doc="A string that will be added as a tag to this experiment.")
     log_level: str = param.String("INFO",
                                   doc="The level of diagnostic information that should be printed out to the console.")

@@ -5,7 +5,6 @@ variables:
   more_switches: '--log_level=DEBUG --local_dataset=F:\local'
   run_recovery_id: ''
   tags: 'PR'
-  user_friendly_name: 'PR build'
   number_of_cross_validation_splits: 0
 
 jobs:
