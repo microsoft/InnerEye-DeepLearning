@@ -214,20 +214,25 @@ class InferencePipeline(FullImageInferencePipelineBase):
         """
         model_and_info = model_util.ModelAndInfo(config=model_config,
                                                  model_execution_mode=ModelExecutionMode.TEST,
-                                                 is_mean_teacher=model_config.compute_mean_teacher_model,
                                                  checkpoint_path=path_to_checkpoint)
-        model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+        if model_config.compute_mean_teacher_model:
+            model_loaded = model_and_info.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
+            model = model_and_info.mean_teacher_model
+        else:
+            model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+            model = model_and_info.model
+
         if not model_loaded:
             return None
 
         # for mypy, if model has been loaded these will not be None
         assert model_and_info.checkpoint_epoch is not None
 
-        for name, param in model_and_info.model.named_parameters():
+        for name, param in model.named_parameters():
             param_numpy = param.clone().cpu().data.numpy()
             image_util.check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
 
-        return InferencePipeline(model=model_and_info.model, model_config=model_config,
+        return InferencePipeline(model=model, model_config=model_config,
                                  epoch=model_and_info.checkpoint_epoch, pipeline_id=pipeline_id)
 
     def predict_whole_image(self, image_channels: np.ndarray,

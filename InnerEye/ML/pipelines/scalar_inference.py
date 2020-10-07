@@ -87,9 +87,14 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         """
         model_and_info = model_util.ModelAndInfo(config=config,
                                                  model_execution_mode=ModelExecutionMode.TEST,
-                                                 is_mean_teacher=config.compute_mean_teacher_model,
                                                  checkpoint_path=path_to_checkpoint)
-        model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+        if config.compute_mean_teacher_model:
+            model_loaded = model_and_info.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
+            model = model_and_info.mean_teacher_model
+        else:
+            model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+            model = model_and_info.model
+
         if not model_loaded:
             # not raising a value error here: This is used to create individual pipelines for ensembles,
             #                                   possible one model cannot be created but others can
@@ -99,7 +104,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         # for mypy, if model has been loaded these will not be None
         assert model_and_info.checkpoint_epoch is not None
 
-        return ScalarInferencePipeline(model_and_info.model, config, model_and_info.checkpoint_epoch, pipeline_id)
+        return ScalarInferencePipeline(model, config, model_and_info.checkpoint_epoch, pipeline_id)
 
     def predict(self, sample: Dict[str, Any]) -> ScalarInferencePipelineBase.Result:
         """

@@ -266,7 +266,7 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
     config.num_epochs = 1
 
     model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
-                                  is_mean_teacher=False, checkpoint_path=None)
+                                  checkpoint_path=None)
     model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
     assert model_loaded
 

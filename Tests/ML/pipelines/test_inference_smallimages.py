@@ -91,7 +91,7 @@ def test_invalid_stride_size() -> None:
     )
     with pytest.raises(ValueError) as ex:
         model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
-                                      is_mean_teacher=False, checkpoint_path=None)
+                                      checkpoint_path=None)
         model_and_info.try_create_model_load_from_checkpoint_and_adjust()
 
     assert "inference stride size must be smaller" in ex.value.args[0]
