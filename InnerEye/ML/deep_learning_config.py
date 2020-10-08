@@ -19,8 +19,7 @@ from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, \
-    create_unique_timestamp_id
+from InnerEye.ML.common import ModelExecutionMode, create_unique_timestamp_id, create_checkpoint_path
 
 VISUALIZATION_FOLDER = "Visualizations"
 CHECKPOINT_FOLDER = "checkpoints"
@@ -595,7 +594,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                 test_epochs.add(epoch)
         return sorted(test_epochs)
 
-    def get_path_to_checkpoint(self, epoch: int, for_mean_teacher_model: bool = False) -> Path:
+    def get_path_to_checkpoint(self, epoch: int) -> Path:
         """
         Returns full path to a checkpoint given an epoch
         :param epoch: the epoch number
@@ -603,10 +602,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         path to the (main / student) model checkpoint.
         :return: path to a checkpoint given an epoch
         """
-        filename = MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX if for_mean_teacher_model else CHECKPOINT_FILE_SUFFIX
-        return fixed_paths.repository_root_directory() \
-               / self.checkpoint_folder \
-               / f"{epoch}{filename}"
+        return create_checkpoint_path(path=fixed_paths.repository_root_directory() / self.checkpoint_folder,
+                                      epoch=epoch)
 
     def get_effective_random_seed(self) -> int:
         """
