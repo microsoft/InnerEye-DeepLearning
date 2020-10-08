@@ -6,17 +6,19 @@ import logging
 from abc import ABC
 from collections import Counter
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, TypeVar, Union
 
 import pandas as pd
 import torch.utils.data
+from monai.data import CacheDataset
+from monai.transforms import Compose
 from torch._six import container_abcs
 from torch.utils.data import BatchSampler, DataLoader, Dataset, RandomSampler, Sampler, SequentialSampler
 from torch.utils.data.dataloader import default_collate  # type: ignore
 
 from InnerEye.Common.type_annotations import IntOrString, TupleFloat3
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.dataset.sample import GeneralSampleMetadata, PatientDatasetSource, \
+from InnerEye.ML.dataset.sample import GeneralSampleMetadata, LoadNiftiDataSample, PatientDatasetSource, \
     PatientMetadata, Sample
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import io_util, ml_util
@@ -163,13 +165,18 @@ class RepeatDataLoader(DataLoader):
 D = TypeVar('D', bound=ModelConfigBase)
 
 
-class GeneralDataset(Dataset, ABC, Generic[D]):
-    def __init__(self, args: D, data_frame: Optional[pd.DataFrame] = None,
+class GeneralDataset(CacheDataset, ABC, Generic[D]):
+    def __init__(self, args: D, data_sources: Sequence, data_frame: Optional[pd.DataFrame] = None,
                  name: Optional[str] = None):
         self.name = name or "None"
         self.args = args
         self.data_frame = args.dataset_data_frame if data_frame is None else data_frame
+        transforms = self.get_transforms()
+        super().__init__(data_sources, transforms)
         logging.info(f"Processing dataset (name={self.name})")
+
+    def get_transforms(self) -> Union[Sequence[Callable], Callable]:
+        raise NotImplemented("get_transforms must be implemented by child classes.")
 
     def as_data_loader(self,
                        shuffle: bool,
@@ -225,9 +232,9 @@ class FullImageDataset(GeneralDataset):
        pre-processing functions (e.g. normalization), returning a sample that can be used for full image operations.
     """
 
-    def __init__(self, args: SegmentationModelBase, data_frame: pd.DataFrame,
+    def __init__(self, args: SegmentationModelBase,
+                 data_frame: pd.DataFrame,
                  full_image_sample_transforms: Optional[Compose3D[Sample]] = None):
-        super().__init__(args, data_frame)
         self.full_image_sample_transforms = full_image_sample_transforms
 
         # Check base_path
@@ -237,19 +244,20 @@ class FullImageDataset(GeneralDataset):
                              format(self.args.local_dataset))
 
         # cache all of the available dataset sources
-        self._get_file_extension()
+        self._set_file_extension()
         if self._is_nifti_dataset():
             dataloader: Callable[[], Any] = self._load_dataset_sources
         else:
             raise Exception("Files should be Nifti, but found {0}".format(self.file_extension))
+
         self.dataset_sources: Union[Dict[IntOrString, PatientDatasetSource]] = dataloader()
-        self.dataset_indices = sorted(self.dataset_sources.keys())
+        super().__init__(args, list(dataloader().values()), data_frame)
 
-    def __len__(self) -> int:
-        return len(self.dataset_indices)
-
-    def __getitem__(self, i: int) -> Dict[str, Any]:
-        return self.get_samples_at_index(index=i)[0].get_dict()
+    def get_transforms(self) -> Union[Sequence[Callable], Callable]:
+        transforms = [LoadNiftiDataSample()]
+        if self.full_image_sample_transforms:
+            transforms.append(self.full_image_sample_transforms)
+        return Compose(transforms)
 
     @staticmethod
     def _extension_from_df_file_paths(file_paths: List[str]) -> str:
@@ -266,7 +274,7 @@ class FullImageDataset(GeneralDataset):
     def _is_nifti_dataset(self) -> bool:
         return is_nifti_file_path(self.file_extension)
 
-    def _get_file_extension(self) -> None:
+    def _set_file_extension(self) -> None:
         file_extension = self._extension_from_df_file_paths(self.data_frame[CSV_PATH_HEADER].values)  # type: ignore
         self.file_extension = file_extension
         if not (self._is_nifti_dataset()):
@@ -279,15 +287,6 @@ class FullImageDataset(GeneralDataset):
         :return:
         """
         return io_util.load_nifti_image(self.dataset_sources[patient_id].image_channels[0]).header.spacing
-
-    def get_samples_at_index(self, index: int) -> List[Sample]:
-        # load the channels into memory
-        if not self._is_nifti_dataset():
-            raise ValueError("Unknown file extension. Files should be Nifti or HDF5 format but found "
-                             + self.file_extension)
-        ds = self.dataset_sources[self.dataset_indices[index]]
-        samples = [io_util.load_images_from_dataset_source(dataset_source=ds)]  # type: ignore
-        return [Compose3D.apply(self.full_image_sample_transforms, x) for x in samples]
 
     def _load_dataset_sources(self) -> Dict[int, PatientDatasetSource]:
         assert self.args.local_dataset is not None

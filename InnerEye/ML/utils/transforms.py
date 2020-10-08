@@ -14,6 +14,7 @@ import torch
 
 from InnerEye.Common.generic_parsing import CudaAwareConfig
 from InnerEye.Common.type_annotations import T, TupleFloat2
+from monai.transforms import MapTransform
 
 
 class Transform3DBaseMeta(type(CudaAwareConfig), abc.ABCMeta):  # type: ignore
