@@ -6,6 +6,7 @@ import logging
 import shutil
 import time
 from pathlib import Path
+import os
 
 import pytest
 
@@ -36,6 +37,8 @@ def test_model_inference_train_and_test(test_output_dirs: TestOutputDirectories,
 
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
     stored_checkpoints = full_ml_test_data_path("checkpoints")
+    print(f"copy: {str(stored_checkpoints)} to {str(config.checkpoint_folder)}")
+    print(f"contents: {os.listdir(config.checkpoint_folder)}")
     shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
     result, _, _ = MLRunner(config).model_inference_train_and_test()
     if result is None:
