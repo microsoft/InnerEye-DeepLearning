@@ -218,7 +218,7 @@ def test_use_gpu_flag(use_gpu_override: bool) -> None:
 
 
 @pytest.mark.azureml
-def test_mean_teacher_model() -> None:
+def test_mean_teacher_model(test_output_dirs: TestOutputDirectories) -> None:
     """
     Test training and weight updates of the mean teacher model computation.
     """
@@ -233,6 +233,8 @@ def test_mean_teacher_model() -> None:
             return model.parameters()
 
     config = DummyClassification()
+    config.set_output_to(test_output_dirs.root_dir)
+
     config.num_epochs = 1
     # Set train batch size to be arbitrary big to ensure we have only one training step
     # i.e. one mean teacher update.
