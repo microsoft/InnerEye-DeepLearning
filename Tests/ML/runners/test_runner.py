@@ -18,7 +18,6 @@ from Tests.ML.configs.DummyModel import DummyModel
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
-@pytest.mark.azureml
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("perform_cross_validation", [True, False])
 @pytest.mark.parametrize("perform_training_set_inference", [True, False])
