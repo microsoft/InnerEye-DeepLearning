@@ -193,7 +193,7 @@ def test_amp_activated(use_model_parallel: bool,
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
-@pytest.mark.gpu
+@pytest.mark.cpu_and_gpu
 @pytest.mark.parametrize("use_gpu_override", [False, True])
 def test_use_gpu_flag(use_gpu_override: bool) -> None:
     config = DeepLearningConfig(should_validate=False)
@@ -216,7 +216,7 @@ def test_use_gpu_flag(use_gpu_override: bool) -> None:
             assert config.use_gpu == use_gpu_override
 
 
-@pytest.mark.gpu
+@pytest.mark.azureml
 def test_mean_teacher_model() -> None:
     """
     Test training and weight updates of the mean teacher model computation.
