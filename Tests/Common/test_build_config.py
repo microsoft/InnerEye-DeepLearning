@@ -95,14 +95,13 @@ def test_config_non_overridable_params() -> None:
         assert "The following parameters cannot be overriden" in ex.value.args[0]
 
 
-@pytest.mark.gpu
 def test_config_with_typo() -> None:
     with pytest.raises(ValueError) as ex:
         ModelConfigBase(num_epochsi=100)
     assert "The following parameters do not exist: ['num_epochsi']" in ex.value.args[0]
 
 
-@pytest.mark.gpu
+@pytest.mark.cpu_and_gpu
 def test_dataset_reader_workers() -> None:
     """
     Test to make sure the number of dataset reader workers are set correctly
