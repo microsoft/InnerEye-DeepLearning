@@ -40,6 +40,9 @@ jobs:
           testRunTitle: 'tests_on_AzureML'
         condition: succeededOrFailed()
         displayName: Publish test results
+      - template: tests_after_training.yml
+        parameters:
+          test_run_title: tests_after_training
 
   - job: TrainInAzureMLViaSubmodule
     variables:
