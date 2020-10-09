@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional
 
 import numpy as np
 import pytest
@@ -24,10 +24,11 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsForScalarModel, T
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
-from InnerEye.ML.utils import ml_util, model_util
+from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.metrics_util import SummaryWriters
-from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
+from InnerEye.ML.utils.model_util import ModelAndInfo
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
 from Tests.ML.util import machine_has_gpu, no_gpu_available
@@ -90,13 +91,17 @@ def test_anomaly_detection(value_to_insert: float, in_training_mode: bool) -> No
         detect_anomaly=True
     )
 
-    # instantiate the model
-    model = SimpleModel(1, [1], 2, 2)
-    config.adjust_after_mixed_precision_and_parallel(model)
+    model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TRAIN,
+                                  checkpoint_path=None)
+    model_and_info._model: BaseModel = SimpleModel(1, [1], 2, 2)  # type: ignore
+    model_and_info.create_summary_and_adjust_model_for_gpus()
+    model_and_info.try_create_optimizer_and_load_from_checkpoint()
     config.use_gpu = False
 
-    # Create the optimizer_type and loss criterion
-    optimizer = model_util.create_optimizer(config, model)
+    model = model_and_info.model
+    optimizer = model_and_info.optimizer
+
+    # Create the loss criterion
     criterion = lambda x, y: torch.tensor(value_to_insert, requires_grad=True)
     pipeline = SegmentationForwardPass(model,
                                        config,
@@ -133,7 +138,6 @@ def test_amp_activated(use_model_parallel: bool,
 
     crop_size = (4, 4, 4)
 
-    model = SimpleModel(1, [1], 2, 2)
     model_config = SegmentationModelBase(crop_size=crop_size,
                                          image_channels=["ct"],
                                          ground_truth_ids=["Lung"],
@@ -141,15 +145,14 @@ def test_amp_activated(use_model_parallel: bool,
                                          use_model_parallel=use_model_parallel,
                                          should_validate=False)
     assert model_config.use_gpu
+    model_and_info = ModelAndInfo(config=model_config, model_execution_mode=execution_mode,
+                                  checkpoint_path=None)
+    model_and_info._model = SimpleModel(1, [1], 2, 2)  # type: ignore
+
     # Move the model to the GPU. This is mostly to avoid issues with AMP, which has trouble
     # with first using a GPU model and later using a CPU-based one.
-    model = model.cuda()
-    optimizer = model_util.create_optimizer(model_config, model)
-    model_and_info = ModelAndInfo(model, optimizer)
     try:
-        model_and_info_amp = model_util.update_model_for_multiple_gpus(model_and_info,
-                                                                       model_config,
-                                                                       execution_mode)
+        model_and_info.create_summary_and_adjust_model_for_gpus()
     except NotImplementedError as ex:
         if use_model_parallel:
             # The SimpleModel does not implement model partitioning, and should hence fail at this step.
@@ -158,13 +161,18 @@ def test_amp_activated(use_model_parallel: bool,
         else:
             raise ValueError(f"Expected this call to succeed, but got: {ex}")
 
-    # This is the same logic spelt out in update_model_for_multiple_gpu
+    model_and_info.try_create_optimizer_and_load_from_checkpoint()
+
+    model = model_and_info.model
+    optimizer = model_and_info.optimizer
+
+    # This is the same logic spelt out in adjust_model_for_gpus
     use_data_parallel = (execution_mode == ModelExecutionMode.TRAIN) or (not use_model_parallel)
     if use_data_parallel:
-        assert isinstance(model_and_info.model, DataParallelModel)
+        assert isinstance(model, DataParallelModel)
     gradient_scaler = GradScaler() if use_mixed_precision else None
     criterion = lambda x, y: torch.tensor([0.0], requires_grad=True).cuda()
-    pipeline = SegmentationForwardPass(model_and_info_amp.model,
+    pipeline = SegmentationForwardPass(model,
                                        model_config,
                                        batch_size=1,
                                        optimizer=optimizer,
@@ -215,7 +223,7 @@ def test_mean_teacher_model() -> None:
     Test training and weight updates of the mean teacher model computation.
     """
 
-    def _get_parameters_of_model(model: Union[torch.nn.Module, DataParallelModel]) -> Any:
+    def _get_parameters_of_model(model: DeviceAwareModule) -> Any:
         """
         Returns the iterator of model parameters
         """
@@ -233,15 +241,23 @@ def test_mean_teacher_model() -> None:
     model_train(config)
 
     # Retrieve the weight after one epoch
-    model = create_model_with_temperature_scaling(config)
-    print(config.get_path_to_checkpoint(1))
-    _ = model_util.load_checkpoint(model, config.get_path_to_checkpoint(1))
+    model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
+                                  checkpoint_path=config.get_path_to_checkpoint(epoch=1))
+    model_and_info.try_create_model_and_load_from_checkpoint()
+    model = model_and_info.model
     model_weight = next(_get_parameters_of_model(model))
 
     # Get the starting weight of the mean teacher model
     ml_util.set_random_seed(config.get_effective_random_seed())
-    _ = create_model_with_temperature_scaling(config)
-    mean_teach_model = create_model_with_temperature_scaling(config)
+
+    model_and_info_mean_teacher = ModelAndInfo(config=config,
+                                               model_execution_mode=ModelExecutionMode.TEST,
+                                               checkpoint_path=None)
+    model_and_info_mean_teacher.try_create_model_and_load_from_checkpoint()
+
+    model_and_info_mean_teacher.try_create_mean_teacher_model_and_load_from_checkpoint()
+    mean_teach_model = model_and_info_mean_teacher.mean_teacher_model
+    assert mean_teach_model is not None  # for mypy
     initial_weight_mean_teacher_model = next(_get_parameters_of_model(mean_teach_model))
 
     # Now train with mean teacher and check the update of the weight
@@ -250,12 +266,16 @@ def test_mean_teacher_model() -> None:
     model_train(config)
 
     # Retrieve weight of mean teacher model saved in the checkpoint
-    mean_teacher_model = create_model_with_temperature_scaling(config)
-    _ = model_util.load_checkpoint(mean_teacher_model, config.get_path_to_checkpoint(1, for_mean_teacher_model=True))
+    model_and_info_mean_teacher = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
+                                               checkpoint_path=config.get_path_to_checkpoint(1))
+    model_and_info_mean_teacher.try_create_mean_teacher_model_and_load_from_checkpoint()
+    mean_teacher_model = model_and_info_mean_teacher.mean_teacher_model
+    assert mean_teacher_model is not None  # for mypy
     result_weight = next(_get_parameters_of_model(mean_teacher_model))
     # Retrieve the associated student weight
-    _ = model_util.load_checkpoint(model, config.get_path_to_checkpoint(1))
-    student_model_weight = next(_get_parameters_of_model(model))
+    model_and_info_mean_teacher.try_create_model_and_load_from_checkpoint()
+    student_model = model_and_info_mean_teacher.model
+    student_model_weight = next(_get_parameters_of_model(student_model))
 
     # Assert that the student weight corresponds to the weight of a simple training without mean teacher
     # computation
@@ -275,27 +295,31 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
     """
     Tests the mix precision flag and data parallel for scalar models.
     """
+    class ClassificationModelWithIdentity(ClassificationModelForTesting):
+        def create_model(self) -> Any:
+            return DummyScalarModel(expected_image_size_zyx=config.expected_image_size_zyx,
+                                    activation=Identity(),
+                                    use_mixed_precision=use_mixed_precision)
+
     assert machine_has_gpu, "This test must be executed on a GPU machine."
     assert torch.cuda.device_count() > 1, "This test must be executed on a multi-GPU machine"
-    config = ClassificationModelForTesting()
+    config = ClassificationModelWithIdentity()
     config.use_mixed_precision = use_mixed_precision
-    model = DummyScalarModel(expected_image_size_zyx=config.expected_image_size_zyx,
-                             activation=Identity())
-    model.use_mixed_precision = use_mixed_precision
-    model_and_info = ModelAndInfo(
-        model=model,
-        model_execution_mode=execution_mode
-    )
+
+    model_and_info = ModelAndInfo(config=config, model_execution_mode=execution_mode,
+                                  checkpoint_path=None)
+    model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+    model = model_and_info.model
+
     # This is the same logic spelt out in update_model_for_multiple_gpu
     # execution_mode == ModelExecutionMode.TRAIN or (not use_model_parallel), which is always True in our case
     use_data_parallel = True
-    model_and_info = model_util.update_model_for_multiple_gpus(model_and_info, config)
     if use_data_parallel:
-        assert isinstance(model_and_info.model, DataParallelModel)
+        assert isinstance(model, DataParallelModel)
     data_loaders = config.create_data_loaders()
     gradient_scaler = GradScaler() if use_mixed_precision else None
     train_val_parameters: TrainValidateParameters = TrainValidateParameters(
-        model=model_and_info.model,
+        model=model,
         data_loader=data_loaders[execution_mode],
         in_training_mode=execution_mode == ModelExecutionMode.TRAIN,
         gradient_scaler=gradient_scaler,

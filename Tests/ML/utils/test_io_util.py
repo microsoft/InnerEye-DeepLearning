@@ -192,7 +192,7 @@ def test_is_dicom_file(input: Tuple[str, bool]) -> None:
     assert is_dicom_file_path(Path(file)) == expected
 
 
-def write_test_dicom(array: np.ndarray, path: Path, signed: bool = False) -> None:
+def write_test_dicom(array: np.ndarray, path: Path) -> None:
     """
     This saves the input array as a Dicom file.
     This function DOES NOT create a usable Dicom file and is meant only for testing: tags are set to
@@ -259,7 +259,7 @@ def test_load_dicom_image_random_signed(test_output_dirs: TestOutputDirectories)
 
     dcm_file = Path(test_output_dirs.root_dir) / "file.dcm"
     assert is_dicom_file_path(dcm_file)
-    write_test_dicom(array, dcm_file, signed=True)
+    write_test_dicom(array, dcm_file)
 
     image = load_dicom_image(dcm_file)
     assert image.ndim == 3 and image.shape == (1,) + array_size

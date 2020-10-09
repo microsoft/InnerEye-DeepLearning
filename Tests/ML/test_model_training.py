@@ -256,10 +256,10 @@ def test_recover_training_mean_teacher_model() -> None:
     # First round of training
     config.num_epochs = 2
     model_train(config)
-    assert len(os.listdir(config.checkpoint_folder)) == 2
+    assert len(os.listdir(config.checkpoint_folder)) == 1
 
     # Restart training from previous run
     config.start_epoch = 2
     config.num_epochs = 3
     model_train(config)
-    assert len(os.listdir(config.checkpoint_folder)) == 4
+    assert len(os.listdir(config.checkpoint_folder)) == 2
