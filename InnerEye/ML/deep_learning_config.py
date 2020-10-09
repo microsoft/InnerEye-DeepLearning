@@ -190,8 +190,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     azure_dataset_id: str = param.String(doc="If provided, the ID of the dataset to use. This dataset must exist as a "
-                                                       "folder of the same name in the 'datasets' "
-                                                       "container in the datasets storage account.")
+                                             "folder of the same name in the 'datasets' "
+                                             "container in the datasets storage account.")
     local_dataset: Optional[Path] = param.ClassSelector(class_=Path,
                                                         default=None,
                                                         allow_None=True,
@@ -361,6 +361,18 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "weights are updated using mean_teacher_"
                                                  "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
+    dataset_cache_num: int = param.Integer(default=0,
+                                           doc="Number of items to be cached. Default is `sys.maxsize"
+                                               "will take the minimum of (cache_num, data_length x cache_rate, "
+                                               "data_length")
+
+    dataset_cache_rate: float = param.Number(default=0, bounds=(0, 1),
+                                             doc="percentage of cached data in total, default is 0.0 (cache none)."
+                                                 "will take the minimum of (cache_num, data_length x cache_rate, "
+                                                 "data_length).")
+    dataset_worker_threads: int = param.Integer(default=0,
+                                                doc="the number of worker threads to use."
+                                                    "If 0 a single thread will be used. Default is 0.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__

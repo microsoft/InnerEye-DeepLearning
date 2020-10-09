@@ -172,7 +172,10 @@ class GeneralDataset(CacheDataset, ABC, Generic[D]):
         self.args = args
         self.data_frame = args.dataset_data_frame if data_frame is None else data_frame
         transforms = self.get_transforms()
-        super().__init__(data_sources, transforms)
+        super().__init__(data_sources, transforms,
+                         cache_num=self.args.dataset_cache_num,
+                         cache_rate=self.args.dataset_cache_rate,
+                         num_workers=self.args.dataset_worker_threads)
         logging.info(f"Processing dataset (name={self.name})")
 
     def get_transforms(self) -> Union[Sequence[Callable], Callable]:
