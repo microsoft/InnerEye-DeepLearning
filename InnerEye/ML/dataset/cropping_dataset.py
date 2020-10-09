@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -14,50 +14,31 @@ from InnerEye.ML.config import PaddingMode, SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import CroppedSample, Sample
 from InnerEye.ML.utils import augmentation, image_util
+from InnerEye.ML.utils.augmentation import random_select_patch_center
 from InnerEye.ML.utils.image_util import pad_images
 from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.transforms import Compose3D
+from monai.transforms import Compose, Randomizable, Transform
 
 
-class CroppingDataset(FullImageDataset):
-    """
-    Dataset class that creates random cropped samples from full 3D images from a given pd.DataFrame. The following
-    are the operations performed to generate a sample from this dataset. The crops extracted are of size
-    crop_size which is defined in the model config, and the crop center class population is distributed as per the
-    class_weights vector in the model config (which by default weights all classes equally)
-    """
+class PadSample(Transform):
+    def __init__(self, output_size: TupleInt3, padding_mode: PaddingMode):
+        super().__init__()
+        self.output_size = output_size
+        self.padding_mode = padding_mode
 
-    def __init__(self, args: SegmentationModelBase, data_frame: pd.DataFrame,
-                 cropped_sample_transforms: Optional[Compose3D[CroppedSample]] = None,
-                 full_image_sample_transforms: Optional[Compose3D[Sample]] = None):
-        super().__init__(args, data_frame, full_image_sample_transforms)
-        self.cropped_sample_transforms = cropped_sample_transforms
-
-    def __getitem__(self, i: int) -> Dict[str, Any]:
-        sample = CroppingDataset.create_possibly_padded_sample_for_cropping(
-            sample=super().get_samples_at_index(index=i)[0],
-            crop_size=self.args.crop_size,
-            padding_mode=self.args.padding_mode
-        )
-
-        sample = self.create_random_cropped_sample(
-            sample=sample,
-            crop_size=self.args.crop_size,
-            center_size=self.args.center_size,
-            class_weights=self.args.class_weights
-        )
-
-        return Compose3D.apply(self.cropped_sample_transforms, sample).get_dict()
+    def __call__(self, data: Sample) -> Sample:
+        return self.create_possibly_padded_sample_for_cropping(data, self.output_size, self.padding_mode)
 
     @staticmethod
     def create_possibly_padded_sample_for_cropping(sample: Sample,
-                                                   crop_size: TupleInt3,
+                                                   output_size: TupleInt3,
                                                    padding_mode: PaddingMode) -> Sample:
         """
         Pad the original sample such the the provided images has the same
         (or slightly larger in case of uneven difference) shape to the output_size, using the provided padding mode.
         :param sample: Sample to pad.
-        :param crop_size: Crop size to match.
+        :param output_size: Output size to match.
         :param padding_mode: The padding scheme to apply.
         :return: padded sample
         """
@@ -81,11 +62,32 @@ class CroppingDataset(FullImageDataset):
 
         return sample
 
+
+class RandomCropSample(Randomizable, Transform):
+    def __init__(self, random_seed: int, crop_size: TupleInt3,
+                 center_size: TupleInt3,
+                 class_weights: Optional[List[float]] = None):
+        super().__init__()
+        self.crop_size = crop_size
+        self.center_size = center_size
+        self.class_weights = class_weights
+        self.set_random_state(seed=random_seed)
+        self._random_patch_center = None
+
+    def randomize(self, data: Sample) -> None:
+        # Sample a center pixel location for patch extraction.
+        self._random_patch_center = random_select_patch_center(data, self.class_weights)
+
+    def __call__(self, data: Sample) -> CroppedSample:
+        self.randomize(data)
+        return self.create_random_cropped_sample(data, self.crop_size, self.center_size, self.class_weights)
+
     @staticmethod
     def create_random_cropped_sample(sample: Sample,
                                      crop_size: TupleInt3,
                                      center_size: TupleInt3,
-                                     class_weights: Optional[List[float]] = None) -> CroppedSample:
+                                     class_weights: Optional[List[float]] = None,
+                                     center: Optional[np.ndarray] = None) -> CroppedSample:
         """
         Creates an instance of a cropped sample extracted from full 3D images.
         :param sample: the full size 3D sample to use for extracting a cropped sample.
@@ -99,7 +101,8 @@ class CroppingDataset(FullImageDataset):
         sample, center_point = augmentation.random_crop(
             sample=sample,
             crop_size=crop_size,
-            class_weights=class_weights
+            class_weights=class_weights,
+            center=center
         )
 
         # crop the mask and label centers if required
@@ -125,3 +128,24 @@ class CroppingDataset(FullImageDataset):
             center_indices=center_point,
             metadata=sample.metadata
         )
+
+
+class CroppingDataset(FullImageDataset):
+    """
+    Dataset class that creates random cropped samples from full 3D images from a given pd.DataFrame. The following
+    are the operations performed to generate a sample from this dataset. The crops extracted are of size
+    crop_size which is defined in the model config, and the crop center class population is distributed as per the
+    class_weights vector in the model config (which by default weights all classes equally)
+    """
+
+    def __init__(self, args: SegmentationModelBase, data_frame: pd.DataFrame,
+                 cropped_sample_transforms: Optional[Compose3D[CroppedSample]] = None,
+                 full_image_sample_transforms: Optional[Compose3D[Sample]] = None):
+        super().__init__(args, data_frame, full_image_sample_transforms)
+        self.cropped_sample_transforms = cropped_sample_transforms
+
+    def get_transforms(self) -> Union[Sequence[Callable], Callable]:
+        base_transforms = super().get_transforms()
+        return Compose([base_transforms, self.cropped_sample_transforms])
+
+

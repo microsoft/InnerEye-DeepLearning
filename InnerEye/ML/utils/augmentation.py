@@ -65,7 +65,8 @@ def random_select_patch_center(sample: Sample, class_weights: List[float] = None
 
 def random_crop(sample: Sample,
                 crop_size: TupleInt3,
-                class_weights: List[float] = None) -> Tuple[Sample, np.ndarray]:
+                class_weights: List[float] = None,
+                center: Optional[np.ndarray] = None) -> Tuple[Sample, np.ndarray]:
     """
     Randomly crops images, mask, and labels arrays according to the crop_size argument.
     The selection of the center is dependant on background probability.
@@ -80,11 +81,12 @@ def random_crop(sample: Sample,
     :raises TypeError: If any of the arguments are of the wrong type.
     :raises ValueError: If there are shape mismatches among the arguments or if the crop size is larger than the image.
     """
+
     image = sample.image
     labels = sample.labels
     mask = sample.mask
 
-    image_spatial_shape = image.shape[1:]
+    image_spatial_shape = sample.image.shape[1:]
 
     if any_pairwise_larger(crop_size, image_spatial_shape):
         raise ValueError("The crop_size across each dimension should be greater than zero and less than or equal "
@@ -92,7 +94,8 @@ def random_crop(sample: Sample,
                          .format(crop_size, image_spatial_shape))
 
     # Sample a center pixel location for patch extraction.
-    center = random_select_patch_center(sample, class_weights)
+    if center is None:
+        center = random_select_patch_center(sample, class_weights)
 
     # Verify and fix overflow for each dimension
     left = []
@@ -119,6 +122,7 @@ def random_crop(sample: Sample,
         mask=mask_cropped,
         metadata=sample.metadata
     )
+
     return sample, center
 
 

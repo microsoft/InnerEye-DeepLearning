@@ -176,7 +176,7 @@ class GeneralDataset(CacheDataset, ABC, Generic[D]):
         logging.info(f"Processing dataset (name={self.name})")
 
     def get_transforms(self) -> Union[Sequence[Callable], Callable]:
-        raise NotImplemented("get_transforms must be implemented by child classes.")
+        return list()
 
     def as_data_loader(self,
                        shuffle: bool,
@@ -287,6 +287,12 @@ class FullImageDataset(GeneralDataset):
         :return:
         """
         return io_util.load_nifti_image(self.dataset_sources[patient_id].image_channels[0]).header.spacing
+
+    def get_samples_at_index(self, index: int) -> List[Sample]:
+        """
+        returns the sample at the provided index in the dataset
+        """
+        return super(FullImageDataset, self).__getitem__(index)
 
     def _load_dataset_sources(self) -> Dict[int, PatientDatasetSource]:
         assert self.args.local_dataset is not None

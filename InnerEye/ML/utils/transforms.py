@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import abc
 from functools import reduce
-from typing import Generic, List, Optional, Tuple, Union
+from typing import Any, Generic, List, Optional, Tuple, Union
 
 import numpy as np
 import param
@@ -14,7 +14,7 @@ import torch
 
 from InnerEye.Common.generic_parsing import CudaAwareConfig
 from InnerEye.Common.type_annotations import T, TupleFloat2
-from monai.transforms import MapTransform
+from monai.transforms import MapTransform, Transform
 
 
 class Transform3DBaseMeta(type(CudaAwareConfig), abc.ABCMeta):  # type: ignore
