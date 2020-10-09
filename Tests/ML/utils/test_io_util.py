@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Callable
 from unittest import mock
 from skimage.transform import resize
 
@@ -204,16 +204,16 @@ def write_test_dicom(array: np.ndarray, path: Path) -> None:
     writer.Execute(image)
 
 
-def get_mock_function(monochrome2: bool, bits_stored: Optional[int] = None):
+def get_mock_function(monochrome2: bool, bits_stored: Optional[int] = None) -> Callable:
     """
     SimpleITK does not allow us to set Photometric Interpretation and Stored Bits, so we need to mock the reader to
     make sure the right attributes are returned.
     """
     get_metadata_function = sitk.ImageFileReader.GetMetaData
 
-    def mock_function(image_reader: sitk.ImageFileReader, key: str):
+    def mock_function(image_reader: sitk.ImageFileReader, key: str) -> str:
         if bits_stored and key == "0028|0101":
-            return bits_stored
+            return str(bits_stored)
         elif not monochrome2 and key == "0028|0004":
             return "MONOCHROME1"
         else:
