@@ -198,76 +198,108 @@ def write_test_dicom(array: np.ndarray, path: Path) -> None:
     This function DOES NOT create a usable Dicom file and is meant only for testing: tags are set to
     random/default values so that pydicom does not complain when reading the file.
     """
-
     image = sitk.GetImageFromArray(array)
     writer = sitk.ImageFileWriter()
-    writer.KeepOriginalImageUIDOn()
     writer.SetFileName(str(path))
     writer.Execute(image)
 
 
-def test_load_dicom_image_ones(test_output_dirs: TestOutputDirectories) -> None:
+def get_mock_function(monochrome2: bool, bits_stored: Optional[int] = None):
     """
-    Test loading of 2D Dicom images filled with (uint16) ones.
+    SimpleITK does not allow us to set Photometric Interpretation and Stored Bits, so we need to mock the reader to
+    make sure the right attributes are returned.
+    """
+    get_metadata_function = sitk.ImageFileReader.GetMetaData
+
+    def mock_function(image_reader: sitk.ImageFileReader, key: str):
+        if bits_stored and key == "0028|0101":
+            return bits_stored
+        elif not monochrome2 and key == "0028|0004":
+            return "MONOCHROME1"
+        else:
+            return get_metadata_function(image_reader, key)
+
+    return mock_function
+
+
+@pytest.mark.parametrize("signed", [True, False])
+@pytest.mark.parametrize("monochrome2", [True, False])
+def test_load_dicom_image_ones(test_output_dirs: TestOutputDirectories,
+                               signed: bool, monochrome2: bool) -> None:
+    """
+    Test loading of 2D Dicom images filled with binary array of type (uint16) and (int16).
     """
     array_size = (20, 30)
-    array = np.ones(array_size, dtype='uint16')
-    array[::2] = 0
+    if not signed:
+        array = np.ones(array_size, dtype='uint16')
+        array[::2] = 0
+    else:
+        array = -1 * np.ones(array_size, dtype='int16')
+        array[::2] = 0
+
     assert array.shape == array_size
+
+    if monochrome2:
+        to_write = array
+    else:
+        if not signed:
+            to_write = np.zeros(array_size, dtype='uint16')
+            to_write[::2] = 1
+        else:
+            to_write = np.zeros(array_size, dtype='int16')
+            to_write[::2] = -1
 
     dcm_file = Path(test_output_dirs.root_dir) / "file.dcm"
     assert is_dicom_file_path(dcm_file)
-    write_test_dicom(array, dcm_file)
+    write_test_dicom(array=to_write, path=dcm_file)
 
-    image = load_dicom_image(dcm_file)
-    assert image.ndim == 3 and image.shape == (1, ) + array_size
-    assert np.array_equal(image, array[None, ...])
+    with mock.patch.object(sitk.ImageFileReader, 'GetMetaData',
+                           new=get_mock_function(monochrome2=monochrome2, bits_stored=1)):
+        image = load_dicom_image(dcm_file)
+        assert image.ndim == 3 and image.shape == (1, ) + array_size
+        assert np.array_equal(image, array[None, ...])
 
-    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
-    assert image_and_segmentation.images.ndim == 3 and image_and_segmentation.images.shape == (1,) + array_size
-    assert np.array_equal(image_and_segmentation.images, array[None, ...])
+        image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
+        assert image_and_segmentation.images.ndim == 3 and image_and_segmentation.images.shape == (1,) + array_size
+        assert np.array_equal(image_and_segmentation.images, array[None, ...])
 
 
-def test_load_dicom_image_random_unsigned(test_output_dirs: TestOutputDirectories) -> None:
+@pytest.mark.parametrize("signed", [True, False])
+@pytest.mark.parametrize("monochrome2", [True, False])
+@pytest.mark.parametrize("bits_stored", [14, 16])
+def test_load_dicom_image_random(test_output_dirs: TestOutputDirectories,
+                                 signed: bool, monochrome2: bool, bits_stored: int) -> None:
     """
-    Test loading of 2D Dicom images of type (uint16).
+    Test loading of 2D Dicom images of type (uint16) and (int16).
     """
     array_size = (20, 30)
-    array = np.random.randint(0, 200, size=array_size, dtype='uint16')
+    if not signed:
+        array = np.random.randint(0, 200, size=array_size, dtype='uint16')
+    else:
+        array = np.random.randint(-200, 200, size=array_size, dtype='int16')
     assert array.shape == array_size
+
+    if monochrome2:
+        to_write = array
+    else:
+        if not signed:
+            to_write = 2**bits_stored - 1 - array
+        else:
+            to_write = -1 * array - 1
 
     dcm_file = Path(test_output_dirs.root_dir) / "file.dcm"
     assert is_dicom_file_path(dcm_file)
-    write_test_dicom(array, dcm_file)
+    write_test_dicom(array=to_write, path=dcm_file)
 
-    image = load_dicom_image(dcm_file)
-    assert image.ndim == 3 and image.shape == (1,) + array_size
-    assert np.array_equal(image, array[None, ...])
+    with mock.patch.object(sitk.ImageFileReader, 'GetMetaData',
+                           new=get_mock_function(monochrome2=monochrome2, bits_stored=bits_stored)):
+        image = load_dicom_image(dcm_file)
+        assert image.ndim == 3 and image.shape == (1,) + array_size
+        assert np.array_equal(image, array[None, ...])
 
-    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
-    assert image_and_segmentation.images.ndim == 3 and image_and_segmentation.images.shape == (1,) + array_size
-    assert np.array_equal(image_and_segmentation.images, array[None, ...])
-
-
-def test_load_dicom_image_random_signed(test_output_dirs: TestOutputDirectories) -> None:
-    """
-    Test loading of 2D Dicom images of type (int16).
-    """
-    array_size = (20, 30)
-    array = np.random.randint(-200, 200, size=array_size, dtype='int16')
-    assert array.shape == array_size
-
-    dcm_file = Path(test_output_dirs.root_dir) / "file.dcm"
-    assert is_dicom_file_path(dcm_file)
-    write_test_dicom(array, dcm_file)
-
-    image = load_dicom_image(dcm_file)
-    assert image.ndim == 3 and image.shape == (1,) + array_size
-    assert np.array_equal(image, array[None, ...])
-
-    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
-    assert image_and_segmentation.images.ndim == 3 and image_and_segmentation.images.shape == (1,) + array_size
-    assert np.array_equal(image_and_segmentation.images, array[None, ...])
+        image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
+        assert image_and_segmentation.images.ndim == 3 and image_and_segmentation.images.shape == (1,) + array_size
+        assert np.array_equal(image_and_segmentation.images, array[None, ...])
 
 
 @pytest.mark.parametrize(["file_path", "expected_shape"],
