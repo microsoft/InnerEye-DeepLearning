@@ -105,17 +105,17 @@ def test_read_yaml_file_into_args(test_output_dirs: TestOutputDirectories) -> No
     empty_yaml = Path(test_output_dirs.root_dir) / "nothing.yaml"
     empty_yaml.write_text("variables:\n")
     with mock.patch("sys.argv", ["", "--model=Lung"]):
-        # Default behaviour: Application ID (service principal) should be picked up from YAML
+        # Default behaviour: tenant_id should be picked up from YAML
         runner1 = Runner(project_root=fixed_paths.repository_root_directory(),
                          yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
         runner1.parse_and_load_model()
-        assert len(runner1.azure_config.application_id) > 0
-        # When specifying a dummy YAML file that does not contain the application ID, it should not
+        assert len(runner1.azure_config.tenant_id) > 0
+        # When specifying a dummy YAML file that does not contain the tenant_id, it should not
         # be set.
         runner2 = Runner(project_root=fixed_paths.repository_root_directory(),
                          yaml_config_file=empty_yaml)
         runner2.parse_and_load_model()
-        assert runner2.azure_config.application_id == ""
+        assert runner2.azure_config.tenant_id == ""
 
 
 def test_parsing_with_custom_yaml(test_output_dirs: TestOutputDirectories) -> None:
