@@ -8,6 +8,7 @@ import pytest
 from azureml.core import Model
 
 from InnerEye.Azure.azure_config import AzureConfig
+from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
 from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.output_directories import TestOutputDirectories
@@ -18,8 +19,13 @@ def test_model_file_structure(test_output_dirs: TestOutputDirectories) -> None:
     """
     Downloads the model that was built in the most recent run, and checks if its file structure is as expected.
     """
-    most_recent_run = "refs_pull_270_merge:refs_pull_270_merge_1602000978_66813f6e"
-    # assert RUN_RECOVERY_FILE.is_file()
+    run_recovery_file = Path(RUN_RECOVERY_FILE)
+    if run_recovery_file.is_file():
+        print("Reading run information from file.")
+        most_recent_run = run_recovery_file.read_text().strip()
+    else:
+        print("Using hardcoded run ID.")
+        most_recent_run = "refs_pull_270_merge:refs_pull_270_merge_1602000978_66813f6e"
     azure_config = AzureConfig.from_yaml(fixed_paths.SETTINGS_YAML_FILE,
                                          project_root=fixed_paths.repository_root_directory())
     workspace = azure_config.get_workspace()
