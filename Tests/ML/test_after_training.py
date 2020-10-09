@@ -24,6 +24,8 @@ def test_model_file_structure(test_output_dirs: TestOutputDirectories) -> None:
         print("Reading run information from file.")
         most_recent_run = run_recovery_file.read_text().strip()
     else:
+        # This is usually executed when starting the test on a local box, where cwd is set to the directory
+        # containing this file
         print("Using hardcoded run ID.")
         most_recent_run = "refs_pull_270_merge:refs_pull_270_merge_1602000978_66813f6e"
     azure_config = AzureConfig.from_yaml(fixed_paths.SETTINGS_YAML_FILE,
@@ -44,6 +46,9 @@ def test_model_file_structure(test_output_dirs: TestOutputDirectories) -> None:
             "InnerEye/ML/metrics.py",
             "InnerEye/ML/runner.py",
         ]
+    print("Downloaded model contains these files:")
+    for f in downloaded_folder.rglob("*"):
+        print("  " + str(f.relative_to(downloaded_folder)))
     missing = []
     for f in expected_files:
         full_path = downloaded_folder / f
@@ -53,4 +58,4 @@ def test_model_file_structure(test_output_dirs: TestOutputDirectories) -> None:
         print("Missing files:")
         for m in missing:
             print(m)
-        pytest.fail(f"{len(missing)} files in the registered model")
+        pytest.fail(f"{len(missing)} files in the registered model are missing: {missing[:5]}")
