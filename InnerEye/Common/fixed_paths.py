@@ -45,8 +45,11 @@ ML_FULL_SOURCE_FOLDER_PATH = str(repository_root_directory() / ML_RELATIVE_SOURC
 
 VISUALIZATION_NOTEBOOK_PATH = os.path.join("ML", "visualizers", "gradcam_visualization.ipynb")
 
-# A file that contains secrets. This is expected to live in the repository root.
+# A file that contains secrets. This is expected to live in the root folder of the repository or project.
 PROJECT_SECRETS_FILE = "InnerEyeTestVariables.txt"
+# A file with additional settings that should not be added to source control.
+# This file is expected to live in the root folder of the repository or project.
+PRIVATE_SETTINGS_FILE = "InnerEyePrivateSettings.yml"
 
 INNEREYE_PACKAGE_ROOT = repository_root_directory(INNEREYE_PACKAGE_NAME)
 SETTINGS_YAML_FILE_NAME = "settings.yml"

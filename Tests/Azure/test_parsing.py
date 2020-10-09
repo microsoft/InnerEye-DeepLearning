@@ -3,13 +3,14 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 from unittest import mock
 
 import pytest
 
 from InnerEye.Azure.azure_config import AZURECONFIG_SUBMIT_TO_AZUREML, AzureConfig, SourceConfig
-from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables
+from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables, \
+    run_duration_string_to_seconds
 from InnerEye.Azure.parser_util import _is_empty_or_empty_string_list, item_to_script_param
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.config import SegmentationModelBase
@@ -89,8 +90,7 @@ def test_create_runner_parser(with_config: bool) -> None:
                  # Normally we don't use extra index URLs in InnerEye, hence this won't be set in YAML.
                  "--pip_extra_index_url=foo"]
     with mock.patch("sys.argv", [""] + args_list):
-        parser_result = parse_args_and_add_yaml_variables(azure_parser,
-                                                          yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
+        parser_result = parse_args_and_add_yaml_variables(azure_parser, yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
     azure_config = AzureConfig(**parser_result.args)
 
     # These values have been set on the commandline, to values that are not the parser defaults.
@@ -170,3 +170,23 @@ def test_source_config_set_params() -> None:
     with mock.patch("sys.argv", ["", "some", f"--{AZURECONFIG_SUBMIT_TO_AZUREML}foo", "False", "more"]):
         s.set_script_params_except_submit_flag()
     assert_has_params(f"some --{AZURECONFIG_SUBMIT_TO_AZUREML}foo False more")
+
+
+@pytest.mark.parametrize(["s", "expected"],
+                         [
+                             ("1s", 1),
+                             ("0.5m", 30),
+                             ("1.5h", 90 * 60),
+                             ("1.0d", 24 * 3600),
+                             ("", None),
+                         ])
+def test_run_duration(s: str, expected: Optional[float]) -> None:
+    actual = run_duration_string_to_seconds(s)
+    assert actual == expected
+    if expected:
+        assert isinstance(actual, int)
+
+
+def test_run_duration_fails() -> None:
+    with pytest.raises(Exception):
+        run_duration_string_to_seconds("17b")

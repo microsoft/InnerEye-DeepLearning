@@ -17,7 +17,7 @@ from InnerEye.Common.output_directories import TestOutputDirectories, make_test_
 from Tests.fixed_paths_for_tests import TEST_OUTPUTS_PATH
 
 
-@pytest.yield_fixture(autouse=True, scope='session')
+@pytest.fixture(autouse=True, scope='session')
 def test_suite_setup() -> Generator:
     # create a default outputs root for all tests
     make_test_output_dir(TEST_OUTPUTS_PATH)

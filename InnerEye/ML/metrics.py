@@ -35,6 +35,7 @@ from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, r2_score
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 
 TRAIN_STATS_FILE = "train_stats.csv"
 
@@ -481,7 +482,7 @@ def store_epoch_stats_for_segmentation(outputs_dir: Path,
 
 
 def validate_and_store_model_parameters(writer: tensorboardX.SummaryWriter, epoch: int,
-                                        model: torch.nn.DataParallel) -> None:
+                                        model: DeviceAwareModule) -> None:
     """
     Validates and writes all model weights to the given TensorBoard writer.
     :param writer: TensorBoard summary writer
