@@ -1,12 +1,6 @@
 # This pipeline assumes that there is a Conda environment AzureRunner already.
-# It will update to the full InnerEye environment, run pytest, and publish the test results.
+# It will run pytest, and publish the test results.
 steps:
-  # To be quicker with environment creation, update the existing AzureRunner environment to contain all packages
-  - bash: |
-      conda env update --file environment.yml --name AzureRunner --quiet
-      source activate AzureRunner
-    displayName: Create InnerEye environment
-
   # The run ID of the training run is now available in training_run.txt. Move that back to the default runID name,
   # and run all tests that build upon that training run.
   - bash: |
