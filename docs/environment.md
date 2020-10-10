@@ -53,15 +53,15 @@ Start the `conda` prompt for your platform. In that prompt, navigate to your rep
 
 ## Using GPU locally
 
-It is possible to run the training process on a local machine. It will not be as performant as using a GPU cluster that Azure ML offers and you will not be able to take advantage of other Azure ML features such as comparing run results, creating snapshots for repeatable experiments or keeping history of experiment runs. At the same time it could be useful to experiment or troubleshoot things locally. 
+It is possible to run the training process on a local machine. It will not be as performant as using a GPU cluster that Azure ML offers and you will not be able to take advantage of other Azure ML features such as comparing run results, creating snapshots for repeatable machine learning experiments or keeping history of experiment runs. At the same time it could be useful to experiment with code or troubleshoot things locally. 
 
 The SDK uses PyTorch to compose and run DNN computations. PyTorch can run on any CPU, but it is also capable of taking advantage of the underlying GPU via NVidia CUDA technology, which accelerates computations dramatically. 
 
 In order to enable PyTorch to use CUDA, you need to make sure that you have  
-a) Compatible graphics card with CUDA compute capability of at least 3.0 (at the moment of writing). You can check compatibility list here: https://developer.nvidia.com/cuda-gpus
+a) Compatible graphics card with CUDA compute capability of at least 3.0 (at the moment of writing). You can check compatibility list here: https://developer.nvidia.com/cuda-gpus  
 b) Recent NVidia drivers installed
 
-A quick way to check if PyTorch can use the underlying GPU for computation is to run the following line:  
+A quick way to check if PyTorch can use the underlying GPU for computation is to run the following line from your conda environment with all InnerEye packages installed:  
 `python -c 'import torch; print(torch.cuda.is_available())'`  
 It will output `True` if CUDA computation is available and `False` if it's not.
 
@@ -127,6 +127,8 @@ At this point you should be able to run the `nvidia-smi` tool and PyTorch should
 4. Reboot your system
 
 At this point you should be able to run the `nvidia-smi` tool and PyTorch should be able to communicate with the GPU
+
+You can find instructions for other Linux distributions on NVidia website: https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html 
 
 # More Details for Tool Setup
 The following steps describe how to set up specific tools. You can execute most of those at a later
