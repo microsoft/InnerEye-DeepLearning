@@ -5,27 +5,27 @@
 import copy
 import logging
 from pathlib import Path
-from timeit import default_timer as timer
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch.multiprocessing
-from azureml.core import Run, Workspace  # , Dataset
+from azureml.core import Run, Workspace
 from azureml.core.model import Model
+from azureml.data import FileDataset
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_runner import INPUT_DATA_KEY
+from InnerEye.Azure.azure_runner import INPUT_DATA_KEY, get_or_create_dataset
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
-    EFFECTIVE_RANDOM_SEED_KEY_NAME, \
-    IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME, PARENT_RUN_CONTEXT, \
+    EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, \
+    NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME, PARENT_RUN_CONTEXT, \
     PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
-    create_run_recovery_id, get_results_blob_path, has_input_datasets, storage_account_from_full_name, update_run_tags
+    create_run_recovery_id, get_results_blob_path, has_input_datasets, is_offline_run_context, update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section, print_exception
-from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PACKAGE_NAME
-from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
@@ -33,12 +33,12 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.runner import ModelDeploymentHookSignature
+from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
-from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_test
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
@@ -57,6 +57,87 @@ def try_to_mount_input_dataset(run_context: Any) -> Optional[Path]:
             logging.warning(f"Run context input_datasets has no {INPUT_DATA_KEY} entry")
             logging.warning("Attempting to download dataset instead")
     return None
+
+
+def download_dataset_via_blobxfer(dataset_id: str,
+                                  azure_config: AzureConfig,
+                                  target_folder: Path) -> Optional[Path]:
+    """
+    Attempts to downloads a dataset from the Azure storage account for datasets, with download happening via
+    blobxfer. This is only possible if the datasets storage account and keyword are present in the `azure_config`.
+    The function returns None if the required settings were not present.
+    :param dataset_id: The folder of the dataset, expected in the container given by azure_config.datasets_container.
+    :param azure_config: The object with all Azure-related settings.
+    :param target_folder: The local folder into which the dataset should be downloaded.
+    :return: The folder that contains the downloaded dataset. Returns None if the datasets account name or password
+    were not present.
+    """
+    datasets_account_key = azure_config.get_dataset_storage_account_key()
+    if not datasets_account_key:
+        logging.info("No account key for the dataset storage account was found.")
+        logging.info(f"We checked in environment variables and in the file {PROJECT_SECRETS_FILE}")
+        return None
+    if (not azure_config.datasets_container) or (not azure_config.datasets_storage_account):
+        logging.info("Datasets storage account or container missing.")
+        return None
+    target_folder.mkdir(exist_ok=True)
+    result_folder = target_folder / dataset_id
+    # only download if hasn't already been downloaded
+    if result_folder.is_dir():
+        logging.info(f"Folder already exists, skipping download: {result_folder}")
+        return result_folder
+    with logging_section(f"Downloading dataset {dataset_id}"):
+        download_blobs(
+            account=azure_config.datasets_storage_account,
+            account_key=datasets_account_key,
+            # When specifying the blobs root path, ensure that there is a slash at the end, otherwise
+            # all datasets with that dataset_id as a prefix get downloaded.
+            blobs_root_path=f"{azure_config.datasets_container}/{dataset_id}/",
+            destination=result_folder
+        )
+    return result_folder
+
+
+def download_dataset(azure_dataset_id: str,
+                     target_folder: Path,
+                     azure_config: AzureConfig) -> Path:
+    """
+    Downloads or checks for an existing dataset on the executing machine. If a local_dataset is supplied and the
+    directory is present, return that. Otherwise, download the dataset specified by the azure_dataset_id from the
+    AzureML dataset attached to the given AzureML workspace. The dataset is downloaded into the `target_folder`,
+    in a subfolder that has the same name as the dataset. If there already appears to be such a folder, and the folder
+    contains a dataset.csv file, no download is started.
+    :param local_dataset: The path to an existing local dataset.
+    :param azure_dataset_id: The name of a dataset that is registered in the AzureML workspace.
+    :param target_folder: The folder in which to download the dataset from Azure.
+    :param azure_config: All Azure-related configuration options.
+    :return: A path on the local machine that contains the dataset.
+    """
+    workspace = azure_config.get_workspace()
+    try:
+        downloaded_via_blobxfer = download_dataset_via_blobxfer(dataset_id=azure_dataset_id,
+                                                                azure_config=azure_config,
+                                                                target_folder=target_folder)
+        if downloaded_via_blobxfer:
+            return downloaded_via_blobxfer
+    except Exception as ex:
+        print_exception(ex, message="Unable to download dataset via blobxfer.")
+    logging.info("Trying to download dataset via AzureML datastore now.")
+    azure_dataset = get_or_create_dataset(workspace, azure_dataset_id)
+    if not isinstance(azure_dataset, FileDataset):
+        raise ValueError(f"Expected to get a FileDataset, but got {type(azure_dataset)}")
+    # The downloaded dataset may already exist from a previous run.
+    expected_dataset_path = target_folder / azure_dataset_id
+    expected_dataset_file = expected_dataset_path / DATASET_CSV_FILE_NAME
+    logging.info(f"Model training will use dataset '{azure_dataset_id}' in Azure.")
+    if expected_dataset_path.is_dir() and expected_dataset_file.is_file():
+        logging.info(f"The dataset appears to be downloaded already in {expected_dataset_path}. Skipping.")
+        return expected_dataset_path
+    logging.info("Starting to download the dataset - WARNING, this could take very long!")
+    with logging_section("Downloading dataset"):
+        azure_dataset.download(target_path=str(expected_dataset_path), overwrite=False)
+    logging.info(f"Azure dataset '{azure_dataset_id}' is now available in {expected_dataset_path}")
+    return expected_dataset_path
 
 
 def log_metrics(val_metrics: Optional[InferenceMetricsForSegmentation],
@@ -194,8 +275,7 @@ class MLRunner:
             logging.info("Setting tags from parent run.")
             self.set_run_tags_from_parent()
 
-        if self.azure_config.storage_account:
-            self.save_build_info_for_dotnet_consumers()
+        self.save_build_info_for_dotnet_consumers()
 
         # Set data loader start method
         self.set_multiprocessing_start_method()
@@ -210,7 +290,7 @@ class MLRunner:
         if self.azure_config.register_model_only_for_epoch is None or run_recovery is None:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
-            self.mount_or_download_dataset()
+            self.model_config.local_dataset = self.mount_or_download_dataset()
             self.model_config.write_args_file()
             logging.info(str(self.model_config))
             # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
@@ -223,7 +303,7 @@ class MLRunner:
                 ml_util.validate_dataset_paths(self.model_config.local_dataset)
 
             # train a new model if required
-            if self.azure_config.is_train:
+            if self.azure_config.train:
                 with logging_section("Model training"):
                     model_train(self.model_config, run_recovery)
             else:
@@ -235,10 +315,14 @@ class MLRunner:
 
         # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
         # the current run is a single one. See the documentation of ModelProcessing for more details.
-        self.run_inference_and_register_model(run_recovery, ModelProcessing.DEFAULT)
+        best_epoch = self.run_inference_and_register_model(run_recovery, ModelProcessing.DEFAULT)
+
+        # Generate report
+        if best_epoch:
+            Runner.generate_report(self.model_config, best_epoch, ModelProcessing.DEFAULT)
 
     def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery],
-                                         model_proc: ModelProcessing) -> None:
+                                         model_proc: ModelProcessing) -> Optional[int]:
         """
         Run inference as required, and register the model, but not necessarily in that order:
         if we can identify the epoch to register at without running inference, we register first.
@@ -250,19 +334,24 @@ class MLRunner:
         if registration_epoch is not None:
             self.register_model_for_epoch(RUN_CONTEXT, run_recovery, registration_epoch, np.nan, model_proc)
             if self.azure_config.register_model_only_for_epoch is not None:
-                return
+                return self.azure_config.register_model_only_for_epoch
+
         # run full image inference on existing or newly trained model on the training, and testing set
         test_metrics, val_metrics, _ = self.model_inference_train_and_test(RUN_CONTEXT, run_recovery, model_proc)
+
         # register the generated model from the run if we haven't already done so
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
             if registration_epoch is None:
                 if self.should_register_model():
                     assert test_metrics is None or isinstance(test_metrics, InferenceMetricsForSegmentation)
                     assert val_metrics is None or isinstance(val_metrics, InferenceMetricsForSegmentation)
-                    self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics, model_proc)
+                    registration_epoch = self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics,
+                                                                            model_proc)
             self.try_compare_scores_against_baselines(model_proc)
         else:
             logging.warning("Couldn't register model in offline mode")
+
+        return registration_epoch
 
     def should_register_model(self) -> bool:
         """
@@ -270,7 +359,7 @@ class MLRunner:
         model (from the run we recovered) should already have been registered, so we should only
         do so if this run is specifically for that purpose.
         """
-        return self.azure_config.is_train or self.azure_config.register_model_only_for_epoch is not None
+        return self.azure_config.train or self.azure_config.register_model_only_for_epoch is not None
 
     def decide_registration_epoch_without_evaluating(self) -> Optional[int]:
         """
@@ -294,21 +383,46 @@ class MLRunner:
             activation_maps.extract_activation_maps(self.model_config)
             logging.info("Successfully extracted and saved activation maps")
 
-    def mount_or_download_dataset(self) -> None:
-        if self.model_config.azure_dataset_id:
-            mounted = try_to_mount_input_dataset(RUN_CONTEXT)
-            if mounted:
-                self.model_config.local_dataset = mounted
-        if self.model_config.local_dataset is None:
-            # We are not running inside AzureML: Try to download a dataset from blob storage.
-            # The downloaded dataset may already exist from a previous run.
-            dataset_path = self.project_root / fixed_paths.DATASETS_DIR_NAME
-            self.model_config.local_dataset = self.download_dataset(RUN_CONTEXT, dataset_path=dataset_path)
+    def mount_or_download_dataset(self) -> Path:
+        """
+        Makes the dataset that the model uses available on the executing machine. If the present training run is outside
+        of AzureML, it expects that either the model has a `local_dataset` field set, in which case no action will be
+        taken. If a dataset is specified in `azure_dataset_id`, it will attempt to download the dataset from Azure
+        into the local repository, in the "datasets" folder.
+        If the training run is inside of AzureML, the dataset that was specified at job submission time will be
+        mounted or downloaded.
+        Returns the path of the dataset on the executing machine.
+        """
+        azure_dataset_id = self.model_config.azure_dataset_id
+
+        if is_offline_run_context(RUN_CONTEXT):
+            # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
+            # Otherwise, download the dataset specified by the azure_dataset_id
+            local_dataset = self.model_config.local_dataset
+            if (not azure_dataset_id) and (local_dataset is None):
+                raise ValueError("The model must contain either local_dataset or azure_dataset_id.")
+            if local_dataset:
+                expected_dir = Path(local_dataset)
+                if not expected_dir.is_dir():
+                    raise FileNotFoundError(f"The model uses a dataset in {expected_dir}, but that does not exist.")
+                logging.info(f"Model training will use the local dataset provided in {expected_dir}")
+                return expected_dir
+            return download_dataset(azure_dataset_id=azure_dataset_id,
+                                    target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
+                                    azure_config=self.azure_config)
+
+        # Inside of AzureML, datasets can be either mounted or downloaded.
+        if not azure_dataset_id:
+            raise ValueError("The model must contain azure_dataset_id for running on AML")
+        mounted = try_to_mount_input_dataset(RUN_CONTEXT)
+        if not mounted:
+            raise ValueError("Unable to mount or download input dataset.")
+        return mounted
 
     def register_model_for_best_epoch(self, run_recovery: Optional[RunRecovery],
                                       test_metrics: Optional[InferenceMetricsForSegmentation],
                                       val_metrics: Optional[InferenceMetricsForSegmentation],
-                                      model_proc: ModelProcessing) -> None:
+                                      model_proc: ModelProcessing) -> int:
         if val_metrics is not None:
             best_epoch = val_metrics.get_best_epoch()
         elif test_metrics is not None:
@@ -321,10 +435,10 @@ class MLRunner:
             best_epoch_dice = 0.0  # dummy value
         assert isinstance(self.model_config, SegmentationModelBase)
         self.register_model_for_epoch(RUN_CONTEXT, run_recovery, best_epoch, best_epoch_dice, model_proc)
+        return best_epoch
 
     def save_build_info_for_dotnet_consumers(self) -> None:
-        results_container = storage_account_from_full_name(self.azure_config.storage_account) \
-                            + "/" + get_results_blob_path(RUN_CONTEXT.id)
+        results_container = get_results_blob_path(RUN_CONTEXT.id)
         result_location = ExperimentResultLocation(
             azure_job_name=RUN_CONTEXT.id,
             dataset_folder=self.model_config.azure_dataset_id,
@@ -357,32 +471,27 @@ class MLRunner:
                                  best_epoch: int,
                                  best_epoch_dice: float,
                                  model_proc: ModelProcessing) -> None:
-        checkpoint_paths = [self.model_config.get_path_to_checkpoint(best_epoch)] if not run_recovery \
-            else run_recovery.get_checkpoint_paths(best_epoch)
+
+        checkpoint_paths = get_recovery_path_test(config=self.model_config,
+                                                  run_recovery=run_recovery,
+                                                  epoch=best_epoch)
+        if not checkpoint_paths:
+            # No point continuing, since no checkpoints were found
+            logging.warning("Abandoning model registration - no valid checkpoint paths found")
+            return
+
         if not self.model_config.is_offline_run:
             split_index = run_context.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
             if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
                 update_run_tags(run_context, {IS_ENSEMBLE_KEY_NAME: model_proc == ModelProcessing.ENSEMBLE_CREATION})
             elif PARENT_RUN_CONTEXT is not None:
                 update_run_tags(run_context, {PARENT_RUN_ID_KEY_NAME: PARENT_RUN_CONTEXT.id})
-        # Discard any checkpoint paths that do not exist - they will make registration fail. This can happen
-        # when some child runs fail; it may still be worth registering the model.
-        valid_checkpoint_paths = []
-        for path in checkpoint_paths:
-            if path.exists():
-                valid_checkpoint_paths.append(path)
-            else:
-                logging.warning(f"Discarding non-existent checkpoint path {path}")
-        if not valid_checkpoint_paths:
-            # No point continuing
-            logging.warning("Abandoning model registration - no valid checkpoint paths found")
-            return
         with logging_section(f"Registering {model_proc.value} model"):
             self.register_segmentation_model(
                 run=run_context,
                 best_epoch=best_epoch,
                 best_epoch_dice=best_epoch_dice,
-                checkpoint_paths=valid_checkpoint_paths,
+                checkpoint_paths=checkpoint_paths,
                 model_proc=model_proc)
 
     def try_compare_scores_against_baselines(self, model_proc: ModelProcessing) -> None:
@@ -560,39 +669,3 @@ class MLRunner:
                         train_metrics=train_metrics, run_context=run_context)  # type: ignore
 
         return test_metrics, val_metrics, train_metrics
-
-    def download_dataset(self, run_context: Optional[Run] = None,
-                         dataset_path: Path = Path.cwd()) -> Optional[Path]:
-        """
-        Configures the dataset for model training/testing. The dataset is downloaded into dataset_path, only if the
-        dataset
-        does not exist in the given path.
-        Returns a path to the folder that contains the dataset.
-        """
-
-        # check if the dataset needs to be downloaded from Azure
-        config = self.model_config
-        if config.azure_dataset_id:
-            # log the dataset id being used for this run
-            if run_context is not None:
-                run_context.tag("dataset_id", config.azure_dataset_id)
-            target_folder = dataset_path / config.azure_dataset_id
-            # only download if hasn't already been downloaded
-            if target_folder.is_dir():
-                logging.info("Using cached dataset in folder %s", target_folder)
-            else:
-                logging.info("Starting to download dataset from Azure to folder %s", target_folder)
-                start_time = timer()
-                # download the dataset blobs from Azure to local
-                download_blobs(
-                    account=self.azure_config.datasets_storage_account,
-                    account_key=self.azure_config.get_dataset_storage_account_key(),
-                    # When specifying the blobs root path, ensure that there is a slash at the end, otherwise
-                    # all datasets with that dataset_id as a prefix get downloaded.
-                    blobs_root_path="{}/{}/".format(self.azure_config.datasets_container, config.azure_dataset_id),
-                    destination=target_folder
-                )
-                elapsed_seconds = timer() - start_time
-                logging.info("Downloading dataset from Azure took {} sec".format(elapsed_seconds))
-            return target_folder
-        return config.local_dataset

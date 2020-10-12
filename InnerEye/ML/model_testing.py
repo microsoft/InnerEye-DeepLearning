@@ -31,14 +31,16 @@ from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline, InferencePipelineBase
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline, \
     ScalarInferencePipelineBase
+from InnerEye.ML.reports.segmentation_report import boxplot_per_structure
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import io_util, ml_util
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
 from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, \
     save_lines_to_file
+from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
-from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_test
 
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
@@ -69,7 +71,7 @@ def model_test(config: ModelConfigBase,
         if isinstance(config, SegmentationModelBase):
             return segmentation_model_test(config, data_split, run_recovery, model_proc)
         if isinstance(config, ScalarModelBase):
-            return classification_model_test(config, data_split, run_recovery, model_proc)
+            return classification_model_test(config, data_split, run_recovery)
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 
@@ -204,10 +206,11 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     metrics_writer.save_aggregates_to_csv(results_folder / METRICS_AGGREGATES_FILE)
     if config.is_plotting_enabled:
         plt.figure()
-        metrics_writer.dice_boxplot_per_structure()
+        boxplot_per_structure(metrics_writer.to_data_frame(),
+                              column_name=MetricsFileColumns.DiceNumeric.value,
+                              title=f"Dice score for {epoch_and_split}")
         # The box plot file will be written to the output directory. AzureML will pick that up, and display
         # on the run overview page, without having to log to the run context.
-        plt.title("Dice score for {}".format(epoch_and_split))
         plotting.resize_and_save(5, 4, results_folder / BOXPLOT_FILE)
         plt.close()
     logging.info(f"Finished evaluation of model {config.model_name} on {epoch_and_split}")
@@ -348,28 +351,17 @@ def create_inference_pipeline(config: ModelConfigBase,
                               run_recovery: Optional[RunRecovery] = None) -> Optional[InferencePipelineBase]:
     """
     If multiple checkpoints are found in run_recovery then create EnsemblePipeline otherwise InferencePipeline.
+    If no checkpoint files exist in the run recovery or current run checkpoint folder, None will be returned.
     :param config: Model related configs.
     :param epoch: The epoch for which to create pipeline for.
     :param run_recovery: RunRecovery data if applicable
     :return: FullImageInferencePipelineBase or ScalarInferencePipelineBase
     """
-    if run_recovery:
-        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, config.compute_mean_teacher_model)
-        pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
-        if pipeline is not None:
-            # We found the checkpoint(s) in the run being recovered. If we didn't, it's probably because the epoch
-            # is from the current run, which has been doing more training, so we look for it there.
-            return pipeline
-    checkpoint_paths = [config.get_path_to_checkpoint(epoch, config.compute_mean_teacher_model)]
-    return create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
+    checkpoint_paths = get_recovery_path_test(config=config, run_recovery=run_recovery,
+                                              epoch=epoch)
+    if not checkpoint_paths:
+        return None
 
-
-def create_pipeline_from_checkpoint_paths(config: ModelConfigBase,
-                                          checkpoint_paths: List[Path]) -> Optional[InferencePipelineBase]:
-    """
-    Attempt to create a pipeline from the provided checkpoint paths. If the files referred to by the paths
-    do not exist, or if there are no paths, None will be returned.
-    """
     if len(checkpoint_paths) > 1:
         if config.is_segmentation_model:
             assert isinstance(config, SegmentationModelBase)
@@ -395,8 +387,7 @@ def create_pipeline_from_checkpoint_paths(config: ModelConfigBase,
 
 def classification_model_test(config: ScalarModelBase,
                               data_split: ModelExecutionMode,
-                              run_recovery: Optional[RunRecovery],
-                              model_proc: ModelProcessing) -> InferenceMetricsForClassification:
+                              run_recovery: Optional[RunRecovery]) -> InferenceMetricsForClassification:
     """
     The main testing loop for classification models. It runs a loop over all epochs for which testing should be done.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
@@ -404,7 +395,6 @@ def classification_model_test(config: ScalarModelBase,
     :param data_split: The name of the folder to store the results inside each epoch folder in the outputs_dir,
                        used mainly in model evaluation using different dataset splits.
     :param run_recovery: RunRecovery data if applicable
-    :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
 

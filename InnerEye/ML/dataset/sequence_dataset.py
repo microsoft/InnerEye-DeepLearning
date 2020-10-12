@@ -248,7 +248,7 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
             grouped = add_difference_features(grouped, feature_indices)
         self.status += f"After grouping: {len(grouped)} subjects."
         self.items = grouped
-        self.normalize_non_image_features()
+        self.standardize_non_imaging_features()
 
     def get_status(self) -> str:
         """

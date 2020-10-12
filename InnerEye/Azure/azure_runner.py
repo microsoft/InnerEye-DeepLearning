@@ -24,7 +24,8 @@ from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME, \
     RUN_RECOVERY_ID_KEY_NAME, \
     merge_conda_dependencies
-from InnerEye.Azure.secrets_handling import read_variables_from_yaml
+from InnerEye.Azure.secrets_handling import read_all_settings
+from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
 from InnerEye.Common.fixed_paths import AZUREML_DATASTORE_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import ModelExecutionMode
@@ -91,12 +92,12 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
     run.set_tags({
         "tag": azure_config.tag,
         "model_name": azure_config.model,
-        "friendly_name": azure_config.user_friendly_name,
-        "execution_mode": ModelExecutionMode.TRAIN.value if azure_config.is_train else ModelExecutionMode.TEST.value,
+        "execution_mode": ModelExecutionMode.TRAIN.value if azure_config.train else ModelExecutionMode.TEST.value,
         RUN_RECOVERY_ID_KEY_NAME: azure_util.create_run_recovery_id(run=run),
         RUN_RECOVERY_FROM_ID_KEY_NAME: azure_config.run_recovery_id,
         "build_number": str(azure_config.build_number),
         "build_user": azure_config.build_user,
+        "build_user_email": azure_config.build_user_email,
         "source_repository": git_information.repository,
         "source_branch": git_information.branch,
         "source_id": git_information.commit_id,
@@ -106,6 +107,20 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
         "overrides": model_config_overrides,
         CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: -1,
     })
+
+
+def create_experiment_name(azure_config: AzureConfig) -> str:
+    """
+    Gets the name of the AzureML experiment. This is taken from the commandline, or from the git branch.
+    :param azure_config: The object containing all Azure-related settings.
+    :return: The name to use for the AzureML experiment.
+    """
+    if azure_config.experiment_name:
+        return azure_config.experiment_name
+    branch = azure_config.get_git_information().branch
+    # If no branch information is found anywhere, create an experiment name that is the user alias and a timestamp
+    # at monthly granularity, so that not too many runs accumulate in that experiment.
+    return branch or getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
 
 
 def create_and_submit_experiment(
@@ -124,10 +139,7 @@ def create_and_submit_experiment(
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
     :returns: Run object for the submitted AzureML run
     """
-    branch = azure_config.get_git_information().branch
-    # If no branch information is found anywhere, create an experiment name that is the user alias and a timestamp
-    # at monthly granularity, so that not too many runs accumulate in that experiment.
-    experiment_name = branch or getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
+    experiment_name = create_experiment_name(azure_config)
     exp = Experiment(workspace=workspace, name=azure_util.to_azure_friendly_string(experiment_name))
     pt_env = create_pytorch_environment(workspace, azure_config, source_config, azure_dataset_id)
 
@@ -156,21 +168,22 @@ def create_and_submit_experiment(
           f"--run_recovery_id={recovery_id}")
     print(f"The run recovery ID has been written to this file: {recovery_file}")
     print("==============================================================================")
+    if azure_config.tensorboard and azure_config.azureml:
+        print("Starting TensorBoard now because you specified --tensorboard")
+        monitor(monitor_config=AMLTensorBoardMonitorConfig(run_ids=[run.id]), azure_config=azure_config)
+    else:
+        print(f"To monitor this run locally using TensorBoard, run the script: "
+              f"InnerEye/Azure/tensorboard_monitor.py --run_ids={run.id}")
+        print("==============================================================================")
     return run
 
 
-def create_pytorch_environment(workspace: Workspace,
-                               azure_config: AzureConfig,
-                               source_config: SourceConfig,
-                               azure_dataset_id: str) -> PyTorch:
+def get_or_create_dataset(workspace: Workspace,
+                          azure_dataset_id: str) -> Dataset:
     """
-    Creates an Estimator environment required for model execution
-
-    :param workspace: The AzureML workspace
-    :param azure_config: azure related configurations to use for model scaleout behaviour
-    :param source_config: configurations for model execution, such as name and execution mode
-    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
-    :return: The configured PyTorch environment to be used for experimentation
+    Looks in the AzureML datastore for a dataset of the given name. If there is no such dataset, a dataset is created
+    and registered, assuming that the files are in a folder that has the same name as the dataset. For example, if
+    azure_dataset_id is 'foo', then the 'foo' dataset is pointing to <container_root>/datasets/foo folder.
 
     WARNING: the behaviour of Dataset.File.from_files, used below, is idiosyncratic. For example,
     if "mydataset" storage has two "foo..." subdirectories each containing
@@ -189,7 +202,6 @@ def create_pytorch_environment(workspace: Workspace,
 
     These behaviours can be verified by calling "ds.download()" on each dataset ds.
     """
-
     logging.info(f"Retrieving datastore '{AZUREML_DATASTORE_NAME}' from AzureML workspace")
     datastore = Datastore.get(workspace, AZUREML_DATASTORE_NAME)
     try:
@@ -202,6 +214,23 @@ def create_pytorch_environment(workspace: Workspace,
         azureml_dataset = Dataset.File.from_files([(datastore, azure_dataset_id)])
         logging.info("Registering the dataset for future use.")
         azureml_dataset.register(workspace, name=azure_dataset_id)
+    return azureml_dataset
+
+
+def create_pytorch_environment(workspace: Workspace,
+                               azure_config: AzureConfig,
+                               source_config: SourceConfig,
+                               azure_dataset_id: str) -> PyTorch:
+    """
+    Creates an Estimator environment required for model execution
+
+    :param workspace: The AzureML workspace
+    :param azure_config: azure related configurations to use for model scaleout behaviour
+    :param source_config: configurations for model execution, such as name and execution mode
+    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
+    :return: The configured PyTorch environment to be used for experimentation
+    """
+    azureml_dataset = get_or_create_dataset(workspace, azure_dataset_id=azure_dataset_id)
     if azureml_dataset:
         if azure_config.use_dataset_mount:
             logging.info("Inside AzureML, the dataset will be provided as a mounted folder.")
@@ -264,11 +293,14 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
     # create Estimator environment
     framework_version = pytorch_version_from_conda_dependencies(conda_dependencies)
     logging.info(f"PyTorch framework version: {framework_version}")
+    max_run_duration = None
+    if azure_config.max_run_duration:
+        max_run_duration = run_duration_string_to_seconds(azure_config.max_run_duration)
     estimator = PyTorch(
         source_directory=source_config.root_folder,
         entry_script=entry_script_relative_path,
         script_params=source_config.script_params,
-        compute_target=azure_config.gpu_cluster_name,
+        compute_target=azure_config.cluster,
         # Use blob storage for storing the source, rather than the FileShares section of the storage account.
         source_directory_data_store=workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME),
         inputs=estimator_inputs,
@@ -276,7 +308,8 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
         shm_size=azure_config.docker_shm_size,
         use_docker=True,
         use_gpu=True,
-        framework_version=framework_version
+        framework_version=framework_version,
+        max_run_duration_seconds=max_run_duration
     )
     estimator.run_config.environment.python.conda_dependencies = conda_dependencies
     # We'd like to log the estimator config, but conversion to string fails when the Estimator has some inputs.
@@ -305,11 +338,13 @@ def create_runner_parser(model_config_class: type = None) -> argparse.ArgumentPa
 
 def parse_args_and_add_yaml_variables(parser: ArgumentParser,
                                       yaml_config_file: Optional[Path] = None,
+                                      project_root: Optional[Path] = None,
                                       fail_on_unknown_args: bool = False,
                                       args: List[str] = None) -> ParserResult:
     """
     Reads arguments from sys.argv, modifies them with secrets from local YAML files,
     and parses them using the given argument parser.
+    :param project_root: The root folder for the whole project. Only used to access a private settings file.
     :param parser: The parser to use.
     :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.
     :param fail_on_unknown_args: If True, raise an exception if the parser encounters an argument that it does not
@@ -317,7 +352,7 @@ def parse_args_and_add_yaml_variables(parser: ArgumentParser,
     :param args: arguments to parse
     :return: The parsed arguments, and overrides
     """
-    settings_from_yaml = read_variables_from_yaml(yaml_config_file)
+    settings_from_yaml = read_all_settings(yaml_config_file, project_root=project_root)
     return parse_arguments(parser,
                            settings_from_yaml=settings_from_yaml,
                            fail_on_unknown_args=fail_on_unknown_args,
@@ -398,3 +433,28 @@ def parse_arguments(parser: ArgumentParser,
         known_settings_from_yaml=known_settings_from_yaml,
         unknown_settings_from_yaml=unknown_settings_from_yaml
     )
+
+
+def run_duration_string_to_seconds(s: str) -> Optional[int]:
+    """
+    Parse a string that represents a timespan, and returns it converted into seconds. The string is expected to be
+    floating point number with a single character suffix s, m, h, d for seconds, minutes, hours, day.
+    Examples: '3.5h', '2d'. If the argument is an empty string, None is returned.
+    :param s: The string to parse.
+    :return: The timespan represented in the string converted to seconds.
+    """
+    s = s.strip()
+    if not s:
+        return None
+    suffix = s[-1]
+    if suffix == "s":
+        multiplier = 1
+    elif suffix == "m":
+        multiplier = 60
+    elif suffix == "h":
+        multiplier = 60 * 60
+    elif suffix == "d":
+        multiplier = 24 * 60 * 60
+    else:
+        raise ArgumentError("s", f"Invalid suffix: Must be one of 's', 'm', 'h', 'd', but got: {s}")
+    return int(float(s[:-1]) * multiplier)

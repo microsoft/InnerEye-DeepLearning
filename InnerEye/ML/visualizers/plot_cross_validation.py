@@ -64,8 +64,6 @@ COL_SPLIT = "split"
 COL_MODE = "mode"
 FLOAT_FORMAT = "%.3f"
 
-EXECUTION_MODES_TO_DOWNLOAD = [ModelExecutionMode.TEST, ModelExecutionMode.VAL]
-
 DEFAULT_PD_DISPLAY_CONTEXT = pd.option_context('display.max_colwidth', -1,
                                                'display.max_columns', None,
                                                'display.max_rows', None,
@@ -92,10 +90,7 @@ class PlotCrossValidationConfig(GenericConfig):
     """
     model_category: ModelCategory = param.ClassSelector(class_=ModelCategory,
                                                         default=ModelCategory.Segmentation,
-                                                         doc="The high-level model category described by this config.")
-    is_scalar: bool = param.Boolean(default=True,
-                                    doc="Set to True if the model to evaluate is a classification model"
-                                        "otherwise False for a regression model")
+                                                        doc="The high-level model category described by this config.")
     run_recovery_id: Optional[str] = param.String(default=None, allow_None=True,
                                                   doc="The run recovery id of the run to collect results from."
                                                       "If the run is an ensemble, then the results for each"
@@ -122,9 +117,9 @@ class PlotCrossValidationConfig(GenericConfig):
     ignore_subjects: List[int] = param.List(None, class_=int, bounds=(1, None), allow_None=True, instantiate=False,
                                             doc="List of the subject ids to ignore from the results")
     is_zero_index: bool = param.Boolean(True, doc="If True, start cross validation split indices from 0 otherwise 1")
-    train_yaml_path: str = param.String(default=str(fixed_paths.TRAIN_YAML_FILE),
-                                        doc="Path to train_variables.yml file containing the Azure configuration "
-                                            "for the workspace")
+    settings_yaml_file: str = param.String(default=str(fixed_paths.SETTINGS_YAML_FILE),
+                                           doc="Path to settings.yml file containing the Azure configuration "
+                                               "for the workspace")
     _azure_config: Optional[AzureConfig] = \
         param.ClassSelector(class_=AzureConfig, allow_None=True,
                             doc="Azure-related options created from YAML file.")
@@ -147,7 +142,7 @@ class PlotCrossValidationConfig(GenericConfig):
         super().__init__(**params)
 
     def validate(self) -> None:
-        if self.run_recovery_id is None:
+        if not self.run_recovery_id:
             raise ValueError("--run_recovery_id is a mandatory parameter.")
         if self.model_category == ModelCategory.Segmentation and self.epoch is None:
             raise ValueError("When working on segmentation models, --epoch is a mandatory parameter.")
@@ -182,6 +177,12 @@ class PlotCrossValidationConfig(GenericConfig):
                 self.short_names[run_or_id] = run_id
         return self.short_names[run_id]
 
+    def execution_modes_to_download(self) -> List[ModelExecutionMode]:
+        if self.model_category.is_scalar:
+            return [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL, ModelExecutionMode.TEST]
+        else:
+            return [ModelExecutionMode.VAL, ModelExecutionMode.TEST]
+
     @property
     def azure_config(self) -> AzureConfig:
         """
@@ -189,7 +190,7 @@ class PlotCrossValidationConfig(GenericConfig):
         :return:
         """
         if self._azure_config is None:
-            self._azure_config = AzureConfig.from_yaml(Path(self.train_yaml_path))
+            self._azure_config = AzureConfig.from_yaml(Path(self.settings_yaml_file), project_root=None)
         return self._azure_config
 
     def download_or_get_local_file(self,
@@ -419,7 +420,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         if config.model_category == ModelCategory.Segmentation and not dataset_file:
             raise ValueError(f"Dataset file must be present for segmentation models, but is missing for run {run.id}")
         # Get metrics files.
-        for mode in EXECUTION_MODES_TO_DOWNLOAD:
+        for mode in config.execution_modes_to_download():
             # download metrics.csv file for each split. metrics_file can be None if the file does not exist
             # (for example, if no output was written for execution mode Test)
             metrics_file = download_metrics_file(config, run, folder_for_run, epoch, mode)
@@ -490,7 +491,7 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
     ID and institution ID are added.
     """
     dataset_split_metrics: Dict[ModelExecutionMode, List[pd.DataFrame]] = \
-        {mode: [] for mode in EXECUTION_MODES_TO_DOWNLOAD}
+        {mode: [] for mode in config.execution_modes_to_download()}
 
     for result in result_files:
         mode = result.execution_mode
@@ -508,7 +509,7 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
     # concatenate the data frames per split, removing execution modes for which there is no data.
     combined_metrics = {k: pd.concat(v) for k, v in dataset_split_metrics.items() if v}
 
-    if config.model_category.is_scalar():
+    if config.model_category.is_scalar:
         # if child folds are present then combine model outputs
         for k, v in combined_metrics.items():
             aggregation_column = LoggingColumns.ModelOutput.value
@@ -816,7 +817,8 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
         all_metrics.to_csv(full_csv_file, index=False)
         run_statistical_tests_on_file(root_folder, full_csv_file, config, focus_splits)
     else:
-        initial_metrics.to_csv(full_csv_file, index=False)
+        # For classification runs, we also want to compute the aggregated training metrics for
+        # each fold.
         metrics = ScalarMetricsDict.load_execution_mode_metrics_from_df(
             initial_metrics,
             config.model_category == ModelCategory.Classification)
@@ -826,6 +828,12 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
                 csv_path=root_folder / METRICS_AGGREGATES_FILE
             )
         )
+        # The full metrics file saves the prediction for each individual subject. Do not include the training
+        # results in this file (as in cross-validation a subject is used in several folds.)
+        val_and_test_metrics = initial_metrics.loc[
+            initial_metrics[LoggingColumns.DataSplit.value] != ModelExecutionMode.TRAIN.value]
+        val_and_test_metrics.to_csv(full_csv_file, index=False)
+
         # Copy one instance of the dataset.CSV files to the root of the results folder. It is possible
         # that the different CV folds run with different dataset files, but not expected for classification
         # models at the moment (could change with ensemble models)

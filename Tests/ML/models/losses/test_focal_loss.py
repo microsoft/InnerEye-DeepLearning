@@ -21,7 +21,7 @@ def test_get_focal_loss_pixel_weights() -> None:
 
     target = torch.tensor([[[1, 0, 0], [0, 1, 1]]], dtype=torch.float32)
     logits = torch.tensor([[[0, 0, 0], [-1e9, 0, 0]]], dtype=torch.float32)
-    pixel_weights = x_entropy_loss._get_focal_loss_pixel_weights(logits=logits, target=target)
+    pixel_weights = x_entropy_loss.get_focal_loss_pixel_weights(logits=logits, target=target)
     assert torch.allclose(torch.masked_select(pixel_weights, target.eq(1.0)),
                           torch.tensor([0.00, 1.50, 1.50]))
 

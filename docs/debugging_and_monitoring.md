@@ -1,27 +1,39 @@
 # Debugging and Monitoring Jobs
 
+### Using TensorBoard to monitor AzureML jobs
+
+* **Existing jobs**: execute [`InnerEye/Azure/tensorboard_monitor.py`](/InnerEye/Azure/tensorboard_monitor.py) 
+with either an experiment id `--experiment_name` or a list of run ids `--run_ids job1,job2,job3`. 
+If an experiment id is provided then all of the runs in that experiment will be monitored. Additionally You can also 
+filter runs by type by the run's status, setting the `--filters Running,Completed` parameter to a subset of
+`[Running, Completed, Failed, Canceled]`. By default Failed and Canceled runs are excluded.
+
+To quickly access this script from PyCharm, there is a template PyCharm run configuration 
+`Template: Tensorboard monitoring` in the repository. Create a copy of that, and modify the commandline 
+arguments with your jobs to monitor.
+
+* **New jobs**: when queuing a new AzureML job, pass `--tensorboard=True`, which will automatically start a new TensorBoard
+session, monitoring the newly queued job. 
+
+
 ### Debugging setup on local machine
 
 For full debugging of any non-trivial model, you will need a GPU. Some basic debugging can also be carried out on
 standard Linux or Windows machines.
 
-There are two main entry points into the code:
+The main entry point into the code is [`InnerEye/ML/runner.py`](/InnerEye/ML/runner.py). The code takes its 
+configuration elements from commandline arguments and a settings file, 
+[`InnerEye/settings.yml`](/InnerEye/settings.yml). 
 
-* [`InnerEye/Azure/azure_runner.py`](/InnerEye/Azure/azure_runner.py) is triggered via the training build definition,
-[`azure-pipelines/train.yaml`](/azure-pipelines/train.yaml), and can also be run from the command line. 
-This queues a run in AzureML.
-* The run itself executes [`InnerEye/ML/runner.py`](/InnerEye/ML/runner.py).
-
-For both runner scripts, you need to provide a list of arguments and secrets. To simplify debugging, these are pulled
-automatically from [`Inner/train_variables.yml`](/InnerEye/train_variables.yml) and from a local secrets file. 
-When running on a Windows machine, the secrets are expected in `c:\temp\InnerEyeTestVariables.txt`. On Linux, they 
-should be in `~/InnerEyeTestVariables.txt`. The secrets file is expected to contain at least a line of the form
+A password for the (optional) Azure Service 
+Principal is read from `InnerEyeTestVariables.txt` in the repository root directory. The file 
+is expected to contain a line of the form
 ```
 APPLICATION_KEY=<app key for your AML workspace>
 ```
 
 For developing and running your own models, you will probably find it convenient to create your own variants of
-`runner.py` and `train_variables.yml`, as detailed in the page on [model building](building_models.md).
+`runner.py` and `settings.yml`, as detailed in the page on [model building](building_models.md).
 
 To quickly access both runner scripts for local debugging, we created template PyCharm run configurations, called
 "Template: Azure runner" and "Template: ML runner". If you want to execute the runners on your machine, then
@@ -75,7 +87,7 @@ You may need to vary this if it does not yield exactly one line of output.
 kill -TRAP nnnn
 nc 127.0.0.1 4444
 ```
-where nnnn is the process identifier. If the python process is in a state where it can
+where `nnnn` is the process identifier. If the python process is in a state where it can
 accept the connection, the "nc" command will print a prompt from which you can issue pdb
 commands.
 
@@ -85,5 +97,3 @@ Thus if you might want a colleague to carry out the debugging, think carefully b
 issuing these commands yourself.
 * This procedure will not work on processes other than the main "runner.py" one, because
 only that process has the required trap handling set up.
-
-

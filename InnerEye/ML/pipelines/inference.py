@@ -24,7 +24,7 @@ from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import image_util, ml_util, model_util
 from InnerEye.ML.utils.image_util import compute_uncertainty_map_from_posteriors, gaussian_smooth_posteriors, \
     posteriors_to_segmentation
-from InnerEye.ML.utils.model_util import BaseModelOrDataParallelModel
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 
 
 class InferencePipelineBase:
@@ -190,7 +190,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
                 posteriors=self.posteriors,
                 voxel_spacing_mm=self.voxel_spacing_mm)
 
-    def __init__(self, model: BaseModelOrDataParallelModel, model_config: config.SegmentationModelBase, epoch: int = 0,
+    def __init__(self, model: DeviceAwareModule, model_config: config.SegmentationModelBase, epoch: int = 0,
                  pipeline_id: int = 0):
         super().__init__(model_config)
         self.model = model
@@ -212,14 +212,27 @@ class InferencePipeline(FullImageInferencePipelineBase):
         :return InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint
         file for this epoch.
         """
-        model_and_info = model_util.load_from_checkpoint_and_adjust(model_config, path_to_checkpoint)
-        if model_and_info.checkpoint_epoch is None or model_and_info.model is None:
+        model_and_info = model_util.ModelAndInfo(config=model_config,
+                                                 model_execution_mode=ModelExecutionMode.TEST,
+                                                 checkpoint_path=path_to_checkpoint)
+        if model_config.compute_mean_teacher_model:
+            model_loaded = model_and_info.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
+            model = model_and_info.mean_teacher_model
+        else:
+            model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+            model = model_and_info.model
+
+        if not model_loaded:
             return None
-        for name, param in model_and_info.model.named_parameters():
+
+        # for mypy, if model has been loaded these will not be None
+        assert model_and_info.checkpoint_epoch is not None
+
+        for name, param in model.named_parameters():
             param_numpy = param.clone().cpu().data.numpy()
             image_util.check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
 
-        return InferencePipeline(model=model_and_info.model, model_config=model_config,
+        return InferencePipeline(model=model, model_config=model_config,
                                  epoch=model_and_info.checkpoint_epoch, pipeline_id=pipeline_id)
 
     def predict_whole_image(self, image_channels: np.ndarray,

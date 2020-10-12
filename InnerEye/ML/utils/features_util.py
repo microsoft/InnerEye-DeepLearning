@@ -54,9 +54,38 @@ class FeatureStatistics(Generic[FT]):
             raise ValueError(
                 f"All non-image features must have the same size, but got these sizes: {unique_shapes}")
 
+        # If the input features contain infinite values (e.g. from padding)
+        # we need to ignore them for the computation of the normalization statistics.
         all_stacked = torch.stack(numerical_non_image_features, dim=0)
-        mean = torch.mean(all_stacked, dim=0)
-        std = torch.std(all_stacked, dim=0)
+        return FeatureStatistics.compute_masked_statistics(input=all_stacked,
+                                                           mask=torch.isfinite(all_stacked))
+
+    @staticmethod
+    def compute_masked_statistics(input: torch.Tensor, mask: torch.Tensor,
+                                  apply_bias_correction: bool = True) -> FeatureStatistics:
+        """
+        If the input features contains invalid values (e.g. from padding) they should be ignored in the
+        computation of the standardization statistics. This function allows to provide a boolean mask (of the same
+        shape as the input) to indicate which values should be taken into account for the computation of the
+        statistics. All values for which mask == True will be used for computation, the other will be ignored.
+        The statistics are computed for each feature i.e. column of the input (shape [batch_size, n_numerical_features])
+
+        :param input: input including all values, of dimension [batch_size, n_numerical_features]
+        :param mask: boolean tensor of the same shape as input
+        :param apply_bias_correction: if True applies Bessel's correction to the standard deviation estimate
+        :return: FeatureStatistics (mean and std) computed on the masked values.
+        """
+        n_obs_per_feature = mask.sum(dim=0).float()
+        masked_values = torch.zeros_like(input)
+        masked_values[mask] = input[mask]
+        mean = masked_values.sum(dim=0) / n_obs_per_feature
+        second_moment = torch.pow(masked_values, 2).sum(dim=0) / n_obs_per_feature
+        variance = second_moment - torch.pow(mean, 2)
+        if apply_bias_correction:
+            # Applies Bessel's bias correction to the std estimate (as in PyTorch's default behavior)
+            variance *= torch.div(n_obs_per_feature, (n_obs_per_feature - 1))
+        # Need to make sure variance is positive (numerical instability can make it slightly <0)
+        std = torch.sqrt(torch.max(variance, torch.zeros_like(variance)))
         return FeatureStatistics(mean=mean, std=std)
 
     def standardize(self, sources: List[FT]) -> List[FT]:

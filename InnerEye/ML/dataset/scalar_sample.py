@@ -15,7 +15,7 @@ from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata, SampleBase
 from InnerEye.ML.utils.io_util import load_images_and_stack
-from InnerEye.ML.utils.ml_util import is_tensor_nan_or_inf
+from InnerEye.ML.utils.ml_util import is_tensor_nan, is_tensor_nan_or_inf
 
 
 @dataclass(frozen=True)
@@ -61,10 +61,10 @@ class ScalarItemBase(SampleBase):
     def features_valid(self) -> bool:
         """
         Return True if numerical_non_image_features and categorical_non_image_features are valid
-        ie: none of the elements in the tensors are either Not a Number or Infinity.
+        ie: none of the elements in the tensors are Not a Number.
         """
-        return not (is_tensor_nan_or_inf(self.numerical_non_image_features)
-                    or is_tensor_nan_or_inf(self.categorical_non_image_features))
+        return not (is_tensor_nan(self.numerical_non_image_features)
+                    or is_tensor_nan(self.categorical_non_image_features))
 
     def labels_valid(self) -> bool:
         """

@@ -30,7 +30,8 @@ nodes can be used to further reduce costs (up to 80% cheaper).
 - **Scale out**: Large numbers of VMs can be requested easily to cope with a burst in jobs.
 
 Despite the cloud focus, all training and model testing works just as well on local compute, which is important for
-model prototyping, debugging, and in cases where the cloud can't be used.
+model prototyping, debugging, and in cases where the cloud can't be used. In particular, if you already have GPU
+machines available, you will be able to utilize them with the InnerEye toolbox.
 
 In addition, our toolbox supports:
  - Cross-validation using AzureML's built-in support, where the models for 
@@ -48,15 +49,43 @@ Once training in AzureML is done, the models can be deployed from within AzureML
 
 ## Getting started
 
-At a bare minimum, you will need to
-- Install `conda` or `miniconda` for your operating system
-- Clone the repository
-- Create a Conda environment from the `environment.yml` file in the repository, by running 
-`conda env create --file environment.yml`
-- Activate the environment by running `conda activate InnerEye`
+We recommend using our toolbox with Linux or with the Windows Subsystem for Linux (WSL2). Much of the core 
+functionality works fine on Windows, but PyTorch's full feature set is only available on Linux. Read [more about
+WSL here](docs/WSL.md).
+
+Clone the repository into a subfolder of the current directory:
+```shell script
+git lfs install
+git clone https://github.com/microsoft/InnerEye-DeepLearning
+cd InnerEye-DeepLearning
+```
+After that, you need to set up your Python environment:
+- Install `conda` or `miniconda` for your operating system. 
+- Create a Conda environment from the `environment.yml` file in the repository root, and activate it:
+```shell script
+conda env create --file environment.yml
+conda activate InnerEye
+``` 
+- If environment creation fails with odd error messages on a Windows machine, please [continue here](docs/WSL.md).
+
+Now try to run the HelloWorld segmentation model - that's a very simple model that will train for 2 epochs on any
+machine, no GPU required. You need to set the `PYTHONPATH` environment variable to point to the repository root first. 
+Assuming that your current directory is the repository root folder, on Linux `bash` that is: 
+```shell script
+export PYTHONPATH=`pwd`
+python InnerEye/ML/runner.py --model=HelloWorld
+```
+On Windows:
+```shell script
+set PYTHONPATH=%cd%
+python InnerEye/ML/runner.py --model=HelloWorld
+```
+
+If that works: Congratulations! You have successfully built your first model using the InnerEye toolbox.
 
 Detailed instructions, including setup in Azure, are here:
 1. [Setting up your environment](docs/environment.md)
+1. [Training a Hello World segmentation model](docs/hello_world_model.md)
 1. [Setting up Azure Machine Learning](docs/setting_up_aml.md)
 1. [Creating a dataset](docs/creating_dataset.md)
 1. [Building models in Azure ML](docs/building_models.md)
@@ -74,7 +103,21 @@ Detailed instructions, including setup in Azure, are here:
 
 [MIT License](LICENSE)
 
-**You are responsible for the performance and any necessary testing or regulatory clearances for any models generated**
+**You are responsible for the performance, the necessary testing, and if needed any regulatory clearance for
+ any of the models produced by this toolbox.**
+
+## Contact
+
+Please send an email to InnerEyeInfo@microsoft.com if you would like further information about this project.
+
+If you have any feature requests, or find issues in the code, please create an 
+[issue on GitHub](https://github.com/microsoft/InnerEye-DeepLearning/issues).
+
+If you are interested in using the InnerEye Deep Learning Toolkit to develop your own products and services,
+please email InnerEyeCommercial@microsoft.com. We can also provide input on using the toolbox with 
+[Azure Stack Hub](https://azure.microsoft.com/en-us/products/azure-stack/hub/), a hybrid cloud solution
+that allows for on-premise medical image analysis that complies with data handling regulations.
+
 
 ## Contributing
 
@@ -89,3 +132,16 @@ provided by the bot. You will only need to do this once across all repos using o
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+
+## Credits
+
+This toolbox is maintained by the 
+[Microsoft InnerEye team](https://www.microsoft.com/en-us/research/project/medical-image-analysis/), 
+and has received valuable contributions from a number
+of people outside our team. We would like to thank in particular our interns, 
+[Yao Quin](http://cseweb.ucsd.edu/~yaq007/), [Zoe Landgraf](https://www.linkedin.com/in/zoe-landgraf-a2212293),
+[Padmaja Jonnalagedda](https://www.linkedin.com/in/jspadmaja/),
+[Mathias Perslev](https://github.com/perslev), as well as the AI Residents 
+[Patricia Gillespie](https://www.microsoft.com/en-us/research/people/t-pagill/) and
+[Guilherme Ilunga](https://gilunga.github.io/).

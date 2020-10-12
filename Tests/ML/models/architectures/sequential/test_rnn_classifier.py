@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from io import StringIO
+from pathlib import Path
 from typing import Any, List, Optional, Tuple
 from unittest import mock
 
@@ -12,7 +13,7 @@ import pytest
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import METRICS_FILE_NAME, logging_to_stdout
+from InnerEye.Common.common_util import METRICS_FILE_NAME, logging_to_stdout, ModelExecutionMode
 from InnerEye.Common.metrics_dict import MetricType, SequenceMetricsDict
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
@@ -31,8 +32,7 @@ from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentat
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.io_util import ImageAndSegmentations
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling, \
-    update_model_for_multiple_gpus
+from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from Tests.ML.util import get_default_azure_config
@@ -247,7 +247,7 @@ def test_run_ml_with_sequence_model(use_combined_model: bool,
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         azure_config = get_default_azure_config()
-        azure_config.is_train = True
+        azure_config.train = True
         MLRunner(config, azure_config).run()
 
 
@@ -265,8 +265,13 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
     config.dataset_data_frame = _get_mock_sequence_dataset()
     config.num_epochs = 1
 
-    model = create_model_with_temperature_scaling(config)
-    update_model_for_multiple_gpus(ModelAndInfo(model), config)
+    model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
+                                  checkpoint_path=None)
+    model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+    assert model_loaded
+
+    model = model_and_info.model
+
     dataloader = SequenceDataset(config,
                                  data_frame=config.dataset_data_frame).as_data_loader(shuffle=False,
                                                                                       batch_size=2)
@@ -441,12 +446,14 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: TestOutputDire
     metrics_dict = SequenceMetricsDict.create_from_config(config)
     assert metrics_dict.get_hue_names(include_default=False) == expected_prediction_targets
     config.set_output_to(test_output_dirs.root_dir)
+    # Create a fake dataset directory to make config validation pass
+    config.local_dataset = Path(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_multi_label_sequence_dataframe()
     config.pre_process_dataset_dataframe()
     config.num_epochs = 1
     config.max_batch_grad_cam = 1
     azure_config = get_default_azure_config()
-    azure_config.is_train = True
+    azure_config.train = True
     MLRunner(config, azure_config).run()
     # The metrics file should have one entry per epoch per subject per prediction target,
     # for all the 3 prediction targets.

@@ -1,9 +1,24 @@
-# How to use WSL2 for development
+# How to use the Windows Subsystem for Linux (WSL2) for development
+
+We are aware of two issues with running our toolbox on Windows:
+- Conda and miniconda can be rather temperamental: Environment creation can fail with package conflict errors
+of unclear origin, or internal conda errors.
+- Some features of PyTorch are not supported, or not well supported, on Windows.
+
+If you are facing issue of the above kind on a Windows machine, we would highly recommend working with the
+Windows Subsystem for Linux (WSL2) or a plain Ubuntu Linux box.
+
+## Enable CUDA in WSL2
+If you are running a Windows box with a GPU, please follow the documentation 
+[here](https://docs.microsoft.com/en-us/windows/win32/direct3d12/gpu-cuda-in-wsl) to access the GPU
+from within WSL2.
 
 ## Install WSL2
 
 Requirements: Windows 10 version 2004 or higher
-https://docs.microsoft.com/en-us/windows/wsl/install-win10
+
+The instructions are [here](https://docs.microsoft.com/en-us/windows/wsl/install-win10), but summarized in
+copy/paste-able form below.
 
 Install winget from the appxbundle at https://github.com/microsoft/winget-cli/releases
 
@@ -22,13 +37,13 @@ winget install Microsoft.WindowsTerminal
 ## Install git and Anaconda
 
 Start the Windows Terminal app, create an Ubuntu tab, and inside that:
-- sudo apt update
-- sudo apt install git
-- sudo apt-get install git-lfs
-- wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-- sh Miniconda3-latest-Linux-x86_64.sh
-- sudo apt-get install python-dev
-- sudo apt-get install build-essential
+- `sudo apt update`
+- `sudo apt install git`
+- `sudo apt-get install git-lfs`
+- `wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh`
+- `sh Miniconda3-latest-Linux-x86_64.sh`
+- `sudo apt-get install python-dev`
+- `sudo apt-get install build-essential`
 - Clone repo or access your repos via /mnt/c/...
 - Create conda environment: `conda env create --file environment.yml`
 - Create a file in the top level directory of the repository, named `InnerEyeTestVariables.txt`, with one line:
