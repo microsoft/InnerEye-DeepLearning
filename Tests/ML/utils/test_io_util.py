@@ -207,7 +207,9 @@ def write_test_dicom(array: np.ndarray, path: Path) -> None:
 def get_mock_function(monochrome2: bool, bits_stored: Optional[int] = None) -> Callable:
     """
     SimpleITK does not allow us to set the Photometric Interpretation and Stored Bits tags when writing the Dicom image.
-    For the tests, if an image should set these tags we wrap the reader to return the right attributes.
+    In these tests, if the image should be MONOCHROME1 we write an inverted image with tag MONOCHROME2
+    and use this wrapper around the SimpleITK metadata reader to make it look to the test like the tag was MONOCHROME1.
+    Similarly, we write images with StoredBits set to 16, but use this wrapper to change StoredBits while reading.
     """
     get_metadata_function = sitk.ImageFileReader.GetMetaData
 
