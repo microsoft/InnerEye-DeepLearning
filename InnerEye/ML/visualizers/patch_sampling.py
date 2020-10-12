@@ -69,7 +69,7 @@ def main(args: CheckPatchSamplingConfig) -> None:
 
     for sample_index in range(args.number_samples):
         sample = CroppingDataset.create_possibly_padded_sample_for_cropping(
-            sample=full_image_dataset.get_samples_at_index(index=sample_index)[0],
+            sample=full_image_dataset.get_sample_at_index(index=sample_index),
             crop_size=config.crop_size,
             padding_mode=config.padding_mode)
         print("Processing sample: ", sample.patient_id)

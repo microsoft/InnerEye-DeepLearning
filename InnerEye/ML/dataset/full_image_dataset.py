@@ -301,11 +301,11 @@ class FullImageDataset(GeneralDataset[SegmentationModelBase]):
         """
         return io_util.load_nifti_image(self.dataset_sources[patient_id].image_channels[0]).header.spacing
 
-    def get_samples_at_index(self, index: int) -> List[Sample]:
+    def get_sample_at_index(self, index: int) -> Sample:
         """
         returns the sample at the provided index in the dataset
         """
-        return super(FullImageDataset, self).__getitem__(index)
+        return Sample.from_dict(super().__getitem__(index))
 
     @staticmethod
     def _load_dataset_sources(args: SegmentationModelBase, data_frame: pd.DataFrame) \

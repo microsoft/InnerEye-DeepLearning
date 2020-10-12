@@ -232,7 +232,7 @@ def evaluate_model_predictions(process_id: int,
     :param results_folder: Path to results folder
     :returns [PatientMetadata, list[list]]: Patient metadata and list of computed metrics for each image.
     """
-    sample = dataset.get_samples_at_index(index=process_id)[0]
+    sample = dataset.get_sample_at_index(index=process_id)
     logging.info(f"Evaluating predictions for patient {sample.patient_id}")
     patient_results_folder = get_patient_results_folder(results_folder, sample.patient_id)
     segmentation = load_nifti_image(patient_results_folder / DEFAULT_RESULT_IMAGE_NAME).image
