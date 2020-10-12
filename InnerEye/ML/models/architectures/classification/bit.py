@@ -2,6 +2,17 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+
+#  ------------------------------------------------------------------------------------------
+#  This is a re-implementation of the Big Transfer model described in
+#  Kolesnikov, Alexander, et al. "Big transfer (BiT): General visual representation learning."
+#  arXiv preprint arXiv:1912.11370 (2019).
+
+#  The original source code (https://github.com/google-research/big_transfer) is licensed
+#  under the Apache License 2.0 which can be found in the THIRDPARTYNOTICES.md file in this
+#  repository.
+#  ------------------------------------------------------------------------------------------
+
 import torch
 
 from torch import nn
