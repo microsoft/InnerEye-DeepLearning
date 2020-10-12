@@ -14,7 +14,7 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.output_directories import TestOutputDirectories
 
 # A list of all secrets that are stored in environment variables or local secrets files.
-SECRETS_IN_ENVIRONMENT = [fixed_paths.APPLICATION_KEY, fixed_paths.DATASETS_ACCOUNT_KEY]
+SECRETS_IN_ENVIRONMENT = [fixed_paths.SERVICE_PRINCIPAL_KEY, fixed_paths.DATASETS_ACCOUNT_KEY]
 
 
 def set_environment_variables(variables: Dict[str, str]) -> None:

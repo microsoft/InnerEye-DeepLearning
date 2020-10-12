@@ -51,8 +51,9 @@ PROJECT_SECRETS_FILE = "InnerEyeTestVariables.txt"
 # This file is expected to live in the root folder of the repository or project.
 PRIVATE_SETTINGS_FILE = "InnerEyePrivateSettings.yml"
 
-# Secret names for secrets stored as env variables or in PROJECT_SECRETS_FILE
-APPLICATION_KEY = "APPLICATION_KEY"
+# Names of secrets stored as environment variables or in the PROJECT_SECRETS_FILE:
+# Secret for the Service Principal
+SERVICE_PRINCIPAL_KEY = "APPLICATION_KEY"
 # The access key for the Azure storage account that holds the datasets.
 DATASETS_ACCOUNT_KEY = "DATASETS_ACCOUNT_KEY"
 
