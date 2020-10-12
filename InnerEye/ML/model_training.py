@@ -61,7 +61,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     data_loaders = config.create_data_loaders()
 
     # Get the path to the checkpoint to recover from
-    checkpoint_path = get_recovery_path_train(run_recovery=run_recovery,
+    checkpoint_path = get_recovery_path_train(config=config,
+                                              run_recovery=run_recovery,
                                               epoch=config.start_epoch)
     models_and_optimizer = ModelAndInfo(config=config,
                                         model_execution_mode=ModelExecutionMode.TRAIN,

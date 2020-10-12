@@ -110,10 +110,16 @@ class ModelAndInfo:
         map_location = None if use_gpu else 'cpu'
         checkpoint = torch.load(str(checkpoint_path), map_location=map_location)
 
+        try:
+            state_dict = checkpoint[key_in_state_dict]
+        except KeyError:
+            logging.info(f"Key {key_in_state_dict} not found in checkpoint")
+            return False
+
         if isinstance(model, torch.nn.DataParallel):
-            model.module.load_state_dict(checkpoint[key_in_state_dict])
+            model.module.load_state_dict(state_dict)
         else:
-            model.load_state_dict(checkpoint[key_in_state_dict])
+            model.load_state_dict(state_dict)
         return checkpoint[ModelAndInfo.EPOCH_KEY]
 
     @classmethod
@@ -378,8 +384,14 @@ class ModelAndInfo:
         map_location = None if self.config.use_gpu else 'cpu'
         checkpoint = torch.load(str(self.checkpoint_path), map_location=map_location)
 
+        try:
+            state_dict = checkpoint[ModelAndInfo.OPTIIMZER_STATE_DICT_KEY]
+        except KeyError:
+            logging.info(f"Key {ModelAndInfo.OPTIIMZER_STATE_DICT_KEY} not found in checkpoint")
+            return False
+
         if self._optimizer:
-            self._optimizer.load_state_dict(checkpoint[ModelAndInfo.OPTIIMZER_STATE_DICT_KEY])
+            self._optimizer.load_state_dict(state_dict)
 
         logging.info(f"Loaded optimizer from checkpoint (epoch: {checkpoint[ModelAndInfo.EPOCH_KEY]})")
         self.checkpoint_epoch = checkpoint[ModelAndInfo.EPOCH_KEY]

@@ -56,11 +56,10 @@ class RunRecovery:
             run_to_recover = next(x for x in fetch_child_runs(run_to_recover) if
                                   get_cross_validation_split_index(x) == get_cross_validation_split_index(run_context))
 
-        return RunRecovery.download_checkpoints_from_run(azure_config, config, run_to_recover)
+        return RunRecovery.download_checkpoints_from_run(config, run_to_recover)
 
     @staticmethod
-    def download_checkpoints_from_run(azure_config: AzureConfig,
-                                      config: ModelConfigBase,
+    def download_checkpoints_from_run(config: ModelConfigBase,
                                       run: Run,
                                       output_subdir_name: Optional[str] = None) -> RunRecovery:
         """
@@ -129,7 +128,7 @@ class RunRecovery:
         logging.info(f"Recovering from checkpoints roots: {self.checkpoints_roots}")
 
 
-def get_recovery_path_train(run_recovery: Optional[RunRecovery],
+def get_recovery_path_train(config: DeepLearningConfig, run_recovery: Optional[RunRecovery],
                             epoch: int) -> Optional[Path]:
     """
     Decides the checkpoint path to use for the current training run. If a run recovery object is used, use the
@@ -138,9 +137,18 @@ def get_recovery_path_train(run_recovery: Optional[RunRecovery],
     :param epoch: Epoch to recover
     :return: Constructed checkpoint path to recover from.
     """
+    if config.start_epoch > 0 and not run_recovery:
+        raise ValueError("Start epoch is > 0, but no run recovery object has been provided to resume training.")
+
     checkpoint_paths: Optional[Path]
     if run_recovery:
+        # run_recovery takes first precedence over config.weights_url or config.local_weights_path.
+        # This is to allow easy recovery of runs which have either of these parameters set in the config:
         checkpoint_paths = run_recovery.get_checkpoint_paths(epoch)[0]
+    elif config.local_weights_path:
+        # By this time, even if config.weights_url was set, model weights have been downloaded to
+        # config.local_weights_path
+        return config.local_weights_path
     else:
         logging.warning("No run recovery object provided to recover checkpoint from.")
         checkpoint_paths = None
@@ -178,7 +186,14 @@ def get_recovery_path_test(config: DeepLearningConfig, run_recovery: Optional[Ru
     # We found the checkpoint(s) in the run being recovered. If we didn't, it's probably because the epoch
     # is from the current run, which has been doing more training, so we look for it there.
     checkpoint_path = config.get_path_to_checkpoint(epoch)
-    if not checkpoint_path.is_file():
-        logging.warning(f"Could not find checkpoint at path {checkpoint_path}")
-        return None
-    return [checkpoint_path]
+    if checkpoint_path.is_file():
+        return [checkpoint_path]
+
+    logging.warning(f"Could not find checkpoint at path {checkpoint_path}")
+
+    # last place to check is in config.local_weights_path
+    if config.local_weights_path:
+        logging.info(f"Using model weights at {config.local_weights_path} to initialize model")
+        return [config.local_weights_path]
+
+    return None

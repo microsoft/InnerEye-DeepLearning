@@ -203,8 +203,7 @@ class Runner:
         # Import only here in case of dependency issues in reduced environment
         from InnerEye.ML.utils.run_recovery import RunRecovery
         with logging_section("Downloading checkpoints from sibling runs"):
-            run_recovery = RunRecovery.download_checkpoints_from_run(
-                self.azure_config, self.model_config, PARENT_RUN_CONTEXT, output_subdir_name=OTHER_RUNS_SUBDIR_NAME)
+            run_recovery = RunRecovery.download_checkpoints_from_run(self.model_config, PARENT_RUN_CONTEXT, output_subdir_name=OTHER_RUNS_SUBDIR_NAME)
             # Check paths are good, just in case
             for path in run_recovery.checkpoints_roots:
                 if not path.is_dir():

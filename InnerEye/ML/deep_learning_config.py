@@ -361,6 +361,13 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "weights are updated using mean_teacher_"
                                                  "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
+    weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
+                                        "initialization.")
+    local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
+                                                        default=None,
+                                                        allow_None=True,
+                                                        doc="The path to the weights to use for model initialization,"
+                                                            " when training is running outside Azure.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
@@ -534,7 +541,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     def should_load_checkpoint_for_training(self) -> bool:
         """Returns true if start epoch > 0, that is, if an existing checkpoint is used to continue training."""
-        return self.start_epoch > 0
+        return self.start_epoch > 0 or self.weights_url or self.local_weights_path
 
     def should_save_epoch(self, epoch: int) -> bool:
         """Returns True if the present epoch should be saved, as per the save_start_epoch and save_step_epochs

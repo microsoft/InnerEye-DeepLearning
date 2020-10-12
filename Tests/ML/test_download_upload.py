@@ -20,6 +20,7 @@ from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
 from Tests.ML.util import get_default_azure_config
+from Tests.ML.configs.DummyModel import DummyModel
 
 logging_to_stdout(logging.DEBUG)
 
@@ -169,3 +170,18 @@ def test_download_blobxfer(test_output_dirs: TestOutputDirectories, is_file: boo
         assert otherfile.exists()
         assert otherfile.read_text().strip() == "folder1.txt"
         assert not folder2.exists()
+
+
+def test_download_model_weights(test_output_dirs: TestOutputDirectories) -> None:
+
+    # Download a sample ResNet model from a URL given in the Pytorch docs
+    # The downloaded model does not match the architecture, which is okay since we are only testing the download here.
+
+    model_config = DummyModel(weights_url="https://download.pytorch.org/models/resnet18-5c106cde.pth")
+    azure_config = get_default_azure_config()
+    runner = MLRunner(model_config, azure_config)
+    runner.project_root = Path(test_output_dirs.root_dir)
+
+    result_path = runner.download_weights()
+    assert result_path
+    assert result_path.is_file()

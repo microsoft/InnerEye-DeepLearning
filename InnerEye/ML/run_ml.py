@@ -5,6 +5,9 @@
 import copy
 import logging
 from pathlib import Path
+import requests
+import os
+import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -291,6 +294,8 @@ class MLRunner:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
             self.model_config.local_dataset = self.mount_or_download_dataset()
+            if self.model_config.weights_url:
+                self.model_config.local_weights_path = self.download_weights()
             self.model_config.write_args_file()
             logging.info(str(self.model_config))
             # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
@@ -669,3 +674,29 @@ class MLRunner:
                         train_metrics=train_metrics, run_context=run_context)  # type: ignore
 
         return test_metrics, val_metrics, train_metrics
+
+    def download_weights(self) -> Path:
+        target_folder = self.project_root / fixed_paths.MODEL_WEIGHTS_DIR_NAME
+        target_folder.mkdir(exist_ok=True)
+
+        url = self.model_config.weights_url
+
+        # assign the same filename as in the download url if possible, so that we can check for duplicates
+        # If that fails, map to a random uuid
+        file_name = os.path.basename(requests.utils.urlparse(url).path) or str(uuid.uuid4().hex)
+        result_file = target_folder / file_name
+
+        # only download if hasn't already been downloaded
+        if result_file.exists():
+            logging.info(f"File already exists, skipping download: {result_file}")
+            return result_file
+
+        logging.info(f"Downloading weights from {url}")
+
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        with open(result_file, "wb") as file:
+            for chunk in response.iter_content(chunk_size=1024):
+                file.write(chunk)
+
+        return result_file
