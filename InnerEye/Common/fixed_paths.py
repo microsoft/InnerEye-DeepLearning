@@ -51,6 +51,11 @@ PROJECT_SECRETS_FILE = "InnerEyeTestVariables.txt"
 # This file is expected to live in the root folder of the repository or project.
 PRIVATE_SETTINGS_FILE = "InnerEyePrivateSettings.yml"
 
+# Secret names for secrets stored as env variables or in PROJECT_SECRETS_FILE
+APPLICATION_KEY = "APPLICATION_KEY"
+# The access key for the Azure storage account that holds the datasets.
+DATASETS_ACCOUNT_KEY = "DATASETS_ACCOUNT_KEY"
+
 INNEREYE_PACKAGE_ROOT = repository_root_directory(INNEREYE_PACKAGE_NAME)
 SETTINGS_YAML_FILE_NAME = "settings.yml"
 SETTINGS_YAML_FILE = INNEREYE_PACKAGE_ROOT / SETTINGS_YAML_FILE_NAME
