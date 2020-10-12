@@ -36,6 +36,8 @@ class SecretsHandling:
         """
         Reads the secrets from file in YAML format, and returns the contents as a dictionary. The YAML file is expected
         in the project root directory.
+        :param secrets_to_read: The list of secret names to read from the YAML file. These will be converted to
+        uppercase.
         :return: A dictionary with secrets, or None if the file does not exist.
         """
         secrets_file = self.project_root / fixed_paths.PROJECT_SECRETS_FILE
@@ -53,8 +55,10 @@ class SecretsHandling:
     def get_secrets_from_environment_or_file(self, secrets_to_read: List[str]) -> Dict[str, Optional[str]]:
         """
         Attempts to read secrets from the project secret file. If there is no secrets file, it returns all secrets
-        in SECRETS_IN_ENVIRONMENT read from environment variables. When reading from environment, if an expected
+        in secrets_to_read read from environment variables. When reading from environment, if an expected
         secret is not found, its value will be None.
+        :param secrets_to_read: The list of secret names to read from the YAML file. These will be converted to
+        uppercase.
         """
         # Read all secrets from a local file if present, and sets the matching environment variables.
         # If no secrets file is present, no environment variable is modified or created.
