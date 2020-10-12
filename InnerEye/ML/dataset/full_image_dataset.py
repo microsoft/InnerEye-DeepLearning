@@ -173,15 +173,27 @@ D = TypeVar('D', bound=ModelConfigBase)
 class GeneralDataset(CacheDataset, ABC, Generic[D]):
     def __init__(self, args: D, data_sources: Sequence, data_frame: Optional[pd.DataFrame] = None,
                  name: Optional[str] = None):
+
+        # Check base_path
+        assert args.local_dataset is not None
+        if not args.local_dataset.is_dir():
+            raise ValueError("local_dataset should be the path to the base directory of the data: {}".
+                             format(args.local_dataset))
+
         self.name = name or "None"
         self.args = args
         self.data_frame = args.dataset_data_frame if data_frame is None else data_frame
         transforms = self.get_transforms()
-        super().__init__(data_sources, transforms,
+        super().__init__(data=data_sources,
+                         transform=transforms,
                          cache_num=self.args.dataset_cache_num,
                          cache_rate=self.args.dataset_cache_rate,
                          num_workers=self.args.dataset_worker_threads)
         logging.info(f"Processing dataset (name={self.name})")
+
+    def __getitem__(self, index: int) -> Dict[str, Any]:
+        sample: Sample = super().__getitem__(index)
+        return sample.get_dict()
 
     def get_transforms(self) -> Union[Sequence[Callable], Callable]:
         return list()
@@ -229,7 +241,7 @@ class GeneralDataset(CacheDataset, ABC, Generic[D]):
             )
 
 
-class FullImageDataset(GeneralDataset):
+class FullImageDataset(GeneralDataset[SegmentationModelBase]):
     """
     Dataset class that loads and creates samples with full 3D images from a given pd.Dataframe. The following
     are the operations performed to generate a sample from this dataset:
@@ -242,24 +254,17 @@ class FullImageDataset(GeneralDataset):
 
     def __init__(self, args: SegmentationModelBase,
                  data_frame: pd.DataFrame,
-                 full_image_sample_transforms: Optional[Compose3D[Sample]] = None):
+                 full_image_sample_transforms: Optional[Compose3D[Sample]] = None,
+                 name: Optional[str] = None):
         self.full_image_sample_transforms = full_image_sample_transforms
 
-        # Check base_path
-        assert self.args.local_dataset is not None
-        if not self.args.local_dataset.is_dir():
-            raise ValueError("local_dataset should be the path to the base directory of the data: {}".
-                             format(self.args.local_dataset))
-
         # cache all of the available dataset sources
-        self._set_file_extension()
+        self._set_file_extension(data_frame)
         if self._is_nifti_dataset():
-            dataloader: Callable[[], Any] = self._load_dataset_sources
+            self.dataset_sources = self._load_dataset_sources(args, data_frame)
+            super().__init__(args, list(self.dataset_sources.values()), data_frame, name)
         else:
             raise Exception("Files should be Nifti, but found {0}".format(self.file_extension))
-
-        self.dataset_sources: Union[Dict[IntOrString, PatientDatasetSource]] = dataloader()
-        super().__init__(args, list(dataloader().values()), data_frame)
 
     def get_transforms(self) -> Union[Sequence[Callable], Callable]:
         transforms = [LoadNiftiDataSample()]
@@ -282,8 +287,8 @@ class FullImageDataset(GeneralDataset):
     def _is_nifti_dataset(self) -> bool:
         return is_nifti_file_path(self.file_extension)
 
-    def _set_file_extension(self) -> None:
-        file_extension = self._extension_from_df_file_paths(self.data_frame[CSV_PATH_HEADER].values)  # type: ignore
+    def _set_file_extension(self, data_frame: pd.DataFrame) -> None:
+        file_extension = self._extension_from_df_file_paths(data_frame[CSV_PATH_HEADER].values)  # type: ignore
         self.file_extension = file_extension
         if not (self._is_nifti_dataset()):
             raise Exception("Wrong file type provided. Must be Nifti.")
@@ -302,13 +307,15 @@ class FullImageDataset(GeneralDataset):
         """
         return super(FullImageDataset, self).__getitem__(index)
 
-    def _load_dataset_sources(self) -> Dict[int, PatientDatasetSource]:
-        assert self.args.local_dataset is not None
-        return load_dataset_sources(dataframe=self.data_frame,
-                                    local_dataset_root_folder=self.args.local_dataset,
-                                    image_channels=self.args.image_channels,
-                                    ground_truth_channels=self.args.ground_truth_ids,
-                                    mask_channel=self.args.mask_id
+    @staticmethod
+    def _load_dataset_sources(args: SegmentationModelBase, data_frame: pd.DataFrame) \
+            -> Dict[int, PatientDatasetSource]:
+        assert args.local_dataset is not None
+        return load_dataset_sources(dataframe=data_frame,
+                                    local_dataset_root_folder=args.local_dataset,
+                                    image_channels=args.image_channels,
+                                    ground_truth_channels=args.ground_truth_ids,
+                                    mask_channel=args.mask_id
                                     )
 
 

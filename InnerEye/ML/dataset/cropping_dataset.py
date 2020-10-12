@@ -3,10 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Callable, List, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
+from monai.transforms import Compose, Randomizable, Transform
 
 from InnerEye.Common.common_util import any_pairwise_larger
 from InnerEye.Common.type_annotations import TupleInt3
@@ -18,7 +19,6 @@ from InnerEye.ML.utils.augmentation import random_select_patch_center
 from InnerEye.ML.utils.image_util import pad_images
 from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.transforms import Compose3D
-from monai.transforms import Compose, Randomizable, Transform
 
 
 class PadSample(Transform):
@@ -44,17 +44,17 @@ class PadSample(Transform):
         """
         image_spatial_shape = sample.image.shape[-3:]
 
-        if any_pairwise_larger(crop_size, image_spatial_shape):
+        if any_pairwise_larger(output_size, image_spatial_shape):
             if padding_mode == PaddingMode.NoPadding:
                 raise ValueError(
                     "The crop_size across each dimension should be greater than zero and less than or equal "
-                    f"to the current value (crop_size: {crop_size}, spatial shape: {image_spatial_shape}) "
+                    f"to the current value (crop_size: {output_size}, spatial shape: {image_spatial_shape}) "
                     "or padding_mode must be set to enable padding")
             else:
                 sample = sample.clone_with_overrides(
-                    image=pad_images(sample.image, crop_size, padding_mode),
-                    mask=pad_images(sample.mask, crop_size, padding_mode),
-                    labels=pad_images(sample.labels, crop_size, padding_mode)
+                    image=pad_images(sample.image, output_size, padding_mode),
+                    mask=pad_images(sample.mask, output_size, padding_mode),
+                    labels=pad_images(sample.labels, output_size, padding_mode)
                 )
 
                 logging.debug(f"Padded sample for patient: {sample.patient_id}, from spatial dimensions: "
@@ -141,11 +141,9 @@ class CroppingDataset(FullImageDataset):
     def __init__(self, args: SegmentationModelBase, data_frame: pd.DataFrame,
                  cropped_sample_transforms: Optional[Compose3D[CroppedSample]] = None,
                  full_image_sample_transforms: Optional[Compose3D[Sample]] = None):
-        super().__init__(args, data_frame, full_image_sample_transforms)
         self.cropped_sample_transforms = cropped_sample_transforms
+        super().__init__(args, data_frame, full_image_sample_transforms)
 
     def get_transforms(self) -> Union[Sequence[Callable], Callable]:
         base_transforms = super().get_transforms()
         return Compose([base_transforms, self.cropped_sample_transforms])
-
-
