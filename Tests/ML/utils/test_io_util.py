@@ -19,7 +19,7 @@ from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
 from InnerEye.ML.utils.io_util import ImageHeader, is_nifti_file_path, is_numpy_file_path, \
     load_image_in_known_formats, load_numpy_image, is_dicom_file_path, load_dicom_image, \
-    ImageAndSegmentations, load_images_and_stack
+    ImageAndSegmentations, load_images_and_stack, DicomTags, PhotometricInterpretation
 from Tests.ML.util import assert_file_contents
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -214,10 +214,10 @@ def get_mock_function(is_monochrome2: bool, bits_stored: Optional[int] = None) -
     get_metadata_function = sitk.ImageFileReader.GetMetaData
 
     def mock_function(image_reader: sitk.ImageFileReader, key: str) -> str:
-        if bits_stored and key == "0028|0101":
+        if bits_stored and key == DicomTags.BitsStored.value:
             return str(bits_stored)
-        elif not is_monochrome2 and key == "0028|0004":
-            return "MONOCHROME1"
+        elif not is_monochrome2 and key == DicomTags.PhotometricInterpretation.value:
+            return PhotometricInterpretation.MONOCHROME1.value
         else:
             return get_metadata_function(image_reader, key)
 
