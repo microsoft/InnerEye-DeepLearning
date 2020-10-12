@@ -13,11 +13,10 @@ import torch
 
 from InnerEye.Common import common_util
 from InnerEye.Common.type_annotations import IntOrString, PathOrString, T, TupleFloat3
-from InnerEye.ML.utils import io_util, ml_util
+from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER, CSV_SUBJECT_HEADER, \
     CSV_TAGS_HEADER
 from InnerEye.ML.utils.image_util import ImageHeader
-from monai.transforms import MapTransform, Transform
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 SAMPLE_METADATA_FIELD = "metadata"
@@ -218,8 +217,3 @@ class CroppedSample(Sample):
         ml_util.check_size_matches(arg1=self.mask_center_crop,
                                    arg2=self.labels_center_crop,
                                    matching_dimensions=self._get_matching_dimensions())
-
-
-class LoadNiftiDataSample(Transform):
-    def __call__(self, data: PatientDatasetSource) -> Sample:
-        return io_util.load_images_from_dataset_source(dataset_source=data)

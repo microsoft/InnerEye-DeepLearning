@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Generic, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+
+from monai.transforms import Transform
 from skimage.transform import resize
 
 import SimpleITK as sitk

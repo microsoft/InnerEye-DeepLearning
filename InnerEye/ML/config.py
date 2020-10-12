@@ -16,7 +16,6 @@ from InnerEye.Common.common_util import any_pairwise_larger, any_smaller_or_equa
 from InnerEye.Common.generic_parsing import IntTuple
 from InnerEye.Common.type_annotations import TupleFloat2, TupleFloat3, TupleInt3, TupleStringOptionalFloat
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
-from InnerEye.ML.dataset.cropping_dataset import PadSample, RandomCropSample
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.split_dataset import DatasetSplits
@@ -751,6 +750,8 @@ class SegmentationModelBase(ModelConfigBase):
         By default no transformation is performed.
         """
         from monai.transforms import Compose
+        from InnerEye.ML.dataset.cropping_dataset import PadSample
+        from InnerEye.ML.dataset.cropping_dataset import RandomCropSample
         transforms = Compose([
             PadSample(output_size=self.crop_size, padding_mode=self.padding_mode),
             RandomCropSample(random_seed=self.get_effective_random_seed(),
