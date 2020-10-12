@@ -76,7 +76,7 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
 
         return class_weight
 
-    def _get_focal_loss_pixel_weights(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def get_focal_loss_pixel_weights(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Computes weights for each pixel/sample inversely proportional to the posterior likelihood.
         :param logits: Logits tensor.
@@ -89,8 +89,7 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
         # Normalise the weights to preserve the loss range and lr sensitivity
         num_pixels = pixel_weights.nelement() / float(pixel_weights.size(1))
         # noinspection PyTypeChecker
-        scaling = num_pixels / \
-                  (torch.sum(torch.masked_select(pixel_weights, target.eq(1.0))) + self.eps)  # type: ignore
+        scaling = num_pixels / (torch.sum(torch.mul(pixel_weights, target)) + self.eps)  # type: ignore
 
         return pixel_weights * scaling
 
@@ -138,7 +137,7 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
 
         # Determine pixel/class weights for unbalanced datasets
         if self.focal_loss_gamma is not None:
-            pixel_weights = self._get_focal_loss_pixel_weights(output, target)
+            pixel_weights = self.get_focal_loss_pixel_weights(output, target)
             log_prob = log_prob * pixel_weights
         if self.class_weight_power is not None and self.class_weight_power != 0.0:
             # class_weight is shape (C).
