@@ -204,7 +204,7 @@ def write_test_dicom(array: np.ndarray, path: Path) -> None:
     writer.Execute(image)
 
 
-def get_mock_function(monochrome2: bool, bits_stored: Optional[int] = None) -> Callable:
+def get_mock_function(is_monochrome2: bool, bits_stored: Optional[int] = None) -> Callable:
     """
     SimpleITK does not allow us to set the Photometric Interpretation and Stored Bits tags when writing the Dicom image.
     In these tests, if the image should be MONOCHROME1 we write an inverted image with tag MONOCHROME2
@@ -216,7 +216,7 @@ def get_mock_function(monochrome2: bool, bits_stored: Optional[int] = None) -> C
     def mock_function(image_reader: sitk.ImageFileReader, key: str) -> str:
         if bits_stored and key == "0028|0101":
             return str(bits_stored)
-        elif not monochrome2 and key == "0028|0004":
+        elif not is_monochrome2 and key == "0028|0004":
             return "MONOCHROME1"
         else:
             return get_metadata_function(image_reader, key)
@@ -224,15 +224,15 @@ def get_mock_function(monochrome2: bool, bits_stored: Optional[int] = None) -> C
     return mock_function
 
 
-@pytest.mark.parametrize("signed", [True, False])
-@pytest.mark.parametrize("monochrome2", [True, False])
+@pytest.mark.parametrize("is_signed", [True, False])
+@pytest.mark.parametrize("is_monochrome2", [True, False])
 def test_load_dicom_image_ones(test_output_dirs: TestOutputDirectories,
-                               signed: bool, monochrome2: bool) -> None:
+                               is_signed: bool, is_monochrome2: bool) -> None:
     """
     Test loading of 2D Dicom images filled with binary array of type (uint16) and (int16).
     """
     array_size = (20, 30)
-    if not signed:
+    if not is_signed:
         array = np.ones(array_size, dtype='uint16')
         array[::2] = 0
     else:
@@ -241,10 +241,10 @@ def test_load_dicom_image_ones(test_output_dirs: TestOutputDirectories,
 
     assert array.shape == array_size
 
-    if monochrome2:
+    if is_monochrome2:
         to_write = array
     else:
-        if not signed:
+        if not is_signed:
             to_write = np.zeros(array_size, dtype='uint16')
             to_write[::2] = 1
         else:
@@ -256,7 +256,7 @@ def test_load_dicom_image_ones(test_output_dirs: TestOutputDirectories,
     write_test_dicom(array=to_write, path=dcm_file)
 
     with mock.patch.object(sitk.ImageFileReader, 'GetMetaData',
-                           new=get_mock_function(monochrome2=monochrome2, bits_stored=1)):
+                           new=get_mock_function(is_monochrome2=is_monochrome2, bits_stored=1)):
         image = load_dicom_image(dcm_file)
         assert image.ndim == 3 and image.shape == (1, ) + array_size
         assert np.array_equal(image, array[None, ...])
@@ -266,25 +266,25 @@ def test_load_dicom_image_ones(test_output_dirs: TestOutputDirectories,
         assert np.array_equal(image_and_segmentation.images, array[None, ...])
 
 
-@pytest.mark.parametrize("signed", [True, False])
-@pytest.mark.parametrize("monochrome2", [True, False])
+@pytest.mark.parametrize("is_signed", [True, False])
+@pytest.mark.parametrize("is_monochrome2", [True, False])
 @pytest.mark.parametrize("bits_stored", [14, 16])
 def test_load_dicom_image_random(test_output_dirs: TestOutputDirectories,
-                                 signed: bool, monochrome2: bool, bits_stored: int) -> None:
+                                 is_signed: bool, is_monochrome2: bool, bits_stored: int) -> None:
     """
     Test loading of 2D Dicom images of type (uint16) and (int16).
     """
     array_size = (20, 30)
-    if not signed:
+    if not is_signed:
         array = np.random.randint(0, 200, size=array_size, dtype='uint16')
     else:
         array = np.random.randint(-200, 200, size=array_size, dtype='int16')
     assert array.shape == array_size
 
-    if monochrome2:
+    if is_monochrome2:
         to_write = array
     else:
-        if not signed:
+        if not is_signed:
             to_write = 2**bits_stored - 1 - array
         else:
             to_write = -1 * array - 1
@@ -294,7 +294,7 @@ def test_load_dicom_image_random(test_output_dirs: TestOutputDirectories,
     write_test_dicom(array=to_write, path=dcm_file)
 
     with mock.patch.object(sitk.ImageFileReader, 'GetMetaData',
-                           new=get_mock_function(monochrome2=monochrome2, bits_stored=bits_stored)):
+                           new=get_mock_function(is_monochrome2=is_monochrome2, bits_stored=bits_stored)):
         image = load_dicom_image(dcm_file)
         assert image.ndim == 3 and image.shape == (1,) + array_size
         assert np.array_equal(image, array[None, ...])
