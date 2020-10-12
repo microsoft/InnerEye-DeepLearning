@@ -24,6 +24,7 @@ dependencies:
       - jupyter==1.0.0
       - jupyter-client==6.1.5
       - matplotlib==3.3.0
+      - monai==0.3.0
       - mlflow==1.8.0
       - mypy==0.770
       - mypy-extensions==0.4.3
@@ -52,4 +53,5 @@ dependencies:
       - tensorboard==2.3.0
       - tensorboardX==2.1
       - torchprof==1.1.1
+      - tqdm==4.50.2
 
