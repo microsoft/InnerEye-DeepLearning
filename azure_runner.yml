@@ -1,6 +1,7 @@
 name: AzureRunner
 channels:
   - defaults
+  - pytorch
 dependencies:
   - pip=20.1.1
   - pytorch=1.6.0
