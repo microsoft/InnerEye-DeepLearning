@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
+from monai.transforms import Randomizable
 from torchvision.transforms import functional as TF
 
 from InnerEye.Common.common_util import any_pairwise_larger
@@ -283,11 +284,14 @@ class ImageTransformationBase(Transform3D):
         return res.to(dtype=image.dtype)
 
 
-class RandomSliceTransformation(ImageTransformationBase):
+class RandomSliceTransformation(ImageTransformationBase, Randomizable):
     """
     Class to apply a random set of 2D affine transformations to all
     slices of a 3D volume separately along the z-dimension.
     """
+
+    def randomize(self, data: Any) -> None:
+        pass
 
     def __init__(self,
                  probability_transformation: float = 0.8,
@@ -355,7 +359,7 @@ class RandomSliceTransformation(ImageTransformationBase):
         return ops
 
 
-class RandAugmentSlice(ImageTransformationBase):
+class RandAugmentSlice(ImageTransformationBase, Randomizable):
     """
     Implements the RandAugment procedure on a restricted set of
     transformations. https://arxiv.org/abs/1909.13719
@@ -364,6 +368,9 @@ class RandAugmentSlice(ImageTransformationBase):
     and vertical shift, horizontal flip, identity. Additional transformations
     for images are brightness adjustment and contrast adjustment.
     """
+
+    def randomize(self, data: Any) -> None:
+        pass
 
     def __init__(self,
                  magnitude: int = 3,
