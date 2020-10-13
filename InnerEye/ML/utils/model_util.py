@@ -119,7 +119,7 @@ class ModelAndInfo:
                 name = k.replace('module.', '')  # remove `module.`
                 new_state_dict[name] = v
             model.load_state_dict(new_state_dict)
-        if isinstance(model, torch.nn.DataParallel):
+        elif isinstance(model, torch.nn.DataParallel):
             model.module.load_state_dict(checkpoint[key_in_state_dict])
         else:
             model.load_state_dict(checkpoint[key_in_state_dict])
@@ -202,7 +202,8 @@ class ModelAndInfo:
         epoch = ModelAndInfo._load_checkpoint(model=self._model,
                                               checkpoint_path=self.checkpoint_path,
                                               key_in_state_dict=ModelAndInfo.MODEL_STATE_DICT_KEY,
-                                              use_gpu=self.config.use_gpu)
+                                              use_gpu=self.config.use_gpu,
+                                              use_distributed_data_parallel=self.config.use_ddp)
 
         logging.info(f"Loaded model from checkpoint (epoch: {epoch})")
         self.checkpoint_epoch = epoch
