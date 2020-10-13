@@ -382,7 +382,7 @@ class ModelAndInfo:
             return False
 
         logging.info(f"Loading checkpoint {self.checkpoint_path}")
-        checkpoint = self.config.get_state_dict_from_model_weights(self.checkpoint_path)
+        checkpoint = self.config.read_state_from_path(self.checkpoint_path)
 
         try:
             state_dict = checkpoint[ModelAndInfo.OPTIMIZER_STATE_DICT_KEY]
