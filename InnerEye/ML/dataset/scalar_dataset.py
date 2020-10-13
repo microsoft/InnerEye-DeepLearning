@@ -28,7 +28,7 @@ from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.features_util import FeatureStatistics
-from InnerEye.ML.utils.transforms import Compose3D, Transform3D
+from InnerEye.ML.utils.transforms import Transform3D
 
 
 T = TypeVar('T', bound=ScalarDataSource)
@@ -710,23 +710,6 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             self.feature_statistics = self.feature_statistics or FeatureStatistics[T].from_data_sources(self.data)
             self.data = self.feature_statistics.standardize(self.data)
 
-    def load_item(self, item: ScalarDataSource) -> ScalarItem:
-        """
-        Loads the images and/or segmentations as given in the ClassificationDataSource item and
-        applying the optional transformation specified by the class.
-        :param item: The item to load.
-        :return: A ClassificationItem instances with the loaded images, and the labels and non-image features copied
-        from the argument.
-        """
-        sample = item.load_images(
-            root_path=self.args.local_dataset,
-            file_mapping=self.file_to_full_path,
-            load_segmentation=self.args.load_segmentation,
-            center_crop_size=self.args.center_crop_size,
-            image_size=self.args.image_size)
-
-        return Compose3D.apply(self.transforms, sample)
-
     def create_status_string(self, items: List[T]) -> str:
         """
         Creates a human readable string that contains the number of items, and the distinct number of subjects.
@@ -746,7 +729,7 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics[ScalarDataSource]] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None):
+                 sample_transforms: Optional[List[Transform3D[ScalarItem]]] = None):
         """
         Creates a new scalar dataset from a dataframe.
         :param args: The model configuration object.

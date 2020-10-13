@@ -3,11 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-from typing import Callable, List, Optional, Sequence, Union
+from typing import Callable, List, Optional
 
 import numpy as np
 import pandas as pd
-from monai.transforms import Compose, Randomizable, Transform
+from monai.transforms import Randomizable, Transform
 
 from InnerEye.Common.common_util import any_pairwise_larger
 from InnerEye.Common.type_annotations import TupleInt3
@@ -18,7 +18,6 @@ from InnerEye.ML.utils import augmentation, image_util
 from InnerEye.ML.utils.augmentation import random_select_patch_center
 from InnerEye.ML.utils.image_util import pad_images
 from InnerEye.ML.utils.io_util import ImageDataType
-from InnerEye.ML.utils.transforms import Compose3D
 
 
 class PadSample(Transform):

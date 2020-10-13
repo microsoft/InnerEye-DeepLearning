@@ -34,33 +34,6 @@ class Transform3D(CudaAwareConfig[T], Transform, metaclass=Transform3DBaseMeta):
         raise Exception("__call__ function must be implemented by subclasses")
 
 
-class Compose3D(Generic[T]):
-    """
-    Class that allows chaining multiple transform functions together, and applying them to a sample
-    """
-
-    def __init__(self, transforms: List[Transform3D[T]]):
-        self._transforms = transforms
-
-    def __call__(self, sample: T) -> T:
-        # pythonic implementation of the foldl function
-        # foldl (-) 0 [1,2,3] => (((0 - 1) - 2) - 3) => -6
-        return reduce(lambda x, f: f(x), self._transforms, sample)
-
-    @staticmethod
-    def apply(compose: Optional[Compose3D[T]], sample: T) -> T:
-        """
-        Apply a composition of transfer functions to the provided sample
-        :param compose: A composition of transfer functions
-        :param sample: The sample to apply the composition on
-        :return:
-        """
-        if compose:
-            return compose(sample)
-        else:
-            return sample
-
-
 class CTRange(Transform3D[Union[torch.Tensor, np.ndarray]]):
     output_range: TupleFloat2 = param.NumericTuple(default=(0.0, 255.0), length=2,
                                                    doc="Desired output range of intensities")

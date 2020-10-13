@@ -17,7 +17,7 @@ from InnerEye.ML.dataset.scalar_sample import ScalarItem, SequenceDataSource
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence, ListOfSequences
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.features_util import FeatureStatistics
-from InnerEye.ML.utils.transforms import Compose3D, Transform3D
+from InnerEye.ML.utils.transforms import Transform3D
 
 
 def get_longest_contiguous_sequence(items: List[SequenceDataSource],
