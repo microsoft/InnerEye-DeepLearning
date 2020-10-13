@@ -67,6 +67,7 @@ class ModelCategory(Enum):
     Classification = "Classification"  # All models that perform classification
     Regression = "Regression"  # All models that perform regression
 
+    @property
     def is_scalar(self) -> bool:
         """
         Return True if the current ModelCategory is either Classification or Regression
@@ -437,7 +438,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         Returns True if the present model configuration belongs to the high-level category ModelCategory.Scalar
         i.e. for Classification or Regression models.
         """
-        return self.model_category.is_scalar()
+        return self.model_category.is_scalar
 
     @property
     def compute_grad_cam(self) -> bool:

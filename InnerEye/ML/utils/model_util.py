@@ -50,7 +50,7 @@ class ModelAndInfo:
     """
 
     MODEL_STATE_DICT_KEY = 'state_dict'
-    OPTIIMZER_STATE_DICT_KEY = 'opt_dict'
+    OPTIMIZER_STATE_DICT_KEY = 'opt_dict'
     MEAN_TEACHER_STATE_DICT_KEY = 'mean_teacher_state_dict'
     EPOCH_KEY = 'epoch'
 
@@ -385,9 +385,9 @@ class ModelAndInfo:
         checkpoint = torch.load(str(self.checkpoint_path), map_location=map_location)
 
         try:
-            state_dict = checkpoint[ModelAndInfo.OPTIIMZER_STATE_DICT_KEY]
+            state_dict = checkpoint[ModelAndInfo.OPTIMIZER_STATE_DICT_KEY]
         except KeyError:
-            logging.info(f"Key {ModelAndInfo.OPTIIMZER_STATE_DICT_KEY} not found in checkpoint")
+            logging.info(f"Key {ModelAndInfo.OPTIMIZER_STATE_DICT_KEY} not found in checkpoint")
             return False
 
         if self._optimizer:
@@ -422,7 +422,7 @@ class ModelAndInfo:
         info_to_store = {
             ModelAndInfo.EPOCH_KEY: epoch,
             ModelAndInfo.MODEL_STATE_DICT_KEY: model_state_dict,
-            ModelAndInfo.OPTIIMZER_STATE_DICT_KEY: self.optimizer.state_dict()
+            ModelAndInfo.OPTIMIZER_STATE_DICT_KEY: self.optimizer.state_dict()
         }
         if self.config.compute_mean_teacher_model:
             assert self.mean_teacher_model is not None  # for mypy, getter has this built in
