@@ -315,7 +315,7 @@ class Runner:
         model_config_overrides = str(self.model_config.overrides)
         source_config = SourceConfig(
             root_folder=self.project_root,
-            entry_script=Path(sys.argv[0]),
+            entry_script=Path(sys.argv[0]).resolve(),
             conda_dependencies_files=[get_environment_yaml_file(),
                                       self.project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME],
             hyperdrive_config_func=lambda estimator: self.model_config.get_hyperdrive_config(estimator),
