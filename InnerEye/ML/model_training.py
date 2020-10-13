@@ -91,7 +91,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # Create optimizer
     optimizer_loaded = models_and_optimizer.try_create_optimizer_and_load_from_checkpoint()
-    if not optimizer_loaded:
+    if not optimizer_loaded and not config.local_weights_path:
         raise ValueError("There was no checkpoint file available for the optimizer for given start_epoch {}"
                          .format(config.start_epoch))
 
