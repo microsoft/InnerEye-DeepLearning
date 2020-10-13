@@ -254,7 +254,7 @@ class FullImageDataset(GeneralDataset[SegmentationModelBase]):
 
     def __init__(self, args: SegmentationModelBase,
                  data_frame: pd.DataFrame,
-                 full_image_sample_transforms: Optional[Compose3D[Sample]] = None,
+                 full_image_sample_transforms: Optional[List[Callable]] = None,
                  name: Optional[str] = None):
         self.full_image_sample_transforms = full_image_sample_transforms
 
@@ -269,7 +269,7 @@ class FullImageDataset(GeneralDataset[SegmentationModelBase]):
     def get_transforms(self) -> List[Callable]:
         transforms = [LoadNiftiDataSample()]
         if self.full_image_sample_transforms:
-            transforms.append(self.full_image_sample_transforms)
+            transforms += self.full_image_sample_transforms
         return transforms
 
     @staticmethod

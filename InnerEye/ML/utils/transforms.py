@@ -17,14 +17,14 @@ from InnerEye.Common.type_annotations import T, TupleFloat2
 from monai.transforms import MapTransform, Transform
 
 
-class Transform3DBaseMeta(type(CudaAwareConfig), abc.ABCMeta):  # type: ignore
+class Transform3DBaseMeta(type(CudaAwareConfig), type(Transform)):  # type: ignore
     """
     Metaclass to make the hierarchy explicit for Transform3D
     """
     pass
 
 
-class Transform3D(CudaAwareConfig[T], abc.ABC, metaclass=Transform3DBaseMeta):
+class Transform3D(CudaAwareConfig[T], Transform, metaclass=Transform3DBaseMeta):
     """
     Class that allows defining a transform function with the possibility of operating on the GPU.
     """
