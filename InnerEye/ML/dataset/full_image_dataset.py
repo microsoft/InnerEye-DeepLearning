@@ -6,14 +6,14 @@ import logging
 from abc import ABC
 from collections import Counter
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, TypeVar, Union
+from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, TypeVar
 
 import pandas as pd
 import torch.utils.data
 from monai.data import CacheDataset
-from monai.transforms import Compose, Transform
+from monai.transforms import Transform
 from torch._six import container_abcs
-from torch.utils.data import BatchSampler, DataLoader, Dataset, RandomSampler, Sampler, SequentialSampler
+from torch.utils.data import BatchSampler, DataLoader, RandomSampler, Sampler, SequentialSampler
 from torch.utils.data.dataloader import default_collate  # type: ignore
 
 from InnerEye.Common.type_annotations import IntOrString, TupleFloat3
@@ -25,7 +25,6 @@ from InnerEye.ML.utils import io_util, ml_util
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_PATH_HEADER, \
     CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.io_util import is_nifti_file_path, load_images_from_dataset_source
-from InnerEye.ML.utils.transforms import Compose3D
 
 COMPRESSION_EXTENSIONS = ['sz', 'gz']
 
@@ -184,6 +183,8 @@ class GeneralDataset(CacheDataset, ABC, Generic[D]):
         self.args = args
         self.data_frame = args.dataset_data_frame if data_frame is None else data_frame
         transforms = self.get_transforms()
+        if not all([isinstance(x, Transform) for x in transforms]):
+            raise ValueError("All transforms must be of instance monai.transforms.Transform")
         super().__init__(data=data_sources,
                          transform=transforms,
                          cache_num=self.args.dataset_cache_num,

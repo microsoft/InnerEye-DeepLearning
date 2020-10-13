@@ -206,7 +206,6 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
     A dataset class that groups its raw dataset rows by subject ID and a sequence index. Each item in the dataset
     has all the rows for a given subject, and within each subject, a sorted sequence of rows.
     """
-    items: List[ClassificationItemSequence[SequenceDataSource]]  # type: ignore
 
     def __init__(self,
                  args: SequenceModelBase,
@@ -214,7 +213,7 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
                  feature_statistics: Optional[
                      FeatureStatistics[ClassificationItemSequence[SequenceDataSource]]] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None):
+                 sample_transforms: Optional[List[Transform3D[ScalarItem]]] = None):
         """
         Creates a new sequence dataset from a dataframe.
         :param args: The model configuration object.
@@ -224,18 +223,18 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
         from the values provided. If None, the normalization factor is computed from the data in the present dataset.
         :param name: Name of the dataset, used for logging
         """
+        if args.sequence_column is None:
+            raise ValueError("This class requires a value in the `sequence_column`, specifying where the "
+                             "sequence index should be read from.")
+
         super().__init__(args=args,
                          data_frame=data_frame,
                          feature_statistics=feature_statistics,
                          name=name,
                          sample_transforms=sample_transforms)
-        if self.args.sequence_column is None:
-            raise ValueError("This class requires a value in the `sequence_column`, specifying where the "
-                             "sequence index should be read from.")
 
-        data_sources = self.load_all_data_sources()
         grouped = group_samples_into_sequences(
-            data_sources,
+            self.data,
             min_sequence_position_value=self.args.min_sequence_position_value,
             max_sequence_position_value=self.args.max_sequence_position_value
         )
@@ -247,7 +246,7 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
             feature_indices = [self.args.numerical_columns.index(f) for f in self.args.add_differences_for_features]
             grouped = add_difference_features(grouped, feature_indices)
         self.status += f"After grouping: {len(grouped)} subjects."
-        self.items = grouped
+        self.data = grouped
         self.standardize_non_imaging_features()
 
     def get_status(self) -> str:
@@ -276,7 +275,7 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
                                       "want to predict more than one sequence position."
                                       "Use loss weighting instead.")
         return [seq.get_labels_at_target_indices(self.args.get_target_indices())[-1].item()
-                for seq in self.items]
+                for seq in self.data]
 
     def get_class_counts(self) -> Dict:
         """
@@ -285,13 +284,10 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
         :return: Dictionary of {"label": count}
         """
         all_labels_per_target = torch.stack([seq.get_labels_at_target_indices(self.args.get_target_indices())
-                                             for seq in self.items])  # [N, T, 1]
+                                             for seq in self.data])  # [N, T, 1]
         non_nan_labels = list(filter(lambda x: not np.isnan(x), all_labels_per_target.flatten().tolist()))
         return dict(Counter(non_nan_labels))
 
-    def __len__(self) -> int:
-        return len(self.items)
-
     def __getitem__(self, i: int) -> Dict[str, Any]:
-        loaded = list(map(self.load_item, self.items[i].items))
-        return vars(ClassificationItemSequence(id=self.items[i].id, items=loaded))
+        loaded = [ScalarItem.from_dict(super().__getitem__(i))]
+        return vars(ClassificationItemSequence(id=self.data[i].id, items=loaded))

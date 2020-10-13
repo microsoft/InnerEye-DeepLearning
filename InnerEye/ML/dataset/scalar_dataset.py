@@ -15,9 +15,11 @@ import numpy as np
 import pandas as pd
 import torch
 from joblib import Parallel, delayed
+from monai.transforms import Transform
 from more_itertools import flatten
 from rich.progress import track
 
+from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.full_image_dataset import GeneralDataset
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
 from InnerEye.ML.dataset.scalar_sample import ScalarDataSource, ScalarItem, SequenceDataSource
@@ -30,6 +32,28 @@ from InnerEye.ML.utils.transforms import Compose3D, Transform3D
 
 
 T = TypeVar('T', bound=ScalarDataSource)
+
+
+class LoadScalarItemImages(Transform):
+    def __init__(self, root_path: Path,
+                 file_mapping: Optional[Dict[str, Path]],
+                 load_segmentation: bool,
+                 center_crop_size: Optional[TupleInt3],
+                 image_size: Optional[TupleInt3]):
+        self.root_path = root_path
+        self.file_mapping = file_mapping
+        self.load_segmentation = load_segmentation
+        self.center_crop_size = center_crop_size
+        self.image_size = image_size
+
+    def __call__(self, data: ScalarDataSource) -> ScalarItem:
+        return data.load_images(
+            root_path=self.root_path,
+            file_mapping=self.file_mapping,
+            load_segmentation=self.load_segmentation,
+            center_crop_size=self.center_crop_size,
+            image_size=self.image_size
+        )
 
 
 def extract_label_classification(label_string: Union[str, float], sample_id: str) -> Union[float, int]:
@@ -619,13 +643,12 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
     """
     one_hot_encoder: Optional[CategoricalToOneHotEncoder] = None
     status: str = ""
-    items: List[T]
 
     def __init__(self, args: ScalarModelBase,
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None):
+                 sample_transforms: Optional[List[Transform3D[ScalarItem]]] = None):
         """
         High level class for the scalar dataset designed to be inherited for specific behaviour
         :param args: The model configuration object.
@@ -633,7 +656,6 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
         :param feature_statistics: If given, the normalization factor for the non-image features is taken
         :param name: Name of the dataset, used for diagnostics logging
         """
-        super().__init__(args, data_frame, name)
         self.transforms = sample_transforms
         self.feature_statistics = feature_statistics
         self.file_to_full_path: Optional[Dict[str, Path]] = None
@@ -643,6 +665,20 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             logging.info(f"Starting to traverse folder {args.local_dataset} to locate image files.")
             self.file_to_full_path = files_by_stem(args.local_dataset)
             logging.info("Finished traversing folder.")
+        items = self.load_all_data_sources()
+        super().__init__(args, items, data_frame, name)
+
+    def get_transforms(self) -> List[Callable]:
+        dataset_transforms = [LoadScalarItemImages(
+            root_path=self.args.local_dataset,
+            file_mapping=self.file_to_full_path,
+            load_segmentation=self.args.load_segmentation,
+            center_crop_size=self.args.center_crop_size,
+            image_size=self.args.image_size
+        )]
+        if self.transforms is not None:
+            dataset_transforms += self.transforms
+        return dataset_transforms
 
     def load_all_data_sources(self) -> List[T]:
         """
@@ -670,9 +706,9 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
         training set).
         If None, they will be computed from the data in the present object.
         """
-        if self.items:
-            self.feature_statistics = self.feature_statistics or FeatureStatistics[T].from_data_sources(self.items)
-            self.items = self.feature_statistics.standardize(self.items)
+        if self.data:
+            self.feature_statistics = self.feature_statistics or FeatureStatistics[T].from_data_sources(self.data)
+            self.data = self.feature_statistics.standardize(self.data)
 
     def load_item(self, item: ScalarDataSource) -> ScalarItem:
         """
@@ -725,7 +761,6 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
                          feature_statistics=feature_statistics,
                          name=name,
                          sample_transforms=sample_transforms)
-        self.items = self.load_all_data_sources()
         self.standardize_non_imaging_features()
 
     def get_status(self) -> str:
@@ -746,18 +781,15 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
         Returns a list of all the labels in the dataset. Used to compute
         the sampling weights in Imbalanced Sampler
         """
-        return [item.label.item() for item in self.items]
+        return [item.label.item() for item in self.data]
 
     def get_class_counts(self) -> Dict:
         """
         Return class weights that are proportional to the inverse frequency of label counts.
         :return: Dictionary of {"label": count}
         """
-        all_labels = [item.label.item() for item in self.items]  # [N, 1]
+        all_labels = [item.label.item() for item in self.data]  # [N, 1]
         return dict(Counter(all_labels))
-
-    def __len__(self) -> int:
-        return len(self.items)
 
     def __getitem__(self, i: int) -> Dict[str, Any]:
         return vars(self.load_item(self.items[i]))
