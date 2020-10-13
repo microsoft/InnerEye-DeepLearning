@@ -11,11 +11,11 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
 from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 
 
 @pytest.mark.after_training
-def test_model_file_structure(test_output_dirs: TestOutputDirectories) -> None:
+def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
     """
     Downloads the model that was built in the most recent run, and checks if its file structure is as expected.
     """
@@ -35,7 +35,7 @@ def test_model_file_structure(test_output_dirs: TestOutputDirectories) -> None:
     model_id = run.get_tags().get(MODEL_ID_KEY_NAME, None)
     assert model_id, "No model_id tag on the run"
     model = Model(workspace=workspace, id=model_id)
-    downloaded_folder = Path(model.download(test_output_dirs.root_dir))
+    downloaded_folder = Path(model.download(str(test_output_dirs.root_dir)))
     expected_files = \
         [
             "model_inference_config.json",

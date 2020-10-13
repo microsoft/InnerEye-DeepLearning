@@ -297,7 +297,7 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
     if azure_config.max_run_duration:
         max_run_duration = run_duration_string_to_seconds(azure_config.max_run_duration)
     estimator = PyTorch(
-        source_directory=source_config.root_folder,
+        source_directory=str(source_config.root_folder),
         entry_script=entry_script_relative_path,
         script_params=source_config.script_params,
         compute_target=azure_config.cluster,

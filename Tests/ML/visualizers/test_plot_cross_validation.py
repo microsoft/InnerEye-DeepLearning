@@ -14,7 +14,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetc
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
     METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.run_ml import MLRunner
@@ -198,7 +198,7 @@ def _test_result_aggregation_for_classification(files: List[RunResultFiles],
     assert per_subject_metrics[LoggingColumns.DataSplit.value].unique() == ["Val"]
 
 
-def test_result_aggregation_for_classification(test_output_dirs: TestOutputDirectories) -> None:
+def test_result_aggregation_for_classification(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test how metrics are aggregated for cross validation runs on classification models.
     """
@@ -253,12 +253,12 @@ def test_check_result_file_counts() -> None:
         check_result_file_counts(config_and_files3)
 
 
-def test_result_aggregation_for_classification_all_epochs(test_output_dirs: TestOutputDirectories) -> None:
+def test_result_aggregation_for_classification_all_epochs(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test how metrics are aggregated for classification models, when no epoch is specified.
     """
     files, plotting_config = load_result_files_for_classification()
-    plotting_config.outputs_directory = test_output_dirs.root_dir
+    plotting_config.outputs_directory = str(test_output_dirs.root_dir)
     plotting_config.epoch = None
     expected_aggregates = \
         ["Default,0.72361,0.90943,0.55618,0.13158,0.52500,0.33307,0.95800,0.21348,356.00000,Val,1",
@@ -282,7 +282,7 @@ def test_add_comparison_data(test_config_comparison: PlotCrossValidationConfig) 
 
 
 def test_save_outliers(test_config_ensemble: PlotCrossValidationConfig,
-                       test_output_dirs: TestOutputDirectories) -> None:
+                       test_output_dirs: OutputFolderForTests) -> None:
     """Test to make sure the outlier file for a split is as expected"""
     test_config_ensemble.outputs_directory = test_output_dirs.root_dir
     test_config_ensemble.outlier_range = 0
@@ -308,11 +308,11 @@ def test_create_portal_query_for_outliers() -> None:
     assert expected == create_portal_query_for_outliers(test_df)
 
 
-def test_create_summary(test_output_dirs: TestOutputDirectories) -> None:
+def test_create_summary(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that summaries of CV performance per mode, and per mode per structure, look like they should.
     """
-    root = Path(test_output_dirs.root_dir)
+    root = test_output_dirs.root_dir
     test_file = full_ml_test_data_path("MetricsAcrossAllRuns.csv")
     df = pd.read_csv(test_file)
     file1, file2 = create_results_breakdown(df, root)
@@ -351,7 +351,7 @@ def test_get_split_index() -> None:
 @pytest.mark.parametrize("is_current_run", [True, False])
 def test_download_or_get_local_blobs(is_current_run: bool,
                                      test_config: PlotCrossValidationConfig,
-                                     test_output_dirs: TestOutputDirectories) -> None:
+                                     test_output_dirs: OutputFolderForTests) -> None:
     azure_config = get_default_azure_config()
     azure_config.get_workspace()
     assert test_config.run_recovery_id is not None
@@ -361,19 +361,19 @@ def test_download_or_get_local_blobs(is_current_run: bool,
     test_config.outputs_directory = run_outputs_dir
     dst = test_config.download_or_get_local_file(
         blob_to_download="dataset.csv",
-        destination=Path(test_output_dirs.root_dir),
+        destination=test_output_dirs.root_dir,
         run=run
     )
     assert dst is not None
     assert dst.exists()
 
 
-def test_download_or_get_local_file_2(test_output_dirs: TestOutputDirectories) -> None:
+def test_download_or_get_local_file_2(test_output_dirs: OutputFolderForTests) -> None:
     config = PlotCrossValidationConfig(run_recovery_id=None,
                                        model_category=ModelCategory.Classification,
                                        epoch=None,
                                        should_validate=False)
-    download_to_folder = Path(test_output_dirs.root_dir) / CROSSVAL_RESULTS_FOLDER
+    download_to_folder = test_output_dirs.root_dir / CROSSVAL_RESULTS_FOLDER
     config.outputs_directory = str(download_to_folder)
     local_results = full_ml_test_data_path("plot_cross_validation") / "HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301"
     config.local_run_results = str(local_results)
@@ -397,7 +397,7 @@ def test_download_or_get_local_file_2(test_output_dirs: TestOutputDirectories) -
 
 
 @pytest.mark.skip(reason="This test is only used to create input for test_load_files_with_prediction_target")
-def test_run_ml_with_multi_label_sequence_in_crossval(test_output_dirs: TestOutputDirectories) -> None:
+def test_run_ml_with_multi_label_sequence_in_crossval(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and testing of sequence models that predicts at multiple time points,
     including aggregation of cross validation results.
@@ -447,7 +447,7 @@ def test_load_files_with_prediction_target() -> None:
     assert len(metrics[LoggingColumns.Patient.value].unique()) == 4
 
 
-def test_aggregate_files_with_prediction_target(test_output_dirs: TestOutputDirectories) -> None:
+def test_aggregate_files_with_prediction_target(test_output_dirs: OutputFolderForTests) -> None:
     """
     For multi-week RNNs that predict at multiple sequence points: Test that the dataframes
     including the prediction_target column can be aggregated.
@@ -459,7 +459,7 @@ def test_aggregate_files_with_prediction_target(test_output_dirs: TestOutputDire
     )
     files = create_run_result_file_list(plotting_config, "multi_label_sequence_in_crossval")
 
-    root_folder = Path(test_output_dirs.root_dir)
+    root_folder = test_output_dirs.root_dir
     print(f"Writing result files to {root_folder}")
     plot_cross_validation_from_files(OfflineCrossvalConfigAndFiles(config=plotting_config, files=files),
                                      root_folder=root_folder)

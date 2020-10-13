@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 import torch
 
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, \
     PhotometricNormalizationMethod, SegmentationModelBase
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME, METRICS_AGGREGATES_FILE, store_inference_results, \
@@ -40,7 +40,7 @@ dim_y = 2
 dim_z = 3
 
 
-def _create_config_with_folders(test_dirs: TestOutputDirectories) -> SegmentationModelBase:
+def _create_config_with_folders(test_dirs: OutputFolderForTests) -> SegmentationModelBase:
     config = DummyModel()
     config.set_output_to(test_dirs.root_dir)
     return config
@@ -53,7 +53,7 @@ def to_unique_bytes(a: np.ndarray, input_range: Tuple[float, float]) -> Any:
     return np.unique(a.astype(np.ubyte))
 
 
-def test_store_inference_results(test_output_dirs: TestOutputDirectories) -> None:
+def test_store_inference_results(test_output_dirs: OutputFolderForTests) -> None:
     np.random.seed(0)
     num_classes = 2
     posterior = torch.nn.functional.softmax(
@@ -99,7 +99,7 @@ def test_store_inference_results(test_output_dirs: TestOutputDirectories) -> Non
                          inference_result.uncertainty.shape, header, list([248, 249, 253, 254]), np.ubyte)
 
 
-def test_metrics_file(test_output_dirs: TestOutputDirectories) -> None:
+def test_metrics_file(test_output_dirs: OutputFolderForTests) -> None:
     """Test if metrics files with Dice scores are written as expected."""
     folder = test_output_dirs.make_sub_dir("test_metrics_file")
 
@@ -153,11 +153,11 @@ def test_metrics_file(test_output_dirs: TestOutputDirectories) -> None:
     resize_and_save(5, 4, boxplot2)
 
 
-def test_store_run_information(test_output_dirs: TestOutputDirectories) -> None:
+def test_store_run_information(test_output_dirs: OutputFolderForTests) -> None:
     dataset_id = "placeholder_dataset_id"
     ground_truth_ids = ["id1", "id2"]
     channel_ids = ["channel1", "channel2"]
-    results_folder = Path(test_output_dirs.root_dir)
+    results_folder = test_output_dirs.root_dir
 
     files = [results_folder / DATASET_ID_FILE,
              results_folder / GROUND_TRUTH_IDS_FILE,
@@ -175,7 +175,7 @@ def test_store_run_information(test_output_dirs: TestOutputDirectories) -> None:
                           (np.short, False, (0, 1), (0, 1)),
                           (np.ubyte, False, None, None),
                           (np.short, False, (0, 1), None)])
-def test_store_as_nifti(test_output_dirs: TestOutputDirectories, image_type: Any, scale: Any, input_range: Any,
+def test_store_as_nifti(test_output_dirs: OutputFolderForTests, image_type: Any, scale: Any, input_range: Any,
                         output_range: Any) \
         -> None:
     image = np.random.random_sample((dim_z, dim_y, dim_x))
@@ -198,7 +198,7 @@ def test_store_as_nifti(test_output_dirs: TestOutputDirectories, image_type: Any
                          [(None, None, None, None),
                           (np.ubyte, True, [0, 1], None),
                           (np.short, True, None, [0, 1])])
-def test_store_as_nifti_fail(test_output_dirs: TestOutputDirectories, image_type: Any, scale: Any, input_range: Any,
+def test_store_as_nifti_fail(test_output_dirs: OutputFolderForTests, image_type: Any, scale: Any, input_range: Any,
                              output_range: Any) \
         -> None:
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 1, 0, 0, 1, 0, 0), spacing=(1, 2, 4))
@@ -209,7 +209,7 @@ def test_store_as_nifti_fail(test_output_dirs: TestOutputDirectories, image_type
 
 
 @pytest.mark.parametrize("input_range", [(0, 1), (-1, 1), (0, 255)])
-def test_store_as_scaled_ubyte_nifti(test_output_dirs: TestOutputDirectories, input_range: Any) -> None:
+def test_store_as_scaled_ubyte_nifti(test_output_dirs: OutputFolderForTests, input_range: Any) -> None:
     image = np.random.random_sample((dim_z, dim_y, dim_x))
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=(1, 2, 4))
     io_util.store_as_scaled_ubyte_nifti(image, header,
@@ -222,7 +222,7 @@ def test_store_as_scaled_ubyte_nifti(test_output_dirs: TestOutputDirectories, in
 
 
 @pytest.mark.parametrize("input_range", [None])
-def test_store_as_scaled_ubyte_nifti_fail(test_output_dirs: TestOutputDirectories, input_range: Any) -> None:
+def test_store_as_scaled_ubyte_nifti_fail(test_output_dirs: OutputFolderForTests, input_range: Any) -> None:
     image = np.random.random_sample((dim_z, dim_y, dim_x))
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=(1, 2, 4))
     with pytest.raises(Exception):
@@ -231,7 +231,7 @@ def test_store_as_scaled_ubyte_nifti_fail(test_output_dirs: TestOutputDirectorie
                                             input_range)
 
 
-def test_store_as_ubyte_nifti(test_output_dirs: TestOutputDirectories) -> None:
+def test_store_as_ubyte_nifti(test_output_dirs: OutputFolderForTests) -> None:
     image = np.random.random_sample((dim_z, dim_y, dim_x))
     # get values in [0, 255] range
     image = np.array((image + 1) * 255).astype(int)
@@ -246,7 +246,7 @@ def test_store_as_ubyte_nifti(test_output_dirs: TestOutputDirectories) -> None:
                          [([[[1]], [[1]], [[1]]]),
                           ([[[0]], [[0]], [[0]]]),
                           ([[[0]], [[1]], [[1]]])])
-def test_store_as_binary_nifti(test_output_dirs: TestOutputDirectories, image: Any) -> None:
+def test_store_as_binary_nifti(test_output_dirs: OutputFolderForTests, image: Any) -> None:
     image = np.array(image)
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=(1, 2, 4))
     io_util.store_binary_mask_as_nifti(image, header,
@@ -257,7 +257,7 @@ def test_store_as_binary_nifti(test_output_dirs: TestOutputDirectories, image: A
 
 
 @pytest.mark.parametrize("image", [([[[0]], [[1]], [[2]]])])
-def test_store_as_binary_nifti_fail(test_output_dirs: TestOutputDirectories, image: Any) -> None:
+def test_store_as_binary_nifti_fail(test_output_dirs: OutputFolderForTests, image: Any) -> None:
     image = np.array(image)
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 1, 0, 0, 1, 0, 0), spacing=(1, 2, 4))
     with pytest.raises(Exception):
@@ -269,7 +269,7 @@ def test_store_as_binary_nifti_fail(test_output_dirs: TestOutputDirectories, ima
                          [([[[1]], [[1]], [[1]]], [255]),
                           ([[[0]], [[0]], [[0]]], [0]),
                           ([[[0.8]], [[0.1]], [[0.4]]], [25, 102, 204])])
-def test_store_posteriors_nifti(test_output_dirs: TestOutputDirectories, image: Any, expected: Any) -> None:
+def test_store_posteriors_nifti(test_output_dirs: OutputFolderForTests, image: Any, expected: Any) -> None:
     image = np.array(image)
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=(1, 1, 1))
     io_util.store_posteriors_as_nifti(image, header, test_output_dirs.create_file_or_folder_path(default_image_name))
@@ -278,7 +278,7 @@ def test_store_posteriors_nifti(test_output_dirs: TestOutputDirectories, image: 
 
 
 @pytest.mark.parametrize("image", [([[[0]], [[1]], [[2]]])])
-def test_store_posteriors_nifti_fail(test_output_dirs: TestOutputDirectories, image: Any) -> None:
+def test_store_posteriors_nifti_fail(test_output_dirs: OutputFolderForTests, image: Any) -> None:
     image = np.array(image)
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 1, 0, 0, 1, 0, 0), spacing=(1, 1, 1))
     with pytest.raises(Exception):
@@ -286,7 +286,7 @@ def test_store_posteriors_nifti_fail(test_output_dirs: TestOutputDirectories, im
                                           test_output_dirs.create_file_or_folder_path(default_image_name))
 
 
-def test_store_posteriors_nifti_invalid_entries(test_output_dirs: TestOutputDirectories) -> None:
+def test_store_posteriors_nifti_invalid_entries(test_output_dirs: OutputFolderForTests) -> None:
     image = np.array([0, 1, 2.71, np.nan])
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 1, 0, 0, 1, 0, 0), spacing=(1, 1, 1))
     with pytest.raises(ValueError) as ex:
@@ -302,7 +302,7 @@ def test_store_posteriors_nifti_invalid_entries(test_output_dirs: TestOutputDire
                           (PhotometricNormalizationMethod.CtWindow, [0, 255], (40, 50)),
                           (PhotometricNormalizationMethod.Unchanged, [-1, 1], None),
                           (PhotometricNormalizationMethod.Unchanged, [-40, 40], None)])
-def test_store_image_as_short_nifti(test_output_dirs: TestOutputDirectories,
+def test_store_image_as_short_nifti(test_output_dirs: OutputFolderForTests,
                                     norm_method: PhotometricNormalizationMethod,
                                     image_range: Any,
                                     window_level: Any) -> None:
@@ -331,7 +331,7 @@ def test_store_image_as_short_nifti(test_output_dirs: TestOutputDirectories,
     assert_nifti_content(nifti_name, image_shape, header, list(t), np.short)
 
 
-def test_scale_and_unscale_image(test_output_dirs: TestOutputDirectories) -> None:
+def test_scale_and_unscale_image(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if an image in the CT value range can be recovered when we save dataset examples
     (undoing the effects of CT Windowing)

@@ -11,7 +11,7 @@ import pytest
 from InnerEye.Azure import secrets_handling
 from InnerEye.Azure.secrets_handling import SecretsHandling
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 
 
 def set_environment_variables(variables: Dict[str, str]) -> None:
@@ -71,11 +71,11 @@ def test_all_secrets_is_upper() -> None:
         assert name == name.upper(), "Secret '{}' should have a only uppercase value".format(name)
 
 
-def test_read_variables_from_yaml(test_output_dirs: TestOutputDirectories) -> None:
+def test_read_variables_from_yaml(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that variables are read from a yaml file correctly.
     """
-    root = Path(test_output_dirs.root_dir)
+    root = test_output_dirs.root_dir
     # this will return a dictionary of all variables in the yaml file
     yaml_path = root / "foo.yml"
     yaml_path.write_text("""variables:

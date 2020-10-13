@@ -16,7 +16,7 @@ from sklearn.metrics import roc_auc_score, roc_curve
 from InnerEye.Common.common_util import DataframeLogger
 from InnerEye.Common.metrics_dict import Hue, MetricType, MetricsDict, PredictionEntry, ScalarMetricsDict, \
     SequenceMetricsDict, average_metric_values
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
@@ -408,7 +408,7 @@ def test_hue_entries() -> None:
     ]
 
 
-def test_load_metrics_from_df_with_hues(test_output_dirs: TestOutputDirectories) -> None:
+def test_load_metrics_from_df_with_hues(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if we can re-create a MetricsDict object with model predictions and labels, when the data file contains
     a prediction target value.

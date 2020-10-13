@@ -17,7 +17,7 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.Common.generic_parsing import GenericConfig
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -55,7 +55,7 @@ class SubprocessConfig(GenericConfig):
 def test_register_and_score_model(is_ensemble: bool,
                                   dataset_expected_spacing_xyz: Any,
                                   model_outside_package: bool,
-                                  test_output_dirs: TestOutputDirectories) -> None:
+                                  test_output_dirs: OutputFolderForTests) -> None:
     """
     End-to-end test which ensures the scoring pipeline is functioning as expected by performing the following:
     1) Registering a pre-trained model to AML
@@ -115,7 +115,7 @@ def test_register_and_score_model(is_ensemble: bool,
             model_root = Path(model.download(str(test_output_dirs.root_dir)))
             # create a dummy datastore to store model checkpoints and image data
             # this simulates the code shapshot being executed in a real run
-            test_datastore = Path(test_output_dirs.root_dir) / "test_datastore"
+            test_datastore = test_output_dirs.root_dir / "test_datastore"
             shutil.move(
                 str(model_root / "test_outputs"),
                 str(test_datastore / RELATIVE_TEST_OUTPUTS_PATH)

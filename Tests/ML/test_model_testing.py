@@ -12,7 +12,7 @@ import pytest
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import get_epoch_results_path
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE
@@ -33,7 +33,7 @@ from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
-def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
+def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
     train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
 
     config = DummyModel()
@@ -116,7 +116,7 @@ def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
                           (ClassificationModelForTesting(), "classification_data_generated_random/checkpoints")])
 def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
                                                  checkpoint_folder: str,
-                                                 test_output_dirs: TestOutputDirectories) -> None:
+                                                 test_output_dirs: OutputFolderForTests) -> None:
     config.set_output_to(test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
     stored_checkpoints = full_ml_test_data_path(checkpoint_folder)
@@ -140,7 +140,7 @@ def test_create_inference_pipeline(with_run_recovery: bool,
                                    checkpoint_folder: str,
                                    inference_type: type,
                                    ensemble_type: type,
-                                   test_output_dirs: TestOutputDirectories) -> None:
+                                   test_output_dirs: OutputFolderForTests) -> None:
     config.set_output_to(test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
     stored_checkpoints = full_ml_test_data_path(checkpoint_folder)

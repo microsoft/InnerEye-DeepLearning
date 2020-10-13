@@ -11,7 +11,7 @@ from more_itertools import flatten
 
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, model_training
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.metrics import InferenceMetricsForClassification
@@ -19,7 +19,7 @@ from Tests.ML.configs.ClassificationModelForTesting2D import ClassificationModel
 
 
 @pytest.mark.parametrize("use_mixed_precision", [False])
-def test_train_2d_classification_model(test_output_dirs: TestOutputDirectories,
+def test_train_2d_classification_model(test_output_dirs: OutputFolderForTests,
                                        use_mixed_precision: bool) -> None:
     """
     Test training and testing of 2d classification models.

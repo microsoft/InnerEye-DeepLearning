@@ -11,7 +11,7 @@ import pytest
 from torch.utils.data import DataLoader
 
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics, model_training
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
@@ -108,18 +108,18 @@ def test_get_total_number_of_training_epochs() -> None:
 
 @pytest.mark.parametrize("image_channels", [["region"], ["random_123"]])
 @pytest.mark.parametrize("ground_truth_ids", [["region", "region"], ["region", "other_region"]])
-def test_invalid_model_train(test_output_dirs: TestOutputDirectories, image_channels: Any,
+def test_invalid_model_train(test_output_dirs: OutputFolderForTests, image_channels: Any,
                              ground_truth_ids: Any) -> None:
     with pytest.raises(ValueError):
         _test_model_train(test_output_dirs, image_channels, ground_truth_ids)
 
 
 @pytest.mark.parametrize("no_mask_channel", [True, False])
-def test_valid_model_train(test_output_dirs: TestOutputDirectories, no_mask_channel: bool) -> None:
+def test_valid_model_train(test_output_dirs: OutputFolderForTests, no_mask_channel: bool) -> None:
     _test_model_train(test_output_dirs, ["channel1", "channel2"], ["region", "region_1"], no_mask_channel)
 
 
-def _test_model_train(output_dirs: TestOutputDirectories,
+def _test_model_train(output_dirs: OutputFolderForTests,
                       image_channels: Any,
                       ground_truth_ids: Any,
                       no_mask_channel: bool = False) -> None:

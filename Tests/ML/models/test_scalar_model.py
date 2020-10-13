@@ -18,7 +18,7 @@ from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, METRICS_AGGREGATES_FILE, \
     METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, model_training, runner
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
@@ -38,7 +38,7 @@ from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 @pytest.mark.gpu
 @pytest.mark.parametrize("use_mixed_precision", [False, True])
-def test_train_classification_model(test_output_dirs: TestOutputDirectories,
+def test_train_classification_model(test_output_dirs: OutputFolderForTests,
                                     use_mixed_precision: bool) -> None:
     """
     Test training and testing of classification models, asserting on the individual results from training and testing.
@@ -144,7 +144,7 @@ def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> 
 @pytest.mark.parametrize("model_name", ["DummyClassification", "DummyRegression"])
 @pytest.mark.parametrize("number_of_offline_cross_validation_splits", [2])
 @pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [2])
-def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectories,
+def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests,
                                           number_of_offline_cross_validation_splits: int,
                                           number_of_cross_validation_splits_per_fold: int,
                                           model_name: str) -> None:
@@ -184,7 +184,7 @@ def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectorie
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
-def test_run_ml_with_segmentation_model(test_output_dirs: TestOutputDirectories) -> None:
+def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and testing of segmentation models, when it is started together via run_ml.
     """
@@ -203,7 +203,7 @@ def test_run_ml_with_segmentation_model(test_output_dirs: TestOutputDirectories)
     MLRunner(train_config, azure_config).run()
 
 
-def test_runner1(test_output_dirs: TestOutputDirectories) -> None:
+def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test starting a classification model via the commandline runner. Test if we can provide overrides
     for parameters that live inside the DeepLearningConfig, and ones that are specific to classification models.
@@ -233,7 +233,7 @@ def test_runner1(test_output_dirs: TestOutputDirectories) -> None:
     assert (config.logs_folder / runner.LOG_FILE_NAME).exists()
 
 
-def test_runner2(test_output_dirs: TestOutputDirectories) -> None:
+def test_runner2(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test starting a classification model via the commandline runner, and provide the same arguments
     that would be passed in via the YAML files.
@@ -433,12 +433,12 @@ def test_unroll_aggregates() -> None:
     assert unrolled[-1] == EpochMetricValues(4, LoggingColumns.SubjectCount.value, 3)
 
 
-def test_dataset_stats_hook(test_output_dirs: TestOutputDirectories) -> None:
+def test_dataset_stats_hook(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if the flexible hook for computing dataset statistics is called correctly in create_and_set_torch_datasets
     """
     model = ClassificationModelForTesting()
-    root_dir = Path(test_output_dirs.root_dir)
+    root_dir = test_output_dirs.root_dir
     out_file = root_dir / "stats.txt"
 
     def hook(datasets: Dict[ModelExecutionMode, ScalarDataset]) -> None:
@@ -458,7 +458,7 @@ def test_dataset_stats_hook(test_output_dirs: TestOutputDirectories) -> None:
     assert out_file.read_text() == "\n".join(["Train: 2", "Test: 1", "Val: 1"])
 
 
-def test_dataset_stats_hook_failing(test_output_dirs: TestOutputDirectories) -> None:
+def test_dataset_stats_hook_failing(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if the hook for computing dataset statistics can safely fail.
     """

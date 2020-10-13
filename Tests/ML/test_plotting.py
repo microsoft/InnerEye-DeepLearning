@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from InnerEye.Common import common_util
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import plotting
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import Sample
@@ -27,7 +27,7 @@ def file_as_bytes(name: Union[str, Path]) -> bytes:
 
 
 @pytest.mark.parametrize("num_classes", [3, 15])
-def test_plot_dice_per_epoch(test_output_dirs: TestOutputDirectories, num_classes: int) -> None:
+def test_plot_dice_per_epoch(test_output_dirs: OutputFolderForTests, num_classes: int) -> None:
     metrics: Dict[str, Any] = {}
     epoch = [1, 2, 3]
     for i in range(num_classes):
@@ -36,7 +36,7 @@ def test_plot_dice_per_epoch(test_output_dirs: TestOutputDirectories, num_classe
         metrics[metric_name] = {"epoch": epoch, "loss": loss}
     metrics["baz"] = [17]
     series_count = plotting.plot_val_dice_per_epoch(metrics)
-    file_name = Path(test_output_dirs.root_dir) / f"dice_per_epoch_{num_classes}classes.png"
+    file_name = test_output_dirs.root_dir / f"dice_per_epoch_{num_classes}classes.png"
     plotting.add_legend(series_count)
     plotting.resize_and_save(5, 4, file_name)
     assert os.path.exists(file_name)
@@ -49,7 +49,7 @@ def test_plot_dice_per_epoch(test_output_dirs: TestOutputDirectories, num_classe
     # assert file_as_bytes(file_name) == file_as_bytes(expected)
 
 
-def test_plot_image_and_contour(test_output_dirs: TestOutputDirectories) -> None:
+def test_plot_image_and_contour(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test plotting of an image with an overlaid contour.
     """
@@ -60,14 +60,14 @@ def test_plot_image_and_contour(test_output_dirs: TestOutputDirectories) -> None
     labels = np.zeros(size)
     labels[1, 1] = 1
     file_name = "image_and_contour.png"
-    plot_file = Path(test_output_dirs.root_dir) / file_name
+    plot_file = test_output_dirs.root_dir / file_name
     plotting.plot_image_and_label_contour(image, labels, contour_arguments={'colors': 'r'}, plot_file_name=plot_file)
     assert plot_file.exists()
     expected = full_ml_test_data_path(file_name)
     assert file_as_bytes(plot_file) == file_as_bytes(expected)
 
 
-def test_plot_image_and_contour_scaled(test_output_dirs: TestOutputDirectories) -> None:
+def test_plot_image_and_contour_scaled(test_output_dirs: OutputFolderForTests) -> None:
     """
     When providing an additional scaling that is a lot larger than the image range,
     the output should be mostly grey.
@@ -79,7 +79,7 @@ def test_plot_image_and_contour_scaled(test_output_dirs: TestOutputDirectories) 
     labels = np.zeros(size)
     labels[1, 1] = 1
     file_name = "image_scaled_and_contour.png"
-    plot_file = Path(test_output_dirs.root_dir) / file_name
+    plot_file = test_output_dirs.root_dir / file_name
     plotting.plot_image_and_label_contour(image, labels, contour_arguments={'colors': 'b'},
                                           image_range=(-5, 5), plot_file_name=plot_file)
     assert plot_file.exists()
@@ -87,7 +87,7 @@ def test_plot_image_and_contour_scaled(test_output_dirs: TestOutputDirectories) 
     assert file_as_bytes(plot_file) == file_as_bytes(expected)
 
 
-def test_plot_image_and_multiple_contours(test_output_dirs: TestOutputDirectories) -> None:
+def test_plot_image_and_multiple_contours(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test plotting of an image with two overlaid contours.
     """
@@ -100,7 +100,7 @@ def test_plot_image_and_multiple_contours(test_output_dirs: TestOutputDirectorie
     labels2 = np.zeros(size)
     labels2[0, 0] = 1
     file_name = "image_and_multiple_contours.png"
-    plot_file = Path(test_output_dirs.root_dir) / file_name
+    plot_file = test_output_dirs.root_dir / file_name
     args1 = {'colors': 'r', 'linestyles': 'dashed'}
     args2 = {'colors': 'b'}
     plotting.plot_image_and_label_contour(image, [labels1, labels2],
@@ -135,7 +135,7 @@ def compare_files(actual: List[Path], expected: List[str]) -> None:
 
 
 @pytest.mark.skipif(common_util.is_linux(), reason="Rendering of the graph is slightly different on Linux")
-def test_plot_normalization_result(test_output_dirs: TestOutputDirectories) -> None:
+def test_plot_normalization_result(test_output_dirs: OutputFolderForTests) -> None:
     """
     Tests plotting of before/after histograms in photometric normalization.
     :return:
@@ -155,13 +155,13 @@ def test_plot_normalization_result(test_output_dirs: TestOutputDirectories) -> N
     config = SegmentationModelBase(norm_method=PhotometricNormalizationMethod.CtWindow, window=4, level=13,
                                    should_validate=False)
     normalizer = PhotometricNormalization(config)
-    folder = Path(test_output_dirs.root_dir)
+    folder = test_output_dirs.root_dir
     files = plotting.plot_normalization_result(sample, normalizer, folder)
     expected = ["042_slice_001.png", "042_slice_001_contour.png"]
     compare_files(files, expected)
 
 
-def test_plot_contours_for_all_classes(test_output_dirs: TestOutputDirectories) -> None:
+def test_plot_contours_for_all_classes(test_output_dirs: OutputFolderForTests) -> None:
     size = (3, 3, 3)
     image = np.zeros((1,) + size)
     for i, (z, y, x) in enumerate(itertools.product(range(size[0]), range(size[1]), range(size[2]))):
@@ -188,7 +188,7 @@ def test_plot_contours_for_all_classes(test_output_dirs: TestOutputDirectories) 
     plots = plotting.plot_contours_for_all_classes(sample,
                                                    segmentation,
                                                    foreground_class_names=["class1", "class2"],
-                                                   result_folder=Path(test_output_dirs.root_dir),
+                                                   result_folder=test_output_dirs.root_dir,
                                                    result_prefix="prefix")
     expected = ["prefix042_class1_slice_001.png",
                 "prefix042_class2_slice_002.png"]
@@ -197,7 +197,7 @@ def test_plot_contours_for_all_classes(test_output_dirs: TestOutputDirectories) 
         plotting.plot_contours_for_all_classes(sample,
                                                segmentation,
                                                foreground_class_names=["background", "class1", "class2"],
-                                               result_folder=Path(test_output_dirs.root_dir),
+                                               result_folder=test_output_dirs.root_dir,
                                                result_prefix="prefix")
     assert "3 classes" in str(err)
     assert "background" in str(err)

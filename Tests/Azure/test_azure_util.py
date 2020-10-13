@@ -12,7 +12,7 @@ from InnerEye.Azure.azure_runner import create_experiment_name
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, fetch_child_runs, fetch_run, \
     get_cross_validation_split_index, is_cross_validation_child_run, merge_conda_dependencies, \
     to_azure_friendly_container_path
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_ENSEMBLE_RUN_RECOVERY_ID_NUMERIC, \
     DEFAULT_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID_NUMERIC
 from Tests.ML.util import get_default_workspace
@@ -68,7 +68,7 @@ def test_is_cross_validation_child_run(is_ensemble: bool, is_numeric: bool) -> N
         assert all([is_cross_validation_child_run(x) for x in fetch_child_runs(run)])
 
 
-def test_merge_conda(test_output_dirs: TestOutputDirectories) -> None:
+def test_merge_conda(test_output_dirs: OutputFolderForTests) -> None:
     """
     Tests the logic for merging Conda environment files.
     """
@@ -94,9 +94,9 @@ dependencies:
       - azureml-sdk==1.6.0
       - bar==2.0
 """
-    file1 = Path(test_output_dirs.root_dir) / "env1.yml"
+    file1 = test_output_dirs.root_dir / "env1.yml"
     file1.write_text(env1)
-    file2 = Path(test_output_dirs.root_dir) / "env2.yml"
+    file2 = test_output_dirs.root_dir / "env2.yml"
     file2.write_text(env2)
     conda_dep = merge_conda_dependencies([file1, file2])
     # We expect to see the union of channels.

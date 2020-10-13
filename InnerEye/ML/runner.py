@@ -314,9 +314,8 @@ class Runner:
             raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
         model_config_overrides = str(self.model_config.overrides)
         source_config = SourceConfig(
-            root_folder=str(self.project_root),
-            entry_script=os.path.abspath(sys.argv[0]),
-
+            root_folder=self.project_root,
+            entry_script=Path(sys.argv[0]),
             conda_dependencies_files=[get_environment_yaml_file(),
                                       self.project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME],
             hyperdrive_config_func=lambda estimator: self.model_config.get_hyperdrive_config(estimator),
