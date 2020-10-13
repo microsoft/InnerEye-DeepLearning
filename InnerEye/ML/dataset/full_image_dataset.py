@@ -187,7 +187,6 @@ class GeneralDataset(CacheDataset, ABC, Generic[D]):
             raise ValueError("All transforms must be of instance monai.transforms.Transform")
         super().__init__(data=data_sources,
                          transform=transforms,
-                         cache_num=self.args.dataset_cache_num,
                          cache_rate=self.args.dataset_cache_rate,
                          num_workers=self.args.dataset_worker_threads)
         logging.info(f"Processing dataset (name={self.name})")

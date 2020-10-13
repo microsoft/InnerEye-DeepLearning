@@ -13,7 +13,7 @@ from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 class ProstateBase(SegmentationModelBase):
     """
-    Prostate radiotherapy image segmentation model.
+    Prostate radiotherapy image segmentation model
     """
 
     def __init__(self, **kwargs: Any) -> None:
@@ -45,7 +45,7 @@ class ProstateBase(SegmentationModelBase):
             monitoring_interval_seconds=0,
             norm_method=PhotometricNormalizationMethod.CtWindow,
             num_dataload_workers=8,
-            num_epochs=120,
+            num_epochs=20,
             opt_eps=1e-4,
             optimizer_type=OptimizerType.Adam,
             save_step_epochs=20,

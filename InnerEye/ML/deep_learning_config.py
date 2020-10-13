@@ -363,10 +363,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "weights are updated using mean_teacher_"
                                                  "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
-    dataset_cache_num: int = param.Integer(default=sys.maxsize,
-                                           doc="Number of items to be cached. Default is `sys.maxsize"
-                                               "will take the minimum of (cache_num, data_length x cache_rate, "
-                                               "data_length")
 
     dataset_cache_rate: float = param.Number(default=1, bounds=(0, 1),
                                              doc="percentage of cached data in total, default is 1.0 (cache all). "
