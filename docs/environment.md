@@ -71,7 +71,24 @@ Some tips for installing NVidia drivers below:
 You can download NVidia drivers for your graphics card from https://www.nvidia.com/download/index.aspx as a Windows *.exe* file and install them this way. 
 
 ### WSL
-Microsoft provides GPU support via WSL starting WSL 2.0. Drivers should be installed into WSL automatically and pass through to the underlying Windows OS drivers. 
+Microsoft provides GPU support via WSL starting WSL 2.0. 
+
+Please make sure you have WSL 2 installed, as well as a compatible Linux distribution by following these instructions: https://docs.microsoft.com/en-us/windows/wsl/install-win10. Remember to restart your machine if WSL 2 needs to be installed before trying further steps. 
+
+https://channel9.msdn.com/Shows/Tabs-vs-Spaces/GPU-Accelerated-Machine-Learning-with-WSL-2
+
+Once you have WSL2 installed, ensure that your distribution is running on top of WSL2 by running  
+`wsl --list --verbose`  
+If all is good, the output should look like this:  
+```
+$> wsl --list -v
+  NAME      STATE           VERSION
+* Ubuntu    Running         2
+```
+
+At the moment of writing the driver is still in preview and could be downloaded here: https://docs.nvidia.com/cuda/wsl-user-guide/index.html
+
+CUDA toolkit needs to be installed separately, follow this: https://docs.nvidia.com/cuda/wsl-user-guide/index.html
 
 ### Linux
 The exact instructions for driver installation will differ depending on the Linux distribution. Generally, you should first run the `nvidia-smi` tool to see if you have NVidia drivers installed. This tool is installed together with NVidia drivers and if your system can not find it, it may mean that the drivers are not installed. A sample output of NVidia SMI tool may look like this:
