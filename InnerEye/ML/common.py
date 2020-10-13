@@ -10,7 +10,6 @@ from typing import Any, Dict, List
 
 DATASET_CSV_FILE_NAME = "dataset.csv"
 CHECKPOINT_FILE_SUFFIX = "_checkpoint.pth.tar"
-MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX = "_mean_teacher_checkpoint.pth.tar"
 
 
 @unique
@@ -58,17 +57,14 @@ class TrackedMetrics(Enum):
     Val_Loss = "Val_Loss"
 
 
-def create_checkpoint_path(path: Path, epoch: int, for_mean_teacher_model: bool = False) -> Path:
+def create_checkpoint_path(path: Path, epoch: int) -> Path:
     """
     Given a path and checkpoint, formats a path based on the checkpoint file name format.
 
     :param path to checkpoint folder
     :param epoch
-    :param for_mean_teacher_model: if True use the MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX to save the checkpoint. Else use
-    the CHECKPOINT_FILE_SUFFIX.
     """
-    filename = MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX if for_mean_teacher_model else CHECKPOINT_FILE_SUFFIX
-    return path / "{}{}".format(epoch, filename)
+    return path / f"{epoch}{CHECKPOINT_FILE_SUFFIX}"
 
 
 def create_unique_timestamp_id() -> str:
