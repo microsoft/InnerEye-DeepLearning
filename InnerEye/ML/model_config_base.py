@@ -5,7 +5,7 @@
 import abc
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
 from azureml.train.estimator import Estimator
@@ -250,9 +250,9 @@ class ModelTransformsPerExecutionMode:
     to apply to each sample depending on each execution mode (train, validation and test)
     """
 
-    def __init__(self, train: Optional[Callable] = None,
-                 val: Optional[Callable] = None,
-                 test: Optional[Callable] = None):
+    def __init__(self, train: List[Callable] = None,
+                 val: List[Callable] = None,
+                 test: List[Callable] = None):
         """
 
         :param train: the transformation(s) to apply to the training set.

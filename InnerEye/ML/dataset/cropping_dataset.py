@@ -139,11 +139,11 @@ class CroppingDataset(FullImageDataset):
     """
 
     def __init__(self, args: SegmentationModelBase, data_frame: pd.DataFrame,
-                 cropped_sample_transforms: Optional[Compose3D[CroppedSample]] = None,
-                 full_image_sample_transforms: Optional[Compose3D[Sample]] = None):
-        self.cropped_sample_transforms = cropped_sample_transforms
+                 cropped_sample_transforms: Optional[List[Callable]] = None,
+                 full_image_sample_transforms: Optional[List[Callable]] = None):
+        self.cropped_sample_transforms = cropped_sample_transforms or list()
         super().__init__(args, data_frame, full_image_sample_transforms)
 
-    def get_transforms(self) -> Union[Sequence[Callable], Callable]:
+    def get_transforms(self) -> List[Callable]:
         base_transforms = super().get_transforms()
-        return Compose([base_transforms, self.cropped_sample_transforms])
+        return base_transforms + self.cropped_sample_transforms

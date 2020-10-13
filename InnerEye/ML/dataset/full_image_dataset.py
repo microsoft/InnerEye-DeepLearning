@@ -195,7 +195,7 @@ class GeneralDataset(CacheDataset, ABC, Generic[D]):
         sample: Sample = super().__getitem__(index)
         return sample.get_dict()
 
-    def get_transforms(self) -> Union[Sequence[Callable], Callable]:
+    def get_transforms(self) -> List[Callable]:
         return list()
 
     def as_data_loader(self,
@@ -266,11 +266,11 @@ class FullImageDataset(GeneralDataset[SegmentationModelBase]):
         else:
             raise Exception("Files should be Nifti, but found {0}".format(self.file_extension))
 
-    def get_transforms(self) -> Union[Sequence[Callable], Callable]:
+    def get_transforms(self) -> List[Callable]:
         transforms = [LoadNiftiDataSample()]
         if self.full_image_sample_transforms:
             transforms.append(self.full_image_sample_transforms)
-        return Compose(transforms)
+        return transforms
 
     @staticmethod
     def _extension_from_df_file_paths(file_paths: List[str]) -> str:

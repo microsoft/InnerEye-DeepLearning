@@ -12,6 +12,10 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import pandas as pd
 import param
+from azureml.train.estimator import Estimator
+from azureml.train.hyperdrive import HyperDriveConfig
+from pandas import DataFrame
+
 from InnerEye.Common.common_util import any_pairwise_larger, any_smaller_or_equal_than, check_is_any_of
 from InnerEye.Common.generic_parsing import IntTuple
 from InnerEye.Common.type_annotations import TupleFloat2, TupleFloat3, TupleInt3, TupleStringOptionalFloat
@@ -19,9 +23,6 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-from azureml.train.estimator import Estimator
-from azureml.train.hyperdrive import HyperDriveConfig
-from pandas import DataFrame
 
 DATASET_ID_FILE = "dataset_id.txt"
 GROUND_TRUTH_IDS_FILE = "ground_truth_ids.txt"
@@ -736,27 +737,27 @@ class SegmentationModelBase(ModelConfigBase):
         Get transforms to perform on full image samples for each model execution mode.
         By default only PhotometricNormalization is performed.
         """
-        from InnerEye.ML.utils.transforms import Compose3D
         from InnerEye.ML.photometric_normalization import PhotometricNormalization
 
-        photometric_transformation = Compose3D(transforms=[PhotometricNormalization(self, use_gpu=False)])
-        return ModelTransformsPerExecutionMode(train=photometric_transformation,
-                                               val=photometric_transformation,
-                                               test=photometric_transformation)
+        photometric_transformation = [PhotometricNormalization(self)]
+        return ModelTransformsPerExecutionMode(
+            train=photometric_transformation,
+            val=photometric_transformation,
+            test=photometric_transformation
+        )
 
     def get_cropped_image_sample_transforms(self) -> ModelTransformsPerExecutionMode:
         """
         Get transforms to perform on cropped samples for each model execution mode.
         By default no transformation is performed.
         """
-        from monai.transforms import Compose
         from InnerEye.ML.dataset.cropping_dataset import PadSample
         from InnerEye.ML.dataset.cropping_dataset import RandomCropSample
-        transforms = Compose([
+        transforms = [
             PadSample(output_size=self.crop_size, padding_mode=self.padding_mode),
             RandomCropSample(random_seed=self.get_effective_random_seed(),
                              crop_size=self.crop_size, center_size=self.center_size, class_weights=self.class_weights)
-        ])
+        ]
         return ModelTransformsPerExecutionMode(
             train=transforms,
             val=transforms
