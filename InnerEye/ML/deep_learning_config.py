@@ -712,7 +712,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         dct[ModelAndInfo.EPOCH_KEY] = self.start_epoch
         return dct
 
-    def get_state_dict_from_model_weights(self, path_to_checkpoint: Path) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
+    def get_state_dict_from_model_weights(self, path_to_checkpoint: Path) -> Dict[str, Any]:
         """
         When weights_url or local_weights_path is set, the file downloaded may not be in the exact
         format expected by the model's load_state_dict() - for example, pretrained Imagenet weights for networks

@@ -691,7 +691,7 @@ class MLRunner:
             logging.info(f"File already exists, skipping download: {result_file}")
             return result_file
 
-        logging.info(f"Downloading weights from {url}")
+        logging.info(f"Downloading weights.")
 
         response = requests.get(url, stream=True)
         response.raise_for_status()
