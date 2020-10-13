@@ -702,7 +702,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     def read_state_from_path(self, path_to_checkpoint: Path) -> Dict[str, Any]:
         from InnerEye.ML.utils.model_util import ModelAndInfo
-        dct = DeepLearningConfig.get_state_dict_from_model_weights(path_to_checkpoint=path_to_checkpoint)
+        dct = self.get_state_dict_from_model_weights(path_to_checkpoint=path_to_checkpoint)
         if ModelAndInfo.EPOCH_KEY in dct and dct[ModelAndInfo.EPOCH_KEY] != self.start_epoch:
             raise ValueError("start_epoch in config does not match epoch in the saved checkpoint.")
         dct[ModelAndInfo.EPOCH_KEY] = self.start_epoch
