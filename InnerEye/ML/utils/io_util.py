@@ -8,13 +8,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Generic, Iterable, List, Optional, Tuple, Type, TypeVar, Union
 
-from monai.transforms import Transform
-from skimage.transform import resize
-
 import SimpleITK as sitk
 import numpy as np
 import pandas as pd
 import torch
+from skimage.transform import resize
 from tabulate import tabulate
 
 from InnerEye.Common import common_util
