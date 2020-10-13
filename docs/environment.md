@@ -43,7 +43,7 @@ and run it.
 ## Creating a Conda environment
 Note that in order to create the Conda environment you will need to have build tools installed on your machine. If you are running Windows, they should be already installed with Conda distribution.   
 
-You can install build tools on Ubuntu (and debian-based distributions) by running  
+You can install build tools on Ubuntu (and Debian-based distributions) by running  
 `sudo apt-get install build-essential`  
 If you are running CentOS/RHEL distributions, you can install the build tools by running  
 `yum install gcc gcc-c++ kernel-devel make`
@@ -73,9 +73,9 @@ You can download NVidia drivers for your graphics card from https://www.nvidia.c
 ### WSL
 Microsoft provides GPU support via WSL starting WSL 2.0. 
 
-Please make sure you have WSL 2 installed, as well as a compatible Linux distribution by following these instructions: https://docs.microsoft.com/en-us/windows/wsl/install-win10. Remember to restart your machine if WSL 2 needs to be installed before trying further steps. 
+You can find more details on WSL in our separate [WSL section](WSL.md).
 
-https://channel9.msdn.com/Shows/Tabs-vs-Spaces/GPU-Accelerated-Machine-Learning-with-WSL-2
+Remember to restart your machine if you were doing a fresh installation of WSL 2 before trying further steps. 
 
 Once you have WSL2 installed, ensure that your distribution is running on top of WSL2 by running  
 `wsl --list --verbose`  
@@ -85,10 +85,11 @@ $> wsl --list -v
   NAME      STATE           VERSION
 * Ubuntu    Running         2
 ```
+Note the "2" in Version column.
 
-At the moment of writing the driver is still in preview and could be downloaded here: https://docs.nvidia.com/cuda/wsl-user-guide/index.html
+At this point you need to install the compatible NVidia driver and CUDA toolkit. At the moment of writing the driver is still in preview, so issues are possible. Follow this guide for installation: https://docs.nvidia.com/cuda/wsl-user-guide/index.html
 
-CUDA toolkit needs to be installed separately, follow this: https://docs.nvidia.com/cuda/wsl-user-guide/index.html
+You can also find a video walkthrough of WSL2+CUDA installation here: https://channel9.msdn.com/Shows/Tabs-vs-Spaces/GPU-Accelerated-Machine-Learning-with-WSL-2
 
 ### Linux
 The exact instructions for driver installation will differ depending on the Linux distribution. Generally, you should first run the `nvidia-smi` tool to see if you have NVidia drivers installed. This tool is installed together with NVidia drivers and if your system can not find it, it may mean that the drivers are not installed. A sample output of NVidia SMI tool may look like this:
