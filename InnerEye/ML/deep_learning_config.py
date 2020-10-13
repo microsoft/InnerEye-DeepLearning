@@ -7,7 +7,8 @@ from __future__ import annotations
 import logging
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
+import numpy as np
 
 import param
 from pandas import DataFrame
@@ -20,6 +21,9 @@ from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import ModelExecutionMode, create_unique_timestamp_id, create_checkpoint_path
+
+if TYPE_CHECKING:
+    import torch
 
 VISUALIZATION_FOLDER = "Visualizations"
 CHECKPOINT_FOLDER = "checkpoints"
@@ -699,3 +703,31 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         for key in keys:
             arguments_str += "\t{:18}: {}\n".format(key, property_dict[key])
         return arguments_str
+
+    def read_state_from_path(self, path_to_checkpoint: Path) -> Dict[str, Any]:
+        from InnerEye.ML.utils.model_util import ModelAndInfo
+        dct = DeepLearningConfig.get_state_dict_from_model_weights(path_to_checkpoint=path_to_checkpoint)
+        if ModelAndInfo.EPOCH_KEY in dct and dct[ModelAndInfo.EPOCH_KEY] != self.start_epoch:
+            raise ValueError("start_epoch in config does not match epoch in the saved checkpoint.")
+        dct[ModelAndInfo.EPOCH_KEY] = self.start_epoch
+        return dct
+
+    def get_state_dict_from_model_weights(self, path_to_checkpoint: Path) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
+        """
+        When weights_url or local_weights_path is set, the file downloaded may not be in the exact
+        format expected by the model's load_state_dict() - for example, pretrained Imagenet weights for networks
+        may have mismatched layer names in different implementations.
+        In such cases, you can overload this function to extract the state dict from the checkpoint.
+        :param path_to_checkpoint: Path to the checkpoint file.
+        :return: Dictionary with model and optimizer state dicts. The dict should have at least
+        a key-value pair with key set to ModelAndInfo.MODEL_STATE_DICT_KEY and value set the the model state dict.
+        Other (optional) entries should corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
+        ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported. ModelAndInfo.EPOCH_KEY is set automatically outside
+        this function.
+        """
+        import torch
+        # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
+        # if the model is small.
+        map_location = None if self.use_gpu else 'cpu'
+        checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
+        return checkpoint

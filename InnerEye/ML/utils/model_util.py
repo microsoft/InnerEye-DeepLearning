@@ -5,7 +5,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Callable
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -94,21 +94,20 @@ class ModelAndInfo:
 
     @classmethod
     def _load_checkpoint(cls, model: DeviceAwareModule, checkpoint_path: Path,
-                         key_in_state_dict: str, use_gpu: bool) -> int:
+                         key_in_state_dict: str, reader: Callable) -> int:
         """
         Loads a checkpoint of a model, may be the model or the mean teacher model. Assumes the model
         has already been created, and the checkpoint exists. This does not set checkpoint epoch.
         This method should not be called externally. Use instead try_load_checkpoint_for_model
         or try_load_checkpoint_for_mean_teacher_model
         :param model: model to load weights
+        :param checkpoint_path: Path to checkpoint
         :param key_in_state_dict: the key for the model weights in the checkpoint state dict
+        :param reader: Function which takes the path and returns a dict with model and optimizer states
         :return checkpoint epoch form the state dict
         """
         logging.info(f"Loading checkpoint {checkpoint_path}")
-        # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
-        # if the model is small.
-        map_location = None if use_gpu else 'cpu'
-        checkpoint = torch.load(str(checkpoint_path), map_location=map_location)
+        checkpoint = reader(checkpoint_path)
 
         try:
             state_dict = checkpoint[key_in_state_dict]
@@ -117,9 +116,13 @@ class ModelAndInfo:
             return False
 
         if isinstance(model, torch.nn.DataParallel):
-            model.module.load_state_dict(state_dict)
+            result = model.module.load_state_dict(state_dict, strict=False)
         else:
-            model.load_state_dict(state_dict)
+            result = model.load_state_dict(state_dict, strict=False)
+
+        logging.info(f"Could not find the following keys in model checkpoint: {result.missing_keys}")
+        logging.info(f"Found unexpected keys in model checkpoint: {result.unexpected_keys}")
+
         return checkpoint[ModelAndInfo.EPOCH_KEY]
 
     @classmethod
@@ -186,7 +189,7 @@ class ModelAndInfo:
         epoch = ModelAndInfo._load_checkpoint(model=self._model,
                                               checkpoint_path=self.checkpoint_path,
                                               key_in_state_dict=ModelAndInfo.MODEL_STATE_DICT_KEY,
-                                              use_gpu=self.config.use_gpu)
+                                              reader=self.config.get_state_dict_from_model_weights)
 
         logging.info(f"Loaded model from checkpoint (epoch: {epoch})")
         self.checkpoint_epoch = epoch
@@ -276,7 +279,7 @@ class ModelAndInfo:
         epoch = ModelAndInfo._load_checkpoint(model=self._mean_teacher_model,
                                               checkpoint_path=self.checkpoint_path,
                                               key_in_state_dict=ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY,
-                                              use_gpu=self.config.use_gpu)
+                                              reader=self.config.get_state_dict_from_model_weights)
 
         logging.info(f"Loaded mean teacher model from checkpoint (epoch: {epoch})")
         self.checkpoint_epoch = epoch
@@ -379,10 +382,7 @@ class ModelAndInfo:
             return False
 
         logging.info(f"Loading checkpoint {self.checkpoint_path}")
-        # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
-        # if the model is small.
-        map_location = None if self.config.use_gpu else 'cpu'
-        checkpoint = torch.load(str(self.checkpoint_path), map_location=map_location)
+        checkpoint = self.config.get_state_dict_from_model_weights(self.checkpoint_path)
 
         try:
             state_dict = checkpoint[ModelAndInfo.OPTIMIZER_STATE_DICT_KEY]
@@ -390,8 +390,7 @@ class ModelAndInfo:
             logging.info(f"Key {ModelAndInfo.OPTIMIZER_STATE_DICT_KEY} not found in checkpoint")
             return False
 
-        if self._optimizer:
-            self._optimizer.load_state_dict(state_dict)
+        self._optimizer.load_state_dict(state_dict)
 
         logging.info(f"Loaded optimizer from checkpoint (epoch: {checkpoint[ModelAndInfo.EPOCH_KEY]})")
         self.checkpoint_epoch = checkpoint[ModelAndInfo.EPOCH_KEY]

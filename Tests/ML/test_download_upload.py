@@ -183,5 +183,4 @@ def test_download_model_weights(test_output_dirs: TestOutputDirectories) -> None
     runner.project_root = Path(test_output_dirs.root_dir)
 
     result_path = runner.download_weights()
-    assert result_path
     assert result_path.is_file()
