@@ -189,7 +189,7 @@ class ModelAndInfo:
         epoch = ModelAndInfo._load_checkpoint(model=self._model,
                                               checkpoint_path=self.checkpoint_path,
                                               key_in_state_dict=ModelAndInfo.MODEL_STATE_DICT_KEY,
-                                              reader=self.config.read_state_from_path())
+                                              reader=self.config.read_state_from_path)
 
         logging.info(f"Loaded model from checkpoint (epoch: {epoch})")
         self.checkpoint_epoch = epoch
@@ -279,7 +279,7 @@ class ModelAndInfo:
         epoch = ModelAndInfo._load_checkpoint(model=self._mean_teacher_model,
                                               checkpoint_path=self.checkpoint_path,
                                               key_in_state_dict=ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY,
-                                              reader=self.config.read_state_from_path())
+                                              reader=self.config.read_state_from_path)
 
         logging.info(f"Loaded mean teacher model from checkpoint (epoch: {epoch})")
         self.checkpoint_epoch = epoch

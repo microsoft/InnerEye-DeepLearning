@@ -7,8 +7,7 @@ from __future__ import annotations
 import logging
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
-import numpy as np
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import param
 from pandas import DataFrame
@@ -21,9 +20,6 @@ from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import ModelExecutionMode, create_unique_timestamp_id, create_checkpoint_path
-
-if TYPE_CHECKING:
-    import torch
 
 VISUALIZATION_FOLDER = "Visualizations"
 CHECKPOINT_FOLDER = "checkpoints"
