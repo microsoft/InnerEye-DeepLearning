@@ -19,8 +19,7 @@ from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, \
-    create_unique_timestamp_id
+from InnerEye.ML.common import ModelExecutionMode, create_unique_timestamp_id, create_checkpoint_path
 
 VISUALIZATION_FOLDER = "Visualizations"
 CHECKPOINT_FOLDER = "checkpoints"
@@ -68,6 +67,7 @@ class ModelCategory(Enum):
     Classification = "Classification"  # All models that perform classification
     Regression = "Regression"  # All models that perform regression
 
+    @property
     def is_scalar(self) -> bool:
         """
         Return True if the current ModelCategory is either Classification or Regression
@@ -364,6 +364,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     dist_backend: str = param.String(default='nccl', doc="Communication package to use for distributed training")
     init_method: str = param.String(default='env://', doc="URL specifying where to find peer processes")
+    use_distributed_data_parallel: bool = param.Boolean(True, doc="If True will attempt to use DDP")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
@@ -433,7 +434,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         Returns True if the present model configuration belongs to the high-level category ModelCategory.Scalar
         i.e. for Classification or Regression models.
         """
-        return self.model_category.is_scalar()
+        return self.model_category.is_scalar
 
     @property
     def compute_grad_cam(self) -> bool:
@@ -597,7 +598,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                 test_epochs.add(epoch)
         return sorted(test_epochs)
 
-    def get_path_to_checkpoint(self, epoch: int, for_mean_teacher_model: bool = False) -> Path:
+    def get_path_to_checkpoint(self, epoch: int) -> Path:
         """
         Returns full path to a checkpoint given an epoch
         :param epoch: the epoch number
@@ -605,10 +606,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         path to the (main / student) model checkpoint.
         :return: path to a checkpoint given an epoch
         """
-        filename = MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX if for_mean_teacher_model else CHECKPOINT_FILE_SUFFIX
-        return fixed_paths.repository_root_directory() \
-               / self.checkpoint_folder \
-               / f"{epoch}{filename}"
+        return create_checkpoint_path(path=fixed_paths.repository_root_directory() / self.checkpoint_folder,
+                                      epoch=epoch)
 
     def get_effective_random_seed(self) -> int:
         """
@@ -666,7 +665,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         :return:
         """
         _devices = self.get_cuda_devices()
-        return (_devices is not None) & (len(_devices) > 1) & (not is_windows())
+        return (_devices is not None) & (len(_devices) > 1) & (not is_windows()) & self.use_distributed_data_parallel
 
     def write_args_file(self, root: Optional[Path] = None) -> None:
         """

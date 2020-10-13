@@ -15,7 +15,8 @@ from InnerEye.ML.models.parallel.data_parallel import execute_within_autocast_if
 
 class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
     def __init__(self, expected_image_size_zyx: TupleInt3,
-                 activation: torch.nn.Module = Identity()) -> None:
+                 activation: torch.nn.Module = Identity(),
+                 use_mixed_precision: bool = False) -> None:
         super().__init__()
         self.expected_image_size_zyx = expected_image_size_zyx
         self._layers = torch.nn.ModuleList()
@@ -29,7 +30,7 @@ class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
         self.activation = activation
         self.last_encoder_layer: List[str] = ["_layers", "0"]
         self.conv_in_3d = False
-        self.use_mixed_precision = False
+        self.use_mixed_precision = use_mixed_precision
 
     def get_last_encoder_layer_names(self) -> List[str]:
         return self.last_encoder_layer

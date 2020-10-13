@@ -39,7 +39,7 @@ from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.aml_distributed_utils import get_global_rank
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
-from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_test
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
@@ -478,32 +478,27 @@ class MLRunner:
                                  best_epoch: int,
                                  best_epoch_dice: float,
                                  model_proc: ModelProcessing) -> None:
-        checkpoint_paths = [self.model_config.get_path_to_checkpoint(best_epoch)] if not run_recovery \
-            else run_recovery.get_checkpoint_paths(best_epoch)
+
+        checkpoint_paths = get_recovery_path_test(config=self.model_config,
+                                                  run_recovery=run_recovery,
+                                                  epoch=best_epoch)
+        if not checkpoint_paths:
+            # No point continuing, since no checkpoints were found
+            logging.warning("Abandoning model registration - no valid checkpoint paths found")
+            return
+
         if not self.model_config.is_offline_run:
             split_index = run_context.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
             if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
                 update_run_tags(run_context, {IS_ENSEMBLE_KEY_NAME: model_proc == ModelProcessing.ENSEMBLE_CREATION})
             elif PARENT_RUN_CONTEXT is not None:
                 update_run_tags(run_context, {PARENT_RUN_ID_KEY_NAME: PARENT_RUN_CONTEXT.id})
-        # Discard any checkpoint paths that do not exist - they will make registration fail. This can happen
-        # when some child runs fail; it may still be worth registering the model.
-        valid_checkpoint_paths = []
-        for path in checkpoint_paths:
-            if path.exists():
-                valid_checkpoint_paths.append(path)
-            else:
-                logging.warning(f"Discarding non-existent checkpoint path {path}")
-        if not valid_checkpoint_paths:
-            # No point continuing
-            logging.warning("Abandoning model registration - no valid checkpoint paths found")
-            return
         with logging_section(f"Registering {model_proc.value} model"):
             self.register_segmentation_model(
                 run=run_context,
                 best_epoch=best_epoch,
                 best_epoch_dice=best_epoch_dice,
-                checkpoint_paths=valid_checkpoint_paths,
+                checkpoint_paths=checkpoint_paths,
                 model_proc=model_proc)
 
     def try_compare_scores_against_baselines(self, model_proc: ModelProcessing) -> None:

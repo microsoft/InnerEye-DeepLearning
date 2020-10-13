@@ -358,16 +358,16 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                 logits, posteriors = self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
             else:
 
-                if rank == 0:
-                    model.eval()
-                    # move model to CUDA:0 if available, else cpu
-                    device = torch.device('cuda', rank) if torch.cuda.is_available() else torch.device('cpu')
-                    model.to(device)
+                # if rank == 0 or self.model_config.use_ddp==False:
+                model.eval()
+                # # move model to CUDA:0 if available, else cpu
+                # device2 = torch.device('cuda', rank) if torch.cuda.is_available() else torch.device('cpu')
+                # model.to(device2)
 
-                    with torch.no_grad():
-                        logits, posteriors = self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
-                    model.train()
-            loss = self.compute_loss(logits, label_gpu, device=device)
+                with torch.no_grad():
+                    logits, posteriors = self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
+                model.train()
+            loss = self.compute_loss(logits, label_gpu, device)
             return logits, posteriors, loss
 
         return execute_within_autocast_if_needed(func=compute, use_autocast=self.model_config.use_mixed_precision)

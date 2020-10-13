@@ -183,7 +183,16 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
                        ) -> DataLoader:
         num_dataload_workers = num_dataload_workers or self.args.num_dataload_workers
         batch_size = batch_size or self.args.train_batch_size
-        if self.args.avoid_process_spawn_in_data_loaders:
+        if distribute:
+            # distributed data loader
+            sampler: DistributedSampler = DistributedSampler(self)
+            return DataLoader(self,
+                              batch_size=batch_size,
+                              shuffle=False,
+                              num_workers=0,
+                              collate_fn=collate_with_metadata,
+                              sampler=sampler)
+        elif self.args.avoid_process_spawn_in_data_loaders:
             if max_repeats is None:
                 max_repeats = self.args.get_total_number_of_training_epochs()
             return RepeatDataLoader(
@@ -198,15 +207,7 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
                 use_imbalanced_sampler=use_imbalanced_sampler,
                 drop_last=drop_last_batch
             )
-        elif distribute:
-            # distributed data loader
-            sampler: DistributedSampler = DistributedSampler(self)
-            return DataLoader(self,
-                              batch_size=batch_size,
-                              shuffle=False,
-                              num_workers=0,
-                              collate_fn=collate_with_metadata,
-                              sampler=sampler)
+
         else:
             if use_imbalanced_sampler:
                 sampler: Optional[Sampler] = ImbalancedSampler(self)

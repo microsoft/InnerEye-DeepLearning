@@ -26,13 +26,13 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util, model_util
 from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size
+
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
-from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling, \
-    generate_and_print_model_summary, save_checkpoint
-from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
+from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_train
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
@@ -54,7 +54,7 @@ def load_checkpoint_from_model_and_info(run_recovery: Optional[RunRecovery], con
 
 
 def model_train(config: ModelConfigBase,
-                run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResults:
+                run_recovery: Optional[RunRecovery] = None) -> None:
     """
     The main training loop. It creates the model, dataset, optimizer_type, and criterion, then proceeds
     to train the model. If a checkpoint was specified, then it loads the checkpoint before resuming training.
@@ -73,7 +73,7 @@ def model_train(config: ModelConfigBase,
     logging.debug("Creating the PyTorch model.")
 
     # create model
-    model = create_model_with_temperature_scaling(config)
+    model = model_util.create_model_with_temperature_scaling(config)
 
     if config.use_ddp:
 
@@ -119,46 +119,53 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
     # Create the train loader and validation loader to load images from the dataset
     data_loaders = config.create_data_loaders()
 
-    # Create models, optimizers, and whether is_mean_teacher
-    models_and_optimizers = [ModelAndInfo(model, model_util.create_optimizer(config, model),
-                                          model_execution_mode=ModelExecutionMode.TRAIN)]
-    if config.compute_mean_teacher_model:
-        models_and_optimizers.append(ModelAndInfo(create_model_with_temperature_scaling(config),
-                                                  is_mean_teacher=True,
-                                                  model_execution_mode=ModelExecutionMode.TRAIN))
+    # Get the path to the checkpoint to recover from
+    checkpoint_path = get_recovery_path_train(run_recovery=run_recovery,
+                                              epoch=config.start_epoch)
 
-    # If continuing from a previous run at a specific epoch, then load the previous model
-    if config.should_load_checkpoint_for_training():
-        models_and_optimizers = [load_checkpoint_from_model_and_info(run_recovery, config, model_and_info)
-                                 for model_and_info in models_and_optimizers]
-    # Otherwise, create checkpoint directory for this run
-    else:
-        logging.info("Models are saved at {}".format(config.checkpoint_folder))
-        if not os.path.isdir(config.checkpoint_folder):
-            os.makedirs(config.checkpoint_folder, exist_ok=True)
+    models_and_optimizer = ModelAndInfo(config=config,
+                                        model_execution_mode=ModelExecutionMode.TRAIN,
+                                        checkpoint_path=checkpoint_path if
+                                        config.should_load_checkpoint_for_training() else None)
+
+    # Create the main model
+    # If continuing from a previous run at a specific epoch, then load the previous model.
+    model_loaded = models_and_optimizer.try_create_model_and_load_from_checkpoint()
+    if not model_loaded:
+        raise ValueError("There was no checkpoint file available for the model for given start_epoch {}"
+                         .format(config.start_epoch))
 
     # Print out a detailed breakdown of layers, memory consumption and time.
-    generate_and_print_model_summary(config, model)
+    generate_and_print_model_summary(config, models_and_optimizer.model)
 
-    # Prepare for mixed precision training and data parallelization (no-op if already done).
-    # This relies on the information generated in the model summary.
-    # We only want to do this if we didn't call load_checkpoint above, because attempting updating twice
-    # causes an error.
-    models_and_optimizers = [model_util.update_model_for_multiple_gpus(model_and_info, config, rank=rank)
-                             for model_and_info in models_and_optimizers]
+    # Move model to GPU and adjust for multiple GPUs
+    models_and_optimizer.adjust_model_for_gpus(rank=rank)
+
+    # Create the mean teacher model and move to GPU
+    if config.compute_mean_teacher_model:
+        mean_teacher_model_loaded = models_and_optimizer.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
+        if not mean_teacher_model_loaded:
+            raise ValueError("There was no checkpoint file available for the mean teacher model for given start_epoch {}"
+                             .format(config.start_epoch))
+
+    # Create optimizer
+    optimizer_loaded = models_and_optimizer.try_create_optimizer_and_load_from_checkpoint()
+    if not optimizer_loaded:
+        raise ValueError("There was no checkpoint file available for the optimizer for given start_epoch {}"
+                         .format(config.start_epoch))
+
+    # Create checkpoint directory for this run if it doesn't already exist
+    logging.info("Models are saved at {}".format(config.checkpoint_folder))
+    if not os.path.isdir(config.checkpoint_folder):
+        os.makedirs(config.checkpoint_folder, exist_ok=True)
 
     # Create the SummaryWriters for Tensorboard
     writers = create_summary_writers(config, rank=rank)
 
     config.create_dataframe_loggers()
 
-    model = models_and_optimizers[0].model
-    optimizer = models_and_optimizers[0].optimizer
-    assert optimizer is not None  # for mypy
-    mean_teacher_model = models_and_optimizers[1].model if len(models_and_optimizers) > 1 else None
-
     # Create LR scheduler
-    l_rate_scheduler = SchedulerWithWarmUp(config, optimizer)
+    l_rate_scheduler = SchedulerWithWarmUp(config, models_and_optimizer.optimizer)
 
     # Training loop
     logging.info("Starting training")
@@ -175,7 +182,7 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
     optimal_temperature_scale_values = []
     for epoch in config.get_train_epochs():
         logging.info("Starting epoch {}".format(epoch))
-        save_epoch = config.should_save_epoch(epoch) and optimizer is not None
+        save_epoch = config.should_save_epoch(epoch) and models_and_optimizer.optimizer is not None
 
         if config.use_ddp:
             # set epoch for DistributedSampler to make shuffling work properly
@@ -187,10 +194,10 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
 
         train_val_params: TrainValidateParameters = \
             TrainValidateParameters(data_loader=data_loaders[ModelExecutionMode.TRAIN],
-                                    model=model,
-                                    mean_teacher_model=mean_teacher_model,
+                                    model=models_and_optimizer.model,
+                                    mean_teacher_model=models_and_optimizer.mean_teacher_model,
                                     epoch=epoch,
-                                    optimizer=optimizer,
+                                    optimizer=models_and_optimizer.optimizer,
                                     gradient_scaler=gradient_scaler,
                                     epoch_learning_rate=epoch_lrs,
                                     summary_writers=writers,
@@ -200,7 +207,7 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
         train_epoch_results = train_or_validate_epoch(training_steps, rank, device)
         train_results_per_epoch.append(train_epoch_results.metrics)
 
-        metrics.validate_and_store_model_parameters(writers.train, epoch, model)
+        metrics.validate_and_store_model_parameters(writers.train, epoch, models_and_optimizer.model)
         # Run without adjusting weights on the validation set
         train_val_params.in_training_mode = False
         train_val_params.data_loader = data_loaders[ModelExecutionMode.VAL]
@@ -227,11 +234,7 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
                 # overwrite the metrics for the epoch with the metrics from the temperature scaled model
                 val_results_per_epoch[-1] = scaled_val_results.metrics
 
-            assert optimizer is not None
-            save_checkpoint(model, optimizer, epoch, config)
-            if config.compute_mean_teacher_model:
-                assert mean_teacher_model is not None
-                save_checkpoint(mean_teacher_model, optimizer, epoch, config, mean_teacher_model=True)
+            models_and_optimizer.save_checkpoint(epoch)
 
         # Updating the learning rate should happen at the end of the training loop, so that the
         # initial learning rate will be used for the very first epoch.
@@ -257,7 +260,7 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
         # stop the resource monitoring process
         resource_monitor.kill()
 
-    return model_training_results
+    # return model_training_results
 
 
 def temperature_scaling_steps(config: SequenceModelBase,
@@ -333,7 +336,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank, device
                                 f"{MAX_LOAD_TIME_WARNINGS} times.")
                 num_load_time_warnings += 1
         model_outputs_minibatch = training_steps.forward_and_backward_minibatch(
-            sample, batch_index, train_val_params.epoch, rank, device)
+            sample, batch_index, train_val_params.epoch, rank=rank, device=device)
         model_outputs_epoch.append(model_outputs_minibatch)
         train_finish_time = time()
         status_time = train_finish_time - item_finish_time
@@ -395,7 +398,6 @@ def main() -> None:
 
     model_config = ModelConfigLoader().create_model_config_from_name(args.model)
 
-    not_distributed_rank = 0
     model_train(model_config)
 
 
