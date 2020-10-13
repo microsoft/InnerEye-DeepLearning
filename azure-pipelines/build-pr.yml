@@ -1,3 +1,8 @@
+pr:
+  branches:
+    include:
+    - '*'
+
 name: PR-$(Date:yyyyMMdd)$(Rev:-r)
 variables:
   model: 'BasicModel2Epochs'
