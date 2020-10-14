@@ -119,7 +119,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     gradient_scaler = GradScaler() if config.use_gpu and config.use_mixed_precision else None
     optimal_temperature_scale_values = []
-    train_val_params.data_loader.dataset.start()
+
     for epoch in config.get_train_epochs():
         logging.info("Starting epoch {}".format(epoch))
         save_epoch = config.should_save_epoch(epoch) and models_and_optimizer.optimizer is not None
@@ -139,6 +139,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                                     summary_writers=writers,
                                     dataframe_loggers=config.metrics_data_frame_loggers,
                                     in_training_mode=True)
+        train_val_params.data_loader.dataset.start()
         training_steps = create_model_training_steps(config, train_val_params)
         train_epoch_results = train_or_validate_epoch(training_steps)
         train_results_per_epoch.append(train_epoch_results.metrics)
