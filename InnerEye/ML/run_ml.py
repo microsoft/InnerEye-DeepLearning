@@ -474,7 +474,6 @@ class MLRunner:
 
         checkpoint_paths = get_recovery_path_test(config=self.model_config,
                                                   run_recovery=run_recovery,
-                                                  is_mean_teacher=False,
                                                   epoch=best_epoch)
         if not checkpoint_paths:
             # No point continuing, since no checkpoints were found

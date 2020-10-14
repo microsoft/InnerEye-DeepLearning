@@ -29,7 +29,7 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
-from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary, save_checkpoint
+from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
 from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_train
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 
@@ -60,42 +60,36 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     # Create the train loader and validation loader to load images from the dataset
     data_loaders = config.create_data_loaders()
 
-    # Create models, optimizers, and whether is_mean_teacher
+    # Get the path to the checkpoint to recover from
     checkpoint_path = get_recovery_path_train(run_recovery=run_recovery,
-                                              is_mean_teacher=False,
                                               epoch=config.start_epoch)
-    models_and_optimizers = [ModelAndInfo(config=config,
-                                          model_execution_mode=ModelExecutionMode.TRAIN,
-                                          is_mean_teacher=False,
-                                          checkpoint_path=checkpoint_path if config.should_load_checkpoint_for_training() else None)]
+    models_and_optimizer = ModelAndInfo(config=config,
+                                        model_execution_mode=ModelExecutionMode.TRAIN,
+                                        checkpoint_path=checkpoint_path if
+                                        config.should_load_checkpoint_for_training() else None)
 
-    if config.compute_mean_teacher_model:
-        checkpoint_path = get_recovery_path_train(run_recovery=run_recovery,
-                                                  is_mean_teacher=True,
-                                                  epoch=config.start_epoch)
-        models_and_optimizers.append(ModelAndInfo(config=config,
-                                                  model_execution_mode=ModelExecutionMode.TRAIN,
-                                                  is_mean_teacher=True,
-                                                  checkpoint_path=checkpoint_path if config.should_load_checkpoint_for_training() else None))
-
-    # Create the models.
+    # Create the main model
     # If continuing from a previous run at a specific epoch, then load the previous model.
-    for model_and_info in models_and_optimizers:
-        model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
-        if not model_loaded:
-            raise ValueError("There was no checkpoint file available for the model for given start_epoch {}"
-                             .format(config.start_epoch))
+    model_loaded = models_and_optimizer.try_create_model_and_load_from_checkpoint()
+    if not model_loaded:
+        raise ValueError("There was no checkpoint file available for the model for given start_epoch {}"
+                         .format(config.start_epoch))
 
     # Print out a detailed breakdown of layers, memory consumption and time.
-    generate_and_print_model_summary(config, models_and_optimizers[0].model)
+    generate_and_print_model_summary(config, models_and_optimizer.model)
 
     # Move model to GPU and adjust for multiple GPUs
-    models_and_optimizers[0].adjust_model_for_gpus()
-    if len(models_and_optimizers) > 1:
-        models_and_optimizers[1].create_summary_and_adjust_model_for_gpus()
+    models_and_optimizer.adjust_model_for_gpus()
+
+    # Create the mean teacher model and move to GPU
+    if config.compute_mean_teacher_model:
+        mean_teacher_model_loaded = models_and_optimizer.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
+        if not mean_teacher_model_loaded:
+            raise ValueError("There was no checkpoint file available for the mean teacher model for given start_epoch {}"
+                             .format(config.start_epoch))
 
     # Create optimizer
-    optimizer_loaded = models_and_optimizers[0].try_create_optimizer_and_load_from_checkpoint()
+    optimizer_loaded = models_and_optimizer.try_create_optimizer_and_load_from_checkpoint()
     if not optimizer_loaded:
         raise ValueError("There was no checkpoint file available for the optimizer for given start_epoch {}"
                          .format(config.start_epoch))
@@ -109,12 +103,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     writers = create_summary_writers(config)
     config.create_dataframe_loggers()
 
-    model = models_and_optimizers[0].model
-    optimizer = models_and_optimizers[0].optimizer
-    mean_teacher_model = models_and_optimizers[1].model if len(models_and_optimizers) > 1 else None
-
     # Create LR scheduler
-    l_rate_scheduler = SchedulerWithWarmUp(config, optimizer)
+    l_rate_scheduler = SchedulerWithWarmUp(config, models_and_optimizer.optimizer)
 
     # Training loop
     logging.info("Starting training")
@@ -131,7 +121,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     optimal_temperature_scale_values = []
     for epoch in config.get_train_epochs():
         logging.info("Starting epoch {}".format(epoch))
-        save_epoch = config.should_save_epoch(epoch) and optimizer is not None
+        save_epoch = config.should_save_epoch(epoch) and models_and_optimizer.optimizer is not None
 
         # store the learning rates used for each epoch
         epoch_lrs = l_rate_scheduler.get_last_lr()
@@ -139,10 +129,10 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
         train_val_params: TrainValidateParameters = \
             TrainValidateParameters(data_loader=data_loaders[ModelExecutionMode.TRAIN],
-                                    model=model,
-                                    mean_teacher_model=mean_teacher_model,
+                                    model=models_and_optimizer.model,
+                                    mean_teacher_model=models_and_optimizer.mean_teacher_model,
                                     epoch=epoch,
-                                    optimizer=optimizer,
+                                    optimizer=models_and_optimizer.optimizer,
                                     gradient_scaler=gradient_scaler,
                                     epoch_learning_rate=epoch_lrs,
                                     summary_writers=writers,
@@ -152,7 +142,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         train_epoch_results = train_or_validate_epoch(training_steps)
         train_results_per_epoch.append(train_epoch_results.metrics)
 
-        metrics.validate_and_store_model_parameters(writers.train, epoch, model)
+        metrics.validate_and_store_model_parameters(writers.train, epoch, models_and_optimizer.model)
         # Run without adjusting weights on the validation set
         train_val_params.in_training_mode = False
         train_val_params.data_loader = data_loaders[ModelExecutionMode.VAL]
@@ -179,11 +169,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                 # overwrite the metrics for the epoch with the metrics from the temperature scaled model
                 val_results_per_epoch[-1] = scaled_val_results.metrics
 
-            assert optimizer is not None
-            save_checkpoint(model, optimizer, epoch, config)
-            if config.compute_mean_teacher_model:
-                assert mean_teacher_model is not None
-                save_checkpoint(mean_teacher_model, optimizer, epoch, config, mean_teacher_model=True)
+            models_and_optimizer.save_checkpoint(epoch)
 
         # Updating the learning rate should happen at the end of the training loop, so that the
         # initial learning rate will be used for the very first epoch.

@@ -5,7 +5,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any, Optional, Union
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -41,31 +41,38 @@ class ModelAndInfo:
       model: the model created based on the config
       optimizer: the optimizer created based on the config and associated with the model
       checkpoint_path: the path load load checkpoint from, can be None
-      is_mean_teacher: whether this is (intended to be) a mean teacher model
-      is_adjusted: whether model adjustments (which cannot be done twice) have been applied
+      mean_teacher_model: the mean teacher model, if and as specified by the config
+      is_model_adjusted: whether model adjustments (which cannot be done twice) have been applied to model
+      is_mean_teacher_model_adjusted: whether model adjustments (which cannot be done twice)
+      have been applied to the mean teacher model
       checkpoint_epoch: the training epoch this model was created, if loaded from disk
       model_execution_mode: mode this model will be run in
     """
+
+    MODEL_STATE_DICT_KEY = 'state_dict'
+    OPTIMIZER_STATE_DICT_KEY = 'opt_dict'
+    MEAN_TEACHER_STATE_DICT_KEY = 'mean_teacher_state_dict'
+    EPOCH_KEY = 'epoch'
+
     def __init__(self,
                  config: ModelConfigBase,
                  model_execution_mode: ModelExecutionMode,
-                 is_mean_teacher: bool = False,
                  checkpoint_path: Optional[Path] = None):
         """
         :param config: the model configuration information
         :param model_execution_mode: mode this model will be run in
-        :param is_mean_teacher: whether this is (intended to be) a mean teacher model
         :param checkpoint_path: the path load load checkpoint from, can be None
         """
         self.config = config
-        self.is_mean_teacher = is_mean_teacher
         self.checkpoint_path = checkpoint_path
         self.model_execution_mode = model_execution_mode
 
         self._model = None
+        self._mean_teacher_model = None
         self._optimizer = None
         self.checkpoint_epoch = None
-        self.is_adjusted = False
+        self.is_model_adjusted = False
+        self.is_mean_teacher_model_adjusted = False
 
     @property
     def model(self) -> DeviceAwareModule:
@@ -79,18 +86,75 @@ class ModelAndInfo:
             raise ValueError("Optimizer has not been created.")
         return self._optimizer
 
-    def to_cuda(self) -> None:
-        """
-        Moves the model to GPU
-        """
-        if self._model is None:
-            raise ValueError("Model must be created before it can be moved to GPU.")
-        self._model = self._model.cuda()
+    @property
+    def mean_teacher_model(self) -> Optional[DeviceAwareModule]:
+        if not self._mean_teacher_model and self.config.compute_mean_teacher_model:
+            raise ValueError("Mean teacher model has not been created.")
+        return self._mean_teacher_model
 
-    def set_data_parallel(self, device_ids: Optional[List[Any]]) -> None:
-        if self._model is None:
-            raise ValueError("Model must be created before it can be moved to Data Parellel.")
-        self._model = DataParallelModel(self._model, device_ids=device_ids)
+    @classmethod
+    def _load_checkpoint(cls, model: DeviceAwareModule, checkpoint_path: Path,
+                         key_in_state_dict: str, use_gpu: bool) -> int:
+        """
+        Loads a checkpoint of a model, may be the model or the mean teacher model. Assumes the model
+        has already been created, and the checkpoint exists. This does not set checkpoint epoch.
+        This method should not be called externally. Use instead try_load_checkpoint_for_model
+        or try_load_checkpoint_for_mean_teacher_model
+        :param model: model to load weights
+        :param key_in_state_dict: the key for the model weights in the checkpoint state dict
+        :return checkpoint epoch form the state dict
+        """
+        logging.info(f"Loading checkpoint {checkpoint_path}")
+        # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
+        # if the model is small.
+        map_location = None if use_gpu else 'cpu'
+        checkpoint = torch.load(str(checkpoint_path), map_location=map_location)
+
+        if isinstance(model, torch.nn.DataParallel):
+            model.module.load_state_dict(checkpoint[key_in_state_dict])
+        else:
+            model.load_state_dict(checkpoint[key_in_state_dict])
+        return checkpoint[ModelAndInfo.EPOCH_KEY]
+
+    @classmethod
+    def _adjust_for_gpus(cls, model: DeviceAwareModule, config: ModelConfigBase,
+                         model_execution_mode: ModelExecutionMode) -> DeviceAwareModule:
+        """
+        Updates a torch model so that input mini-batches are parallelized across the batch dimension to utilise
+        multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
+        perform full volume inference.
+        This assumes the model has been created, that the optimizer has not yet been created, and the the model has not
+        been adjusted twice. This method should not be called externally. Use instead adjust_model_for_gpus
+        or adjust_mean_teacher_model_for_gpus
+        :returns Adjusted model
+        """
+        if config.use_gpu:
+            model = model.cuda()
+            logging.info("Adjusting the model to use mixed precision training.")
+            # If model parallel is set to True, then partition the network across all available gpus.
+            if config.use_model_parallel:
+                devices = config.get_cuda_devices()
+                assert devices is not None  # for mypy
+                model.partition_model(devices=devices)  # type: ignore
+        else:
+            logging.info("Making no adjustments to the model because no GPU was found.")
+
+        # Update model related config attributes (After Model Parallel Activated)
+        config.adjust_after_mixed_precision_and_parallel(model)
+
+        # DataParallel enables running the model with multiple gpus by splitting samples across GPUs
+        # If the model is used in training mode, data parallel is activated by default.
+        # Similarly, if model parallel is not activated, data parallel is used as a backup option
+        use_data_parallel = (model_execution_mode == ModelExecutionMode.TRAIN) or (not config.use_model_parallel)
+        if config.use_gpu and use_data_parallel:
+            logging.info("Adjusting the model to use DataParallel")
+            # Move all layers to the default GPU before activating data parallel.
+            # This needs to happen even though we put the model to the GPU at the beginning of the method,
+            # but we may have spread it across multiple GPUs later.
+            model = model.cuda()
+            model = DataParallelModel(model, device_ids=config.get_cuda_devices())
+
+        return model
 
     def create_model(self) -> None:
         """
@@ -113,19 +177,13 @@ class ModelAndInfo:
             logging.warning(f'No checkpoint found at {self.checkpoint_path} current working dir {os.getcwd()}')
             return False
 
-        logging.info(f"Loading checkpoint {self.checkpoint_path}")
-        # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
-        # if the model is small.
-        map_location = None if self.config.use_gpu else 'cpu'
-        checkpoint = torch.load(str(self.checkpoint_path), map_location=map_location)
+        epoch = ModelAndInfo._load_checkpoint(model=self._model,
+                                              checkpoint_path=self.checkpoint_path,
+                                              key_in_state_dict=ModelAndInfo.MODEL_STATE_DICT_KEY,
+                                              use_gpu=self.config.use_gpu)
 
-        if isinstance(self._model, torch.nn.DataParallel):
-            self._model.module.load_state_dict(checkpoint['state_dict'])
-        else:
-            self._model.load_state_dict(checkpoint['state_dict'])
-
-        logging.info(f"Loaded model from checkpoint (epoch: {checkpoint['epoch']})")
-        self.checkpoint_epoch = checkpoint['epoch']
+        logging.info(f"Loaded model from checkpoint (epoch: {epoch})")
+        self.checkpoint_epoch = epoch
         return True
 
     def adjust_model_for_gpus(self) -> None:
@@ -138,40 +196,18 @@ class ModelAndInfo:
             raise ValueError("Model must be created before it can be adjusted.")
 
         # Adjusting twice causes an error.
-        if self.is_adjusted:
-            logging.debug("model_and_info.is_adjusted is already True")
+        if self.is_model_adjusted:
+            logging.debug("model_and_info.is_model_adjusted is already True")
 
         if self._optimizer:
             raise ValueError("Create an optimizer only after creating and adjusting the model.")
 
-        if self.config.use_gpu:
-            self.to_cuda()
-            logging.info("Adjusting the model to use mixed precision training.")
-            # If model parallel is set to True, then partition the network across all available gpus.
-            if self.config.use_model_parallel:
-                devices = self.config.get_cuda_devices()
-                assert devices is not None  # for mypy
-                self._model.partition_model(devices=devices)  # type: ignore
-        else:
-            logging.info("Making no adjustments to the model because no GPU was found.")
+        self._model = ModelAndInfo._adjust_for_gpus(model=self._model,
+                                                    config=self.config,
+                                                    model_execution_mode=self.model_execution_mode)
 
-        # Update model related config attributes (After Model Parallel Activated)
-        self.config.adjust_after_mixed_precision_and_parallel(self._model)
-
-        # DataParallel enables running the model with multiple gpus by splitting samples across GPUs
-        # If the model is used in training mode, data parallel is activated by default.
-        # Similarly, if model parallel is not activated, data parallel is used as a backup option
-        use_data_parallel = (self.model_execution_mode == ModelExecutionMode.TRAIN) or (not self.config.use_model_parallel)
-        if self.config.use_gpu and use_data_parallel:
-            logging.info("Adjusting the model to use DataParallel")
-            # Move all layers to the default GPU before activating data parallel.
-            # This needs to happen even though we put the model to the GPU at the beginning of the method,
-            # but we may have spread it across multiple GPUs later.
-            self.to_cuda()
-            self.set_data_parallel(device_ids=self.config.get_cuda_devices())
-
-        self.is_adjusted = True
-        logging.debug("model_and_info.is_adjusted set to True")
+        self.is_model_adjusted = True
+        logging.debug("model_and_info.is_model_adjusted set to True")
 
     def create_summary_and_adjust_model_for_gpus(self) -> None:
         """
@@ -194,10 +230,6 @@ class ModelAndInfo:
         :return True if checkpoint exists and was loaded, False otherwise.
         """
         self.create_model()
-
-        # for mypy
-        assert self._model
-
         if self.checkpoint_path:
             # Load the stored model. If there is no checkpoint present, return immediately.
             return self.try_load_checkpoint_for_model()
@@ -206,12 +238,99 @@ class ModelAndInfo:
     def try_create_model_load_from_checkpoint_and_adjust(self) -> bool:
         """
         Creates a model as per the config, and loads the parameters from the given checkpoint path.
-        The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
+        The model is then adjusted for data parallelism and mixed precision.
         Also updates the checkpoint_epoch.
         :return True if checkpoint exists and was loaded, False otherwise.
         """
         success = self.try_create_model_and_load_from_checkpoint()
         self.create_summary_and_adjust_model_for_gpus()
+        return success
+
+    def create_mean_teacher_model(self) -> None:
+        """
+        Creates a model (with temperature scaling) according to the config given.
+        """
+        self._mean_teacher_model = create_model_with_temperature_scaling(self.config)
+
+    def try_load_checkpoint_for_mean_teacher_model(self) -> bool:
+        """
+        Loads a checkpoint of a model. The provided model checkpoint must match the stored model.
+        :return True if checkpoint exists and was loaded, False otherwise.
+        """
+        if self._mean_teacher_model is None:
+            raise ValueError("Mean teacher model must be created before it can be adjusted.")
+
+        if not self.checkpoint_path:
+            raise ValueError("No checkpoint provided")
+
+        if not self.checkpoint_path.is_file():
+            logging.warning(f'No checkpoint found at {self.checkpoint_path} current working dir {os.getcwd()}')
+            return False
+
+        epoch = ModelAndInfo._load_checkpoint(model=self._mean_teacher_model,
+                                              checkpoint_path=self.checkpoint_path,
+                                              key_in_state_dict=ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY,
+                                              use_gpu=self.config.use_gpu)
+
+        logging.info(f"Loaded mean teacher model from checkpoint (epoch: {epoch})")
+        self.checkpoint_epoch = epoch
+        return True
+
+    def adjust_mean_teacher_model_for_gpus(self) -> None:
+        """
+        Updates the torch model so that input mini-batches are parallelized across the batch dimension to utilise
+        multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
+        perform full volume inference.
+        """
+        if self._mean_teacher_model is None:
+            raise ValueError("Mean teacher model must be created before it can be adjusted.")
+
+        # Adjusting twice causes an error.
+        if self.is_mean_teacher_model_adjusted:
+            logging.debug("model_and_info.is_mean_teacher_model_adjusted is already True")
+
+        self._mean_teacher_model = ModelAndInfo._adjust_for_gpus(model=self._mean_teacher_model,
+                                                                 config=self.config,
+                                                                 model_execution_mode=self.model_execution_mode)
+
+        self.is_mean_teacher_model_adjusted = True
+        logging.debug("model_and_info.is_mean_teacher_model_adjusted set to True")
+
+    def create_summary_and_adjust_mean_teacher_model_for_gpus(self) -> None:
+        """
+        Generates the model summary, which is required for model partitioning across GPUs, and then moves the model to
+        GPU with data parallel/model parallel by calling adjust_model_for_gpus.
+        """
+        if self._mean_teacher_model is None:
+            raise ValueError("Mean teacher model must be created before it can be adjusted.")
+
+        if self.config.is_segmentation_model:
+            summary_for_segmentation_models(self.config, self._mean_teacher_model)
+        # Prepare for mixed precision training and data parallelization (no-op if already done).
+        # This relies on the information generated in the model summary.
+        self.adjust_mean_teacher_model_for_gpus()
+
+    def try_create_mean_teacher_model_and_load_from_checkpoint(self) -> bool:
+        """
+        Creates a model as per the config, and loads the parameters from the given checkpoint path.
+        Also updates the checkpoint_epoch.
+        :return True if checkpoint exists and was loaded, False otherwise.
+        """
+        self.create_mean_teacher_model()
+        if self.checkpoint_path:
+            # Load the stored model. If there is no checkpoint present, return immediately.
+            return self.try_load_checkpoint_for_mean_teacher_model()
+        return True
+
+    def try_create_mean_teacher_model_load_from_checkpoint_and_adjust(self) -> bool:
+        """
+        Creates a model as per the config, and loads the parameters from the given checkpoint path.
+        The model is then adjusted for data parallelism and mixed precision.
+        Also updates the checkpoint_epoch.
+        :return True if checkpoint exists and was loaded, False otherwise.
+        """
+        success = self.try_create_mean_teacher_model_and_load_from_checkpoint()
+        self.create_summary_and_adjust_mean_teacher_model_for_gpus()
         return success
 
     def create_optimizer(self) -> None:
@@ -260,10 +379,10 @@ class ModelAndInfo:
         checkpoint = torch.load(str(self.checkpoint_path), map_location=map_location)
 
         if self._optimizer:
-            self._optimizer.load_state_dict(checkpoint['opt_dict'])
+            self._optimizer.load_state_dict(checkpoint[ModelAndInfo.OPTIMIZER_STATE_DICT_KEY])
 
-        logging.info("Loaded optimizer from checkpoint (epoch: {checkpoint['epoch']})")
-        self.checkpoint_epoch = checkpoint['epoch']
+        logging.info(f"Loaded optimizer from checkpoint (epoch: {checkpoint[ModelAndInfo.EPOCH_KEY]})")
+        self.checkpoint_epoch = checkpoint[ModelAndInfo.EPOCH_KEY]
         return True
 
     def try_create_optimizer_and_load_from_checkpoint(self) -> bool:
@@ -275,6 +394,34 @@ class ModelAndInfo:
         if self.checkpoint_path:
             return self.try_load_checkpoint_for_optimizer()
         return True
+
+    def save_checkpoint(self, epoch: int) -> None:
+        """
+        Saves a checkpoint of the current model and optimizer_type parameters in the specified folder
+        and uploads it to the output blob storage of the current run context.
+        The checkpoint's name for epoch 123 would be 123_checkpoint.pth.tar.
+        :param epoch: The last epoch used to train the model.
+        """
+        logging.getLogger().disabled = True
+
+        model_state_dict = self.model.module.state_dict() \
+            if isinstance(self.model, torch.nn.DataParallel) else self.model.state_dict()
+        checkpoint_file_path = self.config.get_path_to_checkpoint(epoch)
+        info_to_store = {
+            ModelAndInfo.EPOCH_KEY: epoch,
+            ModelAndInfo.MODEL_STATE_DICT_KEY: model_state_dict,
+            ModelAndInfo.OPTIMIZER_STATE_DICT_KEY: self.optimizer.state_dict()
+        }
+        if self.config.compute_mean_teacher_model:
+            assert self.mean_teacher_model is not None  # for mypy, getter has this built in
+            mean_teacher_model_state_dict = self.mean_teacher_model.module.state_dict() \
+                if isinstance(self.mean_teacher_model, torch.nn.DataParallel) \
+                else self.mean_teacher_model.state_dict()
+            info_to_store[ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY] = mean_teacher_model_state_dict
+
+        torch.save(info_to_store, checkpoint_file_path)
+        logging.getLogger().disabled = False
+        logging.info("Saved model checkpoint for epoch {epoch} to {checkpoint_file_path}")
 
 
 def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:
@@ -389,33 +536,6 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
         raise ValueError("Don't know how to generate a summary for this type of model?")
     RUN_CONTEXT.log(LoggingColumns.NumTrainableParameters, summary.n_trainable_params)
     random_state.restore_random_state()
-
-
-def save_checkpoint(model: torch.nn.Module, optimizer: Optimizer, epoch: int,
-                    args: ModelConfigBase, mean_teacher_model: bool = False) -> None:
-    """
-    Saves a checkpoint of the current model and optimizer_type parameters in the specified folder
-    and uploads it to the output blob storage of the current run context.
-    The checkpoint's name for epoch 123 would be 123_checkpoint.pth.tar.
-
-    :param model: A DataParallel object representing the model.
-    :param optimizer: The optimizer_type used for training.
-    :param epoch: The last epoch used to train the model.
-    :param args:
-    :param mean_teacher_model: If True save to the mean teacher model checkpoint path.
-    """
-    logging.getLogger().disabled = True
-
-    model_state_dict = model.module.state_dict() if isinstance(model, torch.nn.DataParallel) else model.state_dict()
-    checkpoint_file_path = args.get_path_to_checkpoint(epoch, mean_teacher_model)
-    info_to_store = {
-        'epoch': epoch,
-        'state_dict': model_state_dict,
-        'opt_dict': optimizer.state_dict()
-    }
-    torch.save(info_to_store, checkpoint_file_path)
-    logging.getLogger().disabled = False
-    logging.info("Saved model checkpoint for epoch {epoch} to {checkpoint_file_path}")
 
 
 def create_model_with_temperature_scaling(config: ModelConfigBase) -> Any:

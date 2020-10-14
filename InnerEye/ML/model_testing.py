@@ -351,26 +351,17 @@ def create_inference_pipeline(config: ModelConfigBase,
                               run_recovery: Optional[RunRecovery] = None) -> Optional[InferencePipelineBase]:
     """
     If multiple checkpoints are found in run_recovery then create EnsemblePipeline otherwise InferencePipeline.
+    If no checkpoint files exist in the run recovery or current run checkpoint folder, None will be returned.
     :param config: Model related configs.
     :param epoch: The epoch for which to create pipeline for.
     :param run_recovery: RunRecovery data if applicable
     :return: FullImageInferencePipelineBase or ScalarInferencePipelineBase
     """
     checkpoint_paths = get_recovery_path_test(config=config, run_recovery=run_recovery,
-                                              is_mean_teacher=config.compute_mean_teacher_model,
                                               epoch=epoch)
     if not checkpoint_paths:
         return None
 
-    return create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
-
-
-def create_pipeline_from_checkpoint_paths(config: ModelConfigBase,
-                                          checkpoint_paths: List[Path]) -> Optional[InferencePipelineBase]:
-    """
-    Attempt to create a pipeline from the provided checkpoint paths. If the files referred to by the paths
-    do not exist, or if there are no paths, None will be returned.
-    """
     if len(checkpoint_paths) > 1:
         if config.is_segmentation_model:
             assert isinstance(config, SegmentationModelBase)
@@ -404,7 +395,6 @@ def classification_model_test(config: ScalarModelBase,
     :param data_split: The name of the folder to store the results inside each epoch folder in the outputs_dir,
                        used mainly in model evaluation using different dataset splits.
     :param run_recovery: RunRecovery data if applicable
-    :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
 
