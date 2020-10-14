@@ -15,6 +15,10 @@ arguments with your jobs to monitor.
 * **New jobs**: when queuing a new AzureML job, pass `--tensorboard=True`, which will automatically start a new TensorBoard
 session, monitoring the newly queued job. 
 
+### Resource Monitor
+GPU and CPU usage can be monitored throughout the execution of a run (local and AML) by setting the monitoring interval 
+for the resource monitor eg: `--monitoring_interval_seconds=1`. This will spawn a separate process at the start of the
+run which will log the following diagnostics to AML metrics and TensorBoard logs under `Diagnostics`.
 
 ### Debugging setup on local machine
 
