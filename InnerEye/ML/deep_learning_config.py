@@ -540,10 +540,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         self._metrics_data_frame_loggers = MetricsDataframeLoggers(outputs_folder=self.outputs_folder)
 
-    def should_load_checkpoint_for_training(self) -> bool:
-        """Returns true if start epoch > 0, that is, if an existing checkpoint is used to continue training."""
-        return self.start_epoch > 0 or self.weights_url or self.local_weights_path
-
     def should_save_epoch(self, epoch: int) -> bool:
         """Returns True if the present epoch should be saved, as per the save_start_epoch and save_step_epochs
         settings. Epoch writing starts with the first epoch that is >= save_start_epoch, and that

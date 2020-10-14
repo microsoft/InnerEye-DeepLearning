@@ -311,6 +311,8 @@ class MLRunner:
             if self.azure_config.train:
                 with logging_section("Model training"):
                     model_train(self.model_config, run_recovery)
+                    run_recovery = None
+                    self.model_config.local_weights_path = None
             else:
                 self.model_config.write_dataset_files()
                 self.create_activation_maps()

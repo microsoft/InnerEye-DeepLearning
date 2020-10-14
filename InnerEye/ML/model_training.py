@@ -61,13 +61,16 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     data_loaders = config.create_data_loaders()
 
     # Get the path to the checkpoint to recover from
-    checkpoint_path = get_recovery_path_train(config=config,
-                                              run_recovery=run_recovery,
-                                              epoch=config.start_epoch)
+    if config.start_epoch > 0 or config.local_weights_path:
+        checkpoint_path = get_recovery_path_train(config=config,
+                                                  run_recovery=run_recovery,
+                                                  epoch=config.start_epoch)
+    else:
+        checkpoint_path = None
+
     models_and_optimizer = ModelAndInfo(config=config,
                                         model_execution_mode=ModelExecutionMode.TRAIN,
-                                        checkpoint_path=checkpoint_path if
-                                        config.should_load_checkpoint_for_training() else None)
+                                        checkpoint_path=checkpoint_path)
 
     # Create the main model
     # If continuing from a previous run at a specific epoch, then load the previous model.
@@ -91,7 +94,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     # Create optimizer
     optimizer_loaded = models_and_optimizer.try_create_optimizer_and_load_from_checkpoint()
-    if not optimizer_loaded and not config.local_weights_path:
+    if not optimizer_loaded and config.start_epoch > 0:
         raise ValueError("There was no checkpoint file available for the optimizer for given start_epoch {}"
                          .format(config.start_epoch))
 
