@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, TypeV
 
 import pandas as pd
 import torch.utils.data
-from monai.data import CacheDataset
+from monai.data import CacheDataset, SmartCacheDataset
 from monai.transforms import Transform
 from torch._six import container_abcs
 from torch.utils.data import BatchSampler, DataLoader, RandomSampler, Sampler, SequentialSampler
@@ -169,7 +169,7 @@ class RepeatDataLoader(DataLoader):
 D = TypeVar('D', bound=ModelConfigBase)
 
 
-class GeneralDataset(CacheDataset, ABC, Generic[D]):
+class GeneralDataset(SmartCacheDataset, ABC, Generic[D]):
     def __init__(self, args: D, data_sources: Sequence, data_frame: Optional[pd.DataFrame] = None,
                  name: Optional[str] = None):
 
@@ -187,8 +187,11 @@ class GeneralDataset(CacheDataset, ABC, Generic[D]):
             raise ValueError("All transforms must be of instance monai.transforms.Transform")
         super().__init__(data=data_sources,
                          transform=transforms,
-                         cache_rate=self.args.dataset_cache_rate,
-                         num_workers=self.args.dataset_worker_threads)
+                         replace_rate=0.5,
+                         cache_num=min(len(data_sources) - 1, self.args.train_batch_size * 2),
+                         num_init_workers=1,
+                         num_replace_workers=1,
+                         )
         logging.info(f"Processing dataset (name={self.name})")
 
     def __getitem__(self, index: int) -> Dict[str, Any]:
