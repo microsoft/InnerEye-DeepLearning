@@ -40,6 +40,8 @@ class CategoricalToOneHotEncoder(OneHotEncoderBase):
         self._encoder = {}
         for col, value in columns_and_possible_categories.items():
             # Fit only once during initialization with all possible values.
+            if np.inf in value:
+                value.remove(np.inf)
             self._encoder[col] = OneHotEncoder(handle_unknown='ignore').fit(np.array(value).reshape(-1, 1))
             self._feature_length[col] = len(value)
 
@@ -63,7 +65,8 @@ class CategoricalToOneHotEncoder(OneHotEncoderBase):
         """
         encoded: np.ndarray = np.empty(0)
         for col in x:
-            encoded_col = self._encoder[col].transform(np.reshape(x[col], (-1, 1))).toarray()
+            input_col = np.reshape(x[col], (-1, 1)).astype(str)
+            encoded_col = self._encoder[col].transform(input_col).toarray()
             # By default OneHotEncoder will set all values of the encoded vector to be 0 if an illegal column
             # value was provided. Replace this with NaN.
             encoded_col[np.where(~encoded_col.any(axis=1))[0]] = np.NaN

@@ -31,7 +31,7 @@ jobs:
       - template: train_template.yml
         parameters:
           wait_for_completion: 'True'
-          pytest_mark: 'gpu'
+          pytest_mark: 'gpu or cpu_and_gpu or azureml'
           max_run_duration: '1h'
           more_switches: '--use_dataset_mount=True'
       - task: PublishTestResults@2
