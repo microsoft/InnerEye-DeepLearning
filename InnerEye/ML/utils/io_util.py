@@ -28,6 +28,19 @@ RESULTS_POSTERIOR_FILE_NAME_PREFIX = "posterior_"
 RESULTS_SEGMENTATION_FILE_NAME_PREFIX = "segmentation"
 TensorOrNumpyArray = TypeVar('TensorOrNumpyArray', torch.Tensor, np.ndarray)
 
+class PhotometricInterpretation(Enum):
+    MONOCHROME1 = "MONOCHROME1"
+    MONOCHROME2 = "MONOCHROME2"
+
+
+class DicomTags(Enum):
+    # DICOM TAG "PhotometricInterpretation"
+    PhotometricInterpretation = "0028|0004"
+    # DICOM TAG "BitsStored"
+    BitsStored = "0028|0101"
+    # DICOM TAG "PixelRepresentation"
+    PixelRepresentation = "0028|0103"
+
 
 @dataclass
 class ImageWithHeader:
@@ -209,6 +222,20 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
     reader.SetFileName(str(path))
     image = reader.Execute()
     pixels = sitk.GetArrayFromImage(image)
+
+    reader.ReadImageInformation()
+    if reader.GetMetaData(DicomTags.PhotometricInterpretation.value).strip() \
+            == PhotometricInterpretation.MONOCHROME1.value:
+        # invert image so bit interpretation is like MONOCHROME2, where a 0 bit is black
+        bits_stored = int(reader.GetMetaData(DicomTags.BitsStored.value))
+        pixel_repr = int(reader.GetMetaData(DicomTags.PixelRepresentation.value))
+        if pixel_repr == 0:  # unsigned
+            pixels = 2**bits_stored - 1 - pixels
+        elif pixel_repr == 1:  # signed
+            pixels = -1 * (pixels + 1)
+        else:
+            raise ValueError("Unknown value for DICOM tag 0028,0103 PixelRepresentation")
+
     # Return a float array, we may resize this in load_3d_images_and_stack, and interpolation will not work on int
     return pixels.astype(np.float)
 

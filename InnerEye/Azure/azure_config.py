@@ -20,8 +20,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 from git import Repo
 
 from InnerEye.Azure.azure_util import is_offline_run_context
-from InnerEye.Azure.secrets_handling import APPLICATION_KEY, DATASETS_ACCOUNT_KEY, SecretsHandling, \
-    read_all_settings
+from InnerEye.Azure.secrets_handling import SecretsHandling, read_all_settings
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
 
@@ -195,7 +194,7 @@ class AzureConfig(GenericConfig):
         Gets the storage account key for the storage account that holds the dataset.
         """
         secrets_handler = SecretsHandling(project_root=self.project_root)
-        return secrets_handler.get_secret_from_environment(DATASETS_ACCOUNT_KEY, allow_missing=True)
+        return secrets_handler.get_secret_from_environment(fixed_paths.DATASETS_ACCOUNT_KEY, allow_missing=True)
 
     def get_workspace(self) -> Workspace:
         """
@@ -231,10 +230,10 @@ class AzureConfig(GenericConfig):
          is not present
         """
         secrets_handler = SecretsHandling(project_root=self.project_root)
-        application_key = secrets_handler.get_secret_from_environment(APPLICATION_KEY, allow_missing=True)
+        application_key = secrets_handler.get_secret_from_environment(fixed_paths.SERVICE_PRINCIPAL_KEY, allow_missing=True)
         if not application_key:
             logging.warning("Unable to retrieve the key for the Service Principal authentication "
-                            f"(expected in environment variable '{APPLICATION_KEY}' or YAML). "
+                            f"(expected in environment variable '{fixed_paths.SERVICE_PRINCIPAL_KEY}' or YAML). "
                             f"Switching to interactive login.")
             return InteractiveLoginAuthentication()
 
