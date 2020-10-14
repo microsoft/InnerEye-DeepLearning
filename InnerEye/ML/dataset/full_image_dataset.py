@@ -188,7 +188,7 @@ class GeneralDataset(SmartCacheDataset, ABC, Generic[D]):
         super().__init__(data=data_sources,
                          transform=transforms,
                          replace_rate=0.5,
-                         cache_num=self.args.dataset_cache_rate,
+                         cache_rate=self.args.dataset_cache_rate,
                          num_init_workers=2,
                          num_replace_workers=2,
                          )
