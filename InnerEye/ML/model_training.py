@@ -119,6 +119,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
 
     gradient_scaler = GradScaler() if config.use_gpu and config.use_mixed_precision else None
     optimal_temperature_scale_values = []
+    train_val_params.data_loader.dataset.start()
     for epoch in config.get_train_epochs():
         logging.info("Starting epoch {}".format(epoch))
         save_epoch = config.should_save_epoch(epoch) and models_and_optimizer.optimizer is not None
@@ -155,6 +156,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         val_epoch_results = train_or_validate_epoch(training_steps)
         val_results_per_epoch.append(val_epoch_results.metrics)
 
+        train_val_params.data_loader.dataset.shutdown()
         if config.is_segmentation_model:
             metrics.store_epoch_stats_for_segmentation(config.outputs_folder, epoch, epoch_lrs,
                                                        train_epoch_results.metrics,
@@ -252,6 +254,8 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutp
     total_extra_load_time = 0.0
     total_load_time = 0.0
     model_outputs_epoch = []
+    train_val_params.data_loader.dataset.update_cache()
+
     for batch_index, sample in enumerate(train_val_params.data_loader):
         item_finish_time = time()
         item_load_time = item_finish_time - item_start_time
