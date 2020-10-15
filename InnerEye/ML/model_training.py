@@ -30,7 +30,8 @@ from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
-from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_train
+from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.checkpoint_recovery import get_recovery_path_train
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
@@ -61,7 +62,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     data_loaders = config.create_data_loaders()
 
     # Get the path to the checkpoint to recover from
-    if config.start_epoch > 0 or config.local_weights_path:
+    if run_recovery or config.local_weights_path:
         checkpoint_path = get_recovery_path_train(config=config,
                                                   run_recovery=run_recovery,
                                                   epoch=config.start_epoch)

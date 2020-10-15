@@ -93,8 +93,20 @@ class ModelAndInfo:
         return self._mean_teacher_model
 
     @classmethod
+    def read_checkpoint(cls, path_to_checkpoint: Path, use_gpu: bool) -> Dict[str, Any]:
+        # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
+        # if the model is small.
+        map_location = None if use_gpu else 'cpu'
+        checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
+        # TODO add start_epoch check
+        #if ModelAndInfo.EPOCH_KEY in checkpoint and checkpoint[ModelAndInfo.EPOCH_KEY] != start_epoch:
+        #    raise ValueError("start_epoch in config does not match epoch in the saved checkpoint.")
+        return checkpoint
+
+
+    @classmethod
     def _load_checkpoint(cls, model: DeviceAwareModule, checkpoint_path: Path,
-                         key_in_state_dict: str, reader: Callable) -> int:
+                         key_in_state_dict: str, use_gpu: bool) -> int:
         """
         Loads a checkpoint of a model, may be the model or the mean teacher model. Assumes the model
         has already been created, and the checkpoint exists. This does not set checkpoint epoch.
@@ -107,7 +119,7 @@ class ModelAndInfo:
         :return checkpoint epoch form the state dict
         """
         logging.info(f"Loading checkpoint {checkpoint_path}")
-        checkpoint = reader(checkpoint_path)
+        checkpoint = ModelAndInfo.read_checkpoint(checkpoint_path, use_gpu)
 
         try:
             state_dict = checkpoint[key_in_state_dict]
@@ -189,7 +201,7 @@ class ModelAndInfo:
         epoch = ModelAndInfo._load_checkpoint(model=self._model,
                                               checkpoint_path=self.checkpoint_path,
                                               key_in_state_dict=ModelAndInfo.MODEL_STATE_DICT_KEY,
-                                              reader=self.config.read_state_from_path)
+                                              use_gpu=self.config.use_gpu)
 
         logging.info(f"Loaded model from checkpoint (epoch: {epoch})")
         self.checkpoint_epoch = epoch
@@ -279,7 +291,7 @@ class ModelAndInfo:
         epoch = ModelAndInfo._load_checkpoint(model=self._mean_teacher_model,
                                               checkpoint_path=self.checkpoint_path,
                                               key_in_state_dict=ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY,
-                                              reader=self.config.read_state_from_path)
+                                              use_gpu=self.config.use_gpu)
 
         logging.info(f"Loaded mean teacher model from checkpoint (epoch: {epoch})")
         self.checkpoint_epoch = epoch
@@ -382,7 +394,7 @@ class ModelAndInfo:
             return False
 
         logging.info(f"Loading checkpoint {self.checkpoint_path}")
-        checkpoint = self.config.read_state_from_path(self.checkpoint_path)
+        checkpoint = ModelAndInfo.read_checkpoint(self.checkpoint_path, self.config.use_gpu)
 
         try:
             state_dict = checkpoint[ModelAndInfo.OPTIMIZER_STATE_DICT_KEY]

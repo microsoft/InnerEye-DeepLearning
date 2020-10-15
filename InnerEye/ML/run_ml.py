@@ -30,7 +30,7 @@ from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_sec
 from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod
+from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod, WEIGHTS_FILE
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -41,7 +41,8 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
-from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_test
+from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.checkpoint_recovery import get_recovery_path_test
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
@@ -295,7 +296,7 @@ class MLRunner:
             # and config.local_dataset was not already set.
             self.model_config.local_dataset = self.mount_or_download_dataset()
             if self.model_config.weights_url:
-                self.model_config.local_weights_path = self.download_weights()
+                self.model_config.local_weights_path = self.download_and_modify_weights()
             self.model_config.write_args_file()
             logging.info(str(self.model_config))
             # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
@@ -311,8 +312,6 @@ class MLRunner:
             if self.azure_config.train:
                 with logging_section("Model training"):
                     model_train(self.model_config, run_recovery)
-                    run_recovery = None
-                    self.model_config.local_weights_path = None
             else:
                 self.model_config.write_dataset_files()
                 self.create_activation_maps()
@@ -702,3 +701,10 @@ class MLRunner:
                 file.write(chunk)
 
         return result_file
+
+    def download_and_modify_weights(self) -> Path:
+        downloaded_weights = self.download_weights()
+        modified_weights = self.model_config.modify_checkpoint(downloaded_weights)
+        target_file = self.model_config.outputs_folder / WEIGHTS_FILE
+        torch.save(modified_weights, target_file)
+        return target_file
