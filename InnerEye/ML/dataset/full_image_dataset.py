@@ -189,8 +189,8 @@ class GeneralDataset(SmartCacheDataset, ABC, Generic[D]):
                          transform=transforms,
                          replace_rate=0.5,
                          cache_rate=self.args.dataset_cache_rate,
-                         num_init_workers=2,
-                         num_replace_workers=2,
+                         num_init_workers=1,
+                         num_replace_workers=1,
                          )
         logging.info(f"Processing dataset (name={self.name})")
 
