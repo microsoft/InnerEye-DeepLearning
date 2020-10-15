@@ -368,9 +368,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                              doc="percentage of cached data in total, default is 1.0 (cache all). "
                                                  "will take the minimum of "
                                                  "(cache_num, data_length x cache_rate, data_length)")
-    dataset_worker_threads: int = param.Integer(default=0,
-                                                doc="the number of worker threads to use."
-                                                    "If 0 a single thread will be used. Default is 0.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__

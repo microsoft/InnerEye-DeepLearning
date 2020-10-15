@@ -169,7 +169,7 @@ class RepeatDataLoader(DataLoader):
 D = TypeVar('D', bound=ModelConfigBase)
 
 
-class GeneralDataset(SmartCacheDataset, ABC, Generic[D]):
+class GeneralDataset(CacheDataset, ABC, Generic[D]):
     def __init__(self, args: D, data_sources: Sequence, data_frame: Optional[pd.DataFrame] = None,
                  name: Optional[str] = None):
 
@@ -187,11 +187,7 @@ class GeneralDataset(SmartCacheDataset, ABC, Generic[D]):
             raise ValueError("All transforms must be of instance monai.transforms.Transform")
         super().__init__(data=data_sources,
                          transform=transforms,
-                         replace_rate=0.5,
-                         cache_rate=self.args.dataset_cache_rate,
-                         num_init_workers=0,
-                         num_replace_workers=1,
-                         )
+                         cache_rate=self.args.dataset_cache_rate)
         logging.info(f"Processing dataset (name={self.name})")
 
     def __getitem__(self, index: int) -> Dict[str, Any]:
