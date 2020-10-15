@@ -6,6 +6,7 @@ import abc
 from typing import Any, Dict, List, Optional, TypeVar
 
 import torch
+from torch.cuda.amp import autocast, custom_fwd
 from torch.nn import BCEWithLogitsLoss
 from torch.nn.utils.rnn import PackedSequence
 
@@ -27,7 +28,8 @@ class SupervisedLearningCriterion(torch.nn.Module, abc.ABC):
         self.smoothing_eps = smoothing_eps
         self.is_binary_classification = is_binary_classification
 
-    def forward(self, *input: T, **kwargs: Any) -> Any:
+    @custom_fwd(cast_inputs=torch.float16)
+    def forward(self, model_outputs: T, labels: T, **kwargs: Any) -> Any:
         def _smooth_target(target: torch.Tensor) -> torch.Tensor:
             if self.is_binary_classification or len(target.shape) <= 2:
                 _num_classes = 2
@@ -39,17 +41,16 @@ class SupervisedLearningCriterion(torch.nn.Module, abc.ABC):
             return target * (1.0 - self.smoothing_eps) + \
                 (1.0 - target) * self.smoothing_eps / (_num_classes - 1.0)  # type: ignore
 
-        _input: List[T] = list(input)
         if self.smoothing_eps > 0.0:
-            if isinstance(_input[1], PackedSequence):
-                _input[1] = map_packed_sequence_data(_input[1], _smooth_target)
+            if isinstance(labels, PackedSequence):
+                labels = map_packed_sequence_data(labels, _smooth_target)
             else:
-                _input[1] = _smooth_target(_input[1])
+                labels = _smooth_target(labels)
 
-        return self.forward_minibatch(*_input, **kwargs)
+        return self.forward_minibatch(model_outputs, labels, **kwargs)
 
     @abc.abstractmethod
-    def forward_minibatch(self, output: Any, target: Any, **kwargs: Any) -> Any:
+    def forward_minibatch(self, output: T, target: T, **kwargs: Any) -> Any:
         raise NotImplementedError("forward must be implemented by sub classes")
 
 
