@@ -755,8 +755,7 @@ class SegmentationModelBase(ModelConfigBase):
         from InnerEye.ML.dataset.cropping_dataset import RandomCropSample
         transforms = [
             PadSample(output_size=self.crop_size, padding_mode=self.padding_mode),
-            RandomCropSample(random_seed=self.get_effective_random_seed(),
-                             crop_size=self.crop_size, center_size=self.center_size, class_weights=self.class_weights)
+            RandomCropSample(crop_size=self.crop_size, center_size=self.center_size, class_weights=self.class_weights)
         ]
         return ModelTransformsPerExecutionMode(
             train=transforms,

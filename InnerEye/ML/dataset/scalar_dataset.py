@@ -35,6 +35,9 @@ T = TypeVar('T', bound=ScalarDataSource)
 
 
 class LoadScalarItemImages(Transform):
+    """
+    Transform to load scalar item images from a scalar data source.
+    """
     def __init__(self, root_path: Path,
                  file_mapping: Optional[Dict[str, Path]],
                  load_segmentation: bool,

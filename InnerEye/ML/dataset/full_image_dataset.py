@@ -30,6 +30,9 @@ COMPRESSION_EXTENSIONS = ['sz', 'gz']
 
 
 class LoadNiftiDataSample(Transform):
+    """
+    Transform to load Nifti data sample from patient data source
+    """
     def __call__(self, data: PatientDatasetSource) -> Sample:
         return load_images_from_dataset_source(dataset_source=data)
 
@@ -195,6 +198,9 @@ class GeneralDataset(CacheDataset, ABC, Generic[D]):
         return sample.get_dict()
 
     def get_transforms(self) -> List[Callable]:
+        """
+        Get the dataset transforms required to be performed.
+        """
         return list()
 
     def as_data_loader(self,

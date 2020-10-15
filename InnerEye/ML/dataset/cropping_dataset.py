@@ -21,6 +21,10 @@ from InnerEye.ML.utils.io_util import ImageDataType
 
 
 class PadSample(Transform):
+    """
+    Transform function that performs padding of a given Sample based on the provided output_size and
+    padding mode.
+    """
     def __init__(self, output_size: TupleInt3, padding_mode: PaddingMode):
         super().__init__()
         self.output_size = output_size
@@ -63,30 +67,28 @@ class PadSample(Transform):
 
 
 class RandomCropSample(Randomizable, Transform):
-    def __init__(self, random_seed: int, crop_size: TupleInt3,
+    """
+    Transform to extract random crop from a Sample
+    """
+    def __init__(self, crop_size: TupleInt3,
                  center_size: TupleInt3,
                  class_weights: Optional[List[float]] = None):
         super().__init__()
         self.crop_size = crop_size
         self.center_size = center_size
         self.class_weights = class_weights
-        self.set_random_state(seed=random_seed)
-        self._random_patch_center = None
 
     def randomize(self, data: Sample) -> None:
-        # Sample a center pixel location for patch extraction.
-        self._random_patch_center = random_select_patch_center(data, self.class_weights)
+        pass
 
     def __call__(self, data: Sample) -> CroppedSample:
-        self.randomize(data)
         return self.create_random_cropped_sample(data, self.crop_size, self.center_size, self.class_weights)
 
     @staticmethod
     def create_random_cropped_sample(sample: Sample,
                                      crop_size: TupleInt3,
                                      center_size: TupleInt3,
-                                     class_weights: Optional[List[float]] = None,
-                                     center: Optional[np.ndarray] = None) -> CroppedSample:
+                                     class_weights: Optional[List[float]] = None) -> CroppedSample:
         """
         Creates an instance of a cropped sample extracted from full 3D images.
         :param sample: the full size 3D sample to use for extracting a cropped sample.
@@ -100,8 +102,7 @@ class RandomCropSample(Randomizable, Transform):
         sample, center_point = augmentation.random_crop(
             sample=sample,
             crop_size=crop_size,
-            class_weights=class_weights,
-            center=center
+            class_weights=class_weights
         )
 
         # crop the mask and label centers if required
