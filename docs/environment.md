@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-If you are planning to contribute to the solution, your OS environment will need [git](https://git-scm.com/) and [git lfs](https://git-lfs.github.com/) installed. Depending on the OS that you are running the installation instructions may vary. Please refer to respective documentation sections on the tools' websites for detailed instructions. 
+In order to work with the solution, your OS environment will need [git](https://git-scm.com/) and [git lfs](https://git-lfs.github.com/) installed. Depending on the OS that you are running the installation instructions may vary. Please refer to respective documentation sections on the tools' websites for detailed instructions. 
 
 ## Using the InnerEye code as a git submodule of your project
 You have two options for working with our codebase:
@@ -55,11 +55,11 @@ Start the `conda` prompt for your platform. In that prompt, navigate to your rep
 
 It is possible to run the training process on a local machine. It will not be as performant as using a GPU cluster that Azure ML offers and you will not be able to take advantage of other Azure ML features such as comparing run results, creating snapshots for repeatable machine learning experiments or keeping history of experiment runs. At the same time it could be useful to experiment with code or troubleshoot things locally. 
 
-The SDK uses PyTorch to compose and run DNN computations. PyTorch can run on any CPU, but it is also capable of taking advantage of the underlying GPU via NVidia CUDA technology, which accelerates computations dramatically. 
+The SDK uses PyTorch to compose and run DNN computations. PyTorch can leverage the underlying GPU via NVidia CUDA technology, which accelerates computations dramatically. 
 
 In order to enable PyTorch to use CUDA, you need to make sure that you have  
-a) Compatible graphics card with CUDA compute capability of at least 3.0 (at the moment of writing). You can check compatibility list here: https://developer.nvidia.com/cuda-gpus  
-b) Recent NVidia drivers installed
+1. Compatible graphics card with CUDA compute capability of at least 3.0 (at the moment of writing). You can check compatibility list here: https://developer.nvidia.com/cuda-gpus  
+1. Recent NVidia drivers installed
 
 A quick way to check if PyTorch can use the underlying GPU for computation is to run the following line from your conda environment with all InnerEye packages installed:  
 `python -c 'import torch; print(torch.cuda.is_available())'`  
@@ -74,22 +74,6 @@ You can download NVidia drivers for your graphics card from https://www.nvidia.c
 Microsoft provides GPU support via WSL starting WSL 2.0. 
 
 You can find more details on WSL in our separate [WSL section](WSL.md).
-
-Remember to restart your machine if you were doing a fresh installation of WSL 2 before trying further steps. 
-
-Once you have WSL2 installed, ensure that your distribution is running on top of WSL2 by running  
-`wsl --list --verbose`  
-If all is good, the output should look like this:  
-```
-$> wsl --list -v
-  NAME      STATE           VERSION
-* Ubuntu    Running         2
-```
-Note the "2" in Version column.
-
-At this point you need to install the compatible NVidia driver and CUDA toolkit. At the moment of writing the driver is still in preview, so issues are possible. Follow this guide for installation: https://docs.nvidia.com/cuda/wsl-user-guide/index.html
-
-You can also find a video walkthrough of WSL2+CUDA installation here: https://channel9.msdn.com/Shows/Tabs-vs-Spaces/GPU-Accelerated-Machine-Learning-with-WSL-2
 
 ### Linux
 The exact instructions for driver installation will differ depending on the Linux distribution. Generally, you should first run the `nvidia-smi` tool to see if you have NVidia drivers installed. This tool is installed together with NVidia drivers and if your system can not find it, it may mean that the drivers are not installed. A sample output of NVidia SMI tool may look like this:
