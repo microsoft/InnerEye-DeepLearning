@@ -73,4 +73,3 @@ F,200"""
                                         max_row_count=2)
     assert worst["Patient"].to_list() == ["F", "E"]
     assert worst[COL_IS_OUTLIER].to_list() == ["Yes", ""]
-

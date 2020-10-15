@@ -9,7 +9,7 @@ from IPython.display import HTML, display
 from pandas import DataFrame
 
 from InnerEye.ML.reports.notebook_report import print_header
-from InnerEye.ML.utils.csv_util import OutlierType, mark_outliers
+from InnerEye.ML.utils.csv_util import mark_outliers
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 
 
