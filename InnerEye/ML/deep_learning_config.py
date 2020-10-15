@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional
 
 import param
 from pandas import DataFrame
@@ -603,8 +603,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         Returns full path to a checkpoint given an epoch
         :param epoch: the epoch number
-        :param for_mean_teacher_model: if True looking returns path to the mean teacher checkpoint. Else returns the
-        path to the (main / student) model checkpoint.
         :return: path to a checkpoint given an epoch
         """
         return create_checkpoint_path(path=fixed_paths.repository_root_directory() / self.checkpoint_folder,

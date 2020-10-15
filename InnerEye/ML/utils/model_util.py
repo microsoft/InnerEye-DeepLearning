@@ -5,7 +5,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional, Union, Callable
+from typing import Any, Optional, Union, Dict
 
 import torch
 from torch.optim.optimizer import Optimizer
