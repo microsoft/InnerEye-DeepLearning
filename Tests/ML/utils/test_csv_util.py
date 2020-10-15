@@ -90,9 +90,9 @@ def test_mark_outliers() -> None:
     df = pd.DataFrame({
         "foo": range(10)
     })
-    marked1 = mark_outliers(df, 1, "foo", outlier_type=OutlierType.LOW)
+    marked1 = mark_outliers(df, 1, "foo", high_values_are_good=True)
     assert COL_IS_OUTLIER in marked1
     assert marked1[COL_IS_OUTLIER].to_list() == ["Yes"] * 2 + [""] * 8
-    marked2 = mark_outliers(df, 1, "foo", outlier_type=OutlierType.HIGH)
+    marked2 = mark_outliers(df, 1, "foo", high_values_are_good=False)
     assert COL_IS_OUTLIER in marked2
     assert marked2[COL_IS_OUTLIER].to_list() == [""] * 8 + ["Yes"] * 2
