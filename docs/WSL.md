@@ -10,8 +10,9 @@ Windows Subsystem for Linux (WSL2) or a plain Ubuntu Linux box.
 
 ## Enable CUDA in WSL2
 If you are running a Windows box with a GPU, please follow the documentation 
-[here](https://docs.microsoft.com/en-us/windows/win32/direct3d12/gpu-cuda-in-wsl) to access the GPU
-from within WSL2.
+[here](https://docs.microsoft.com/en-us/windows/win32/direct3d12/gpu-cuda-in-wsl) to access the GPU from within WSL2.
+
+You can also find a video walkthrough of WSL2+CUDA installation here: https://channel9.msdn.com/Shows/Tabs-vs-Spaces/GPU-Accelerated-Machine-Learning-with-WSL-2
 
 ## Install WSL2
 
@@ -33,6 +34,19 @@ wsl --set-version <distribution name> <versionNumber>
 wsl --set-default-version 2
 winget install Microsoft.WindowsTerminal
 ```
+
+Remember to restart your machine if you were doing a fresh installation of WSL 2 before trying further steps. 
+
+Since it is possible to choose the version of WSL that a particular distribution is running, once you have WSL2 installed, ensure that your distribution is running on top of WSL2 by executing  
+`wsl --list --verbose`  
+If all is good, the output should look like this:  
+```
+$> wsl --list -v
+  NAME      STATE           VERSION
+* Ubuntu    Running         2
+```
+Note the "2" in Version column.
+
 
 ## Install git and Anaconda
 
