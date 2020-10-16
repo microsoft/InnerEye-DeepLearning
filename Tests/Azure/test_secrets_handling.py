@@ -13,6 +13,9 @@ from InnerEye.Azure.secrets_handling import SecretsHandling
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.output_directories import TestOutputDirectories
 
+# A list of all secrets that are stored in environment variables or local secrets files.
+SECRETS_IN_ENVIRONMENT = [fixed_paths.SERVICE_PRINCIPAL_KEY, fixed_paths.DATASETS_ACCOUNT_KEY]
+
 
 def set_environment_variables(variables: Dict[str, str]) -> None:
     """
@@ -51,8 +54,8 @@ def test_get_secrets() -> None:
     for env_variable, value in os.environ.items():
         print("{}: {}".format(env_variable, value))
     secrets_handler = SecretsHandling(project_root=fixed_paths.repository_root_directory())
-    secrets = secrets_handler.get_secrets_from_environment_or_file()
-    for name in secrets_handling.SECRETS_IN_ENVIRONMENT:
+    secrets = secrets_handler.get_secrets_from_environment_or_file(SECRETS_IN_ENVIRONMENT)
+    for name in SECRETS_IN_ENVIRONMENT:
         assert name in secrets, "No value found for {}".format(name)
         assert secrets[name] is not None, "Value for {} is empty".format(name)
         # Variable names should automatically be converted to uppercase when using get_secret:
@@ -67,7 +70,7 @@ def test_all_secrets_is_upper() -> None:
     """
     Tests that all secret keys in SECRETS_IN_ENVIRONMENT are uppercase strings.
     """
-    for name in secrets_handling.SECRETS_IN_ENVIRONMENT:
+    for name in SECRETS_IN_ENVIRONMENT:
         assert name == name.upper(), "Secret '{}' should have a only uppercase value".format(name)
 
 
