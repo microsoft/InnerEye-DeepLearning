@@ -11,6 +11,7 @@ from typing import List
 import GPUtil
 import psutil
 import tensorboardX
+import torch
 from GPUtil import GPU
 from azureml.core import Run
 
@@ -52,6 +53,11 @@ class ResourceMonitor(Process):
         gpu_available = is_gpu_available()
         while True:
             if gpu_available:
+                log_to_azure_and_tb('Diagnostics/CUDA_Memory_Reserved',
+                                    torch.cuda.memory_reserved())
+                log_to_azure_and_tb('Diagnostics/CUDA_Memory_Reserved',
+                                    torch.cuda.memory_allocated())
+
                 gpus: List[GPU] = GPUtil.getGPUs()
                 if len(gpus) > 0:
                     for gpu in gpus:
