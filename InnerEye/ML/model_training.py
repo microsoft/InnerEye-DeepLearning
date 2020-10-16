@@ -25,7 +25,7 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util, model_util
-from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size, get_local_rank
+from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size, get_local_rank, get_local_size
 
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
@@ -105,7 +105,7 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
     :param run_recovery: Recovery information to restart training from an existing run.
     :return:
     """
-    rank = get_local_rank() if rank is None else rank  # If AML run, get rank from environment var
+    rank = get_global_rank() if rank is None else rank  # For 1 machine, this is same as local rank
     device = torch.device('cuda', rank) if torch.cuda.is_available() else torch.device('cpu')
 
     if config.use_ddp:
@@ -116,10 +116,14 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
             world_size=get_global_size(config.is_offline_run),
             rank=rank)
 
-    torch.cuda.set_device(rank)
+        n_gpus_per_node = get_local_size()
+        config.train_batch_size = int(config.train_batch_size // n_gpus_per_node)
+        config.num_dataload_workers = int((config.num_dataload_workers + n_gpus_per_node - 1)/ n_gpus_per_node)
 
     # Create the train loader and validation loader to load images from the dataset
     data_loaders = config.create_data_loaders()
+
+
 
     # Get the path to the checkpoint to recover from
     checkpoint_path = get_recovery_path_train(run_recovery=run_recovery,
