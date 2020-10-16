@@ -36,7 +36,7 @@ from InnerEye.ML.model_training import model_train
 from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
-from InnerEye.ML.utils.aml_distributed_utils import get_global_rank
+from InnerEye.ML.utils.aml_distributed_utils import get_local_rank
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
 from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_test
@@ -318,7 +318,7 @@ class MLRunner:
         # the current run is a single one. See the documentation of ModelProcessing for more details.
         # on AML we only want to run inference on a single device
         if not is_offline_run_context(RUN_CONTEXT):
-            rank = get_global_rank()
+            rank = get_local_rank()
             if rank > 0:
                 return
 

@@ -127,7 +127,7 @@ class ModelAndInfo:
 
     @classmethod
     def _adjust_for_gpus(cls, model: DeviceAwareModule, config: ModelConfigBase,
-                         model_execution_mode: ModelExecutionMode, rank: Optional[int]=0) -> DeviceAwareModule:
+                         model_execution_mode: ModelExecutionMode, rank: Optional[int] = 0) -> DeviceAwareModule:
         """
         Updates a torch model so that input mini-batches are parallelized across the batch dimension to utilise
         multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
@@ -142,7 +142,6 @@ class ModelAndInfo:
         use_ddp = config.use_gpu and config.use_ddp
         if use_ddp:
             if model_execution_mode == ModelExecutionMode.TRAIN:
-                # Move the model to the device with global rank
                 model = model.to(device)
                 model = DistributedDataParallelModel(model, device_ids=[rank])
             else:
@@ -528,7 +527,7 @@ def summary_for_segmentation_models(config: ModelConfigBase, model: DeviceAwareM
         logging.warning(f"summary_for_segmentation_models failed with exception {e}")
 
 
-def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAwareModule) -> None:
+def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAwareModule, device: torch.device) -> None:
     """
     Writes a human readable summary of the present model to logging.info, and logs the number of trainable
     parameters to AzureML.
@@ -536,13 +535,14 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
     :param config: The configuration for the model.
     :param model: The instantiated Pytorch model.
     """
+    device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu')
     random_state = RandomStateSnapshot.snapshot_random_state()
     # There appears to be a bug in apex, where previous use (in training for example) causes problems
     # when another model is later built on the CPU (for example, before loading from a checkpoint)
     # https://github.com/NVIDIA/apex/issues/694
     # Hence, move the model to the GPU before doing model summary.
-    if config.use_gpu and not config.use_ddp:
-        model = model.cuda()
+    if config.use_gpu:
+        model = model.to(device)
     if isinstance(config, ScalarModelBase):
         # To generate the model summary, read the first item of the dataset. Then use the model's own
         # get_model_input function to convert the dataset item to input tensors, and feed them through the model.
@@ -561,119 +561,6 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
         raise ValueError("Don't know how to generate a summary for this type of model?")
     RUN_CONTEXT.log(LoggingColumns.NumTrainableParameters, summary.n_trainable_params)
     random_state.restore_random_state()
-
-
-# <<<<<<< HEAD
-# def load_checkpoint(model: torch.nn.Module,
-#                     path_to_checkpoint: Path,
-#                     config: Optional[ModelConfigBase] = None,
-#                     optimizer: Optional[Optimizer] = None,
-#                     optimizer_to_gpu: Optional[bool] = False) -> Optional[int]:
-#     """
-#     Loads a checkpoint of a model.
-#     The epoch of the stored model and the epoch provided as argument must match.
-#     The provided model must match the stored model.
-#
-#     :param model: The DataParallel object representing the network. Must have the same architecture of the stored model.
-#     :param path_to_checkpoint: The path to the checkpoint file.
-#     :param config: The model configuration information.
-#     :param optimizer: The optimizer used for training
-#     :param optimizer_to_gpu: If true, move the optimizer to GPU, which we need to do if the model is also on GPU.
-#     :return: The checkpoint epoch if loaded and None if not loaded
-#     """
-#     if not path_to_checkpoint.is_file():
-#         logging.warning(f'No checkpoint found at {path_to_checkpoint} current working dir {os.getcwd()}')
-#         return None
-#
-#     logging.info(f"Loading checkpoint {path_to_checkpoint}")
-#     # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
-#     # if the model is small.
-#     map_location = None if is_gpu_available() else 'cpu'
-#     checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
-#
-#     if config.use_ddp:
-#         # Model was stored with DistributedDataParallel which stores the model in module, now loading without
-#         new_state_dict = OrderedDict()
-#         for k, v in checkpoint['state_dict'].items():
-#             name = k.replace('module.', '')  # remove `module.`
-#             new_state_dict[name] = v
-#         model.load_state_dict(new_state_dict)
-#
-#     elif isinstance(model, torch.nn.DataParallel):
-#         model.module.load_state_dict(checkpoint['state_dict'])
-#     else:
-#         model.load_state_dict(checkpoint['state_dict'])
-#
-#     if optimizer is not None:
-#         opt_dict = checkpoint['opt_dict']
-#         if optimizer_to_gpu:
-#             # https://github.com/pytorch/pytorch/issues/2830
-#             for key, val in opt_dict.items():
-#                 if isinstance(val, torch.Tensor):
-#                     opt_dict[key] = val.cuda()
-#         optimizer.load_state_dict(opt_dict)
-#
-#     logging.info("Loaded checkpoint (epoch: {})".format(checkpoint['epoch']))
-#     return checkpoint['epoch']
-#
-#
-# def save_checkpoint(model: torch.nn.Module, optimizer: Optimizer, epoch: int,
-#                     args: ModelConfigBase, mean_teacher_model: bool = False) -> None:
-#     """
-#     Saves a checkpoint of the current model and optimizer_type parameters in the specified folder
-#     and uploads it to the output blob storage of the current run context.
-#     The checkpoint's name for epoch 123 would be 123_checkpoint.pth.tar.
-#
-#     :param model: A DataParallel object representing the model.
-#     :param optimizer: The optimizer_type used for training.
-#     :param epoch: The last epoch used to train the model.
-#     :param args:
-#     :param mean_teacher_model: If True save to the mean teacher model checkpoint path.
-#     """
-#     logging.getLogger().disabled = True
-#
-#     model_state_dict = model.module.state_dict() if isinstance(model, torch.nn.DataParallel) else model.state_dict()
-#     checkpoint_file_path = args.get_path_to_checkpoint(epoch, mean_teacher_model)
-#     info_to_store = {
-#         'epoch': epoch,
-#         'state_dict': model_state_dict,
-#         'opt_dict': optimizer.state_dict()
-#     }
-#     torch.save(info_to_store, checkpoint_file_path)
-#     logging.getLogger().disabled = False
-#     logging.info("Saved model checkpoint for epoch {} to {}".format(epoch, checkpoint_file_path))
-#
-#
-# def load_from_checkpoint_and_adjust(model_config: ModelConfigBase,
-#                                     path_to_checkpoint: Path,
-#                                     model_and_info: Optional[ModelAndInfo] = None) -> ModelAndInfo:
-#     """
-#     Creates a model as per the configuration, and loads the parameters from the given checkpoint path.
-#     The model is then adjusted for data parallelism and mixed precision, running in TEST mode.
-#
-#     :param model_config: The configuration from which an empty model will be created (if existing_model is None)
-#     :param path_to_checkpoint: The path to the checkpoint file.
-#     :param model_and_info: optional model and associated info; created from model_config if None
-#     :return: The model with all loaded parameters, the (adjusted) optimizer, and the epoch in which the model was saved.
-#     If the checkpoint_epoch is None, there is no model file at the given path.
-#     """
-#     # Create model if necessary
-#     if model_and_info is None:
-#         model_and_info = ModelAndInfo(create_model_with_temperature_scaling(model_config))
-#     # Load the stored model. If there is no checkpoint present, return immediately.
-#     model_and_info.checkpoint_epoch = load_checkpoint(model=model_and_info.model,
-#                                                       path_to_checkpoint=path_to_checkpoint,
-#                                                       config=model_config,
-#                                                       optimizer=model_and_info.optimizer,
-#                                                       optimizer_to_gpu=model_config.use_gpu)
-#     if model_and_info.checkpoint_epoch is None:
-#         return model_and_info
-#     # Enable data/model parallelization
-#     if model_config.is_segmentation_model:
-#         # Generate the model summary, which is required for model partitioning across GPUs.
-#         summary_for_segmentation_models(model_config, model_and_info.model)
-#     return update_model_for_multiple_gpus(
-#         model_and_info, args=model_config, execution_mode=model_and_info.model_execution_mode)
 
 
 def create_model_with_temperature_scaling(config: ModelConfigBase) -> Any:
