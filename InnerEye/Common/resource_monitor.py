@@ -53,14 +53,13 @@ class ResourceMonitor(Process):
         gpu_available = is_gpu_available()
         while True:
             if gpu_available:
-                log_to_azure_and_tb('Diagnostics/CUDA_Memory_Reserved',
-                                    torch.cuda.memory_reserved())
-                log_to_azure_and_tb('Diagnostics/CUDA_Memory_Allocated',
-                                    torch.cuda.memory_allocated())
-
                 gpus: List[GPU] = GPUtil.getGPUs()
                 if len(gpus) > 0:
                     for gpu in gpus:
+                        log_to_azure_and_tb('Diagnostics/GPU_{}_CUDA_Memory_Reserved'.format(gpu.id),
+                                            torch.cuda.memory_reserved(gpu.id))
+                        log_to_azure_and_tb('Diagnostics/GPU_{}_CUDA_Memory_Allocated'.format(gpu.id),
+                                            torch.cuda.memory_allocated(gpu.id))
                         log_to_azure_and_tb('Diagnostics/GPU_{}_Load_Percent'.format(gpu.id),
                                             gpu.load * 100)
                         log_to_azure_and_tb('Diagnostics/GPU_{}_MemUtil_Percent'.format(gpu.id),
