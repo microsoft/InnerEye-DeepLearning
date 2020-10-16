@@ -23,6 +23,7 @@ CSV_TAGS_HEADER: str = "tags"
 
 COL_DICE = MetricsFileColumns.Dice.value
 COL_SPLIT = "split"
+COL_IS_OUTLIER = "is_outlier"
 
 
 class OutlierType(Enum):
@@ -96,6 +97,37 @@ def extract_outliers(df: pd.DataFrame, outlier_range: float, outlier_col: str = 
     elif outlier_type == OutlierType.HIGH:
         return df[df[outlier_col] > df[outlier_col].mean() + outlier_range * df[outlier_col].std()]
     raise ValueError(f"Outlier type must be one of LOW or HIGH. Received {outlier_type}")
+
+
+def mark_outliers(df: pd.DataFrame,
+                  outlier_range: float,
+                  outlier_col: str,
+                  high_values_are_good: bool) -> pd.DataFrame:
+    """
+    Given a DataFrame, add a column "is_outlier" that contains "Yes" for all rows that are considered outliers.
+    Rows that are not considered outliers have an empty string in the new column.
+    Outliers are taken from the column `outlier_col`, that have a value that falls outside of
+    mean +- outlier_range * std.
+    :param df: DataFrame from which to extract the outliers
+    :param outlier_range: The number of standard deviation from the mean which the points have to be apart
+    to be considered an outlier i.e. a point is considered an outlier if its outlier_col value is above
+    mean + outlier_range * std (if outlier_type is HIGH) or below mean - outlier_range * std (if outlier_type is
+    LOW).
+    :param outlier_col: The column from which to calculate outliers, e.g. Dice
+    :param high_values_are_good: If True, high values for the metric are considered good, and hence low values
+    are marked as outliers. If False, low values are considered good, and high values are marked as outliers.
+    :return: DataFrame with an additional column `is_outlier`
+    """
+    if outlier_range < 0:
+        raise ValueError("outlier_range must be non-negative. Found: {}".format(outlier_range))
+    mean = df[outlier_col].mean()
+    std = df[outlier_col].std()
+    if high_values_are_good:
+        is_outlier = df[outlier_col] < mean - outlier_range * std
+    else:
+        is_outlier = df[outlier_col] > mean + outlier_range * std
+    df[COL_IS_OUTLIER] = ["Yes" if b else "" for b in is_outlier]
+    return df
 
 
 def get_worst_performing_outliers(df: pd.DataFrame,
