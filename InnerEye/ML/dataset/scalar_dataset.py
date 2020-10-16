@@ -668,7 +668,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             logging.info(f"Starting to traverse folder {args.local_dataset} to locate image files.")
             self.file_to_full_path = files_by_stem(args.local_dataset)
             logging.info("Finished traversing folder.")
-        items = self.load_all_data_sources()
+        items = self.load_all_data_sources(data_frame, args)
         super().__init__(args, items, data_frame, name)
 
     def get_transforms(self) -> List[Callable]:
@@ -683,12 +683,12 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             dataset_transforms += self.transforms
         return dataset_transforms
 
-    def load_all_data_sources(self) -> List[T]:
+    def load_all_data_sources(self, data_frame: pd.DataFrame, args: ScalarModelBase) -> List[T]:
         """
         Uses the dataframe to create data sources to be used by the dataset.
         :return:
         """
-        all_data_sources = DataSourceReader.load_data_sources_as_per_config(self.data_frame, self.args)  # type: ignore
+        all_data_sources = DataSourceReader.load_data_sources_as_per_config(data_frame, args)  # type: ignore
         self.status += f"Loading: {self.create_status_string(all_data_sources)}"
         all_data_sources = self.filter_valid_data_sources_items(all_data_sources)
         self.status += f"After filtering: {self.create_status_string(all_data_sources)}"
@@ -777,5 +777,3 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
         all_labels = [item.label.item() for item in self.data]  # [N, 1]
         return dict(Counter(all_labels))
 
-    def __getitem__(self, i: int) -> Dict[str, Any]:
-        return vars(self.load_item(self.items[i]))

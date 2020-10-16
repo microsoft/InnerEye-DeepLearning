@@ -5,16 +5,15 @@
 from __future__ import annotations
 
 import abc
-from functools import reduce
-from typing import Any, Generic, List, Optional, Tuple, Union
+from typing import Tuple, Union
 
 import numpy as np
 import param
 import torch
+from monai.transforms import Transform
 
 from InnerEye.Common.generic_parsing import CudaAwareConfig
 from InnerEye.Common.type_annotations import T, TupleFloat2
-from monai.transforms import MapTransform, Transform
 
 
 class Transform3DBaseMeta(type(CudaAwareConfig), type(Transform)):  # type: ignore

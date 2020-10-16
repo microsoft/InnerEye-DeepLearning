@@ -105,10 +105,10 @@ class ImageEncoder(ScalarModelBase):
         Get transforms to perform on image samples for each model execution mode.
         """
         return ModelTransformsPerExecutionMode(
-            train=ScalarItemAugmentation(
+            train=[ScalarItemAugmentation(
                 RandAugmentSlice(is_transformation_for_segmentation_maps=(
                         self.imaging_feature_type == ImagingFeatureType.Segmentation
-                        or self.imaging_feature_type == ImagingFeatureType.ImageAndSegmentation))))
+                        or self.imaging_feature_type == ImagingFeatureType.ImageAndSegmentation)))])
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
