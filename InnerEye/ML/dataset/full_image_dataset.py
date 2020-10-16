@@ -194,8 +194,8 @@ class GeneralDataset(CacheDataset, ABC, Generic[D]):
         logging.info(f"Processing dataset (name={self.name})")
 
     def __getitem__(self, index: int) -> Dict[str, Any]:
-        sample: Sample = super().__getitem__(index)
-        return sample.get_dict()
+        sample = super().__getitem__(index)
+        return vars(sample)
 
     def get_transforms(self) -> List[Callable]:
         """

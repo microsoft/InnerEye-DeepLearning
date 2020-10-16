@@ -6,13 +6,14 @@ from __future__ import annotations
 
 import logging
 from collections import Counter, defaultdict
-from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, DefaultDict, Dict, Iterable, List, Optional, Union
 
 import numpy as np
 import pandas as pd
 import torch
 
-from InnerEye.ML.dataset.scalar_dataset import ScalarDatasetBase, filter_valid_classification_data_sources_items
+from InnerEye.ML.dataset.scalar_dataset import LoadClassificationItemSequenceImages, ScalarDatasetBase, \
+    filter_valid_classification_data_sources_items
 from InnerEye.ML.dataset.scalar_sample import ScalarItem, SequenceDataSource
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence, ListOfSequences
 from InnerEye.ML.sequence_config import SequenceModelBase
@@ -249,6 +250,18 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
         self.data = grouped
         self.standardize_non_imaging_features()
 
+    def get_transforms(self) -> List[Callable]:
+        dataset_transforms = [LoadClassificationItemSequenceImages(
+            root_path=self.args.local_dataset,
+            file_mapping=self.file_to_full_path,
+            load_segmentation=self.args.load_segmentation,
+            center_crop_size=self.args.center_crop_size,
+            image_size=self.args.image_size
+        )]
+        if self.transforms is not None:
+            dataset_transforms += self.transforms
+        return dataset_transforms
+
     def get_status(self) -> str:
         """
         Creates a human readable string that describes the contents of the dataset.
@@ -288,6 +301,3 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
         non_nan_labels = list(filter(lambda x: not np.isnan(x), all_labels_per_target.flatten().tolist()))
         return dict(Counter(non_nan_labels))
 
-    def __getitem__(self, i: int) -> Dict[str, Any]:
-        loaded = [ScalarItem.from_dict(super().__getitem__(i))]
-        return vars(ClassificationItemSequence(id=self.data[i].id, items=loaded))

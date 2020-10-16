@@ -23,13 +23,13 @@ from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.full_image_dataset import GeneralDataset
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
 from InnerEye.ML.dataset.scalar_sample import ScalarDataSource, ScalarItem, SequenceDataSource
+from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
 from InnerEye.ML.scalar_config import LabelTransformation, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.features_util import FeatureStatistics
 from InnerEye.ML.utils.transforms import CudaAwareTransform
-
 
 T = TypeVar('T', bound=ScalarDataSource)
 
@@ -38,6 +38,7 @@ class LoadScalarItemImages(Transform):
     """
     Transform to load scalar item images from a scalar data source.
     """
+
     def __init__(self, root_path: Path,
                  file_mapping: Optional[Dict[str, Path]],
                  load_segmentation: bool,
@@ -57,6 +58,18 @@ class LoadScalarItemImages(Transform):
             center_crop_size=self.center_crop_size,
             image_size=self.image_size
         )
+
+
+class LoadClassificationItemSequenceImages(LoadScalarItemImages):
+    def __call__(self, data: ClassificationItemSequence[ScalarDataSource]) -> ClassificationItemSequence[ScalarItem]:
+        loaded = [x.load_images(
+            root_path=self.root_path,
+            file_mapping=self.file_mapping,
+            load_segmentation=self.load_segmentation,
+            center_crop_size=self.center_crop_size,
+            image_size=self.image_size
+        ) for x in data.items]
+        return ClassificationItemSequence(id=data.items[0].id, items=loaded)
 
 
 def extract_label_classification(label_string: Union[str, float], sample_id: str) -> Union[float, int]:
@@ -662,13 +675,14 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
         self.transforms = sample_transforms
         self.feature_statistics = feature_statistics
         self.file_to_full_path: Optional[Dict[str, Path]] = None
+        self.args = args
         if args.traverse_dirs_when_loading:
             if args.local_dataset is None:
                 raise ValueError("Unable to load dataset because no `local_dataset` property is set.")
             logging.info(f"Starting to traverse folder {args.local_dataset} to locate image files.")
             self.file_to_full_path = files_by_stem(args.local_dataset)
             logging.info("Finished traversing folder.")
-        items = self.load_all_data_sources(data_frame, args)
+        items = self.load_all_data_sources(data_frame)
         super().__init__(args, items, data_frame, name)
 
     def get_transforms(self) -> List[Callable]:
@@ -683,12 +697,12 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             dataset_transforms += self.transforms
         return dataset_transforms
 
-    def load_all_data_sources(self, data_frame: pd.DataFrame, args: ScalarModelBase) -> List[T]:
+    def load_all_data_sources(self, data_frame: pd.DataFrame) -> List[T]:
         """
         Uses the dataframe to create data sources to be used by the dataset.
         :return:
         """
-        all_data_sources = DataSourceReader.load_data_sources_as_per_config(data_frame, args)  # type: ignore
+        all_data_sources = DataSourceReader.load_data_sources_as_per_config(data_frame, self.args)  # type: ignore
         self.status += f"Loading: {self.create_status_string(all_data_sources)}"
         all_data_sources = self.filter_valid_data_sources_items(all_data_sources)
         self.status += f"After filtering: {self.create_status_string(all_data_sources)}"
@@ -776,4 +790,3 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
         """
         all_labels = [item.label.item() for item in self.data]  # [N, 1]
         return dict(Counter(all_labels))
-

@@ -354,7 +354,7 @@ class ToySequenceModel2(SequenceModelBase):
 
 
 # Only test the non-combined model because otherwise the build takes too much time.
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
+@pytest.mark.skipif(not common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.gpu
 def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) -> None:
     """
