@@ -55,7 +55,7 @@ class ResourceMonitor(Process):
             if gpu_available:
                 log_to_azure_and_tb('Diagnostics/CUDA_Memory_Reserved',
                                     torch.cuda.memory_reserved())
-                log_to_azure_and_tb('Diagnostics/CUDA_Memory_Reserved',
+                log_to_azure_and_tb('Diagnostics/CUDA_Memory_Allocated',
                                     torch.cuda.memory_allocated())
 
                 gpus: List[GPU] = GPUtil.getGPUs()
