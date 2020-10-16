@@ -15,7 +15,7 @@ from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.sample import Sample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
-from InnerEye.ML.utils.transforms import Transform3D
+from InnerEye.ML.utils.transforms import CudaAwareTransform
 
 
 def random_select_patch_center(sample: Sample, class_weights: List[float] = None) -> np.ndarray:
@@ -124,7 +124,7 @@ def random_crop(sample: Sample,
     return sample, center
 
 
-class ImageTransformationBase(Transform3D):
+class ImageTransformationBase(CudaAwareTransform):
     """
     This class is the base class to classes built to define data augmentation transformations
     for 3D image inputs.
@@ -432,7 +432,7 @@ class RandAugmentSlice(ImageTransformationBase, Randomizable):
         return ops
 
 
-class ScalarItemAugmentation(Transform3D[ScalarItem]):
+class ScalarItemAugmentation(CudaAwareTransform[ScalarItem]):
     """
     Wrapper around an augmentation pipeline for applying an image transformation
     to a ScalarItem input and return the transformed sample. Applies the
@@ -458,7 +458,7 @@ class ScalarItemAugmentation(Transform3D[ScalarItem]):
             return item.clone_with_overrides(images=self.transform(item.images))
 
 
-class SampleImageAugmentation(Transform3D[Sample]):
+class SampleImageAugmentation(CudaAwareTransform[Sample]):
     """
     Wrapper around augmentation pipeline for applying an image transformation
     to a Sample input (for segmentation models).

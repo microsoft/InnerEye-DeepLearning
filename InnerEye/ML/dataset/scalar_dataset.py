@@ -28,7 +28,7 @@ from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.features_util import FeatureStatistics
-from InnerEye.ML.utils.transforms import Transform3D
+from InnerEye.ML.utils.transforms import CudaAwareTransform
 
 
 T = TypeVar('T', bound=ScalarDataSource)
@@ -651,7 +651,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[List[Transform3D[ScalarItem]]] = None):
+                 sample_transforms: Optional[List[CudaAwareTransform[ScalarItem]]] = None):
         """
         High level class for the scalar dataset designed to be inherited for specific behaviour
         :param args: The model configuration object.
@@ -732,7 +732,7 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics[ScalarDataSource]] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[List[Transform3D[ScalarItem]]] = None):
+                 sample_transforms: Optional[List[CudaAwareTransform[ScalarItem]]] = None):
         """
         Creates a new scalar dataset from a dataframe.
         :param args: The model configuration object.

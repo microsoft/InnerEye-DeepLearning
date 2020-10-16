@@ -16,14 +16,14 @@ from InnerEye.Common.generic_parsing import CudaAwareConfig
 from InnerEye.Common.type_annotations import T, TupleFloat2
 
 
-class Transform3DBaseMeta(type(CudaAwareConfig), type(Transform)):  # type: ignore
+class CudaAwareTransformMeta(type(CudaAwareConfig), type(Transform)):  # type: ignore
     """
-    Metaclass to make the hierarchy explicit for Transform3D
+    Metaclass to make the hierarchy explicit for CudaAwareTransform
     """
     pass
 
 
-class Transform3D(CudaAwareConfig[T], Transform, metaclass=Transform3DBaseMeta):
+class CudaAwareTransform(CudaAwareConfig[T], Transform, metaclass=CudaAwareTransformMeta):
     """
     Class that allows defining a transform function with the possibility of operating on the GPU.
     """
@@ -33,7 +33,7 @@ class Transform3D(CudaAwareConfig[T], Transform, metaclass=Transform3DBaseMeta):
         raise Exception("__call__ function must be implemented by subclasses")
 
 
-class CTRange(Transform3D[Union[torch.Tensor, np.ndarray]]):
+class CTRange(CudaAwareTransform[Union[torch.Tensor, np.ndarray]]):
     output_range: TupleFloat2 = param.NumericTuple(default=(0.0, 255.0), length=2,
                                                    doc="Desired output range of intensities")
     window: float = param.Number(None, doc="Width of window")
@@ -58,7 +58,7 @@ class CTRange(Transform3D[Union[torch.Tensor, np.ndarray]]):
         return transform(data)
 
 
-class LinearTransform(Transform3D[Union[torch.Tensor, np.ndarray]]):
+class LinearTransform(CudaAwareTransform[Union[torch.Tensor, np.ndarray]]):
     input_range: TupleFloat2 = param.NumericTuple(None, length=2, doc="Expected input range of intensities")
     output_range: TupleFloat2 = param.NumericTuple(None, length=2, doc="Desired output range of intensities")
 

@@ -14,12 +14,12 @@ from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModel
 from InnerEye.ML.dataset.sample import Sample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.utils.image_util import check_array_range
-from InnerEye.ML.utils.transforms import CTRange, LinearTransform, Transform3D
+from InnerEye.ML.utils.transforms import CTRange, LinearTransform, CudaAwareTransform
 
 
-class WindowNormalizationForScalarItem(Transform3D[ScalarItem]):
+class WindowNormalizationForScalarItem(CudaAwareTransform[ScalarItem]):
     """
-    Transform3D to apply window normalization to "images" of a ScalarItem.
+    Transform to apply window normalization to "images" of a ScalarItem.
     """
     # noinspection PyMissingConstructor
     def __init__(self,
@@ -47,7 +47,7 @@ class WindowNormalizationForScalarItem(Transform3D[ScalarItem]):
         )
 
 
-class PhotometricNormalization(Transform3D[Sample]):
+class PhotometricNormalization(CudaAwareTransform[Sample]):
     def __init__(self, config_args: SegmentationModelBase = None, **params: Any):
         super().__init__(**params)
         if config_args is None:

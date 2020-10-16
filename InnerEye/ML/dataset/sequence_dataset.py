@@ -17,7 +17,7 @@ from InnerEye.ML.dataset.scalar_sample import ScalarItem, SequenceDataSource
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence, ListOfSequences
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.features_util import FeatureStatistics
-from InnerEye.ML.utils.transforms import Transform3D
+from InnerEye.ML.utils.transforms import CudaAwareTransform
 
 
 def get_longest_contiguous_sequence(items: List[SequenceDataSource],
@@ -213,7 +213,7 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
                  feature_statistics: Optional[
                      FeatureStatistics[ClassificationItemSequence[SequenceDataSource]]] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[List[Transform3D[ScalarItem]]] = None):
+                 sample_transforms: Optional[List[CudaAwareTransform[ScalarItem]]] = None):
         """
         Creates a new sequence dataset from a dataframe.
         :param args: The model configuration object.

@@ -438,7 +438,7 @@ class ScalarModelBase(ModelConfigBase):
         """
         Get transforms to perform on samples for each model execution mode.
         By default only no transformation is performed.
-        For data augmentation, specify a list of Transform3D objects for the training execution mode.
+        For data augmentation, specify a list of Transform objects for the training execution mode.
         """
         return ModelTransformsPerExecutionMode()
 
