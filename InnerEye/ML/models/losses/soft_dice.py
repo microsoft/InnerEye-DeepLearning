@@ -59,6 +59,8 @@ class SoftDiceLoss(SupervisedLearningCriterion):
             raise ValueError("The output and target must have the same shape (output.shape: {}, target.shape: {})".
                              format(output.shape, target.shape))
 
+        torch.cuda.empty_cache()
+
         if self.apply_softmax:
             output = torch.nn.functional.softmax(output, dim=1)
         # Get the spatial dimensions; we'll sum numerator and denominator over these for efficiency.
