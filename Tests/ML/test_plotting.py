@@ -64,6 +64,8 @@ def test_plot_image_and_contour(test_output_dirs: TestOutputDirectories) -> None
     plotting.plot_image_and_label_contour(image, labels, contour_arguments={'colors': 'r'}, plot_file_name=plot_file)
     assert plot_file.exists()
     expected = full_ml_test_data_path(file_name)
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(plot_file.read_bytes())
     assert file_as_bytes(plot_file) == file_as_bytes(expected)
 
 
@@ -84,6 +86,8 @@ def test_plot_image_and_contour_scaled(test_output_dirs: TestOutputDirectories) 
                                           image_range=(-5, 5), plot_file_name=plot_file)
     assert plot_file.exists()
     expected = full_ml_test_data_path(file_name)
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(plot_file.read_bytes())
     assert file_as_bytes(plot_file) == file_as_bytes(expected)
 
 
@@ -108,6 +112,8 @@ def test_plot_image_and_multiple_contours(test_output_dirs: TestOutputDirectorie
                                           plot_file_name=plot_file)
     assert plot_file.exists()
     expected = full_ml_test_data_path(file_name)
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(plot_file.read_bytes())
     assert file_as_bytes(plot_file) == file_as_bytes(expected)
 
 
@@ -131,6 +137,8 @@ def compare_files(actual: List[Path], expected: List[str]) -> None:
         full_expected = full_ml_test_data_path(e)
         assert full_expected.exists()
         assert str(f).endswith(e)
+        # To update the stored results, uncomment this line:
+        # full_expected.write_bytes(f.read_bytes())
         assert file_as_bytes(f) == file_as_bytes(full_expected)
 
 

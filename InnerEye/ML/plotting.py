@@ -98,7 +98,7 @@ def resize_and_save(width_inch: int, height_inch: int, filename: PathOrString, d
     """
     fig = plt.gcf()
     fig.set_size_inches(width_inch, height_inch)
-    plt.savefig(filename, dpi=dpi)
+    plt.savefig(filename, dpi=dpi, bbox_inches='tight')
 
 
 def plot_image_and_label_contour(image: np.ndarray,
