@@ -440,11 +440,13 @@ def classification_model_test(config: ScalarModelBase,
             results[epoch] = epoch_result
 
             if isinstance(epoch_result, ScalarMetricsDict):
-                csv_path = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc) / METRICS_FILE_NAME
+                epoch_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc)
 
                 # if we are running on the validation set, these may have been written during train time
-                if not csv_path.exists():
-                    df_logger = DataframeLogger(csv_path)
+                if not epoch_folder.exists():
+                    epoch_folder.mkdir(exist_ok=False)
+                    csv_file = epoch_folder / METRICS_FILE_NAME
+                    df_logger = DataframeLogger(csv_file)
 
                     # cross validation split index not relevant during test time
                     epoch_result.store_metrics_per_subject(epoch=epoch,
