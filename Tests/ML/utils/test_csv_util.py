@@ -7,8 +7,9 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from InnerEye.ML.utils.csv_util import CSV_DATE_HEADER, CSV_FEATURE_HEADER, CSV_PATH_HEADER, CSV_SUBJECT_HEADER, \
-    OutlierType, drop_rows_missing_important_values, extract_outliers, load_csv
+from InnerEye.ML.utils.csv_util import COL_IS_OUTLIER, CSV_DATE_HEADER, CSV_FEATURE_HEADER, CSV_PATH_HEADER, \
+    CSV_SUBJECT_HEADER, \
+    OutlierType, drop_rows_missing_important_values, extract_outliers, load_csv, mark_outliers
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 known_csv_path = full_ml_test_data_path("hdf5_data") / "dataset.csv"
@@ -83,3 +84,15 @@ def test_extract_outliers_higher() -> None:
     assert list(range(8, 10, 1)) == list(extract_outliers(test_df, 1, "Hausdorff",
                                                           outlier_type=OutlierType.HIGH).Hausdorff.values)
     assert list() == list(extract_outliers(test_df, 2, "Hausdorff", outlier_type=OutlierType.HIGH).Hausdorff.values)
+
+
+def test_mark_outliers() -> None:
+    df = pd.DataFrame({
+        "foo": range(10)
+    })
+    marked1 = mark_outliers(df, 1, "foo", high_values_are_good=True)
+    assert COL_IS_OUTLIER in marked1
+    assert marked1[COL_IS_OUTLIER].to_list() == ["Yes"] * 2 + [""] * 8
+    marked2 = mark_outliers(df, 1, "foo", high_values_are_good=False)
+    assert COL_IS_OUTLIER in marked2
+    assert marked2[COL_IS_OUTLIER].to_list() == [""] * 8 + ["Yes"] * 2
