@@ -246,7 +246,7 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
                                                        train_epoch_results.metrics,
                                                        val_epoch_results.metrics)
 
-        if save_epoch and local_rank == 0:
+        if save_epoch and global_rank == 0:
             # perform temperature scaling if required
             if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
                 optimal_temperature, scaled_val_results = \
@@ -320,11 +320,21 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank, device
     :param training_steps: Training pipeline to use.
     :returns: The results for training or validation. Result type depends on the type of model that is trained.
     """
-
-    epoch_start_time = time()
     training_random_state = None
     train_val_params = training_steps.train_val_params
     config = training_steps.model_config
+    cuda_available = torch.cuda.is_available()
+
+    if cuda_available:
+        item_start_time = torch.cuda.Event(enable_timing=True)
+        item_finish_time = torch.cuda.Event(enable_timing=True)
+        train_finish_time = torch.cuda.Event(enable_timing=True)
+        epoch_start_time = torch.cuda.Event(enable_timing=True)
+        epoch_end_time = torch.cuda.Event(enable_timing=True)
+        epoch_start_time.record()
+    else:
+        epoch_start_time = time()
+
     if not train_val_params.in_training_mode:
         # take the snapshot of the existing random state
         training_random_state = RandomStateSnapshot.snapshot_random_state()
@@ -332,7 +342,11 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank, device
         ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
 
     status_string = "training" if train_val_params.in_training_mode else "validation"
-    item_start_time = time()
+    if cuda_available:
+        item_start_time.record()
+    else:
+        item_start_time = time()
+
     num_load_time_warnings = 0
     num_load_time_exceeded = 0
     num_batches = 0
@@ -340,12 +354,21 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank, device
     total_load_time = 0.0
     model_outputs_epoch = []
     for batch_index, sample in enumerate(train_val_params.data_loader):
-        item_finish_time = time()
-        item_load_time = item_finish_time - item_start_time
+
+        if cuda_available:
+            item_finish_time.record()
+            item_load_time = item_start_time.elapsed_time(item_finish_time)
+        else:
+            item_finish_time = time()
+            item_load_time = item_finish_time - item_start_time
+
         # Having slow minibatch loading is OK in the very first batch of the every epoch, where processes
         # are spawned. Later, the load time should be zero.
         if batch_index == 0:
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             logging.info(f"Loaded the first minibatch of {status_string} data in {item_load_time:0.2f} sec.")
+
         elif item_load_time > MAX_ITEM_LOAD_TIME_SEC:
             num_load_time_exceeded += 1
             total_extra_load_time += item_load_time
@@ -359,22 +382,39 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank, device
         model_outputs_minibatch = training_steps.forward_and_backward_minibatch(
             sample, batch_index, train_val_params.epoch, rank=rank, device=device)
         model_outputs_epoch.append(model_outputs_minibatch)
-        train_finish_time = time()
-        status_time = train_finish_time - item_finish_time
+        if cuda_available:
+            train_finish_time.record()
+            torch.cuda.synchronize()
+            status_time = item_finish_time.elapsed_time(train_finish_time)
+
+        else:
+            train_finish_time = time()
+            status_time = train_finish_time - item_finish_time
         logging.debug(f"Epoch {train_val_params.epoch} {status_string} batch {batch_index}: "
                       f"Loaded in {item_load_time:0.2f}sec, "
                       f"{status_string} in {status_time:0.2f}sec. "
                       f"Loss = {model_outputs_minibatch.loss}")
-        total_load_time += item_finish_time - item_start_time
+        if cuda_available:
+            total_load_time = item_start_time.elapsed_time(item_start_time)
+            item_start_time = torch.cuda.Event(enable_timing=True)
+            item_start_time.record()
+        else:
+            total_load_time += item_finish_time - item_start_time
+            item_start_time = time()
         num_batches += 1
-        item_start_time = time()
 
     # restore the training random state when validation has finished
     if training_random_state is not None:
         training_random_state.restore_random_state()
 
-    epoch_end_time = time()
-    epoch_time_seconds = epoch_end_time - epoch_start_time
+    if cuda_available:
+        epoch_end_time.record()
+        torch.cuda.synchronize()
+        epoch_time_seconds = epoch_start_time.elapsed_time(epoch_end_time)
+    else:
+        epoch_end_time = time()
+        epoch_time_seconds = epoch_end_time - epoch_start_time
+
     logging.info(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f} sec "
                  f"of which data loading took {total_load_time:0.2f} sec")
     if num_load_time_exceeded > 0:
