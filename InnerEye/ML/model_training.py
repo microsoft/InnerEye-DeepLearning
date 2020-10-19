@@ -323,7 +323,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank, device
     training_random_state = None
     train_val_params = training_steps.train_val_params
     config = training_steps.model_config
-    cuda_available = torch.cuda.is_available()
+    cuda_available = torch.cuda.is_available() & rank == 0
 
     if cuda_available:
         item_start_time = torch.cuda.Event(enable_timing=True)
@@ -357,6 +357,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank, device
 
         if cuda_available:
             item_finish_time.record()
+            torch.cuda.synchronize()
             item_load_time = item_start_time.elapsed_time(item_finish_time)
         else:
             item_finish_time = time()
@@ -365,8 +366,6 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank, device
         # Having slow minibatch loading is OK in the very first batch of the every epoch, where processes
         # are spawned. Later, the load time should be zero.
         if batch_index == 0:
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
             logging.info(f"Loaded the first minibatch of {status_string} data in {item_load_time:0.2f} sec.")
 
         elif item_load_time > MAX_ITEM_LOAD_TIME_SEC:
@@ -386,7 +385,6 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank, device
             train_finish_time.record()
             torch.cuda.synchronize()
             status_time = item_finish_time.elapsed_time(train_finish_time)
-
         else:
             train_finish_time = time()
             status_time = train_finish_time - item_finish_time
@@ -395,7 +393,8 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank, device
                       f"{status_string} in {status_time:0.2f}sec. "
                       f"Loss = {model_outputs_minibatch.loss}")
         if cuda_available:
-            total_load_time = item_start_time.elapsed_time(item_start_time)
+            torch.cuda.synchronize()
+            total_load_time = item_start_time.elapsed_time(item_finish_time)
             item_start_time = torch.cuda.Event(enable_timing=True)
             item_start_time.record()
         else:
