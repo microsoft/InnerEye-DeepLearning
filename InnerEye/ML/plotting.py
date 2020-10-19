@@ -10,7 +10,7 @@ import numpy as np
 from matplotlib import colors
 from matplotlib.pyplot import Axes
 
-from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
+from InnerEye.Common.type_annotations import PathOrString, TupleFloat2, TupleFloat3
 from InnerEye.ML.dataset.full_image_dataset import Sample
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.utils import plotting_util
@@ -376,7 +376,8 @@ def segmentation_and_groundtruth_plot(prediction: np.ndarray, ground_truth: np.n
 
 
 def surface_distance_ground_truth_plot(ct: np.ndarray, ground_truth: np.ndarray, sds_full: np.ndarray, subject_id: int,
-                                       structure: str, plane: Plane, output_img_dir: Path, dice: float = None, save_fig: bool = True,
+                                       structure: str, plane: Plane, output_img_dir: Path, dice: float = None,
+                                       save_fig: bool = True,
                                        annotator: str = None) -> None:
     """
     Plot surface distances where prediction > 0, with ground truth contour
@@ -455,16 +456,19 @@ def surface_distance_ground_truth_plot(ct: np.ndarray, ground_truth: np.ndarray,
 def scan_with_transparent_overlay(scan: np.ndarray,
                                   overlay: np.ndarray,
                                   dimension: int,
-                                  position: int) -> None:
+                                  position: int,
+                                  spacing: TupleFloat3 = (1.0, 1.0, 1.0)) -> None:
     """
     Creates a plot with one slice of a (CT) scan, with a transparent overlay that contains a second piece of
-    information in the range [0, 1]. High values of the `overlay` are shown as opaque red, low values as transparent red.
+    information in the range [0, 1]. High values of the `overlay` are shown as opaque red, low values as transparent
+    red.
     Plots are created in the current axis.
     :param scan: A 3-dimensional image in (Z, Y, X) ordering
     :param overlay: A 3-dimensional image in (Z, Y, X) ordering, with values between 0 and 1.
     :param dimension: The array dimension along with the plot should be created. dimension=0 will generate
     an axial slice.
     :param position: The index in the chosen dimension where the plot should be created.
+    :param spacing: The tuple of voxel spacings, in (Z, Y, X) order.
     """
     vmin = np.min(scan)
     vmax = np.max(scan)
@@ -475,15 +479,22 @@ def scan_with_transparent_overlay(scan: np.ndarray,
     slicers = []
     for i in range(0, 3):
         if i == dimension:
-            slicers.append(slice(position, position+1))
+            slicers.append(slice(position, position + 1))
         else:
             slicers.append(slice(0, scan.shape[i]))
     # Slice both the scan and the overlay
     scan_sliced = scan[slicers[0], slicers[1], slicers[2]].squeeze(axis=dimension)
     overlay_sliced = overlay[slicers[0], slicers[1], slicers[2]].squeeze(axis=dimension)
     ax = plt.gca()
-    ax.imshow(scan_sliced, vmin=vmin, vmax=vmax, cmap='Greys')
+    if dimension == 0:
+        aspect = spacing[1] / spacing[2]
+    elif dimension == 1:
+        aspect = spacing[0] / spacing[2]
+    else:
+        aspect = spacing[0] / spacing[1]
+    origin = 'upper' if dimension == 0 else 'lower'
+    ax.imshow(scan_sliced, vmin=vmin, vmax=vmax, cmap='Greys_r', aspect=aspect, origin=origin)
     red = np.ones_like(overlay_sliced)
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.imshow(red, vmin=0, vmax=1, cmap='Reds', alpha=overlay_sliced)
+    ax.imshow(red, vmin=0, vmax=1, cmap='Reds', alpha=overlay_sliced, aspect=aspect, origin=origin)

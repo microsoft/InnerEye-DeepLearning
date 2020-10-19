@@ -16,6 +16,7 @@ from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.image_util import get_unit_image_header
+from InnerEye.ML.utils.io_util import load_nifti_image, store_as_nifti
 from InnerEye.ML.visualizers.patch_sampling import visualize_patch_sampling
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -89,6 +90,23 @@ def test_plot_overlay(test_output_dirs: TestOutputDirectories,
     resize_and_save(5, 5, file)
     assert file.exists()
     expected = full_ml_test_data_path("patch_sampling") / f"overlay_{dimension}.png"
-    # To update the stored results:
+    # To update the stored results, uncomment this line:
     # expected.write_bytes(file.read_bytes())
     assert file.read_bytes() == expected.read_bytes()
+
+
+def test_show_non_square_images(test_output_dirs: TestOutputDirectories) -> None:
+    input_file = full_ml_test_data_path("patch_sampling") / "scan_small.nii.gz"
+    input = load_nifti_image(input_file)
+    image = input.image
+    shape = image.shape
+    mask = np.zeros_like(image)
+    mask[shape[0]//2, shape[1]//2, shape[2]//2] = 1
+    for dim in range(3):
+        scan_with_transparent_overlay(image, mask, dim, shape[dim] // 2, spacing=input.header.spacing)
+        actual_file = Path(test_output_dirs.root_dir) / f"dim_{dim}.png"
+        resize_and_save(5, 5, actual_file)
+        expected = full_ml_test_data_path("patch_sampling") / f"overlay_with_aspect_dim{dim}.png"
+        # To update the stored results, uncomment this line:
+        # expected.write_bytes(actual_file.read_bytes())
+        assert actual_file.read_bytes() == expected.read_bytes()
