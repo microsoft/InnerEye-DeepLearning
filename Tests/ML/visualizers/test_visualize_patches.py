@@ -91,7 +91,7 @@ def test_plot_overlay(test_output_dirs: TestOutputDirectories,
     assert file.exists()
     expected = full_ml_test_data_path("patch_sampling") / f"overlay_{dimension}.png"
     # To update the stored results, uncomment this line:
-    expected.write_bytes(file.read_bytes())
+    # expected.write_bytes(file.read_bytes())
     assert file.read_bytes() == expected.read_bytes()
 
 
@@ -108,5 +108,5 @@ def test_show_non_square_images(test_output_dirs: TestOutputDirectories) -> None
         resize_and_save(5, 5, actual_file)
         expected = full_ml_test_data_path("patch_sampling") / f"overlay_with_aspect_dim{dim}.png"
         # To update the stored results, uncomment this line:
-        expected.write_bytes(actual_file.read_bytes())
+        # expected.write_bytes(actual_file.read_bytes())
         assert actual_file.read_bytes() == expected.read_bytes()
