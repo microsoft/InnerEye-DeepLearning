@@ -452,10 +452,10 @@ def surface_distance_ground_truth_plot(ct: np.ndarray, ground_truth: np.ndarray,
         fig.show()
 
 
-def scan_and_transparent_overlay(scan: np.ndarray,
-                                 overlay: np.ndarray,
-                                 dimension: int,
-                                 position: int) -> None:
+def scan_with_transparent_overlay(scan: np.ndarray,
+                                  overlay: np.ndarray,
+                                  dimension: int,
+                                  position: int) -> None:
     """
     Creates a plot with one slice of a (CT) scan, with a transparent overlay that contains a second piece of
     information in the range [0, 1]. High values of the `overlay` are shown as opaque red, low values as transparent red.

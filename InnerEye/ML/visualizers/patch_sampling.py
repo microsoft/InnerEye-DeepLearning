@@ -2,7 +2,9 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import param
@@ -12,12 +14,14 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.cropping_dataset import CroppingDataset
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import Sample
-from InnerEye.ML.plotting import resize_and_save, scan_and_transparent_overlay
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
 from InnerEye.ML.utils import augmentation, io_util, ml_util
 from InnerEye.ML.utils.config_util import ModelConfigLoader
-
 # The name of the folder inside the default outputs folder that will holds plots that show the effect of
 # sampling random patches
+from InnerEye.ML.utils.image_util import get_unit_image_header
+
 PATCH_SAMPLING_FOLDER = "patch_sampling"
 
 
@@ -35,15 +39,26 @@ class CheckPatchSamplingConfig(GenericConfig):
 def visualize_patch_sampling(sample: Sample,
                              config: SegmentationModelBase,
                              output_folder: Path) -> None:
+    """
+    Simulate the effect of sampling random crops (as is done for trainig segmentation models), and store the results
+    as a Nifti heatmap and as 3 axial/sagittal/coronal slices. The heatmap and the slices are stored in the given
+    output folder, with filenames that contain the patient ID as the prefix.
+    :param sample: The patient information from the dataset, with scans and ground truth labels.
+    :param config: The model configuration.
+    :param output_folder: The folder into which the heatmap and thumbnails should be written.
+    """
+    output_folder.mkdir(exist_ok=True, parents=True)
     sample = CroppingDataset.create_possibly_padded_sample_for_cropping(
         sample=sample,
         crop_size=config.crop_size,
         padding_mode=config.padding_mode)
-    print("Processing sample: ", sample.patient_id)
+    print(f"Processing sample: {sample.patient_id}")
 
     # Exhaustively sample with random crop function
     image_channel0 = sample.image[0]
     heatmap = np.zeros(image_channel0.shape, dtype=np.uint16)
+    # Number of repeats should fit into the range of UInt16, because we will later save the heatmap as an integer
+    # Nifti file of that datatype.
     repeats = 1000
     for _ in range(repeats):
         _, _, slicers = augmentation.random_crop(sample=sample,
@@ -52,27 +67,50 @@ def visualize_patch_sampling(sample: Sample,
         heatmap[slicers[0], slicers[1], slicers[2]] += 1
     ct_output_name = str(output_folder / f"{sample.patient_id}_ct.nii.gz")
     heatmap_output_name = str(output_folder / f"{sample.patient_id}_sampled_patches.nii.gz")
-    if not sample.metadata.image_header:
-        raise ValueError("Unable to save in Nifti format because no image header was found.")
+    header = sample.metadata.image_header
+    if not header:
+        logging.warning(f"No image header found for patient {sample.patient_id}. Using default header.")
+        header = get_unit_image_header()
     io_util.store_as_nifti(image=heatmap,
-                           header=sample.metadata.image_header,
+                           header=header,
                            file_name=heatmap_output_name,
                            image_type=heatmap.dtype,
                            scale=False)
     io_util.store_as_nifti(image=image_channel0,
-                           header=sample.metadata.image_header,
+                           header=header,
                            file_name=ct_output_name,
                            image_type=sample.image.dtype,
                            scale=False)
     heatmap_scaled = heatmap.astype(dtype=np.float) / repeats
     dimensions = list(range(3)) if heatmap.shape[0] > 1 else [0]
     for dimension in dimensions:
-        scan_and_transparent_overlay(scan=image_channel0,
-                                     overlay=heatmap_scaled,
-                                     dimension=dimension,
-                                     position=heatmap_scaled.shape[dimension] // 2)
+        scan_with_transparent_overlay(scan=image_channel0,
+                                      overlay=heatmap_scaled,
+                                      dimension=dimension,
+                                      position=heatmap_scaled.shape[dimension] // 2)
         thumbnail = output_folder / f"{sample.patient_id}_sampled_patches_dim{dimension}.png"
         resize_and_save(width_inch=5, height_inch=5, filename=thumbnail)
+
+
+def visualize_patches_for_many_samples(config: DeepLearningConfig,
+                                       output_folder: Optional[Path] = None) -> None:
+    """
+    For segmentation models only: This function generates visualizations of the effect of sampling random patches
+    for training. Visualizations are stored in both Nifti format, and as 3 PNG thumbnail files, in the output folder.
+    :param config: The model configuration.
+    :param output_folder: The folder in which the visualizations should be written. If not provided, use a subfolder
+    "patch_sampling" in the models's default output folder
+    """
+    if not isinstance(config, SegmentationModelBase):
+        return
+    dataset_splits = config.get_dataset_splits()
+    # Load a sample using the full image data loader
+    full_image_dataset = FullImageDataset(config, dataset_splits.train)
+    output_folder = output_folder or config.outputs_folder / PATCH_SAMPLING_FOLDER
+    count = min(config.show_patch_sampling, len(full_image_dataset))
+    for sample_index in range(count):
+        sample = full_image_dataset.get_samples_at_index(index=sample_index)[0]
+        visualize_patch_sampling(sample, config, output_folder=output_folder)
 
 
 def main(args: CheckPatchSamplingConfig) -> None:
@@ -87,18 +125,9 @@ def main(args: CheckPatchSamplingConfig) -> None:
     # Create a config file
     config = ModelConfigLoader[SegmentationModelBase]().create_model_config_from_name(
         args.model_name, overrides=commandline_args)
-
-    # Set a random seed
+    config.show_patch_sampling = args.number_samples
     ml_util.set_random_seed(config.random_seed)
-
-    # Get a dataloader object that checks csv
-    dataset_splits = config.get_dataset_splits()
-
-    # Load a sample using the full image data loader
-    full_image_dataset = FullImageDataset(config, dataset_splits.train)
-    for sample_index in range(args.number_samples):
-        sample = full_image_dataset.get_samples_at_index(index=sample_index)[0]
-        visualize_patch_sampling(sample, config, output_folder=args.output_folder)
+    visualize_patches_for_many_samples(config, output_folder=output_folder)
 
 
 if __name__ == "__main__":

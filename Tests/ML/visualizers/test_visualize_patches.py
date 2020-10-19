@@ -13,7 +13,7 @@ from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.config import SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
-from InnerEye.ML.plotting import resize_and_save, scan_and_transparent_overlay
+from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.visualizers.patch_sampling import visualize_patch_sampling
@@ -84,7 +84,7 @@ def test_plot_overlay(test_output_dirs: TestOutputDirectories,
         mask[i] = i
     mask = mask.reshape(shape)
     plt.figure()
-    scan_and_transparent_overlay(image, mask, dimension, shape[dimension] // 2)
+    scan_with_transparent_overlay(image, mask, dimension, shape[dimension] // 2)
     file = Path(test_output_dirs.root_dir) / "plot.png"
     resize_and_save(5, 5, file)
     assert file.exists()
