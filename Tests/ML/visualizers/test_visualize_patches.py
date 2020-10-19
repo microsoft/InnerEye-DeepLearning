@@ -4,16 +4,18 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.config import SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
+from InnerEye.ML.plotting import resize_and_save, scan_and_transparent_overlay
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.visualizers.patch_sampling import visualize_patch_sampling
-from Tests.ML.util import assert_file_contents, assert_nifti_content
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
@@ -62,3 +64,25 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
     expected_image = io_util.load_nifti_image(expected_folder / expected)
     actual_image = io_util.load_nifti_image(f2)
     np.allclose(expected_image.image, actual_image.image)
+
+
+@pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
+@pytest.mark.parametrize("dimension", [0, 1, 2])
+def test_plot_overlay(test_output_dirs: TestOutputDirectories,
+                      dimension: int) -> None:
+    np.random.seed(0)
+    shape = (10, 30, 30)
+    image = np.random.rand(*shape).astype(np.float32) * 1000
+    mask = np.zeros(shape).flatten()
+    for i in range(len(mask)):
+        mask[i] = i
+    mask = mask.reshape(shape)
+    plt.figure()
+    scan_and_transparent_overlay(image, mask, dimension, shape[dimension] // 2)
+    file = Path(test_output_dirs.root_dir) / "plot.png"
+    resize_and_save(5, 5, file)
+    assert file.exists()
+    expected = full_ml_test_data_path("patch_sampling") / f"overlay_{dimension}.png"
+    # To update the stored results:
+    # expected.write_bytes(file.read_bytes())
+    assert file.read_bytes() == expected.read_bytes()
