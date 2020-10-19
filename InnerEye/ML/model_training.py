@@ -25,7 +25,7 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util, model_util
-from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size, get_local_rank, get_local_size
+from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size, get_local_size, get_local_rank
 
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
@@ -105,25 +105,37 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
     :param run_recovery: Recovery information to restart training from an existing run.
     :return:
     """
-    rank = get_global_rank() if rank is None else rank  # For 1 machine, this is same as local rank
-    device = torch.device('cuda', rank) if torch.cuda.is_available() else torch.device('cpu')
+    global_rank = get_global_rank() if rank is None else rank  # For 1 machine, this is same as local rank
+
+    local_rank = global_rank if config.is_offline_run else get_local_rank()
+    device = torch.device('cuda', local_rank) if torch.cuda.is_available() else torch.device('cpu')
+
+    devices = config.get_cuda_devices()
+    print(f'all visible cuda devices: {devices}')
 
     if config.use_ddp:
-        print(f"Running distributed training on device with global rank {rank}")
+        world_size = get_global_size(config.is_offline_run)
+        print(f"Running distributed training on device with global rank {global_rank} and local rank {local_rank}")
         torch.distributed.init_process_group(  # type: ignore
             backend=config.dist_backend,
             init_method=config.init_method,
-            world_size=get_global_size(config.is_offline_run),
-            rank=rank)
+            world_size=world_size,
+            rank=global_rank)
 
         n_gpus_per_node = get_local_size()
         config.train_batch_size = int(config.train_batch_size // n_gpus_per_node)
-        config.num_dataload_workers = int((config.num_dataload_workers + n_gpus_per_node - 1)/ n_gpus_per_node)
+        config.num_dataload_workers = int((config.num_dataload_workers + n_gpus_per_node - 1) / n_gpus_per_node)
+
+        print(f'Updated batch size for mutiple GPUs: train_batch_size={config.train_batch_size},'
+              f' num_dataload_workers={config.num_dataload_workers}')
 
     # Create the train loader and validation loader to load images from the dataset
     data_loaders = config.create_data_loaders()
 
-
+    if config.use_ddp:
+        train_dataset = data_loaders[ModelExecutionMode.TRAIN].dataset
+        len_dataset = len(train_dataset)
+        assert 2 * len_dataset >= world_size, f"2* len(dataset) (={2*len_dataset}) must be >= num GPUs (={world_size})"
 
     # Get the path to the checkpoint to recover from
     checkpoint_path = get_recovery_path_train(run_recovery=run_recovery,
@@ -145,7 +157,7 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
     generate_and_print_model_summary(config, models_and_optimizer.model, device)
 
     # Move model to GPU and adjust for multiple GPUs
-    models_and_optimizer.adjust_model_for_gpus(rank=rank)
+    models_and_optimizer.adjust_model_for_gpus(rank=local_rank)
 
     # Create the mean teacher model and move to GPU
     if config.compute_mean_teacher_model:
@@ -166,7 +178,7 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
         os.makedirs(config.checkpoint_folder, exist_ok=True)
 
     # Create the SummaryWriters for Tensorboard
-    writers = create_summary_writers(config, rank=rank)
+    writers = create_summary_writers(config, rank=global_rank)
 
     config.create_dataframe_loggers()
 
@@ -209,8 +221,11 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
                                     summary_writers=writers,
                                     dataframe_loggers=config.metrics_data_frame_loggers,
                                     in_training_mode=True)
+
+
+
         training_steps = create_model_training_steps(config, train_val_params)
-        train_epoch_results = train_or_validate_epoch(training_steps, rank, device)
+        train_epoch_results = train_or_validate_epoch(training_steps, local_rank, device)
         train_results_per_epoch.append(train_epoch_results.metrics)
 
         metrics.validate_and_store_model_parameters(writers.train, epoch, models_and_optimizer.model)
@@ -223,7 +238,7 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
             train_val_params.save_metrics = not (save_epoch and config.temperature_scaling_config)
 
         training_steps = create_model_training_steps(config, train_val_params)
-        val_epoch_results = train_or_validate_epoch(training_steps, rank, device)
+        val_epoch_results = train_or_validate_epoch(training_steps, local_rank, device)
         val_results_per_epoch.append(val_epoch_results.metrics)
 
         if config.is_segmentation_model:
@@ -231,7 +246,7 @@ def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase,
                                                        train_epoch_results.metrics,
                                                        val_epoch_results.metrics)
 
-        if save_epoch and rank == 0:
+        if save_epoch and local_rank == 0:
             # perform temperature scaling if required
             if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
                 optimal_temperature, scaled_val_results = \

@@ -300,7 +300,8 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
     if azure_config.use_distributed_data_parallel:
         source_config.script_params.update({'--dist_backend': 'nccl',
                                             '--init_method': 'tcp://' + '$AZ_BATCH_MASTER_NODE'})
-        distributed_training_backend = Mpi(azure_config.workers_per_node)
+        distributed_training_backend = Mpi()
+        distributed_training_backend.process_count_per_node = azure_config.workers_per_node
     else:
         distributed_training_backend = None
 
