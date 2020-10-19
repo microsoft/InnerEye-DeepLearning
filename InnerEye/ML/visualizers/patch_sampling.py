@@ -8,11 +8,11 @@ import numpy as np
 import param
 
 from InnerEye.Common.generic_parsing import GenericConfig
-from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.cropping_dataset import CroppingDataset
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import Sample
+from InnerEye.ML.plotting import resize_and_save, scan_and_transparent_overlay
 from InnerEye.ML.utils import augmentation, io_util, ml_util
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 
@@ -44,7 +44,8 @@ def visualize_patch_sampling(sample: Sample,
     # Exhaustively sample with random crop function
     image_channel0 = sample.image[0]
     heatmap = np.zeros(image_channel0.shape, dtype=np.uint16)
-    for _ in range(1000):
+    repeats = 1000
+    for _ in range(repeats):
         _, _, slicers = augmentation.random_crop(sample=sample,
                                                  crop_size=config.crop_size,
                                                  class_weights=config.class_weights)
@@ -63,6 +64,15 @@ def visualize_patch_sampling(sample: Sample,
                            file_name=ct_output_name,
                            image_type=sample.image.dtype,
                            scale=False)
+    heatmap_scaled = heatmap.astype(dtype=np.float) / repeats
+    dimensions = list(range(3)) if heatmap.shape[0] > 1 else [0]
+    for dimension in dimensions:
+        scan_and_transparent_overlay(scan=image_channel0,
+                                     overlay=heatmap_scaled,
+                                     dimension=dimension,
+                                     position=heatmap_scaled.shape[dimension] // 2)
+        thumbnail = output_folder / f"{sample.patient_id}_sampled_patches_dim{dimension}.png"
+        resize_and_save(width_inch=5, height_inch=5, filename=thumbnail)
 
 
 def main(args: CheckPatchSamplingConfig) -> None:

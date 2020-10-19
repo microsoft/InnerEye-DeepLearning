@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import shutil
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -58,10 +59,15 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
     assert f1.is_file()
     f2 = output_folder / "123_sampled_patches.nii.gz"
     assert f2.is_file()
+    assert (output_folder / "123_sampled_patches_dim0.png").is_file()
+    assert (output_folder / "123_sampled_patches_dim1.png").is_file()
+    assert (output_folder / "123_sampled_patches_dim2.png").is_file()
 
     expected_folder = full_ml_test_data_path("patch_sampling")
-    expected = "sampled_to_boundary.nii.gz" if labels_to_boundary else "sampled_center.nii.gz"
-    expected_image = io_util.load_nifti_image(expected_folder / expected)
+    expected = expected_folder / ("sampled_to_boundary.nii.gz" if labels_to_boundary else "sampled_center.nii.gz")
+    # To update test results:
+    # shutil.copy(str(f2), str(expected))
+    expected_image = io_util.load_nifti_image(expected)
     actual_image = io_util.load_nifti_image(f2)
     np.allclose(expected_image.image, actual_image.image)
 
