@@ -15,10 +15,10 @@ import numpy as np
 
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
 from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, ModelProcessing, \
-    empty_string_to_none, \
+    empty_string_to_none, DataframeLogger, \
     get_epoch_results_path, is_linux, logging_section, string_to_path
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config
+from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config, ScalarMetricsDict
 from InnerEye.ML import metrics, plotting
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
@@ -71,7 +71,7 @@ def model_test(config: ModelConfigBase,
         if isinstance(config, SegmentationModelBase):
             return segmentation_model_test(config, data_split, run_recovery, model_proc)
         if isinstance(config, ScalarModelBase):
-            return classification_model_test(config, data_split, run_recovery)
+            return classification_model_test(config, data_split, run_recovery, model_proc)
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 
@@ -387,7 +387,8 @@ def create_inference_pipeline(config: ModelConfigBase,
 
 def classification_model_test(config: ScalarModelBase,
                               data_split: ModelExecutionMode,
-                              run_recovery: Optional[RunRecovery]) -> InferenceMetricsForClassification:
+                              run_recovery: Optional[RunRecovery],
+                              model_proc: ModelProcessing) -> InferenceMetricsForClassification:
     """
     The main testing loop for classification models. It runs a loop over all epochs for which testing should be done.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
@@ -395,6 +396,7 @@ def classification_model_test(config: ScalarModelBase,
     :param data_split: The name of the folder to store the results inside each epoch folder in the outputs_dir,
                        used mainly in model evaluation using different dataset splits.
     :param run_recovery: RunRecovery data if applicable
+    :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
 
@@ -437,8 +439,21 @@ def classification_model_test(config: ScalarModelBase,
         else:
             results[epoch] = epoch_result
 
+            if isinstance(epoch_result, ScalarMetricsDict):
+                csv_path = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc) / METRICS_FILE_NAME
+
+                # if we are running on the validation set, these may have been written during train time
+                if not csv_path.exists():
+                    df_logger = DataframeLogger(csv_path)
+
+                    # cross validation split index not relevant during test time
+                    epoch_result.store_metrics_per_subject(epoch=epoch,
+                                                           df_logger=df_logger,
+                                                           mode=data_split)
+
     if len(results) == 0:
         raise ValueError("There was no single checkpoint file available for model testing.")
+
     return InferenceMetricsForClassification(epochs=results)
 
 

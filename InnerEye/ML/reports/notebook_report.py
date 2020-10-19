@@ -47,6 +47,10 @@ def generate_notebook(template_notebook: Path, notebook_params: Dict, result_not
     return result_notebook.with_suffix(resources['output_extension'])
 
 
+def str_or_empty(p: Optional[Path]) -> str:
+    return str(p) if p else ""
+
+
 def generate_segmentation_notebook(result_notebook: Path,
                                    train_metrics: Optional[Path] = None,
                                    val_metrics: Optional[Path] = None,
@@ -55,8 +59,6 @@ def generate_segmentation_notebook(result_notebook: Path,
     Creates a reporting notebook for a segmentation model, using the given training, validation, and test set metrics.
     Returns the report file after HTML conversion.
     """
-    def str_or_empty(p: Optional[Path]) -> str:
-        return str(p) if p else ""
 
     notebook_params = \
         {
@@ -66,6 +68,28 @@ def generate_segmentation_notebook(result_notebook: Path,
             'test_metrics_csv': str_or_empty(test_metrics),
         }
     template = Path(__file__).absolute().parent / "segmentation_report.ipynb"
+    return generate_notebook(template,
+                             notebook_params=notebook_params,
+                             result_notebook=result_notebook)
+
+
+def generate_classification_notebook(result_notebook: Path,
+                                   train_metrics: Optional[Path] = None,
+                                   val_metrics: Optional[Path] = None,
+                                   test_metrics: Optional[Path] = None) -> Path:
+    """
+    Creates a reporting notebook for a classification model, using the given training, validation, and test set metrics.
+    Returns the report file after HTML conversion.
+    """
+
+    notebook_params = \
+        {
+            'innereye_path': str(fixed_paths.repository_root_directory()),
+            'train_metrics_csv': str_or_empty(train_metrics),
+            'val_metrics_csv': str_or_empty(val_metrics),
+            'test_metrics_csv': str_or_empty(test_metrics),
+        }
+    template = Path(__file__).absolute().parent / "classification_report.ipynb"
     return generate_notebook(template,
                              notebook_params=notebook_params,
                              result_notebook=result_notebook)
