@@ -87,7 +87,8 @@ def visualize_patch_sampling(sample: Sample,
         scan_with_transparent_overlay(scan=image_channel0,
                                       overlay=heatmap_scaled,
                                       dimension=dimension,
-                                      position=heatmap_scaled.shape[dimension] // 2)
+                                      position=heatmap_scaled.shape[dimension] // 2,
+                                      spacing=header.spacing)
         thumbnail = output_folder / f"{sample.patient_id}_sampled_patches_dim{dimension}.png"
         resize_and_save(width_inch=5, height_inch=5, filename=thumbnail)
 
