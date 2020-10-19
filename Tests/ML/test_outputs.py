@@ -20,6 +20,7 @@ from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.plotting import resize_and_save
 from InnerEye.ML.reports.segmentation_report import boxplot_per_structure
 from InnerEye.ML.utils import io_util
+from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import ImageHeader
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
@@ -64,7 +65,7 @@ def test_store_inference_results(test_output_dirs: TestOutputDirectories) -> Non
     posterior0 = to_unique_bytes(posterior[0], (0, 1))
     posterior1 = to_unique_bytes(posterior[1], (0, 1))
     spacing = (2.0, 2.0, 2.0)
-    header = ImageHeader(origin=(0, 0, 0), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=spacing)
+    header = get_unit_image_header(spacing=spacing)
     inference_result = InferencePipeline.Result(
         epoch=1,
         patient_id=12,

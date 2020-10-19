@@ -375,9 +375,9 @@ def segmentation_and_groundtruth_plot(prediction: np.ndarray, ground_truth: np.n
         fig.show()
 
 
-def sds_ground_truth_plot(ct: np.ndarray, ground_truth: np.ndarray, sds_full: np.ndarray, subject_id: int,
-                          structure: str, plane: Plane, output_img_dir: Path, dice: float = None, save_fig: bool = True,
-                          annotator: str = None) -> None:
+def surface_distance_ground_truth_plot(ct: np.ndarray, ground_truth: np.ndarray, sds_full: np.ndarray, subject_id: int,
+                                       structure: str, plane: Plane, output_img_dir: Path, dice: float = None, save_fig: bool = True,
+                                       annotator: str = None) -> None:
     """
     Plot surface distances where prediction > 0, with ground truth contour
     :param ct: CT scan
@@ -450,3 +450,37 @@ def sds_ground_truth_plot(ct: np.ndarray, ground_truth: np.ndarray, sds_full: np
         resize_and_save(5, 5, figpath)
     else:
         fig.show()
+
+
+def scan_and_transparent_overlay(scan: np.ndarray,
+                                 overlay: np.ndarray,
+                                 dimension: int,
+                                 position: int) -> None:
+    """
+    Creates a plot with one slice of a (CT) scan, with a transparent overlay that contains a second piece of
+    information like a heatmap. High values of the `overlay` are shown as opaque red, low values as transparent red.
+    :param scan: A 3-dimensional image in (Z, Y, X) ordering
+    :param overlay: A 3-dimensional image in (Z, Y, X) ordering
+    :param dimension:
+    :param position:
+    :return:
+    """
+    vmin = np.min(scan)
+    vmax = np.max(scan)
+    if dimension < 0 or dimension > 2:
+        raise ValueError(f"Dimension must be in the range [0, 2], but got: {dimension}")
+    if position < 0 or position >= scan.shape[dimension]:
+        raise IndexError(f"Position is outside valid range: {position}")
+    slicers = []
+    for i in range(0, 3):
+        if i == dimension:
+            slicers.append(slice(position, 1))
+        else:
+            slicers.append(slice(0, scan.shape[i]))
+    scan_sliced = scan[slicers[0], slicers[1], slicers[2]]
+    overlay_sliced = overlay[slicers[0], slicers[1], slicers[2]]
+    ax = plt.gca()
+    ax.imshow(scan_sliced, vmin=vmin, vmax=vmax, colormap='grey')
+    red = np.ones_like(overlay_sliced)
+    ax.imshow(red, colormap='red', alpha=overlay_sliced)
+    
