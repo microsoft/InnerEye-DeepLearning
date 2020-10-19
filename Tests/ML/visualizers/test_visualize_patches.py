@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import shutil
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -16,7 +15,7 @@ from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.image_util import get_unit_image_header
-from InnerEye.ML.utils.io_util import load_nifti_image, store_as_nifti
+from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.visualizers.patch_sampling import visualize_patch_sampling
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -101,7 +100,7 @@ def test_show_non_square_images(test_output_dirs: TestOutputDirectories) -> None
     image = input.image
     shape = image.shape
     mask = np.zeros_like(image)
-    mask[shape[0]//2, shape[1]//2, shape[2]//2] = 1
+    mask[shape[0] // 2, shape[1] // 2, shape[2] // 2] = 1
     for dim in range(3):
         scan_with_transparent_overlay(image, mask, dim, shape[dim] // 2, spacing=input.header.spacing)
         actual_file = Path(test_output_dirs.root_dir) / f"dim_{dim}.png"
