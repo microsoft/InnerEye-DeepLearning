@@ -32,7 +32,7 @@ from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
 from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_train
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
-from InnerEye.ML.visualizers.patch_sampling import visualize_patches_for_many_samples
+from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -57,7 +57,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     ml_util.set_random_seed(config.get_effective_random_seed(), "Patch visualization")
     # Visualize how patches are sampled for segmentation models. This changes the random generator, but we don't
     # want training to depend on how many patients we visualized, and hence set the random seed again right after.
-    visualize_patches_for_many_samples(config)
+    visualize_random_crops_for_dataset(config)
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
 
     logging.debug("Creating the PyTorch model.")

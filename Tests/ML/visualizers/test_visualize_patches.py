@@ -16,7 +16,7 @@ from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import load_nifti_image
-from InnerEye.ML.visualizers.patch_sampling import visualize_patch_sampling
+from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
@@ -54,7 +54,7 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
                     labels=labels,
                     metadata=PatientMetadata(patient_id=123,
                                              image_header=image_header))
-    visualize_patch_sampling(sample, config, output_folder=output_folder)
+    visualize_random_crops(sample, config, output_folder=output_folder)
     f1 = output_folder / "123_ct.nii.gz"
     assert f1.is_file()
     f2 = output_folder / "123_sampled_patches.nii.gz"

@@ -36,9 +36,9 @@ class CheckPatchSamplingConfig(GenericConfig):
     number_samples: int = param.Number(10, bounds=(1, None), doc="Number of images sampled")
 
 
-def visualize_patch_sampling(sample: Sample,
-                             config: SegmentationModelBase,
-                             output_folder: Path) -> None:
+def visualize_random_crops(sample: Sample,
+                           config: SegmentationModelBase,
+                           output_folder: Path) -> None:
     """
     Simulate the effect of sampling random crops (as is done for trainig segmentation models), and store the results
     as a Nifti heatmap and as 3 axial/sagittal/coronal slices. The heatmap and the slices are stored in the given
@@ -93,7 +93,7 @@ def visualize_patch_sampling(sample: Sample,
         resize_and_save(width_inch=5, height_inch=5, filename=thumbnail)
 
 
-def visualize_patches_for_many_samples(config: DeepLearningConfig,
+def visualize_random_crops_for_dataset(config: DeepLearningConfig,
                                        output_folder: Optional[Path] = None) -> None:
     """
     For segmentation models only: This function generates visualizations of the effect of sampling random patches
@@ -111,7 +111,7 @@ def visualize_patches_for_many_samples(config: DeepLearningConfig,
     count = min(config.show_patch_sampling, len(full_image_dataset))
     for sample_index in range(count):
         sample = full_image_dataset.get_samples_at_index(index=sample_index)[0]
-        visualize_patch_sampling(sample, config, output_folder=output_folder)
+        visualize_random_crops(sample, config, output_folder=output_folder)
 
 
 def main(args: CheckPatchSamplingConfig) -> None:
@@ -128,7 +128,7 @@ def main(args: CheckPatchSamplingConfig) -> None:
         args.model_name, overrides=commandline_args)
     config.show_patch_sampling = args.number_samples
     ml_util.set_random_seed(config.random_seed)
-    visualize_patches_for_many_samples(config, output_folder=output_folder)
+    visualize_random_crops_for_dataset(config, output_folder=output_folder)
 
 
 if __name__ == "__main__":
