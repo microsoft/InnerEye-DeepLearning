@@ -297,7 +297,7 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
     logging.info(f"PyTorch framework version: {framework_version}")
 
 
-    if azure_config.use_distributed_data_parallel:
+    if azure_config.node_count > 1:
         source_config.script_params.update({'--dist_backend': 'nccl',
                                             '--init_method': 'tcp://' + '$AZ_BATCH_MASTER_NODE'})
         distributed_training_backend = Mpi()
@@ -306,7 +306,6 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
         distributed_training_backend = None
 
     compute_target = ComputeTarget(workspace, azure_config.cluster)
-
 
     max_run_duration = None
     if azure_config.max_run_duration:

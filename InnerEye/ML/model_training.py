@@ -54,7 +54,7 @@ def load_checkpoint_from_model_and_info(run_recovery: Optional[RunRecovery], con
 
 
 def model_train(config: ModelConfigBase,
-                run_recovery: Optional[RunRecovery] = None) -> None:
+                run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResults:
     """
     The main training loop. It creates the model, dataset, optimizer_type, and criterion, then proceeds
     to train the model. If a checkpoint was specified, then it loads the checkpoint before resuming training.
@@ -82,13 +82,18 @@ def model_train(config: ModelConfigBase,
             torch.multiprocessing.spawn(train,
                                         args=(config, run_recovery),
                                         nprocs=world_size)
+            model_training_results = None
 
         else:
             # AzureML MPI configuration handles rank
             train(None, config, run_recovery=run_recovery)
+            model_training_results = None
+
     else:
         single_process_rank = 0
-        train(single_process_rank, config, run_recovery=run_recovery)
+        model_training_results = train(single_process_rank, config, run_recovery=run_recovery)
+
+    return model_training_results
 
 
 def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None):
@@ -277,6 +282,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
         resource_monitor.kill()
 
     # return model_training_results
+    return None if (config.use_distributed_data_parallel and config.is_offline_run) else model_training_results
 
 
 def temperature_scaling_steps(config: SequenceModelBase,
@@ -453,7 +459,7 @@ def main() -> None:
 
     model_config = ModelConfigLoader().create_model_config_from_name(args.model)
 
-    model_train(model_config)
+    model_train(0, model_config)
 
 
 if __name__ == '__main__':

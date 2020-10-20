@@ -665,7 +665,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         :return:
         """
         _devices = self.get_cuda_devices()
-        return (_devices is not None) & (len(_devices) > 1) & (not is_windows()) & self.use_distributed_data_parallel
+        if _devices is None:
+            return False
+        return (len(_devices) > 1) & (not is_windows()) & self.use_distributed_data_parallel
 
     def write_args_file(self, root: Optional[Path] = None) -> None:
         """

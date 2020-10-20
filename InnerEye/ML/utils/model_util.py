@@ -535,7 +535,6 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
     :param config: The configuration for the model.
     :param model: The instantiated Pytorch model.
     """
-    device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu')
     random_state = RandomStateSnapshot.snapshot_random_state()
     # There appears to be a bug in apex, where previous use (in training for example) causes problems
     # when another model is later built on the CPU (for example, before loading from a checkpoint)

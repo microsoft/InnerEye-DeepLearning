@@ -89,6 +89,7 @@ def segmentation_model_test(config: SegmentationModelBase,
     :return: InferenceMetric object that contains metrics related for all of the checkpoint epochs.
     """
     results: Dict[int, float] = {}
+    config.use_distributed_data_parallel = False
     for epoch in config.get_test_epochs():
         epoch_results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc)
         # save the datasets.csv used
