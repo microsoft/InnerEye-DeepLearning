@@ -138,7 +138,7 @@ class BaseModel(DeviceAwareModule, ABC):
             crop_size_constraints = CropSizeConstraints(multiple_of=1)
         self.crop_size_constraints = crop_size_constraints
 
-    def get_output_shape(self, input_shape: Union[TupleInt2, TupleInt3], device: torch.device)\
+    def get_output_shape(self, input_shape: Union[TupleInt2, TupleInt3], device: Optional[torch.device]=None)\
             -> Tuple[int, ...]:
         """
         Computes model's output tensor shape for given input tensor shape.

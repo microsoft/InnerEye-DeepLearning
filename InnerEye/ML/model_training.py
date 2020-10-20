@@ -70,11 +70,6 @@ def model_train(config: ModelConfigBase,
     # set the random seed for all libraries
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
 
-    logging.debug("Creating the PyTorch model.")
-
-    # create model
-    model = model_util.create_model_with_temperature_scaling(config)
-
     if config.use_ddp:
 
         world_size = get_global_size(config.is_offline_run)
@@ -85,18 +80,18 @@ def model_train(config: ModelConfigBase,
             os.environ['MASTER_PORT'] = '12355'
             # spawn processes
             torch.multiprocessing.spawn(train,
-                                        args=(model, config),
+                                        args=(config, run_recovery),
                                         nprocs=world_size)
 
         else:
             # AzureML MPI configuration handles rank
-            train(None, model, config)
+            train(None, config, run_recovery=run_recovery)
     else:
         single_process_rank = 0
-        train(single_process_rank, model, config)
+        train(single_process_rank, config, run_recovery=run_recovery)
 
 
-def train(rank: Optional[int],  model: torch.nn.Module, config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None):
+def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None):
     """
 
     :param rank: The global rank of the current process (for DistributedDataParallel). For single process, rank=0
