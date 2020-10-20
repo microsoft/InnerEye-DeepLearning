@@ -24,7 +24,6 @@ from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.image_util import get_unit_image_header
-from InnerEye.ML.utils.io_util import ImageHeader
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_default_workspace, get_model_loader, \
     get_nifti_shape
 from Tests.fixed_paths_for_tests import RELATIVE_TEST_OUTPUTS_PATH, full_ml_test_data_path, tests_root_directory

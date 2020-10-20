@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, unique
+from math import isclose
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -13,7 +14,6 @@ import pandas as pd
 import param
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import HyperDriveConfig
-from math import isclose
 from pandas import DataFrame
 
 from InnerEye.Common.common_util import any_pairwise_larger, any_smaller_or_equal_than, check_is_any_of
@@ -449,7 +449,6 @@ class SegmentationModelBase(ModelConfigBase):
                                              doc="Number of patients from the training set for which the effect of"
                                                  "patch sampling will be shown. Nifti images and thumbnails will be "
                                                  "written for each of the first N subjects in the training set.")
-
 
     def __init__(self, center_size: Optional[TupleInt3] = None,
                  inference_stride_size: Optional[TupleInt3] = None,

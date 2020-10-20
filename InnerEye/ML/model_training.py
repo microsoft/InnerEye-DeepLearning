@@ -17,7 +17,7 @@ from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML import metrics
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, VISUALIZATION_FOLDER
+from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
     ModelTrainingStepsForScalarModel, ModelTrainingStepsForSegmentation, ModelTrainingStepsForSequenceModel, \
@@ -90,8 +90,9 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     if config.compute_mean_teacher_model:
         mean_teacher_model_loaded = models_and_optimizer.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
         if not mean_teacher_model_loaded:
-            raise ValueError("There was no checkpoint file available for the mean teacher model for given start_epoch {}"
-                             .format(config.start_epoch))
+            raise ValueError(
+                "There was no checkpoint file available for the mean teacher model for given start_epoch {}"
+                .format(config.start_epoch))
 
     # Create optimizer
     optimizer_loaded = models_and_optimizer.try_create_optimizer_and_load_from_checkpoint()

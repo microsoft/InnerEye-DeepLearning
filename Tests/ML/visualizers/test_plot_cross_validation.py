@@ -10,9 +10,7 @@ import pytest
 from azureml.core import Run
 from pandas.core.dtypes.common import is_string_dtype
 
-from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetch_run
-from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
     METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
@@ -110,7 +108,8 @@ def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str,
     return files
 
 
-def create_file_list_for_segmentation_recovery_run(test_config_ensemble: PlotCrossValidationConfig) -> List[RunResultFiles]:
+def create_file_list_for_segmentation_recovery_run(test_config_ensemble: PlotCrossValidationConfig) -> List[
+    RunResultFiles]:
     return create_run_result_file_list(config=test_config_ensemble,
                                        folder="master_1570466706163110")
 
