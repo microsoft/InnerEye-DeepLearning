@@ -94,6 +94,7 @@ def test_plot_overlay(test_output_dirs: TestOutputDirectories,
     assert file.read_bytes() == expected.read_bytes()
 
 
+@pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
 def test_show_non_square_images(test_output_dirs: TestOutputDirectories) -> None:
     input_file = full_ml_test_data_path("patch_sampling") / "scan_small.nii.gz"
     input = load_nifti_image(input_file)
