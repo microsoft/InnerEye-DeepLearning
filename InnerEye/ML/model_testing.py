@@ -456,6 +456,8 @@ def classification_model_test(config: ScalarModelBase,
                     epoch_result.store_metrics_per_subject(epoch=epoch,
                                                            df_logger=df_logger,
                                                            mode=data_split)
+                    # write to disk
+                    df_logger.flush()
 
     if len(results) == 0:
         raise ValueError("There was no single checkpoint file available for model testing.")
