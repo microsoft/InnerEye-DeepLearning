@@ -84,7 +84,7 @@ def test_plot_overlay(test_output_dirs: TestOutputDirectories,
         mask[i] = i
     mask = mask.reshape(shape)
     plt.figure()
-    scan_with_transparent_overlay(image, mask, dimension, shape[dimension] // 2)
+    scan_with_transparent_overlay(image, mask, dimension, shape[dimension] // 2, spacing=(1.0, 1.0, 1.0))
     file = Path(test_output_dirs.root_dir) / "plot.png"
     resize_and_save(5, 5, file)
     assert file.exists()
