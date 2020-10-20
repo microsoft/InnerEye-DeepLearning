@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
 from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, ModelProcessing, \
@@ -444,7 +445,7 @@ def classification_model_test(config: ScalarModelBase,
 
                 # if we are running on the validation set, these may have been written during train time
                 if not epoch_folder.exists():
-                    epoch_folder.mkdir(exist_ok=False)
+                    os.makedirs(exist_ok=False)
                     csv_file = epoch_folder / METRICS_FILE_NAME
                     df_logger = DataframeLogger(csv_file)
 

@@ -490,6 +490,15 @@ class MetricsDict:
         return binary_classification_accuracy(model_output=self.get_predictions(hue=hue),
                                               label=self.get_labels(hue=hue))
 
+    @classmethod
+    def get_optimal_idx(cls, fpr, tpr) -> np.ndarray:
+        """
+        Given a list of FPR and TPR values corresponding to different thresholds, compute the index which corrsponds
+        to the optimal threshold.
+        """
+        optimal_idx = np.argmax(tpr - fpr)
+        return optimal_idx
+
     def get_metrics_at_optimal_cutoff(self, hue: str = DEFAULT_HUE_KEY) -> Tuple:
         """
         Computes the ROC to find the optimal cut-off i.e. the probability threshold for which the
@@ -500,7 +509,7 @@ class MetricsDict:
         :returns: Tuple(optimal_threshold, false positive rate, false negative rate, accuracy)
         """
         fpr, tpr, thresholds = roc_curve(self.get_labels(hue=hue), self.get_predictions(hue=hue))
-        optimal_idx = np.argmax(tpr - fpr)
+        optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
         optimal_threshold = float(thresholds[optimal_idx])
         accuracy = binary_classification_accuracy(model_output=self.get_predictions(hue=hue),
                                                   label=self.get_labels(hue=hue),
@@ -538,11 +547,6 @@ class MetricsDict:
             return np.nan
         predictions = self.get_predictions(hue)
         labels = self.get_labels(hue)
-        if predictions.shape[1] == 1 and labels.shape[1] == 1 and len(np.unique(labels)) == 1:
-            # We are dealing with a binary classification problem, but there is only a single class present
-            # in the data: This happens occasionaly in test data. Return 1.0 because in such cases we could
-            # always get a classifier threshold that correctly classifies everything.
-            return 1.0
         precision, recall, _ = precision_recall_curve(labels, predictions)
         return auc(recall, precision)
 
