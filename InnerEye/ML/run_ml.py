@@ -684,7 +684,7 @@ class MLRunner:
 
         # assign the same filename as in the download url if possible, so that we can check for duplicates
         # If that fails, map to a random uuid
-        file_name = os.path.basename(requests.utils.urlparse(url).path) or str(uuid.uuid4().hex)
+        file_name = os.path.basename(requests.utils.urlparse(url).path) or str(uuid.uuid4().hex)  # type: ignore
         result_file = target_folder / file_name
 
         # only download if hasn't already been downloaded
@@ -692,7 +692,7 @@ class MLRunner:
             logging.info(f"File already exists, skipping download: {result_file}")
             return result_file
 
-        logging.info(f"Downloading weights.")
+        logging.info(f"Downloading weights from URL {url}")
 
         response = requests.get(url, stream=True)
         response.raise_for_status()

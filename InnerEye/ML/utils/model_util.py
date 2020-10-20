@@ -99,10 +99,9 @@ class ModelAndInfo:
         map_location = None if use_gpu else 'cpu'
         checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
         # TODO add start_epoch check
-        #if ModelAndInfo.EPOCH_KEY in checkpoint and checkpoint[ModelAndInfo.EPOCH_KEY] != start_epoch:
-        #    raise ValueError("start_epoch in config does not match epoch in the saved checkpoint.")
+        # if ModelAndInfo.EPOCH_KEY in checkpoint and checkpoint[ModelAndInfo.EPOCH_KEY] != start_epoch:
+        #     raise ValueError("start_epoch in config does not match epoch in the saved checkpoint.")
         return checkpoint
-
 
     @classmethod
     def _load_checkpoint(cls, model: DeviceAwareModule, checkpoint_path: Path,
