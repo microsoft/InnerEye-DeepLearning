@@ -141,6 +141,7 @@ def test_create_inference_pipeline(with_run_recovery: bool,
                                    inference_type: type,
                                    ensemble_type: type,
                                    test_output_dirs: TestOutputDirectories) -> None:
+    config.use_distributed_data_parallel = False
     config.set_output_to(test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
     stored_checkpoints = full_ml_test_data_path(checkpoint_folder)
