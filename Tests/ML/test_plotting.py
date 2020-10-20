@@ -142,7 +142,7 @@ def compare_files(actual: List[Path], expected: List[str]) -> None:
         assert file_as_bytes(f) == file_as_bytes(full_expected)
 
 
-@pytest.mark.skipif(common_util.is_linux(), reason="Rendering of the graph is slightly different on Linux")
+@pytest.mark.skipif(common_util.is_windows(), reason="Rendering of the graph is slightly different on Linux")
 def test_plot_normalization_result(test_output_dirs: TestOutputDirectories) -> None:
     """
     Tests plotting of before/after histograms in photometric normalization.
