@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import shutil
 import pytest
+import math
 
 from pathlib import Path
 
@@ -78,7 +79,25 @@ def test_get_metric() -> None:
                         val_metrics_csv=val_metrics_file,
                         metric=ReportedMetrics.AUC_PR)
 
-    assert auc_pr == 0.504
+    assert math.isclose(auc_pr, 13/24, abs_tol=1e-15)
+
+    accuracy = get_metric(test_metrics_csv=test_metrics_file,
+                          val_metrics_csv=val_metrics_file,
+                          metric=ReportedMetrics.Accuracy)
+
+    assert accuracy == 0.5
+
+    fpr = get_metric(test_metrics_csv=test_metrics_file,
+                     val_metrics_csv=val_metrics_file,
+                     metric=ReportedMetrics.FalsePositiveRate)
+
+    assert fpr == 0.5
+
+    fnr = get_metric(test_metrics_csv=test_metrics_file,
+                     val_metrics_csv=val_metrics_file,
+                     metric=ReportedMetrics.FalseNegativeRate)
+
+    assert fnr == 0.5
 
 
 def test_get_correct_and_misclassified_examples() -> None:
