@@ -523,11 +523,6 @@ class InferenceBatch(CTImagesMaskedBatch):
         # convert patches to Torch tensor
         patches = torch.from_numpy(patches).float()
 
-        print('Model device before sending to CPU: ', model.get_devices())
-        # Send the model to CPU
-        device = torch.device('cpu')
-        model = model.to(device)
-
         return SegmentationForwardPass(
             model=model,
             model_config=model_config,
