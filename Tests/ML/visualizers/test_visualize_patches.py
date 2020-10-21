@@ -16,6 +16,7 @@ from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import load_nifti_image
+from InnerEye.ML.utils.ml_util import set_random_seed
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -30,7 +31,7 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
     :param labels_to_boundary: If true, the ground truth labels are placed close to the image boundary, so that
     crops have to be adjusted inwards. If false, ground truth labels are all far from the image boundaries.
     """
-    np.random.seed(0)
+    set_random_seed(0)
     shape = (10, 30, 30)
     foreground_classes = ["fg"]
     class_weights = equally_weighted_classes(foreground_classes)
@@ -87,7 +88,7 @@ def test_visualize_patch_sampling_2d(test_output_dirs: TestOutputDirectories) ->
     Tests if patch sampling works for 2D images.
     :param test_output_dirs:
     """
-    np.random.seed(0)
+    set_random_seed(0)
     shape = (1, 20, 30)
     foreground_classes = ["fg"]
     class_weights = equally_weighted_classes(foreground_classes)
@@ -121,7 +122,7 @@ def test_visualize_patch_sampling_2d(test_output_dirs: TestOutputDirectories) ->
 @pytest.mark.parametrize("dimension", [0, 1, 2])
 def test_plot_overlay(test_output_dirs: TestOutputDirectories,
                       dimension: int) -> None:
-    np.random.seed(0)
+    set_random_seed(0)
     shape = (10, 30, 30)
     image = np.random.rand(*shape).astype(np.float32) * 1000
     mask = np.zeros(shape).flatten()
