@@ -255,8 +255,6 @@ class InferencePipeline(FullImageInferencePipelineBase):
         if mask is not None:
             ml_util.check_size_matches(image_channels, mask, 4, 3, [-1, -2, -3])
 
-        self.model.eval()
-
         # create the dataset for the batch
         batch_dataset = Dataset(index=[patient_id], batch_class=InferenceBatch)
         # setup the pipeline
@@ -515,6 +513,8 @@ class InferenceBatch(CTImagesMaskedBatch):
         :return posteriors: Confidence maps [0,1] for each patch per class
         in format: Patches x Channels x Class x Z x Y x X
         """
+        # perform inference only on one GPU, if available, else GPU
+        device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu')
         model_config = self.get_configs()
 
         # get the model from the pipeline environment
@@ -529,4 +529,4 @@ class InferenceBatch(CTImagesMaskedBatch):
             batch_size=model_config.inference_batch_size,
             optimizer=None,
             in_training_mode=False
-        ).forward_pass_patches(patches=patches, device=device).posteriors
+        ).forward_pass_patches(patches=patches, rank=0, device=device).posteriors
