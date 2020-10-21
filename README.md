@@ -75,6 +75,8 @@ Assuming that your current directory is the repository root folder, on Linux `ba
 export PYTHONPATH=`pwd`
 python InnerEye/ML/runner.py --model=HelloWorld
 ```
+(Note the "backtick" around the `pwd` command, this is not a standard single quote!)
+
 On Windows:
 ```shell script
 set PYTHONPATH=%cd%
