@@ -27,6 +27,7 @@ known_nii_path = full_ml_test_data_path("test_good.nii.gz")
 known_array = np.ones((128, 128, 128))
 bad_nii_path = full_ml_test_data_path("test_bad.nii.gz")
 good_npy_path = full_ml_test_data_path("test_good.npz")
+good_h5_path = full_ml_test_data_path("data.h5")
 
 
 @pytest.mark.parametrize("path", ["", " ", None, "not_exists", ".", "tests/test_io_util.py"])
@@ -64,6 +65,22 @@ def test_load_images_from_dataset_source(
             _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel)
     else:
         _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel)
+
+
+def test_load_images_from_dataset_source_h5() -> None:
+    """
+    Test if images are loaded as expected from channels
+    """
+    sample = io_util.load_images_from_dataset_source(
+        PatientDatasetSource(
+            metadata=PatientMetadata(patient_id="0"),
+            image_channels=[good_h5_path],
+            ground_truth_channels=[good_h5_path],
+            mask_channel=None
+        )
+    )
+
+    assert sample is not None
 
 
 def _test_load_images_from_channels(
