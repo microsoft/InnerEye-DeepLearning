@@ -84,13 +84,20 @@ def visualize_random_crops(sample: Sample,
                                image_type=sample.image.dtype,
                                scale=False)
     heatmap_scaled = heatmap.astype(dtype=np.float) / heatmap.max()
+    # If the incoming image is effectively a 2D image with degenerate Z dimension, then only plot a single
+    # axial thumbnail. Otherwise, plot thumbnails for all 3 dimensions.
     dimensions = list(range(3)) if is_3dim else [0]
+    # Center the 3 thumbnails at one of the points where the heatmap attains a maximum. This should ensure that
+    # the thumbnails are in an area where many of the organs of interest are located.
+    max_heatmap_index = np.unravel_index(heatmap.argmax(), heatmap.shape) if is_3dim else (0, 0, 0)
     for dimension in dimensions:
         scan_with_transparent_overlay(scan=image_channel0,
                                       overlay=heatmap_scaled,
                                       dimension=dimension,
-                                      position=heatmap_scaled.shape[dimension] // 2,
+                                      position=max_heatmap_index[dimension] if is_3dim else 0,
                                       spacing=header.spacing)
+        # Construct a filename that has a dimension suffix if we are generating 3 of them. For 2dim images, skip
+        # the suffix.
         thumbnail = f"{sample.patient_id}_sampled_patches"
         if is_3dim:
             thumbnail += f"_dim{dimension}"

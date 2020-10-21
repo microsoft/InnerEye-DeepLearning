@@ -20,6 +20,7 @@ from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
+@pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
 @pytest.mark.parametrize("labels_to_boundary", [True, False])
 def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
                                   labels_to_boundary: bool) -> None:
@@ -76,7 +77,7 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
     if labels_to_boundary:
         for f in thumbnails:
             # Uncomment this line to update test results
-            (expected_folder / f).write_bytes((output_folder / f).read_bytes())
+            # (expected_folder / f).write_bytes((output_folder / f).read_bytes())
             assert (output_folder / f).read_bytes() == (expected_folder / f).read_bytes()
 
 

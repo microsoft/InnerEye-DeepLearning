@@ -470,8 +470,6 @@ def scan_with_transparent_overlay(scan: np.ndarray,
     :param position: The index in the chosen dimension where the plot should be created.
     :param spacing: The tuple of voxel spacings, in (Z, Y, X) order.
     """
-    vmin = np.min(scan)
-    vmax = np.max(scan)
     if dimension < 0 or dimension > 2:
         raise ValueError(f"Dimension must be in the range [0, 2], but got: {dimension}")
     if position < 0 or position >= scan.shape[dimension]:
@@ -493,7 +491,7 @@ def scan_with_transparent_overlay(scan: np.ndarray,
     else:
         aspect = spacing[0] / spacing[1]
     origin = 'upper' if dimension == 0 else 'lower'
-    ax.imshow(scan_sliced, vmin=vmin, vmax=vmax, cmap='Greys_r', aspect=aspect, origin=origin)
+    ax.imshow(scan_sliced, vmin=np.min(scan), vmax=np.max(scan), cmap='Greys_r', aspect=aspect, origin=origin)
     red = np.ones_like(overlay_sliced)
     ax.set_xticks([])
     ax.set_yticks([])
