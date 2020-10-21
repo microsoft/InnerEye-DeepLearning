@@ -108,8 +108,8 @@ def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str,
     return files
 
 
-def create_file_list_for_segmentation_recovery_run(test_config_ensemble: PlotCrossValidationConfig) -> List[
-    RunResultFiles]:
+def create_file_list_for_segmentation_recovery_run(test_config_ensemble: PlotCrossValidationConfig) -> \
+        List[RunResultFiles]:
     return create_run_result_file_list(config=test_config_ensemble,
                                        folder="master_1570466706163110")
 
