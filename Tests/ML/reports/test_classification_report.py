@@ -2,7 +2,8 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import numpy as np
+import shutil
+import pytest
 
 from pathlib import Path
 
@@ -27,7 +28,7 @@ def test_generate_classification_report(test_output_dirs: TestOutputDirectories)
     assert result_html.suffix == ".html"
 
 
-def test_get_results():
+def test_get_results() -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
 
@@ -37,7 +38,27 @@ def test_get_results():
     assert all([results.model_outputs[i] == op for i, op in enumerate([0.0, 0.2, 0.4, 0.6, 0.8, 1.0] * 2)])
 
 
-def test_get_metric():
+def test_functions_with_invalid_csv() -> None:
+    reports_folder = Path(__file__).parent
+    test_metrics_file = reports_folder / "test_metrics_classification.csv"
+    val_metrics_file = reports_folder / "val_metrics_classification.csv"
+    invalid_metrics_file = reports_folder / "invalid_metrics_classification.csv"
+    shutil.copyfile(test_metrics_file, invalid_metrics_file)
+    # Duplicate a subject
+    with open(invalid_metrics_file, "a") as file:
+        file.write("Default,1,5,1.0,1,-1,Test")
+
+    with pytest.raises(ValueError):
+        get_results(invalid_metrics_file)
+
+    with pytest.raises(ValueError):
+        get_correct_and_misclassified_examples(invalid_metrics_file, test_metrics_file)
+
+    with pytest.raises(ValueError):
+        get_correct_and_misclassified_examples(val_metrics_file, invalid_metrics_file)
+
+
+def test_get_metric() -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
     val_metrics_file = reports_folder / "val_metrics_classification.csv"
@@ -60,7 +81,7 @@ def test_get_metric():
     assert auc_pr == 0.504
 
 
-def test_get_correct_and_misclassified_examples():
+def test_get_correct_and_misclassified_examples() -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
     val_metrics_file = reports_folder / "val_metrics_classification.csv"
@@ -81,7 +102,7 @@ def test_get_correct_and_misclassified_examples():
     assert all([i in false_negatives for i in [0, 1, 2]])
 
 
-def test_get_k_best_and_worst_performing():
+def test_get_k_best_and_worst_performing() -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
     val_metrics_file = reports_folder / "val_metrics_classification.csv"

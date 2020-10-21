@@ -34,25 +34,45 @@ class ReportedMetrics(Enum):
 
 
 def get_results(csv: Path) -> ScalarInferencePipelineBase.Result:
+    """
+    Given a CSV file, reads the subject IDs, ground truth labels and model outputs for each subject.
+    NOTE: This CSV file should have results from a single epoch, as in the metrics files written during inference, not
+    like the ones written while training.
+    """
     df = pd.read_csv(csv)
     labels = df[LoggingColumns.Label.value]
     model_outputs = df[LoggingColumns.ModelOutput.value]
     subjects = df[LoggingColumns.Patient.value]
+    if not subjects.is_unique:
+        raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
+                         f"in column {LoggingColumns.Patient.value} in the csv file.")
     return ScalarInferencePipelineBase.Result(subject_ids=subjects, labels=labels, model_outputs=model_outputs)
 
 
-def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes):
+def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, print_coords: bool = False) -> None:
+    """
+    Plot a curve given the x and y values of each point.
+    :param x_values: x coordinate of each data point to be plotted
+    :param y_values: y coordinate of each data point to be plotted
+    :param title: Title of the plot
+    :param ax: matplotlib.axes.Axes object for plotting
+    :param print_coords: If true, prints out the coordinates of each point on the graph.
+    """
     ax.plot(x_values, y_values)
     ax.set_xlim(left=0, right=1)
     ax.set_ylim(bottom=0, top=1)
     ax.set_title(title)
 
-    # write values of points
-    for x, y in zip (x_values, y_values):
-        ax.annotate(f"{x:0.3f}, {y:0.3f}", xy = (x, y), xytext=(15, 0), textcoords='offset points')
+    if print_coords:
+        # write values of points
+        for x, y in zip (x_values, y_values):
+            ax.annotate(f"{x:0.3f}, {y:0.3f}", xy = (x, y), xytext=(15, 0), textcoords='offset points')
 
 
-def plot_pr_and_roc_curves_from_csv(metrics_csv: Path):
+def plot_pr_and_roc_curves_from_csv(metrics_csv: Path) -> None:
+    """
+    Given a csv file, read the predicted values and ground truth labels and plot the ROC and PR curves.
+    """
     print_header("ROC and PR curves", level=3)
     results = get_results(metrics_csv)
 
@@ -66,7 +86,10 @@ def plot_pr_and_roc_curves_from_csv(metrics_csv: Path):
     plt.show()
 
 
-def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMetrics):
+def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMetrics) -> float:
+    """
+    Given a csv file, read the predicted values and ground truth labels and return the specified metric.
+    """
     results_val = get_results(val_metrics_csv)
     fpr, tpr, thresholds = roc_curve(results_val.labels, results_val.model_outputs)
     optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
@@ -87,31 +110,50 @@ def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMe
 
 
 def print_metrics(val_metrics_csv: Path, test_metrics_csv: Path):
+    """
+    Given a csv file, read the predicted values and ground truth labels and print out some metrics.
+    """
     print_header("Test metrics", level=3)
     optimal_threshold = get_metric(val_metrics_csv=val_metrics_csv,
                                    test_metrics_csv=test_metrics_csv,
                                    metric=ReportedMetrics.OptimalThreshold)
 
-    print(f"Optimal threshold: {optimal_threshold}")
+    print_header(f"Optimal threshold: {optimal_threshold: .4f}", level=0)
 
     roc_auc = get_metric(val_metrics_csv=val_metrics_csv,
                                    test_metrics_csv=test_metrics_csv,
                                    metric=ReportedMetrics.AUC_ROC)
-    print(f"AUC PR: {roc_auc}")
+    print_header(f"Area under ROC Curve: {roc_auc:.4f}", level=0)
 
     pr_auc = get_metric(val_metrics_csv=val_metrics_csv,
                                    test_metrics_csv=test_metrics_csv,
                                    metric=ReportedMetrics.AUC_PR)
-    print(f"AUC PR: {pr_auc}")
+    print_header(f"Area under PR Curve: {pr_auc:.4f}", level=0)
 
 
 def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path):
+    """
+    Given the paths to the metrics files for the validation and test sets, get a list of true positives,
+    false positives, false negatives and true negatives.
+    The threshold for classification is obtained by looking at the validation file, and applied to the test set to get
+    label predictions.
+    """
     df_val = pd.read_csv(val_metrics_csv)
+
+    if not df_val[LoggingColumns.Patient.value].is_unique:
+        raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
+                         f"in column {LoggingColumns.Patient.value} in the csv file.")
+
     fpr, tpr, thresholds = roc_curve(df_val[LoggingColumns.Label.value], df_val[LoggingColumns.ModelOutput.value])
     optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
     optimal_threshold = thresholds[optimal_idx]
 
     df_test = pd.read_csv(test_metrics_csv)
+
+    if not df_test[LoggingColumns.Patient.value].is_unique:
+        raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
+                         f"in column {LoggingColumns.Patient.value} in the csv file.")
+
     df_test["predicted"] = df_test.apply(lambda x: int(x[LoggingColumns.ModelOutput.value] >= optimal_threshold), axis=1)
 
     true_positives = df_test[(df_test["predicted"] == 1) & (df_test[LoggingColumns.Label.value] == 1)]
@@ -126,6 +168,10 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
 
 
 def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int):
+    """
+    Get the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
+    top "k" worst predictions (i.e. misclassifications where the model was the most confident).
+    """
     results = get_correct_and_misclassified_examples(val_metrics_csv=val_metrics_csv,
                                                      test_metrics_csv=test_metrics_csv)
 
@@ -142,19 +188,26 @@ def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pat
 
 
 def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int):
-
+    """
+    Print the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
+    top "k" worst predictions (i.e. misclassifications where the model was the most confident).
+    """
     results = get_k_best_and_worst_performing(val_metrics_csv=val_metrics_csv,
                                               test_metrics_csv=test_metrics_csv,
                                               k=k)
 
     print_header(f"Top {k} false positives")
-    print(results.false_positives[LoggingColumns.Patient.value])
+    for index, subject in enumerate(results.false_positives[LoggingColumns.Patient.value]):
+        print_header(f"{index}. ID {subject}", level=0)
 
     print_header(f"Top {k} false negatives")
-    print(results.false_negatives[LoggingColumns.Patient.value])
+    for index, subject in enumerate(results.false_negatives[LoggingColumns.Patient.value]):
+        print_header(f"{index}. ID {subject}", level=0)
 
     print_header(f"Top {k} true positives")
-    print(results.true_positives[LoggingColumns.Patient.value])
+    for index, subject in enumerate(results.true_positives[LoggingColumns.Patient.value]):
+        print_header(f"{index}. ID {subject}", level=0)
 
     print_header(f"Top {k} true negatives")
-    print(results.true_negatives[LoggingColumns.Patient.value])
+    for index, subject in enumerate(results.true_negatives[LoggingColumns.Patient.value]):
+        print_header(f"{index}. ID {subject}", level=0)
