@@ -484,12 +484,15 @@ def scan_with_transparent_overlay(scan: np.ndarray,
     scan_sliced = scan[slicers[0], slicers[1], slicers[2]].squeeze(axis=dimension)
     overlay_sliced = overlay[slicers[0], slicers[1], slicers[2]].squeeze(axis=dimension)
     ax = plt.gca()
+    # Account for non-square pixel sizes. Spacing usually comes from Nifti headers.
     if dimension == 0:
         aspect = spacing[1] / spacing[2]
     elif dimension == 1:
         aspect = spacing[0] / spacing[2]
     else:
         aspect = spacing[0] / spacing[1]
+    # This ensures that the coronal and sagittal plot are showing with the head up. For the axial plot (dimension == 0)
+    # the default setting of imshow with origin 'upper' is OK.
     origin = 'upper' if dimension == 0 else 'lower'
     ax.imshow(scan_sliced, vmin=np.min(scan), vmax=np.max(scan), cmap='Greys_r', aspect=aspect, origin=origin)
     red = np.ones_like(overlay_sliced)
