@@ -447,8 +447,9 @@ class SegmentationModelBase(ModelConfigBase):
                                                         "non-deterministic pull request build failures.")
     show_patch_sampling: int = param.Integer(10, bounds=(0, None),
                                              doc="Number of patients from the training set for which the effect of"
-                                                 "patch sampling will be shown. Nifti images and thumbnails will be "
-                                                 "written for each of the first N subjects in the training set.")
+                                                 "patch sampling will be shown. Nifti images and thumbnails for each"
+                                                 "of the first N subjects in the training set will be "
+                                                 "written to the outputs folder.")
 
     def __init__(self, center_size: Optional[TupleInt3] = None,
                  inference_stride_size: Optional[TupleInt3] = None,

@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -119,3 +120,11 @@ def boxplot_per_structure(df: DataFrame, column_name: str,
     plt.ylabel(column_name)
     plt.xticks(rotation=75)
     plt.grid()
+
+
+def show_random_crops_images_in_table(folder: Path) -> None:
+    """
+    Creates a table that contains the visualizations of random crop sampling.
+    :param folder:
+    :return:
+    """

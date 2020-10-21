@@ -91,6 +91,7 @@ Detailed instructions, including setup in Azure, are here:
 1. [Building models in Azure ML](docs/building_models.md)
 1. [Sample Segmentation and Classification tasks](docs/sample_tasks.md)
 1. [Debugging and monitoring models](docs/debugging_and_monitoring.md)
+1. [Model diagnostics](docs/model_diagnostics.md)
 
 ## More information
 
