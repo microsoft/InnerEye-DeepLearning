@@ -26,7 +26,7 @@ from Tests.fixed_paths_for_tests import full_ml_test_data_path
 known_nii_path = full_ml_test_data_path("test_good.nii.gz")
 known_array = np.ones((128, 128, 128))
 bad_nii_path = full_ml_test_data_path("test_bad.nii.gz")
-good_npy_path = full_ml_test_data_path("test_good.npy")
+good_npy_path = full_ml_test_data_path("test_good.npz")
 
 
 @pytest.mark.parametrize("path", ["", " ", None, "not_exists", ".", "tests/test_io_util.py"])

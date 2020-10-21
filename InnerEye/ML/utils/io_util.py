@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Generic, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+
+from numpy.lib.npyio import NpzFile
 from skimage.transform import resize
 
 import SimpleITK as sitk
@@ -68,7 +70,8 @@ class NumpyFile(Enum):
     """
     Supported file extensions that indicate Numpy data.
     """
-    Numpy = ".npy"
+    NUMPY = ".npy"
+    NUMPY_COMPRESSED = ".npz"
 
 
 class HDF5FileType(Enum):
@@ -213,6 +216,10 @@ def load_numpy_image(path: PathOrString, image_type: Optional[Type]) -> np.ndarr
     :param image_type: type of array
     """
     image = np.load(path)
+    if type(image) is NpzFile:
+        keys = list(image.keys())
+        assert len(keys) == 1
+        image = image[keys[0]]
     if image_type is not None:
         image = image.astype(dtype=image_type)
     return image
