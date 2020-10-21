@@ -34,7 +34,7 @@ class PatientMetadata:
     tags_str: Optional[str] = None
 
     @staticmethod
-    def from_dataframe(dataframe: pd.DataFrame, patient_id: IntOrString) -> PatientMetadata:
+    def from_dataframe(dataframe: pd.DataFrame, patient_id: str) -> PatientMetadata:
         """
         Extracts the patient metadata columns from a dataframe that represents a full dataset.
         For each of the columns "seriesId", "instituionId" and "tags", the distinct values for the given patient are

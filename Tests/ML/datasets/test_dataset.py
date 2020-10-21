@@ -382,7 +382,7 @@ def test_patient_metadata() -> None:
     """
     file = full_ml_test_data_path("dataset_with_full_header.csv")
     df = pd.read_csv(file)
-    subject = 511
+    subject = "511"
     expected_institution = "85aaee5f-f5f3-4eae-b6cd-26b0070156d8"
     expected_series = "22ef9c5e149650f9cb241d1aa622ad1731b91d1a1df770c05541228b47845ae4"
     expected_tags = "FOO;BAR"
@@ -408,7 +408,7 @@ def test_min_patient_metadata() -> None:
     """
     df = pd.read_csv(full_ml_test_data_path("dataset.csv"))
     df = df.drop(columns="institutionId")
-    patient_id = 1
+    patient_id = "1"
     metadata = PatientMetadata.from_dataframe(df, patient_id)
     assert metadata.patient_id == patient_id
     assert metadata.series is None
@@ -418,8 +418,8 @@ def test_min_patient_metadata() -> None:
 
 def test_get_all_metadata(default_config: ModelConfigBase) -> None:
     df = default_config.get_dataset_splits().train
-    assert PatientMetadata.from_dataframe(df, 1) == PatientMetadata(patient_id='1', institution="1")
-    assert PatientMetadata.from_dataframe(df, 2) == PatientMetadata(patient_id='2', institution="2")
+    assert PatientMetadata.from_dataframe(df, '1') == PatientMetadata(patient_id='1', institution="1")
+    assert PatientMetadata.from_dataframe(df, '2') == PatientMetadata(patient_id='2', institution="2")
 
 
 def test_sample_metadata_field() -> None:

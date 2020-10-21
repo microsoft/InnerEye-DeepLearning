@@ -416,7 +416,7 @@ def load_images_from_dataset_source(dataset_source: PatientDatasetSource) -> Sam
                                      load_segmentation=True)
         header = get_unit_image_header()  # TODO: We should be reading spacing from hdf5 for now identity
         metadata = PatientMetadata(patient_id=hdf5_object.patient_id, image_header=header)
-        image = hdf5_object.volume
+        image = np.expand_dims(hdf5_object.volume, axis=0)  # Add channels
         labels = hdf5_object.segmentation
         mask = np.ones_like(image, ImageDataType.MASK.value)
     else:
