@@ -58,9 +58,13 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
     assert f1.is_file()
     f2 = output_folder / "123_sampled_patches.nii.gz"
     assert f2.is_file()
-    assert (output_folder / "123_sampled_patches_dim0.png").is_file()
-    assert (output_folder / "123_sampled_patches_dim1.png").is_file()
-    assert (output_folder / "123_sampled_patches_dim2.png").is_file()
+    thumbnails = [
+        "123_sampled_patches_dim0.png",
+        "123_sampled_patches_dim1.png",
+        "123_sampled_patches_dim2.png",
+    ]
+    for f in thumbnails:
+        assert (output_folder / f).is_file()
 
     expected_folder = full_ml_test_data_path("patch_sampling")
     expected = expected_folder / ("sampled_to_boundary.nii.gz" if labels_to_boundary else "sampled_center.nii.gz")
@@ -69,6 +73,11 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
     expected_image = io_util.load_nifti_image(expected)
     actual_image = io_util.load_nifti_image(f2)
     np.allclose(expected_image.image, actual_image.image)
+    if labels_to_boundary:
+        for f in thumbnails:
+            # Uncomment this line to update test results
+            (expected_folder / f).write_bytes((output_folder / f).read_bytes())
+            assert (output_folder / f).read_bytes() == (expected_folder / f).read_bytes()
 
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
