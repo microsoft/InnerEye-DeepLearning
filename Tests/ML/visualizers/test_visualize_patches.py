@@ -112,7 +112,7 @@ def test_visualize_patch_sampling_2d(test_output_dirs: TestOutputDirectories) ->
     assert len(list(output_folder.rglob("*.png"))) == 1
     actual_file = output_folder / "123_sampled_patches.png"
     assert actual_file.is_file()
-    expected = full_ml_test_data_path("patch_sampling") / f"sampling_2d.png"
+    expected = full_ml_test_data_path("patch_sampling") / "sampling_2d.png"
     # To update the stored results, uncomment this line:
     # expected.write_bytes(actual_file.read_bytes())
     assert actual_file.read_bytes() == expected.read_bytes()

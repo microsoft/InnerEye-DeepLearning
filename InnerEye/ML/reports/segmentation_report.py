@@ -120,11 +120,3 @@ def boxplot_per_structure(df: DataFrame, column_name: str,
     plt.ylabel(column_name)
     plt.xticks(rotation=75)
     plt.grid()
-
-
-def show_random_crops_images_in_table(folder: Path) -> None:
-    """
-    Creates a table that contains the visualizations of random crop sampling.
-    :param folder:
-    :return:
-    """
