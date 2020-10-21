@@ -255,6 +255,8 @@ class InferencePipeline(FullImageInferencePipelineBase):
         if mask is not None:
             ml_util.check_size_matches(image_channels, mask, 4, 3, [-1, -2, -3])
 
+        self.model.eval()
+
         # create the dataset for the batch
         batch_dataset = Dataset(index=[patient_id], batch_class=InferenceBatch)
         # setup the pipeline
@@ -521,8 +523,9 @@ class InferenceBatch(CTImagesMaskedBatch):
         # convert patches to Torch tensor
         patches = torch.from_numpy(patches).float()
 
-        # Send the model to GPU if available
-        device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu')
+        print('Model device before sending to CPU: ', model.get_devices())
+        # Send the model to CPU
+        device = torch.device('cpu')
         model = model.to(device)
 
         return SegmentationForwardPass(
@@ -531,4 +534,4 @@ class InferenceBatch(CTImagesMaskedBatch):
             batch_size=model_config.inference_batch_size,
             optimizer=None,
             in_training_mode=False
-        ).forward_pass_patches(patches=patches).posteriors
+        ).forward_pass_patches(patches=patches, device=device).posteriors

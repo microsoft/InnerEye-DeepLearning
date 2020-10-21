@@ -156,8 +156,6 @@ class SegmentationForwardPass:
                       labels: torch.Tensor = None,
                       device: Optional[torch.device] = None) -> SegmentationForwardPass.Result:
 
-        print(f"Device: {device}. Model on: {self.model.get_devices()}")
-
         # ensure that we always have float tensors as the model is defined over floats
         # and transfer the tensors to the GPU if possible before the forward pass
         patches = self.config.get_gpu_tensor_if_possible(patches, device=device)
