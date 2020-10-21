@@ -46,7 +46,7 @@ def test_nii_load_image() -> None:
     assert np.array_equal(image_with_header.image, known_array)
 
 
-@pytest.mark.parametrize("metadata", [None, PatientMetadata(patient_id=0), PatientMetadata(patient_id=0)])
+@pytest.mark.parametrize("metadata", [None, PatientMetadata(patient_id="0"), PatientMetadata(patient_id="0")])
 @pytest.mark.parametrize("image_channel", [None, known_nii_path, good_npy_path])
 @pytest.mark.parametrize("ground_truth_channel", [None, known_nii_path, good_npy_path])
 @pytest.mark.parametrize("mask_channel", [None, known_nii_path, good_npy_path])
