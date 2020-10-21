@@ -65,32 +65,37 @@ def visualize_random_crops(sample: Sample,
                                                  crop_size=config.crop_size,
                                                  class_weights=config.class_weights)
         heatmap[slicers[0], slicers[1], slicers[2]] += 1
-    ct_output_name = str(output_folder / f"{sample.patient_id}_ct.nii.gz")
-    heatmap_output_name = str(output_folder / f"{sample.patient_id}_sampled_patches.nii.gz")
+    is_3dim = heatmap.shape[0] > 1
     header = sample.metadata.image_header
     if not header:
         logging.warning(f"No image header found for patient {sample.patient_id}. Using default header.")
         header = get_unit_image_header()
-    io_util.store_as_nifti(image=heatmap,
-                           header=header,
-                           file_name=heatmap_output_name,
-                           image_type=heatmap.dtype,
-                           scale=False)
-    io_util.store_as_nifti(image=image_channel0,
-                           header=header,
-                           file_name=ct_output_name,
-                           image_type=sample.image.dtype,
-                           scale=False)
-    heatmap_scaled = heatmap.astype(dtype=np.float) / repeats
-    dimensions = list(range(3)) if heatmap.shape[0] > 1 else [0]
+    if is_3dim:
+        ct_output_name = str(output_folder / f"{sample.patient_id}_ct.nii.gz")
+        heatmap_output_name = str(output_folder / f"{sample.patient_id}_sampled_patches.nii.gz")
+        io_util.store_as_nifti(image=heatmap,
+                               header=header,
+                               file_name=heatmap_output_name,
+                               image_type=heatmap.dtype,
+                               scale=False)
+        io_util.store_as_nifti(image=image_channel0,
+                               header=header,
+                               file_name=ct_output_name,
+                               image_type=sample.image.dtype,
+                               scale=False)
+    heatmap_scaled = heatmap.astype(dtype=np.float) / heatmap.max()
+    dimensions = list(range(3)) if is_3dim else [0]
     for dimension in dimensions:
         scan_with_transparent_overlay(scan=image_channel0,
                                       overlay=heatmap_scaled,
                                       dimension=dimension,
                                       position=heatmap_scaled.shape[dimension] // 2,
                                       spacing=header.spacing)
-        thumbnail = output_folder / f"{sample.patient_id}_sampled_patches_dim{dimension}.png"
-        resize_and_save(width_inch=5, height_inch=5, filename=thumbnail)
+        thumbnail = f"{sample.patient_id}_sampled_patches"
+        if is_3dim:
+            thumbnail += f"_dim{dimension}"
+        thumbnail += ".png"
+        resize_and_save(width_inch=5, height_inch=5, filename=output_folder / thumbnail)
 
 
 def visualize_random_crops_for_dataset(config: DeepLearningConfig,

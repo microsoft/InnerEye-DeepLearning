@@ -48,7 +48,6 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
     labels[0] = 1 - labels[1]
     output_folder = Path(test_output_dirs.root_dir)
     image_header = get_unit_image_header()
-    io_util.store_as_ubyte_nifti(labels[1], image_header, str(output_folder / "labels.nii.gz"))
     sample = Sample(image=image,
                     mask=mask,
                     labels=labels,
@@ -70,6 +69,42 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
     expected_image = io_util.load_nifti_image(expected)
     actual_image = io_util.load_nifti_image(f2)
     np.allclose(expected_image.image, actual_image.image)
+
+
+@pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
+def test_visualize_patch_sampling_2d(test_output_dirs: TestOutputDirectories) -> None:
+    """
+    Tests if patch sampling works for 2D images.
+    :param test_output_dirs:
+    """
+    np.random.seed(0)
+    shape = (1, 20, 30)
+    foreground_classes = ["fg"]
+    class_weights = equally_weighted_classes(foreground_classes)
+    config = SegmentationModelBase(should_validate=False,
+                                   crop_size=(1, 5, 10),
+                                   class_weights=class_weights)
+    image = np.random.rand(1, *shape).astype(np.float32) * 1000
+    mask = np.ones(shape)
+    labels = np.zeros((len(class_weights),) + shape)
+    labels[1, 0, 8:12, 5:25] = 1
+    labels[0] = 1 - labels[1]
+    output_folder = Path(test_output_dirs.root_dir)
+    image_header = None
+    sample = Sample(image=image,
+                    mask=mask,
+                    labels=labels,
+                    metadata=PatientMetadata(patient_id=123,
+                                             image_header=image_header))
+    visualize_random_crops(sample, config, output_folder=output_folder)
+    assert len(list(output_folder.rglob("*.nii.gz"))) == 0
+    assert len(list(output_folder.rglob("*.png"))) == 1
+    actual_file = output_folder / "123_sampled_patches.png"
+    assert actual_file.is_file()
+    expected = full_ml_test_data_path("patch_sampling") / f"sampling_2d.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(actual_file.read_bytes())
+    assert actual_file.read_bytes() == expected.read_bytes()
 
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
