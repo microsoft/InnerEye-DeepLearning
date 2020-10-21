@@ -164,6 +164,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     for sample_index, sample in enumerate(ds, 1):
         logging.info(f"Predicting for image {sample_index} of {len(ds)}...")
         sample = Sample.from_dict(sample=sample)
+        print('Sample image is on device: ', sample.image.device)
         inference_result = inference_pipeline.predict_and_post_process_whole_image(
             image_channels=sample.image,
             mask=sample.mask,
