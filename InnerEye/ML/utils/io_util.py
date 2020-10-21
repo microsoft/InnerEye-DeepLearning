@@ -209,7 +209,7 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
     return ImageWithHeader(image=img, header=header)
 
 
-def load_numpy_image(path: PathOrString, image_type: Optional[Type]) -> np.ndarray:
+def load_numpy_image(path: PathOrString, image_type: Optional[Type] = None) -> np.ndarray:
     """
     Loads an array from a numpy file.
     :param path: The path to the numpy file.
