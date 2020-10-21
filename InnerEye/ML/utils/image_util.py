@@ -44,6 +44,17 @@ class ImageHeader:
         common_util.check_properties_are_not_none(self)
 
 
+def get_unit_image_header(spacing: Optional[TupleFloat3] = None) -> ImageHeader:
+    """
+    Creates an ImageHeader object with the origin at 0, and unit direction. The spacing is set to the argument,
+    defaulting to (1, 1, 1) if not provided.
+    :param spacing: The image spacing, as a (Z, Y, X) tuple.
+    """
+    if not spacing:
+        spacing = (1, 1, 1)
+    return ImageHeader(origin=(0, 0, 0), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=spacing)
+
+
 class ImageDataType(Enum):
     """
     Data type for medical image data (e.g. masks and labels)

@@ -21,12 +21,14 @@ from InnerEye.ML.config import DEFAULT_POSTERIOR_VALUE_RANGE, PhotometricNormali
     SegmentationModelBase
 from InnerEye.ML.dataset.sample import PatientDatasetSource, Sample
 from InnerEye.ML.utils.hdf5_util import HDF5Object
-from InnerEye.ML.utils.image_util import ImageDataType, ImageHeader, check_array_range, get_center_crop, is_binary_array
+from InnerEye.ML.utils.image_util import ImageDataType, ImageHeader, check_array_range, get_center_crop, \
+    get_unit_image_header, is_binary_array
 from InnerEye.ML.utils.transforms import LinearTransform, get_range_for_window_level
 
 RESULTS_POSTERIOR_FILE_NAME_PREFIX = "posterior_"
 RESULTS_SEGMENTATION_FILE_NAME_PREFIX = "segmentation"
 TensorOrNumpyArray = TypeVar('TensorOrNumpyArray', torch.Tensor, np.ndarray)
+
 
 class PhotometricInterpretation(Enum):
     MONOCHROME1 = "MONOCHROME1"
@@ -204,12 +206,15 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
     return ImageWithHeader(image=img, header=header)
 
 
-def load_numpy_image(path: PathOrString) -> np.ndarray:
+def load_numpy_image(path: PathOrString, image_type: Optional[Type]) -> np.ndarray:
     """
     Loads an array from a numpy file.
     :param path: The path to the numpy file.
+    :param image_type: type of array
     """
     image = np.load(path)
+    if image_type is not None:
+        image = image.astype(dtype=image_type)
     return image
 
 
@@ -230,7 +235,7 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
         bits_stored = int(reader.GetMetaData(DicomTags.BitsStored.value))
         pixel_repr = int(reader.GetMetaData(DicomTags.PixelRepresentation.value))
         if pixel_repr == 0:  # unsigned
-            pixels = 2**bits_stored - 1 - pixels
+            pixels = 2 ** bits_stored - 1 - pixels
         elif pixel_repr == 1:  # signed
             pixels = -1 * (pixels + 1)
         else:
@@ -272,9 +277,9 @@ class ImageAndSegmentations(Generic[TensorOrNumpyArray]):
 
 
 def load_images_and_stack(files: Iterable[Path],
-                             load_segmentation: bool,
-                             center_crop_size: Optional[TupleInt3] = None,
-                             image_size: Optional[TupleInt3] = None) -> ImageAndSegmentations[torch.Tensor]:
+                          load_segmentation: bool,
+                          center_crop_size: Optional[TupleInt3] = None,
+                          image_size: Optional[TupleInt3] = None) -> ImageAndSegmentations[torch.Tensor]:
     """
     Attempts to load a set of files, all of which are expected to contain 3D images of the same size (Z, X, Y)
     They are all stacked along dimension 0 and returned as a torch tensor of size (B, Z, X, Y)
@@ -363,7 +368,7 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource) -> np.
     :return A label sample object containing ground-truth information.
     """
     labels = np.stack(
-        [load_nifti_image(gt, ImageDataType.SEGMENTATION.value).image for gt in dataset_source.ground_truth_channels])
+        [load_image(gt, ImageDataType.SEGMENTATION.value).image for gt in dataset_source.ground_truth_channels])
 
     # Add the background binary map
     background = np.ones_like(labels[0])
@@ -371,6 +376,20 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource) -> np.
         background[labels[c] == 1] = 0
     background = background[None, ...]
     return np.vstack((background, labels))
+
+
+def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageWithHeader:
+    """
+    Loads an image with extension numpy or nifti
+    :param path: The path to the file
+    :param image_type: The type of the image
+    """
+    if is_nifti_file_path(path):
+        return load_nifti_image(path, image_type)
+    elif is_numpy_file_path(path):
+        image = load_numpy_image(path, image_type)
+        header = get_unit_image_header()
+        return ImageWithHeader(image, header)
 
 
 def load_images_from_dataset_source(dataset_source: PatientDatasetSource) -> Sample:
@@ -381,11 +400,11 @@ def load_images_from_dataset_source(dataset_source: PatientDatasetSource) -> Sam
     :param dataset_source: The dataset source for which channels are to be loaded into memory.
     :return: a Sample object with the loaded volume (image), labels, mask and metadata.
     """
-    images = [load_nifti_image(channel, ImageDataType.IMAGE.value) for channel in dataset_source.image_channels]
+    images = [load_image(channel, ImageDataType.IMAGE.value) for channel in dataset_source.image_channels]
     image = np.stack([image.image for image in images])
 
     mask = np.ones_like(image[0], ImageDataType.MASK.value) if dataset_source.mask_channel is None \
-        else load_nifti_image(dataset_source.mask_channel, ImageDataType.MASK.value).image
+        else load_image(dataset_source.mask_channel, ImageDataType.MASK.value).image
 
     # create raw sample to return
     metadata = copy(dataset_source.metadata)
