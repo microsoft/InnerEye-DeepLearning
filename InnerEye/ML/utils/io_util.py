@@ -21,7 +21,7 @@ from InnerEye.Common import common_util
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat3, TupleInt3
 from InnerEye.ML.config import DEFAULT_POSTERIOR_VALUE_RANGE, PhotometricNormalizationMethod, \
     SegmentationModelBase
-from InnerEye.ML.dataset.sample import PatientDatasetSource, Sample
+from InnerEye.ML.dataset.sample import PatientDatasetSource, PatientMetadata, Sample
 from InnerEye.ML.utils.hdf5_util import HDF5Object
 from InnerEye.ML.utils.image_util import ImageDataType, ImageHeader, check_array_range, get_center_crop, \
     get_unit_image_header, is_binary_array
@@ -407,18 +407,29 @@ def load_images_from_dataset_source(dataset_source: PatientDatasetSource) -> Sam
     :param dataset_source: The dataset source for which channels are to be loaded into memory.
     :return: a Sample object with the loaded volume (image), labels, mask and metadata.
     """
-    images = [load_image(channel, ImageDataType.IMAGE.value) for channel in dataset_source.image_channels]
-    image = np.stack([image.image for image in images])
+    dataset_source.image_channels
+    if len(dataset_source.image_channels) == 1 and is_hdf5_file_path(dataset_source.image_channels[0]):
+        path = dataset_source.image_channels[0]
+        hdf5_object = load_hdf5_file(path_str=path,
+                                     load_segmentation=True)
+        metadata = PatientMetadata(patient_id=hdf5_object.patient_id)
+        header = get_unit_image_header()  # TODO: We should be reading spacing from hdf5 for now identity
+        image = ImageWithHeader(hdf5_object.volume, header)
+        labels = ImageWithHeader(hdf5_object.segmentation, header)
+    else:
+        images = [load_image(channel, ImageDataType.IMAGE.value) for channel in dataset_source.image_channels]
+        image = np.stack([image.image for image in images])
 
-    mask = np.ones_like(image[0], ImageDataType.MASK.value) if dataset_source.mask_channel is None \
-        else load_image(dataset_source.mask_channel, ImageDataType.MASK.value).image
+        mask = np.ones_like(image[0], ImageDataType.MASK.value) if dataset_source.mask_channel is None \
+            else load_image(dataset_source.mask_channel, ImageDataType.MASK.value).image
 
-    # create raw sample to return
-    metadata = copy(dataset_source.metadata)
-    # noinspection PyTypeHints
-    metadata.image_header = images[0].header
+        # create raw sample to return
+        metadata = copy(dataset_source.metadata)
+        metadata.image_header = images[0].header
+        labels = load_labels_from_dataset_source(dataset_source)
+
     return Sample(image=image,
-                  labels=load_labels_from_dataset_source(dataset_source),
+                  labels=labels,
                   mask=mask,
                   metadata=metadata)
 
