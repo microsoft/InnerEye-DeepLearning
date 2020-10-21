@@ -27,7 +27,7 @@ class PatientMetadata:
     """
     Patient metadata
     """
-    patient_id: int
+    patient_id: str
     image_header: Optional[ImageHeader] = None
     institution: Optional[str] = None
     series: Optional[str] = None
@@ -61,7 +61,7 @@ class PatientMetadata:
         if tags is not None:
             tags = tags.lstrip("[").rstrip("]")
         return PatientMetadata(
-            patient_id=int(patient_id),
+            patient_id=patient_id,
             institution=get_single_value(CSV_INSTITUTION_HEADER),
             series=get_single_value(CSV_SERIES_HEADER),
             tags_str=tags

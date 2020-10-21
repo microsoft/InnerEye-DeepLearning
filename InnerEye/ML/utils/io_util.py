@@ -398,6 +398,8 @@ def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageW
         header = get_unit_image_header()
         return ImageWithHeader(image, header)
 
+    raise ValueError(f"Invalid file type {path}")
+
 
 def load_images_from_dataset_source(dataset_source: PatientDatasetSource) -> Sample:
     """
@@ -412,10 +414,11 @@ def load_images_from_dataset_source(dataset_source: PatientDatasetSource) -> Sam
         path = dataset_source.image_channels[0]
         hdf5_object = load_hdf5_file(path_str=path,
                                      load_segmentation=True)
-        metadata = PatientMetadata(patient_id=hdf5_object.patient_id)
         header = get_unit_image_header()  # TODO: We should be reading spacing from hdf5 for now identity
-        image = ImageWithHeader(hdf5_object.volume, header)
-        labels = ImageWithHeader(hdf5_object.segmentation, header)
+        metadata = PatientMetadata(patient_id=hdf5_object.patient_id, image_header=header)
+        image = hdf5_object.volume
+        labels = hdf5_object.segmentation
+        mask = np.ones_like(image, ImageDataType.MASK.value)
     else:
         images = [load_image(channel, ImageDataType.IMAGE.value) for channel in dataset_source.image_channels]
         image = np.stack([image.image for image in images])

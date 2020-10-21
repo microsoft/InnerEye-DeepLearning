@@ -157,7 +157,7 @@ def assert_tensors_equal(t1: torch.Tensor, t2: Union[torch.Tensor, List], abs: f
     assert v1 == pytest.approx(v2, abs=abs), f"Tensor elements don't match with tolerance {abs}: {v1} != {v2}"
 
 
-DummyPatientMetadata = PatientMetadata(patient_id=42)
+DummyPatientMetadata = PatientMetadata(patient_id='42')
 
 
 def get_model_loader(namespace: Optional[str] = None) -> ModelConfigLoader[SegmentationModelBase]:

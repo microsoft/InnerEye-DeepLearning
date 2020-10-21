@@ -153,7 +153,7 @@ def test_sample(random_image_crop: Any, random_mask_crop: Any, random_label_crop
     Tests that after creating and extracting a sample we obtain the same result
     :return:
     """
-    metadata = PatientMetadata(patient_id=42, institution="foo")
+    metadata = PatientMetadata(patient_id='42', institution="foo")
     sample = Sample(image=random_image_crop,
                     mask=random_mask_crop,
                     labels=random_label_crop,
@@ -418,8 +418,8 @@ def test_min_patient_metadata() -> None:
 
 def test_get_all_metadata(default_config: ModelConfigBase) -> None:
     df = default_config.get_dataset_splits().train
-    assert PatientMetadata.from_dataframe(df, 1) == PatientMetadata(patient_id=1, institution="1")
-    assert PatientMetadata.from_dataframe(df, 2) == PatientMetadata(patient_id=2, institution="2")
+    assert PatientMetadata.from_dataframe(df, 1) == PatientMetadata(patient_id='1', institution="1")
+    assert PatientMetadata.from_dataframe(df, 2) == PatientMetadata(patient_id='2', institution="2")
 
 
 def test_sample_metadata_field() -> None:
@@ -437,7 +437,7 @@ def test_custom_collate() -> None:
     """
     Tests the custom collate function that collates metadata into lists.
     """
-    metadata = PatientMetadata(patient_id=42)
+    metadata = PatientMetadata(patient_id='42')
     foo = "foo"
     d1 = {foo: 1, SAMPLE_METADATA_FIELD: "something"}
     d2 = {foo: 2, SAMPLE_METADATA_FIELD: metadata}
@@ -455,12 +455,12 @@ def test_sample_construct_copy(random_image_crop: Any, random_mask_crop: Any, ra
         image=random_image_crop,
         mask=random_mask_crop,
         labels=random_label_crop,
-        metadata=PatientMetadata(patient_id=1)
+        metadata=PatientMetadata(patient_id='1')
     )
 
     sample_clone = sample.clone_with_overrides()
     assert sample.get_dict() == sample_clone.get_dict()
     assert type(sample) == type(sample_clone)
 
-    sample_clone = sample.clone_with_overrides(metadata=PatientMetadata(patient_id=2))
+    sample_clone = sample.clone_with_overrides(metadata=PatientMetadata(patient_id='2'))
     assert sample_clone.patient_id == 2
