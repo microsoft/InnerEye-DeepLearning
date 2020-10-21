@@ -63,7 +63,7 @@ def print_metrics(val_metrics_csv, test_metrics_csv):
     precision, recall, _ = precision_recall_curve(df_test[LoggingColumns.Label.value],
                                                   df_test[LoggingColumns.ModelOutput.value])
     pr_auc = auc(recall, precision)
-    print(f"AUC PR: {roc_auc}")
+    print(f"AUC PR: {pr_auc}")
 
 
 def get_correct_and_misclassified_examples(val_metrics_csv, test_metrics_csv):
