@@ -547,6 +547,11 @@ class MetricsDict:
             return np.nan
         predictions = self.get_predictions(hue)
         labels = self.get_labels(hue)
+        if predictions.shape[1] == 1 and labels.shape[1] == 1 and len(np.unique(labels)) == 1:
+            # We are dealing with a binary classification problem, but there is only a single class present
+            # in the data: This happens occasionaly in test data. Return 1.0 because in such cases we could
+            # always get a classifier threshold that correctly classifies everything.
+            return 1.0
         precision, recall, _ = precision_recall_curve(labels, predictions)
         return auc(recall, precision)
 
