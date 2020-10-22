@@ -5,6 +5,7 @@
 import logging
 from pathlib import Path
 from typing import Any, List, Optional, Union
+import os
 
 import numpy as np
 import pytest
@@ -205,3 +206,11 @@ def get_default_workspace() -> Workspace:
     :return:
     """
     return get_default_azure_config().get_workspace()
+
+
+def is_running_on_azure() -> bool:
+    """
+    Returns True if the code appears to be running on an Azure build agent, and False otherwise.
+    """
+    # Guess by looking at the AGENT_OS variable, that all Azure hosted agents define.
+    return bool(os.environ.get("AGENT_OS", None))
