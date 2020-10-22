@@ -29,7 +29,6 @@ def test_generate_classification_report(test_output_dirs: TestOutputDirectories)
     current_dir = Path(test_output_dirs.make_sub_dir("test_classification_report"))
     result_file = current_dir / "report.ipynb"
     result_html = generate_classification_notebook(result_notebook=result_file,
-                                                   train_metrics=val_metrics_file,
                                                    val_metrics=val_metrics_file,
                                                    test_metrics=test_metrics_file,
                                                    dataset_csv_path=dataset_csv_path,

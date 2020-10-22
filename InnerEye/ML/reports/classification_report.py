@@ -237,20 +237,24 @@ def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: P
                                               k=k)
 
     print_header(f"Top {k} false positives", level=2)
-    for index, subject in enumerate(results.false_positives[LoggingColumns.Patient.value]):
-        print_header(f"{index+1}. ID {subject}", level=4)
+    for index, (subject, model_output) in enumerate(zip(results.false_positives[LoggingColumns.Patient.value],
+                                                        results.false_positives[LoggingColumns.ModelOutput.value])):
+        print_header(f"{index+1}. ID {subject} Score: {model_output:.5f}", level=4)
 
     print_header(f"Top {k} false negatives", level=2)
-    for index, subject in enumerate(results.false_negatives[LoggingColumns.Patient.value]):
-        print_header(f"{index+1}. ID {subject}", level=4)
+    for index, (subject, model_output) in enumerate(zip(results.false_negatives[LoggingColumns.Patient.value],
+                                                        results.false_negatives[LoggingColumns.ModelOutput.value])):
+        print_header(f"{index+1}. ID {subject} Score: {model_output:.5f}", level=4)
 
     print_header(f"Top {k} true positives", level=2)
-    for index, subject in enumerate(results.true_positives[LoggingColumns.Patient.value]):
-        print_header(f"{index+1}. ID {subject}", level=4)
+    for index, (subject, model_output) in enumerate(zip(results.true_positives[LoggingColumns.Patient.value],
+                                                        results.true_positives[LoggingColumns.ModelOutput.value])):
+        print_header(f"{index+1}. ID {subject} Score: {model_output:.5f}", level=4)
 
     print_header(f"Top {k} true negatives", level=2)
-    for index, subject in enumerate(results.true_negatives[LoggingColumns.Patient.value]):
-        print_header(f"{index+1}. ID {subject}", level=4)
+    for index, (subject, model_output) in enumerate(zip(results.true_negatives[LoggingColumns.Patient.value],
+                                                        results.true_negatives[LoggingColumns.ModelOutput.value])):
+        print_header(f"{index+1}. ID {subject} Score: {model_output:.5f}", level=4)
 
 
 def get_image_filepath_from_subject_id(subject_id: str,
@@ -316,7 +320,8 @@ def plot_image_for_subject(subject_id: str,
                            dataset_subject_column: str,
                            dataset_file_column: str,
                            dataset_dir: Path,
-                           im_size: Tuple) -> None:
+                           im_size: Tuple,
+                           model_output: float) -> None:
     """
     Given a subject ID, plots the corresponding image.
     :param subject_id: Subject to plot image for
@@ -325,8 +330,9 @@ def plot_image_for_subject(subject_id: str,
     :param dataset_file_column: Name of the column with the image filepaths
     :param dataset_dir: Path to the dataset
     :param im_size: Display size for image
+    :param model_output: The predicted value for this image
     """
-    print_header(f"ID: {subject_id}", level=4)
+    print_header(f"ID: {subject_id} Score: {model_output}", level=4)
 
     filepath = get_image_filepath_from_subject_id(subject_id=str(subject_id),
                                                   dataset_df=dataset_df,
@@ -361,37 +367,45 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
     im_size = (700, 700)
 
     print_header(f"Top {k} false positives", level=2)
-    for index, subject in enumerate(results.false_positives[LoggingColumns.Patient.value]):
+    for index, (subject, model_output) in enumerate(zip(results.false_positives[LoggingColumns.Patient.value],
+                                                        results.false_positives[LoggingColumns.ModelOutput.value])):
         plot_image_for_subject(subject_id=str(subject),
                                dataset_df=dataset_df,
                                dataset_subject_column=dataset_subject_column,
                                dataset_file_column=dataset_file_column,
                                dataset_dir=dataset_dir,
-                               im_size=im_size)
+                               im_size=im_size,
+                               model_output=model_output)
 
     print_header(f"Top {k} false negatives", level=2)
-    for index, subject in enumerate(results.false_negatives[LoggingColumns.Patient.value]):
+    for index, (subject, model_output) in enumerate(zip(results.false_negatives[LoggingColumns.Patient.value],
+                                                        results.false_negatives[LoggingColumns.ModelOutput.value])):
         plot_image_for_subject(subject_id=str(subject),
                                dataset_df=dataset_df,
                                dataset_subject_column=dataset_subject_column,
                                dataset_file_column=dataset_file_column,
                                dataset_dir=dataset_dir,
-                               im_size=im_size)
+                               im_size=im_size,
+                               model_output=model_output)
 
     print_header(f"Top {k} true positives", level=2)
-    for index, subject in enumerate(results.true_positives[LoggingColumns.Patient.value]):
+    for index, (subject, model_output) in enumerate(zip(results.true_positives[LoggingColumns.Patient.value],
+                                                        results.true_positives[LoggingColumns.ModelOutput.value])):
         plot_image_for_subject(subject_id=str(subject),
                                dataset_df=dataset_df,
                                dataset_subject_column=dataset_subject_column,
                                dataset_file_column=dataset_file_column,
                                dataset_dir=dataset_dir,
-                               im_size=im_size)
+                               im_size=im_size,
+                               model_output=model_output)
 
     print_header(f"Top {k} true negatives", level=2)
-    for index, subject in enumerate(results.true_negatives[LoggingColumns.Patient.value]):
+    for index, (subject, model_output) in enumerate(zip(results.true_negatives[LoggingColumns.Patient.value],
+                                                        results.true_negatives[LoggingColumns.ModelOutput.value])):
         plot_image_for_subject(subject_id=str(subject),
                                dataset_df=dataset_df,
                                dataset_subject_column=dataset_subject_column,
                                dataset_file_column=dataset_file_column,
                                dataset_dir=dataset_dir,
-                               im_size=im_size)
+                               im_size=im_size,
+                               model_output=model_output)
