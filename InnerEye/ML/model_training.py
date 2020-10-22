@@ -247,7 +247,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
             metrics.store_epoch_stats_for_segmentation(config.outputs_folder, epoch, epoch_lrs,
                                                        train_epoch_results.metrics,
                                                        val_epoch_results.metrics)
-        if save_epoch:
+        if save_epoch and global_rank == get_max_rank():
             # perform temperature scaling if required
             if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
                 optimal_temperature, scaled_val_results = \
