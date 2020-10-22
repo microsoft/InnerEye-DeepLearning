@@ -22,7 +22,7 @@ from InnerEye.Common import common_util
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat3, TupleInt3
 from InnerEye.ML.config import DEFAULT_POSTERIOR_VALUE_RANGE, PhotometricNormalizationMethod, \
     SegmentationModelBase
-from InnerEye.ML.dataset.sample import PatientDatasetSource, PatientMetadata, Sample
+from InnerEye.ML.dataset.sample import PatientDatasetSource, Sample
 from InnerEye.ML.utils.hdf5_util import HDF5Object
 from InnerEye.ML.utils.image_util import ImageDataType, ImageHeader, check_array_range, get_center_crop, \
     get_unit_image_header, is_binary_array
