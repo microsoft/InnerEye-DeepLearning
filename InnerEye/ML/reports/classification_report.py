@@ -332,7 +332,7 @@ def plot_image_for_subject(subject_id: str,
     :param im_size: Display size for image
     :param model_output: The predicted value for this image
     """
-    print_header(f"ID: {subject_id} Score: {model_output}", level=4)
+    print_header(f"\nID: {subject_id} Score: {model_output}", level=4)
 
     filepath = get_image_filepath_from_subject_id(subject_id=str(subject_id),
                                                   dataset_df=dataset_df,
@@ -364,9 +364,9 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
     dataset_df = pd.read_csv(dataset_csv_path)
     dataset_dir = dataset_csv_path.parent
 
-    im_size = (700, 700)
+    im_size = (800, 800)
 
-    print_header(f"Top {k} false positives", level=2)
+    print_header(f"\n\nTop {k} false positives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.false_positives[LoggingColumns.Patient.value],
                                                         results.false_positives[LoggingColumns.ModelOutput.value])):
         plot_image_for_subject(subject_id=str(subject),
