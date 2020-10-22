@@ -9,7 +9,7 @@ import statistics
 import time
 from dataclasses import dataclass
 from multiprocessing import Process
-from typing import List
+from typing import List, Tuple
 
 import GPUtil
 import psutil
@@ -34,28 +34,50 @@ def memory_in_gb(bytes: int) -> float:
 
 @dataclass
 class GpuUtilization:
+    id: int
     load: float
     mem_util: float
     mem_allocated: float
-    mem_reseverd: float
+    mem_reserved: float
     count: int
 
     def __add__(self, other: GpuUtilization) -> GpuUtilization:
         return GpuUtilization(
+            id=self.id,
             load=self.load + other.load,
             mem_util=self.mem_util + other.mem_util,
             mem_allocated=self.mem_allocated + other.mem_allocated,
-            mem_reseverd=self.mem_reseverd + other.mem_reseverd,
+            mem_reserved=self.mem_reserved + other.mem_reserved,
             count=self.count + other.count
         )
 
     def average(self) -> GpuUtilization:
         return GpuUtilization(
-            load=self.load/self.count,
-            mem_util=self.mem_util/self.count,
-            mem_allocated=self.mem_allocated/self.count,
-            mem_reseverd=self.mem_reseverd/self.count,
+            id=self.id,
+            load=self.load / self.count,
+            mem_util=self.mem_util / self.count,
+            mem_allocated=self.mem_allocated / self.count,
+            mem_reserved=self.mem_reserved / self.count,
             count=0
+        )
+
+    def enumerate(self) -> List[Tuple[str, float]]:
+        return [
+            (f'GPU{self.id}/MemUtil_Percent', self.mem_util * 100),
+            (f'GPU{self.id}/Load_Percent', self.load * 100),
+            (f'GPU{self.id}/MemReserved_GB', self.mem_reserved),
+            (f'GPU{self.id}/MemAllocated_GB', self.mem_allocated)
+        ]
+
+    @staticmethod
+    def from_gpu(gpu: GPU):
+        return GpuUtilization(
+            id=gpu.id,
+            load=gpu.load,
+            mem_util=gpu.memoryUtil,
+            mem_allocated=memory_in_gb(torch.cuda.memory_allocated(int(gpu.id))),
+            mem_reserved=memory_in_gb(torch.cuda.memory_reserved(int(gpu.id))),
+            count=1
         )
 
 
@@ -73,6 +95,7 @@ class ResourceMonitor(Process):
         super().__init__(name="Resource Monitor", daemon=True)
         self._interval_seconds = interval_seconds
         self._tb_log_file_path = tb_log_file_path
+        self.gpu_aggregates: List[GpuUtilization] = []
 
     def run(self) -> None:
         if self._interval_seconds <= 0:
@@ -86,33 +109,31 @@ class ResourceMonitor(Process):
         def log_to_tensorboard(label: str, value: float) -> None:
             writer.add_scalar(label, value)
 
-        prefix = "Diagnostics/"
         gpu_available = is_gpu_available()
         while True:
             if gpu_available:
+                gpu_utils = []
                 gpus: List[GPU] = GPUtil.getGPUs()
-                if len(gpus) > 0:
-                    for gpu in gpus:
-                        log_to_tensorboard(f'{prefix}GPU{gpu.id}/MemUtil_Percent', gpu.memoryUtil * 100)
-                        log_to_tensorboard(f'{prefix}GPU{gpu.id}/Load_Percent', gpu.load * 100)
-                        log_to_tensorboard(f'{prefix}GPU{gpu.id}/MemReserved_GB',
-                                           memory_in_gb(torch.cuda.memory_reserved(int(gpu.id))))
-                        log_to_tensorboard(f'{prefix}GPU{gpu.id}/MemAllocated_GB',
-                                           memory_in_gb(torch.cuda.memory_allocated(int(gpu.id))))
-                    # log the average GPU usage
-                    log_to_tensorboard(f'{prefix}GPU/Average_Load_Percent',
-                                       statistics.mean(map(lambda x: x.load, gpus)) * 100)
-                    log_to_tensorboard(f'{prefix}GPU/Average_MemUtil_Percent',
-                                       statistics.mean(map(lambda x: x.memoryUtil, gpus)) * 100)
-
-            # log the CPU util
-            log_to_tensorboard(f'{prefix}CPU/Load_Percent', psutil.cpu_percent(interval=None))
-            log_to_tensorboard(f'{prefix}CPU/MemUtil_Percent', psutil.virtual_memory()[2])
+                for gpu in gpus:
+                    gpu_util = GpuUtilization.from_gpu(gpu)
+                    for (name, value) in gpu_util.enumerate():
+                        log_to_tensorboard(name, value)
+                    gpu_utils.append(gpu_util)
+                if self.gpu_aggregates:
+                    for i in range(len(self.gpu_aggregates)):
+                        self.gpu_aggregates[i] = self.gpu_aggregates[i] + gpu_utils[i]
+                else:
+                    self.gpu_aggregates = gpu_utils
+            # log the CPU utilization
+            log_to_tensorboard(f'CPU/Load_Percent', psutil.cpu_percent(interval=None))
+            log_to_tensorboard(f'CPU/MemUtil_Percent', psutil.virtual_memory()[2])
             # pause the thread for the requested delay
             time.sleep(self._interval_seconds)
 
     def kill(self) -> None:
         run_context = Run.get_context()
         if not is_offline_run_context(run_context):
-            run_context.log("Diagnostics/Total", 0.5)
+            for util in self.gpu_aggregates:
+                for (name, value) in util.average().enumerate():
+                    run_context.log(name, value)
         super().kill()
