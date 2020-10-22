@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import param
 
@@ -92,6 +93,7 @@ def visualize_random_crops(sample: Sample,
     # the thumbnails are in an area where many of the organs of interest are located.
     max_heatmap_index = np.unravel_index(heatmap.argmax(), heatmap.shape) if is_3dim else (0, 0, 0)
     for dimension in dimensions:
+        plt.clf()
         scan_with_transparent_overlay(scan=image_channel0,
                                       overlay=heatmap_scaled,
                                       dimension=dimension,
