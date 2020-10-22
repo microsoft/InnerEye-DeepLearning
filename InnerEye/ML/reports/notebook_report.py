@@ -14,6 +14,10 @@ from nbconvert.writers import FilesWriter
 from InnerEye.Common import fixed_paths
 
 
+def str_or_empty(p: Union[None, str, Path]) -> str:
+    return str(p) if p else ""
+
+
 def print_header(message: str, level: int = 2) -> None:
     """
     Displays a message, and afterwards repeat it as Markdown with the given indentation level (level=1 is the
@@ -45,10 +49,6 @@ def generate_notebook(template_notebook: Path, notebook_params: Dict, result_not
             notebook_name=str(result_notebook.stem)
         )
     return result_notebook.with_suffix(resources['output_extension'])
-
-
-def str_or_empty(p: Union[None, str, Path]) -> str:
-    return str(p) if p else ""
 
 
 def generate_segmentation_notebook(result_notebook: Path,

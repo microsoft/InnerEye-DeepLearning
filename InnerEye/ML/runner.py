@@ -177,7 +177,7 @@ class Runner:
                                                      train_metrics=path_to_best_epoch_train,
                                                      val_metrics=path_to_best_epoch_val,
                                                      test_metrics=path_to_best_epoch_test,
-                                                     dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME \
+                                                     dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
                                                                         if config.local_dataset else None,
                                                      dataset_subject_column=config.subject_column,
                                                      dataset_file_column=config.image_file_column)
