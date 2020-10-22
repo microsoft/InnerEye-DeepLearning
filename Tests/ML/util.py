@@ -171,10 +171,10 @@ def assert_binary_files_match(actual_file: Path, expected_file: Path) -> None:
     if actual_file.suffix == ".png" and expected_file.suffix == ".png":
         actual_image = Image.open(actual_file)
         expected_image = Image.open(expected_file)
-        actual_size = actual_image.get_data().size
-        expected_size = expected_image.get_data().size
+        actual_size = actual_image.size
+        expected_size = expected_image.size
         assert actual_size == expected_size, f"Image sizes don't match: actual {actual_size}, expected {expected_size}"
-        assert np.array(actual_image) == np.array(expected_image), "Image pixel data does not match."
+        assert np.allclose(np.array(actual_image), np.array(expected_image)), "Image pixel data does not match."
     assert False, f"File contents does not match: len(actual)={len(actual)}, len(expected)={len(expected)}"
 
 

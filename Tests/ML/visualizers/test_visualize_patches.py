@@ -56,7 +56,12 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
                     labels=labels,
                     metadata=PatientMetadata(patient_id=123,
                                              image_header=image_header))
-    visualize_random_crops(sample, config, output_folder=output_folder)
+    expected_folder = full_ml_test_data_path("patch_sampling")
+    heatmap = visualize_random_crops(sample, config, output_folder=output_folder)
+    expected_heatmap = expected_folder / ("sampled_to_boundary.npy" if labels_to_boundary else "sampled_center.npy")
+    # To update the stored results, uncomment this line:
+    # np.save(str(expected_heatmap), heatmap)
+    assert np.allclose(heatmap, np.load(str(expected_heatmap))), "Patch sampling created a different heatmap."
     f1 = output_folder / "123_ct.nii.gz"
     assert_file_exists(f1)
     f2 = output_folder / "123_sampled_patches.nii.gz"
@@ -69,7 +74,6 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
     for f in thumbnails:
         assert_file_exists(output_folder / f)
 
-    expected_folder = full_ml_test_data_path("patch_sampling")
     expected = expected_folder / ("sampled_to_boundary.nii.gz" if labels_to_boundary else "sampled_center.nii.gz")
     # To update test results:
     # shutil.copy(str(f2), str(expected))

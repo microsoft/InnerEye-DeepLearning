@@ -38,7 +38,7 @@ class CheckPatchSamplingConfig(GenericConfig):
 
 def visualize_random_crops(sample: Sample,
                            config: SegmentationModelBase,
-                           output_folder: Path) -> None:
+                           output_folder: Path) -> np.ndarray:
     """
     Simulate the effect of sampling random crops (as is done for trainig segmentation models), and store the results
     as a Nifti heatmap and as 3 axial/sagittal/coronal slices. The heatmap and the slices are stored in the given
@@ -46,6 +46,7 @@ def visualize_random_crops(sample: Sample,
     :param sample: The patient information from the dataset, with scans and ground truth labels.
     :param config: The model configuration.
     :param output_folder: The folder into which the heatmap and thumbnails should be written.
+    :return: A numpy array that has the same size as the image, containing how often each voxel was contained in
     """
     output_folder.mkdir(exist_ok=True, parents=True)
     sample = CroppingDataset.create_possibly_padded_sample_for_cropping(
@@ -103,6 +104,7 @@ def visualize_random_crops(sample: Sample,
             thumbnail += f"_dim{dimension}"
         thumbnail += ".png"
         resize_and_save(width_inch=5, height_inch=5, filename=output_folder / thumbnail)
+    return heatmap
 
 
 def visualize_random_crops_for_dataset(config: DeepLearningConfig,
