@@ -162,6 +162,8 @@ def assert_binary_files_match(actual_file: Path, expected_file: Path) -> None:
     """
     Checks if two files contain exactly the same bytes. If PNG files mismatch, additional diagnostics is printed.
     """
+    # Uncomment this line to batch-update all result files that use this assert function
+    # expected_file.write_bytes(actual_file.read_bytes())
     assert_file_exists(actual_file)
     assert_file_exists(expected_file)
     actual = actual_file.read_bytes()

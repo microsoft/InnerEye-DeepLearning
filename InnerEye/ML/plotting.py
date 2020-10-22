@@ -88,13 +88,13 @@ def add_legend(series_count: int) -> None:
     plt.legend(ncol=num_columns, loc="upper left", fontsize="x-small")
 
 
-def resize_and_save(width_inch: int, height_inch: int, filename: PathOrString, dpi: Optional[int] = 150) -> None:
+def resize_and_save(width_inch: int, height_inch: int, filename: PathOrString, dpi: int = 150) -> None:
     """
     Resizes the present figure to the given (width, height) in inches, and saves it to the given filename.
     :param width_inch: The width of the figure in inches.
     :param height_inch: The height of the figure in inches.
     :param filename: The filename to save to.
-    :param dpi: Image resolution dots per inch
+    :param dpi: Image resolution in dots per inch
     """
     fig = plt.gcf()
     fig.set_size_inches(width_inch, height_inch)
