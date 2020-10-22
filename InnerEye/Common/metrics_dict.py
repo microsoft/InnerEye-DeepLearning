@@ -490,6 +490,15 @@ class MetricsDict:
         return binary_classification_accuracy(model_output=self.get_predictions(hue=hue),
                                               label=self.get_labels(hue=hue))
 
+    @classmethod
+    def get_optimal_idx(cls, fpr: np.ndarray, tpr: np.ndarray) -> np.ndarray:
+        """
+        Given a list of FPR and TPR values corresponding to different thresholds, compute the index which corresponds
+        to the optimal threshold.
+        """
+        optimal_idx = np.argmax(tpr - fpr)
+        return optimal_idx
+
     def get_metrics_at_optimal_cutoff(self, hue: str = DEFAULT_HUE_KEY) -> Tuple:
         """
         Computes the ROC to find the optimal cut-off i.e. the probability threshold for which the
@@ -500,7 +509,7 @@ class MetricsDict:
         :returns: Tuple(optimal_threshold, false positive rate, false negative rate, accuracy)
         """
         fpr, tpr, thresholds = roc_curve(self.get_labels(hue=hue), self.get_predictions(hue=hue))
-        optimal_idx = np.argmax(tpr - fpr)
+        optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
         optimal_threshold = float(thresholds[optimal_idx])
         accuracy = binary_classification_accuracy(model_output=self.get_predictions(hue=hue),
                                                   label=self.get_labels(hue=hue),

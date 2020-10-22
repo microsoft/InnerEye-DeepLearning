@@ -16,7 +16,7 @@ from more_itertools import flatten
 
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, METRICS_AGGREGATES_FILE, \
-    METRICS_FILE_NAME, logging_to_stdout
+    METRICS_FILE_NAME, logging_to_stdout, epoch_folder_name
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML import model_testing, model_training, runner
@@ -36,7 +36,7 @@ from Tests.ML.util import get_default_azure_config, machine_has_gpu
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
-@pytest.mark.gpu
+@pytest.mark.cpu_and_gpu
 @pytest.mark.parametrize("use_mixed_precision", [False, True])
 def test_train_classification_model(test_output_dirs: TestOutputDirectories,
                                     use_mixed_precision: bool) -> None:
@@ -126,6 +126,17 @@ Default,4,S4,0.5211275815963745,0.0,-1,Train
 Default,4,S2,0.5293986201286316,1.0,-1,Train
 """
         check_log_file(metrics_path, metrics_expected, ignore_columns=[])
+
+        # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
+        # Normally, we would run it on the Test and Val splits, but for convenience we test on the train split here.
+        inference_metrics_path = config.outputs_folder / Path(epoch_folder_name(config.num_epochs)) / \
+                           ModelExecutionMode.TRAIN.value / METRICS_FILE_NAME
+        inference_metrics_expected = \
+            """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
+Default,4,S2,0.5293986201286316,1.0,-1,Train
+Default,4,S4,0.5211275815963745,0.0,-1,Train
+"""
+        check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
 
 
 def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> None:
