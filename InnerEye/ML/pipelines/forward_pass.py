@@ -19,6 +19,7 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.models.parallel.data_parallel import execute_within_autocast_if_needed
 from InnerEye.ML.utils import image_util, ml_util
+from InnerEye.ML.utils.aml_distributed_utils import get_max_rank
 
 
 class SegmentationForwardPass:
@@ -64,7 +65,7 @@ class SegmentationForwardPass:
                              labels: Optional[torch.Tensor] = None,
                              mask: Optional[torch.Tensor] = None,
                              device: Optional[torch.device] = None,
-                             rank: Optional[int] = 0) -> \
+                             rank: Optional[int] = None) -> \
             SegmentationForwardPass.Result:
         """
         Wrapper function to handle model forward pass, including updating of the optimizer_type with loss gradients
@@ -108,15 +109,13 @@ class SegmentationForwardPass:
             result = self._forward_pass_with_anomaly_detection(patches=patches, mask=mask,
                                                                labels=labels, device=device)
         else:
-            if rank == 0:
-                self.model.eval()
-                # turn off autograd for memory optimizations
-                with torch.no_grad():
-                    result = self._forward_pass_with_anomaly_detection(patches=patches, mask=mask,
-                                                                       labels=labels, device=device)
-                self.model.train()
-            else:
-                result = None
+            print("attempting forward pass on rank ", rank)
+            self.model.eval()
+            # turn off autograd for memory optimizations
+            with torch.no_grad():
+                result = self._forward_pass_with_anomaly_detection(patches=patches, mask=mask,
+                                                                   labels=labels, device=device)
+            self.model.train()
         return result
 
     def _forward_pass_with_anomaly_detection(self,

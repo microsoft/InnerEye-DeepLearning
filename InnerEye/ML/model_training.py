@@ -25,7 +25,8 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util, model_util
-from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size, get_local_size, get_local_rank
+from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size, get_local_size, get_local_rank, \
+    get_max_rank
 
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
@@ -238,6 +239,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
             train_val_params.save_metrics = not (save_epoch and config.temperature_scaling_config)
 
         training_steps = create_model_training_steps(config, train_val_params)
+
         val_epoch_results = train_or_validate_epoch(training_steps, local_rank, device)
         val_results_per_epoch.append(val_epoch_results.metrics)
 
@@ -245,8 +247,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
             metrics.store_epoch_stats_for_segmentation(config.outputs_folder, epoch, epoch_lrs,
                                                        train_epoch_results.metrics,
                                                        val_epoch_results.metrics)
-
-        if save_epoch and global_rank == 0:
+        if save_epoch:
             # perform temperature scaling if required
             if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
                 optimal_temperature, scaled_val_results = \
@@ -315,7 +316,7 @@ def temperature_scaling_steps(config: SequenceModelBase,
     return temperature_value, val_epoch_results
 
 
-def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank, device) -> ModelOutputsAndMetricsForEpoch:
+def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank: int, device: torch.device) -> ModelOutputsAndMetricsForEpoch:
     """
     Trains or validates the model for one epoch.
     :param training_steps: Training pipeline to use.
@@ -324,7 +325,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank, device
     training_random_state = None
     train_val_params = training_steps.train_val_params
     config = training_steps.model_config
-    cuda_available = torch.cuda.is_available() & rank == 0
+    cuda_available = torch.cuda.is_available() & rank == get_max_rank()
 
     if cuda_available:
         item_start_time = torch.cuda.Event(enable_timing=True)

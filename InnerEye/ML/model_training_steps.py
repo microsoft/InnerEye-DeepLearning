@@ -41,6 +41,7 @@ from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass, single_o
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import dataset_util, metrics_util
+from InnerEye.ML.utils.aml_distributed_utils import get_max_rank
 from InnerEye.ML.utils.dataset_util import DatasetExample
 from InnerEye.ML.utils.image_util import NumpyOrTorch
 from InnerEye.ML.utils.metrics_util import SummaryWriters
@@ -231,9 +232,9 @@ def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
     if isinstance(model, DataParallelModel):
         model = model.get_module()
 
-    for key, value in sample.items():
-        if isinstance(value, torch.Tensor):
-            sample[key] = value.to(device)
+    # for key, value in sample.items():
+    #     if isinstance(value, torch.Tensor):
+    #         sample[key] = value.to(device)
 
     if isinstance(model_config, SequenceModelBase):
         sequence_model: DeviceAwareModule[List[ClassificationItemSequence], torch.Tensor] = model  # type: ignore
@@ -339,8 +340,8 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         posteriors = self.model_config.get_post_loss_logits_normalization_function()(gather_tensor(logits))
         return logits, posteriors
 
-    def _compute_model_output_and_loss(self, model_inputs_and_labels: ScalarModelInputsAndLabels, rank, device: torch.device
-                                       ) -> \
+    def _compute_model_output_and_loss(self, model_inputs_and_labels: ScalarModelInputsAndLabels, rank: int,
+                                       device: torch.device) -> \
             Tuple[Tensor, Tensor, Tensor]:
         """
         Computes the output of the model for a given set of inputs and labels.
@@ -357,24 +358,19 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                 model.train()
                 logits, posteriors = self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
             else:
-
-                # if rank == 0 or self.model_config.use_ddp==False:
-                model.eval()
-                # # move model to CUDA:0 if available, else cpu
-                # device2 = torch.device('cuda', rank) if torch.cuda.is_available() else torch.device('cpu')
-                # model.to(device2)
-
-                with torch.no_grad():
-                    logits, posteriors = self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
-                model.train()
+                if rank == get_max_rank():
+                    model.eval()
+                    with torch.no_grad():
+                        logits, posteriors = self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
+                    model.train()
             loss = self.compute_loss(logits, label_gpu, device)
             return logits, posteriors, loss
 
         return execute_within_autocast_if_needed(func=compute, use_autocast=self.model_config.use_mixed_precision)
 
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
-                                       batch_index: int, epoch: int, rank: Optional[int],
-                                       device: Optional[torch.device]
+                                       batch_index: int, epoch: int, rank: int,
+                                       device: torch.device
                                        ) -> ModelForwardAndBackwardsOutputs:
         """
         Runs training for a single minibatch of training data, and computes all metrics.
@@ -679,6 +675,7 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
         forward_pass_result = self.pipeline.forward_pass_patches(patches=cropped_sample.image,
                                                                  labels=labels,
                                                                  mask=mask,
+                                                                 rank=rank,
                                                                  device=device)
         # Clear the GPU cache between forward and backward passes to avoid possible out-of-memory
         torch.cuda.empty_cache()

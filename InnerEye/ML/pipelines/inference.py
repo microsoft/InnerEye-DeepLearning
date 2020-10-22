@@ -22,6 +22,7 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import CropSizeConstraints
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import image_util, ml_util, model_util
+from InnerEye.ML.utils.aml_distributed_utils import get_global_rank
 from InnerEye.ML.utils.image_util import compute_uncertainty_map_from_posteriors, gaussian_smooth_posteriors, \
     posteriors_to_segmentation
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
@@ -398,6 +399,14 @@ class InferenceBatch(CTImagesMaskedBatch):
         """
         model_config = self.get_configs()
 
+        if model_config.use_ddp:
+            # If possible use another GPU than master node
+            rank = get_global_rank()
+            device = torch.device('cuda', rank)
+        else:
+            rank = 0
+            device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu')
+
         # extract patches for each image channel: Num patches x Channels x Z x Y x X
         patches = self._extract_patches_for_image_channels()
 
@@ -409,7 +418,7 @@ class InferenceBatch(CTImagesMaskedBatch):
             # slice over the batches to prepare batch
             batch = patches[batch_idx: batch_idx + batch_size, ...]
             # perform the forward pass
-            batch_predictions = self._model_fn(batch)
+            batch_predictions = self._model_fn(batch, rank, device)
             image_util.check_array_range(batch_predictions,
                                          expected_range=InferencePipeline.MODEL_OUTPUT_POSTERIOR_RANGE,  # type: ignore
                                          error_prefix="Model predictions for current batch")
@@ -506,19 +515,19 @@ class InferenceBatch(CTImagesMaskedBatch):
 
         return np.stack(patches, axis=1)
 
-    def _model_fn(self, patches: np.ndarray) -> np.ndarray:
+    def _model_fn(self, patches: np.ndarray, rank: int, device: torch.device) -> np.ndarray:
         """
         Wrapper function to handle the model forward pass
         :param patches: Image patches to be passed to the model in format Patches x Channels x Z x Y x X
         :return posteriors: Confidence maps [0,1] for each patch per class
         in format: Patches x Channels x Class x Z x Y x X
         """
-        # perform inference only on one GPU, if available, else GPU
-        device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu')
         model_config = self.get_configs()
 
         # get the model from the pipeline environment
         model = self.pipeline.get_variable(InferencePipeline.Variables.Model)
+
+        model.to(device)
 
         # convert patches to Torch tensor
         patches = torch.from_numpy(patches).float()
@@ -529,4 +538,4 @@ class InferenceBatch(CTImagesMaskedBatch):
             batch_size=model_config.inference_batch_size,
             optimizer=None,
             in_training_mode=False
-        ).forward_pass_patches(patches=patches, rank=0, device=device).posteriors
+        ).forward_pass_patches(patches=patches, rank=rank, device=device).posteriors
