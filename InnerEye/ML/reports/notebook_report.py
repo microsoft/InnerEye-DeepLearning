@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import nbformat
 import papermill
@@ -47,7 +47,7 @@ def generate_notebook(template_notebook: Path, notebook_params: Dict, result_not
     return result_notebook.with_suffix(resources['output_extension'])
 
 
-def str_or_empty(p: Optional[Path]) -> str:
+def str_or_empty(p: Union[None, str, Path]) -> str:
     return str(p) if p else ""
 
 
@@ -74,9 +74,12 @@ def generate_segmentation_notebook(result_notebook: Path,
 
 
 def generate_classification_notebook(result_notebook: Path,
-                                   train_metrics: Optional[Path] = None,
-                                   val_metrics: Optional[Path] = None,
-                                   test_metrics: Optional[Path] = None) -> Path:
+                                     train_metrics: Optional[Path] = None,
+                                     val_metrics: Optional[Path] = None,
+                                     test_metrics: Optional[Path] = None,
+                                     dataset_csv_path: Optional[Path] = None,
+                                     dataset_subject_column: Optional[str] = None,
+                                     dataset_file_column: Optional[str] = None) -> Path:
     """
     Creates a reporting notebook for a classification model, using the given training, validation, and test set metrics.
     Returns the report file after HTML conversion.
@@ -88,6 +91,9 @@ def generate_classification_notebook(result_notebook: Path,
             'train_metrics_csv': str_or_empty(train_metrics),
             'val_metrics_csv': str_or_empty(val_metrics),
             'test_metrics_csv': str_or_empty(test_metrics),
+            'dataset_csv_path': str_or_empty(dataset_csv_path),
+            "dataset_subject_column": str_or_empty(dataset_subject_column),
+            "dataset_file_column": str_or_empty(dataset_file_column)
         }
     template = Path(__file__).absolute().parent / "classification_report.ipynb"
     return generate_notebook(template,

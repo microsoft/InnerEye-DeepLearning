@@ -30,6 +30,7 @@ from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WI
 from InnerEye.Common.fixed_paths import get_environment_yaml_file
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.reports.notebook_report import generate_segmentation_notebook, generate_classification_notebook
@@ -171,10 +172,17 @@ class Runner:
                                                val_metrics=path_to_best_epoch_val,
                                                test_metrics=path_to_best_epoch_test)
             else:
-                generate_classification_notebook(result_notebook=output_dir / REPORT_IPYNB,
-                                                 train_metrics=path_to_best_epoch_train,
-                                                 val_metrics=path_to_best_epoch_val,
-                                                 test_metrics=path_to_best_epoch_test)
+                if isinstance(config, ScalarModelBase):
+                    generate_classification_notebook(result_notebook=output_dir / REPORT_IPYNB,
+                                                     train_metrics=path_to_best_epoch_train,
+                                                     val_metrics=path_to_best_epoch_val,
+                                                     test_metrics=path_to_best_epoch_test,
+                                                     dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME \
+                                                                        if config.local_dataset else None,
+                                                     dataset_subject_column=config.subject_column,
+                                                     dataset_file_column=config.image_file_column)
+                else:
+                    logging.info(f"Cannot create report for config of type {type(config)}.")
         except Exception as ex:
             print_exception(ex, "Failed to generated reporting notebook.")
 

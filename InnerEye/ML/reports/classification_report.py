@@ -12,11 +12,21 @@ from dataclasses import dataclass
 from sklearn.metrics import precision_recall_curve, roc_curve, auc, roc_auc_score, recall_score
 from enum import Enum
 from pathlib import Path
+from typing import Optional, Tuple
+from IPython.display import display
+from PIL import Image
 
 from InnerEye.ML.reports.notebook_report import print_header
 from InnerEye.Common.metrics_dict import MetricsDict, binary_classification_accuracy
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.pipelines.scalar_inference import ScalarInferencePipelineBase
+from InnerEye.ML.utils.io_util import load_image_in_known_formats
+
+
+@dataclass
+class LabelsAndPredictions:
+    subject_ids: np.ndarray
+    labels: np.ndarray
+    model_outputs: np.ndarray
 
 
 @dataclass
@@ -28,6 +38,9 @@ class Results:
 
 
 class ReportedMetrics(Enum):
+    """
+    Different metrics displayed in the report.
+    """
     OptimalThreshold = "optimal_threshold"
     AUC_PR = "auc_pr"
     AUC_ROC = "auc_roc"
@@ -36,7 +49,7 @@ class ReportedMetrics(Enum):
     FalseNegativeRate = "false_negative_rate"
 
 
-def get_results(csv: Path) -> ScalarInferencePipelineBase.Result:
+def get_results(csv: Path) -> LabelsAndPredictions:
     """
     Given a CSV file, reads the subject IDs, ground truth labels and model outputs for each subject.
     NOTE: This CSV file should have results from a single epoch, as in the metrics files written during inference, not
@@ -49,7 +62,7 @@ def get_results(csv: Path) -> ScalarInferencePipelineBase.Result:
     if not subjects.is_unique:
         raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
                          f"in column {LoggingColumns.Patient.value} in the csv file.")
-    return ScalarInferencePipelineBase.Result(subject_ids=subjects, labels=labels, model_outputs=model_outputs)
+    return LabelsAndPredictions(subject_ids=subjects, labels=labels, model_outputs=model_outputs)
 
 
 def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, print_coords: bool = False) -> None:
@@ -68,8 +81,8 @@ def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, p
 
     if print_coords:
         # write values of points
-        for x, y in zip (x_values, y_values):
-            ax.annotate(f"{x:0.3f}, {y:0.3f}", xy = (x, y), xytext=(15, 0), textcoords='offset points')
+        for x, y in zip(x_values, y_values):
+            ax.annotate(f"{x:0.3f}, {y:0.3f}", xy=(x, y), xytext=(15, 0), textcoords='offset points')
 
 
 def plot_pr_and_roc_curves_from_csv(metrics_csv: Path) -> None:
@@ -121,43 +134,43 @@ def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMe
         raise ValueError("Unknown metric")
 
 
-def print_metrics(val_metrics_csv: Path, test_metrics_csv: Path):
+def print_metrics(val_metrics_csv: Path, test_metrics_csv: Path) -> None:
     """
     Given a csv file, read the predicted values and ground truth labels and print out some metrics.
     """
     roc_auc = get_metric(val_metrics_csv=val_metrics_csv,
                          test_metrics_csv=test_metrics_csv,
                          metric=ReportedMetrics.AUC_ROC)
-    print_header(f"Area under ROC Curve: {roc_auc:.4f}", level=0)
+    print_header(f"Area under ROC Curve: {roc_auc:.4f}", level=4)
 
     pr_auc = get_metric(val_metrics_csv=val_metrics_csv,
                         test_metrics_csv=test_metrics_csv,
                         metric=ReportedMetrics.AUC_PR)
-    print_header(f"Area under PR Curve: {pr_auc:.4f}", level=0)
+    print_header(f"Area under PR Curve: {pr_auc:.4f}", level=4)
 
     optimal_threshold = get_metric(val_metrics_csv=val_metrics_csv,
                                    test_metrics_csv=test_metrics_csv,
                                    metric=ReportedMetrics.OptimalThreshold)
 
-    print_header(f"Optimal threshold: {optimal_threshold: .4f}", level=0)
+    print_header(f"Optimal threshold: {optimal_threshold: .4f}", level=4)
 
     accuracy = get_metric(val_metrics_csv=val_metrics_csv,
                           test_metrics_csv=test_metrics_csv,
                           metric=ReportedMetrics.Accuracy)
-    print_header(f"Accuracy at optimal threshold: {accuracy:.4f}", level=0)
+    print_header(f"Accuracy at optimal threshold: {accuracy:.4f}", level=4)
 
     fpr = get_metric(val_metrics_csv=val_metrics_csv,
                      test_metrics_csv=test_metrics_csv,
                      metric=ReportedMetrics.FalsePositiveRate)
-    print_header(f"Specificity at optimal threshold: {1-fpr:.4f}", level=0)
+    print_header(f"Specificity at optimal threshold: {1-fpr:.4f}", level=4)
 
     fnr = get_metric(val_metrics_csv=val_metrics_csv,
                      test_metrics_csv=test_metrics_csv,
                      metric=ReportedMetrics.FalseNegativeRate)
-    print_header(f"Sensitivity at optimal threshold: {1-fnr:.4f}", level=0)
+    print_header(f"Sensitivity at optimal threshold: {1-fnr:.4f}", level=4)
 
 
-def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path):
+def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path) -> Results:
     """
     Given the paths to the metrics files for the validation and test sets, get a list of true positives,
     false positives, false negatives and true negatives.
@@ -180,7 +193,8 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
         raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
                          f"in column {LoggingColumns.Patient.value} in the csv file.")
 
-    df_test["predicted"] = df_test.apply(lambda x: int(x[LoggingColumns.ModelOutput.value] >= optimal_threshold), axis=1)
+    df_test["predicted"] = df_test.apply(lambda x: int(x[LoggingColumns.ModelOutput.value] >= optimal_threshold),
+                                         axis=1)
 
     true_positives = df_test[(df_test["predicted"] == 1) & (df_test[LoggingColumns.Label.value] == 1)]
     false_positives = df_test[(df_test["predicted"] == 1) & (df_test[LoggingColumns.Label.value] == 0)]
@@ -193,7 +207,7 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
                    false_negatives=false_negatives)
 
 
-def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int):
+def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int) -> Results:
     """
     Get the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
     top "k" worst predictions (i.e. misclassifications where the model was the most confident).
@@ -202,18 +216,18 @@ def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pat
                                                      test_metrics_csv=test_metrics_csv)
 
     # sort by model_output
-    sorted = Results(true_positives=
-                     results.true_positives.sort_values(by=LoggingColumns.ModelOutput.value, ascending=False).head(k),
-                     true_negatives=
-                     results.true_negatives.sort_values(by=LoggingColumns.ModelOutput.value, ascending=True).head(k),
-                     false_positives=
-                     results.false_positives.sort_values(by=LoggingColumns.ModelOutput.value, ascending=False).head(k),
-                     false_negatives=
-                     results.false_negatives.sort_values(by=LoggingColumns.ModelOutput.value, ascending=True).head(k))
+    sorted = Results(true_positives=results.true_positives.sort_values(by=LoggingColumns.ModelOutput.value,
+                                                                       ascending=False).head(k),
+                     true_negatives=results.true_negatives.sort_values(by=LoggingColumns.ModelOutput.value,
+                                                                       ascending=True).head(k),
+                     false_positives=results.false_positives.sort_values(by=LoggingColumns.ModelOutput.value,
+                                                                         ascending=False).head(k),
+                     false_negatives=results.false_negatives.sort_values(by=LoggingColumns.ModelOutput.value,
+                                                                         ascending=True).head(k))
     return sorted
 
 
-def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int):
+def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int) -> None:
     """
     Print the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
     top "k" worst predictions (i.e. misclassifications where the model was the most confident).
@@ -222,18 +236,163 @@ def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: P
                                               test_metrics_csv=test_metrics_csv,
                                               k=k)
 
-    print_header(f"Top {k} false positives")
+    print_header(f"Top {k} false positives", level=2)
     for index, subject in enumerate(results.false_positives[LoggingColumns.Patient.value]):
-        print_header(f"{index}. ID {subject}", level=0)
+        print_header(f"{index}. ID {subject}", level=4)
 
-    print_header(f"Top {k} false negatives")
+    print_header(f"Top {k} false negatives", level=2)
     for index, subject in enumerate(results.false_negatives[LoggingColumns.Patient.value]):
-        print_header(f"{index}. ID {subject}", level=0)
+        print_header(f"{index}. ID {subject}", level=4)
 
-    print_header(f"Top {k} true positives")
+    print_header(f"Top {k} true positives", level=2)
     for index, subject in enumerate(results.true_positives[LoggingColumns.Patient.value]):
-        print_header(f"{index}. ID {subject}", level=0)
+        print_header(f"{index}. ID {subject}", level=4)
 
-    print_header(f"Top {k} true negatives")
+    print_header(f"Top {k} true negatives", level=2)
     for index, subject in enumerate(results.true_negatives[LoggingColumns.Patient.value]):
-        print_header(f"{index}. ID {subject}", level=0)
+        print_header(f"{index}. ID {subject}", level=4)
+
+
+def get_image_filepath_from_subject_id(subject_id: str,
+                                       dataset_df: pd.DataFrame,
+                                       dataset_subject_column: str,
+                                       dataset_file_column: str,
+                                       dataset_dir: Path) -> Optional[Path]:
+    """
+    Returns the filepath for the image associated with a subject. If the subject is not found, return None.
+    If the csv contains multiple entries per subject (which may happen if the csv uses the channels column) then
+    return None as we do not support these csv types yet.
+    :param subject_id: Subject to retrive image for
+    :param dataset_df: Dataset dataframe (from the datset.csv file)
+    :param dataset_subject_column: Name of the column with the subject IDs
+    :param dataset_file_column: Name of the column with the image filepaths
+    :param dataset_dir: Path to the dataset
+    :return: path to the image file for the patient or None if it is not found.
+    """
+
+    if not dataset_df[dataset_subject_column].is_unique:
+        return None
+
+    dataset_df[dataset_subject_column] = dataset_df.apply(lambda x: str(x[dataset_subject_column]), axis=1)
+
+    if subject_id not in dataset_df[dataset_subject_column].unique():
+        return None
+
+    filtered = dataset_df[dataset_df[dataset_subject_column] == subject_id]
+    filepath = filtered.iloc[0][dataset_file_column]
+    return dataset_dir / Path(filepath)
+
+
+def plot_image_from_filepath(filepath: Path, im_size: Tuple) -> bool:
+    """
+    Plots a 2D image given the filepath. Returns false if the image could not be plotted (for example, if it was 3D).
+    :param filepath: Path to image
+    :param im_size: Display size for image
+    :return: True if image was plotted, False otherwise
+    """
+
+    image = load_image_in_known_formats(filepath, load_segmentation=False).images
+    if not image.ndim == 2 and not (image.ndim == 3 and image.shape[0] == 1):
+        print_header(f"Image has unsupported shape {image.shape}", level=0)
+        return False
+
+    if image.ndim == 3 and image.shape[0] == 1:
+        image = image.squeeze(0)
+
+    # normalize to make sure pixels are plottable
+    min = image.min()
+    max = image.max()
+    image = (image - min) / (max - min)
+
+    image = image * 255.
+    image = np.repeat(image[:, :, None], 3, 2)
+    image = image.astype(np.uint8)
+    display(Image.fromarray(image).resize(im_size))
+    return True
+
+
+def plot_image_for_subject(subject_id: str,
+                           dataset_df: pd.DataFrame,
+                           dataset_subject_column: str,
+                           dataset_file_column: str,
+                           dataset_dir: Path,
+                           im_size: Tuple) -> None:
+    """
+    Given a subject ID, plots the corresponding image.
+    :param subject_id: Subject to plot image for
+    :param dataset_df: Dataset dataframe (from the datset.csv file)
+    :param dataset_subject_column: Name of the column with the subject IDs
+    :param dataset_file_column: Name of the column with the image filepaths
+    :param dataset_dir: Path to the dataset
+    :param im_size: Display size for image
+    """
+    filepath = get_image_filepath_from_subject_id(subject_id=str(subject_id),
+                                                  dataset_df=dataset_df,
+                                                  dataset_subject_column=dataset_subject_column,
+                                                  dataset_file_column=dataset_file_column,
+                                                  dataset_dir=dataset_dir)
+    if not filepath:
+        print_header(f"Subject ID {subject_id} not found, or found duplicate entries for this subject "
+                     f"in column {dataset_subject_column} in the csv file. "
+                     f"Note: Reports with datasets that use channel columns in the dataset.csv "
+                     f"are not yet supported.")
+
+    print_header(f"ID: {subject_id}", level=4)
+
+    assert filepath  # for mypy
+
+    success = plot_image_from_filepath(filepath, im_size=im_size)
+    if not success:
+        print_header("Unable to plot images: images must be 2D with shape [w, h] or [1, w, h].", level=4)
+
+
+def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int, dataset_csv_path: Path,
+                                     dataset_subject_column: str, dataset_file_column: str) -> None:
+    """
+    Plot images for the top "k" best predictions (i.e. correct classifications where the model was the most certain)
+    and the top "k" worst predictions (i.e. misclassifications where the model was the most confident).
+    """
+    results = get_k_best_and_worst_performing(val_metrics_csv=val_metrics_csv,
+                                              test_metrics_csv=test_metrics_csv,
+                                              k=k)
+
+    dataset_df = pd.read_csv(dataset_csv_path)
+    dataset_dir = dataset_csv_path.parent
+
+    im_size = (700, 700)
+
+    print_header(f"Top {k} false positives", level=2)
+    for index, subject in enumerate(results.false_positives[LoggingColumns.Patient.value]):
+        plot_image_for_subject(subject_id=str(subject),
+                               dataset_df=dataset_df,
+                               dataset_subject_column=dataset_subject_column,
+                               dataset_file_column=dataset_file_column,
+                               dataset_dir=dataset_dir,
+                               im_size=im_size)
+
+    print_header(f"Top {k} false negatives", level=2)
+    for index, subject in enumerate(results.false_negatives[LoggingColumns.Patient.value]):
+        plot_image_for_subject(subject_id=str(subject),
+                               dataset_df=dataset_df,
+                               dataset_subject_column=dataset_subject_column,
+                               dataset_file_column=dataset_file_column,
+                               dataset_dir=dataset_dir,
+                               im_size=im_size)
+
+    print_header(f"Top {k} true positives", level=2)
+    for index, subject in enumerate(results.true_positives[LoggingColumns.Patient.value]):
+        plot_image_for_subject(subject_id=str(subject),
+                               dataset_df=dataset_df,
+                               dataset_subject_column=dataset_subject_column,
+                               dataset_file_column=dataset_file_column,
+                               dataset_dir=dataset_dir,
+                               im_size=im_size)
+
+    print_header(f"Top {k} true negatives", level=2)
+    for index, subject in enumerate(results.true_negatives[LoggingColumns.Patient.value]):
+        plot_image_for_subject(subject_id=str(subject),
+                               dataset_df=dataset_df,
+                               dataset_subject_column=dataset_subject_column,
+                               dataset_file_column=dataset_file_column,
+                               dataset_dir=dataset_dir,
+                               im_size=im_size)

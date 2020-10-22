@@ -491,7 +491,7 @@ class MetricsDict:
                                               label=self.get_labels(hue=hue))
 
     @classmethod
-    def get_optimal_idx(cls, fpr, tpr) -> np.ndarray:
+    def get_optimal_idx(cls, fpr: np.ndarray, tpr: np.ndarray) -> np.ndarray:
         """
         Given a list of FPR and TPR values corresponding to different thresholds, compute the index which corrsponds
         to the optimal threshold.
