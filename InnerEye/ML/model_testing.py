@@ -446,7 +446,9 @@ def classification_model_test(config: ScalarModelBase,
 
                 logging.info(f"Writing {data_split.value} metrics to file {str(csv_file)}")
 
-                # if we are running on the validation set, these may have been written during train time
+                # If we are running inference after a training run, the validation set metrics may have been written
+                # during train time. If this is not the case, or we are running on the test set, create the metrics
+                # file.
                 if not csv_file.exists():
                     os.makedirs(str(epoch_folder), exist_ok=False)
                     df_logger = DataframeLogger(csv_file)
