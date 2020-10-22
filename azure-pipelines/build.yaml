@@ -17,6 +17,7 @@ steps:
   - bash: |
       conda env create --file environment.yml --name InnerEye --quiet
       source activate InnerEye
+      echo "Environment has been created with these packages:"
       pip freeze
     failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
     condition: succeeded()
