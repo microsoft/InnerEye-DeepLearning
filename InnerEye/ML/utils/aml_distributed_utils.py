@@ -47,5 +47,4 @@ def get_max_rank():
         max_rank = max([ii for ii in list(range(torch.cuda.device_count()))])
     else:
         max_rank = 0
-    print('Max cuda rank found: ', max_rank)
-    return max_rank
+    return 0

@@ -399,13 +399,8 @@ class InferenceBatch(CTImagesMaskedBatch):
         """
         model_config = self.get_configs()
 
-        if model_config.use_ddp:
-            # If possible use another GPU than master node
-            rank = get_global_rank()
-            device = torch.device('cuda', rank)
-        else:
-            rank = 0
-            device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu')
+        rank = get_global_rank() if model_config.use_ddp else 0
+        device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu')
 
         # extract patches for each image channel: Num patches x Channels x Z x Y x X
         patches = self._extract_patches_for_image_channels()
