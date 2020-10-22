@@ -113,8 +113,10 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     resource_monitor = None
     if config.monitoring_interval_seconds > 0:
         # initialize and start GPU monitoring
+        diagnostics_events = str(config.logs_folder / "diagnostics")
+        logging.info(f"Starting resource monitor, outputting to {diagnostics_events}")
         resource_monitor = ResourceMonitor(interval_seconds=config.monitoring_interval_seconds,
-                                           tb_log_file_path=str(config.logs_folder / "diagnostics"))
+                                           tb_log_file_path=diagnostics_events)
         resource_monitor.start()
 
     gradient_scaler = GradScaler() if config.use_gpu and config.use_mixed_precision else None
@@ -286,8 +288,9 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutp
         training_random_state.restore_random_state()
 
     epoch_time_seconds = time() - epoch_start_time
-    logging.info(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f} sec "
-                 f"of which data loading took {total_load_time:0.2f} sec")
+    logging.info(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f} sec, "
+                 f"of which waiting for next minibatch took {total_load_time:0.2f} sec total. {num_batches} "
+                 "minibatches in total.")
     if num_load_time_exceeded > 0:
         logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
                         f"{MAX_ITEM_LOAD_TIME_SEC}sec.")
