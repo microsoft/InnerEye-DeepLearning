@@ -238,19 +238,19 @@ def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: P
 
     print_header(f"Top {k} false positives", level=2)
     for index, subject in enumerate(results.false_positives[LoggingColumns.Patient.value]):
-        print_header(f"{index}. ID {subject}", level=4)
+        print_header(f"{index+1}. ID {subject}", level=4)
 
     print_header(f"Top {k} false negatives", level=2)
     for index, subject in enumerate(results.false_negatives[LoggingColumns.Patient.value]):
-        print_header(f"{index}. ID {subject}", level=4)
+        print_header(f"{index+1}. ID {subject}", level=4)
 
     print_header(f"Top {k} true positives", level=2)
     for index, subject in enumerate(results.true_positives[LoggingColumns.Patient.value]):
-        print_header(f"{index}. ID {subject}", level=4)
+        print_header(f"{index+1}. ID {subject}", level=4)
 
     print_header(f"Top {k} true negatives", level=2)
     for index, subject in enumerate(results.true_negatives[LoggingColumns.Patient.value]):
-        print_header(f"{index}. ID {subject}", level=4)
+        print_header(f"{index+1}. ID {subject}", level=4)
 
 
 def get_image_filepath_from_subject_id(subject_id: str,
