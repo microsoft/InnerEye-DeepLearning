@@ -1,0 +1,13 @@
+subject,filePath,label
+0,../test_data/classification_data_2d/im1.npy,0
+1,../test_data/classification_data_2d/im2.npy,0
+2,../test_data/classification_data_2d/im1.npy,0
+3,../test_data/classification_data_2d/im2.npy,0
+4,../test_data/classification_data_2d/im1.npy,0
+5,../test_data/classification_data_2d/im2.npy,0
+6,../test_data/classification_data_2d/im1.npy,0
+7,../test_data/classification_data_2d/im2.npy,0
+8,../test_data/classification_data_2d/im1.npy,0
+9,../test_data/classification_data_2d/im2.npy,0
+10,../test_data/classification_data_2d/im1.npy,0
+11,../test_data/classification_data_2d/im2.npy,0

@@ -1,0 +1,13 @@
+prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
+Default,0,0,0.0,1,-1,Test
+Default,0,1,0.2,1,-1,Test
+Default,0,2,0.4,1,-1,Test
+Default,0,3,0.6,1,-1,Test
+Default,0,4,0.8,1,-1,Test
+Default,0,5,1.0,1,-1,Test
+Default,0,6,0.0,0,-1,Test
+Default,0,7,0.2,0,-1,Test
+Default,0,8,0.4,0,-1,Test
+Default,0,9,0.6,0,-1,Test
+Default,0,10,0.8,0,-1,Test
+Default,0,11,1.0,0,-1,Test

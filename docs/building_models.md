@@ -233,10 +233,15 @@ the `metrics.csv` files of the current run and the comparison run(s).
   * A directory `scatterplots`, containing a `jpg` file for every pairing of the current model
   with one of the baslines. Each one is named `AAA_vs_BBB.jpg`, where `AAA` and `BBB` are the run IDs
   of the two models. Each plot shows the Dice scores on the test set for the models.
-  * For segmentation models an IPython Notebook `segmentation_report.ipynb` will be generated in the `outputs`
-  directory based on the full image results of the model checkpoint that performed the best on the validation set.
-  This report will contain detailed metrics per structure, and outliers to help model development.
-
+  * For both segmentation and classification models an IPython Notebook `report.ipynb` will be generated in the
+   `outputs` directory.
+    * For segmentation models, this report is based on the full image results of the model checkpoint that performed 
+    the best on the validation set. This report will contain detailed metrics per structure, and outliers to help 
+    model development.
+    * For classification models, the report is based on the validation and test results from the last epoch. It shows
+     metrics on the validation and test sets, ROC and PR Curves, and a list of the best and worst performing images
+     from the test set.
+    
 Ensemble models are created by the zero'th child (with `cross_validation_split_index=0`) in each
 cross-validation run. Results from inference on the test and validation sets are uploaded to the
 parent run, and can be found in `epoch_NNN` directories as above.
