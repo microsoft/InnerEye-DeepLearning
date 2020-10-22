@@ -130,6 +130,7 @@ def _test_model_train(output_dirs: TestOutputDirectories,
             assert np.array_equal(patch_centers_epoch1, diagnostic) == should_equal
 
     train_config = DummyModel()
+    train_config.use_distributed_data_parallel = False
     train_config.local_dataset = base_path
     train_config.set_output_to(output_dirs.root_dir)
     train_config.image_channels = image_channels
@@ -209,6 +210,7 @@ def test_format_learning_rate(rates: Any, expected: str) -> None:
 
 def test_create_data_loaders() -> None:
     train_config = DummyModel()
+    train_config.use_distributed_data_parallel = False
     train_config.train_batch_size = 1
     train_config.local_dataset = base_path
     # create the dataset splits
@@ -251,6 +253,7 @@ def test_recover_training_mean_teacher_model() -> None:
     Tests that training can be recovered from a previous checkpoint.
     """
     config = DummyClassification()
+    config.use_distributed_data_parallel = False
     config.mean_teacher_alpha = 0.999
 
     # First round of training

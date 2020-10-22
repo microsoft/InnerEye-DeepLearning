@@ -6,6 +6,7 @@ import logging
 from typing import List
 
 import pytest
+from torch import device
 
 from InnerEye.Common.common_util import logging_to_stdout, namespace_to_path
 from InnerEye.ML.config import SegmentationModelBase
@@ -56,7 +57,7 @@ def test_load_all_configs(model_name: str) -> None:
         config.feature_channels = [minimal_feature_channels] * len(config.feature_channels)
         print("Model architecture after restricting to 2 feature channels only:")
         model = create_model_with_temperature_scaling(config)
-        generate_and_print_model_summary(config, model)
+        generate_and_print_model_summary(config, model, device('cuda:0'))
     else:
         # For classification models, we can't always print a model summary: The model could require arbitrary
         # numbers of input tensors, and we'd only know once we load the training data.

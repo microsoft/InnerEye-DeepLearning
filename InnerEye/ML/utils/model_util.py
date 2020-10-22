@@ -126,7 +126,7 @@ class ModelAndInfo:
 
     @classmethod
     def _adjust_for_gpus(cls, model: DeviceAwareModule, config: ModelConfigBase,
-                         model_execution_mode: ModelExecutionMode, rank: Optional[int] = 0) -> DeviceAwareModule:
+                         model_execution_mode: ModelExecutionMode, rank: int = 0) -> DeviceAwareModule:
         """
         Updates a torch model so that input mini-batches are parallelized across the batch dimension to utilise
         multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
@@ -547,7 +547,7 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
         # get_model_input function to convert the dataset item to input tensors, and feed them through the model.
         train_dataset = config.get_torch_dataset_for_inference(ModelExecutionMode.TRAIN)
         train_item_0 = next(iter(train_dataset.as_data_loader(shuffle=False, batch_size=1, num_dataload_workers=0)))
-        model_inputs = get_scalar_model_inputs_and_labels(config, model, train_item_0, torch.device('cpu')).model_inputs
+        model_inputs = get_scalar_model_inputs_and_labels(config, model, train_item_0).model_inputs
         # The model inputs may already be converted to float16, assuming that we would do mixed precision.
         # However, the model is not yet converted to float16 when this function is called, hence convert back to float32
         summary = ModelSummary(model)

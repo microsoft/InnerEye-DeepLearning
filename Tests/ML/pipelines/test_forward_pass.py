@@ -18,7 +18,7 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.model_training import model_train
+from InnerEye.ML.model_training import model_train, train
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForScalarModel, TrainValidateParameters, \
     get_scalar_model_inputs_and_labels
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
@@ -88,7 +88,8 @@ def test_anomaly_detection(value_to_insert: float, in_training_mode: bool) -> No
         image_channels=["ct"],
         ground_truth_ids=ground_truth_ids,
         should_validate=False,
-        detect_anomaly=True
+        detect_anomaly=True,
+        use_distributed_data_parallel=False
     )
 
     model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TRAIN,
@@ -102,13 +103,15 @@ def test_anomaly_detection(value_to_insert: float, in_training_mode: bool) -> No
     optimizer = model_and_info.optimizer
 
     # Create the loss criterion
-    criterion = lambda x, y: torch.tensor(value_to_insert, requires_grad=True)
+    def _criterion(logits: torch.Tensor, labels: torch.Tensor, device: torch.device) -> torch.Tensor:
+        return torch.tensor(value_to_insert, requires_grad=True)
+
     pipeline = SegmentationForwardPass(model,
                                        config,
                                        batch_size=1,
                                        optimizer=optimizer,
                                        in_training_mode=in_training_mode,
-                                       criterion=criterion)
+                                       criterion=_criterion)
     image[0, 0, 0, 0, 0] = value_to_insert
     if np.isnan(value_to_insert) or np.isinf(value_to_insert):
         with pytest.raises(RuntimeError) as ex:
@@ -143,6 +146,7 @@ def test_amp_activated(use_model_parallel: bool,
                                          ground_truth_ids=["Lung"],
                                          use_mixed_precision=use_mixed_precision,
                                          use_model_parallel=use_model_parallel,
+                                         use_distributed_data_parallel=False,
                                          should_validate=False)
     assert model_config.use_gpu
     model_and_info = ModelAndInfo(config=model_config, model_execution_mode=execution_mode,
@@ -171,13 +175,16 @@ def test_amp_activated(use_model_parallel: bool,
     if use_data_parallel:
         assert isinstance(model, DataParallelModel)
     gradient_scaler = GradScaler() if use_mixed_precision else None
-    criterion = lambda x, y: torch.tensor([0.0], requires_grad=True).cuda()
+
+    def _criterion(logits: torch.Tensor, labels: torch.Tensor, device: torch.device) -> torch.Tensor:
+        return torch.tensor([0.0], requires_grad=True).to(device)
+
     pipeline = SegmentationForwardPass(model,
                                        model_config,
                                        batch_size=1,
                                        optimizer=optimizer,
                                        gradient_scaler=gradient_scaler,
-                                       criterion=criterion)
+                                       criterion=_criterion)
     logits, _ = pipeline._compute_loss(image, labels)
     # When using DataParallel, we expect to get a list of tensors back, one per GPU.
     if use_data_parallel:
@@ -233,6 +240,7 @@ def test_mean_teacher_model(test_output_dirs: TestOutputDirectories) -> None:
             return model.parameters()
 
     config = DummyClassification()
+    config.use_distributed_data_parallel = False
     config.set_output_to(test_output_dirs.root_dir)
 
     config.num_epochs = 1
@@ -307,6 +315,7 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
     assert torch.cuda.device_count() > 1, "This test must be executed on a multi-GPU machine"
     config = ClassificationModelWithIdentity()
     config.use_mixed_precision = use_mixed_precision
+    config.use_distributed_data_parallel = False
 
     model_and_info = ModelAndInfo(config=config, model_execution_mode=execution_mode,
                                   checkpoint_path=None)
@@ -331,7 +340,7 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
     training_steps = ModelTrainingStepsForScalarModel(config, train_val_parameters)
     sample = list(data_loaders[execution_mode])[0]
     model_input = get_scalar_model_inputs_and_labels(config, model, sample)
-    logits, posteriors, loss = training_steps._compute_model_output_and_loss(model_input)
+    logits, posteriors, loss = training_steps._compute_model_output_and_loss(model_input, 0, torch.device('cuda:0'))
     # When using DataParallel, we expect to get a list of tensors back, one per GPU.
     if use_data_parallel:
         assert isinstance(logits, list)
@@ -349,4 +358,4 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
         assert loss.dtype == torch.float32
     # Verify that forward pass does not throw. It would for example if it fails to gather tensors or not convert
     # float16 to float32
-    _, _, _ = training_steps._compute_model_output_and_loss(model_input)
+    _, _, _ = training_steps._compute_model_output_and_loss(model_input, 0, torch.device('cpu'))

@@ -19,7 +19,7 @@ from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
-from InnerEye.ML.model_training import model_train
+from InnerEye.ML.model_training import model_train, train
 from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoderWithMlp, \
     ImagingFeatureType
@@ -183,7 +183,8 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
         categorical_feature_encoder=config_for_dataset.categorical_feature_encoder,
         encoder_dimensionality_reduction_factor=reduction_factor,
         aggregation_type=aggregation_type,
-        scan_size=(6, 64, 60)
+        scan_size=(6, 64, 60),
+        use_distributed_data_parallel=False
     )
 
     if kernel_size_per_encoding_block:

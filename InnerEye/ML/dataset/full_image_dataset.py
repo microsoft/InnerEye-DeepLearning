@@ -179,13 +179,13 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
                        use_imbalanced_sampler: bool = False,
                        drop_last_batch: bool = False,
                        max_repeats: Optional[int] = None,
-                       distribute=False
+                       distribute: bool = False
                        ) -> DataLoader:
         num_dataload_workers = num_dataload_workers or self.args.num_dataload_workers
         batch_size = batch_size or self.args.train_batch_size
         if distribute:
             # distributed data loader
-            sampler: DistributedSampler = DistributedSampler(self)
+            sampler: Optional[Sampler] = DistributedSampler(self)
             return DataLoader(self,
                               batch_size=batch_size,
                               shuffle=False,
@@ -210,7 +210,7 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
 
         else:
             if use_imbalanced_sampler:
-                sampler: Optional[Sampler] = ImbalancedSampler(self)
+                sampler = ImbalancedSampler(self)
                 shuffle = False
             else:
                 sampler = None

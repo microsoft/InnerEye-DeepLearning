@@ -133,11 +133,10 @@ class MetricsPerPatientWriter:
         return df
 
 
-def create_summary_writers(args: ModelConfigBase, rank: Optional[int] = -1) -> SummaryWriters:
+def create_summary_writers(args: ModelConfigBase, rank: int = -1) -> SummaryWriters:
     """
     Creates two tensorboard writers, one for training and one for
     validation. Stored in a SummaryWriters objects.
-
     :param args: config of the model.
     :param rank: the global rank of the current process.
     :return: SummaryWriters with tensorboard summary writers.

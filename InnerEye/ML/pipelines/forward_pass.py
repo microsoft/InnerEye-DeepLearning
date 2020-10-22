@@ -120,7 +120,7 @@ class SegmentationForwardPass:
                                              patches: torch.Tensor,
                                              mask: torch.Tensor = None,
                                              labels: torch.Tensor = None,
-                                             device=None) -> SegmentationForwardPass.Result:
+                                             device: torch.device = None) -> SegmentationForwardPass.Result:
         if self.detect_anomaly:
             with autograd.detect_anomaly():
                 result = self._forward_pass(patches, mask, labels, device=device)

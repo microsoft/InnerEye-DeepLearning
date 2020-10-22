@@ -217,8 +217,7 @@ class ScalarModelInputsAndLabels(Generic[E, T]):
 
 def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
                                        model: torch.nn.Module,
-                                       sample: Dict[str, Any],
-                                       device: torch.device) -> ScalarModelInputsAndLabels:
+                                       sample: Dict[str, Any]) -> ScalarModelInputsAndLabels:
     """
     For a model that predicts scalars, gets the model input tensors from a sample returned by the data loader.
     :param model_config: The configuration object for the model.
@@ -230,10 +229,6 @@ def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
     """
     if isinstance(model, DataParallelModel):
         model = model.get_module()
-
-    # for key, value in sample.items():
-    #     if isinstance(value, torch.Tensor):
-    #         sample[key] = value.to(device)
 
     if isinstance(model_config, SequenceModelBase):
         sequence_model: DeviceAwareModule[List[ClassificationItemSequence], torch.Tensor] = model  # type: ignore
@@ -384,7 +379,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         model = self.train_val_params.model
         mean_teacher_model = self.train_val_params.mean_teacher_model
 
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, model, sample, device)
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, model, sample)
         label_gpu = self.get_label_tensor(model_inputs_and_labels.labels, device)
         logits, posteriors, loss = self._compute_model_output_and_loss(model_inputs_and_labels, rank, device)
         gathered_logits = gather_tensor(logits) if not self.model_config.use_ddp else logits

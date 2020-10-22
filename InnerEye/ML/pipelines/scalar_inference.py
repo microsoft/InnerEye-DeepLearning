@@ -117,7 +117,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         """
         assert isinstance(self.model_config, ScalarModelBase)
         device = torch.device('cpu')
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, self.model, sample, device)
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, self.model, sample)
         subject_ids = model_inputs_and_labels.subject_ids
 
         labels = self.model_config.get_gpu_tensor_if_possible(model_inputs_and_labels.labels, device=device)
