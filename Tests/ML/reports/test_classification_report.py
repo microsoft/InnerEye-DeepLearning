@@ -163,7 +163,7 @@ def test_get_image_filepath_from_subject_id() -> None:
                                                   dataset_subject_column="subject",
                                                   dataset_file_column="filePath",
                                                   dataset_dir=reports_folder)
-    expected_path = Path(reports_folder / "..\\test_data\\classification_data_2d\\im2.npy")
+    expected_path = Path(reports_folder / "../test_data/classification_data_2d/im2.npy")
 
     assert filepath
     assert expected_path.samefile(filepath)
