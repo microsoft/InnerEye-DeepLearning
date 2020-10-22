@@ -173,12 +173,11 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         return loss
 
     def forward_criterion(self, model_output: Union[torch.Tensor, List[torch.Tensor]],
-                          labels: NumpyOrTorch, device: Optional[torch.device]) -> torch.Tensor:
+                          labels: NumpyOrTorch) -> torch.Tensor:
         """
         Handles the forward pass for the loss function.
         :param model_output: A single Tensor, or a list if using DataParallelCriterion
         :param labels: Labels to compute loss against.
-        :param device: the (optional) Torch device to allocate to
         :return: loss tensor.
         """
         return self.criterion(model_output, labels)
@@ -526,7 +525,7 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
     """
 
     def forward_criterion(self, model_output: Union[torch.Tensor, List[torch.Tensor]],
-                          labels: NumpyOrTorch, device: torch.device) -> torch.Tensor:
+                          labels: NumpyOrTorch) -> torch.Tensor:
         _model_output: torch.Tensor
         # we need to gather the model outputs before masking them for the criterion.
         if isinstance(model_output, list):

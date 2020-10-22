@@ -39,7 +39,7 @@ MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
 
 T = TypeVar('T')
-FloatOrCudaEvent = Union[float, torch.cuda.CudaEvent]
+FloatOrCudaEvent = Union[float, torch.cuda.Event]
 
 
 def load_checkpoint_from_model_and_info(run_recovery: Optional[RunRecovery], config: ModelConfigBase,
