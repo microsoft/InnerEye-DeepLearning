@@ -3,9 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import os
 from pathlib import Path
 from typing import Any, List, Optional, Union
-import os
 
 import numpy as np
 import pytest
