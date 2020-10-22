@@ -6,10 +6,9 @@ import logging
 import os
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Optional, Union, List
+from typing import Any, Optional, Union
 
 import torch
-from numpy import logical_and
 from torch.optim.optimizer import Optimizer
 from torch.optim.rmsprop import RMSprop
 
@@ -208,7 +207,7 @@ class ModelAndInfo:
         self.checkpoint_epoch = epoch
         return True
 
-    def adjust_model_for_gpus(self, rank: Optional[int]=0) -> None:
+    def adjust_model_for_gpus(self, rank: Optional[int] = 0) -> None:
         """
         Updates the torch model so that input mini-batches are parallelized across the batch dimension to utilise
         multiple gpus. If model parallel is set to True and execution is in test mode, then model is partitioned to
@@ -374,7 +373,8 @@ class ModelAndInfo:
             self._optimizer = torch.optim.SGD(self._model.parameters(), self.config.l_rate, self.config.momentum,
                                               weight_decay=self.config.weight_decay)
         elif self.config.optimizer_type == OptimizerType.RMSprop:
-            self._optimizer = RMSprop(self._model.parameters(), self.config.l_rate, self.config.rms_alpha, self.config.opt_eps,
+            self._optimizer = RMSprop(self._model.parameters(), self.config.l_rate, self.config.rms_alpha,
+                                      self.config.opt_eps,
                                       self.config.weight_decay, self.config.momentum)
         else:
             raise NotImplementedError(f"Optimizer type {self.config.optimizer_type.value} is not implemented")

@@ -19,7 +19,6 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.models.parallel.data_parallel import execute_within_autocast_if_needed
 from InnerEye.ML.utils import image_util, ml_util
-from InnerEye.ML.utils.aml_distributed_utils import get_max_rank
 
 
 class SegmentationForwardPass:
@@ -109,7 +108,6 @@ class SegmentationForwardPass:
             result = self._forward_pass_with_anomaly_detection(patches=patches, mask=mask,
                                                                labels=labels, device=device)
         else:
-            print("attempting forward pass on rank ", rank)
             self.model.eval()
             # turn off autograd for memory optimizations
             with torch.no_grad():

@@ -36,7 +36,7 @@ from InnerEye.ML.model_training import model_train
 from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
-from InnerEye.ML.utils.aml_distributed_utils import get_local_rank, get_global_rank
+from InnerEye.ML.utils.aml_distributed_utils import get_global_rank
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
 from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_test

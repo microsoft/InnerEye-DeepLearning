@@ -41,7 +41,6 @@ from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass, single_o
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import dataset_util, metrics_util
-from InnerEye.ML.utils.aml_distributed_utils import get_max_rank
 from InnerEye.ML.utils.dataset_util import DatasetExample
 from InnerEye.ML.utils.image_util import NumpyOrTorch
 from InnerEye.ML.utils.metrics_util import SummaryWriters
@@ -174,11 +173,12 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         return loss
 
     def forward_criterion(self, model_output: Union[torch.Tensor, List[torch.Tensor]],
-                          labels: NumpyOrTorch) -> torch.Tensor:
+                          labels: NumpyOrTorch, device: Optional[torch.device]) -> torch.Tensor:
         """
         Handles the forward pass for the loss function.
         :param model_output: A single Tensor, or a list if using DataParallelCriterion
         :param labels: Labels to compute loss against.
+        :param device: the (optional) Torch device to allocate to
         :return: loss tensor.
         """
         return self.criterion(model_output, labels)
@@ -311,10 +311,11 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         else:
             raise NotImplementedError("Loss type {} is not implemented".format(self.model_config.loss_type))
 
-    def get_label_tensor(self, labels: torch.Tensor, device) -> torch.Tensor:
+    def get_label_tensor(self, labels: torch.Tensor, device: torch.device) -> torch.Tensor:
         """
         Converts the given tensor to the right data format, depending on the chosen loss function.
         :param labels: The label tensor that should be converted.
+        :param device: the Torch device to allocate to
         """
         try:
             labels = labels.to(device, dtype=self.label_tensor_dtype)
@@ -358,7 +359,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                 model.train()
                 logits, posteriors = self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
             else:
-                if rank == get_max_rank():
+                if rank == 0:
                     model.eval()
                     with torch.no_grad():
                         logits, posteriors = self.get_logits_and_posteriors(*model_inputs_and_labels.model_inputs)
@@ -525,7 +526,7 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
     """
 
     def forward_criterion(self, model_output: Union[torch.Tensor, List[torch.Tensor]],
-                          labels: NumpyOrTorch, device) -> torch.Tensor:
+                          labels: NumpyOrTorch, device: torch.device) -> torch.Tensor:
         _model_output: torch.Tensor
         # we need to gather the model outputs before masking them for the criterion.
         if isinstance(model_output, list):

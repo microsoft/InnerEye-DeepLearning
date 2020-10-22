@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
+
 from typing import Optional
 
 import torch
@@ -36,15 +37,3 @@ def get_local_size(is_offline_run: Optional[bool] = True) -> int:
     if is_offline_run:
         return torch.cuda.device_count()
     return int(os.environ['OMPI_COMM_WORLD_LOCAL_SIZE'])
-
-
-def get_max_rank():
-    """
-    Return the highest CUDA-enabled device ID, or 0 if none available
-    :return:
-    """
-    if torch.cuda.is_available():
-        max_rank = max([ii for ii in list(range(torch.cuda.device_count()))])
-    else:
-        max_rank = 0
-    return 0

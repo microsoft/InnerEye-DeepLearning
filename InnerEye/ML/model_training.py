@@ -6,7 +6,7 @@ import argparse
 import logging
 import os
 from time import time
-from typing import Optional, Tuple, TypeVar
+from typing import Optional, Tuple, TypeVar, Union
 
 import torch
 
@@ -25,8 +25,7 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util, model_util
-from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size, get_local_size, get_local_rank, \
-    get_max_rank
+from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size, get_local_size, get_local_rank
 
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
@@ -40,6 +39,7 @@ MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
 
 T = TypeVar('T')
+FloatOrCudaEvent = Union[float, torch.cuda.CudaEvent]
 
 
 def load_checkpoint_from_model_and_info(run_recovery: Optional[RunRecovery], config: ModelConfigBase,
@@ -55,7 +55,7 @@ def load_checkpoint_from_model_and_info(run_recovery: Optional[RunRecovery], con
 
 
 def model_train(config: ModelConfigBase,
-                run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResults:
+                run_recovery: Optional[RunRecovery] = None) -> Optional[ModelTrainingResults]:
     """
     The main training loop. It creates the model, dataset, optimizer_type, and criterion, then proceeds
     to train the model. If a checkpoint was specified, then it loads the checkpoint before resuming training.
@@ -64,6 +64,7 @@ def model_train(config: ModelConfigBase,
     :param run_recovery: Recovery information to restart training from an existing run.
     :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading a previous checkpoint.
+    :return: ModelTrainingResult, unless model called with torch.mp.spawn (which must return None)
     """
     # Save the dataset files for later use in cross validation analysis
     config.write_dataset_files()
@@ -97,22 +98,18 @@ def model_train(config: ModelConfigBase,
     return model_training_results
 
 
-def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None):
+def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None
+          ) -> Optional[ModelTrainingResults]:
     """
-
     :param rank: The global rank of the current process (for DistributedDataParallel). For single process, rank=0
-    :param model: The model to train.
     :param config: The arguments which specify all required information.
     :param run_recovery: Recovery information to restart training from an existing run.
     :return:
     """
-    global_rank = get_global_rank() if rank is None else rank  # For 1 machine, this is same as local rank
+    global_rank = get_global_rank() if rank is None else rank  # For 1 machine, global_rank = local_rank
 
     local_rank = global_rank if config.is_offline_run else get_local_rank()
     device = torch.device('cuda', local_rank) if torch.cuda.is_available() else torch.device('cpu')
-
-    devices = config.get_cuda_devices()
-    print(f'all visible cuda devices: {devices}')
 
     if config.use_ddp:
         world_size = get_global_size(config.is_offline_run)
@@ -223,8 +220,6 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
                                     dataframe_loggers=config.metrics_data_frame_loggers,
                                     in_training_mode=True)
 
-
-
         training_steps = create_model_training_steps(config, train_val_params)
         train_epoch_results = train_or_validate_epoch(training_steps, local_rank, device)
         train_results_per_epoch.append(train_epoch_results.metrics)
@@ -247,7 +242,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
             metrics.store_epoch_stats_for_segmentation(config.outputs_folder, epoch, epoch_lrs,
                                                        train_epoch_results.metrics,
                                                        val_epoch_results.metrics)
-        if save_epoch and global_rank == get_max_rank():
+        if save_epoch and global_rank == 0:
             # perform temperature scaling if required
             if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
                 optimal_temperature, scaled_val_results = \
@@ -316,7 +311,8 @@ def temperature_scaling_steps(config: SequenceModelBase,
     return temperature_value, val_epoch_results
 
 
-def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank: int, device: torch.device) -> ModelOutputsAndMetricsForEpoch:
+def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank: int,
+                            device: torch.device) -> ModelOutputsAndMetricsForEpoch:
     """
     Trains or validates the model for one epoch.
     :param training_steps: Training pipeline to use.
@@ -325,14 +321,14 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank: int, d
     training_random_state = None
     train_val_params = training_steps.train_val_params
     config = training_steps.model_config
-    cuda_available = torch.cuda.is_available() & rank == get_max_rank()
+    cuda_available = torch.cuda.is_available() & rank == 0
 
     if cuda_available:
-        item_start_time = torch.cuda.Event(enable_timing=True)
-        item_finish_time = torch.cuda.Event(enable_timing=True)
-        train_finish_time = torch.cuda.Event(enable_timing=True)
-        epoch_start_time = torch.cuda.Event(enable_timing=True)
-        epoch_end_time = torch.cuda.Event(enable_timing=True)
+        item_start_time: FloatOrCudaEvent = torch.cuda.Event(enable_timing=True)
+        item_finish_time: FloatOrCudaEvent = torch.cuda.Event(enable_timing=True)
+        train_finish_time: FloatOrCudaEvent = torch.cuda.Event(enable_timing=True)
+        epoch_start_time: FloatOrCudaEvent = torch.cuda.Event(enable_timing=True)
+        epoch_end_time: FloatOrCudaEvent = torch.cuda.Event(enable_timing=True)
         epoch_start_time.record()
     else:
         epoch_start_time = time()
@@ -458,9 +454,9 @@ def main() -> None:
                         required=True)
     args = parser.parse_args()
 
-    model_config = ModelConfigLoader().create_model_config_from_name(args.model)
+    model_config: ModelConfigBase = ModelConfigLoader().create_model_config_from_name(args.model)
 
-    model_train(0, model_config)
+    model_train(model_config)
 
 
 if __name__ == '__main__':
