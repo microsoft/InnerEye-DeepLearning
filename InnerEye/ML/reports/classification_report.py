@@ -326,6 +326,8 @@ def plot_image_for_subject(subject_id: str,
     :param dataset_dir: Path to the dataset
     :param im_size: Display size for image
     """
+    print_header(f"ID: {subject_id}", level=4)
+
     filepath = get_image_filepath_from_subject_id(subject_id=str(subject_id),
                                                   dataset_df=dataset_df,
                                                   dataset_subject_column=dataset_subject_column,
@@ -336,10 +338,7 @@ def plot_image_for_subject(subject_id: str,
                      f"in column {dataset_subject_column} in the csv file. "
                      f"Note: Reports with datasets that use channel columns in the dataset.csv "
                      f"are not yet supported.")
-
-    print_header(f"ID: {subject_id}", level=4)
-
-    assert filepath  # for mypy
+        return
 
     success = plot_image_from_filepath(filepath, im_size=im_size)
     if not success:
