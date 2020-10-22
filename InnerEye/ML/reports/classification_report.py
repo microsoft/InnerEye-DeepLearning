@@ -342,7 +342,7 @@ def plot_image_for_subject(subject_id: str,
 
     success = plot_image_from_filepath(filepath, im_size=im_size)
     if not success:
-        print_header("Unable to plot images: images must be 2D with shape [w, h] or [1, w, h].", level=4)
+        print_header("Unable to plot image: image must be 2D with shape [w, h] or [1, w, h].", level=0)
 
 
 def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int, dataset_csv_path: Path,
