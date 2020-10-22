@@ -120,6 +120,7 @@ if is_dev_package:
 
 package_data[INNEREYE_PACKAGE_NAME] += [
     str(INNEREYE_PACKAGE_ROOT / r"ML/reports/segmentation_report.ipynb")
+    str(INNEREYE_PACKAGE_ROOT / r"ML/reports/classification_report.ipynb")
 ]
 
 pre_processed_packages = _pre_process_packages()
