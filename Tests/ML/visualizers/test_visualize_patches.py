@@ -112,12 +112,17 @@ def test_visualize_patch_sampling_2d(test_output_dirs: TestOutputDirectories) ->
                     labels=labels,
                     metadata=PatientMetadata(patient_id=123,
                                              image_header=image_header))
-    visualize_random_crops(sample, config, output_folder=output_folder)
+    heatmap = visualize_random_crops(sample, config, output_folder=output_folder)
+    expected_folder = full_ml_test_data_path("patch_sampling")
+    expected_heatmap = expected_folder / "sampling_2d.npy"
+    # To update the stored results, uncomment this line:
+    # np.save(str(expected_heatmap), heatmap)
+    assert np.allclose(heatmap, np.load(str(expected_heatmap))), "Patch sampling created a different heatmap."
     assert len(list(output_folder.rglob("*.nii.gz"))) == 0
     assert len(list(output_folder.rglob("*.png"))) == 1
     actual_file = output_folder / "123_sampled_patches.png"
     assert_file_exists(actual_file)
-    expected = full_ml_test_data_path("patch_sampling") / "sampling_2d.png"
+    expected = expected_folder / "sampling_2d.png"
     # To update the stored results, uncomment this line:
     # expected.write_bytes(actual_file.read_bytes())
     assert_binary_files_match(actual_file, expected)
