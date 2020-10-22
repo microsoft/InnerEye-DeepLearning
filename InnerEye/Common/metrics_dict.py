@@ -493,7 +493,7 @@ class MetricsDict:
     @classmethod
     def get_optimal_idx(cls, fpr: np.ndarray, tpr: np.ndarray) -> np.ndarray:
         """
-        Given a list of FPR and TPR values corresponding to different thresholds, compute the index which corrsponds
+        Given a list of FPR and TPR values corresponding to different thresholds, compute the index which corresponds
         to the optimal threshold.
         """
         optimal_idx = np.argmax(tpr - fpr)
