@@ -18,6 +18,7 @@ from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.utils.ml_util import set_random_seed
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops
+from Tests.ML.util import assert_binary_files_match, assert_file_exists
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
@@ -57,16 +58,16 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
                                              image_header=image_header))
     visualize_random_crops(sample, config, output_folder=output_folder)
     f1 = output_folder / "123_ct.nii.gz"
-    assert f1.is_file()
+    assert_file_exists(f1)
     f2 = output_folder / "123_sampled_patches.nii.gz"
-    assert f2.is_file()
+    assert_file_exists(f2)
     thumbnails = [
         "123_sampled_patches_dim0.png",
         "123_sampled_patches_dim1.png",
         "123_sampled_patches_dim2.png",
     ]
     for f in thumbnails:
-        assert (output_folder / f).is_file()
+        assert_file_exists(output_folder / f)
 
     expected_folder = full_ml_test_data_path("patch_sampling")
     expected = expected_folder / ("sampled_to_boundary.nii.gz" if labels_to_boundary else "sampled_center.nii.gz")
@@ -79,7 +80,7 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
         for f in thumbnails:
             # Uncomment this line to update test results
             # (expected_folder / f).write_bytes((output_folder / f).read_bytes())
-            assert (output_folder / f).read_bytes() == (expected_folder / f).read_bytes()
+            assert_binary_files_match(output_folder / f, expected_folder / f)
 
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
@@ -111,11 +112,11 @@ def test_visualize_patch_sampling_2d(test_output_dirs: TestOutputDirectories) ->
     assert len(list(output_folder.rglob("*.nii.gz"))) == 0
     assert len(list(output_folder.rglob("*.png"))) == 1
     actual_file = output_folder / "123_sampled_patches.png"
-    assert actual_file.is_file()
+    assert_file_exists(actual_file)
     expected = full_ml_test_data_path("patch_sampling") / "sampling_2d.png"
     # To update the stored results, uncomment this line:
     # expected.write_bytes(actual_file.read_bytes())
-    assert actual_file.read_bytes() == expected.read_bytes()
+    assert_binary_files_match(actual_file, expected)
 
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
@@ -137,7 +138,7 @@ def test_plot_overlay(test_output_dirs: TestOutputDirectories,
     expected = full_ml_test_data_path("patch_sampling") / f"overlay_{dimension}.png"
     # To update the stored results, uncomment this line:
     # expected.write_bytes(file.read_bytes())
-    assert file.read_bytes() == expected.read_bytes()
+    assert_binary_files_match(file, expected)
 
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
@@ -155,4 +156,4 @@ def test_show_non_square_images(test_output_dirs: TestOutputDirectories) -> None
         expected = full_ml_test_data_path("patch_sampling") / f"overlay_with_aspect_dim{dim}.png"
         # To update the stored results, uncomment this line:
         # expected.write_bytes(actual_file.read_bytes())
-        assert actual_file.read_bytes() == expected.read_bytes()
+        assert_binary_files_match(actual_file, expected)

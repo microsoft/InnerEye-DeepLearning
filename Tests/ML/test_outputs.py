@@ -26,7 +26,7 @@ from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 from InnerEye.ML.utils.transforms import LinearTransform, get_range_for_window_level
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import assert_file_contents, assert_file_contents_match_exactly, assert_nifti_content
+from Tests.ML.util import assert_file_contains_string, assert_text_files_match, assert_nifti_content
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 model_name = "Basic"
@@ -126,7 +126,7 @@ def test_metrics_file(test_output_dirs: TestOutputDirectories) -> None:
     metrics_file = new_file("metrics_file.csv")
     d.to_csv(Path(metrics_file))
     # Sorting should be first by structure name alphabetically, then Dice with lowest scores first.
-    assert_file_contents(metrics_file, "Patient,Structure,Dice,HausdorffDistance_mm,MeanDistance_mm\n"
+    assert_file_contains_string(metrics_file, "Patient,Structure,Dice,HausdorffDistance_mm,MeanDistance_mm\n"
                                        "Patient3,kidney,0.400,1.000,0.100\n"
                                        "Patient2,kidney,0.700,1.000,0.200\n"
                                        "Patient1,liver,0.400,1.000,0.400\n"
@@ -135,8 +135,8 @@ def test_metrics_file(test_output_dirs: TestOutputDirectories) -> None:
     aggregates_file = new_file(METRICS_AGGREGATES_FILE)
     d.save_aggregates_to_csv(Path(aggregates_file))
     # Sorting should be first by structure name alphabetically, then Dice with lowest scores first.
-    assert_file_contents_match_exactly(Path(aggregates_file),
-                                       full_ml_test_data_path() / METRICS_AGGREGATES_FILE)
+    assert_text_files_match(Path(aggregates_file),
+                            full_ml_test_data_path() / METRICS_AGGREGATES_FILE)
     boxplot_per_structure(d.to_data_frame(),
                           column_name=MetricsFileColumns.DiceNumeric.value,
                           title="Dice score")

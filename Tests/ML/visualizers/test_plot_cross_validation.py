@@ -29,7 +29,7 @@ from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
 from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
 from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToyMultiLabelSequenceModel, \
     _get_multi_label_sequence_dataframe
-from Tests.ML.util import assert_file_contents_match_exactly, get_default_azure_config
+from Tests.ML.util import assert_text_files_match, get_default_azure_config
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
@@ -289,9 +289,9 @@ def test_save_outliers(test_config_ensemble: PlotCrossValidationConfig,
     test_config_ensemble.outlier_range = 0
     dataset_split_metrics = {x: _get_metrics_df(x) for x in [ModelExecutionMode.VAL]}
     save_outliers(test_config_ensemble, dataset_split_metrics, Path(test_config_ensemble.outputs_directory))
-    assert_file_contents_match_exactly(full_file=Path(test_config_ensemble.outputs_directory)
-                                                 / f"{ModelExecutionMode.VAL.value}_outliers.txt",
-                                       expected_file=Path(
+    assert_text_files_match(full_file=Path(test_config_ensemble.outputs_directory)
+                                      / f"{ModelExecutionMode.VAL.value}_outliers.txt",
+                            expected_file=Path(
                                            full_ml_test_data_path(
                                                f"{ModelExecutionMode.VAL.value}_outliers.txt")))
 
