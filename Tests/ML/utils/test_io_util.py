@@ -47,9 +47,9 @@ def test_nii_load_image() -> None:
     assert np.array_equal(image_with_header.image, known_array)
 
 
-@pytest.mark.parametrize("metadata", [None, PatientMetadata(patient_id="0"), PatientMetadata(patient_id="0")])
-@pytest.mark.parametrize("image_channel", [None, known_nii_path, good_npy_path])
-@pytest.mark.parametrize("ground_truth_channel", [None, known_nii_path, good_npy_path])
+@pytest.mark.parametrize("metadata", [None, PatientMetadata(patient_id="0")])
+@pytest.mark.parametrize("image_channel", [None, known_nii_path, f"{good_h5_path}:volume:0", good_npy_path])
+@pytest.mark.parametrize("ground_truth_channel", [None, known_nii_path, f"{good_h5_path}:segmentation:0:1", good_npy_path])
 @pytest.mark.parametrize("mask_channel", [None, known_nii_path, good_npy_path])
 def test_load_images_from_dataset_source(
         metadata: Optional[str],
@@ -65,22 +65,6 @@ def test_load_images_from_dataset_source(
             _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel)
     else:
         _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel)
-
-
-def test_load_images_from_dataset_source_h5() -> None:
-    """
-    Test if images are loaded as expected from channels
-    """
-    sample = io_util.load_images_from_dataset_source(
-        PatientDatasetSource(
-            metadata=PatientMetadata(patient_id="0"),
-            image_channels=[good_h5_path],
-            ground_truth_channels=[good_h5_path],
-            mask_channel=None
-        )
-    )
-
-    assert sample is not None
 
 
 def _test_load_images_from_channels(

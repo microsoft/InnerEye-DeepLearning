@@ -406,7 +406,7 @@ def test_min_patient_metadata() -> None:
     """
     Loading a dataset where only required columns are present
     """
-    df = pd.read_csv(full_ml_test_data_path("dataset.csv"))
+    df = pd.read_csv(full_ml_test_data_path("dataset.csv"), dtype=str)
     df = df.drop(columns="institutionId")
     patient_id = "1"
     metadata = PatientMetadata.from_dataframe(df, patient_id)

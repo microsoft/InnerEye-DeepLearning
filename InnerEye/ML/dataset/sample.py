@@ -12,7 +12,7 @@ import pandas as pd
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.Common.type_annotations import IntOrString, PathOrString, T, TupleFloat3
+from InnerEye.Common.type_annotations import PathOrString, T, TupleFloat3
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER, CSV_SUBJECT_HEADER, \
     CSV_TAGS_HEADER
