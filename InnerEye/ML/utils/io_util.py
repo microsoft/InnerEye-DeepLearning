@@ -417,14 +417,14 @@ def load_image(path: str, image_type: Optional[Type] = float) -> ImageWithHeader
             dataset = hdf5_path_split_by_colon[1]
             channel = int(hdf5_path_split_by_colon[2])
             segmentation_id = int(hdf5_path_split_by_colon[3])
-            image = load_hdf5_dataset_from_file(path, dataset)[channel] == segmentation_id  # create mask
+            image = load_hdf5_dataset_from_file(Path(path), dataset)[channel] == segmentation_id  # create mask
             header = get_unit_image_header()
             return ImageWithHeader(image, header)
         elif len(hdf5_path_split_by_colon) == 3:
             path = hdf5_path_split_by_colon[0]
             dataset = hdf5_path_split_by_colon[1]
             channel = int(hdf5_path_split_by_colon[2])
-            image = load_hdf5_dataset_from_file(path, dataset)[channel]
+            image = load_hdf5_dataset_from_file(Path(path), dataset)[channel]
             header = get_unit_image_header()
             return ImageWithHeader(image, header)
     raise ValueError(f"Invalid file type {path}")
