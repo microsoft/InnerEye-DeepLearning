@@ -32,6 +32,7 @@ from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
 from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_train
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
+from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -53,6 +54,10 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     config.write_dataset_files()
 
     # set the random seed for all libraries
+    ml_util.set_random_seed(config.get_effective_random_seed(), "Patch visualization")
+    # Visualize how patches are sampled for segmentation models. This changes the random generator, but we don't
+    # want training to depend on how many patients we visualized, and hence set the random seed again right after.
+    visualize_random_crops_for_dataset(config)
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model training")
 
     logging.debug("Creating the PyTorch model.")
@@ -85,8 +90,9 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     if config.compute_mean_teacher_model:
         mean_teacher_model_loaded = models_and_optimizer.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
         if not mean_teacher_model_loaded:
-            raise ValueError("There was no checkpoint file available for the mean teacher model for given start_epoch {}"
-                             .format(config.start_epoch))
+            raise ValueError(
+                "There was no checkpoint file available for the mean teacher model for given start_epoch {}"
+                .format(config.start_epoch))
 
     # Create optimizer
     optimizer_loaded = models_and_optimizer.try_create_optimizer_and_load_from_checkpoint()

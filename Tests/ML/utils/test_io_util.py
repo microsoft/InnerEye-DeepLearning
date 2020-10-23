@@ -20,7 +20,7 @@ from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_exam
 from InnerEye.ML.utils.io_util import ImageHeader, is_nifti_file_path, is_numpy_file_path, \
     load_image_in_known_formats, load_numpy_image, is_dicom_file_path, load_dicom_image, \
     ImageAndSegmentations, load_images_and_stack, DicomTags, PhotometricInterpretation
-from Tests.ML.util import assert_file_contents
+from Tests.ML.util import assert_file_contains_string
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 known_nii_path = full_ml_test_data_path("test_good.nii.gz")
@@ -99,7 +99,7 @@ def test_save_file(value: Any, expected: Any) -> None:
     file = full_ml_test_data_path("test.txt")
     io_util.save_lines_to_file(Path(file), value)
 
-    assert_file_contents(file, expected)
+    assert_file_contains_string(file, expected)
 
     os.remove(str(file))
 
