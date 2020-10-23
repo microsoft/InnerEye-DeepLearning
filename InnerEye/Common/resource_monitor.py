@@ -186,13 +186,17 @@ class ResourceMonitor(Process):
         Writes the aggregate GPU utilization metrics to AzureML, and flushes all writers.
         """
         run_context = Run.get_context()
+        for util in self.gpu_aggregates.values():
+            for (name, value) in util.average().enumerate():
+                logging.info(f"{name}: {value}")
+                if not is_offline_run_context(run_context):
+                    run_context.log(name, value)
+        for util in self.gpu_max.values():
+            for (name, value) in util.average().enumerate(prefix="Max"):
+                logging.info(f"{name}: {value}")
+                if not is_offline_run_context(run_context):
+                    run_context.log(name, value)
         if not is_offline_run_context(run_context):
-            for util in self.gpu_aggregates.values():
-                for (name, value) in util.average().enumerate():
-                    run_context.log(name, value)
-            for util in self.gpu_max.values():
-                for (name, value) in util.average().enumerate(prefix="Max"):
-                    run_context.log(name, value)
             run_context.flush()
         self.writer.flush()
 
