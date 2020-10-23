@@ -314,18 +314,22 @@ class MLRunner:
             # log the number of epochs used for model training
             RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
 
-        # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
-        # the current run is a single one. See the documentation of ModelProcessing for more details.
-        # on AML we only want to run inference on a single device
+        # When training with DDP on AML, multiple processes will be running here. We only want to run inference
+        # once. We don't have this problem with offline DDP since training is spawned within model_training
         if not is_offline_run_context(RUN_CONTEXT):
             if get_global_rank() > 0:
                 return
 
-            best_epoch = self.run_inference_and_register_model(run_recovery, ModelProcessing.DEFAULT)
+        # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
+        # the current run is a single one. See the documentation of ModelProcessing for more details.
+        best_epoch = self.run_inference_and_register_model(run_recovery, ModelProcessing.DEFAULT)
 
-            # Generate report
-            if best_epoch:
-                Runner.generate_report(self.model_config, best_epoch, ModelProcessing.DEFAULT)
+        # Generate report
+        if best_epoch:
+            Runner.generate_report(self.model_config, best_epoch, ModelProcessing.DEFAULT)
+        elif self.model_config.is_scalar_model and len(self.model_config.get_test_epochs()) == 1:
+            # We don't register scalar models but still want to create a report if we have run inference.
+            Runner.generate_report(self.model_config, self.model_config.get_test_epochs()[0], ModelProcessing.DEFAULT)
 
     def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery],
                                          model_proc: ModelProcessing) -> Optional[int]:
