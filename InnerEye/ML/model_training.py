@@ -10,8 +10,8 @@ from typing import Optional, Tuple, TypeVar
 
 from torch.cuda.amp import GradScaler
 
-from InnerEye.Azure.azure_util import RUN_CONTEXT
-from InnerEye.Common.common_util import empty_string_to_none
+from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
+from InnerEye.Common.common_util import empty_string_to_none, logging_section
 from InnerEye.Common.metrics_dict import MetricsDict
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML import metrics
@@ -57,7 +57,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     ml_util.set_random_seed(config.get_effective_random_seed(), "Patch visualization")
     # Visualize how patches are sampled for segmentation models. This changes the random generator, but we don't
     # want training to depend on how many patients we visualized, and hence set the random seed again right after.
-    visualize_random_crops_for_dataset(config)
+    with logging_section("Visualizing the effect of sampling random crops for training"):
+        visualize_random_crops_for_dataset(config)
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model training")
 
     logging.debug("Creating the PyTorch model.")
@@ -92,7 +93,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         if not mean_teacher_model_loaded:
             raise ValueError(
                 "There was no checkpoint file available for the mean teacher model for given start_epoch {}"
-                .format(config.start_epoch))
+                    .format(config.start_epoch))
 
     # Create optimizer
     optimizer_loaded = models_and_optimizer.try_create_optimizer_and_load_from_checkpoint()
@@ -202,9 +203,10 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     if resource_monitor:
         # stop the resource monitoring process
         logging.info("Shutting down the resource monitor process. Aggregate resource utilization:")
-        resource_monitor.flush()
-        for line in resource_monitor.aggregate_metrics:
-            logging.info(line)
+        for name, value in resource_monitor.read_aggregate_metrics():
+            logging.info(f"{name}: {value}")
+            if not is_offline_run_context(RUN_CONTEXT):
+                RUN_CONTEXT.log(name, value)
         resource_monitor.kill()
 
     return model_training_results

@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import time
 from dataclasses import dataclass
 from multiprocessing import Process
@@ -17,9 +16,7 @@ import psutil
 import tensorboardX
 import torch
 from GPUtil import GPU
-from azureml.core import Run
 
-from InnerEye.Azure.azure_util import is_offline_run_context
 from InnerEye.ML.utils.ml_util import is_gpu_available
 
 
@@ -117,7 +114,7 @@ class GpuUtilization:
         )
 
 
-RESOURCE_MONITOR_AGGREGATE_METRICS = "aggregate_resource_usage.txt"
+RESOURCE_MONITOR_AGGREGATE_METRICS = "aggregate_resource_usage.csv"
 
 
 class ResourceMonitor(Process):
@@ -139,6 +136,7 @@ class ResourceMonitor(Process):
         self.writer = tensorboardX.SummaryWriter(str(self.tensorboard_folder))
         self.step = 0
         self.aggregate_metrics: List[str] = []
+        self.aggregate_metrics_file = self.tensorboard_folder / RESOURCE_MONITOR_AGGREGATE_METRICS
 
     def log_to_tensorboard(self, label: str, value: float) -> None:
         """
@@ -184,31 +182,33 @@ class ResourceMonitor(Process):
             self.log_to_tensorboard(f'CPU/Load_Percent', psutil.cpu_percent(interval=None))
             self.log_to_tensorboard(f'CPU/MemUtil_Percent', psutil.virtual_memory()[2])
             self.step += 1
+            self.store_to_file()
             # pause the thread for the requested delay
             time.sleep(self._interval_seconds)
 
-    def flush(self) -> None:
+    def store_to_file(self) -> None:
         """
-        Writes the aggregate GPU utilization metrics to AzureML, and flushes all writers.
+        Writes the current aggregate metrics (average and maximum) to a file inside the self.tensorboard_folder
         """
-        run_context = Run.get_context()
-        aggregate_metrics: List[str] = []
+        aggregate_metrics: List[str] = ["metric,value"]
         for util in self.gpu_aggregates.values():
             for (name, value) in util.average().enumerate():
-                aggregate_metrics.append(f"{name}: {value}")
-                if not is_offline_run_context(run_context):
-                    run_context.log(name, value)
+                aggregate_metrics.append(f"{name},{value}")
         for util in self.gpu_max.values():
             for (name, value) in util.average().enumerate(prefix="Max"):
-                aggregate_metrics.append(f"{name}: {value}")
-                if not is_offline_run_context(run_context):
-                    run_context.log(name, value)
-        self.aggregate_metrics = aggregate_metrics
-        aggregates_file = self.tensorboard_folder / RESOURCE_MONITOR_AGGREGATE_METRICS
-        aggregates_file.write_text("\n".join(aggregate_metrics))
-        if not is_offline_run_context(run_context):
-            run_context.flush()
-        self.writer.flush()
+                aggregate_metrics.append(f"{name},{value}")
+        self.aggregate_metrics_file.write_text("\n".join(aggregate_metrics))
 
-    def kill(self) -> None:
-        super().kill()
+    def read_aggregate_metrics(self) -> List[Tuple[str, float]]:
+        """
+        Reads the file containing aggregate metrics, and returns them parsed
+        as (metric_name, value) tuples.
+        """
+        if not self.aggregate_metrics_file.is_file():
+            return []
+        lines = self.aggregate_metrics_file.read_text().splitlines()[1:]
+        result: List[Tuple[str, float]] = []
+        for line in lines:
+            split = line.split(sep=",")
+            result.append((split[0], float(split[1])))
+        return result

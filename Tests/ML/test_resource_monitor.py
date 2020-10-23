@@ -5,13 +5,11 @@
 import os
 from pathlib import Path
 from unittest import mock
-from unittest.mock import MagicMock
 
 from GPUtil import GPU
-from azureml.core import Run
 
 from InnerEye.Common.output_directories import TestOutputDirectories
-from InnerEye.Common.resource_monitor import GpuUtilization, RESOURCE_MONITOR_AGGREGATE_METRICS, ResourceMonitor
+from InnerEye.Common.resource_monitor import GpuUtilization, ResourceMonitor
 
 
 def test_utilization_enumerate() -> None:
@@ -157,16 +155,13 @@ def test_resource_monitor(test_output_dirs: TestOutputDirectories) -> None:
         1: GpuUtilization(id=1, load=0.4, mem_util=0.7, mem_allocated=4.0, mem_reserved=2.0, count=2),
         2: GpuUtilization(id=2, load=0.2, mem_util=0.3, mem_allocated=2.0, mem_reserved=1.0, count=1),
     }
-    mock_run = Run.get_context()
-    mock_run.log = MagicMock(name="run_context.log")
-    mock_run.flush = MagicMock(name="run_context.flush")
-    with mock.patch("azureml.core.Run.get_context", return_value=mock_run):
-        with mock.patch("InnerEye.Common.resource_monitor.is_offline_run_context", return_value=False):
-            r.flush()
-    assert mock_run.log.call_count == 16, "Called for 2 GPUs times, max and average, 4 metrics"  # type: ignore
-    assert mock_run.flush.call_count == 1  # type: ignore
+    r.writer.flush()
+    r.store_to_file()
+    # Write a second time - we expect that to overwrite and only produce one set of metrics
+    r.store_to_file()
     tb_file = list(Path(tensorboard_folder).rglob("*tfevents*"))[0]
     assert os.path.getsize(str(tb_file)) > 100
-    aggregates_file = tensorboard_folder / RESOURCE_MONITOR_AGGREGATE_METRICS
-    assert aggregates_file.is_file
-    assert len(aggregates_file.read_text().splitlines()) == 16
+    assert r.aggregate_metrics_file.is_file
+    assert len(r.aggregate_metrics_file.read_text().splitlines()) == 17
+    parsed_metrics = r.read_aggregate_metrics()
+    assert len(parsed_metrics) == 16
