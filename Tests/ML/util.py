@@ -159,7 +159,6 @@ def assert_tensors_equal(t1: torch.Tensor, t2: Union[torch.Tensor, List], abs: f
     assert v1 == pytest.approx(v2, abs=abs), f"Tensor elements don't match with tolerance {abs}: {v1} != {v2}"
 
 
-
 def assert_binary_files_match(actual_file: Path, expected_file: Path) -> None:
     """
     Checks if two files contain exactly the same bytes. If PNG files mismatch, additional diagnostics is printed.

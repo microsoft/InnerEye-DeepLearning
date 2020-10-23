@@ -634,7 +634,9 @@ class SegmentationModelBase(ModelConfigBase):
         """
         assert self.local_dataset is not None  # for mypy
         self.dataset_data_frame = pd.read_csv(self.local_dataset / DATASET_CSV_FILE_NAME,
-                                              converters=self.col_type_converters, low_memory=False)
+                                              dtype=str,
+                                              converters=self.col_type_converters,
+                                              low_memory=False)
         self.pre_process_dataset_dataframe()
 
     def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:

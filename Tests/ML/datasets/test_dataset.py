@@ -381,7 +381,7 @@ def test_patient_metadata() -> None:
     :return:
     """
     file = full_ml_test_data_path("dataset_with_full_header.csv")
-    df = pd.read_csv(file)
+    df = pd.read_csv(file, dtype=str)
     subject = "511"
     expected_institution = "85aaee5f-f5f3-4eae-b6cd-26b0070156d8"
     expected_series = "22ef9c5e149650f9cb241d1aa622ad1731b91d1a1df770c05541228b47845ae4"

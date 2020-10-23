@@ -35,6 +35,11 @@ def generate_notebook(template_notebook: Path, notebook_params: Dict, result_not
                                output_path=str(result_notebook),
                                parameters=notebook_params,
                                progress_bar=False)
+    resources = convert_to_html(result_notebook)
+    return result_notebook.with_suffix(resources['output_extension'])
+
+
+def convert_to_html(result_notebook: Path):
     print(f"Running conversion to HTML for {result_notebook}")
     with result_notebook.open() as f:
         notebook = nbformat.read(f, as_version=4)
@@ -48,7 +53,7 @@ def generate_notebook(template_notebook: Path, notebook_params: Dict, result_not
             resources=resources,
             notebook_name=str(result_notebook.stem)
         )
-    return result_notebook.with_suffix(resources['output_extension'])
+    return resources
 
 
 def generate_segmentation_notebook(result_notebook: Path,
