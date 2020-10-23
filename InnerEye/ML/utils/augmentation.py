@@ -65,7 +65,7 @@ def random_select_patch_center(sample: Sample, class_weights: List[float] = None
 
 def random_crop(sample: Sample,
                 crop_size: TupleInt3,
-                class_weights: List[float] = None) -> Tuple[Sample, np.ndarray]:
+                class_weights: List[float] = None) -> Tuple[Sample, np.ndarray, List[slice]]:
     """
     Randomly crops images, mask, and labels arrays according to the crop_size argument.
     The selection of the center is dependant on background probability.
@@ -76,7 +76,8 @@ def random_crop(sample: Sample,
     :param class_weights: A weighting vector with values [0, 1] to influence the class the center crop
                           voxel belongs to (must sum to 1), uniform distribution assumed if none provided.
     :return: Tuple item 1: The cropped images, labels, and mask. Tuple item 2: The center that was chosen for the crop,
-    before shifting to be inside of the image.
+    before shifting to be inside of the image. Tuple item 3: The slicers that convert the input image to the chosen
+    crop.
     :raises TypeError: If any of the arguments are of the wrong type.
     :raises ValueError: If there are shape mismatches among the arguments or if the crop size is larger than the image.
     """
@@ -119,7 +120,7 @@ def random_crop(sample: Sample,
         mask=mask_cropped,
         metadata=sample.metadata
     )
-    return sample, center
+    return sample, center, slicers
 
 
 class ImageTransformationBase(Transform3D):
