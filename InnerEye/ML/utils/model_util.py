@@ -160,7 +160,7 @@ class ModelAndInfo:
             logging.info("Making no adjustments to the model because no GPU was found.")
 
         # Update model related config attributes (After Model Parallel Activated)
-        config.adjust_after_mixed_precision_and_parallel(model)
+        config.adjust_after_mixed_precision_and_parallel(model, device)
 
         # DataParallel enables running the model with multiple gpus by splitting samples across GPUs
         # If the model is used in training mode, data parallel is activated by default.

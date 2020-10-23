@@ -18,7 +18,7 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.model_training import model_train, train
+from InnerEye.ML.model_training import model_train
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForScalarModel, TrainValidateParameters, \
     get_scalar_model_inputs_and_labels
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints

@@ -660,8 +660,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     @property
     def use_ddp(self) -> bool:
         """
-        Data parallel may used if GPUs are usable and the number of CUDA devices are greater than 1
-        and the OS is not windows
+        Distributed Data Parallel may used if GPUs are usable and the number of CUDA devices are greater than 1
+        and the OS is not windows. Additionally, the arg use_distributed_data_parallel must not be set to False
         :return:
         """
         _devices = self.get_cuda_devices()

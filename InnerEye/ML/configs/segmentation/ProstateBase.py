@@ -68,6 +68,6 @@ class ProstateBase(SegmentationModelBase):
         """
         Return an adjusted split
         """
-        return DatasetSplits.from_proportions(dataset_df, proportion_train=0.90, proportion_val=0.05,
-                                              proportion_test=0.05,
+        return DatasetSplits.from_proportions(dataset_df, proportion_train=0.8, proportion_val=0.05,
+                                              proportion_test=0.15,
                                               random_seed=0)

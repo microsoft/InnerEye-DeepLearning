@@ -165,7 +165,7 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         :param device: The Torch device to allocate to. If None, sets to default GPU if available, else CPU.
         """
         # ensure that the labels are loaded into the GPU
-        labels = self.model_config.get_gpu_tensor_if_possible(labels, device)
+        labels = self.model_config.get_gpu_tensor_if_possible(labels, device=device)
         loss = self.forward_criterion_with_autocast(model_output, labels)
         if self.model_config.use_data_parallel:
             # Aggregate the loss values for each parallelized batch element.
@@ -315,7 +315,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             labels = labels.to(device, dtype=self.label_tensor_dtype)
         except ValueError as ex:
             raise ValueError(f"Unable to convert tensor {labels} to data type {self.label_tensor_dtype}: {str(ex)}")
-        return self.model_config.get_gpu_tensor_if_possible(labels, device)
+        return self.model_config.get_gpu_tensor_if_possible(labels, device=device)
 
     def get_logits_and_posteriors(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
             -> Tuple[torch.Tensor, torch.Tensor]:
@@ -664,7 +664,7 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
         """
 
         cropped_sample: CroppedSample = CroppedSample.from_dict(sample=sample)
-        labels = self.model_config.get_gpu_tensor_if_possible(cropped_sample.labels_center_crop, device)
+        labels = self.model_config.get_gpu_tensor_if_possible(cropped_sample.labels_center_crop, device=device)
 
         mask = None if self.train_val_params.in_training_mode else cropped_sample.mask_center_crop
         forward_pass_result = self.pipeline.forward_pass_patches(patches=cropped_sample.image,

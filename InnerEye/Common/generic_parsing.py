@@ -76,7 +76,7 @@ class CudaAwareConfig(param.Parameterized, Generic[T]):
         else:
             return None
 
-    def get_gpu_tensor_if_possible(self, data: T, device: Optional[torch_device] = None) -> Any:
+    def get_gpu_tensor_if_possible(self, data: T, device: torch_device = None) -> Any:
         """"
         Get a cuda tensor if this transform was cuda enabled and a GPU is available, otherwise
         return the input.

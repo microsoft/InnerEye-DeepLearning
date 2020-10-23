@@ -19,7 +19,7 @@ from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
-from InnerEye.ML.model_training import model_train, train
+from InnerEye.ML.model_training import model_train
 from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoderWithMlp, \
     ImagingFeatureType

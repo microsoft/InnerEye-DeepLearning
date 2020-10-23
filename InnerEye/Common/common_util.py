@@ -61,6 +61,7 @@ class DataframeLogger:
         """
         import pandas as pd
         if not self.csv_path.parent.is_dir():
+            # exist_ok necessary when running multiple processes
             self.csv_path.parent.mkdir(parents=True, exist_ok=True)
         # Specifying columns such that the order in which columns appear matches the order in which
         # columns were added in the code.

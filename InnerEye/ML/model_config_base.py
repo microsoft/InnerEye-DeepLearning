@@ -237,13 +237,13 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
             dst = root / STORED_CSV_FILE_NAMES[mode]
             dataframe.to_csv(dst, mode='w', index=False)
 
-    def adjust_after_mixed_precision_and_parallel(self, model: Any, device: Optional[torch_device] = None) -> None:
+    def adjust_after_mixed_precision_and_parallel(self, model: Any, device: torch_device) -> None:
         """
         A hook to adjust the model configuration that is stored in the present object to match
         the torch model given in the argument. This hook is called after adjusting the model for
         mixed precision and parallel training.
         :param model: The torch model.
-        :param device: The Torch device to allocate to. If None, sets to default GPU if available, else CPU.
+        :param device: The Torch device to allocate to.
         """
         pass
 
