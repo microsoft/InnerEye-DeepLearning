@@ -129,7 +129,7 @@ def test_resource_monitor(test_output_dirs: TestOutputDirectories) -> None:
     tensorboard_folder = Path(test_output_dirs.root_dir)
     r = ResourceMonitor(interval_seconds=5, tensorboard_folder=tensorboard_folder)
 
-    def create_gpu(id: int, load: float, mem_total: float, mem_used: float):
+    def create_gpu(id: int, load: float, mem_total: float, mem_used: float) -> GPU:
         return GPU(ID=id, uuid=None, load=load, memoryTotal=mem_total, memoryUsed=mem_used,
                    memoryFree=None, driver=None, gpu_name=None,
                    serial=None, display_mode=None, display_active=None, temp_gpu=None)
