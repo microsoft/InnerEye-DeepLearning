@@ -116,7 +116,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
         diagnostics_events = str(config.logs_folder / "diagnostics")
         logging.info(f"Starting resource monitor, outputting to {diagnostics_events}")
         resource_monitor = ResourceMonitor(interval_seconds=config.monitoring_interval_seconds,
-                                           tb_log_file_path=diagnostics_events)
+                                           tensorboard_folder=diagnostics_events)
         resource_monitor.start()
 
     gradient_scaler = GradScaler() if config.use_gpu and config.use_mixed_precision else None
