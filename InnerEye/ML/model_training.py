@@ -119,7 +119,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     resource_monitor = None
     if config.monitoring_interval_seconds > 0:
         # initialize and start GPU monitoring
-        diagnostics_events = str(config.logs_folder / "diagnostics")
+        diagnostics_events = config.logs_folder / "diagnostics"
         logging.info(f"Starting resource monitor, outputting to {diagnostics_events}")
         resource_monitor = ResourceMonitor(interval_seconds=config.monitoring_interval_seconds,
                                            tensorboard_folder=diagnostics_events)
@@ -201,7 +201,10 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     config.metrics_data_frame_loggers.close_all()
     if resource_monitor:
         # stop the resource monitoring process
-        logging.info("Shutting down the resource monitor process.")
+        logging.info("Shutting down the resource monitor process. Aggregate resource utilization:")
+        resource_monitor.flush()
+        for line in resource_monitor.aggregate_metrics:
+            logging.info(line)
         resource_monitor.kill()
 
     return model_training_results

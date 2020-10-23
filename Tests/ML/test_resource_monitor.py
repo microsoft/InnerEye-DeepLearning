@@ -11,7 +11,7 @@ from GPUtil import GPU
 from azureml.core import Run
 
 from InnerEye.Common.output_directories import TestOutputDirectories
-from InnerEye.Common.resource_monitor import GpuUtilization, ResourceMonitor
+from InnerEye.Common.resource_monitor import GpuUtilization, RESOURCE_MONITOR_AGGREGATE_METRICS, ResourceMonitor
 
 
 def test_utilization_enumerate() -> None:
@@ -128,7 +128,7 @@ def test_resource_monitor(test_output_dirs: TestOutputDirectories) -> None:
     """
     Test if metrics are correctly updated in the ResourceMonitor class.
     """
-    tensorboard_folder = test_output_dirs.root_dir
+    tensorboard_folder = Path(test_output_dirs.root_dir)
     r = ResourceMonitor(interval_seconds=5, tensorboard_folder=tensorboard_folder)
 
     def create_gpu(id: int, load: float, mem_total: float, mem_used: float):
@@ -165,5 +165,8 @@ def test_resource_monitor(test_output_dirs: TestOutputDirectories) -> None:
             r.flush()
     assert mock_run.log.call_count == 16, "Called for 2 GPUs times, max and average, 4 metrics"  # type: ignore
     assert mock_run.flush.call_count == 1  # type: ignore
-    tb_file = list(Path(tensorboard_folder).rglob("*"))[0]
+    tb_file = list(Path(tensorboard_folder).rglob("*tfevents*"))[0]
     assert os.path.getsize(str(tb_file)) > 100
+    aggregates_file = tensorboard_folder / RESOURCE_MONITOR_AGGREGATE_METRICS
+    assert aggregates_file.is_file
+    assert len(aggregates_file.read_text().splitlines()) == 16
