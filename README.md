@@ -84,7 +84,10 @@ python InnerEye/ML/runner.py --model=HelloWorld
 
 If that works: Congratulations! You have successfully built your first model using the InnerEye toolbox.
 
-Detailed instructions, including setup in Azure, are here:
+If it fails, please check the 
+[troubleshooting page on the Wiki](https://github.com/microsoft/InnerEye-DeepLearning/wiki/Issues-with-code-setup-and-the-HelloWorld-model).
+
+Further detailed instructions, including setup in Azure, are here:
 1. [Setting up your environment](docs/environment.md)
 1. [Training a Hello World segmentation model](docs/hello_world_model.md)
 1. [Setting up Azure Machine Learning](docs/setting_up_aml.md)
