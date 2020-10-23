@@ -184,8 +184,8 @@ class ResourceMonitor(Process):
             if gpu_available:
                 self.update_metrics(GPUtil.getGPUs())
             # log the CPU utilization
-            self.log_to_tensorboard(f'CPU/Load_Percent', psutil.cpu_percent(interval=None))
-            self.log_to_tensorboard(f'CPU/MemUtil_Percent', psutil.virtual_memory()[2])
+            self.log_to_tensorboard('CPU/Load_Percent', psutil.cpu_percent(interval=None))
+            self.log_to_tensorboard('CPU/MemUtil_Percent', psutil.virtual_memory()[2])
             self.step += 1
             self.store_to_file()
             # pause the thread for the requested delay

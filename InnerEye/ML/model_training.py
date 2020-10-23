@@ -91,9 +91,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     if config.compute_mean_teacher_model:
         mean_teacher_model_loaded = models_and_optimizer.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
         if not mean_teacher_model_loaded:
-            raise ValueError(
-                "There was no checkpoint file available for the mean teacher model for given start_epoch {}"
-                    .format(config.start_epoch))
+            raise ValueError("There was no checkpoint file available for the mean teacher model "
+                             f"for given start_epoch {config.start_epoch}")
 
     # Create optimizer
     optimizer_loaded = models_and_optimizer.try_create_optimizer_and_load_from_checkpoint()
