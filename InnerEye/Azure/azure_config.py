@@ -68,7 +68,7 @@ class AzureConfig(GenericConfig):
                          "This is only used for downloading datasets outside of AzureML.")
     datasets_container: str = param.String(doc="Optional: The blob storage container with the datasets.")
     workspace_name: str = param.String(doc="The name of the AzureML workspace that should be used.")
-    resource_group: str = param.String(None, doc="The Azure resource group that contains the AzureML workspace.")
+    resource_group: str = param.String(doc="The Azure resource group that contains the AzureML workspace.")
     docker_shm_size: str = param.String("440g", doc="The shared memory in the docker image for the AzureML VMs.")
     hyperdrive: bool = param.Boolean(False, doc="If True, use AzureML HyperDrive for run execution.")
     cluster: str = param.String(doc="The name of the GPU cluster inside the AzureML workspace, that should "

@@ -96,7 +96,7 @@ class CroppingDataset(FullImageDataset):
         :return: CroppedSample
         """
         # crop the original raw sample
-        sample, center_point = augmentation.random_crop(
+        sample, center_point, _ = augmentation.random_crop(
             sample=sample,
             crop_size=crop_size,
             class_weights=class_weights

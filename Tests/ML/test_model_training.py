@@ -24,8 +24,9 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsForSegmentation
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.training_util import ModelTrainingResults
+from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import assert_file_contents
+from Tests.ML.util import assert_file_contains_string
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 config_path = full_ml_test_data_path()
@@ -188,12 +189,16 @@ def _test_model_train(output_dirs: TestOutputDirectories,
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.VAL]).is_file()
-    assert_file_contents(train_config.outputs_folder / TRAIN_STATS_FILE, expected_stats)
+    assert_file_contains_string(train_config.outputs_folder / TRAIN_STATS_FILE, expected_stats)
 
     # Test for saving of example images
     assert os.path.isdir(train_config.example_images_folder)
     example_files = os.listdir(train_config.example_images_folder)
     assert len(example_files) == 3 * 2
+    # Path visualization: There should be 3 slices for each of the 2 subjects
+    sampling_folder = train_config.outputs_folder / PATCH_SAMPLING_FOLDER
+    assert sampling_folder.is_dir()
+    assert len(list(sampling_folder.rglob("*.png"))) == 3 * 2
 
 
 @pytest.mark.parametrize(["rates", "expected"],

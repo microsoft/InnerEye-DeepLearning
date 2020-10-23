@@ -75,6 +75,8 @@ Assuming that your current directory is the repository root folder, on Linux `ba
 export PYTHONPATH=`pwd`
 python InnerEye/ML/runner.py --model=HelloWorld
 ```
+(Note the "backtick" around the `pwd` command, this is not a standard single quote!)
+
 On Windows:
 ```shell script
 set PYTHONPATH=%cd%
@@ -91,6 +93,7 @@ Detailed instructions, including setup in Azure, are here:
 1. [Building models in Azure ML](docs/building_models.md)
 1. [Sample Segmentation and Classification tasks](docs/sample_tasks.md)
 1. [Debugging and monitoring models](docs/debugging_and_monitoring.md)
+1. [Model diagnostics](docs/model_diagnostics.md)
 
 ## More information
 
