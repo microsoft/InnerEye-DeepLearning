@@ -24,7 +24,7 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
     TrainValidateParameters
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
-from InnerEye.ML.utils import ml_util, model_util
+from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size, get_local_size, get_local_rank
 
 from InnerEye.ML.utils.config_util import ModelConfigLoader
@@ -40,18 +40,6 @@ MAX_LOAD_TIME_WARNINGS = 3
 
 T = TypeVar('T')
 FloatOrCudaEvent = Union[float, torch.cuda.streams.Event]
-
-
-def load_checkpoint_from_model_and_info(run_recovery: Optional[RunRecovery], config: ModelConfigBase,
-                                        model_and_info: ModelAndInfo) -> ModelAndInfo:
-    is_mean_teacher = model_and_info.is_mean_teacher
-    checkpoint_path = run_recovery.get_checkpoint_paths(config.start_epoch, is_mean_teacher)[0] \
-        if run_recovery else config.get_path_to_checkpoint(config.start_epoch, is_mean_teacher)
-    result = model_util.load_from_checkpoint_and_adjust(config, checkpoint_path, model_and_info)
-    if result.checkpoint_epoch is None:
-        raise ValueError("There was no checkpoint file available for the given start_epoch {}"
-                         .format(config.start_epoch))
-    return result
 
 
 def model_train(config: ModelConfigBase,

@@ -15,7 +15,7 @@ class DummyClassification(ScalarModelBase):
     "A config file for dummy image classification model for debugging purposes" 
 
     def __init__(self) -> None:
-        num_epochs = 2
+        num_epochs = 4
         super().__init__(
             local_dataset=full_ml_test_data_path("classification_data"),
             image_channels=["image"],

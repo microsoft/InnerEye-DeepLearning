@@ -22,7 +22,6 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import CropSizeConstraints
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import image_util, ml_util, model_util
-from InnerEye.ML.utils.aml_distributed_utils import get_global_rank
 from InnerEye.ML.utils.image_util import compute_uncertainty_map_from_posteriors, gaussian_smooth_posteriors, \
     posteriors_to_segmentation
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
