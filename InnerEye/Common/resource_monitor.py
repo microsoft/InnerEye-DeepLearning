@@ -103,7 +103,12 @@ class GpuUtilization:
         ]
 
     @staticmethod
-    def from_gpu(gpu: GPU):
+    def from_gpu(gpu: GPU) -> GpuUtilization:
+        """
+        Creates a GpuUtilization object from data coming from the gputil library.
+        :param gpu: GPU diagnostic data from gputil.
+        :return:
+        """
         return GpuUtilization(
             id=gpu.id,
             load=gpu.load,
@@ -119,7 +124,7 @@ RESOURCE_MONITOR_AGGREGATE_METRICS = "aggregate_resource_usage.csv"
 
 class ResourceMonitor(Process):
     """
-    Monitor and log GPU and CPU stats in AzureML as well as TensorBoard in a separate process.
+    Monitor and log GPU and CPU stats in TensorBoard in a separate process.
     """
 
     def __init__(self, interval_seconds: int, tensorboard_folder: Path):
