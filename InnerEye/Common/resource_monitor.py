@@ -96,10 +96,10 @@ class GpuUtilization:
         :return: A list of (name, value) tuples.
         """
         return [
-            (f'GPU{self.id}/{prefix}MemUtil_Percent', self.mem_util * 100),
-            (f'GPU{self.id}/{prefix}Load_Percent', self.load * 100),
-            (f'GPU{self.id}/{prefix}MemReserved_GB', self.mem_reserved),
-            (f'GPU{self.id}/{prefix}MemAllocated_GB', self.mem_allocated)
+            (f'GPU{self.id}/{prefix}MemUtil_Percent', round(self.mem_util * 100, 2)),
+            (f'GPU{self.id}/{prefix}Load_Percent', round(self.load * 100, 2)),
+            (f'GPU{self.id}/{prefix}MemReserved_GB', round(self.mem_reserved, 4)),
+            (f'GPU{self.id}/{prefix}MemAllocated_GB', round(self.mem_allocated, 4))
         ]
 
     @staticmethod
