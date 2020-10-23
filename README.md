@@ -55,9 +55,10 @@ WSL here](docs/WSL.md).
 
 Clone the repository into a subfolder of the current directory:
 ```shell script
-git lfs install
 git clone https://github.com/microsoft/InnerEye-DeepLearning
 cd InnerEye-DeepLearning
+git lfs install
+git lfs pull
 ```
 After that, you need to set up your Python environment:
 - Install `conda` or `miniconda` for your operating system. 
