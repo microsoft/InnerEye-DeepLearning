@@ -6,7 +6,7 @@ import logging
 from abc import ABC
 from collections import Counter
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
 
 import pandas as pd
 import torch.utils.data
