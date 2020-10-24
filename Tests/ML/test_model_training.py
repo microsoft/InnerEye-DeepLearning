@@ -278,13 +278,13 @@ def convert_nifti_data_to_hdf5() -> Path:
                                   "p2.h5:volume:1,channel2")
         # segmentation
         csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region",
-                                  "p1.h5:segmentation:0,region")
+                                  "p1.h5:region:0,region")
         csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region_1",
-                                  "p2.h5:segmentation:1,region_1")
+                                  "p2.h5:region:0,region_1")
         csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region",
-                                  "p2.h5:segmentation:0,region")
+                                  "p2.h5:region:0,region")
         csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region_1",
-                                  "p2.h5:segmentation:1,region_1")
+                                  "p2.h5:region_1:1,region_1")
         # mask
         csv_str = csv_str.replace("train_and_test_data/id1_mask.nii.gz,mask",
                                   "p1.h5:mask:0,mask")
@@ -296,11 +296,11 @@ def convert_nifti_data_to_hdf5() -> Path:
         dataset_dir.mkdir(parents=True, exist_ok=True)
         f.write(csv_str)
     train_data = base_path / "train_and_test_data"
-    create_hdf5_from_nifti(train_data / "id1_channel1.nii.gz", train_data / "id1_channel1.nii.gz",
-                           train_data / "id1_channel1.nii.gz",
+    create_hdf5_from_nifti(train_data / "id1_channel1.nii.gz", train_data / "id1_region.nii.gz",
+                           train_data / "id1_mask.nii.gz",
                            dataset_dir / "p1.h5")
-    create_hdf5_from_nifti(train_data / "id2_channel1.nii.gz", train_data / "id2_channel1.nii.gz",
-                           train_data / "id2_channel1.nii.gz",
+    create_hdf5_from_nifti(train_data / "id2_channel1.nii.gz", train_data / "id2_region.nii.gz",
+                           train_data / "id2_mask.nii.gz",
                            dataset_dir / "p2.h5")
     return dataset_dir
 
