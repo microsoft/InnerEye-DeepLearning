@@ -14,7 +14,7 @@ from torch._six import container_abcs
 from torch.utils.data import BatchSampler, DataLoader, Dataset, RandomSampler, Sampler, SequentialSampler
 from torch.utils.data.dataloader import default_collate  # type: ignore
 
-from InnerEye.Common.type_annotations import IntOrString, TupleFloat3
+from InnerEye.Common.type_annotations import IntOrString
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata, PatientDatasetSource, \
     PatientMetadata, Sample
@@ -22,7 +22,6 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import io_util, ml_util
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_PATH_HEADER, \
     CSV_SUBJECT_HEADER
-from InnerEye.ML.utils.io_util import is_nifti_file_path
 from InnerEye.ML.utils.transforms import Compose3D
 
 COMPRESSION_EXTENSIONS = ['sz', 'gz']
