@@ -217,6 +217,10 @@ def test_format_learning_rate(rates: Any, expected: str) -> None:
 
 def test_create_data_loaders() -> None:
     train_config = DummyModel()
+    create_data_loaders(train_config)
+
+
+def create_data_loaders(train_config):
     train_config.train_batch_size = 1
     train_config.local_dataset = base_path
     # create the dataset splits
@@ -242,26 +246,8 @@ def test_create_data_loaders() -> None:
 def test_create_data_loaders_hdf5() -> None:
     dataset_dir = convert_nifti_data_to_hdf5()
     train_config = DummyModel()
-    train_config.train_batch_size = 1
     train_config.local_dataset = dataset_dir
-    # create the dataset splits
-    dataset_splits = train_config.get_dataset_splits()
-    # create the data loaders
-    data_loaders = train_config.create_data_loaders()
-    train_loader = data_loaders[ModelExecutionMode.TRAIN]
-    val_loader = data_loaders[ModelExecutionMode.VAL]
-
-    def check_patient_id_in_dataset(loader: DataLoader, split: pd.DataFrame) -> None:
-        subjects = list(split.subject.unique())
-        for i, x in enumerate(loader):
-            sample_from_loader = CroppedSample.from_dict(x)
-            assert isinstance(sample_from_loader.metadata, list)
-            assert len(sample_from_loader.metadata) == 1
-            assert sample_from_loader.metadata[0].patient_id in subjects
-
-    # check if the subjects in the dataloaders are the same in the corresponding dataset splits
-    for loader, split in [(train_loader, dataset_splits.train), (val_loader, dataset_splits.val)]:
-        check_patient_id_in_dataset(loader, split)
+    create_data_loaders()
 
 
 def convert_nifti_data_to_hdf5() -> Path:
@@ -292,8 +278,8 @@ def convert_nifti_data_to_hdf5() -> Path:
                                   "p2.h5:mask:0,mask")
 
     dataset_dir = base_path / "hdf5_dataset"
+    dataset_dir.mkdir(parents=True, exist_ok=True)
     with open(dataset_dir / "dataset.csv", "w") as f:
-        dataset_dir.mkdir(parents=True, exist_ok=True)
         f.write(csv_str)
     train_data = base_path / "train_and_test_data"
     create_hdf5_from_nifti(train_data / "id1_channel1.nii.gz", train_data / "id1_region.nii.gz",
