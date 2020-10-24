@@ -14,7 +14,6 @@ from torch._six import container_abcs
 from torch.utils.data import BatchSampler, DataLoader, Dataset, RandomSampler, Sampler, SequentialSampler
 from torch.utils.data.dataloader import default_collate  # type: ignore
 
-from InnerEye.Common.type_annotations import IntOrString
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata, PatientDatasetSource, \
     PatientMetadata, Sample
@@ -238,8 +237,8 @@ class FullImageDataset(GeneralDataset):
         # cache all of the available dataset sources
         dataloader: Callable[[], Any] = self._load_dataset_sources
 
-        self.dataset_sources: Union[Dict[IntOrString, PatientDatasetSource]] = dataloader()
-        self.dataset_indices = sorted(self.dataset_sources.keys())
+        self.dataset_sources: Dict[str, PatientDatasetSource] = dataloader()
+        self.dataset_indices: List[str] = sorted(self.dataset_sources.keys())
 
     def __len__(self) -> int:
         return len(self.dataset_indices)
@@ -265,7 +264,7 @@ class FullImageDataset(GeneralDataset):
         samples = [io_util.load_images_from_dataset_source(dataset_source=ds)]  # type: ignore
         return [Compose3D.apply(self.full_image_sample_transforms, x) for x in samples]
 
-    def _load_dataset_sources(self) -> Dict[int, PatientDatasetSource]:
+    def _load_dataset_sources(self) -> Dict[str, PatientDatasetSource]:
         assert self.args.local_dataset is not None
         return load_dataset_sources(dataframe=self.data_frame,
                                     local_dataset_root_folder=self.args.local_dataset,
@@ -279,7 +278,7 @@ def load_dataset_sources(dataframe: pd.DataFrame,
                          local_dataset_root_folder: Path,
                          image_channels: List[str],
                          ground_truth_channels: List[str],
-                         mask_channel: Optional[str]) -> Dict[int, PatientDatasetSource]:
+                         mask_channel: Optional[str]) -> Dict[str, PatientDatasetSource]:
     """
     Prepares a patient-to-images mapping from a dataframe read directly from a dataset CSV file.
     The dataframe contains per-patient per-channel image information, relative to a root directory.
@@ -300,7 +299,7 @@ def load_dataset_sources(dataframe: pd.DataFrame,
                          .format(expected_headers, actual_headers))
 
     # Calculate unique data points, first, and last data point
-    unique_ids = sorted(pd.unique(dataframe[CSV_SUBJECT_HEADER]))
+    unique_ids: List[str] = sorted(pd.unique(dataframe[CSV_SUBJECT_HEADER]))
     if not local_dataset_root_folder.is_dir():
         raise ValueError("The dataset root folder does not exist: {}".format(local_dataset_root_folder))
 

@@ -10,7 +10,6 @@ import pytest
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import PaddingMode, SegmentationModelBase
 from InnerEye.ML.dataset.cropping_dataset import CroppingDataset
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset, collate_with_metadata
@@ -26,8 +25,6 @@ from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import DummyPatientMetadata, load_train_and_test_data_channels
 
 crop_size = [55, 55, 55]
-data_frame = pd.read_csv(full_ml_test_data_path(DATASET_CSV_FILE_NAME))
-
 
 @pytest.fixture
 def num_dataload_workers() -> int:
@@ -248,7 +245,7 @@ def test_cropping_dataset_padding(cropping_dataset: CroppingDataset, num_dataloa
 
 def test_cropping_dataset_has_reproducible_randomness(cropping_dataset: CroppingDataset,
                                                       num_dataload_workers: int) -> None:
-    cropping_dataset.dataset_indices = [1, 2] * 2
+    cropping_dataset.dataset_indices = ['1', '2'] * 2
     expected_center_indices = None
     for k in range(3):
         ml_util.set_random_seed(1)

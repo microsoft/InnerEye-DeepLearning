@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Union
 
 import nbformat
 import papermill
@@ -39,7 +39,7 @@ def generate_notebook(template_notebook: Path, notebook_params: Dict, result_not
     return result_notebook.with_suffix(resources['output_extension'])
 
 
-def convert_to_html(result_notebook: Path) -> Tuple[str]:
+def convert_to_html(result_notebook: Path) -> Any:
     print(f"Running conversion to HTML for {result_notebook}")
     with result_notebook.open() as f:
         notebook = nbformat.read(f, as_version=4)
