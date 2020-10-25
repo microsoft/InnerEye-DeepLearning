@@ -380,7 +380,7 @@ def test_metrics_dic_subject_ids() -> None:
     m = ScalarMetricsDict(hues=[hue1], is_classification_metrics=True)
     m.add_predictions(subject_ids=['0'], predictions=np.zeros(1), labels=np.zeros(1), hue=hue1)
     assert m.subject_ids() == []
-    assert m.subject_ids(hue=hue1) == [0]
+    assert m.subject_ids(hue=hue1) == ['0']
 
 
 def test_hue_entries() -> None:
