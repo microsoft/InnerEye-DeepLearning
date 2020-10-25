@@ -57,7 +57,7 @@ def test_get_masked_model_outputs_and_labels() -> None:
     # test base case where no masking needs to be applied
     model_outputs = torch.rand((3, 4, 1))
     labels = torch.rand((3, 4, 1)).round()
-    subject_ids = [1, 2, 3]
+    subject_ids = ['1', '2', '3']
 
     _create_masked_and_check_expected(model_outputs, labels, subject_ids)
 
