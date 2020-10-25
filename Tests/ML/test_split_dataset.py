@@ -11,7 +11,6 @@ import pandas as pd
 import pytest
 from pandas import DataFrame
 
-from InnerEye.Common.type_annotations import IntOrString
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.split_dataset import DatasetSplits
@@ -108,7 +107,7 @@ def test_split_by_institution_exclude() -> None:
     assert set(split3.test.subject.unique()).issuperset(forced_subjects_in_test)
 
     with pytest.raises(ValueError) as ex:
-        DatasetSplits.from_institutions(df, 0.5, 0.2, 0.3, subject_ids_for_test_only=[999])
+        DatasetSplits.from_institutions(df, 0.5, 0.2, 0.3, subject_ids_for_test_only=['999'])
     assert "not present" in str(ex)
 
 
@@ -120,26 +119,26 @@ def test_split_by_subject_ids() -> None:
         pd.testing.assert_frame_equal(x, test_df[test_df.subject.isin(y)])
 
 
-@pytest.mark.parametrize("splits", [[[], [1], [2]], [[1], [], [2]], [[], [], [2]]])
-def test_split_by_subject_ids_invalid(splits: List[List[int]]) -> None:
-    df1 = pd.read_csv(full_ml_test_data_path(DATASET_CSV_FILE_NAME))
+@pytest.mark.parametrize("splits", [[[], ['1'], ['2']], [['1'], [], ['2']], [[], [], ['2']]])
+def test_split_by_subject_ids_invalid(splits: List[List[str]]) -> None:
+    df1 = pd.read_csv(full_ml_test_data_path(DATASET_CSV_FILE_NAME), dtype=str)
     with pytest.raises(ValueError):
         DatasetSplits.from_subject_ids(df1, train_ids=splits[0], val_ids=splits[1], test_ids=splits[2])
 
 
 def test_get_subject_ranges_for_splits() -> None:
-    def _check_at_least_one(x: Dict[ModelExecutionMode, Set[IntOrString]]) -> None:
+    def _check_at_least_one(x: Dict[ModelExecutionMode, Set[str]]) -> None:
         assert all([len(x[mode]) >= 1] for mode in x.keys())
 
     proportions = [0.5, 0.4, 0.1]
 
-    splits = DatasetSplits.get_subject_ranges_for_splits([1, 2, 3], proportions[0], proportions[1], proportions[2])
+    splits = DatasetSplits.get_subject_ranges_for_splits(['1', '2', '3'], proportions[0], proportions[1], proportions[2])
     _check_at_least_one(splits)
 
-    splits = DatasetSplits.get_subject_ranges_for_splits([1], proportions[0], proportions[1], proportions[2])
-    assert splits[ModelExecutionMode.TRAIN] == {1}
+    splits = DatasetSplits.get_subject_ranges_for_splits(['1'], proportions[0], proportions[1], proportions[2])
+    assert splits[ModelExecutionMode.TRAIN] == {'1'}
 
-    population = list(range(100))
+    population = list(map(str, range(100)))
     splits = DatasetSplits.get_subject_ranges_for_splits(population, proportions[0], proportions[1], proportions[2])
     _check_at_least_one(splits)
     assert all(
@@ -191,7 +190,7 @@ def test_restrict_subjects4() -> None:
     assert len(splits.test.subject.unique()) == len(test_ids) + len(val_ids) + len(train_ids)
 
 
-def _get_test_df() -> Tuple[DataFrame, List[int], List[int], List[int]]:
+def _get_test_df() -> Tuple[DataFrame, List[str], List[str], List[str]]:
     test_data = {
         CSV_SUBJECT_HEADER: list(range(0, 100)),
         CSV_INSTITUTION_HEADER: ([0] * 10) + ([1] * 90),
@@ -199,7 +198,7 @@ def _get_test_df() -> Tuple[DataFrame, List[int], List[int], List[int]]:
     }
     train_ids, test_ids, val_ids = list(range(0, 50)), list(range(50, 75)), list(range(75, 100))
     test_df = DataFrame(test_data, columns=list(test_data.keys()))
-    return test_df, test_ids, train_ids, val_ids
+    return test_df, list(map(str, test_ids)), list(map(str, train_ids)), list(map(str, val_ids))
 
 
 def test_parse_and_check_restriction_pattern() -> None:

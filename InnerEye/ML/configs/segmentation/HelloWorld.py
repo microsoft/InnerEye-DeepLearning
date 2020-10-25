@@ -84,9 +84,9 @@ class HelloWorld(SegmentationModelBase):
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits.from_subject_ids(
             df=dataset_df,
-            train_ids=[1, 2, 3],
-            val_ids=[4, 5],
-            test_ids=[6],
+            train_ids=['1', '2', '3'],
+            val_ids=['4', '5'],
+            test_ids=['6'],
         )
 
     def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:

@@ -55,7 +55,7 @@ class BasicModel2Epochs(SegmentationModelBase):
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits.from_subject_ids(
             df=dataset_df,
-            train_ids=[0, 1],
-            test_ids=[5],
-            val_ids=[2]
+            train_ids=['0', '1'],
+            test_ids=['5'],
+            val_ids=['2']
         )

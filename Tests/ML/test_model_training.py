@@ -220,7 +220,7 @@ def test_create_data_loaders() -> None:
     create_data_loaders(train_config)
 
 
-def create_data_loaders(train_config):
+def create_data_loaders(train_config: DummyModel) -> None:
     train_config.train_batch_size = 1
     train_config.local_dataset = base_path
     # create the dataset splits
