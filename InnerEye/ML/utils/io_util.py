@@ -19,6 +19,7 @@ import torch
 from tabulate import tabulate
 
 from InnerEye.Common import common_util
+from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat3, TupleInt3
 from InnerEye.ML.config import DEFAULT_POSTERIOR_VALUE_RANGE, PhotometricNormalizationMethod, \
     SegmentationModelBase
@@ -396,21 +397,21 @@ def load_image(path: str, image_type: Optional[Type] = float) -> ImageWithHeader
     """
     Loads an image with extension numpy or nifti
     For HDF5 path suffix
-        For images :<dataset_name>:<channel index>
-        For segmentation binary :<dataset_name>:<channel index>
-        For segmentation multimap :<dataset_name>:<channel index>:<multimap value>
+        For images |<dataset_name>|<channel index>
+        For segmentation binary |<dataset_name>|<channel index>
+        For segmentation multimap |<dataset_name>|<channel index>|<multimap value>
     :param path: The path to the file
     :param image_type: The type of the image
     """
-    COLON = ':'
+    SEPARATOR = '|'
     if is_nifti_file_path(path):
         return load_nifti_image(path, image_type)
     elif is_numpy_file_path(path):
         image = load_numpy_image(path, image_type)
         header = get_unit_image_header()
         return ImageWithHeader(image, header)
-    elif COLON in path:
-        hdf5_path_split_by_colon = path.split(COLON)
+    elif SEPARATOR in path:
+        hdf5_path_split_by_colon = path.split(SEPARATOR)
         if len(hdf5_path_split_by_colon) == 4:
             # segmentation multimap
             path = hdf5_path_split_by_colon[0]

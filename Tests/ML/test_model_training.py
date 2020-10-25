@@ -255,27 +255,27 @@ def convert_nifti_data_to_hdf5() -> Path:
     with open(base_path / "dataset.csv", "r") as f:
         csv_str = f.read()
         csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel1",
-                                  "p1.h5:volume:0,channel1")
+                                  "p1.h5|volume|0,channel1")
         csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel2",
-                                  "p1.h5:volume:1,channel2")
+                                  "p1.h5|volume|1,channel2")
         csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel1",
-                                  "p2.h5:volume:0,channel1")
+                                  "p2.h5|volume|0,channel1")
         csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel2",
-                                  "p2.h5:volume:1,channel2")
+                                  "p2.h5|volume|1,channel2")
         # segmentation
         csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region",
-                                  "p1.h5:region:0,region")
+                                  "p1.h5|region|0,region")
         csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region_1",
-                                  "p2.h5:region:0,region_1")
+                                  "p2.h5|region|0,region_1")
         csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region",
-                                  "p2.h5:region:0,region")
+                                  "p2.h5|region|0,region")
         csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region_1",
-                                  "p2.h5:region_1:1,region_1")
+                                  "p2.h5|region_1|1,region_1")
         # mask
         csv_str = csv_str.replace("train_and_test_data/id1_mask.nii.gz,mask",
-                                  "p1.h5:mask:0,mask")
+                                  "p1.h5|mask|0,mask")
         csv_str = csv_str.replace("train_and_test_data/id2_mask.nii.gz,mask",
-                                  "p2.h5:mask:0,mask")
+                                  "p2.h5|mask|0,mask")
 
     dataset_dir = base_path / "hdf5_dataset"
     dataset_dir.mkdir(parents=True, exist_ok=True)

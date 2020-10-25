@@ -48,8 +48,8 @@ def test_nii_load_image() -> None:
 
 
 @pytest.mark.parametrize("metadata", [None, PatientMetadata(patient_id="0")])
-@pytest.mark.parametrize("image_channel", [None, known_nii_path, f"{good_h5_path}:volume:0", good_npy_path])
-@pytest.mark.parametrize("ground_truth_channel", [None, known_nii_path, f"{good_h5_path}:segmentation:0:1", good_npy_path])
+@pytest.mark.parametrize("image_channel", [None, known_nii_path, f"{good_h5_path}|volume|0", good_npy_path])
+@pytest.mark.parametrize("ground_truth_channel", [None, known_nii_path, f"{good_h5_path}|segmentation|0|1", good_npy_path])
 @pytest.mark.parametrize("mask_channel", [None, known_nii_path, good_npy_path])
 def test_load_images_from_dataset_source(
         metadata: Optional[str],
