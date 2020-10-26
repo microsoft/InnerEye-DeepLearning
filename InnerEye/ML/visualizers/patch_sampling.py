@@ -62,9 +62,9 @@ def visualize_random_crops(sample: Sample,
     # Nifti file of that datatype.
     repeats = 1000
     for _ in range(repeats):
-        slicers = augmentation.slicers_for_random_crop(sample=sample,
-                                                       crop_size=config.crop_size,
-                                                       class_weights=config.class_weights)
+        slicers, _ = augmentation.slicers_for_random_crop(sample=sample,
+                                                          crop_size=config.crop_size,
+                                                          class_weights=config.class_weights)
         heatmap[slicers[0], slicers[1], slicers[2]] += 1
     is_3dim = heatmap.shape[0] > 1
     header = sample.metadata.image_header

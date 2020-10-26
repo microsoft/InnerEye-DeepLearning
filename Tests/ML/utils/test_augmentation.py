@@ -99,7 +99,7 @@ def test_random_crop(crop_size: Any) -> None:
     # this should ne handled gracefully (class being ignored from sampling)
     labels[0] = 1
     labels[1] = 0
-    sample, _, _ = augmentation.random_crop(Sample(
+    sample, _ = augmentation.random_crop(Sample(
         image=valid_image_4d,
         labels=valid_labels,
         mask=valid_mask,
