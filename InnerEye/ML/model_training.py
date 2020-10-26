@@ -10,8 +10,8 @@ from typing import Optional, Tuple, TypeVar
 
 from torch.cuda.amp import GradScaler
 
-from InnerEye.Azure.azure_util import RUN_CONTEXT
-from InnerEye.Common.common_util import empty_string_to_none
+from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
+from InnerEye.Common.common_util import empty_string_to_none, logging_section
 from InnerEye.Common.metrics_dict import MetricsDict
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML import metrics
@@ -32,6 +32,7 @@ from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
 from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_train
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
+from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -53,7 +54,12 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     config.write_dataset_files()
 
     # set the random seed for all libraries
-    ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
+    ml_util.set_random_seed(config.get_effective_random_seed(), "Patch visualization")
+    # Visualize how patches are sampled for segmentation models. This changes the random generator, but we don't
+    # want training to depend on how many patients we visualized, and hence set the random seed again right after.
+    with logging_section("Visualizing the effect of sampling random crops for training"):
+        visualize_random_crops_for_dataset(config)
+    ml_util.set_random_seed(config.get_effective_random_seed(), "Model training")
 
     logging.debug("Creating the PyTorch model.")
 
@@ -85,8 +91,8 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     if config.compute_mean_teacher_model:
         mean_teacher_model_loaded = models_and_optimizer.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
         if not mean_teacher_model_loaded:
-            raise ValueError("There was no checkpoint file available for the mean teacher model for given start_epoch {}"
-                             .format(config.start_epoch))
+            raise ValueError("There was no checkpoint file available for the mean teacher model "
+                             f"for given start_epoch {config.start_epoch}")
 
     # Create optimizer
     optimizer_loaded = models_and_optimizer.try_create_optimizer_and_load_from_checkpoint()
@@ -113,8 +119,10 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     resource_monitor = None
     if config.monitoring_interval_seconds > 0:
         # initialize and start GPU monitoring
+        diagnostics_events = config.logs_folder / "diagnostics"
+        logging.info(f"Starting resource monitor, outputting to {diagnostics_events}")
         resource_monitor = ResourceMonitor(interval_seconds=config.monitoring_interval_seconds,
-                                           tb_log_file_path=str(config.logs_folder / "diagnostics"))
+                                           tensorboard_folder=diagnostics_events)
         resource_monitor.start()
 
     gradient_scaler = GradScaler() if config.use_gpu and config.use_mixed_precision else None
@@ -193,6 +201,11 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     config.metrics_data_frame_loggers.close_all()
     if resource_monitor:
         # stop the resource monitoring process
+        logging.info("Shutting down the resource monitor process. Aggregate resource utilization:")
+        for name, value in resource_monitor.read_aggregate_metrics():
+            logging.info(f"{name}: {value}")
+            if not is_offline_run_context(RUN_CONTEXT):
+                RUN_CONTEXT.log(name, value)
         resource_monitor.kill()
 
     return model_training_results
@@ -242,7 +255,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutp
         # take the snapshot of the existing random state
         training_random_state = RandomStateSnapshot.snapshot_random_state()
         # reset the random state for validation
-        ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
+        ml_util.set_random_seed(config.get_effective_random_seed(), "Model validation")
 
     status_string = "training" if train_val_params.in_training_mode else "validation"
     item_start_time = time()
@@ -286,8 +299,9 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutp
         training_random_state.restore_random_state()
 
     epoch_time_seconds = time() - epoch_start_time
-    logging.info(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f} sec "
-                 f"of which data loading took {total_load_time:0.2f} sec")
+    logging.info(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f} sec, "
+                 f"of which waiting for next minibatch took {total_load_time:0.2f} sec total. {num_batches} "
+                 "minibatches in total.")
     if num_load_time_exceeded > 0:
         logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
                         f"{MAX_ITEM_LOAD_TIME_SEC}sec.")

@@ -24,8 +24,8 @@ class AMLTensorBoardMonitorConfig(GenericConfig):
     experiment_name: Optional[str] = param.String(default=None, allow_None=True,
                                                   doc="The name of the experiment to monitor. This will fetch all "
                                                       "runs in the experiment.")
-    local_root: Optional[Path] = param.ClassSelector(class_=Path, default=None, allow_None=True,
-                                                     doc="An optional local directory to store the run logs in.")
+    local_root: Path = param.ClassSelector(class_=Path, default=Path("tensorboard_runs"),
+                                           doc="An optional local directory to store the run logs in.")
     run_status: Optional[str] = param.String(default="Running,Completed",
                                              doc="A list of run status to filter the runs. Must be subset of "
                                                  "[Running, Completed, Failed, Canceled]. Set to 'None' to not filter.")

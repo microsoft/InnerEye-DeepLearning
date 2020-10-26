@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, unique
+from math import isclose
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -13,7 +14,6 @@ import pandas as pd
 import param
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import HyperDriveConfig
-from math import isclose
 from pandas import DataFrame
 
 from InnerEye.Common.common_util import any_pairwise_larger, any_smaller_or_equal_than, check_is_any_of
@@ -445,6 +445,11 @@ class SegmentationModelBase(ModelConfigBase):
     is_plotting_enabled: bool = param.Boolean(True, doc="If true, various overview plots with results are generated "
                                                         "during model evaluation. Set to False if you see "
                                                         "non-deterministic pull request build failures.")
+    show_patch_sampling: int = param.Integer(5, bounds=(0, None),
+                                             doc="Number of patients from the training set for which the effect of"
+                                                 "patch sampling will be shown. Nifti images and thumbnails for each"
+                                                 "of the first N subjects in the training set will be "
+                                                 "written to the outputs folder.")
 
     def __init__(self, center_size: Optional[TupleInt3] = None,
                  inference_stride_size: Optional[TupleInt3] = None,
