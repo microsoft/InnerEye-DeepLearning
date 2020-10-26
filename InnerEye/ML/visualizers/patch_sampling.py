@@ -62,11 +62,13 @@ def visualize_random_crops(sample: Sample,
     # Number of repeats should fit into the range of UInt16, because we will later save the heatmap as an integer
     # Nifti file of that datatype.
     repeats = 1000
+    logging.info("Starting loop")
     for _ in range(repeats):
         _, _, slicers = augmentation.random_crop(sample=sample,
                                                  crop_size=config.crop_size,
                                                  class_weights=config.class_weights)
         heatmap[slicers[0], slicers[1], slicers[2]] += 1
+    logging.info("Finished loop")
     is_3dim = heatmap.shape[0] > 1
     header = sample.metadata.image_header
     if not header:
@@ -75,16 +77,19 @@ def visualize_random_crops(sample: Sample,
     if is_3dim:
         ct_output_name = str(output_folder / f"{sample.patient_id}_ct.nii.gz")
         heatmap_output_name = str(output_folder / f"{sample.patient_id}_sampled_patches.nii.gz")
+        logging.info("Saving Nifti1")
         io_util.store_as_nifti(image=heatmap,
                                header=header,
                                file_name=heatmap_output_name,
                                image_type=heatmap.dtype,
                                scale=False)
+        logging.info("Saving Nifti2")
         io_util.store_as_nifti(image=image_channel0,
                                header=header,
                                file_name=ct_output_name,
                                image_type=sample.image.dtype,
                                scale=False)
+    logging.info("Starting thumbnails")
     heatmap_scaled = heatmap.astype(dtype=np.float) / heatmap.max()
     # If the incoming image is effectively a 2D image with degenerate Z dimension, then only plot a single
     # axial thumbnail. Otherwise, plot thumbnails for all 3 dimensions.
@@ -94,6 +99,7 @@ def visualize_random_crops(sample: Sample,
     max_heatmap_index = np.unravel_index(heatmap.argmax(), heatmap.shape) if is_3dim else (0, 0, 0)
     for dimension in dimensions:
         plt.clf()
+        logging.info(f"Thumbnail {dimension}")
         scan_with_transparent_overlay(scan=image_channel0,
                                       overlay=heatmap_scaled,
                                       dimension=dimension,
@@ -105,6 +111,7 @@ def visualize_random_crops(sample: Sample,
         if is_3dim:
             thumbnail += f"_dim{dimension}"
         thumbnail += ".png"
+        logging.info(f"Saving thunbnail {dimension}")
         resize_and_save(width_inch=5, height_inch=5, filename=output_folder / thumbnail)
     return heatmap
 
