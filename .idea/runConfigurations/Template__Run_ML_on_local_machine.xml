@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Template: Run ML on local machine" type="PythonConfigurationType" factoryName="Python" activateToolWindowBeforeRun="false">
+  <configuration default="false" name="Template: Run ML on local machine" type="PythonConfigurationType" factoryName="Python">
     <module name="InnerEye-DeepLearning" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
