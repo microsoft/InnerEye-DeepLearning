@@ -39,9 +39,9 @@ class GpuUtilization:
     # Memory utilization, as a number between 0 and 1
     mem_util: float
     # Allocated memory by pytorch
-    mem_allocated: float
+    mem_allocated_gb: float
     # Reserved memory by pytorch
-    mem_reserved: float
+    mem_reserved_gb: float
     # Number of observations that are stored in the present object
     count: int
 
@@ -50,8 +50,8 @@ class GpuUtilization:
             id=self.id,
             load=self.load + other.load,
             mem_util=self.mem_util + other.mem_util,
-            mem_allocated=self.mem_allocated + other.mem_allocated,
-            mem_reserved=self.mem_reserved + other.mem_reserved,
+            mem_allocated_gb=self.mem_allocated_gb + other.mem_allocated_gb,
+            mem_reserved_gb=self.mem_reserved_gb + other.mem_reserved_gb,
             count=self.count + other.count
         )
 
@@ -66,8 +66,8 @@ class GpuUtilization:
             id=self.id,
             load=max(self.load, other.load),
             mem_util=max(self.mem_util, other.mem_util),
-            mem_allocated=max(self.mem_allocated, other.mem_allocated),
-            mem_reserved=max(self.mem_reserved, other.mem_reserved),
+            mem_allocated_gb=max(self.mem_allocated_gb, other.mem_allocated_gb),
+            mem_reserved_gb=max(self.mem_reserved_gb, other.mem_reserved_gb),
             # Max does not make sense for the count field, hence just add up to see how many items we have done max for
             count=self.count + other.count
         )
@@ -82,8 +82,8 @@ class GpuUtilization:
             id=self.id,
             load=self.load / self.count,
             mem_util=self.mem_util / self.count,
-            mem_allocated=self.mem_allocated / self.count,
-            mem_reserved=self.mem_reserved / self.count,
+            mem_allocated_gb=self.mem_allocated_gb / self.count,
+            mem_reserved_gb=self.mem_reserved_gb / self.count,
             count=1
         )
 
@@ -98,8 +98,8 @@ class GpuUtilization:
         return [
             (f'GPU{self.id}/{prefix}MemUtil_Percent', round(self.mem_util * 100, 2)),
             (f'GPU{self.id}/{prefix}Load_Percent', round(self.load * 100, 2)),
-            (f'GPU{self.id}/{prefix}MemReserved_GB', round(self.mem_reserved, 4)),
-            (f'GPU{self.id}/{prefix}MemAllocated_GB', round(self.mem_allocated, 4))
+            (f'GPU{self.id}/{prefix}MemReserved_GB', round(self.mem_reserved_gb, 4)),
+            (f'GPU{self.id}/{prefix}MemAllocated_GB', round(self.mem_allocated_gb, 4))
         ]
 
     @staticmethod
@@ -113,8 +113,8 @@ class GpuUtilization:
             id=gpu.id,
             load=gpu.load,
             mem_util=gpu.memoryUtil,
-            mem_allocated=memory_in_gb(torch.cuda.memory_allocated(int(gpu.id))),
-            mem_reserved=memory_in_gb(torch.cuda.memory_reserved(int(gpu.id))),
+            mem_allocated_gb=memory_in_gb(torch.cuda.memory_allocated(int(gpu.id))),
+            mem_reserved_gb=memory_in_gb(torch.cuda.memory_reserved(int(gpu.id))),
             count=1
         )
 
@@ -200,7 +200,7 @@ class ResourceMonitor(Process):
             for (name, value) in util.average().enumerate():
                 aggregate_metrics.append(f"{name},{value}")
         for util in self.gpu_max.values():
-            for (name, value) in util.average().enumerate(prefix="Max"):
+            for (name, value) in util.enumerate(prefix="Max"):
                 aggregate_metrics.append(f"{name},{value}")
         self.aggregate_metrics_file.write_text("\n".join(aggregate_metrics))
 

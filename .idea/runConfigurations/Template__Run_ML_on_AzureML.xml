@@ -6,14 +6,13 @@
     <envs>
       <env name="PYTHONUNBUFFERED" value="1" />
     </envs>
-    <option name="SDK_HOME" value="wsl://UBUNTU2004/home/antonsc/miniconda2/envs/InnerEye/bin/python" />
+    <option name="SDK_HOME" value="" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/" />
-    <option name="IS_MODULE_SDK" value="false" />
+    <option name="IS_MODULE_SDK" value="true" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
-    <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="InnerEye/ML/runner.py" />
-    <option name="PARAMETERS" value="--cluster=training-nc12 --azureml=True --model=BasicModel2Epochs --train=True --monitoring_interval_seconds=5 --num_epochs=20" />
+    <option name="PARAMETERS" value="--azureml=True --model=BasicModel2Epochs --train=True" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

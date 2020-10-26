@@ -20,8 +20,8 @@ def test_utilization_enumerate() -> None:
         id=1,
         load=0.1,
         mem_util=0.2,
-        mem_allocated=30,
-        mem_reserved=40,
+        mem_allocated_gb=30,
+        mem_reserved_gb=40,
         count=1
     )
     metrics1 = u1.enumerate()
@@ -46,16 +46,16 @@ def test_utilization_add() -> None:
         id=1,
         load=10,
         mem_util=20,
-        mem_allocated=30,
-        mem_reserved=40,
+        mem_allocated_gb=30,
+        mem_reserved_gb=40,
         count=1
     )
     u2 = GpuUtilization(
         id=2,
         load=100,
         mem_util=200,
-        mem_allocated=300,
-        mem_reserved=400,
+        mem_allocated_gb=300,
+        mem_reserved_gb=400,
         count=9
     )
     sum = u1 + u2
@@ -63,8 +63,8 @@ def test_utilization_add() -> None:
         id=1,
         load=110,
         mem_util=220,
-        mem_allocated=330,
-        mem_reserved=440,
+        mem_allocated_gb=330,
+        mem_reserved_gb=440,
         count=10
     )
 
@@ -77,8 +77,8 @@ def test_utilization_average() -> None:
         id=1,
         load=110,
         mem_util=220,
-        mem_allocated=330,
-        mem_reserved=440,
+        mem_allocated_gb=330,
+        mem_reserved_gb=440,
         count=10
     )
     # Average is the metric value divided by count
@@ -86,8 +86,8 @@ def test_utilization_average() -> None:
         id=1,
         load=11,
         mem_util=22,
-        mem_allocated=33,
-        mem_reserved=44,
+        mem_allocated_gb=33,
+        mem_reserved_gb=44,
         count=1
     )
 
@@ -100,24 +100,24 @@ def test_utilization_max() -> None:
         id=1,
         load=1,
         mem_util=200,
-        mem_allocated=3,
-        mem_reserved=400,
+        mem_allocated_gb=3,
+        mem_reserved_gb=400,
         count=1
     )
     u2 = GpuUtilization(
         id=2,
         load=100,
         mem_util=2,
-        mem_allocated=300,
-        mem_reserved=400,
+        mem_allocated_gb=300,
+        mem_reserved_gb=400,
         count=9
     )
     assert u1.max(u2) == GpuUtilization(
         id=1,
         load=100,
         mem_util=200,
-        mem_allocated=300,
-        mem_reserved=400,
+        mem_allocated_gb=300,
+        mem_reserved_gb=400,
         count=10
     )
 
@@ -147,17 +147,15 @@ def test_resource_monitor(test_output_dirs: TestOutputDirectories) -> None:
             r.update_metrics([gpu3])
     # Element-wise maximum of metrics
     assert r.gpu_max == {
-        1: GpuUtilization(id=1, load=0.3, mem_util=0.5, mem_allocated=2.0, mem_reserved=1.0, count=2),
-        2: GpuUtilization(id=2, load=0.2, mem_util=0.3, mem_allocated=2.0, mem_reserved=1.0, count=1),
+        1: GpuUtilization(id=1, load=0.3, mem_util=0.5, mem_allocated_gb=2.0, mem_reserved_gb=1.0, count=2),
+        2: GpuUtilization(id=2, load=0.2, mem_util=0.3, mem_allocated_gb=2.0, mem_reserved_gb=1.0, count=1),
     }
     # Aggregates should contain the sum of metrics that were observed.
     assert r.gpu_aggregates == {
-        1: GpuUtilization(id=1, load=0.4, mem_util=0.7, mem_allocated=4.0, mem_reserved=2.0, count=2),
-        2: GpuUtilization(id=2, load=0.2, mem_util=0.3, mem_allocated=2.0, mem_reserved=1.0, count=1),
+        1: GpuUtilization(id=1, load=0.4, mem_util=0.7, mem_allocated_gb=4.0, mem_reserved_gb=2.0, count=2),
+        2: GpuUtilization(id=2, load=0.2, mem_util=0.3, mem_allocated_gb=2.0, mem_reserved_gb=1.0, count=1),
     }
     r.writer.flush()
-    r.store_to_file()
-    # Write a second time - we expect that to overwrite and only produce one set of metrics
     r.store_to_file()
     tb_file = list(Path(tensorboard_folder).rglob("*tfevents*"))[0]
     assert os.path.getsize(str(tb_file)) > 100
@@ -165,3 +163,31 @@ def test_resource_monitor(test_output_dirs: TestOutputDirectories) -> None:
     assert len(r.aggregate_metrics_file.read_text().splitlines()) == 17
     parsed_metrics = r.read_aggregate_metrics()
     assert len(parsed_metrics) == 16
+
+
+def test_resource_monitor_store_to_file(test_output_dirs: TestOutputDirectories) -> None:
+    """
+    Test if storing metrics to a file works correctly.
+    """
+    tensorboard_folder = Path(test_output_dirs.root_dir)
+    r = ResourceMonitor(interval_seconds=5, tensorboard_folder=tensorboard_folder)
+    r.gpu_aggregates = {
+        1: GpuUtilization(id=1, mem_util=1, load=2, mem_reserved_gb=30.0, mem_allocated_gb=40.0, count=10),
+    }
+    r.gpu_max = {
+        1: GpuUtilization(id=1, mem_util=0.4, load=0.5, mem_reserved_gb=6.0, mem_allocated_gb=7.0, count=10),
+    }
+    r.store_to_file()
+    # Write a second time - we expect that to overwrite and only produce one set of metrics
+    r.store_to_file()
+    parsed_metrics = r.read_aggregate_metrics()
+    assert parsed_metrics == [
+        ("GPU1/MemUtil_Percent", 10.0),
+        ("GPU1/Load_Percent", 20.0),
+        ("GPU1/MemReserved_GB", 3.0),
+        ("GPU1/MemAllocated_GB", 4.0),
+        ("GPU1/MaxMemUtil_Percent", 40.0),
+        ("GPU1/MaxLoad_Percent", 50.0),
+        ("GPU1/MaxMemReserved_GB", 6.0),
+        ("GPU1/MaxMemAllocated_GB", 7.0),
+    ]
