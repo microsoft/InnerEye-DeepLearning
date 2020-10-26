@@ -60,7 +60,7 @@ def visualize_random_crops(sample: Sample,
     heatmap = np.zeros(image_channel0.shape, dtype=np.uint16)
     # Number of repeats should fit into the range of UInt16, because we will later save the heatmap as an integer
     # Nifti file of that datatype.
-    repeats = 1000
+    repeats = 200
     for _ in range(repeats):
         slicers, _ = augmentation.slicers_for_random_crop(sample=sample,
                                                           crop_size=config.crop_size,
