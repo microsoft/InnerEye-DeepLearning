@@ -389,7 +389,7 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource) -> np.
     :return A label sample object containing ground-truth information.
     """
     labels = np.stack(
-        [load_image(str(gt), ImageDataType.SEGMENTATION.value).image for gt in dataset_source.ground_truth_channels])
+        [load_image(gt, ImageDataType.SEGMENTATION.value).image for gt in dataset_source.ground_truth_channels])
 
     # Add the background binary map
     background = np.ones_like(labels[0])
@@ -399,7 +399,7 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource) -> np.
     return np.vstack((background, labels))
 
 
-def load_image(path: str, image_type: Optional[Type] = float) -> ImageWithHeader:
+def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageWithHeader:
     """
     Loads an image with extension numpy or nifti
     For HDF5 path suffix
@@ -416,22 +416,22 @@ def load_image(path: str, image_type: Optional[Type] = float) -> ImageWithHeader
         image = load_numpy_image(path, image_type)
         header = get_unit_image_header()
         return ImageWithHeader(image, header)
-    elif SEPARATOR in path:
-        hdf5_path_split_by_colon = path.split(SEPARATOR)
+    elif SEPARATOR in str(path):
+        hdf5_path_split_by_colon = str(path).split(SEPARATOR)
         if len(hdf5_path_split_by_colon) == 4:
             # segmentation multimap
-            path = hdf5_path_split_by_colon[0]
+            h5_path = hdf5_path_split_by_colon[0]
             dataset = hdf5_path_split_by_colon[1]
             channel = int(hdf5_path_split_by_colon[2])
             segmentation_id = int(hdf5_path_split_by_colon[3])
-            image = load_hdf5_dataset_from_file(Path(path), dataset)[channel] == segmentation_id  # create mask
+            image = load_hdf5_dataset_from_file(Path(h5_path), dataset)[channel] == segmentation_id  # create mask
             header = get_unit_image_header()
             return ImageWithHeader(image, header)
         elif len(hdf5_path_split_by_colon) == 3:
-            path = hdf5_path_split_by_colon[0]
+            h5_path = hdf5_path_split_by_colon[0]
             dataset = hdf5_path_split_by_colon[1]
             channel = int(hdf5_path_split_by_colon[2])
-            image = load_hdf5_dataset_from_file(Path(path), dataset)[channel]
+            image = load_hdf5_dataset_from_file(Path(h5_path), dataset)[channel]
             header = get_unit_image_header()
             return ImageWithHeader(image, header)
     raise ValueError(f"Invalid file type {path}")
@@ -445,11 +445,11 @@ def load_images_from_dataset_source(dataset_source: PatientDatasetSource) -> Sam
     :param dataset_source: The dataset source for which channels are to be loaded into memory.
     :return: a Sample object with the loaded volume (image), labels, mask and metadata.
     """
-    images = [load_image(str(channel), ImageDataType.IMAGE.value) for channel in dataset_source.image_channels]
+    images = [load_image(channel, ImageDataType.IMAGE.value) for channel in dataset_source.image_channels]
     image = np.stack([image.image for image in images])
 
     mask = np.ones_like(image[0], ImageDataType.MASK.value) if dataset_source.mask_channel is None \
-        else load_image(str(dataset_source.mask_channel), ImageDataType.MASK.value).image
+        else load_image(dataset_source.mask_channel, ImageDataType.MASK.value).image
 
     # create raw sample to return
     metadata = copy(dataset_source.metadata)
