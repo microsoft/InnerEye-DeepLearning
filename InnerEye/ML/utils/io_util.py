@@ -19,7 +19,6 @@ import torch
 from tabulate import tabulate
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat3, TupleInt3
 from InnerEye.ML.config import DEFAULT_POSTERIOR_VALUE_RANGE, PhotometricNormalizationMethod, \
     SegmentationModelBase
