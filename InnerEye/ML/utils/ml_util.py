@@ -161,7 +161,7 @@ def set_random_seed(random_seed: int, caller_name: Optional[str] = None) -> None
     prefix = ""
     if caller_name is not None:
         prefix = caller_name + ": "
-    logging.info(f"{prefix}Random seed set to: {random_seed}")
+    logging.debug(f"{prefix}Random seed set to: {random_seed}")
 
 
 # noinspection PyUnresolvedReferences,PyTypeHints
