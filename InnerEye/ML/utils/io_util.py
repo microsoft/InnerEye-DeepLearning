@@ -212,9 +212,10 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
 
 def load_numpy_image(path: PathOrString, image_type: Optional[Type] = None) -> np.ndarray:
     """
-    Loads an array from a numpy file.
+    Loads an array from a numpy file (npz or npy). The array is converted to image_type or untouched if None
     :param path: The path to the numpy file.
-    :param image_type: type of array
+    :param image_type: The dtype to cast the array
+    :return: ndarray
     """
     image = np.load(path)
     if type(image) is NpzFile:
@@ -254,6 +255,12 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
 
 
 def load_hdf5_dataset_from_file(path_str: Path, dataset_name: str) -> np.ndarray:
+    """
+    Loads a hdf5 dataset from a file as an ndarray
+    :param path_str: The path to the HDF5 file
+    :param dataset_name: The dataset name in the HDF5 file that we want to load
+    :return: ndarray
+    """
     with h5py.File(str(path_str), 'r') as hdf5_file:
         img = np.array(hdf5_file.get(dataset_name))
         return img
@@ -265,7 +272,7 @@ def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) 
     :param path_str: The path of the HDF5 file that should be loaded.
     :param load_segmentation: If True, the `segmentation` field of the result object will be populated. If
     False, the field will be set to None.
-    :return: numpy array
+    :return: HDF5Object
     """
 
     def _is_valid_hdf5_path(_path: Path) -> bool:

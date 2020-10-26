@@ -243,14 +243,14 @@ def create_data_loaders(train_config: DummyModel) -> None:
         check_patient_id_in_dataset(loader, split)
 
 
-def test_create_data_loaders_hdf5() -> None:
-    dataset_dir = convert_nifti_data_to_hdf5()
+def test_create_data_loaders_hdf5(test_output_dirs: TestOutputDirectories) -> None:
+    dataset_dir = convert_nifti_data_to_hdf5(Path(test_output_dirs.root_dir))
     train_config = DummyModel()
     train_config.local_dataset = dataset_dir
     create_data_loaders(train_config)
 
 
-def convert_nifti_data_to_hdf5() -> Path:
+def convert_nifti_data_to_hdf5(output_hdf5_dir: Path) -> Path:
     # create dataset in hdf5
     with open(base_path / "dataset.csv", "r") as f:
         csv_str = f.read()
@@ -277,7 +277,7 @@ def convert_nifti_data_to_hdf5() -> Path:
         csv_str = csv_str.replace("train_and_test_data/id2_mask.nii.gz,mask",
                                   "p2.h5|mask|0,mask")
 
-    dataset_dir = base_path / "hdf5_dataset"
+    dataset_dir = output_hdf5_dir / "hdf5_dataset"
     dataset_dir.mkdir(parents=True, exist_ok=True)
     with open(dataset_dir / "dataset.csv", "w") as f:
         f.write(csv_str)

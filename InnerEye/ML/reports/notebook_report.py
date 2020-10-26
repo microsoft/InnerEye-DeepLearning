@@ -39,7 +39,13 @@ def generate_notebook(template_notebook: Path, notebook_params: Dict, result_not
     return result_notebook.with_suffix(resources['output_extension'])
 
 
-def convert_to_html(result_notebook: Path) -> Any:
+def convert_to_html(result_notebook: Path) -> dict:
+    """
+    :param result_notebook: The path to the result notebook
+    :return: dict
+          Additional resources that can be accessed read/write by
+          preprocessors and filters.
+    """
     print(f"Running conversion to HTML for {result_notebook}")
     with result_notebook.open() as f:
         notebook = nbformat.read(f, as_version=4)

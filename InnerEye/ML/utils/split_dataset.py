@@ -214,9 +214,9 @@ class DatasetSplits:
             proportion_test=proportion_test
         )
         return DatasetSplits.from_subject_ids(df,
-                                              list(map(str, ranges[ModelExecutionMode.TRAIN])),
-                                              list(map(str, ranges[ModelExecutionMode.TEST])),
-                                              list(map(str, ranges[ModelExecutionMode.VAL])),
+                                              list(ranges[ModelExecutionMode.TRAIN]),
+                                              list(ranges[ModelExecutionMode.TEST]),
+                                              list(ranges[ModelExecutionMode.VAL]),
                                               subject_column)
 
     @staticmethod
