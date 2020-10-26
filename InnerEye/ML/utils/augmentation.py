@@ -63,9 +63,50 @@ def random_select_patch_center(sample: Sample, class_weights: List[float] = None
     return indices[choice].astype(int)  # Numpy usually stores as floats
 
 
+def slicers_for_random_crop(sample: Sample,
+                crop_size: TupleInt3,
+                class_weights: List[float] = None) -> List[slice]:
+    """
+    Computes array slicers that produce random crops of the given crop_size.
+    The selection of the center is dependant on background probability.
+    By default it does not center on background.
+
+    :param sample: A set of Image channels, ground truth labels and mask to randomly crop.
+    :param crop_size: The size of the crop expressed as a list of 3 ints, one per spatial dimension.
+    :param class_weights: A weighting vector with values [0, 1] to influence the class the center crop
+                          voxel belongs to (must sum to 1), uniform distribution assumed if none provided.
+    :return: The slicers that convert the input image to the chosen crop.
+    :raises ValueError: If there are shape mismatches among the arguments or if the crop size is larger than the image.
+    """
+    shape = sample.image.shape[1:]
+
+    if any_pairwise_larger(crop_size, shape):
+        raise ValueError("The crop_size across each dimension should be greater than zero and less than or equal "
+                         "to the current value (crop_size: {}, spatial shape: {})"
+                         .format(crop_size, shape))
+
+    # Sample a center pixel location for patch extraction.
+    center = random_select_patch_center(sample, class_weights)
+
+    # Verify and fix overflow for each dimension
+    left = []
+    for i in range(3):
+        margin_left = int(crop_size[i] / 2)
+        margin_right = crop_size[i] - margin_left
+        left_index = center[i] - margin_left
+        right_index = center[i] + margin_right
+        if right_index > shape[i]:
+            left_index = left_index - (right_index - shape[i])
+        if left_index < 0:
+            left_index = 0
+        left.append(left_index)
+
+    return [slice(left[x], left[x] + crop_size[x]) for x in range(0, 3)]
+
+
 def random_crop(sample: Sample,
                 crop_size: TupleInt3,
-                class_weights: List[float] = None) -> Tuple[Sample, np.ndarray, List[slice]]:
+                class_weights: List[float] = None) -> Tuple[Sample, np.ndarray]:
     """
     Randomly crops images, mask, and labels arrays according to the crop_size argument.
     The selection of the center is dependant on background probability.
@@ -81,34 +122,7 @@ def random_crop(sample: Sample,
     :raises TypeError: If any of the arguments are of the wrong type.
     :raises ValueError: If there are shape mismatches among the arguments or if the crop size is larger than the image.
     """
-    image = sample.image
-    labels = sample.labels
-    mask = sample.mask
-
-    image_spatial_shape = image.shape[1:]
-
-    if any_pairwise_larger(crop_size, image_spatial_shape):
-        raise ValueError("The crop_size across each dimension should be greater than zero and less than or equal "
-                         "to the current value (crop_size: {}, spatial shape: {})"
-                         .format(crop_size, image_spatial_shape))
-
-    # Sample a center pixel location for patch extraction.
-    center = random_select_patch_center(sample, class_weights)
-
-    # Verify and fix overflow for each dimension
-    left = []
-    for i in range(3):
-        margin_left = int(crop_size[i] / 2)
-        margin_right = crop_size[i] - margin_left
-        left_index = center[i] - margin_left
-        right_index = center[i] + margin_right
-        if right_index > labels.shape[i + 1]:
-            left_index = left_index - (right_index - labels.shape[i + 1])
-        if left_index < 0:
-            left_index = 0
-        left.append(left_index)
-
-    slicers = [slice(left[x], left[x] + crop_size[x]) for x in range(0, 3)]
+    slicers = slicers_for_random_crop(sample, crop_size, class_weights)
 
     # Crop the tensors
     images_cropped = image[:, slicers[0], slicers[1], slicers[2]]
@@ -120,7 +134,7 @@ def random_crop(sample: Sample,
         mask=mask_cropped,
         metadata=sample.metadata
     )
-    return sample, center, slicers
+    return sample, center
 
 
 class ImageTransformationBase(Transform3D):

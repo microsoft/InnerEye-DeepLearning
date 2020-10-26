@@ -34,12 +34,12 @@ crop_size_requires_padding = (9, 8, 12)
 # Random Crop Tests
 def test_valid_full_crop() -> None:
     metadata = DummyPatientMetadata
-    sample, _, _ = augmentation.random_crop(sample=Sample(image=valid_image_4d,
-                                                          labels=valid_labels,
-                                                          mask=valid_mask,
-                                                          metadata=metadata),
-                                            crop_size=valid_full_crop_size,
-                                            class_weights=valid_class_weights)
+    sample, _ = augmentation.random_crop(sample=Sample(image=valid_image_4d,
+                                                       labels=valid_labels,
+                                                       mask=valid_mask,
+                                                       metadata=metadata),
+                                         crop_size=valid_full_crop_size,
+                                         class_weights=valid_class_weights)
 
     assert np.array_equal(sample.image, valid_image_4d)
     assert np.array_equal(sample.labels, valid_labels)
@@ -147,7 +147,7 @@ def test_valid_class_weights(class_weights: List[float]) -> None:
         return
 
     for _ in range(0, total_crops):
-        crop_sample, center, _ = augmentation.random_crop(sample, crop_size, class_weights)
+        crop_sample, center = augmentation.random_crop(sample, crop_size, class_weights)
         sampled_class = list(labels[:, center[0], center[1], center[2]]).index(1)
         sampled_label_center_distribution[sampled_class] += 1
 
