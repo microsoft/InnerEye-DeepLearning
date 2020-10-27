@@ -155,7 +155,7 @@ class SegmentationForwardPass:
 
         # ensure that we always have float tensors as the model is defined over floats
         # and transfer the tensors to the GPU if possible before the forward pass
-        patches = self.config.get_gpu_tensor_if_possible(patches, device)
+        patches = self.config.get_gpu_tensor_if_possible(patches, device=device)
         if mask is not None:
             mask = self.config.get_gpu_tensor_if_possible(mask, device=device)
 

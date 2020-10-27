@@ -25,7 +25,8 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util
-from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size, get_local_size, get_local_rank
+from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size, get_local_size, get_local_rank, \
+    is_aml_mpi_run
 
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
@@ -62,9 +63,15 @@ def model_train(config: ModelConfigBase,
 
     if config.use_ddp:
 
-        world_size = get_global_size(config.is_offline_run)
+        world_size = get_global_size(config)
 
-        if config.is_offline_run:
+        if is_aml_mpi_run(config):
+            # AzureML MPI has been instantiated - configuration handles rank
+            train(None, config, run_recovery=run_recovery)
+            model_training_results = None
+
+        else:
+            # either offline run, or AML but not an MPI job
             # set the environment variable for master node address
             os.environ['MASTER_ADDR'] = 'localhost'
             os.environ['MASTER_PORT'] = '12355'
@@ -72,11 +79,6 @@ def model_train(config: ModelConfigBase,
             torch.multiprocessing.spawn(train,
                                         args=(config, run_recovery),
                                         nprocs=world_size)
-            model_training_results = None
-
-        else:
-            # AzureML MPI configuration handles rank
-            train(None, config, run_recovery=run_recovery)
             model_training_results = None
 
     else:
@@ -94,13 +96,13 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
     :param run_recovery: Recovery information to restart training from an existing run.
     :return:
     """
-    global_rank = get_global_rank() if rank is None else rank  # For 1 machine, global_rank = local_rank
+    global_rank = get_global_rank() if rank is None else rank
 
-    local_rank = global_rank if config.is_offline_run else get_local_rank()
+    local_rank = get_local_rank() if is_aml_mpi_run(config) else global_rank  # For 1 machine, global_rank = local_rank
     device = torch.device('cuda', local_rank) if torch.cuda.is_available() else torch.device('cpu')
 
     if config.use_ddp:
-        world_size = get_global_size(config.is_offline_run)
+        world_size = get_global_size(config)
         print(f"Running distributed training on device with global rank {global_rank} and local rank {local_rank}")
         torch.distributed.init_process_group(  # type: ignore
             backend=config.dist_backend,
@@ -108,7 +110,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
             world_size=world_size,
             rank=global_rank)
 
-        n_gpus_per_node = get_local_size()
+        n_gpus_per_node = get_local_size(config)
         config.train_batch_size = int(config.train_batch_size // n_gpus_per_node)
         config.num_dataload_workers = int((config.num_dataload_workers + n_gpus_per_node - 1) / n_gpus_per_node)
 
@@ -266,7 +268,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
         resource_monitor.kill()
 
     # return model_training_results
-    return None if (config.use_distributed_data_parallel and config.is_offline_run) else model_training_results
+    return None if (config.use_distributed_data_parallel and is_aml_mpi_run(config)) else model_training_results
 
 
 def temperature_scaling_steps(config: SequenceModelBase,

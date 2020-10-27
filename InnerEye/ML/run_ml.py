@@ -36,7 +36,7 @@ from InnerEye.ML.model_training import model_train
 from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
-from InnerEye.ML.utils.aml_distributed_utils import get_global_rank
+from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, is_aml_mpi_run
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
 from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_test
@@ -316,7 +316,7 @@ class MLRunner:
 
         # When training with DDP on AML, multiple processes will be running here. We only want to run inference
         # once. We don't have this problem with offline DDP since training is spawned within model_training
-        if not is_offline_run_context(RUN_CONTEXT):
+        if is_aml_mpi_run(self.model_config):
             if get_global_rank() > 0:
                 return
 

@@ -11,29 +11,40 @@ import torch
 
 
 def get_local_rank() -> int:
-    """Returns the local rank of the current process for AML (online) runs"""
-    return int(os.environ['OMPI_COMM_WORLD_LOCAL_RANK'])
+    """Returns the local rank of the current process for AML (online) runs."""
+    rank = os.environ.get('OMPI_COMM_WORLD_LOCAL_RANK')
+    return int(rank)
 
 
 def get_global_rank() -> int:
     """Returns the global rank of the current process for AML (online) runs."""
-    return int(os.environ["OMPI_COMM_WORLD_RANK"])
+    rank = os.environ.get("OMPI_COMM_WORLD_RANK")
+    return int(rank)
 
 
-def get_global_size(is_offline_run: Optional[bool] = True) -> int:
+def get_global_size(config) -> int:
     """
     If running in AML, will return the total number of devices across all machines. Otherwise,
-    will return all devices on current machine
+    asssumes 1 machine only, and will return all devices on current machine
     :return:
     """
-    if is_offline_run:
-        # assume 1 machine only
-        return torch.cuda.device_count()
-    return int(os.environ['OMPI_COMM_WORLD_SIZE'])
+    if is_aml_mpi_run(config):
+        return int(os.environ['OMPI_COMM_WORLD_SIZE'])
+    return torch.cuda.device_count()
 
 
-def get_local_size(is_offline_run: Optional[bool] = True) -> int:
+def get_local_size(config) -> int:
     """Get the number of devices on current machine (whether running in AML or locally)"""
-    if is_offline_run:
-        return torch.cuda.device_count()
-    return int(os.environ['OMPI_COMM_WORLD_LOCAL_SIZE'])
+    if is_aml_mpi_run(config):
+        return int(os.environ['OMPI_COMM_WORLD_LOCAL_SIZE'])
+    return torch.cuda.device_count()
+
+
+def is_aml_mpi_run(config):
+    """
+    Proxy for whether run is an AML MPI job (in which case init_method will be replaced with
+    tcp communication address instead of using environment vars)
+    :param config:
+    :return:
+    """
+    return (config.init_method.startswith('tcp://')) and (not config.is_offline_run)
