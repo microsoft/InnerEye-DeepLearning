@@ -262,8 +262,10 @@ def load_hdf5_dataset_from_file(path_str: Path, dataset_name: str) -> np.ndarray
     :return: ndarray
     """
     with h5py.File(str(path_str), 'r') as hdf5_file:
-        img = np.array(hdf5_file.get(dataset_name))
-        return img
+        if dataset_name in hdf5_file:
+            img = np.array(hdf5_file.get(dataset_name))
+            return img
+    raise ValueError(f"File '{path_str}' does not contain dataset '{dataset_name}'")
 
 
 def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) -> HDF5Object:

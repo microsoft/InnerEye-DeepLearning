@@ -114,10 +114,18 @@ def _test_load_images_from_channels(
 def test_save_file(value: Any, expected: Any) -> None:
     file = full_ml_test_data_path("test.txt")
     io_util.save_lines_to_file(Path(file), value)
-
     assert_file_contains_string(file, expected)
-
     os.remove(str(file))
+
+
+def test_hdf5_loading() -> None:
+    """
+    Check that when we access and invalid dataset we get a good exception
+    """
+    with pytest.raises(ValueError) as valueError:
+        io_util.load_image(f"{good_h5_path}|doesnotexist|0|1")
+    assert str(good_h5_path) in str(valueError.value)
+    assert "doesnotexist" in str(valueError.value)
 
 
 def test_save_dataset_example(test_output_dirs: TestOutputDirectories) -> None:
