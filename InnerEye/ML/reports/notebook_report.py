@@ -30,21 +30,25 @@ def print_header(message: str, level: int = 2) -> None:
 
 
 def generate_notebook(template_notebook: Path, notebook_params: Dict, result_notebook: Path) -> Path:
+    """
+    Generates a notebook report as jupyter notebook and html page
+    :param template_notebook: path to template notebook
+    :param notebook_params: parameters for the notebook
+    :param result_notebook: the path for the executed notebook
+    :return: returns path to the html page
+    """
     print(f"Writing report to {result_notebook}")
     papermill.execute_notebook(input_path=str(template_notebook),
                                output_path=str(result_notebook),
                                parameters=notebook_params,
                                progress_bar=False)
-    resources = convert_to_html(result_notebook)
-    return result_notebook.with_suffix(resources['output_extension'])
+    return convert_to_html(result_notebook)
 
 
-def convert_to_html(result_notebook: Path) -> dict:
+def convert_to_html(result_notebook: Path) -> Path:
     """
     :param result_notebook: The path to the result notebook
-    :return: dict
-          Additional resources that can be accessed read/write by
-          preprocessors and filters.
+    :return: Path with output extension
     """
     print(f"Running conversion to HTML for {result_notebook}")
     with result_notebook.open() as f:
@@ -59,7 +63,7 @@ def convert_to_html(result_notebook: Path) -> dict:
             resources=resources,
             notebook_name=str(result_notebook.stem)
         )
-    return resources
+    return result_notebook.with_suffix(resources['output_extension'])
 
 
 def generate_segmentation_notebook(result_notebook: Path,
