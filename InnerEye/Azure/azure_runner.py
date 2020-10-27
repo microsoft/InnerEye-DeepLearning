@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from azureml.core import Dataset, Experiment, Run, Workspace
+from azureml.core import Dataset, Experiment, Run
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.datastore import Datastore
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
