@@ -54,18 +54,17 @@ def visualize_random_crops(sample: Sample,
         sample=sample,
         crop_size=config.crop_size,
         padding_mode=config.padding_mode)
-    print(f"Processing sample: {sample.patient_id}")
-
+    logging.info(f"Processing sample: {sample.patient_id}")
     # Exhaustively sample with random crop function
     image_channel0 = sample.image[0]
     heatmap = np.zeros(image_channel0.shape, dtype=np.uint16)
     # Number of repeats should fit into the range of UInt16, because we will later save the heatmap as an integer
     # Nifti file of that datatype.
-    repeats = 1000
+    repeats = 200
     for _ in range(repeats):
-        _, _, slicers = augmentation.random_crop(sample=sample,
-                                                 crop_size=config.crop_size,
-                                                 class_weights=config.class_weights)
+        slicers, _ = augmentation.slicers_for_random_crop(sample=sample,
+                                                          crop_size=config.crop_size,
+                                                          class_weights=config.class_weights)
         heatmap[slicers[0], slicers[1], slicers[2]] += 1
     is_3dim = heatmap.shape[0] > 1
     header = sample.metadata.image_header
