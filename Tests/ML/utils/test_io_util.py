@@ -19,7 +19,7 @@ from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
 from InnerEye.ML.utils.io_util import ImageHeader, is_nifti_file_path, is_numpy_file_path, \
     load_image_in_known_formats, load_numpy_image, is_dicom_file_path, load_dicom_image, \
-    ImageAndSegmentations, load_images_and_stack, DicomTags, PhotometricInterpretation
+    ImageAndSegmentations, load_images_and_stack, DicomTags, PhotometricInterpretation, reverse_tuple_float3
 from Tests.ML.util import assert_file_contains_string
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -47,9 +47,23 @@ def test_nii_load_image() -> None:
     assert np.array_equal(image_with_header.image, known_array)
 
 
+def test_nii_load_zyx(test_output_dirs: TestOutputDirectories) -> None:
+    expected_shape = (44, 167, 167)
+    file_path = full_ml_test_data_path("patch_sampling/scan_small.nii.gz")
+    image: sitk.Image = sitk.ReadImage(str(file_path))
+    assert image.GetSize() == reverse_tuple_float3(expected_shape)
+    img = sitk.GetArrayFromImage(image)
+    assert img.shape == expected_shape
+    image_header = io_util.load_nifti_image(file_path)
+    assert image_header.image.shape == expected_shape
+    assert image_header.header.spacing is not None
+    np.testing.assert_allclose(image_header.header.spacing, (3.0, 1.0, 1.0), rtol=0.1)
+
+
 @pytest.mark.parametrize("metadata", [None, PatientMetadata(patient_id="0")])
 @pytest.mark.parametrize("image_channel", [None, known_nii_path, f"{good_h5_path}|volume|0", good_npy_path])
-@pytest.mark.parametrize("ground_truth_channel", [None, known_nii_path, f"{good_h5_path}|segmentation|0|1", good_npy_path])
+@pytest.mark.parametrize("ground_truth_channel",
+                         [None, known_nii_path, f"{good_h5_path}|segmentation|0|1", good_npy_path])
 @pytest.mark.parametrize("mask_channel", [None, known_nii_path, good_npy_path])
 def test_load_images_from_dataset_source(
         metadata: Optional[str],

@@ -163,7 +163,7 @@ def read_image_as_array_with_header(file_path: Path) -> Tuple[np.ndarray, ImageH
     :return: Tuple of ndarray with image in Z Y X and Spacing in Z X Y
     """
     image: sitk.Image = sitk.ReadImage(str(file_path))
-    img = sitk.GetArrayFromImage(image)
+    img = sitk.GetArrayFromImage(image)  # This call changes the shape to ZYX
     spacing = reverse_tuple_float3(image.GetSpacing())
     # We keep origin and direction on the original shape since it is not used in this library
     # only for saving images correctly
@@ -406,6 +406,7 @@ def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageW
         For images |<dataset_name>|<channel index>
         For segmentation binary |<dataset_name>|<channel index>
         For segmentation multimap |<dataset_name>|<channel index>|<multimap value>
+        The expected dimensions to be (channel, Z, Y, X)
     :param path: The path to the file
     :param image_type: The type of the image
     """

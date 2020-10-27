@@ -19,11 +19,12 @@ InnerEye expects segmentation datasets to have the following structure:
  at minimum:
     * `subject`: A unique positive integer assigned to every patient
     * `channel`: The imaging channel or ground truth structure described by this row. 
-    * `filePath`: Path to the file for this scan or structure. We support nifti (nii.gz), numpy (npz) and hdf5(h5).
+    * `filePath`: Path to the file for this scan or structure. We support nifti (nii, nii.gz), numpy (npy, npz) and hdf5(h5).
         * For HDF5 path suffix with | separator
             * For images <path>|<dataset_name>|<channel index>
             * For segmentation binary <path>|<dataset_name>|<channel index>
             * For segmentation multimap <path>|<dataset_name>|<channel index>|<multimap value>
+            * The expected dimensions: (channel, Z, Y, X)
     
     Additional supported fields include `acquisition_date`, `institutionId`, `seriesID` and `tags` (meant for miscellaneous labels). 
 
