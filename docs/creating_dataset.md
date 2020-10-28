@@ -24,7 +24,11 @@ InnerEye expects segmentation datasets to have the following structure:
             * For images <path>|<dataset_name>|<channel index>
             * For segmentation binary <path>|<dataset_name>|<channel index>
             * For segmentation multimap <path>|<dataset_name>|<channel index>|<multimap value>
+                * Multimaps are encoded as 0=background and integers for each class.
             * The expected dimensions: (channel, Z, Y, X)
+        * For numpy or nifti just the expected format is just the path to the files. 
+            * For images can be encoded as float32 with dimensions (X, Y, Z)
+            * For segmentations should be encoded as binary masks with dimensions (X, Y, Z) 
     
     Additional supported fields include `acquisition_date`, `institutionId`, `seriesID` and `tags` (meant for miscellaneous labels). 
 
