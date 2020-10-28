@@ -189,7 +189,7 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
             return DataLoader(self,
                               batch_size=batch_size,
                               shuffle=False,
-                              num_workers=0,
+                              num_workers=num_dataload_workers,
                               collate_fn=collate_with_metadata,
                               sampler=sampler)
         elif self.args.avoid_process_spawn_in_data_loaders:
