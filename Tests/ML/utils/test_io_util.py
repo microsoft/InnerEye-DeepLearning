@@ -128,6 +128,24 @@ def test_hdf5_loading() -> None:
     assert "doesnotexist" in str(valueError.value)
 
 
+def test_hdf5_loading_multimap() -> None:
+    """
+    Check that multimap returns correct image
+    """
+    image_header = io_util.load_image(f"{good_h5_path}|segmentation|0")
+    seg_header = io_util.load_image(f"{good_h5_path}|segmentation|0|1")
+    expected = image_header.image == 1
+    assert np.array_equal(expected, seg_header.image)
+
+
+def test_hdf5_loading_multimap_class_do_not_exists() -> None:
+    """
+    Check that multimap returns correct image if class does not exist
+    """
+    seg_header = io_util.load_image(f"{good_h5_path}|segmentation|0|555555555555")
+    assert np.all(seg_header.image == 0)
+
+
 def test_save_dataset_example(test_output_dirs: TestOutputDirectories) -> None:
     """
     Test if the example dataset can be saved as expected.
