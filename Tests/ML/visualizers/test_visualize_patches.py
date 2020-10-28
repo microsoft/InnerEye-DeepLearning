@@ -54,7 +54,7 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
     sample = Sample(image=image,
                     mask=mask,
                     labels=labels,
-                    metadata=PatientMetadata(patient_id=123,
+                    metadata=PatientMetadata(patient_id='123',
                                              image_header=image_header))
     expected_folder = full_ml_test_data_path("patch_sampling")
     heatmap = visualize_random_crops(sample, config, output_folder=output_folder)
@@ -114,7 +114,7 @@ def test_visualize_patch_sampling_2d(test_output_dirs: TestOutputDirectories) ->
     sample = Sample(image=image,
                     mask=mask,
                     labels=labels,
-                    metadata=PatientMetadata(patient_id=123,
+                    metadata=PatientMetadata(patient_id='123',
                                              image_header=image_header))
     heatmap = visualize_random_crops(sample, config, output_folder=output_folder)
     expected_folder = full_ml_test_data_path("patch_sampling")

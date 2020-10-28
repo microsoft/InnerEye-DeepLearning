@@ -69,9 +69,9 @@ class DummyModel(SegmentationModelBase):
         self.add_and_validate(kwargs)
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
-        return DatasetSplits(train=dataset_df[dataset_df.subject.isin([1, 2])],
-                             test=dataset_df[dataset_df.subject.isin([3, 4])],
-                             val=dataset_df[dataset_df.subject.isin([5, 6])])
+        return DatasetSplits(train=dataset_df[dataset_df.subject.isin(['1', '2'])],
+                             test=dataset_df[dataset_df.subject.isin(['3', '4'])],
+                             val=dataset_df[dataset_df.subject.isin(['5', '6'])])
 
     def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
         return super().get_parameter_search_hyperdrive_config(estimator)

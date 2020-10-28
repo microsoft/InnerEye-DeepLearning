@@ -10,7 +10,6 @@ import torch
 from torch.nn.utils.rnn import PackedSequence, pack_sequence, pad_sequence
 
 from InnerEye.Common.common_util import check_properties_are_not_none
-from InnerEye.Common.type_annotations import IntOrString
 from InnerEye.ML.utils.image_util import NumpyOrTorch
 
 
@@ -21,7 +20,7 @@ class MaskedModelOutputAndLabelSequences:
     """
     model_outputs: PackedSequence
     labels: PackedSequence
-    subject_ids: Optional[Sequence[IntOrString]]
+    subject_ids: Optional[Sequence[str]]
 
     def __post_init__(self) -> None:
         check_properties_are_not_none(self, ignore=["subject_ids"])
@@ -75,7 +74,7 @@ def map_packed_sequence_data(x: PackedSequence, f: Callable[[torch.Tensor], torc
 
 def get_masked_model_outputs_and_labels(model_output: torch.Tensor,
                                         labels: NumpyOrTorch,
-                                        subject_ids: Optional[Sequence[IntOrString]] = None) \
+                                        subject_ids: Optional[Sequence[str]] = None) \
         -> Optional[MaskedModelOutputAndLabelSequences]:
     """
     Helper function to get masked model outputs, labels and their associated subject ids. Masking is performed

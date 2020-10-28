@@ -16,7 +16,6 @@ from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_auc_score
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 from InnerEye.Common.common_util import DataframeLogger, check_properties_are_not_none
-from InnerEye.Common.type_annotations import IntOrString
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
@@ -58,7 +57,7 @@ def average_metric_values(values: List[float], skip_nan_when_averaging: bool) ->
 
 @dataclass(frozen=True)
 class PredictionEntry(Generic[T]):
-    subject_id: IntOrString
+    subject_id: str
     predictions: T
     labels: T
 
@@ -162,7 +161,7 @@ class Hue:
     values: Dict[str, List[FloatOrInt]] = field(default_factory=dict)
     predictions: List[np.ndarray] = field(default_factory=list)
     labels: List[np.ndarray] = field(default_factory=list)
-    subject_ids: List[IntOrString] = field(default_factory=list)
+    subject_ids: List[str] = field(default_factory=list)
 
     @property
     def has_prediction_entries(self) -> bool:
@@ -173,7 +172,7 @@ class Hue:
         return len(_labels) > 0 if _labels else False
 
     def add_predictions(self,
-                        subject_ids: Sequence[IntOrString],
+                        subject_ids: Sequence[str],
                         predictions: np.ndarray,
                         labels: np.ndarray) -> None:
         """
@@ -279,7 +278,7 @@ class MetricsDict:
         self.is_classification_metrics = is_classification_metrics
         self.diagnostics: Dict[str, List[Any]] = dict()
 
-    def subject_ids(self, hue: str = DEFAULT_HUE_KEY) -> List[IntOrString]:
+    def subject_ids(self, hue: str = DEFAULT_HUE_KEY) -> List[str]:
         """
         Return the subject ids that have metrics associated with them in this dictionary.
         :param hue: If provided then subject ids belonging to this hue only will be returned.
@@ -393,7 +392,7 @@ class MetricsDict:
         _metric_name = MetricsDict._metric_name(metric_name)
         del self._get_hue(hue).values[_metric_name]
 
-    def add_predictions(self, subject_ids: Sequence[IntOrString],
+    def add_predictions(self, subject_ids: Sequence[str],
                         predictions: np.ndarray,
                         labels: np.ndarray,
                         hue: str = DEFAULT_HUE_KEY) -> None:

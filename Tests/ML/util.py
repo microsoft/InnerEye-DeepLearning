@@ -181,7 +181,7 @@ def assert_binary_files_match(actual_file: Path, expected_file: Path) -> None:
     assert False, f"File contents does not match: len(actual)={len(actual)}, len(expected)={len(expected)}"
 
 
-DummyPatientMetadata = PatientMetadata(patient_id=42)
+DummyPatientMetadata = PatientMetadata(patient_id='42')
 
 
 def get_model_loader(namespace: Optional[str] = None) -> ModelConfigLoader[SegmentationModelBase]:
