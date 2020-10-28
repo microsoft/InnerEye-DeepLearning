@@ -137,34 +137,14 @@ The following steps describe how to set up specific tools. You can execute most 
 point, if you want to dig deeper into the code.
 
 ## PyCharm
-- Our team uses [PyCharm](https://www.jetbrains.com/pycharm/) for development.
-- Add the contents listed just below in file `InnerEye-DeepLearning.iml` in the `.idea` folder in the repo.
- This will configure the interpreter and modules for PyCharm.
-- Change the jdkName to your WSL interpreter. At the moment there is no way to change the name of the interpreter for WSL.
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<module type="PYTHON_MODULE" version="4">
-  <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$" isTestSource="false" />
-    </content>
-    <orderEntry type="jdk" jdkName="3.7 @ Ubuntu" jdkType="Python SDK" />
-    <orderEntry type="sourceFolder" forTests="false" />
-  </component>
-  <component name="PackageRequirementsSettings">
-    <option name="requirementsPath" value="" />
-  </component>
-  <component name="PyDocumentationSettings">
-    <option name="format" value="PLAIN" />
-    <option name="myDocStringFormat" value="Plain" />
-  </component>
-  <component name="TestRunnerService">
-    <option name="PROJECT_TEST_RUNNER" value="pytest" />
-  </component>
-</module>
-```
-- To make sure operations such as git clean do not remove this file, you can add our `deepclean` alias to your local 
-git config by applying our git configurations: `git config --local include.path ../.gitconfig`
+
+Our team uses [PyCharm](https://www.jetbrains.com/pycharm/) for development, but any good editor 
+([VSCode](https://code.visualstudio.com/) for example) will do as well.
+
+This repository already contains a PyCharm configuration file in `.idea/InnerEye-DeepLearning.iml`. It will pick the
+WSL Python interpreter (see [WSL.md](WSL.md)) as the default - based on your configuration, you will need to adjust 
+that as described [here](https://www.jetbrains.com/help/pycharm/configuring-python-interpreter.html).
+
 
 ## How to manually set up flake8 as a PyCharm external tool
 

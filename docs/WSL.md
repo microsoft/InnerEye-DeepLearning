@@ -19,31 +19,33 @@ You can also find a video walkthrough of WSL2+CUDA installation here: https://ch
 Requirements: Windows 10 version 2004 or higher
 
 The instructions are [here](https://docs.microsoft.com/en-us/windows/wsl/install-win10), but summarized in
-copy/paste-able form below.
+copy/paste-able form below. When installing via the UI, pick Ubuntu version 20.04 LTS as your distribution.
 
-Install winget from the appxbundle at https://github.com/microsoft/winget-cli/releases
+To use the commandline setup, please first install 
+[winget via the appxbundle](https://github.com/microsoft/winget-cli/releases).
 
-On PowerShell as Administrator:
+Then, in PowerShell as Administrator:
 ```
 dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
 dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
 wsl --set-default-version 2
-winget install ubuntu
+winget install ubuntu --version 20.04
 wsl --list --verbose
-wsl --set-version <distribution name> <versionNumber>
+wsl --set-version Ubuntu-20.04 2
 wsl --set-default-version 2
 winget install Microsoft.WindowsTerminal
 ```
 
 Remember to restart your machine if you were doing a fresh installation of WSL 2 before trying further steps. 
 
-Since it is possible to choose the version of WSL that a particular distribution is running, once you have WSL2 installed, ensure that your distribution is running on top of WSL2 by executing  
+Since it is possible to choose the version of WSL that a particular distribution is running, 
+once you have WSL2 installed, ensure that your distribution is running on top of WSL2 by executing  
 `wsl --list --verbose`  
 If all is good, the output should look like this:  
 ```
 $> wsl --list -v
-  NAME      STATE           VERSION
-* Ubuntu    Running         2
+  NAME            STATE           VERSION
+* Ubuntu-20.04    Running         2
 ```
 Note the "2" in Version column.
 
