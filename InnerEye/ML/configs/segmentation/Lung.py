@@ -72,11 +72,11 @@ class Lung(SegmentationModelBase):
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         # The first 24 subject IDs are the designated test subjects in this dataset.
-        test = list(range(0, 24))
+        test = list(map(str, range(0, 24)))
         train_val = list(dataset_df[~dataset_df.subject.isin(test)].subject.unique())
 
-        val = numpy.random.choice(train_val, int(len(train_val) * 0.1), replace=False)
-        train = [x for x in train_val if x not in val]
+        val = list(map(str, numpy.random.choice(train_val, int(len(train_val) * 0.1), replace=False)))
+        train = [str(x) for x in train_val if x not in val]
 
         return DatasetSplits.from_subject_ids(
             df=dataset_df,

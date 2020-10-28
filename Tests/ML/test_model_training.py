@@ -3,8 +3,10 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+from pathlib import Path
 from typing import Any, List
 
+import h5py
 import numpy as np
 import pandas as pd
 import pytest
@@ -23,6 +25,7 @@ from InnerEye.ML.model_training import model_train
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForSegmentation
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.sequence_config import SequenceModelBase
+from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
@@ -214,6 +217,10 @@ def test_format_learning_rate(rates: Any, expected: str) -> None:
 
 def test_create_data_loaders() -> None:
     train_config = DummyModel()
+    create_data_loaders(train_config)
+
+
+def create_data_loaders(train_config: DummyModel) -> None:
     train_config.train_batch_size = 1
     train_config.local_dataset = base_path
     # create the dataset splits
@@ -234,6 +241,70 @@ def test_create_data_loaders() -> None:
     # check if the subjects in the dataloaders are the same in the corresponding dataset splits
     for loader, split in [(train_loader, dataset_splits.train), (val_loader, dataset_splits.val)]:
         check_patient_id_in_dataset(loader, split)
+
+
+def test_create_data_loaders_hdf5(test_output_dirs: TestOutputDirectories) -> None:
+    dataset_dir = convert_nifti_data_to_hdf5(Path(test_output_dirs.root_dir))
+    train_config = DummyModel()
+    train_config.local_dataset = dataset_dir
+    create_data_loaders(train_config)
+
+
+def convert_nifti_data_to_hdf5(output_hdf5_dir: Path) -> Path:
+    # create dataset in hdf5
+    with open(base_path / "dataset.csv", "r") as f:
+        csv_str = f.read()
+        csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel1",
+                                  "p1.h5|volume|0,channel1")
+        csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel2",
+                                  "p1.h5|volume|1,channel2")
+        csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel1",
+                                  "p2.h5|volume|0,channel1")
+        csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel2",
+                                  "p2.h5|volume|1,channel2")
+        # segmentation
+        csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region",
+                                  "p1.h5|region|0,region")
+        csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region_1",
+                                  "p2.h5|region|0,region_1")
+        csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region",
+                                  "p2.h5|region|0,region")
+        csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region_1",
+                                  "p2.h5|region_1|1,region_1")
+        # mask
+        csv_str = csv_str.replace("train_and_test_data/id1_mask.nii.gz,mask",
+                                  "p1.h5|mask|0,mask")
+        csv_str = csv_str.replace("train_and_test_data/id2_mask.nii.gz,mask",
+                                  "p2.h5|mask|0,mask")
+
+    dataset_dir = output_hdf5_dir / "hdf5_dataset"
+    dataset_dir.mkdir(parents=True, exist_ok=True)
+    with open(dataset_dir / "dataset.csv", "w") as f:
+        f.write(csv_str)
+    train_data = base_path / "train_and_test_data"
+    create_hdf5_from_nifti(train_data / "id1_channel1.nii.gz", train_data / "id1_region.nii.gz",
+                           train_data / "id1_mask.nii.gz",
+                           dataset_dir / "p1.h5")
+    create_hdf5_from_nifti(train_data / "id2_channel1.nii.gz", train_data / "id2_region.nii.gz",
+                           train_data / "id2_mask.nii.gz",
+                           dataset_dir / "p2.h5")
+    return dataset_dir
+
+
+def create_hdf5_from_nifti(input_nifti_volume: Path, input_nifti_seg: Path, input_nifti_mask: Path,
+                           output_h5: Path) -> None:
+    volume = load_nifti_image(input_nifti_volume).image
+    volume_with_channels = np.expand_dims(volume, axis=0)
+    volume_with_channels = np.resize(volume_with_channels, (2,) + volume_with_channels.shape[1:])
+    segmentation = load_nifti_image(input_nifti_seg).image
+    seg_with_channels = np.expand_dims(segmentation, axis=0)
+    mask = load_nifti_image(input_nifti_mask).image
+    mask_with_channels = np.expand_dims(mask, axis=0)
+    with h5py.File(str(output_h5), 'w') as hf:
+        hf.create_dataset('volume', data=volume_with_channels, compression="gzip", compression_opts=9)
+        hf.create_dataset('region', data=seg_with_channels, compression="gzip", compression_opts=9)
+        hf.create_dataset('region_1', data=seg_with_channels, compression="gzip", compression_opts=9)
+        hf.create_dataset('mask', data=mask_with_channels, compression="gzip", compression_opts=9)
 
 
 def test_construct_loss_function() -> None:

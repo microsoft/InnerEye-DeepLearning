@@ -19,13 +19,15 @@ from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
 from InnerEye.ML.utils.io_util import ImageHeader, is_nifti_file_path, is_numpy_file_path, \
     load_image_in_known_formats, load_numpy_image, is_dicom_file_path, load_dicom_image, \
-    ImageAndSegmentations, load_images_and_stack, DicomTags, PhotometricInterpretation
+    ImageAndSegmentations, load_images_and_stack, DicomTags, PhotometricInterpretation, reverse_tuple_float3
 from Tests.ML.util import assert_file_contains_string
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 known_nii_path = full_ml_test_data_path("test_good.nii.gz")
 known_array = np.ones((128, 128, 128))
 bad_nii_path = full_ml_test_data_path("test_bad.nii.gz")
+good_npy_path = full_ml_test_data_path("test_good.npz")
+good_h5_path = full_ml_test_data_path("data.h5")
 
 
 @pytest.mark.parametrize("path", ["", " ", None, "not_exists", ".", "tests/test_io_util.py"])
@@ -45,10 +47,24 @@ def test_nii_load_image() -> None:
     assert np.array_equal(image_with_header.image, known_array)
 
 
-@pytest.mark.parametrize("metadata", [None, PatientMetadata(patient_id=0)])
-@pytest.mark.parametrize("image_channel", [None, known_nii_path])
-@pytest.mark.parametrize("ground_truth_channel", [None, known_nii_path])
-@pytest.mark.parametrize("mask_channel", [None, known_nii_path])
+def test_nii_load_zyx(test_output_dirs: TestOutputDirectories) -> None:
+    expected_shape = (44, 167, 167)
+    file_path = full_ml_test_data_path("patch_sampling/scan_small.nii.gz")
+    image: sitk.Image = sitk.ReadImage(str(file_path))
+    assert image.GetSize() == reverse_tuple_float3(expected_shape)
+    img = sitk.GetArrayFromImage(image)
+    assert img.shape == expected_shape
+    image_header = io_util.load_nifti_image(file_path)
+    assert image_header.image.shape == expected_shape
+    assert image_header.header.spacing is not None
+    np.testing.assert_allclose(image_header.header.spacing, (3.0, 1.0, 1.0), rtol=0.1)
+
+
+@pytest.mark.parametrize("metadata", [None, PatientMetadata(patient_id="0")])
+@pytest.mark.parametrize("image_channel", [None, known_nii_path, f"{good_h5_path}|volume|0", good_npy_path])
+@pytest.mark.parametrize("ground_truth_channel",
+                         [None, known_nii_path, f"{good_h5_path}|segmentation|0|1", good_npy_path])
+@pytest.mark.parametrize("mask_channel", [None, known_nii_path, good_npy_path])
 def test_load_images_from_dataset_source(
         metadata: Optional[str],
         image_channel: Optional[str],
@@ -82,7 +98,7 @@ def _test_load_images_from_channels(
         )
     )
     if image_channel:
-        image_with_header = io_util.load_nifti_image(image_channel)
+        image_with_header = io_util.load_image(image_channel)
         assert list(sample.image.shape) == [2] + list(image_with_header.image.shape)
         assert all([np.array_equal(x, image_with_header.image) for x in sample.image])  # type: ignore
         if mask_channel:
@@ -98,10 +114,36 @@ def _test_load_images_from_channels(
 def test_save_file(value: Any, expected: Any) -> None:
     file = full_ml_test_data_path("test.txt")
     io_util.save_lines_to_file(Path(file), value)
-
     assert_file_contains_string(file, expected)
-
     os.remove(str(file))
+
+
+def test_hdf5_loading() -> None:
+    """
+    Check that when we access and invalid dataset we get a good exception
+    """
+    with pytest.raises(ValueError) as valueError:
+        io_util.load_image(f"{good_h5_path}|doesnotexist|0|1")
+    assert str(good_h5_path) in str(valueError.value)
+    assert "doesnotexist" in str(valueError.value)
+
+
+def test_hdf5_loading_multimap() -> None:
+    """
+    Check that multimap returns correct image
+    """
+    image_header = io_util.load_image(f"{good_h5_path}|segmentation|0")
+    seg_header = io_util.load_image(f"{good_h5_path}|segmentation|0|1")
+    expected = image_header.image == 1
+    assert np.array_equal(expected, seg_header.image)
+
+
+def test_hdf5_loading_multimap_class_do_not_exists() -> None:
+    """
+    Check that multimap returns correct image if class does not exist
+    """
+    seg_header = io_util.load_image(f"{good_h5_path}|segmentation|0|555555555555")
+    assert np.all(seg_header.image == 0)
 
 
 def test_save_dataset_example(test_output_dirs: TestOutputDirectories) -> None:
@@ -258,7 +300,7 @@ def test_load_dicom_image_ones(test_output_dirs: TestOutputDirectories,
     with mock.patch.object(sitk.ImageFileReader, 'GetMetaData',
                            new=get_mock_function(is_monochrome2=is_monochrome2, bits_stored=1)):
         image = load_dicom_image(dcm_file)
-        assert image.ndim == 3 and image.shape == (1, ) + array_size
+        assert image.ndim == 3 and image.shape == (1,) + array_size
         assert np.array_equal(image, array[None, ...])
 
         image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
@@ -285,7 +327,7 @@ def test_load_dicom_image_random(test_output_dirs: TestOutputDirectories,
         to_write = array
     else:
         if not is_signed:
-            to_write = 2**bits_stored - 1 - array
+            to_write = 2 ** bits_stored - 1 - array
         else:
             to_write = -1 * array - 1
 
@@ -393,8 +435,8 @@ def test_load_images_and_stack_2d_ones(test_output_dirs: TestOutputDirectories) 
 
     file_list = [Path(test_output_dirs.root_dir) / f"file{i}.dcm" for i in range(1, 4)]
     imaging_data = load_images_and_stack(file_list,
-                                            load_segmentation=False,
-                                            image_size=(1,) + image_size)
+                                         load_segmentation=False,
+                                         image_size=(1,) + image_size)
 
     assert len(imaging_data.images.shape) == 4
     assert imaging_data.images.shape[0] == 3
@@ -422,8 +464,8 @@ def test_load_images_and_stack_2d_random(test_output_dirs: TestOutputDirectories
 
     file_list = [Path(test_output_dirs.root_dir) / f"file{i}.dcm" for i in range(1, 4)]
     imaging_data = load_images_and_stack(file_list,
-                                            load_segmentation=False,
-                                            image_size=(1,) + image_size)
+                                         load_segmentation=False,
+                                         image_size=(1,) + image_size)
 
     assert len(imaging_data.images.shape) == 4
     assert imaging_data.images.shape[0] == 3
@@ -449,8 +491,8 @@ def test_load_images_and_stack_2d_with_resize_ones(test_output_dirs: TestOutputD
 
     file_list = [Path(test_output_dirs.root_dir) / f"file{i}.dcm" for i in range(1, 4)]
     imaging_data = load_images_and_stack(file_list,
-                                            load_segmentation=False,
-                                            image_size=(1,) + image_size)
+                                         load_segmentation=False,
+                                         image_size=(1,) + image_size)
 
     assert len(imaging_data.images.shape) == 4
     assert imaging_data.images.shape[0] == 3
@@ -481,8 +523,8 @@ def test_load_images_and_stack_2d_with_resize_random(test_output_dirs: TestOutpu
 
     file_list = [Path(test_output_dirs.root_dir) / f"file{i}.dcm" for i in range(1, 4)]
     imaging_data = load_images_and_stack(file_list,
-                                            load_segmentation=False,
-                                            image_size=(1,) + image_size)
+                                         load_segmentation=False,
+                                         image_size=(1,) + image_size)
 
     assert len(imaging_data.images.shape) == 4
     assert imaging_data.images.shape[0] == 3
@@ -508,8 +550,8 @@ def test_load_images_and_stack_3d_with_resize_ones(test_output_dirs: TestOutputD
 
     file_list = [Path(test_output_dirs.root_dir) / f"file{i}.npy" for i in range(1, 4)]
     imaging_data = load_images_and_stack(file_list,
-                                            load_segmentation=False,
-                                            image_size=image_size)
+                                         load_segmentation=False,
+                                         image_size=image_size)
 
     assert len(imaging_data.images.shape) == 4
     assert imaging_data.images.shape[0] == 3
@@ -539,8 +581,8 @@ def test_load_images_and_stack_3d_with_resize_random(test_output_dirs: TestOutpu
 
     file_list = [Path(test_output_dirs.root_dir) / f"file{i}.npy" for i in range(1, 4)]
     imaging_data = load_images_and_stack(file_list,
-                                            load_segmentation=False,
-                                            image_size=image_size)
+                                         load_segmentation=False,
+                                         image_size=image_size)
 
     assert len(imaging_data.images.shape) == 4
     assert imaging_data.images.shape[0] == 3
