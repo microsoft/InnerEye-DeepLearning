@@ -96,17 +96,21 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
     :param run_recovery: Recovery information to restart training from an existing run.
     :return:
     """
+
+    print(f"Backend: {config.distributed_training_backend}")
+    print(f"init method: {config.distributed_training_init_method}")
+
     global_rank = get_global_rank() if rank is None else rank
 
     local_rank = get_local_rank() if is_aml_mpi_run(config) else global_rank  # For 1 machine, global_rank = local_rank
-    device = torch.device('cuda', local_rank) if torch.cuda.is_available() else torch.device('cpu')
+    device = torch.device('cuda', local_rank) if config.use_gpu else torch.device('cpu')
 
     if config.use_ddp:
         world_size = get_global_size(config)
         print(f"Running distributed training on device with global rank {global_rank} and local rank {local_rank}")
         torch.distributed.init_process_group(  # type: ignore
-            backend=config.dist_backend,
-            init_method=config.init_method,
+            backend=config.distributed_training_backend,
+            init_method=config.distributed_training_init_method,
             world_size=world_size,
             rank=global_rank)
 
@@ -166,7 +170,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
         os.makedirs(config.checkpoint_folder, exist_ok=True)
 
     # Create the SummaryWriters for Tensorboard
-    writers = create_summary_writers(config, rank=global_rank)
+    writers = create_summary_writers(config, global_rank=global_rank)
 
     config.create_dataframe_loggers()
 
@@ -304,8 +308,12 @@ def temperature_scaling_steps(config: SequenceModelBase,
     return temperature_value, val_epoch_results
 
 
-def record_time(rank: int) -> FloatOrCudaEvent:
-    if torch.cuda.is_available() & rank == 0:
+def record_time() -> FloatOrCudaEvent:
+    """
+    Record current time. For CUDA devices, where operations are asynchronous, return a CUDA event
+    :return:
+    """
+    if torch.cuda.is_available():
         recorded_time: FloatOrCudaEvent = torch.cuda.Event(enable_timing=True)
         assert isinstance(recorded_time, torch.cuda.streams.Event)  # for mypy
         recorded_time.record()
@@ -315,6 +323,13 @@ def record_time(rank: int) -> FloatOrCudaEvent:
 
 
 def calculate_time_difference(start_time: FloatOrCudaEvent, end_time: FloatOrCudaEvent) -> float:
+    """
+    Calculate the difference between two timestamps. For CUDA devices, where operations are asynchronous
+    we call synchronize to ensure all events complete before  returning the time
+    :param start_time:
+    :param end_time:
+    :return:
+    """
     if isinstance(start_time, torch.cuda.streams.Event) & isinstance(end_time, torch.cuda.streams.Event):
         torch.cuda.synchronize()
         return start_time.elapsed_time(end_time)  # type: ignore
@@ -337,8 +352,8 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank: int,
     train_val_params = training_steps.train_val_params
     config = training_steps.model_config
 
-    item_start_time = record_time(rank)
-    epoch_start_time = record_time(rank)
+    item_start_time = record_time()
+    epoch_start_time = record_time()
 
     if not train_val_params.in_training_mode:
         # take the snapshot of the existing random state
@@ -356,7 +371,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank: int,
     model_outputs_epoch = []
     for batch_index, sample in enumerate(train_val_params.data_loader):
 
-        item_finish_time = record_time(rank)
+        item_finish_time = record_time()
         item_load_time = calculate_time_difference(item_start_time, item_finish_time)
 
         # Having slow minibatch loading is OK in the very first batch of the every epoch, where processes
@@ -378,7 +393,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank: int,
             sample, batch_index, train_val_params.epoch, rank=rank, device=device)
         model_outputs_epoch.append(model_outputs_minibatch)
 
-        train_finish_time = record_time(rank)
+        train_finish_time = record_time()
         status_time = calculate_time_difference(item_finish_time, train_finish_time)
 
         logging.debug(f"Epoch {train_val_params.epoch} {status_string} batch {batch_index}: "
@@ -387,7 +402,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank: int,
                       f"Loss = {model_outputs_minibatch.loss}")
 
         total_load_time = calculate_time_difference(item_start_time, item_finish_time)
-        item_start_time = record_time(rank)
+        item_start_time = record_time()
 
         num_batches += 1
 
@@ -395,7 +410,7 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank: int,
     if training_random_state is not None:
         training_random_state.restore_random_state()
 
-    epoch_end_time = record_time(rank)
+    epoch_end_time = record_time()
     epoch_time_seconds = calculate_time_difference(epoch_start_time, epoch_end_time)
 
     logging.info(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f} sec "

@@ -133,7 +133,7 @@ class MetricsPerPatientWriter:
         return df
 
 
-def create_summary_writers(args: ModelConfigBase, rank: int = -1) -> SummaryWriters:
+def create_summary_writers(args: ModelConfigBase, global_rank: int = -1) -> SummaryWriters:
     """
     Creates two tensorboard writers, one for training and one for
     validation. Stored in a SummaryWriters objects.
@@ -148,9 +148,9 @@ def create_summary_writers(args: ModelConfigBase, rank: int = -1) -> SummaryWrit
     val_summary_path = str(args.logs_folder / "val")
 
     # create additional logs for distributed training
-    if rank > -1:
-        train_summary_path += f'_proc{rank}'
-        val_summary_path += f'_proc{rank}'
+    if global_rank > -1:
+        train_summary_path += f'_proc{global_rank}'
+        val_summary_path += f'_proc{global_rank}'
 
     writer_train = tensorboardX.SummaryWriter(train_summary_path)
     writer_val = tensorboardX.SummaryWriter(val_summary_path)

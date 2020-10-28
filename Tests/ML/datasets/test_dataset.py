@@ -38,7 +38,6 @@ def num_dataload_workers() -> int:
 @pytest.fixture
 def default_config() -> ModelConfigBase:
     config = DummyModel()
-    config.use_distributed_data_parallel = False
     config.set_output_to(str(full_ml_test_data_path("outputs")))
     return config
 

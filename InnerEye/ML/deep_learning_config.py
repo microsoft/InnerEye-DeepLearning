@@ -362,8 +362,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
 
-    dist_backend: str = param.String(default='nccl', doc="Communication package to use for distributed training")
-    init_method: str = param.String(default='env://', doc="URL specifying where to find peer processes")
+    distributed_training_backend: str = param.String(default='nccl',
+                                                     doc="Communication package to use for distributed training")
+    distributed_training_init_method: str = param.String(default='env://',
+                                                         doc="URL specifying where to find peer processes")
     use_distributed_data_parallel: bool = param.Boolean(True, doc="If True will attempt to use DDP")
 
     def __init__(self, **params: Any) -> None:

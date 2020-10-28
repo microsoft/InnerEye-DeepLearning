@@ -16,7 +16,6 @@ def test_visualize_commandline1() -> None:
     :return:
     """
     default_config = DummyModel()
-    # default_config.use_distributed_data_parallel = False
     old_photonorm = default_config.norm_method
     old_random_seed = default_config.get_effective_random_seed()
     new_dataset = "new_dataset"

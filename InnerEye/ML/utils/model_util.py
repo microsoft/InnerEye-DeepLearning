@@ -136,7 +136,7 @@ class ModelAndInfo:
         or adjust_mean_teacher_model_for_gpus
         :returns Adjusted model
         """
-        device = torch.device('cuda', rank) if torch.cuda.is_available() else torch.device('cpu')
+        device = torch.device('cuda', rank) if config.use_gpu else torch.device('cpu')
 
         use_ddp = config.use_gpu and config.use_ddp
         if use_ddp:

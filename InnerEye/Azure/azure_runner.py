@@ -297,9 +297,8 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
     logging.info(f"PyTorch framework version: {framework_version}")
 
     if azure_config.node_count > 1:
-        source_config.script_params = {} if source_config.script_params is None else source_config.script_params
-        source_config.script_params.update({'--dist_backend': 'nccl',
-                                            '--init_method': 'tcp://' + '$AZ_BATCH_MASTER_NODE'})
+        source_config.script_params = source_config.script_params or {}
+        source_config.script_params.update({'--distributed_training_init_method': 'tcp://' + '$AZ_BATCH_MASTER_NODE'})
         distributed_training_backend = Mpi()
         distributed_training_backend.process_count_per_node = azure_config.workers_per_node
     else:

@@ -85,7 +85,7 @@ class CudaAwareConfig(param.Parameterized, Generic[T]):
         if isinstance(data, torch.Tensor):
             if self.use_gpu and not is_gpu_tensor(data):
                 # use default CUDA device if not specified
-                device = torch.device('cuda') if device is None else device
+                device = device or torch.device('cuda')
                 return data.to(device)
             else:
                 return data

@@ -240,7 +240,6 @@ def test_mean_teacher_model(test_output_dirs: TestOutputDirectories) -> None:
             return model.parameters()
 
     config = DummyClassification()
-    config.use_distributed_data_parallel = False
     config.set_output_to(test_output_dirs.root_dir)
 
     config.num_epochs = 1

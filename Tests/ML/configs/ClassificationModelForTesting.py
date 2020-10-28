@@ -30,7 +30,7 @@ class ClassificationModelForTesting(ScalarModelBase):
             num_dataload_workers=0,
             test_start_epoch=num_epochs,
             subject_column="subjectID",
-            mean_teacher_alpha=mean_teacher_alpha
+            mean_teacher_alpha=mean_teacher_alpha,
         )
         self.expected_image_size_zyx = (4, 5, 7)
         self.conv_in_3d = conv_in_3d
