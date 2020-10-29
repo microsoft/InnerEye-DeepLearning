@@ -11,7 +11,6 @@ import pandas as pd
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 from pandas import DataFrame
-from torch import device as torch_device
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES, TrackedMetrics
@@ -237,7 +236,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
             dst = root / STORED_CSV_FILE_NAMES[mode]
             dataframe.to_csv(dst, mode='w', index=False)
 
-    def adjust_after_mixed_precision_and_parallel(self, model: Any, device: torch_device) -> None:
+    def adjust_after_mixed_precision_and_parallel(self, model: Any, device: Any) -> None:
         """
         A hook to adjust the model configuration that is stored in the present object to match
         the torch model given in the argument. This hook is called after adjusting the model for

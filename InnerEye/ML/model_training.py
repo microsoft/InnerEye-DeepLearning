@@ -6,9 +6,7 @@ import argparse
 import logging
 import os
 from time import time
-from typing import Optional, Tuple, TypeVar, Union
-
-import torch
+from typing import Optional, Tuple, TypeVar, Union, Any
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common.common_util import empty_string_to_none
@@ -40,7 +38,6 @@ MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
 
 T = TypeVar('T')
-FloatOrCudaEvent = Union[float, torch.cuda.streams.Event]
 
 
 def model_train(config: ModelConfigBase,
@@ -55,6 +52,7 @@ def model_train(config: ModelConfigBase,
     :raises ValueError: When there are issues loading a previous checkpoint.
     :return: ModelTrainingResult, unless model called with torch.mp.spawn (which must return None)
     """
+    from torch.multiprocessing import spawn
     # Save the dataset files for later use in cross validation analysis
     config.write_dataset_files()
 
@@ -76,9 +74,7 @@ def model_train(config: ModelConfigBase,
             os.environ['MASTER_ADDR'] = 'localhost'
             os.environ['MASTER_PORT'] = '12355'
             # spawn processes
-            torch.multiprocessing.spawn(train,
-                                        args=(config, run_recovery),
-                                        nprocs=world_size)
+            spawn(train, args=(config, run_recovery), nprocs=world_size)
             model_training_results = None
 
     else:
@@ -96,6 +92,8 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
     :param run_recovery: Recovery information to restart training from an existing run.
     :return:
     """
+    from torch.distributed import init_process_group, destroy_process_group
+    from torch.cuda.amp import GradScaler
 
     print(f"Backend: {config.distributed_training_backend}")
     print(f"init method: {config.distributed_training_init_method}")
@@ -108,7 +106,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
     if config.use_ddp:
         world_size = get_global_size(config)
         print(f"Running distributed training on device with global rank {global_rank} and local rank {local_rank}")
-        torch.distributed.init_process_group(  # type: ignore
+        init_process_group(
             backend=config.distributed_training_backend,
             init_method=config.distributed_training_init_method,
             world_size=world_size,
@@ -188,7 +186,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
                                            tb_log_file_path=str(config.logs_folder / "diagnostics"))
         resource_monitor.start()
 
-    gradient_scaler = torch.cuda.amp.GradScaler() if config.use_gpu and config.use_mixed_precision else None
+    gradient_scaler = GradScaler() if config.use_gpu and config.use_mixed_precision else None
     optimal_temperature_scale_values = []
     for epoch in config.get_train_epochs():
         logging.info("Starting epoch {}".format(epoch))
@@ -272,7 +270,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
         resource_monitor.kill()
 
     if config.use_ddp:
-        torch.distributed.destroy_process_group()
+        destroy_process_group()
 
     # return model_training_results
     return None if (config.use_distributed_data_parallel and is_aml_mpi_run(config)) else model_training_results
@@ -281,7 +279,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
 def temperature_scaling_steps(config: SequenceModelBase,
                               train_val_params: TrainValidateParameters,
                               val_results_for_epoch: ModelOutputsAndMetricsForEpoch,
-                              rank: int, device: torch.device) -> \
+                              rank: int, device: Any) -> \
         Tuple[float, ModelOutputsAndMetricsForEpoch]:
     """
     Perform the steps required for temperature scaling:
@@ -311,39 +309,8 @@ def temperature_scaling_steps(config: SequenceModelBase,
     return temperature_value, val_epoch_results
 
 
-def record_time() -> FloatOrCudaEvent:
-    """
-    Record current time. For CUDA devices, where operations are asynchronous, return a CUDA event
-    :return:
-    """
-    if torch.cuda.is_available():
-        recorded_time: FloatOrCudaEvent = torch.cuda.Event(enable_timing=True)
-        assert isinstance(recorded_time, torch.cuda.streams.Event)  # for mypy
-        recorded_time.record()
-    else:
-        recorded_time = time()
-    return recorded_time
-
-
-def calculate_time_difference(start_time: FloatOrCudaEvent, end_time: FloatOrCudaEvent) -> float:
-    """
-    Calculate the difference between two timestamps. For CUDA devices, where operations are asynchronous
-    we call synchronize to ensure all events complete before  returning the time
-    :param start_time:
-    :param end_time:
-    :return:
-    """
-    if isinstance(start_time, torch.cuda.streams.Event) & isinstance(end_time, torch.cuda.streams.Event):
-        torch.cuda.synchronize()
-        return start_time.elapsed_time(end_time)  # type: ignore
-    elif isinstance(start_time, float) & isinstance(end_time, float):
-        return end_time - start_time  # type: ignore
-    else:
-        raise ValueError(f"Incompatible start and end times: {type(start_time)} & {type(end_time)}")
-
-
 def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank: int,
-                            device: torch.device) -> ModelOutputsAndMetricsForEpoch:
+                            device: Any) -> ModelOutputsAndMetricsForEpoch:
     """
     Trains or validates the model for one epoch.
     :param training_steps: Training pipeline to use.
@@ -351,6 +318,38 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase, rank: int,
     :param device: The Torch device to allocate to
     :returns: The results for training or validation. Result type depends on the type of model that is trained.
     """
+    import torch
+    FloatOrCudaEvent = Union[float, torch.cuda.streams.Event]
+
+    def record_time() -> FloatOrCudaEvent:
+        """
+        Record current time. For CUDA devices, where operations are asynchronous, return a CUDA event
+        :return:
+        """
+        if torch.cuda.is_available():
+            recorded_time: FloatOrCudaEvent = torch.cuda.Event(enable_timing=True)
+            assert isinstance(recorded_time, torch.cuda.streams.Event)  # for mypy
+            recorded_time.record()
+        else:
+            recorded_time = time()
+        return recorded_time
+
+    def calculate_time_difference(start_time: FloatOrCudaEvent, end_time: FloatOrCudaEvent) -> float:
+        """
+        Calculate the difference between two timestamps. For CUDA devices, where operations are asynchronous
+        we call synchronize to ensure all events complete before  returning the time
+        :param start_time:
+        :param end_time:
+        :return:
+        """
+        if isinstance(start_time, torch.cuda.streams.Event) & isinstance(end_time, torch.cuda.streams.Event):
+            torch.cuda.synchronize()
+            return start_time.elapsed_time(end_time)  # type: ignore
+        elif isinstance(start_time, float) & isinstance(end_time, float):
+            return end_time - start_time  # type: ignore
+        else:
+            raise ValueError(f"Incompatible start and end times: {type(start_time)} & {type(end_time)}")
+
     training_random_state = None
     train_val_params = training_steps.train_val_params
     config = training_steps.model_config

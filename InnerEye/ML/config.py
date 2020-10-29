@@ -15,7 +15,6 @@ from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import HyperDriveConfig
 from math import isclose
 from pandas import DataFrame
-from torch import device as torch_device
 
 from InnerEye.Common.common_util import any_pairwise_larger, any_smaller_or_equal_than, check_is_any_of
 from InnerEye.Common.generic_parsing import IntTuple
@@ -663,7 +662,7 @@ class SegmentationModelBase(ModelConfigBase):
             return self._test_output_size
         raise ValueError("Unknown execution mode '{}' for function 'get_output_size'".format(execution_mode))
 
-    def adjust_after_mixed_precision_and_parallel(self, model: Any, device: torch_device) -> None:
+    def adjust_after_mixed_precision_and_parallel(self, model: Any, device: Any) -> None:
         """
         Updates the model config parameters (e.g. output patch size). If testing patch stride size is unset then
         its value is set by the output patch size
