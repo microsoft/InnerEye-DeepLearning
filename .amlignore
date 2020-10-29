@@ -4,6 +4,7 @@
 .mypy_cache
 __pycache__
 datasets
+modelweights
 outputs
 logs
 test_outputs

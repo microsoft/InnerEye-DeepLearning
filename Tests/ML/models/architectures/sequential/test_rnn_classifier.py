@@ -35,6 +35,7 @@ from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
+from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
 from Tests.ML.util import get_default_azure_config
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -201,6 +202,7 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
     This just tests the mechanics of training, but not if the model learned.
     """
     logging_to_stdout()
+    azure_config = get_default_azure_config()
     config = ToySequenceModel(use_combined_model,
                               imaging_feature_type=imaging_feature_type,
                               combine_hidden_states=combine_hidden_state,
@@ -213,7 +215,7 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, SCAN_SIZE),
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
-        results = model_train(config)
+        results = model_train(config, ManageRecovery(model_config=config, azure_config=azure_config))
         assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
                == config.get_total_number_of_save_epochs()
 
@@ -379,7 +381,8 @@ def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) ->
     config.num_epochs = 2
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset(dataset_contents)
-    results = model_train(config)
+    azure_config = get_default_azure_config()
+    results = model_train(config, ManageRecovery(model_config=config, azure_config=azure_config))
 
     actual_train_loss = results.train_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
     actual_val_loss = results.val_results_per_epoch[-1].values()[MetricType.LOSS.value][0]

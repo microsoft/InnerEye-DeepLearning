@@ -15,6 +15,7 @@ import torch.multiprocessing
 from azureml.core import Run, Workspace
 from azureml.core.model import Model
 from azureml.data import FileDataset
+from urllib.parse import urlparse
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import INPUT_DATA_KEY, get_or_create_dataset
@@ -41,8 +42,7 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
-from InnerEye.ML.utils.run_recovery import RunRecovery
-from InnerEye.ML.utils.checkpoint_recovery import get_recovery_path_test
+from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
@@ -285,18 +285,17 @@ class MLRunner:
         self.set_multiprocessing_start_method()
 
         # configure recovery container if provided
-        run_recovery: Optional[RunRecovery] = None
-        if self.azure_config.run_recovery_id:
-            run_recovery = RunRecovery.download_checkpoints_from_recovery_run(
-                self.azure_config, self.model_config, RUN_CONTEXT)
+        manage_recovery = ManageRecovery(model_config=self.model_config,
+                                         azure_config=self.azure_config,
+                                         run_context=RUN_CONTEXT)
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
-        if self.azure_config.register_model_only_for_epoch is None or run_recovery is None:
+        if not self.azure_config.register_model_only_for_epoch:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
             self.model_config.local_dataset = self.mount_or_download_dataset()
-            if self.model_config.weights_url:
-                self.model_config.local_weights_path = self.download_and_modify_weights()
+            if self.model_config.weights_url or self.model_config.local_weights_path:
+                self.model_config.local_weights_path = self.get_and_modify_local_weights()
             self.model_config.write_args_file()
             logging.info(str(self.model_config))
             # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
@@ -311,17 +310,20 @@ class MLRunner:
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    model_train(self.model_config, run_recovery)
+                    model_train(self.model_config, manage_recovery)
             else:
                 self.model_config.write_dataset_files()
                 self.create_activation_maps()
 
             # log the number of epochs used for model training
             RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
+            # If we have trained the model further, let the manage_recovery object know so it can handle checkpoints
+            # correctly.
+            manage_recovery.additional_training_done()
 
         # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
         # the current run is a single one. See the documentation of ModelProcessing for more details.
-        best_epoch = self.run_inference_and_register_model(run_recovery, ModelProcessing.DEFAULT)
+        best_epoch = self.run_inference_and_register_model(manage_recovery, ModelProcessing.DEFAULT)
 
         # Generate report
         if best_epoch:
@@ -330,7 +332,7 @@ class MLRunner:
             # We don't register scalar models but still want to create a report if we have run inference.
             Runner.generate_report(self.model_config, self.model_config.get_test_epochs()[0], ModelProcessing.DEFAULT)
 
-    def run_inference_and_register_model(self, run_recovery: Optional[RunRecovery],
+    def run_inference_and_register_model(self, manage_recovery: ManageRecovery,
                                          model_proc: ModelProcessing) -> Optional[int]:
         """
         Run inference as required, and register the model, but not necessarily in that order:
@@ -341,12 +343,14 @@ class MLRunner:
         """
         registration_epoch = self.decide_registration_epoch_without_evaluating()
         if registration_epoch is not None:
-            self.register_model_for_epoch(RUN_CONTEXT, run_recovery, registration_epoch, np.nan, model_proc)
+            self.register_model_for_epoch(RUN_CONTEXT, manage_recovery, registration_epoch, np.nan, model_proc)
             if self.azure_config.register_model_only_for_epoch is not None:
                 return self.azure_config.register_model_only_for_epoch
 
         # run full image inference on existing or newly trained model on the training, and testing set
-        test_metrics, val_metrics, _ = self.model_inference_train_and_test(RUN_CONTEXT, run_recovery, model_proc)
+        test_metrics, val_metrics, _ = self.model_inference_train_and_test(run_context=RUN_CONTEXT,
+                                                                           manage_recovery=manage_recovery,
+                                                                           model_proc=model_proc)
 
         # register the generated model from the run if we haven't already done so
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
@@ -354,7 +358,7 @@ class MLRunner:
                 if self.should_register_model():
                     assert test_metrics is None or isinstance(test_metrics, InferenceMetricsForSegmentation)
                     assert val_metrics is None or isinstance(val_metrics, InferenceMetricsForSegmentation)
-                    registration_epoch = self.register_model_for_best_epoch(run_recovery, test_metrics, val_metrics,
+                    registration_epoch = self.register_model_for_best_epoch(manage_recovery, test_metrics, val_metrics,
                                                                             model_proc)
             self.try_compare_scores_against_baselines(model_proc)
         else:
@@ -428,7 +432,7 @@ class MLRunner:
             raise ValueError("Unable to mount or download input dataset.")
         return mounted
 
-    def register_model_for_best_epoch(self, run_recovery: Optional[RunRecovery],
+    def register_model_for_best_epoch(self, manage_recovery: ManageRecovery,
                                       test_metrics: Optional[InferenceMetricsForSegmentation],
                                       val_metrics: Optional[InferenceMetricsForSegmentation],
                                       model_proc: ModelProcessing) -> int:
@@ -443,7 +447,7 @@ class MLRunner:
         else:
             best_epoch_dice = 0.0  # dummy value
         assert isinstance(self.model_config, SegmentationModelBase)
-        self.register_model_for_epoch(RUN_CONTEXT, run_recovery, best_epoch, best_epoch_dice, model_proc)
+        self.register_model_for_epoch(RUN_CONTEXT, manage_recovery, best_epoch, best_epoch_dice, model_proc)
         return best_epoch
 
     def save_build_info_for_dotnet_consumers(self) -> None:
@@ -476,14 +480,12 @@ class MLRunner:
 
     def register_model_for_epoch(self,
                                  run_context: Run,
-                                 run_recovery: Optional[RunRecovery],
+                                 manage_recovery: ManageRecovery,
                                  best_epoch: int,
                                  best_epoch_dice: float,
                                  model_proc: ModelProcessing) -> None:
 
-        checkpoint_paths = get_recovery_path_test(config=self.model_config,
-                                                  run_recovery=run_recovery,
-                                                  epoch=best_epoch)
+        checkpoint_paths = manage_recovery.get_recovery_path_test(epoch=best_epoch)
         if not checkpoint_paths:
             # No point continuing, since no checkpoints were found
             logging.warning("Abandoning model registration - no valid checkpoint paths found")
@@ -649,8 +651,9 @@ class MLRunner:
             logging.debug(f"  {path_name}")
         return relative_child_path_names
 
-    def model_inference_train_and_test(self, run_context: Optional[Run] = None,
-                                       run_recovery: Optional[RunRecovery] = None,
+    def model_inference_train_and_test(self,
+                                       manage_recovery: ManageRecovery,
+                                       run_context: Optional[Run] = None,
                                        model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> \
             Tuple[Optional[InferenceMetrics], Optional[InferenceMetrics], Optional[InferenceMetrics]]:
         train_metrics = None
@@ -660,7 +663,7 @@ class MLRunner:
         config = self.model_config
 
         def run_model_test(data_split: ModelExecutionMode) -> Optional[InferenceMetrics]:
-            return model_test(config, data_split=data_split, run_recovery=run_recovery, model_proc=model_proc)
+            return model_test(config, data_split=data_split, manage_recovery=manage_recovery, model_proc=model_proc)
 
         if config.perform_validation_and_test_set_inference:
             # perform inference on test set
@@ -687,7 +690,7 @@ class MLRunner:
 
         # assign the same filename as in the download url if possible, so that we can check for duplicates
         # If that fails, map to a random uuid
-        file_name = os.path.basename(requests.utils.urlparse(url).path) or str(uuid.uuid4().hex)  # type: ignore
+        file_name = os.path.basename(urlparse(url).path) or str(uuid.uuid4().hex)
         result_file = target_folder / file_name
 
         # only download if hasn't already been downloaded
@@ -705,9 +708,23 @@ class MLRunner:
 
         return result_file
 
-    def download_and_modify_weights(self) -> Path:
-        downloaded_weights = self.download_weights()
-        modified_weights = self.model_config.modify_checkpoint(downloaded_weights)
+    def get_local_weights_path_or_download(self) -> Optional[Path]:
+        if self.model_config.local_weights_path:
+            weights_path = self.model_config.local_weights_path
+        elif self.model_config.weights_url:
+            weights_path = self.download_weights()
+        else:
+            raise ValueError("Cannot download/modify weights - neither local_weights_path nor weights_url is set.")
+
+        return weights_path
+
+    def get_and_modify_local_weights(self) -> Path:
+        weights_path = self.get_local_weights_path_or_download()
+
+        if not weights_path or weights_path.is_file():
+            raise FileNotFoundError(f"Could not find the weights file at {weights_path}")
+
+        modified_weights = self.model_config.modify_checkpoint(weights_path)
         target_file = self.model_config.outputs_folder / WEIGHTS_FILE
         torch.save(modified_weights, target_file)
         return target_file

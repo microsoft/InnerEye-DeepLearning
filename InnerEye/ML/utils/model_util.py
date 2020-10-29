@@ -115,7 +115,7 @@ class ModelAndInfo:
         :param checkpoint_path: Path to checkpoint
         :param key_in_state_dict: the key for the model weights in the checkpoint state dict
         :param reader: Function which takes the path and returns a dict with model and optimizer states
-        :return checkpoint epoch form the state dict
+        :return checkpoint epoch from the state dict
         """
         logging.info(f"Loading checkpoint {checkpoint_path}")
         checkpoint = ModelAndInfo.read_checkpoint(checkpoint_path, use_gpu)
@@ -131,8 +131,10 @@ class ModelAndInfo:
         else:
             result = model.load_state_dict(state_dict, strict=False)
 
-        logging.info(f"Could not find the following keys in model checkpoint: {result.missing_keys}")
-        logging.info(f"Found unexpected keys in model checkpoint: {result.unexpected_keys}")
+        if result.missing_keys:
+            logging.warning(f"Missing keys in model checkpoint: {result.missing_keys}")
+        if result.unexpected_keys:
+            logging.warning(f"Unexpected keys in model checkpoint: {result.unexpected_keys}")
 
         return checkpoint[ModelAndInfo.EPOCH_KEY]
 

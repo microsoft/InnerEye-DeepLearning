@@ -264,11 +264,20 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     use_model_parallel: bool = param.Boolean(False, doc="If true, neural network model is partitioned across all "
                                                         "available GPUs to fit in a large model. It shall not be used "
                                                         "together with data parallel.")
-    test_diff_epochs: Optional[int] = param.Integer(None, doc="Number of different epochs of the same model to test",
-                                                    allow_None=True)
-    test_step_epochs: Optional[int] = param.Integer(None, doc="How many epochs to move for each test", allow_None=True)
-    test_start_epoch: Optional[int] = param.Integer(None, doc="The first epoch on which testing should run.",
-                                                    allow_None=True)
+    epochs_to_test: Optional[List[int]] = param.List(None, bounds=(1, None), allow_None=True, class_=int,
+                                                     doc="Epochs to test on. This should be a list of integers > 1."
+                                                         "Note that this option is exclusive of the config option set "
+                                                         "`test_diff_epochs`, `test_step_epochs` and "
+                                                         "`test_start_epoch`")
+    test_diff_epochs: Optional[int] = param.Integer(None, allow_None=True,
+                                                    doc="Number of different epochs of the same model to test. "
+                                                        "This option cannot be used with `epochs_to_test`")
+    test_step_epochs: Optional[int] = param.Integer(None, allow_None=True,
+                                                    doc="How many epochs to move for each test "
+                                                        "This option cannot be used with `epochs_to_test`")
+    test_start_epoch: Optional[int] = param.Integer(None, allow_None=True,
+                                                    doc="The first epoch on which testing should run."
+                                                        "This option cannot be used with `epochs_to_test`")
     monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
                                                             "statistics. If 0 or less, do not log any resource "
                                                             "statistics.")
@@ -368,8 +377,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
                                                         default=None,
                                                         allow_None=True,
-                                                        doc="The path to the weights to use for model initialization,"
-                                                            " when training is running outside Azure.")
+                                                        doc="The path to the weights to use for model initialization, "
+                                                            "when training is running outside Azure.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
@@ -389,8 +398,17 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                 "The adam_betas parameter should be the coefficients used for computing running averages of "
                 "gradient and its square")
 
-        if self.azure_dataset_id is None and self.local_dataset is None:
+        if not self.azure_dataset_id and not self.local_dataset:
             raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
+        if self.azure_dataset_id and self.local_dataset:
+            raise ValueError("Cannot specify both local_dataset and azure_dataset_id.")
+
+        if self.weights_url and self.local_weights_path:
+            raise ValueError("Cannot specify both local_weights_path and weights_url.")
+
+        if self.epochs_to_test and (self.test_start_epoch or self.test_step_epochs or self.test_diff_epochs):
+            raise ValueError("Can use either epochs_to_start or a combination of (test_diff_epochs, test_step_epochs "
+                             "and test_start_epoch), not both.")
 
         if self.number_of_cross_validation_splits == 1:
             raise ValueError(f"At least two splits required to perform cross validation found "
@@ -589,6 +607,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         only the last training epoch is returned.
         :return:
         """
+        if self.epochs_to_test:
+            return self.epochs_to_test
         test_epochs = {self.num_epochs}
         if self.test_diff_epochs is not None and self.test_start_epoch is not None and \
                 self.test_step_epochs is not None:
@@ -701,6 +721,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         format expected by the model's load_state_dict() - for example, pretrained Imagenet weights for networks
         may have mismatched layer names in different implementations.
         In such cases, you can overload this function to extract the state dict from the checkpoint.
+
+        NOTE: The model checkpoint will be loaded using load_state_dict() with strict=False, so extra care needs to be
+        taken to check that the state dict is valid. Check the logs for warnings related to missing and unexpected keys.
+
         :param path_to_checkpoint: Path to the checkpoint file.
         :return: Dictionary with model and optimizer state dicts. The dict should have at least the following keys:
         1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set the model state dict.

@@ -23,12 +23,12 @@ from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline
 from InnerEye.ML.utils import io_util
-from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
 from InnerEye.ML.visualizers.plot_cross_validation import get_config_and_results_for_offline_runs
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contents, assert_file_contents_match_exactly, assert_nifti_content, \
-    get_image_shape
+    get_image_shape, get_default_azure_config
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
@@ -53,7 +53,8 @@ def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
     config._datasets_for_inference = \
         {ModelExecutionMode.TEST: FullImageDataset(config, df, full_image_sample_transforms=transform)}  # type: ignore
     execution_mode = ModelExecutionMode.TEST
-    inference_results = model_testing.segmentation_model_test(config, execution_mode)
+    manage_recovery = ManageRecovery(azure_config=get_default_azure_config(), model_config=config)
+    inference_results = model_testing.segmentation_model_test(config, execution_mode, manage_recovery=manage_recovery)
     epoch_dir = config.outputs_folder / get_epoch_results_path(epoch, execution_mode)
     assert inference_results.epochs[epoch] == pytest.approx(0.66606902, abs=1e-6)
 
@@ -122,7 +123,8 @@ def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
     stored_checkpoints = full_ml_test_data_path(checkpoint_folder)
     shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
     # no pipeline created when checkpoint for epoch does not exist
-    assert create_inference_pipeline(config, 10) is None
+    manage_recovery = ManageRecovery(azure_config=get_default_azure_config(), model_config=config)
+    assert create_inference_pipeline(config, 10, manage_recovery=manage_recovery) is None
 
 
 @pytest.mark.parametrize("with_run_recovery", [False, True])

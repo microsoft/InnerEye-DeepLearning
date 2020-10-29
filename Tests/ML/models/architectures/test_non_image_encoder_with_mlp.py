@@ -16,6 +16,9 @@ from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp impo
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.split_dataset import DatasetSplits
+from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
+
+from Tests.ML.util import get_default_azure_config
 
 
 class NonImageEncoder(ScalarModelBase):
@@ -69,9 +72,11 @@ def test_non_image_encoder(test_output_dirs: TestOutputDirectories,
     config.max_batch_grad_cam = 1
     config.validate()
     # run model training
-    model_train(config)
+    azure_config = get_default_azure_config()
+    manage_recovery = ManageRecovery(model_config=config, azure_config=azure_config)
+    model_train(config, manage_recovery=manage_recovery)
     # run model inference
-    MLRunner(config).model_inference_train_and_test()
+    MLRunner(config).model_inference_train_and_test(manage_recovery=manage_recovery)
     assert config.get_total_number_of_non_imaging_features() == 18
 
 

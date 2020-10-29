@@ -132,6 +132,10 @@ class AzureConfig(GenericConfig):
         super().__init__(**params)
         self.git_information: Optional[GitInformation] = None
 
+    def validate(self) -> None:
+        if self.register_model_only_for_epoch and not self.run_recovery_id:
+            raise ValueError("If register_model_only_for_epoch is set, must also provide a valid run_recovery_id")
+
     def get_git_information(self) -> GitInformation:
         """
         Gets all version control information about the present source code in the project_root_directory.

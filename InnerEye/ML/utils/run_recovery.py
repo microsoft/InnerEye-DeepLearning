@@ -17,7 +17,7 @@ from InnerEye.Azure.azure_util import RUN_CONTEXT, download_outputs_from_run, fe
 from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.ML.common import create_checkpoint_path
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
-from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 
 
 @dataclass(frozen=True)
@@ -29,7 +29,7 @@ class RunRecovery:
 
     @staticmethod
     def download_checkpoints_from_recovery_run(azure_config: AzureConfig,
-                                               config: ModelConfigBase,
+                                               config: DeepLearningConfig,
                                                run_context: Optional[Run] = None) -> RunRecovery:
         """
         Downloads checkpoints of run corresponding to the run_recovery_id in azure_config, and any
@@ -59,7 +59,7 @@ class RunRecovery:
         return RunRecovery.download_checkpoints_from_run(config, run_to_recover)
 
     @staticmethod
-    def download_checkpoints_from_run(config: ModelConfigBase,
+    def download_checkpoints_from_run(config: DeepLearningConfig,
                                       run: Run,
                                       output_subdir_name: Optional[str] = None) -> RunRecovery:
         """

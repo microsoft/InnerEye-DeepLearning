@@ -34,6 +34,7 @@ from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from InnerEye.ML.visualizers.model_summary import ModelSummary
+from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
 from Tests.ML.util import get_default_azure_config
 
 
@@ -213,7 +214,8 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
     summarizer.generate_summary(input_sizes=input_size)
     config.local_dataset = dataset_folder
     config.validate()
-    model_train(config)
+    azure_config = get_default_azure_config()
+    model_train(config, manage_recovery=ManageRecovery(model_config=config, azure_config=azure_config))
     # No further asserts here because the models are still in experimental state. Most errors would come
     # from having invalid model architectures, which would throw runtime errors during training.
 

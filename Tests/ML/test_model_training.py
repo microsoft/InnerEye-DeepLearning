@@ -24,6 +24,9 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsForSegmentation
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.training_util import ModelTrainingResults
+from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
+
+from Tests.ML.util import get_default_azure_config
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contents
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
@@ -139,6 +142,8 @@ def _test_model_train(output_dirs: TestOutputDirectories,
     train_config.class_weights = [0.5, 0.25, 0.25]
     train_config.store_dataset_sample = True
 
+    azure_config = get_default_azure_config()
+
     expected_train_losses = [0.455538, 0.455213]
     expected_val_losses = [0.455190, 0.455139]
 
@@ -149,7 +154,9 @@ def _test_model_train(output_dirs: TestOutputDirectories,
     expected_learning_rates = [[train_config.l_rate], [5.3589e-4]]
 
     loss_absolute_tolerance = 1e-3
-    model_training_result = model_training.model_train(train_config)
+    model_training_result = model_training.model_train(train_config,
+                                                       manage_recovery=ManageRecovery(model_config=train_config,
+                                                                                      azure_config=azure_config))
     assert isinstance(model_training_result, ModelTrainingResults)
 
     # check to make sure training batches are NOT all the same across epochs
@@ -250,16 +257,19 @@ def test_recover_training_mean_teacher_model() -> None:
     """
     Tests that training can be recovered from a previous checkpoint.
     """
+    azure_config = get_default_azure_config()
+
     config = DummyClassification()
     config.mean_teacher_alpha = 0.999
 
     # First round of training
     config.num_epochs = 2
-    model_train(config)
+    manage_recovery = ManageRecovery(model_config=config, azure_config=azure_config)
+    model_train(config, manage_recovery=manage_recovery)
     assert len(os.listdir(config.checkpoint_folder)) == 1
 
     # Restart training from previous run
     config.start_epoch = 2
     config.num_epochs = 3
-    model_train(config)
+    model_train(config, manage_recovery=manage_recovery)
     assert len(os.listdir(config.checkpoint_folder)) == 2

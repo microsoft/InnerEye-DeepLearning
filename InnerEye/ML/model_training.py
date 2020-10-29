@@ -6,7 +6,7 @@ import argparse
 import logging
 import os
 from time import time
-from typing import Optional, Tuple, TypeVar
+from typing import Tuple, TypeVar, Optional
 
 from torch.cuda.amp import GradScaler
 
@@ -30,8 +30,7 @@ from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
-from InnerEye.ML.utils.run_recovery import RunRecovery
-from InnerEye.ML.utils.checkpoint_recovery import get_recovery_path_train
+from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
@@ -40,13 +39,12 @@ MAX_LOAD_TIME_WARNINGS = 3
 T = TypeVar('T')
 
 
-def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResults:
+def model_train(config: ModelConfigBase, manage_recovery: ManageRecovery) -> ModelTrainingResults:
     """
     The main training loop. It creates the model, dataset, optimizer_type, and criterion, then proceeds
     to train the model. If a checkpoint was specified, then it loads the checkpoint before resuming training.
 
     :param config: The arguments which specify all required information.
-    :param run_recovery: Recovery information to restart training from an existing run.
     :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading a previous checkpoint.
     """
@@ -62,12 +60,7 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     data_loaders = config.create_data_loaders()
 
     # Get the path to the checkpoint to recover from
-    if run_recovery or config.local_weights_path:
-        checkpoint_path = get_recovery_path_train(config=config,
-                                                  run_recovery=run_recovery,
-                                                  epoch=config.start_epoch)
-    else:
-        checkpoint_path = None
+    checkpoint_path = manage_recovery.get_recovery_path_train()
 
     models_and_optimizer = ModelAndInfo(config=config,
                                         model_execution_mode=ModelExecutionMode.TRAIN,
@@ -325,15 +318,3 @@ def create_model_training_steps(model_config: ModelConfigBase,
             return ModelTrainingStepsForScalarModel(model_config, train_val_params)
     else:
         raise NotImplementedError(f"There are no model training steps defined for config type {type(model_config)}")
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model", help="The name of the model to train", type=empty_string_to_none,
-                        required=True)
-    args = parser.parse_args()
-    model_train(ModelConfigLoader().create_model_config_from_name(args.model))
-
-
-if __name__ == '__main__':
-    main()
