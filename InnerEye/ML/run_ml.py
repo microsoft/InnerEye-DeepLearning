@@ -666,6 +666,7 @@ class MLRunner:
         if config.perform_validation_and_test_set_inference:
             # perform inference on test set
             test_metrics = run_model_test(ModelExecutionMode.TEST)
+            torch.cuda.empty_cache()
             # perform inference on validation set
             val_metrics = run_model_test(ModelExecutionMode.VAL)
 
