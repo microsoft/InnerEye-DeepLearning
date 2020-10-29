@@ -6,12 +6,15 @@ from pathlib import Path
 
 import pytest
 from azureml.core import Run
+from azureml.core.conda_dependencies import CondaDependencies
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_runner import create_experiment_name
+from InnerEye.Azure.azure_runner import create_experiment_name, pytorch_version_from_conda_dependencies
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, fetch_child_runs, fetch_run, \
     get_cross_validation_split_index, is_cross_validation_child_run, merge_conda_dependencies, \
     to_azure_friendly_container_path
+from InnerEye.Common import fixed_paths
+from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME
 from InnerEye.Common.output_directories import TestOutputDirectories
 from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_ENSEMBLE_RUN_RECOVERY_ID_NUMERIC, \
     DEFAULT_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID_NUMERIC
@@ -114,3 +117,17 @@ def test_experiment_name() -> None:
     assert create_experiment_name(c) == "branch"
     c.experiment_name = "foo"
     assert create_experiment_name(c) == "foo"
+
+
+def test_framework_version(test_output_dirs: TestOutputDirectories) -> None:
+    """
+    Test if the Pytorch framework version can be read correctly from the current environment file.
+    """
+    environment_file = fixed_paths.repository_root_directory(ENVIRONMENT_YAML_FILE_NAME)
+    env2 = fixed_paths.get_environment_yaml_file()
+    assert environment_file == env2, "The two methods to get the envionment file should match"
+    conda_dep = CondaDependencies(conda_dependencies_file_path=environment_file)
+    framework = pytorch_version_from_conda_dependencies(conda_dep)
+    # If this fails, it is quite likely that the AzureML SDK is behind pytorch, and does not yet know about a
+    # new version of pytorch that we are using here.
+    assert framework is not None
