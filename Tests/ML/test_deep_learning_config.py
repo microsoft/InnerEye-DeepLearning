@@ -14,9 +14,6 @@ def test_validate() -> None:
     # DeepLearningConfig cannot be initialized with neither of these these parameters set
     with pytest.raises(ValueError):
         DeepLearningConfig(local_dataset=None, azure_dataset_id="")
-    # DeepLearningConfig cannot be initialized with both these parameters set
-    with pytest.raises(ValueError):
-        DeepLearningConfig(local_dataset=Path("foo"), azure_dataset_id="bar")
     # The following should be okay
     DeepLearningConfig(local_dataset=Path("foo"))
     DeepLearningConfig(azure_dataset_id="bar")

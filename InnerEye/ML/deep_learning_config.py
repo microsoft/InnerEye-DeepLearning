@@ -400,8 +400,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
         if not self.azure_dataset_id and not self.local_dataset:
             raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
-        if self.azure_dataset_id and self.local_dataset:
-            raise ValueError("Cannot specify both local_dataset and azure_dataset_id.")
 
         if self.weights_url and self.local_weights_path:
             raise ValueError("Cannot specify both local_weights_path and weights_url.")
