@@ -271,6 +271,9 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
         # stop the resource monitoring process
         resource_monitor.kill()
 
+    if config.use_ddp:
+        torch.distributed.destroy_process_group()
+
     # return model_training_results
     return None if (config.use_distributed_data_parallel and is_aml_mpi_run(config)) else model_training_results
 

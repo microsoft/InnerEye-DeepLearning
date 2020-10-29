@@ -664,6 +664,7 @@ class MLRunner:
             return model_test(config, data_split=data_split, run_recovery=run_recovery, model_proc=model_proc)
 
         if config.perform_validation_and_test_set_inference:
+            torch.cuda.empty_cache()
             # perform inference on test set
             test_metrics = run_model_test(ModelExecutionMode.TEST)
             torch.cuda.empty_cache()
