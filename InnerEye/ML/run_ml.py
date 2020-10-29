@@ -484,7 +484,7 @@ class MLRunner:
                                  best_epoch_dice: float,
                                  model_proc: ModelProcessing) -> None:
 
-        checkpoint_paths = manage_recovery.get_recovery_path_test(epoch=best_epoch)
+        checkpoint_paths = manage_recovery.get_checkpoint_from_epoch(epoch=best_epoch)
         if not checkpoint_paths:
             # No point continuing, since no checkpoints were found
             logging.warning("Abandoning model registration - no valid checkpoint paths found")

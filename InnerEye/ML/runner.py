@@ -111,9 +111,6 @@ class Runner:
         self.innereye_submodule_name = innereye_submodule_name
         self.command_line_args = command_line_args
         # model_config and azure_config are placeholders for now, and are set properly when command line args are
-        # parsed.
-        self.model_config: ModelConfigBase = ModelConfigBase(azure_dataset_id="")
-        self.azure_config: AzureConfig = AzureConfig()
 
     def wait_until_cross_val_splits_are_ready_for_aggregation(self) -> bool:
         """
