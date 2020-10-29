@@ -117,7 +117,6 @@ def download_dataset(azure_dataset_id: str,
     :param azure_config: All Azure-related configuration options.
     :return: A path on the local machine that contains the dataset.
     """
-    workspace = azure_config.get_workspace()
     try:
         downloaded_via_blobxfer = download_dataset_via_blobxfer(dataset_id=azure_dataset_id,
                                                                 azure_config=azure_config,
@@ -127,7 +126,7 @@ def download_dataset(azure_dataset_id: str,
     except Exception as ex:
         print_exception(ex, message="Unable to download dataset via blobxfer.")
     logging.info("Trying to download dataset via AzureML datastore now.")
-    azure_dataset = get_or_create_dataset(workspace, azure_dataset_id)
+    azure_dataset = get_or_create_dataset(azure_config, azure_dataset_id)
     if not isinstance(azure_dataset, FileDataset):
         raise ValueError(f"Expected to get a FileDataset, but got {type(azure_dataset)}")
     # The downloaded dataset may already exist from a previous run.

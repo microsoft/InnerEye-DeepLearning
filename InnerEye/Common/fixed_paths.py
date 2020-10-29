@@ -35,9 +35,6 @@ DEFAULT_LOGS_DIR_NAME = "logs"
 DEFAULT_MODEL_SUMMARIES_DIR_PATH = Path(DEFAULT_LOGS_DIR_NAME) / "model_summaries"
 # The folder at the project root directory that holds datasets for local execution.
 DATASETS_DIR_NAME = "datasets"
-# Inside of the AzureML workspace, a Datastore has to be created manually. That Datastore
-# points to a container inside of a storage account.
-AZUREML_DATASTORE_NAME = "innereyedatasets"
 
 # Points to a folder at the project root directory that holds model weights downloaded from URLs.
 MODEL_WEIGHTS_DIR_NAME = "modelweights"

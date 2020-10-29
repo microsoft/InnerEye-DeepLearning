@@ -117,9 +117,12 @@ class PlotCrossValidationConfig(GenericConfig):
     ignore_subjects: List[int] = param.List(None, class_=int, bounds=(1, None), allow_None=True, instantiate=False,
                                             doc="List of the subject ids to ignore from the results")
     is_zero_index: bool = param.Boolean(True, doc="If True, start cross validation split indices from 0 otherwise 1")
-    settings_yaml_file: str = param.String(default=str(fixed_paths.SETTINGS_YAML_FILE),
-                                           doc="Path to settings.yml file containing the Azure configuration "
-                                               "for the workspace")
+    settings_yaml_file: Path = param.ClassSelector(class_=Path, default=fixed_paths.SETTINGS_YAML_FILE,
+                                                   doc="Path to settings.yml file containing the Azure configuration "
+                                                       "for the workspace")
+    project_root: Path = param.ClassSelector(class_=Path, default=fixed_paths.repository_root_directory(),
+                                             doc="The root folder of the repository that starts the run. Used to "
+                                                 "read a private settings file.")
     _azure_config: Optional[AzureConfig] = \
         param.ClassSelector(class_=AzureConfig, allow_None=True,
                             doc="Azure-related options created from YAML file.")
@@ -190,7 +193,7 @@ class PlotCrossValidationConfig(GenericConfig):
         :return:
         """
         if self._azure_config is None:
-            self._azure_config = AzureConfig.from_yaml(Path(self.settings_yaml_file), project_root=None)
+            self._azure_config = AzureConfig.from_yaml(self.settings_yaml_file, project_root=self.project_root)
         return self._azure_config
 
     def download_or_get_local_file(self,

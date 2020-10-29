@@ -352,7 +352,7 @@ def _compute_scalar_metrics(output_values_list: List[List[float]],
         _labels = _labels.cuda()
         model_output = model_output.cuda()
     metrics_dict = ScalarMetricsDict(hues=hues, is_classification_metrics=is_classification)
-    subject_ids = list(range(model_output.shape[0]))
+    subject_ids = list(map(str, range(model_output.shape[0])))
     loss_type = ScalarLoss.BinaryCrossEntropyWithLogits if is_classification else ScalarLoss.MeanSquaredError
     compute_scalar_metrics(metrics_dict, subject_ids, model_output, _labels, loss_type=loss_type)
     return metrics_dict

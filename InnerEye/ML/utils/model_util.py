@@ -445,7 +445,7 @@ class ModelAndInfo:
 
         torch.save(info_to_store, checkpoint_file_path)
         logging.getLogger().disabled = False
-        logging.info("Saved model checkpoint for epoch {epoch} to {checkpoint_file_path}")
+        logging.info(f"Saved model checkpoint for epoch {epoch} to {checkpoint_file_path}")
 
 
 def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:

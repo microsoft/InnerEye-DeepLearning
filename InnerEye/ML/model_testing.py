@@ -136,7 +136,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     :raises ValueError: When there are issues loading the model.
     :return A list with the mean dice score (across all structures apart from background) for each image.
     """
-    ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
+    ml_util.set_random_seed(config.get_effective_random_seed(), "Model testing")
     results_folder = Path(results_folder)
     results_folder.mkdir(exist_ok=True)
 

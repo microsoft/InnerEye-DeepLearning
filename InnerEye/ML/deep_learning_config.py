@@ -328,16 +328,16 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                         "on Linux, inference is currently disabled as the data loaders hang. "
                                         "If False, use the default data loader logic that starts new processes for "
                                         "each epoch.")
-    # The default multiprocessing start_method in both PyTorch and the Python standardlibrary is "fork" for Linux and
-    # "spawn" (the only available method) for Windows. However if the user does not specify a method, we default to
-    # "forkserver" for Linux, as there is evidence that this greatly reduces the risk of dataloader processes getting
-    # stuck.
+    # The default multiprocessing start_method in both PyTorch and the Python standard library is "fork" for Linux and
+    # "spawn" (the only available method) for Windows. There is some evidence that using "forkserver" on Linux
+    # can reduce the chance of stuck jobs.
     multiprocessing_start_method: MultiprocessingStartMethod = \
         param.ClassSelector(class_=MultiprocessingStartMethod,
                             default=(MultiprocessingStartMethod.spawn if is_windows()
-                                     else MultiprocessingStartMethod.forkserver),
+                                     else MultiprocessingStartMethod.fork),
                             doc="Method to be used to start child processes in pytorch. Should be one of forkserver, "
-                                "fork or spawn. If not specified, forkserver is used on Linux and spawn on Windows.")
+                                "fork or spawn. If not specified, fork is used on Linux and spawn on Windows. "
+                                "Set to forkserver as a possible remedy for stuck jobs.")
     output_to: Optional[str] = \
         param.String(default=None,
                      doc="If provided, the run outputs will be written to the given folder. If not provided, outputs "
