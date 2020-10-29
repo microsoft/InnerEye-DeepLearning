@@ -32,6 +32,7 @@ from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
+from InnerEye.ML.utils.training_util import determine_device
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 
 
@@ -136,7 +137,7 @@ class ModelAndInfo:
         or adjust_mean_teacher_model_for_gpus
         :returns Adjusted model
         """
-        device = torch.device('cuda', rank) if config.use_gpu else torch.device('cpu')
+        device = determine_device(rank)
 
         use_ddp = config.use_gpu and config.use_ddp
         if use_ddp:

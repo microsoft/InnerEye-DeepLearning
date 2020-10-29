@@ -25,6 +25,7 @@ from InnerEye.ML.utils import image_util, ml_util, model_util
 from InnerEye.ML.utils.image_util import compute_uncertainty_map_from_posteriors, gaussian_smooth_posteriors, \
     posteriors_to_segmentation
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
+from InnerEye.ML.utils.training_util import determine_device
 
 
 class InferencePipelineBase:
@@ -399,7 +400,7 @@ class InferenceBatch(CTImagesMaskedBatch):
         model_config = self.get_configs()
 
         rank = 0  # Assume we only perform inference on rank 0 device
-        device = torch.device('cuda', 0) if model_config.use_gpu else torch.device('cpu')
+        device = determine_device(rank)
 
         # extract patches for each image channel: Num patches x Channels x Z x Y x X
         patches = self._extract_patches_for_image_channels()

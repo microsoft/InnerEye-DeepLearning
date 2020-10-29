@@ -82,3 +82,14 @@ def gather_tensor(tensor: Union[torch.Tensor, List[torch.Tensor]],
         return torch.nn.parallel.gather(tensor, target_device=target_device)
     else:
         return tensor
+
+
+def determine_device(rank: int = 0) -> torch.device:
+    """
+    If CUDA is available, returns a CUDA device (if multiple devices available, select the one
+    corresponding to the integer "rank". Otherwise, use cpu
+    :param rank: If multiple CUDA devices available, this param specifies which one to use
+    :return:
+    """
+    device = torch.device('cuda', rank) if torch.cuda.is_available() else torch.device('cpu')
+    return device

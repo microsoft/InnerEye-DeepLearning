@@ -14,14 +14,14 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 def get_local_rank() -> int:
     """Returns the local rank of the current process for AML (online) runs."""
     rank = os.environ.get('OMPI_COMM_WORLD_LOCAL_RANK')
-    assert isinstance(rank, str), f"Expected env var 'OMPI_COMM_WORLD_LOCAL_RANK' - perhaps this isn't an MPI run?"
+    assert isinstance(rank, str), "Expected env var 'OMPI_COMM_WORLD_LOCAL_RANK' - perhaps this isn't an MPI run?"
     return int(rank)
 
 
 def get_global_rank() -> int:
     """Returns the global rank of the current process for AML (online) runs."""
     rank = os.environ.get("OMPI_COMM_WORLD_RANK")
-    assert isinstance(rank, str), f"Expected env var 'OMPI_COMM_WORLD_RANK' - perhaps this isn't an MPI run?"
+    assert isinstance(rank, str), "Expected env var 'OMPI_COMM_WORLD_RANK' - perhaps this isn't an MPI run?"
     return int(rank)
 
 

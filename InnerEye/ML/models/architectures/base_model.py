@@ -13,6 +13,7 @@ import torch
 from InnerEye.Common.common_util import any_pairwise_larger, initialize_instance_variables
 from InnerEye.Common.type_annotations import IntOrTuple3, TupleInt2, TupleInt3
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
+from InnerEye.ML.utils.training_util import determine_device
 from InnerEye.ML.visualizers.model_summary import ModelSummary, forward_preserve_state
 
 
@@ -148,11 +149,7 @@ class BaseModel(DeviceAwareModule, ABC):
         :param input_shape: A tuple (2D or 3D) representing incoming tensor shape.
         :param device: The Torch device to allocate to.
         """
-        if device is None:
-            if torch.cuda.is_available():
-                device = torch.device('cuda')
-            else:
-                device = torch.device('cpu')
+        device = device or determine_device()
 
         # Create a sample tensor for inference
         batch_size = 1

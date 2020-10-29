@@ -138,7 +138,7 @@ def create_summary_writers(args: ModelConfigBase, global_rank: int = -1) -> Summ
     Creates two tensorboard writers, one for training and one for
     validation. Stored in a SummaryWriters objects.
     :param args: config of the model.
-    :param rank: the global rank of the current process.
+    :param global_rank: the global rank of the current process.
     :return: SummaryWriters with tensorboard summary writers.
     """
     # Disable tensorboardX's logs

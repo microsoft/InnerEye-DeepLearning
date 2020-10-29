@@ -34,7 +34,7 @@ from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
 from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_train
-from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
+from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults, determine_device
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -103,7 +103,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
     global_rank = get_global_rank() if rank is None else rank
 
     local_rank = get_local_rank() if is_aml_mpi_run(config) else global_rank  # For 1 machine, global_rank = local_rank
-    device = torch.device('cuda', local_rank) if config.use_gpu else torch.device('cpu')
+    device = determine_device(local_rank)
 
     if config.use_ddp:
         world_size = get_global_size(config)
