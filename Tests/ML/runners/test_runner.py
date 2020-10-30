@@ -13,11 +13,10 @@ from InnerEye.Common import common_util
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
-from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
 from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
-from Tests.ML.util import get_default_azure_config
+from Tests.ML.util import get_default_checkpoint_handler
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -39,9 +38,9 @@ def test_model_inference_train_and_test(test_output_dirs: TestOutputDirectories,
     stored_checkpoints = full_ml_test_data_path("checkpoints")
     shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
 
-    azure_config = get_default_azure_config()
-    result, _, _ = MLRunner(config).model_inference_train_and_test(ManageRecovery(azure_config=azure_config,
-                                                                                  model_config=config))
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=Path(test_output_dirs.root_dir))
+    result, _, _ = MLRunner(config).model_inference_train_and_test(checkpoint_handler=checkpoint_handler)
     if result is None:
         raise ValueError("Error result cannot be None")
     assert isinstance(result, InferenceMetricsForSegmentation)

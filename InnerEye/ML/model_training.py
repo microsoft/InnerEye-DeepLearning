@@ -30,7 +30,7 @@ from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
-from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
@@ -40,7 +40,7 @@ MAX_LOAD_TIME_WARNINGS = 3
 T = TypeVar('T')
 
 
-def model_train(config: ModelConfigBase, manage_recovery: ManageRecovery) -> ModelTrainingResults:
+def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) -> ModelTrainingResults:
     """
     The main training loop. It creates the model, dataset, optimizer_type, and criterion, then proceeds
     to train the model. If a checkpoint was specified, then it loads the checkpoint before resuming training.
@@ -66,7 +66,7 @@ def model_train(config: ModelConfigBase, manage_recovery: ManageRecovery) -> Mod
     data_loaders = config.create_data_loaders()
 
     # Get the path to the checkpoint to recover from
-    checkpoint_path = manage_recovery.get_recovery_path_train()
+    checkpoint_path = checkpoint_handler.get_recovery_path_train()
 
     models_and_optimizer = ModelAndInfo(config=config,
                                         model_execution_mode=ModelExecutionMode.TRAIN,
@@ -94,7 +94,7 @@ def model_train(config: ModelConfigBase, manage_recovery: ManageRecovery) -> Mod
 
     # Create optimizer
     optimizer_loaded = models_and_optimizer.try_create_optimizer_and_load_from_checkpoint()
-    if not optimizer_loaded and manage_recovery.should_load_optimizer_checkpoint():
+    if not optimizer_loaded and checkpoint_handler.should_load_optimizer_checkpoint():
         raise ValueError("There was no checkpoint file available for the optimizer for given start_epoch {}"
                          .format(config.start_epoch))
 

@@ -23,12 +23,11 @@ from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline
 from InnerEye.ML.utils import io_util
-from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
 from InnerEye.ML.visualizers.plot_cross_validation import get_config_and_results_for_offline_runs
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contains_string, assert_text_files_match, assert_nifti_content, \
-    get_image_shape, get_default_azure_config
+    get_image_shape, get_default_checkpoint_handler
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
@@ -53,8 +52,11 @@ def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
     config._datasets_for_inference = \
         {ModelExecutionMode.TEST: FullImageDataset(config, df, full_image_sample_transforms=transform)}  # type: ignore
     execution_mode = ModelExecutionMode.TEST
-    manage_recovery = ManageRecovery(azure_config=get_default_azure_config(), model_config=config)
-    inference_results = model_testing.segmentation_model_test(config, execution_mode, manage_recovery=manage_recovery)
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=Path(test_output_dirs.root_dir))
+    inference_results = model_testing.segmentation_model_test(config,
+                                                              data_split=execution_mode,
+                                                              checkpoint_handler=checkpoint_handler)
     epoch_dir = config.outputs_folder / get_epoch_results_path(epoch, execution_mode)
     assert inference_results.epochs[epoch] == pytest.approx(0.66606902, abs=1e-6)
 

@@ -38,7 +38,7 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
-from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
@@ -280,11 +280,11 @@ class MLRunner:
         self.set_multiprocessing_start_method()
 
         # configure recovery container if provided
-        manage_recovery = ManageRecovery(model_config=self.model_config,
-                                         azure_config=self.azure_config,
-                                         project_root=self.project_root,
-                                         run_context=RUN_CONTEXT)
-        manage_recovery.discover_and_download_checkpoints()
+        checkpoint_handler = CheckpointHandler(model_config=self.model_config,
+                                            azure_config=self.azure_config,
+                                            project_root=self.project_root,
+                                            run_context=RUN_CONTEXT)
+        checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
         if not self.azure_config.register_model_only_for_epoch:
@@ -305,20 +305,20 @@ class MLRunner:
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    model_train(self.model_config, manage_recovery)
+                    model_train(self.model_config, checkpoint_handler)
             else:
                 self.model_config.write_dataset_files()
                 self.create_activation_maps()
 
             # log the number of epochs used for model training
             RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
-            # If we have trained the model further, let the manage_recovery object know so it can handle checkpoints
+            # If we have trained the model further, let the checkpoint_handler object know so it can handle checkpoints
             # correctly.
-            manage_recovery.additional_training_done()
+            checkpoint_handler.additional_training_done()
 
         # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
         # the current run is a single one. See the documentation of ModelProcessing for more details.
-        best_epoch = self.run_inference_and_register_model(manage_recovery, ModelProcessing.DEFAULT)
+        best_epoch = self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
 
         # Generate report
         if best_epoch:
@@ -327,7 +327,7 @@ class MLRunner:
             # We don't register scalar models but still want to create a report if we have run inference.
             Runner.generate_report(self.model_config, self.model_config.get_test_epochs()[0], ModelProcessing.DEFAULT)
 
-    def run_inference_and_register_model(self, manage_recovery: ManageRecovery,
+    def run_inference_and_register_model(self, checkpoint_handler: CheckpointHandler,
                                          model_proc: ModelProcessing) -> Optional[int]:
         """
         Run inference as required, and register the model, but not necessarily in that order:
@@ -338,13 +338,13 @@ class MLRunner:
         """
         registration_epoch = self.decide_registration_epoch_without_evaluating()
         if registration_epoch is not None:
-            self.register_model_for_epoch(RUN_CONTEXT, manage_recovery, registration_epoch, np.nan, model_proc)
+            self.register_model_for_epoch(RUN_CONTEXT, checkpoint_handler, registration_epoch, np.nan, model_proc)
             if self.azure_config.register_model_only_for_epoch is not None:
                 return self.azure_config.register_model_only_for_epoch
 
         # run full image inference on existing or newly trained model on the training, and testing set
         test_metrics, val_metrics, _ = self.model_inference_train_and_test(run_context=RUN_CONTEXT,
-                                                                           manage_recovery=manage_recovery,
+                                                                           checkpoint_handler=checkpoint_handler,
                                                                            model_proc=model_proc)
 
         # register the generated model from the run if we haven't already done so
@@ -353,7 +353,7 @@ class MLRunner:
                 if self.should_register_model():
                     assert test_metrics is None or isinstance(test_metrics, InferenceMetricsForSegmentation)
                     assert val_metrics is None or isinstance(val_metrics, InferenceMetricsForSegmentation)
-                    registration_epoch = self.register_model_for_best_epoch(manage_recovery, test_metrics, val_metrics,
+                    registration_epoch = self.register_model_for_best_epoch(checkpoint_handler, test_metrics, val_metrics,
                                                                             model_proc)
             self.try_compare_scores_against_baselines(model_proc)
         else:
@@ -427,7 +427,7 @@ class MLRunner:
             raise ValueError("Unable to mount or download input dataset.")
         return mounted
 
-    def register_model_for_best_epoch(self, manage_recovery: ManageRecovery,
+    def register_model_for_best_epoch(self, checkpoint_handler: CheckpointHandler,
                                       test_metrics: Optional[InferenceMetricsForSegmentation],
                                       val_metrics: Optional[InferenceMetricsForSegmentation],
                                       model_proc: ModelProcessing) -> int:
@@ -442,7 +442,7 @@ class MLRunner:
         else:
             best_epoch_dice = 0.0  # dummy value
         assert isinstance(self.model_config, SegmentationModelBase)
-        self.register_model_for_epoch(RUN_CONTEXT, manage_recovery, best_epoch, best_epoch_dice, model_proc)
+        self.register_model_for_epoch(RUN_CONTEXT, checkpoint_handler, best_epoch, best_epoch_dice, model_proc)
         return best_epoch
 
     def save_build_info_for_dotnet_consumers(self) -> None:
@@ -475,12 +475,12 @@ class MLRunner:
 
     def register_model_for_epoch(self,
                                  run_context: Run,
-                                 manage_recovery: ManageRecovery,
+                                 checkpoint_handler: CheckpointHandler,
                                  best_epoch: int,
                                  best_epoch_dice: float,
                                  model_proc: ModelProcessing) -> None:
 
-        checkpoint_path_and_epoch = manage_recovery.get_checkpoint_from_epoch(epoch=best_epoch)
+        checkpoint_path_and_epoch = checkpoint_handler.get_checkpoint_from_epoch(epoch=best_epoch)
         if not checkpoint_path_and_epoch or not checkpoint_path_and_epoch.checkpoint_paths:
             # No point continuing, since no checkpoints were found
             logging.warning("Abandoning model registration - no valid checkpoint paths found")
@@ -647,7 +647,7 @@ class MLRunner:
         return relative_child_path_names
 
     def model_inference_train_and_test(self,
-                                       manage_recovery: ManageRecovery,
+                                       checkpoint_handler: CheckpointHandler,
                                        run_context: Optional[Run] = None,
                                        model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> \
             Tuple[Optional[InferenceMetrics], Optional[InferenceMetrics], Optional[InferenceMetrics]]:
@@ -658,7 +658,7 @@ class MLRunner:
         config = self.model_config
 
         def run_model_test(data_split: ModelExecutionMode) -> Optional[InferenceMetrics]:
-            return model_test(config, data_split=data_split, manage_recovery=manage_recovery, model_proc=model_proc)
+            return model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler, model_proc=model_proc)
 
         if config.perform_validation_and_test_set_inference:
             # perform inference on test set

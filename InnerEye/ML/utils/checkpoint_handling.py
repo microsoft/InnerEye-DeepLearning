@@ -20,7 +20,7 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.Common import fixed_paths
 
 
-class ManageRecovery:
+class CheckpointHandler:
 
     @dataclass
     class CheckPointPathsAndEpoch:
@@ -39,7 +39,7 @@ class ManageRecovery:
 
         self.continued_training = False
 
-    def discover_and_download_checkpoints(self):
+    def discover_and_download_checkpoints_from_previous_runs(self):
         if self.azure_config.run_recovery_id:
             self.run_recovery = RunRecovery.download_checkpoints_from_recovery_run(
                 self.azure_config, self.model_config, self.run_context)
@@ -113,7 +113,7 @@ class ManageRecovery:
                 logging.warning(f"Could not recover checkpoint path {path}")
 
         if len(checkpoint_exists) > 0:
-            return ManageRecovery.CheckPointPathsAndEpoch(epoch=epoch, checkpoint_paths=checkpoint_exists)
+            return CheckpointHandler.CheckPointPathsAndEpoch(epoch=epoch, checkpoint_paths=checkpoint_exists)
         else:
             logging.warning(f"Could not find any checkpoints in run recovery/training checkpoints for epoch {epoch}.")
             return None
@@ -132,8 +132,8 @@ class ManageRecovery:
         elif self.local_weights_path and not self.continued_training:
             if self.local_weights_path.exists():
                 logging.info(f"Using model weights at {self.local_weights_path} to initialize model")
-                return [ManageRecovery.CheckPointPathsAndEpoch(epoch=0,
-                                                               checkpoint_paths=[self.local_weights_path])]
+                return [CheckpointHandler.CheckPointPathsAndEpoch(epoch=0,
+                                                                  checkpoint_paths=[self.local_weights_path])]
             else:
                 logging.warning(f"Local weights_path does not exist, "
                                 f"cannot recover from {self.local_weights_path}")

@@ -35,7 +35,7 @@ from InnerEye.ML.deep_learning_config import DeepLearningConfig, ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.reports.notebook_report import generate_segmentation_notebook, generate_classification_notebook
 from InnerEye.ML.utils.config_util import ModelConfigLoader
-from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 
 REPORT_IPYNB = "report.ipynb"
 REPORT_HTML = "report.html"
@@ -111,6 +111,10 @@ class Runner:
         self.model_deployment_hook = model_deployment_hook
         self.innereye_submodule_name = innereye_submodule_name
         self.command_line_args = command_line_args
+        # model_config and azure_config are placeholders for now, and are set properly when command line args are
+        # parsed.
+        self.model_config: ModelConfigBase = ModelConfigBase(azure_dataset_id="")
+        self.azure_config: AzureConfig = AzureConfig()
 
     def wait_until_cross_val_splits_are_ready_for_aggregation(self) -> bool:
         """

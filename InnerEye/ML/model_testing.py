@@ -39,7 +39,7 @@ from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_ni
     save_lines_to_file
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
-from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
@@ -47,7 +47,7 @@ THUMBNAILS_FOLDER = "thumbnails"
 
 def model_test(config: ModelConfigBase,
                data_split: ModelExecutionMode,
-               manage_recovery: ManageRecovery,
+               checkpoint_handler: CheckpointHandler,
                model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Optional[InferenceMetrics]:
     """
     Runs model inference on segmentation or classification models, using a given dataset (that could be training,
@@ -68,15 +68,15 @@ def model_test(config: ModelConfigBase,
         return None
     with logging_section(f"Running {model_proc.value} model on {data_split.name.lower()} set"):
         if isinstance(config, SegmentationModelBase):
-            return segmentation_model_test(config, data_split, manage_recovery, model_proc)
+            return segmentation_model_test(config, data_split, checkpoint_handler, model_proc)
         if isinstance(config, ScalarModelBase):
-            return classification_model_test(config, data_split, manage_recovery, model_proc)
+            return classification_model_test(config, data_split, checkpoint_handler, model_proc)
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 
 def segmentation_model_test(config: SegmentationModelBase,
                             data_split: ModelExecutionMode,
-                            manage_recovery: ManageRecovery,
+                            checkpoint_handler: CheckpointHandler,
                             model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> InferenceMetricsForSegmentation:
     """
     The main testing loop for segmentation models.
@@ -88,7 +88,7 @@ def segmentation_model_test(config: SegmentationModelBase,
     :return: InferenceMetric object that contains metrics related for all of the checkpoint epochs.
     """
     results: Dict[int, float] = {}
-    checkpoints_to_test = manage_recovery.get_checkpoints_to_test()
+    checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
 
     if not checkpoints_to_test:
         raise ValueError("There were no checkpoints available for model testing.")
@@ -105,7 +105,7 @@ def segmentation_model_test(config: SegmentationModelBase,
                                                              checkpoint_paths=checkpoint_paths,
                                                              results_folder=epoch_results_folder,
                                                              epoch_and_split=epoch_and_split,
-                                                             manage_recovery=manage_recovery)
+                                                             checkpoint_handler=checkpoint_handler)
         if epoch_dice_per_image is None:
             logging.warning("There is no checkpoint file for epoch {}".format(epoch))
         else:
@@ -126,7 +126,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
                                   checkpoint_paths: List[Path],
                                   results_folder: Path,
                                   epoch_and_split: str,
-                                  manage_recovery: ManageRecovery) -> Optional[List[float]]:
+                                  checkpoint_handler: CheckpointHandler) -> Optional[List[float]]:
     """
     The main testing loop for a given epoch. It loads the model and datasets, then proceeds to test the model.
     Returns a list with an entry for each image in the dataset. The entry is the average Dice score,
@@ -390,7 +390,7 @@ def create_inference_pipeline(config: ModelConfigBase,
 
 def classification_model_test(config: ScalarModelBase,
                               data_split: ModelExecutionMode,
-                              manage_recovery: ManageRecovery,
+                              checkpoint_handler: CheckpointHandler,
                               model_proc: ModelProcessing) -> InferenceMetricsForClassification:
     """
     The main testing loop for classification models. It runs a loop over all epochs for which testing should be done.
@@ -403,7 +403,7 @@ def classification_model_test(config: ScalarModelBase,
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
 
-    def test_epoch(checkpoint_paths: List[Path], manage_recovery: ManageRecovery) -> Optional[MetricsDict]:
+    def test_epoch(checkpoint_paths: List[Path], checkpoint_handler: CheckpointHandler) -> Optional[MetricsDict]:
         pipeline = create_inference_pipeline(config=config,
                                              checkpoint_paths=checkpoint_paths)
 
@@ -436,7 +436,7 @@ def classification_model_test(config: ScalarModelBase,
         return metrics_dict
 
     results: Dict[int, MetricsDict] = {}
-    checkpoints_to_test = manage_recovery.get_checkpoints_to_test()
+    checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
 
     if not checkpoints_to_test:
         raise ValueError("There were no checkpoints available for model testing.")
@@ -445,7 +445,7 @@ def classification_model_test(config: ScalarModelBase,
         epoch = checkpoint_paths_and_epoch.epoch
         checkpoint_paths = checkpoint_paths_and_epoch.checkpoint_paths
 
-        epoch_result = test_epoch(checkpoint_paths=checkpoint_paths, manage_recovery=manage_recovery)
+        epoch_result = test_epoch(checkpoint_paths=checkpoint_paths, checkpoint_handler=manage_recovery)
         if epoch_result is None:
             logging.warning("There is no checkpoint file for epoch {}".format(epoch))
         else:

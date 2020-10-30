@@ -25,7 +25,7 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.io_util import ImageHeader, ImageWithHeader
 from InnerEye.ML.utils.ml_util import is_gpu_available
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 TEST_CHANNEL_IDS = ["channel1", "channel2"]
@@ -202,13 +202,13 @@ def get_default_azure_config() -> AzureConfig:
                                  project_root=fixed_paths.repository_root_directory())
 
 
-def get_default_checkpoint_handler(model_config: DeepLearningConfig, project_root: Path) -> ManageRecovery:
+def get_default_checkpoint_handler(model_config: DeepLearningConfig, project_root: Path) -> CheckpointHandler:
     """
     Gets a checkpoint handler, using the given model config and the default azure configuration.
     """
     azure_config = get_default_azure_config()
-    return ManageRecovery(azure_config=azure_config, model_config=model_config,
-                          project_root=project_root)
+    return CheckpointHandler(azure_config=azure_config, model_config=model_config,
+                             project_root=project_root)
 
 
 def get_default_workspace() -> Workspace:

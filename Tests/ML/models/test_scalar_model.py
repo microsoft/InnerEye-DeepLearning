@@ -30,11 +30,10 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get_config_and_results_for_offline_runs, \
     unroll_aggregate_metrics
-from InnerEye.ML.utils.checkpoint_recovery import ManageRecovery
 
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_azure_config, machine_has_gpu
+from Tests.ML.util import get_default_azure_config, machine_has_gpu, get_default_checkpoint_handler
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
@@ -50,8 +49,8 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     config = ClassificationModelForTesting()
     config.set_output_to(test_output_dirs.root_dir)
     azure_config = get_default_azure_config()
-    manage_recovery = ManageRecovery(model_config=config,
-                                     azure_config=azure_config)
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=Path(test_output_dirs.root_dir))
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
     config.use_mixed_precision = use_mixed_precision
@@ -62,7 +61,8 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     config.test_diff_epochs = 2
     expected_epochs = [2, 4]
     assert config.get_test_epochs() == expected_epochs
-    model_training_result = model_training.model_train(config, manage_recovery=manage_recovery)
+    model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
+    checkpoint_handler.additional_training_done()
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     use_mixed_precision_and_gpu = use_mixed_precision and machine_has_gpu
@@ -83,7 +83,7 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6)
     assert actual_learning_rates == pytest.approx(expected_learning_rates, rel=1e-5)
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
-                                            manage_recovery=manage_recovery)
+                                            checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
     assert list(test_results.epochs.keys()) == expected_epochs
     if use_mixed_precision_and_gpu:
