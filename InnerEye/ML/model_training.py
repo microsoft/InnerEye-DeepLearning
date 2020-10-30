@@ -93,10 +93,12 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
                              f"for given start_epoch {config.start_epoch}")
 
     # Create optimizer
-    optimizer_loaded = models_and_optimizer.try_create_optimizer_and_load_from_checkpoint()
-    if not optimizer_loaded and checkpoint_handler.should_load_optimizer_checkpoint():
-        raise ValueError("There was no checkpoint file available for the optimizer for given start_epoch {}"
-                         .format(config.start_epoch))
+    models_and_optimizer.create_optimizer()
+    if checkpoint_handler.should_load_optimizer_checkpoint():
+        optimizer_loaded = models_and_optimizer.try_load_checkpoint_for_optimizer()
+        if not optimizer_loaded:
+            raise ValueError("There was no checkpoint file available for the optimizer for given start_epoch {}"
+                             .format(config.start_epoch))
 
     # Create checkpoint directory for this run if it doesn't already exist
     logging.info("Models are saved at {}".format(config.checkpoint_folder))

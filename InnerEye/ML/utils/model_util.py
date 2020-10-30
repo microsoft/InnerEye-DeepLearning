@@ -123,7 +123,7 @@ class ModelAndInfo:
         try:
             state_dict = checkpoint[key_in_state_dict]
         except KeyError:
-            logging.info(f"Key {key_in_state_dict} not found in checkpoint")
+            logging.error(f"Key {key_in_state_dict} not found in checkpoint")
             return False
 
         if isinstance(model, torch.nn.DataParallel):
@@ -400,7 +400,7 @@ class ModelAndInfo:
         try:
             state_dict = checkpoint[ModelAndInfo.OPTIMIZER_STATE_DICT_KEY]
         except KeyError:
-            logging.info(f"Key {ModelAndInfo.OPTIMIZER_STATE_DICT_KEY} not found in checkpoint")
+            logging.error(f"Key {ModelAndInfo.OPTIMIZER_STATE_DICT_KEY} not found in checkpoint")
             return False
 
         self._optimizer.load_state_dict(state_dict)

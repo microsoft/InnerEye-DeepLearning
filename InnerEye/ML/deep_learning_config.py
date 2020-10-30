@@ -728,8 +728,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set the model state dict.
         2. Key ModelAndInfo.EPOCH_KEY and value set the checkpoint epoch.
         Other (optional) entries should corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
-        ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported. ModelAndInfo.EPOCH_KEY is set automatically outside
-        this function.
+        ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported.
         """
         import torch
         map_location = None if self.use_gpu else 'cpu'
