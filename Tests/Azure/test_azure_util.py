@@ -124,8 +124,6 @@ def test_framework_version(test_output_dirs: TestOutputDirectories) -> None:
     Test if the Pytorch framework version can be read correctly from the current environment file.
     """
     environment_file = fixed_paths.repository_root_directory(ENVIRONMENT_YAML_FILE_NAME)
-    env2 = fixed_paths.get_environment_yaml_file()
-    assert environment_file == env2, "The two methods to get the envionment file should match"
     conda_dep = CondaDependencies(conda_dependencies_file_path=environment_file)
     framework = pytorch_version_from_conda_dependencies(conda_dep)
     # If this fails, it is quite likely that the AzureML SDK is behind pytorch, and does not yet know about a

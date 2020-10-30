@@ -286,8 +286,7 @@ def create_estimator_from_configs(azure_config: AzureConfig,
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
     # create Estimator environment
     framework_version = pytorch_version_from_conda_dependencies(conda_dependencies)
-    assert framework_version is not None, "The AzureML SDK is behind PyTorch, and it seems does not yet know the " \
-                                          "version we use."
+    assert framework_version is not None, "The AzureML SDK is behind PyTorch, it does not yet know the version we use."
     logging.info(f"PyTorch framework version: {framework_version}")
     max_run_duration = None
     if azure_config.max_run_duration:
