@@ -89,7 +89,6 @@ def test_anomaly_detection(value_to_insert: float, in_training_mode: bool) -> No
         ground_truth_ids=ground_truth_ids,
         should_validate=False,
         detect_anomaly=True,
-        use_distributed_data_parallel=False
     )
 
     model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TRAIN,
@@ -146,7 +145,6 @@ def test_amp_activated(use_model_parallel: bool,
                                          ground_truth_ids=["Lung"],
                                          use_mixed_precision=use_mixed_precision,
                                          use_model_parallel=use_model_parallel,
-                                         use_distributed_data_parallel=False,
                                          should_validate=False)
     assert model_config.use_gpu
     model_and_info = ModelAndInfo(config=model_config, model_execution_mode=execution_mode,
@@ -314,7 +312,6 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
     assert torch.cuda.device_count() > 1, "This test must be executed on a multi-GPU machine"
     config = ClassificationModelWithIdentity()
     config.use_mixed_precision = use_mixed_precision
-    config.use_distributed_data_parallel = False
 
     model_and_info = ModelAndInfo(config=config, model_execution_mode=execution_mode,
                                   checkpoint_path=None)

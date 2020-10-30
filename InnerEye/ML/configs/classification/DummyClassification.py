@@ -30,7 +30,6 @@ class DummyClassification(ScalarModelBase):
             test_start_epoch=num_epochs,
             use_mixed_precision=True,
             subject_column="subjectID",
-            use_distributed_data_parallel=False
         )
         self.conv_in_3d = True
         self.expected_image_size_zyx = (4, 5, 7)

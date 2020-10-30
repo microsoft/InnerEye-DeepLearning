@@ -264,12 +264,13 @@ class Runner:
                                                            fail_on_unknown_args=False)
         azure_config = AzureConfig(**parser1_result.args)
         azure_config.project_root = self.project_root
-        overrides = {'node_count': azure_config.node_count, 'workers_per_node': azure_config.workers_per_node}
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser1_result.args)
         # Create the model as per the "model" commandline option
         model_config = model_config_loader.create_model_config_from_name(
-            model_name=azure_config.model, overrides=overrides
+            model_name=azure_config.model
         )
+        model_config.num_nodes = azure_config.node_count
+        model_config.num_workers_per_node = azure_config.workers_per_node
         # This model will be either a classification model or a segmentation model. Those have different
         # fields that could be overridden on the command line. Create a parser that understands the fields we need
         # for the actual model type. We feed this parser will the YAML settings and commandline arguments that the

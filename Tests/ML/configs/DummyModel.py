@@ -65,7 +65,6 @@ class DummyModel(SegmentationModelBase):
             test_start_epoch=1,
             test_diff_epochs=1,
             test_step_epochs=1,
-            use_distributed_data_parallel=False
         )
         self.add_and_validate(kwargs)
 

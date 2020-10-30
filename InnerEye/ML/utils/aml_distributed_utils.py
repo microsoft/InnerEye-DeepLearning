@@ -32,7 +32,7 @@ def get_global_size(config: ModelConfigBase) -> int:
     global size is the maximum possible number of devices, but we may use fewer, if specified in the config
     :return:
     """
-    max_world_size_from_config = config.workers_per_node * config.node_count
+    max_world_size_from_config = config.num_workers_per_node * config.num_nodes
     if is_aml_mpi_run(config):
         global_size = int(os.environ['OMPI_COMM_WORLD_SIZE'])
     else:
@@ -49,7 +49,7 @@ def get_local_size(config: ModelConfigBase) -> int:
         local_size = int(os.environ['OMPI_COMM_WORLD_LOCAL_SIZE'])
     else:
         local_size = torch.cuda.device_count()
-    return min(local_size, config.workers_per_node)
+    return min(local_size, config.num_workers_per_node)
 
 
 def get_az_batch_master_node() -> Optional[str]:

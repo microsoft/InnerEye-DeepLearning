@@ -121,7 +121,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
                             use_imbalanced_sampler=self.use_imbalanced_sampler_for_training,
                             drop_last_batch=self.drop_last_batch_in_training,
                             max_repeats=self.get_total_number_of_training_epochs(),
-                            distribute=self.use_ddp)
+                            distribute=self.use_distributed_data_parallel)
         logging.info("Creating the data loader for the validation set.")
 
         val_loader = self._datasets_for_training[ModelExecutionMode.VAL].as_data_loader(

@@ -10,5 +10,3 @@ variables:
   cluster: 'training-nd24'
   model_configs_namespace: ''
   extra_code_directory: ''
-  workers_per_node: 2
-  node_count: 2

@@ -367,9 +367,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     distributed_training_init_method: str = param.String(default='env://',
                                                          doc="URL specifying where to find peer processes")
 
-    use_distributed_data_parallel: bool = param.Boolean(True, doc="If True will attempt to use DDP")
-    workers_per_node: int = param.Integer(1, doc="The number of workers to assign per machine")
-    node_count: int = param.Integer(1, doc="The number of machines to run distributed training across")
+    num_workers_per_node: int = param.Integer(1, doc="The number of workers to assign per machine")
+    num_nodes: int = param.Integer(1, doc="The number of machines to run distributed training across")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
@@ -660,10 +659,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         :return:
         """
         _devices = self.get_cuda_devices()
-        return _devices is not None and len(_devices) > 1 and not self.use_ddp
+        return _devices is not None and len(_devices) > 1 and not self.use_distributed_data_parallel
 
     @property
-    def use_ddp(self) -> bool:
+    def use_distributed_data_parallel(self) -> bool:
         """
         Distributed Data Parallel may used if GPUs are usable and the number of CUDA devices are greater than 1
         and the OS is not windows. Additionally, the arg use_distributed_data_parallel must not be set to False
@@ -672,7 +671,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         _devices = self.get_cuda_devices()
         if _devices is None:
             return False
-        return (len(_devices) > 1) & (not is_windows()) & self.use_distributed_data_parallel
+        return (len(_devices) > 1) & (not is_windows()) & (self.num_nodes * self.num_workers_per_node > 1)
 
     def write_args_file(self, root: Optional[Path] = None) -> None:
         """

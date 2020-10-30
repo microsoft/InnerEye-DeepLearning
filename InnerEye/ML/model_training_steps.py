@@ -382,7 +382,10 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, model, sample)
         label_gpu = self.get_label_tensor(model_inputs_and_labels.labels, device)
         logits, posteriors, loss = self._compute_model_output_and_loss(model_inputs_and_labels, rank, device)
-        gathered_logits = gather_tensor(logits) if not self.model_config.use_ddp else logits
+        if self.model_config.use_distributed_data_parallel:
+            gathered_logits = logits
+        else:
+            gathered_logits = gather_tensor(logits)
         if self.in_training_mode:
             single_optimizer_step(loss,
                                   self.train_val_params.optimizer,
@@ -398,7 +401,10 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                 logits, posteriors = self.get_logits_and_posteriors(
                     *model_inputs_and_labels.model_inputs,
                     use_mean_teacher_model=True)
-                gathered_logits = gather_tensor(logits) if not self.model_config.use_ddp else logits
+                if self.model_config.use_distributed_data_parallel:
+                    gathered_logits = logits
+                else:
+                    gathered_logits = gather_tensor(logits)
 
         # Autocast may have returned float16 tensors. Documentation suggests to simply cast back to float32.
         # If tensor was already float32, no overhead is incurred.

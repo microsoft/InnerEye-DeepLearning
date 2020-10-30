@@ -59,7 +59,7 @@ def model_train(config: ModelConfigBase,
     # set the random seed for all libraries
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
 
-    if config.use_ddp:
+    if config.use_distributed_data_parallel:
 
         world_size = get_global_size(config)
         print(f"Starting distributed training with {world_size} process(es)")
@@ -104,7 +104,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
     local_rank = get_local_rank() if is_aml_mpi_run(config) else global_rank  # For 1 machine, global_rank = local_rank
     device = determine_device(local_rank)
 
-    if config.use_ddp:
+    if config.use_distributed_data_parallel:
         world_size = get_global_size(config)
         print(f"Running distributed training on device with global rank {global_rank} and local rank {local_rank}")
         init_process_group(
@@ -123,7 +123,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
     # Create the train loader and validation loader to load images from the dataset
     data_loaders = config.create_data_loaders()
 
-    if config.use_ddp:
+    if config.use_distributed_data_parallel:
         train_dataset = data_loaders[ModelExecutionMode.TRAIN].dataset
         len_dataset = len(train_dataset)
         assert 2 * len_dataset >= world_size, f"2* len(dataset) (={2*len_dataset}) must be >= num GPUs (={world_size})"
@@ -193,7 +193,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
         logging.info("Starting epoch {}".format(epoch))
         save_epoch = config.should_save_epoch(epoch) and models_and_optimizer.optimizer is not None
 
-        if config.use_ddp:
+        if config.use_distributed_data_parallel:
             # set epoch for DistributedSampler to make shuffling work properly
             data_loaders[ModelExecutionMode.TRAIN].sampler.set_epoch(epoch)
 
@@ -270,7 +270,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
         # stop the resource monitoring process
         resource_monitor.kill()
 
-    if config.use_ddp:
+    if config.use_distributed_data_parallel:
         destroy_process_group()
 
     # return model_training_results

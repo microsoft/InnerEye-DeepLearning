@@ -168,7 +168,7 @@ class SegmentationForwardPass:
             single_optimizer_step(loss, self.optimizer, self.gradient_scaler)
 
         # Aggregate data parallel logits if multiple hardware are used in forward pass
-        if isinstance(logits, list) and not self.config.use_ddp:
+        if isinstance(logits, list) and not self.config.use_distributed_data_parallel:
             # When using multiple GPUs, logits is a list of tensors. Gather will concatenate them
             # across the first dimension, and move them to GPU0.
             logits = torch.nn.parallel.gather(logits, target_device=0)

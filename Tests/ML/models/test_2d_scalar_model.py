@@ -29,7 +29,6 @@ def test_train_2d_classification_model(test_output_dirs: TestOutputDirectories,
     config.set_output_to(test_output_dirs.root_dir)
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
-    config.use_distributed_data_parallel = False
     config.use_mixed_precision = use_mixed_precision
     config.save_start_epoch = 2
     config.save_step_epochs = 2

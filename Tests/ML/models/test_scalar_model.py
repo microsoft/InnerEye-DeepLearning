@@ -48,7 +48,6 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     config = ClassificationModelForTesting()
     config.set_output_to(test_output_dirs.root_dir)
     # Train for 4 epochs, checkpoints at epochs 2 and 4
-    config.use_distributed_data_parallel = False
     config.num_epochs = 4
     config.use_mixed_precision = use_mixed_precision
     config.save_start_epoch = 2
@@ -233,7 +232,6 @@ def test_runner1(test_output_dirs: TestOutputDirectories) -> None:
             "--random_seed", str(set_from_commandline),
             "--non_image_feature_channels", scalar1,
             "--output_to", output_root,
-            "--use_distributed_data_parallel", False
             ]
     with mock.patch("sys.argv", args):
         config, _ = runner.run(project_root=fixed_paths.repository_root_directory(),
@@ -257,7 +255,6 @@ def test_runner2(test_output_dirs: TestOutputDirectories) -> None:
             "--model", "DummyClassification",
             "--train", "True",
             "--output_to", output_root,
-            "--use_distributed_data_parallel", False
             ]
     with mock.patch("sys.argv", args):
         config, _ = runner.run(project_root=fixed_paths.repository_root_directory(),

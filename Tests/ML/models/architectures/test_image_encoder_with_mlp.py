@@ -184,7 +184,6 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
         encoder_dimensionality_reduction_factor=reduction_factor,
         aggregation_type=aggregation_type,
         scan_size=(6, 64, 60),
-        use_distributed_data_parallel=False
     )
 
     if kernel_size_per_encoding_block:

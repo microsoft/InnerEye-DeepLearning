@@ -139,8 +139,8 @@ class ModelAndInfo:
         """
         device = determine_device(rank)
 
-        use_ddp = config.use_gpu and config.use_ddp
-        if use_ddp:
+        use_distributed_data_parallel = config.use_gpu and config.use_distributed_data_parallel
+        if use_distributed_data_parallel:
             if model_execution_mode == ModelExecutionMode.TRAIN:
                 model = model.to(device)
                 model = DistributedDataParallelModel(model, device_ids=[rank])
@@ -202,7 +202,7 @@ class ModelAndInfo:
                                               checkpoint_path=self.checkpoint_path,
                                               key_in_state_dict=ModelAndInfo.MODEL_STATE_DICT_KEY,
                                               use_gpu=self.config.use_gpu,
-                                              use_distributed_data_parallel=self.config.use_ddp)
+                                              use_distributed_data_parallel=self.config.use_distributed_data_parallel)
 
         logging.info(f"Loaded model from checkpoint (epoch: {epoch})")
         self.checkpoint_epoch = epoch
@@ -294,7 +294,7 @@ class ModelAndInfo:
                                               checkpoint_path=self.checkpoint_path,
                                               key_in_state_dict=ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY,
                                               use_gpu=self.config.use_gpu,
-                                              use_distributed_data_parallel=self.config.use_ddp)
+                                              use_distributed_data_parallel=self.config.use_distributed_data_parallel)
 
         logging.info(f"Loaded mean teacher model from checkpoint (epoch: {epoch})")
         self.checkpoint_epoch = epoch

@@ -554,7 +554,6 @@ S4,0,True,4,40,M2,B1
         train_batch_size=2,
         should_validate=False,
         shuffle=False,
-        use_distributed_data_parallel=False
     )
     config.read_dataset_if_needed()
     df = config.dataset_data_frame
