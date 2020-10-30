@@ -250,7 +250,7 @@ def test_get_checkpoints_to_test(test_output_dirs: TestOutputDirectories) -> Non
 
     checkpoint_and_paths = manage_recovery.get_checkpoints_to_test()
 
-    assert  checkpoint_and_paths
+    assert checkpoint_and_paths
     assert len(checkpoint_and_paths) == 2
     assert checkpoint_and_paths[0].epoch == 1
     assert checkpoint_and_paths[0].checkpoint_paths == [create_checkpoint_path(path=Path(config.checkpoint_folder)
