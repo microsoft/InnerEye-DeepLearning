@@ -57,11 +57,11 @@ def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: 
 
     expected_checkpoint_roots = [Path(config.checkpoint_folder) / DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.split(":")[1]
                                  / str(i) for i in range(3)]
-    expected_paths = [[create_checkpoint_path(path=expected_checkpoint_root,
-                                              epoch=epoch) for epoch in [1, 2]
-                      for expected_checkpoint_root in expected_checkpoint_roots]]
+    expected_path_lists = [[create_checkpoint_path(path=expected_checkpoint_root,
+                                              epoch=epoch) for epoch in [1, 2]]
+                      for expected_checkpoint_root in expected_checkpoint_roots]
     assert set(checkpoint_handler.run_recovery.checkpoints_roots) == set(expected_checkpoint_roots)
-    for path_list in expected_paths:
+    for path_list in expected_path_lists:
         for path in path_list:
             assert Path(path).is_file()
 
@@ -161,6 +161,8 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
     expected_checkpoint = create_checkpoint_path(path=Path(config.checkpoint_folder)
                                                       / DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
+    assert checkpoint
+    assert checkpoint.checkpoint_paths
     assert len(checkpoint.checkpoint_paths) == 1
     assert expected_checkpoint == checkpoint.checkpoint_paths[0]
     assert checkpoint.epoch == 1
@@ -172,6 +174,8 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
                                                        / DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.split(":")[1] / str(i), epoch=1)
                             for i in range(3)]
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
+    assert checkpoint
+    assert checkpoint.checkpoint_paths
     assert len(checkpoint.checkpoint_paths) == 3
     assert set(expected_checkpoints) == set(checkpoint.checkpoint_paths)
     assert checkpoint.epoch == 1
@@ -190,10 +194,12 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
 
     # Should work for epoch 1
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
-    assert len(checkpoint.checkpoint_paths) == 1
     expected_checkpoint = create_checkpoint_path(path=Path(config.checkpoint_folder)
                                                       / DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)
-    assert expected_checkpoint == checkpoint.checkpoint_paths[0]
+    assert checkpoint
+    assert checkpoint.checkpoint_paths
+    assert len(checkpoint.checkpoint_paths) == 1
+    assert checkpoint.checkpoint_paths[0] == expected_checkpoint
     assert checkpoint.epoch == 1
 
     # Copy over checkpoints to make it look like training has happened
@@ -203,6 +209,8 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
 
     # Should now work for epoch 2
     checkpoint = manage_recovery.get_checkpoint_from_epoch(2)
+    assert checkpoint
+    assert checkpoint.checkpoint_paths
     assert len(checkpoint.checkpoint_paths) == 1
     assert expected_checkpoint == checkpoint.checkpoint_paths[0]
     assert checkpoint.epoch == 2
@@ -224,6 +232,7 @@ def test_get_checkpoints_to_test(test_output_dirs: TestOutputDirectories) -> Non
     config.local_weights_path = local_weights_path
     manage_recovery.discover_and_download_checkpoints_from_previous_runs()
     checkpoint_and_paths = manage_recovery.get_checkpoints_to_test()
+    assert checkpoint_and_paths
     assert len(checkpoint_and_paths) == 1
     assert checkpoint_and_paths[0].epoch == 0
     assert checkpoint_and_paths[0].checkpoint_paths == [manage_recovery.model_config.outputs_folder / WEIGHTS_FILE]
@@ -241,6 +250,7 @@ def test_get_checkpoints_to_test(test_output_dirs: TestOutputDirectories) -> Non
 
     checkpoint_and_paths = manage_recovery.get_checkpoints_to_test()
 
+    assert  checkpoint_and_paths
     assert len(checkpoint_and_paths) == 2
     assert checkpoint_and_paths[0].epoch == 1
     assert checkpoint_and_paths[0].checkpoint_paths == [create_checkpoint_path(path=Path(config.checkpoint_folder)
