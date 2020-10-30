@@ -132,8 +132,8 @@ class CheckpointHandler:
     def get_checkpoints_to_test(self) -> Optional[List[CheckPointPathsAndEpoch]]:
 
         test_epochs = self.model_config.get_test_epochs()
-        # Model was not trained, so look for checkpoints in run recovery or local weights path
-        if self.run_recovery:
+        # If recovery object exists, or model was trained, look for checkpoints by epoch
+        if self.run_recovery or self.continued_training:
             checkpoints = []
             for epoch in test_epochs:
                 epoch_checkpoints = self.get_checkpoint_from_epoch(epoch)
@@ -141,6 +141,7 @@ class CheckpointHandler:
                     checkpoints.append(epoch_checkpoints)
             return checkpoints if checkpoints else None
         elif self.local_weights_path and not self.continued_training:
+        # No recovery object and model was not trained, check if there is a local weight path.
             if self.local_weights_path.exists():
                 logging.info(f"Using model weights at {self.local_weights_path} to initialize model")
                 return [CheckpointHandler.CheckPointPathsAndEpoch(epoch=0,

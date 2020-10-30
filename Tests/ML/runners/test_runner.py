@@ -34,12 +34,13 @@ def test_model_inference_train_and_test(test_output_dirs: TestOutputDirectories,
     config.set_output_to(test_output_dirs.root_dir)
     config.local_dataset = full_ml_test_data_path()
 
-    # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
+    # To make it seem like there was a training run before this, copy checkpoints into the checkpoints folder.
     stored_checkpoints = full_ml_test_data_path("checkpoints")
     shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
 
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=Path(test_output_dirs.root_dir))
+    checkpoint_handler.additional_training_done()
     result, _, _ = MLRunner(config).model_inference_train_and_test(checkpoint_handler=checkpoint_handler)
     if result is None:
         raise ValueError("Error result cannot be None")
