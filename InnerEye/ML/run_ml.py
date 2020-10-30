@@ -5,9 +5,6 @@
 import copy
 import logging
 from pathlib import Path
-import requests
-import os
-import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -15,7 +12,6 @@ import torch.multiprocessing
 from azureml.core import Run, Workspace
 from azureml.core.model import Model
 from azureml.data import FileDataset
-from urllib.parse import urlparse
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import INPUT_DATA_KEY, get_or_create_dataset
@@ -31,7 +27,7 @@ from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_sec
 from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod, WEIGHTS_FILE
+from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -286,15 +282,15 @@ class MLRunner:
         # configure recovery container if provided
         manage_recovery = ManageRecovery(model_config=self.model_config,
                                          azure_config=self.azure_config,
+                                         project_root=self.project_root,
                                          run_context=RUN_CONTEXT)
+        manage_recovery.discover_and_download_checkpoints()
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
         if not self.azure_config.register_model_only_for_epoch:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
             self.model_config.local_dataset = self.mount_or_download_dataset()
-            if self.model_config.weights_url or self.model_config.local_weights_path:
-                self.model_config.local_weights_path = self.get_and_modify_local_weights()
             self.model_config.write_args_file()
             logging.info(str(self.model_config))
             # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
@@ -484,8 +480,8 @@ class MLRunner:
                                  best_epoch_dice: float,
                                  model_proc: ModelProcessing) -> None:
 
-        checkpoint_paths = manage_recovery.get_checkpoint_from_epoch(epoch=best_epoch)
-        if not checkpoint_paths:
+        checkpoint_path_and_epoch = manage_recovery.get_checkpoint_from_epoch(epoch=best_epoch)
+        if not checkpoint_path_and_epoch or not checkpoint_path_and_epoch.checkpoint_paths:
             # No point continuing, since no checkpoints were found
             logging.warning("Abandoning model registration - no valid checkpoint paths found")
             return
@@ -501,7 +497,7 @@ class MLRunner:
                 run=run_context,
                 best_epoch=best_epoch,
                 best_epoch_dice=best_epoch_dice,
-                checkpoint_paths=checkpoint_paths,
+                checkpoint_paths=checkpoint_path_and_epoch.checkpoint_paths,
                 model_proc=model_proc)
 
     def try_compare_scores_against_baselines(self, model_proc: ModelProcessing) -> None:
@@ -680,50 +676,3 @@ class MLRunner:
                         train_metrics=train_metrics, run_context=run_context)  # type: ignore
 
         return test_metrics, val_metrics, train_metrics
-
-    def download_weights(self) -> Path:
-        target_folder = self.project_root / fixed_paths.MODEL_WEIGHTS_DIR_NAME
-        target_folder.mkdir(exist_ok=True)
-
-        url = self.model_config.weights_url
-
-        # assign the same filename as in the download url if possible, so that we can check for duplicates
-        # If that fails, map to a random uuid
-        file_name = os.path.basename(urlparse(url).path) or str(uuid.uuid4().hex)
-        result_file = target_folder / file_name
-
-        # only download if hasn't already been downloaded
-        if result_file.exists():
-            logging.info(f"File already exists, skipping download: {result_file}")
-            return result_file
-
-        logging.info(f"Downloading weights from URL {url}")
-
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
-        with open(result_file, "wb") as file:
-            for chunk in response.iter_content(chunk_size=1024):
-                file.write(chunk)
-
-        return result_file
-
-    def get_local_weights_path_or_download(self) -> Optional[Path]:
-        if self.model_config.local_weights_path:
-            weights_path = self.model_config.local_weights_path
-        elif self.model_config.weights_url:
-            weights_path = self.download_weights()
-        else:
-            raise ValueError("Cannot download/modify weights - neither local_weights_path nor weights_url is set.")
-
-        return weights_path
-
-    def get_and_modify_local_weights(self) -> Path:
-        weights_path = self.get_local_weights_path_or_download()
-
-        if not weights_path or weights_path.is_file():
-            raise FileNotFoundError(f"Could not find the weights file at {weights_path}")
-
-        modified_weights = self.model_config.modify_checkpoint(weights_path)
-        target_file = self.model_config.outputs_folder / WEIGHTS_FILE
-        torch.save(modified_weights, target_file)
-        return target_file

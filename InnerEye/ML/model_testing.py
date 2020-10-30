@@ -15,9 +15,8 @@ import numpy as np
 import os
 
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
-from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, ModelProcessing, \
-    empty_string_to_none, DataframeLogger, \
-    get_epoch_results_path, is_linux, logging_section, string_to_path
+from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, ModelProcessing, DataframeLogger, \
+    get_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config, ScalarMetricsDict
 from InnerEye.ML import metrics, plotting
@@ -89,14 +88,21 @@ def segmentation_model_test(config: SegmentationModelBase,
     :return: InferenceMetric object that contains metrics related for all of the checkpoint epochs.
     """
     results: Dict[int, float] = {}
-    for epoch in config.get_test_epochs():
+    checkpoints_to_test = manage_recovery.get_checkpoints_to_test()
+
+    if not checkpoints_to_test:
+        raise ValueError("There were no checkpoints available for model testing.")
+
+    for checkpoint_paths_and_epoch in checkpoints_to_test:
+        epoch = checkpoint_paths_and_epoch.epoch
+        checkpoint_paths = checkpoint_paths_and_epoch.checkpoint_paths
         epoch_results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc)
         # save the datasets.csv used
         config.write_dataset_files(root=epoch_results_folder)
         epoch_and_split = "epoch {} {} set".format(epoch, data_split.value)
         epoch_dice_per_image = segmentation_model_test_epoch(config=copy.deepcopy(config),
                                                              data_split=data_split,
-                                                             test_epoch=epoch,
+                                                             checkpoint_paths=checkpoint_paths,
                                                              results_folder=epoch_results_folder,
                                                              epoch_and_split=epoch_and_split,
                                                              manage_recovery=manage_recovery)
@@ -117,7 +123,7 @@ def segmentation_model_test(config: SegmentationModelBase,
 
 def segmentation_model_test_epoch(config: SegmentationModelBase,
                                   data_split: ModelExecutionMode,
-                                  test_epoch: int,
+                                  checkpoint_paths: List[Path],
                                   results_folder: Path,
                                   epoch_and_split: str,
                                   manage_recovery: ManageRecovery) -> Optional[List[float]]:
@@ -150,7 +156,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
 
     ds = config.get_torch_dataset_for_inference(data_split)
 
-    inference_pipeline = create_inference_pipeline(config=config, epoch=test_epoch, manage_recovery=manage_recovery)
+    inference_pipeline = create_inference_pipeline(config=config, checkpoint_paths=checkpoint_paths)
 
     if inference_pipeline is None:
         # This will happen if there is no checkpoint for the given epoch, in either the recovered run (if any) or
@@ -347,8 +353,7 @@ def store_run_information(results_folder: Path,
 
 
 def create_inference_pipeline(config: ModelConfigBase,
-                              epoch: int,
-                              manage_recovery: ManageRecovery) -> Optional[InferencePipelineBase]:
+                              checkpoint_paths: Optional[List[Path]]) -> Optional[InferencePipelineBase]:
     """
     If multiple checkpoints are found in run_recovery then create EnsemblePipeline otherwise InferencePipeline.
     If no checkpoint files exist in the run recovery or current run checkpoint folder, None will be returned.
@@ -357,7 +362,6 @@ def create_inference_pipeline(config: ModelConfigBase,
     :param run_recovery: RunRecovery data if applicable
     :return: FullImageInferencePipelineBase or ScalarInferencePipelineBase
     """
-    checkpoint_paths = manage_recovery.get_checkpoint_from_epoch(epoch=epoch)
     if not checkpoint_paths:
         return None
 
@@ -399,10 +403,9 @@ def classification_model_test(config: ScalarModelBase,
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
 
-    def test_epoch(test_epoch: int, manage_recovery: ManageRecovery) -> Optional[MetricsDict]:
+    def test_epoch(checkpoint_paths: List[Path], manage_recovery: ManageRecovery) -> Optional[MetricsDict]:
         pipeline = create_inference_pipeline(config=config,
-                                             epoch=test_epoch,
-                                             manage_recovery=manage_recovery)
+                                             checkpoint_paths=checkpoint_paths)
 
         if pipeline is None:
             return None
@@ -433,8 +436,16 @@ def classification_model_test(config: ScalarModelBase,
         return metrics_dict
 
     results: Dict[int, MetricsDict] = {}
-    for epoch in config.get_test_epochs():
-        epoch_result = test_epoch(test_epoch=epoch, manage_recovery=manage_recovery)
+    checkpoints_to_test = manage_recovery.get_checkpoints_to_test()
+
+    if not checkpoints_to_test:
+        raise ValueError("There were no checkpoints available for model testing.")
+
+    for checkpoint_paths_and_epoch in checkpoints_to_test:
+        epoch = checkpoint_paths_and_epoch.epoch
+        checkpoint_paths = checkpoint_paths_and_epoch.checkpoint_paths
+
+        epoch_result = test_epoch(checkpoint_paths=checkpoint_paths, manage_recovery=manage_recovery)
         if epoch_result is None:
             logging.warning("There is no checkpoint file for epoch {}".format(epoch))
         else:

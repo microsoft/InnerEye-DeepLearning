@@ -94,7 +94,7 @@ def model_train(config: ModelConfigBase, manage_recovery: ManageRecovery) -> Mod
 
     # Create optimizer
     optimizer_loaded = models_and_optimizer.try_create_optimizer_and_load_from_checkpoint()
-    if not optimizer_loaded and config.start_epoch > 0:
+    if not optimizer_loaded and manage_recovery.should_load_optimizer_checkpoint():
         raise ValueError("There was no checkpoint file available for the optimizer for given start_epoch {}"
                          .format(config.start_epoch))
 

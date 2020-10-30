@@ -118,16 +118,12 @@ def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
 def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
                                                  checkpoint_folder: str,
                                                  test_output_dirs: TestOutputDirectories) -> None:
-    config.set_output_to(test_output_dirs.root_dir)
-    # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
-    stored_checkpoints = full_ml_test_data_path(checkpoint_folder)
-    shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
-    # no pipeline created when checkpoint for epoch does not exist
-    manage_recovery = ManageRecovery(azure_config=get_default_azure_config(), model_config=config)
-    assert create_inference_pipeline(config, 10, manage_recovery=manage_recovery) is None
+    # no pipeline created when checkpoint for epoch is None
+    assert create_inference_pipeline(config, None) is None
+    # no pipeline created when checkpoint path does not exist
+    assert create_inference_pipeline(config, [Path("nonexist")]) is None
 
 
-@pytest.mark.parametrize("with_run_recovery", [False, True])
 @pytest.mark.parametrize(("config", "checkpoint_folder", "inference_type", "ensemble_type"),
                          [(DummyModel(), "checkpoints", InferencePipeline, EnsemblePipeline),
                           (ClassificationModelForTesting(mean_teacher_model=False),
@@ -137,8 +133,7 @@ def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
                            "classification_data_generated_random/checkpoints",
                            ScalarInferencePipeline, ScalarEnsemblePipeline)
                           ])
-def test_create_inference_pipeline(with_run_recovery: bool,
-                                   config: ModelConfigBase,
+def test_create_inference_pipeline(config: ModelConfigBase,
                                    checkpoint_folder: str,
                                    inference_type: type,
                                    ensemble_type: type,
@@ -148,13 +143,5 @@ def test_create_inference_pipeline(with_run_recovery: bool,
     stored_checkpoints = full_ml_test_data_path(checkpoint_folder)
     shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
 
-    if with_run_recovery:
-        run_recovery: Optional[RunRecovery] = RunRecovery(checkpoints_roots=[stored_checkpoints])
-    else:
-        run_recovery = None
-    assert isinstance(create_inference_pipeline(config, 1, run_recovery), inference_type)
-
-    # test for ensemble pipeline if run_recovery is enabled
-    if with_run_recovery:
-        run_recovery = RunRecovery(checkpoints_roots=[stored_checkpoints] * 2)
-        assert isinstance(create_inference_pipeline(config, 1, run_recovery), ensemble_type)
+    assert isinstance(create_inference_pipeline(config, [stored_checkpoints]), inference_type)
+    assert isinstance(create_inference_pipeline(config, [stored_checkpoints] * 2), ensemble_type)

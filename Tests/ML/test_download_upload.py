@@ -4,11 +4,8 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import pytest
-import os
-import torch
 
 from pathlib import Path
-from urllib.parse import urlparse
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run, get_results_blob_path
@@ -21,12 +18,8 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.run_recovery import RunRecovery
-from InnerEye.ML.deep_learning_config import WEIGHTS_FILE
 from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
 from Tests.ML.util import get_default_azure_config
-from Tests.ML.configs.DummyModel import DummyModel
-
-EXTERNAL_WEIGHTS_URL_EXAMPLE = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
 
 logging_to_stdout(logging.DEBUG)
 
@@ -175,109 +168,3 @@ def test_download_blobxfer(test_output_dirs: TestOutputDirectories, is_file: boo
         assert otherfile.exists()
         assert otherfile.read_text().strip() == "folder1.txt"
         assert not folder2.exists()
-
-
-def test_download_model_weights(test_output_dirs: TestOutputDirectories) -> None:
-
-    # Download a sample ResNet model from a URL given in the Pytorch docs
-    # The downloaded model does not match the architecture, which is okay since we are only testing the download here.
-
-    model_config = DummyModel(weights_url=EXTERNAL_WEIGHTS_URL_EXAMPLE)
-    azure_config = get_default_azure_config()
-    runner = MLRunner(model_config, azure_config)
-    runner.project_root = Path(test_output_dirs.root_dir)
-
-    result_path = runner.download_weights()
-    assert result_path.is_file()
-
-
-def test_get_local_weights_path_or_download(test_output_dirs: TestOutputDirectories) -> None:
-    config = ModelConfigBase(should_validate=False)
-    azure_config = get_default_azure_config()
-    runner = MLRunner(config, azure_config)
-    runner.project_root = Path(test_output_dirs.root_dir)
-
-    # If the model has neither local_weights_path or weights_url set, should fail.
-    with pytest.raises(ValueError):
-        runner.get_local_weights_path_or_download()
-
-    # If local_weights_path folder exists, get_local_weights_path_or_download should not do anything.
-    local_weights_path = runner.project_root / "exist.pth"
-    local_weights_path.touch()
-    runner.model_config.local_weights_path = local_weights_path
-    returned_weights_path = runner.get_local_weights_path_or_download()
-    assert local_weights_path == returned_weights_path
-
-    # Pointing the model to a URL should trigger a download
-    runner.model_config.local_weights_path = None
-    runner.model_config.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
-    downloaded_weights = runner.get_local_weights_path_or_download()
-    # Download goes into <project_root> / "modelweights" / "resnet18-5c106cde.pth"
-    expected_path = runner.project_root / fixed_paths.MODEL_WEIGHTS_DIR_NAME / \
-                    os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)
-    assert downloaded_weights
-    assert downloaded_weights.is_file()
-    assert expected_path == downloaded_weights
-
-    # try again, should not re-download
-    modified_time = downloaded_weights.stat().st_mtime
-    downloaded_weights_new = runner.get_local_weights_path_or_download()
-    assert downloaded_weights_new
-    assert downloaded_weights_new.stat().st_mtime == modified_time
-
-
-def test_get_and_modify_local_weights(test_output_dirs: TestOutputDirectories) -> None:
-
-    config = ModelConfigBase(should_validate=False)
-    azure_config = get_default_azure_config()
-    runner = MLRunner(config, azure_config)
-    runner.project_root = Path(test_output_dirs.root_dir)
-    runner.model_config.set_output_to(test_output_dirs.root_dir)
-    runner.model_config.outputs_folder.mkdir()
-
-    # If the model has neither local_weights_path or weights_url set, should fail.
-    with pytest.raises(ValueError):
-        runner.get_and_modify_local_weights()
-
-    # Pointing the model to a local_weights_path that does not exist will raise an error.
-    runner.model_config.local_weights_path = runner.project_root / "non_exist"
-    with pytest.raises(FileNotFoundError):
-        runner.get_and_modify_local_weights()
-
-    # Test that weights are properly modified when a local_weights_path is set
-
-    # set a method to modify weights:
-    ModelConfigBase.modify_checkpoint = lambda self, path_to_checkpoint: {"modified": "local",  # type: ignore
-                                                                          "path": path_to_checkpoint}
-    # Set the local_weights_path to an empty file, which will be passed to modify_checkpoint
-    local_weights_path = runner.project_root / "exist.pth"
-    local_weights_path.touch()
-    runner.model_config.local_weights_path = local_weights_path
-    weights_path = runner.get_and_modify_local_weights()
-    expected_path = runner.model_config.outputs_folder / WEIGHTS_FILE
-    # read from weights_path and check that the dict has been written
-    assert weights_path.is_file()
-    assert expected_path == weights_path
-    read = torch.load(str(weights_path))
-    assert read.keys() == {"modified"} and read["modified"] == "local"
-    assert read.keys() == {"path"} and read["path"] == local_weights_path
-    # clean up
-    weights_path.unlink()
-
-    # Test that weights are properly modified when weights_url is set
-
-    # set a different method to modify weights, to avoid using old files from other tests:
-    ModelConfigBase.modify_checkpoint = lambda self, path_to_checkpoint: {"modified": "url",  # type: ignore
-                                                                          "path": path_to_checkpoint}
-    # Set the weights_url to the sample pytorch URL, which will be passed to modify_checkpoint
-    runner.model_config.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
-    weights_path = runner.get_and_modify_local_weights()
-    expected_path = runner.model_config.outputs_folder / WEIGHTS_FILE
-    # read from weights_path and check that the dict has been written
-    assert weights_path.is_file()
-    assert expected_path == weights_path
-    read = torch.load(str(weights_path))
-    assert read.keys() == {"modified"} and read["modified"] == "url"
-    assert read.keys() == {"path"} and read["path"] == runner.project_root / fixed_paths.MODEL_WEIGHTS_DIR_NAME / \
-                                                       os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)
-
