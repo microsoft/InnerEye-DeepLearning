@@ -214,7 +214,7 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         results = model_train(config, get_default_checkpoint_handler(model_config=config,
-                                                                     project_root=test_output_dirs.root_dir))
+                                                                     project_root=Path(test_output_dirs.root_dir)))
         assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
                == config.get_total_number_of_save_epochs()
 
@@ -381,7 +381,7 @@ def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) ->
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset(dataset_contents)
     results = model_train(config, get_default_checkpoint_handler(model_config=config,
-                                                                 project_root=test_output_dirs.root_dir))
+                                                                 project_root=Path(test_output_dirs.root_dir)))
 
     actual_train_loss = results.train_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
     actual_val_loss = results.val_results_per_epoch[-1].values()[MetricType.LOSS.value][0]

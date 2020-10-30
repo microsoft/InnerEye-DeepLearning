@@ -71,7 +71,8 @@ def test_non_image_encoder(test_output_dirs: TestOutputDirectories,
     config.max_batch_grad_cam = 1
     config.validate()
     # run model training
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config, project_root=test_output_dirs.root_dir)
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=Path(test_output_dirs.root_dir))
     model_train(config, checkpoint_handler=checkpoint_handler)
     # run model inference
     checkpoint_handler.additional_training_done()

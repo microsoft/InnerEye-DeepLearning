@@ -46,6 +46,7 @@ def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: 
     expected_checkpoint_root = Path(config.checkpoint_folder) / DEFAULT_RUN_RECOVERY_ID.split(":")[1]
     expected_paths = [create_checkpoint_path(path=expected_checkpoint_root,
                                              epoch=epoch) for epoch in [1, 2, 3, 4, 20]]
+    assert checkpoint_handler.run_recovery
     assert checkpoint_handler.run_recovery.checkpoints_roots == [expected_checkpoint_root]
     for path in expected_paths:
         assert Path(path).is_file()

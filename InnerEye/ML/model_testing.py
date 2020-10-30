@@ -103,8 +103,7 @@ def segmentation_model_test(config: SegmentationModelBase,
                                                              data_split=data_split,
                                                              checkpoint_paths=checkpoint_paths,
                                                              results_folder=epoch_results_folder,
-                                                             epoch_and_split=epoch_and_split,
-                                                             checkpoint_handler=checkpoint_handler)
+                                                             epoch_and_split=epoch_and_split)
         if epoch_dice_per_image is None:
             logging.warning("There is no checkpoint file for epoch {}".format(epoch))
         else:
@@ -122,10 +121,9 @@ def segmentation_model_test(config: SegmentationModelBase,
 
 def segmentation_model_test_epoch(config: SegmentationModelBase,
                                   data_split: ModelExecutionMode,
-                                  checkpoint_paths: List[Path],
+                                  checkpoint_paths: Optional[List[Path]],
                                   results_folder: Path,
-                                  epoch_and_split: str,
-                                  checkpoint_handler: CheckpointHandler) -> Optional[List[float]]:
+                                  epoch_and_split: str) -> Optional[List[float]]:
     """
     The main testing loop for a given epoch. It loads the model and datasets, then proceeds to test the model.
     Returns a list with an entry for each image in the dataset. The entry is the average Dice score,
@@ -402,7 +400,7 @@ def classification_model_test(config: ScalarModelBase,
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
 
-    def test_epoch(checkpoint_paths: List[Path], checkpoint_handler: CheckpointHandler) -> Optional[MetricsDict]:
+    def test_epoch(checkpoint_paths: Optional[List[Path]]) -> Optional[MetricsDict]:
         pipeline = create_inference_pipeline(config=config,
                                              checkpoint_paths=checkpoint_paths)
 
@@ -444,7 +442,7 @@ def classification_model_test(config: ScalarModelBase,
         epoch = checkpoint_paths_and_epoch.epoch
         checkpoint_paths = checkpoint_paths_and_epoch.checkpoint_paths
 
-        epoch_result = test_epoch(checkpoint_paths=checkpoint_paths, checkpoint_handler=checkpoint_handler)
+        epoch_result = test_epoch(checkpoint_paths=checkpoint_paths)
         if epoch_result is None:
             logging.warning("There is no checkpoint file for epoch {}".format(epoch))
         else:

@@ -398,7 +398,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                 "The adam_betas parameter should be the coefficients used for computing running averages of "
                 "gradient and its square")
 
-        if not self.azure_dataset_id and not self.local_dataset:
+        if self.azure_dataset_id is None and self.local_dataset is None:
             raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
 
         if self.weights_url and self.local_weights_path:

@@ -42,7 +42,7 @@ class CheckpointHandler:
 
         self.continued_training = False
 
-    def discover_and_download_checkpoint_from_sibling_runs(self, outputsubdir_name: str):
+    def discover_and_download_checkpoint_from_sibling_runs(self, outputsubdir_name: str) -> None:
         self.run_recovery = RunRecovery.download_checkpoints_from_run(self.model_config, self.run_context,
                                                                       output_subdir_name=outputsubdir_name)
         # Check paths are good, just in case
@@ -50,7 +50,7 @@ class CheckpointHandler:
             if not path.is_dir():
                 raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
 
-    def discover_and_download_checkpoints_from_previous_runs(self):
+    def discover_and_download_checkpoints_from_previous_runs(self) -> None:
         if self.azure_config.run_recovery_id:
             self.run_recovery = RunRecovery.download_checkpoints_from_recovery_run(
                 self.azure_config, self.model_config, self.run_context)
@@ -131,7 +131,7 @@ class CheckpointHandler:
 
     def get_checkpoints_to_test(self) -> Optional[List[CheckPointPathsAndEpoch]]:
 
-        test_epochs = self.model_config.epochs_to_test
+        test_epochs = self.model_config.get_test_epochs()
         # Model was not trained, so look for checkpoints in run recovery or local weights path
         if self.run_recovery:
             checkpoints = []
@@ -201,5 +201,5 @@ class CheckpointHandler:
         torch.save(modified_weights, target_file)
         return target_file
 
-    def should_load_optimizer_checkpoint(self):
+    def should_load_optimizer_checkpoint(self) -> bool:
         return self.model_config.start_epoch > 0

@@ -214,7 +214,7 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
     config.local_dataset = dataset_folder
     config.validate()
     model_train(config, checkpoint_handler=get_default_checkpoint_handler(model_config=config,
-                                                                          project_root=test_output_dirs.root_dir))
+                                                                          project_root=Path(test_output_dirs.root_dir)))
     # No further asserts here because the models are still in experimental state. Most errors would come
     # from having invalid model architectures, which would throw runtime errors during training.
 
