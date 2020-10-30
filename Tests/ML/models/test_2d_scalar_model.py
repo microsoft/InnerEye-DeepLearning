@@ -4,10 +4,11 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
-from typing import List
-
 import pytest
+
+from typing import List
 from more_itertools import flatten
+from pathlib import Path
 
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict

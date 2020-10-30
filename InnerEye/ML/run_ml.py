@@ -332,7 +332,7 @@ class MLRunner:
         """
         Run inference as required, and register the model, but not necessarily in that order:
         if we can identify the epoch to register at without running inference, we register first.
-        :param run_recovery: details of run specified by run_recovery_id
+        :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
         :param model_proc: whether we are running an ensemble model from within a child run with index 0. If we are,
         then outputs will be written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
         """

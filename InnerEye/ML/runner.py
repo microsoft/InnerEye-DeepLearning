@@ -224,8 +224,7 @@ class Runner:
         with logging_section("Downloading checkpoints from sibling runs"):
             checkpoint_handler = CheckpointHandler(model_config=self.model_config, azure_config=self.azure_config,
                                                    project_root=self.project_root, run_context=PARENT_RUN_CONTEXT)
-            checkpoint_handler.discover_and_download_checkpoint_from_sibling_runs(outputsubdir_name=
-                                                                                  OTHER_RUNS_SUBDIR_NAME)
+            checkpoint_handler.discover_and_download_checkpoint_from_sibling_runs(outputsubdir_name=OTHER_RUNS_SUBDIR_NAME)
 
         best_epoch = self.create_ml_runner().run_inference_and_register_model(checkpoint_handler=checkpoint_handler,
                                                                               model_proc=ModelProcessing.ENSEMBLE_CREATION)

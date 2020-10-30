@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import argparse
 import copy
 import logging
 from functools import partial
@@ -55,7 +54,7 @@ def model_test(config: ModelConfigBase,
     differ for model categories (classification, segmentation).
     :param config: The configuration of the model
     :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-    :param run_recovery: Run recovery data if applicable.
+    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     :param model_proc: whether we are testing an ensemble or single model; this affects where results are written.
     :return: The metrics that the model achieved on the given data set, or None if the data set is empty.
     """
@@ -83,7 +82,7 @@ def segmentation_model_test(config: SegmentationModelBase,
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
     :param config: The arguments object which has a valid random seed attribute.
     :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-    :param run_recovery: Run recovery data if applicable.
+    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetric object that contains metrics related for all of the checkpoint epochs.
     """
@@ -398,7 +397,7 @@ def classification_model_test(config: ScalarModelBase,
     :param config: The model configuration.
     :param data_split: The name of the folder to store the results inside each epoch folder in the outputs_dir,
                        used mainly in model evaluation using different dataset splits.
-    :param run_recovery: RunRecovery data if applicable
+    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
@@ -445,7 +444,7 @@ def classification_model_test(config: ScalarModelBase,
         epoch = checkpoint_paths_and_epoch.epoch
         checkpoint_paths = checkpoint_paths_and_epoch.checkpoint_paths
 
-        epoch_result = test_epoch(checkpoint_paths=checkpoint_paths, checkpoint_handler=manage_recovery)
+        epoch_result = test_epoch(checkpoint_paths=checkpoint_paths, checkpoint_handler=checkpoint_handler)
         if epoch_result is None:
             logging.warning("There is no checkpoint file for epoch {}".format(epoch))
         else:

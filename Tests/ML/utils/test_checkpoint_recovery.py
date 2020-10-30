@@ -26,7 +26,7 @@ from Tests.fixed_paths_for_tests import full_ml_test_data_path
 EXTERNAL_WEIGHTS_URL_EXAMPLE = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
 
 
-def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: TestOutputDirectories):
+def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: TestOutputDirectories) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
@@ -54,8 +54,8 @@ def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: 
     checkpoint_handler.azure_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
 
-    expected_checkpoint_roots = [Path(config.checkpoint_folder) / DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.split(":")[1] /
-                                 str(i) for i in range(3)]
+    expected_checkpoint_roots = [Path(config.checkpoint_folder) / DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.split(":")[1]
+                                 / str(i) for i in range(3)]
     expected_paths = [[create_checkpoint_path(path=expected_checkpoint_root,
                                               epoch=epoch) for epoch in [1, 2]
                       for expected_checkpoint_root in expected_checkpoint_roots]]
@@ -84,7 +84,7 @@ def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: 
     assert checkpoint_handler.local_weights_path == expected_path
 
 
-def test_get_recovery_path_train(test_output_dirs: TestOutputDirectories):
+def test_get_recovery_path_train(test_output_dirs: TestOutputDirectories) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
@@ -133,17 +133,17 @@ def test_get_recovery_path_train(test_output_dirs: TestOutputDirectories):
     stored_checkpoint = create_checkpoint_path(full_ml_test_data_path("checkpoints"), epoch=1)
     shutil.copyfile(str(stored_checkpoint), local_weights_path)
     config.local_weights_path = local_weights_path
-    manage_recovery.discover_and_download_checkpoints_from_previous_runs()
-    assert manage_recovery.local_weights_path == expected_path
+    checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
+    assert checkpoint_handler.local_weights_path == expected_path
     config.start_epoch = 0
-    assert manage_recovery.get_recovery_path_train() == expected_path
+    assert checkpoint_handler.get_recovery_path_train() == expected_path
     # Can't resume training from an external checkpoint
     config.start_epoch = 20
     with pytest.raises(ValueError):
-        manage_recovery.get_recovery_path_train()
+        checkpoint_handler.get_recovery_path_train()
 
 
-def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories):
+def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
@@ -157,8 +157,8 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories):
     # We have set a run_recovery_id now, so this should work
     manage_recovery.azure_config.run_recovery_id = DEFAULT_RUN_RECOVERY_ID
     manage_recovery.discover_and_download_checkpoints_from_previous_runs()
-    expected_checkpoint = create_checkpoint_path(path=Path(config.checkpoint_folder) /
-                                                      DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)
+    expected_checkpoint = create_checkpoint_path(path=Path(config.checkpoint_folder)
+                                                      / DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
     assert len(checkpoint.checkpoint_paths) == 1
     assert expected_checkpoint == checkpoint.checkpoint_paths[0]
@@ -167,8 +167,8 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories):
     # ensemble run recovery
     manage_recovery.azure_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
     manage_recovery.discover_and_download_checkpoints_from_previous_runs()
-    expected_checkpoints = [create_checkpoint_path(path=Path(config.checkpoint_folder) /
-                                                      DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.split(":")[1] / str(i), epoch=1)
+    expected_checkpoints = [create_checkpoint_path(path=Path(config.checkpoint_folder)
+                                                       / DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.split(":")[1] / str(i), epoch=1)
                             for i in range(3)]
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
     assert len(checkpoint.checkpoint_paths) == 3
@@ -190,8 +190,8 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories):
     # Should work for epoch 1
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
     assert len(checkpoint.checkpoint_paths) == 1
-    expected_checkpoint = create_checkpoint_path(path=Path(config.checkpoint_folder) /
-                                                      DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)
+    expected_checkpoint = create_checkpoint_path(path=Path(config.checkpoint_folder)
+                                                      / DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)
     assert expected_checkpoint == checkpoint.checkpoint_paths[0]
     assert checkpoint.epoch == 1
 
@@ -207,7 +207,7 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories):
     assert checkpoint.epoch == 2
 
 
-def test_get_checkpoints_to_test(test_output_dirs: TestOutputDirectories):
+def test_get_checkpoints_to_test(test_output_dirs: TestOutputDirectories) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
@@ -242,8 +242,8 @@ def test_get_checkpoints_to_test(test_output_dirs: TestOutputDirectories):
 
     assert len(checkpoint_and_paths) == 2
     assert checkpoint_and_paths[0].epoch == 1
-    assert checkpoint_and_paths[0].checkpoint_paths == [create_checkpoint_path(path=Path(config.checkpoint_folder) /
-                                                        DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)]
+    assert checkpoint_and_paths[0].checkpoint_paths == [create_checkpoint_path(path=Path(config.checkpoint_folder)
+                                                        / DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)]
     assert checkpoint_and_paths[1].epoch == 2
     assert checkpoint_and_paths[1].checkpoint_paths == [create_checkpoint_path(path=Path(config.checkpoint_folder),
                                                                                epoch=2)]

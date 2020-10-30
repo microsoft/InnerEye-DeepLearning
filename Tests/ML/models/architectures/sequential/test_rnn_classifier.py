@@ -380,7 +380,6 @@ def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) ->
     config.num_epochs = 2
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset(dataset_contents)
-    azure_config = get_default_azure_config()
     results = model_train(config, get_default_checkpoint_handler(model_config=config,
                                                                  project_root=test_output_dirs.root_dir))
 

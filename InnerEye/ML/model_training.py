@@ -2,16 +2,15 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import argparse
 import logging
 import os
 from time import time
-from typing import Tuple, TypeVar, Optional
+from typing import Tuple, TypeVar
 
 from torch.cuda.amp import GradScaler
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
-from InnerEye.Common.common_util import empty_string_to_none, logging_section
+from InnerEye.Common.common_util import logging_section
 from InnerEye.Common.metrics_dict import MetricsDict
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML import metrics
@@ -25,7 +24,6 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util
-from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
@@ -46,6 +44,7 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
     to train the model. If a checkpoint was specified, then it loads the checkpoint before resuming training.
 
     :param config: The arguments which specify all required information.
+    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading a previous checkpoint.
     """

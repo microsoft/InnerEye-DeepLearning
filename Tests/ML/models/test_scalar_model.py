@@ -48,7 +48,6 @@ def test_train_classification_model(test_output_dirs: TestOutputDirectories,
     logging_to_stdout(logging.DEBUG)
     config = ClassificationModelForTesting()
     config.set_output_to(test_output_dirs.root_dir)
-    azure_config = get_default_azure_config()
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=Path(test_output_dirs.root_dir))
     # Train for 4 epochs, checkpoints at epochs 2 and 4

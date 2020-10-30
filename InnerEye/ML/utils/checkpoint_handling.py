@@ -21,6 +21,9 @@ from InnerEye.Common import fixed_paths
 
 
 class CheckpointHandler:
+    """
+    This class handles which checkpoints are used to initialize the model during train or test time.
+    """
 
     @dataclass
     class CheckPointPathsAndEpoch:
@@ -147,7 +150,7 @@ class CheckpointHandler:
                                 f"cannot recover from {self.local_weights_path}")
                 return None
         else:
-            logging.warning(f"Could not find any run recovery object or local_weight_path to get checkpoints from")
+            logging.warning("Could not find any run recovery object or local_weight_path to get checkpoints from")
             return None
 
     def download_weights(self) -> Path:
