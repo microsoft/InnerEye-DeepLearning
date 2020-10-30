@@ -10,10 +10,10 @@ dependencies:
   - torchvision=0.7.0
   - pip:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
+      - azure-mgmt-resource==10.2.0
       - azureml-mlflow==1.17.0
       - azureml-sdk==1.17.0
       - azureml-tensorboard==1.17.0
-      - azure-mgmt-resource==15.0.0
       - azure-storage-blob==12.5.0
       - blobxfer==1.9.4
       - dataclasses-json==0.5.2
