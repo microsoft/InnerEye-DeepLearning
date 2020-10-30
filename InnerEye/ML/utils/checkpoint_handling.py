@@ -181,6 +181,9 @@ class CheckpointHandler:
         return result_file
 
     def get_local_weights_path_or_download(self) -> Optional[Path]:
+        """
+        Get the path to the local weights to use or download them and set local_weights_path
+        """
         if self.model_config.local_weights_path:
             weights_path = self.model_config.local_weights_path
         elif self.model_config.weights_url:
@@ -192,6 +195,9 @@ class CheckpointHandler:
         return weights_path
 
     def get_and_modify_local_weights(self) -> Path:
+        """
+        Download the checkpoint if needed and pass it to the modify_checkpoint function from the config.
+        """
         weights_path = self.get_local_weights_path_or_download()
 
         if not weights_path or not weights_path.is_file():
@@ -203,4 +209,7 @@ class CheckpointHandler:
         return target_file
 
     def should_load_optimizer_checkpoint(self) -> bool:
+        """
+        Returns true if the optimizer should be loaded from checkpoint. Looks at the model config to determine this.
+        """
         return self.model_config.start_epoch > 0

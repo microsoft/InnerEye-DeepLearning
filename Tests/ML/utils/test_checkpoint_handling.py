@@ -33,7 +33,7 @@ def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: 
 
     # No checkpoint handling options set.
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                     project_root=Path(test_output_dirs.root_dir))
+                                                        project_root=Path(test_output_dirs.root_dir))
 
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
     assert not checkpoint_handler.run_recovery

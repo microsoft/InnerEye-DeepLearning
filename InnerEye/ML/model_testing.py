@@ -128,12 +128,11 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     The main testing loop for a given epoch. It loads the model and datasets, then proceeds to test the model.
     Returns a list with an entry for each image in the dataset. The entry is the average Dice score,
     where the average is taken across all non-background structures in the image.
-    :param test_epoch: The last trained epoch of the model.
+    :param checkpoint_paths: Checkpoint paths to run inference on.
     :param config: The arguments which specify all required information.
     :param data_split: Is the model evaluated on train, test, or validation set?
     :param results_folder: The folder where to store the results
     :param epoch_and_split: A string that should uniquely identify the epoch and the data split (train/val/test).
-    :param run_recovery: Run recovery data if applicable.
     :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading the model.
     :return A list with the mean dice score (across all structures apart from background) for each image.
