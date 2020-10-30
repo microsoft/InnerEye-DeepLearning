@@ -39,6 +39,14 @@ class CheckpointHandler:
 
         self.continued_training = False
 
+    def discover_and_download_checkpoint_from_sibling_runs(self, outputsubdir_name: str):
+        self.run_recovery = RunRecovery.download_checkpoints_from_run(self.model_config, self.run_context,
+                                                                      output_subdir_name=outputsubdir_name)
+        # Check paths are good, just in case
+        for path in self.run_recovery.checkpoints_roots:
+            if not path.is_dir():
+                raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
+
     def discover_and_download_checkpoints_from_previous_runs(self):
         if self.azure_config.run_recovery_id:
             self.run_recovery = RunRecovery.download_checkpoints_from_recovery_run(
