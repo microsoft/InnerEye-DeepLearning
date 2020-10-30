@@ -57,7 +57,7 @@ steps:
   # the package needs. If --no-deps is omitted, this causes a weird package conflict with azure-storage-blob
   - bash: |
       source activate InnerEye
-      python setup.py install --no-deps
+      python setup.py develop --no-deps
     env:
       IS_DEV_PACKAGE: True
     failOnStderr: false
