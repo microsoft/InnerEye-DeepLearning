@@ -141,7 +141,7 @@ class CheckpointHandler:
                     checkpoints.append(epoch_checkpoints)
             return checkpoints if checkpoints else None
         elif self.local_weights_path and not self.continued_training:
-        # No recovery object and model was not trained, check if there is a local weight path.
+            # No recovery object and model was not trained, check if there is a local weight path.
             if self.local_weights_path.exists():
                 logging.info(f"Using model weights at {self.local_weights_path} to initialize model")
                 return [CheckpointHandler.CheckPointPathsAndEpoch(epoch=0,

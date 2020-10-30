@@ -13,7 +13,7 @@ from InnerEye.Common import common_util
 from InnerEye.Common.common_util import get_epoch_results_path
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML import model_testing
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, create_checkpoint_path
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -41,9 +41,6 @@ def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
     assert config.get_test_epochs() == [epoch]
     placeholder_dataset_id = "place_holder_dataset_id"
     config.azure_dataset_id = placeholder_dataset_id
-    # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
-    stored_checkpoints = full_ml_test_data_path("checkpoints")
-    shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
     transform = config.get_full_image_sample_transforms().test
     df = pd.read_csv(full_ml_test_data_path(DATASET_CSV_FILE_NAME))
     df = df[df.subject.isin([1, 2])]
@@ -53,6 +50,10 @@ def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
     execution_mode = ModelExecutionMode.TEST
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=Path(test_output_dirs.root_dir))
+    # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
+    stored_checkpoints = full_ml_test_data_path("checkpoints")
+    shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
+    checkpoint_handler.additional_training_done()
     inference_results = model_testing.segmentation_model_test(config,
                                                               data_split=execution_mode,
                                                               checkpoint_handler=checkpoint_handler)
@@ -144,5 +145,7 @@ def test_create_inference_pipeline(config: ModelConfigBase,
     stored_checkpoints = full_ml_test_data_path(checkpoint_folder)
     shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
 
-    assert isinstance(create_inference_pipeline(config, [stored_checkpoints]), inference_type)
-    assert isinstance(create_inference_pipeline(config, [stored_checkpoints] * 2), ensemble_type)
+    checkpoint_path = create_checkpoint_path(stored_checkpoints, epoch=1)
+
+    assert isinstance(create_inference_pipeline(config, [checkpoint_path]), inference_type)
+    assert isinstance(create_inference_pipeline(config, [checkpoint_path] * 2), ensemble_type)

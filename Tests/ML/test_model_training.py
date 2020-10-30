@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+import shutil
 from pathlib import Path
 from typing import Any, List
 
@@ -28,6 +29,7 @@ from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
+from InnerEye.ML.utils.run_recovery import RunRecovery
 
 from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.configs.DummyModel import DummyModel
@@ -344,5 +346,13 @@ def test_recover_training_mean_teacher_model(test_output_dirs: TestOutputDirecto
     # Restart training from previous run
     config.start_epoch = 2
     config.num_epochs = 3
+    # make if seem like run recovery objects have been downloaded
+    checkpoint_root = Path(config.checkpoint_folder) / "recovered"
+    shutil.copytree(config.checkpoint_folder, checkpoint_root)
+    checkpoint_handler.run_recovery = RunRecovery([checkpoint_root])
+
     model_train(config, checkpoint_handler=checkpoint_handler)
+    # remove recovery checkpoints
+    shutil.rmtree(checkpoint_root)
     assert len(os.listdir(config.checkpoint_folder)) == 2
+
