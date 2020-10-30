@@ -27,20 +27,29 @@ def get_global_rank() -> int:
 
 def get_global_size(config: ModelConfigBase) -> int:
     """
-    If running in AML, will return the total number of devices across all machines. Otherwise,
-    asssumes 1 machine only, and will return all devices on current machine
+    If running in AML, global size is the total number of devices across all machines. Otherwise,
+    asssumes 1 machine only, and will set global size as all devices on current machine. In both cases,
+    global size is the maximum possible number of devices, but we may use fewer, if specified in the config
     :return:
     """
+    max_world_size_from_config = config.workers_per_node * config.node_count
     if is_aml_mpi_run(config):
-        return int(os.environ['OMPI_COMM_WORLD_SIZE'])
-    return torch.cuda.device_count()
+        global_size = int(os.environ['OMPI_COMM_WORLD_SIZE'])
+    else:
+        global_size = torch.cuda.device_count()
+    return min(global_size, max_world_size_from_config)
 
 
 def get_local_size(config: ModelConfigBase) -> int:
-    """Get the number of devices on current machine (whether running in AML or locally)"""
+    """
+    Get the number of devices on current machine (whether running in AML or locally).In both cases,
+    local size is the maximum possible number of devices, but we may use fewer, if specified in the config
+    """
     if is_aml_mpi_run(config):
-        return int(os.environ['OMPI_COMM_WORLD_LOCAL_SIZE'])
-    return torch.cuda.device_count()
+        local_size = int(os.environ['OMPI_COMM_WORLD_LOCAL_SIZE'])
+    else:
+        local_size = torch.cuda.device_count()
+    return min(local_size, config.workers_per_node)
 
 
 def get_az_batch_master_node() -> Optional[str]:

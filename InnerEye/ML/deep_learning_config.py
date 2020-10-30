@@ -366,7 +366,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                      doc="Communication package to use for distributed training")
     distributed_training_init_method: str = param.String(default='env://',
                                                          doc="URL specifying where to find peer processes")
+
     use_distributed_data_parallel: bool = param.Boolean(True, doc="If True will attempt to use DDP")
+    workers_per_node: int = param.Integer(1, doc="The number of workers to assign per machine")
+    node_count: int = param.Integer(1, doc="The number of machines to run distributed training across")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__

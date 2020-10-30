@@ -62,6 +62,7 @@ def model_train(config: ModelConfigBase,
     if config.use_ddp:
 
         world_size = get_global_size(config)
+        print(f"Starting distributed training with {world_size} process(es)")
 
         if is_aml_mpi_run(config):
             # AzureML MPI has been instantiated - configuration handles rank
