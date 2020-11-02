@@ -98,8 +98,9 @@ def test_get_recovery_path_train(test_output_dirs: TestOutputDirectories) -> Non
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
 
     # We have not set a start_epoch but we are trying to use run_recovery, this should fail
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as ex:
         checkpoint_handler.get_recovery_path_train()
+        assert "Run recovery set, but start epoch is 0" in ex.value.args[0]
 
     # Run recovery with start epoch provided should succeed
     config.start_epoch = 20
@@ -110,8 +111,9 @@ def test_get_recovery_path_train(test_output_dirs: TestOutputDirectories) -> Non
     # set an ensemble run as recovery - not supported
     checkpoint_handler.azure_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as ex:
         checkpoint_handler.get_recovery_path_train()
+        assert "Found more than one checkpoint for epoch" in ex.value.args[0]
 
     # weights from local_weights_path and weights_url will be modified if needed and stored at this location
     expected_path = checkpoint_handler.model_config.outputs_folder / WEIGHTS_FILE
@@ -125,8 +127,9 @@ def test_get_recovery_path_train(test_output_dirs: TestOutputDirectories) -> Non
     assert checkpoint_handler.get_recovery_path_train() == expected_path
     # Can't resume training from an external checkpoint
     config.start_epoch = 20
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as ex:
         checkpoint_handler.get_recovery_path_train()
+        assert ex.value.args == "Start epoch is > 0, but no run recovery object has been provided to resume training."
 
     # Set a local_weights_path to get checkpoint from
     config.weights_url = ""
@@ -140,8 +143,9 @@ def test_get_recovery_path_train(test_output_dirs: TestOutputDirectories) -> Non
     assert checkpoint_handler.get_recovery_path_train() == expected_path
     # Can't resume training from an external checkpoint
     config.start_epoch = 20
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as ex:
         checkpoint_handler.get_recovery_path_train()
+        assert ex.value.args == "Start epoch is > 0, but no run recovery object has been provided to resume training."
 
 
 def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> None:
@@ -152,8 +156,9 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
                                                      project_root=Path(test_output_dirs.root_dir))
 
     # We have not set a run_recovery, nor have we trained, so this should fail to get a checkpoint
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as ex:
         manage_recovery.get_checkpoint_from_epoch(1)
+        assert "no run recovery object provided and no training has been done in this run" in ex.value.args[0]
 
     # We have set a run_recovery_id now, so this should work
     manage_recovery.azure_config.run_recovery_id = DEFAULT_RUN_RECOVERY_ID
@@ -283,8 +288,9 @@ def test_get_local_weights_path_or_download(test_output_dirs: TestOutputDirector
                                                      project_root=Path(test_output_dirs.root_dir))
 
     # If the model has neither local_weights_path or weights_url set, should fail.
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as ex:
         manage_recovery.get_local_weights_path_or_download()
+        assert "neither local_weights_path nor weights_url is set in the model config" in ex.value.args[0]
 
     # If local_weights_path folder exists, get_local_weights_path_or_download should not do anything.
     local_weights_path = manage_recovery.project_root / "exist.pth"
@@ -321,13 +327,15 @@ def test_get_and_modify_local_weights(test_output_dirs: TestOutputDirectories) -
                                                      project_root=Path(test_output_dirs.root_dir))
 
     # If the model has neither local_weights_path or weights_url set, should fail.
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as ex:
         manage_recovery.get_and_save_modified_weights()
+        assert "neither local_weights_path nor weights_url is set in the model config" in ex.value.args[0]
 
     # Pointing the model to a local_weights_path that does not exist will raise an error.
     config.local_weights_path = manage_recovery.project_root / "non_exist"
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(FileNotFoundError) as ex:
         manage_recovery.get_and_save_modified_weights()
+        assert "Could not find the weights file" in ex.value.args[0]
 
     # Test that weights are properly modified when a local_weights_path is set
 

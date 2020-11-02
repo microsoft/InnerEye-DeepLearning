@@ -8,5 +8,6 @@ from InnerEye.Azure.azure_config import AzureConfig
 
 
 def test_validate() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as ex:
         AzureConfig(register_model_only_for_epoch=True)
+        assert ex.value.args[0] == "If register_model_only_for_epoch is set, must also provide a valid run_recovery_id"
