@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from enum import Enum
+from pathlib import Path
 from typing import Any, Optional
 from unittest import mock
 
@@ -153,7 +154,7 @@ def test_source_config_set_params() -> None:
     Check that commandline arguments are set correctly when submitting the script to AzureML.
     In particular, the azureml flag should be omitted, irrespective of how the argument is written.
     """
-    s = SourceConfig(root_folder="", entry_script="something.py", conda_dependencies_files=[])
+    s = SourceConfig(root_folder=Path(""), entry_script=Path("something.py"), conda_dependencies_files=[])
 
     def assert_has_params(expected_args: str) -> None:
         assert s.script_params is not None

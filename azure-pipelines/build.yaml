@@ -92,7 +92,7 @@ steps:
       testResultsFiles: '**/test-*.xml'
       testRunTitle: 'tests_on_$(Agent.OS)'
     condition: succeededOrFailed()
-    displayName: Publish test results
+    displayName: Publish test results tests_on_$(Agent.OS)
 
   - task: PublishCodeCoverageResults@1
     inputs:

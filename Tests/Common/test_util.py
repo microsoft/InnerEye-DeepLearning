@@ -2,14 +2,13 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from pathlib import Path
 
 import pytest
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import check_is_any_of, get_namespace_root, is_private_field_name, namespace_to_path, \
     path_to_namespace, print_exception
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from Tests.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
 
 DEFAULT_ENSEMBLE_RUN_RECOVERY_ID = "dacart_local_branch_202008:HD_99938f3c-b25f-4604-bfcc-bb7c9ed3516f"
@@ -82,13 +81,13 @@ def test_print_exception() -> None:
 
 
 @pytest.mark.parametrize("is_external", [True, False])
-def test_namespace_to_path(is_external: bool, test_output_dirs: TestOutputDirectories) -> None:
+def test_namespace_to_path(is_external: bool, test_output_dirs: OutputFolderForTests) -> None:
     """
     A test to check conversion between path to namespace for InnerEye and external namespaces
     """
     if is_external:
         folder_name = "logs"
-        full_folder = Path(test_output_dirs.root_dir) / folder_name
+        full_folder = test_output_dirs.root_dir / folder_name
         assert namespace_to_path(folder_name, root=test_output_dirs.root_dir) == full_folder
     else:
         from Tests.ML import test_data
@@ -96,13 +95,13 @@ def test_namespace_to_path(is_external: bool, test_output_dirs: TestOutputDirect
 
 
 @pytest.mark.parametrize("is_external", [True, False])
-def test_path_to_namespace(is_external: bool, test_output_dirs: TestOutputDirectories) -> None:
+def test_path_to_namespace(is_external: bool, test_output_dirs: OutputFolderForTests) -> None:
     """
     A test to check conversion between namespace to path for InnerEye and external namespaces
     """
     if is_external:
         folder_name = "logs"
-        full_folder = Path(test_output_dirs.root_dir) / folder_name
+        full_folder = test_output_dirs.root_dir / folder_name
         assert path_to_namespace(
             path=full_folder,
             root=test_output_dirs.root_dir

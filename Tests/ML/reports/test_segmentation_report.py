@@ -7,17 +7,17 @@ from pathlib import Path
 
 import pandas as pd
 
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.reports.notebook_report import generate_segmentation_notebook
 from InnerEye.ML.reports.segmentation_report import describe_score, worst_patients_and_outliers
 from InnerEye.ML.utils.csv_util import COL_IS_OUTLIER
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 
 
-def test_generate_segmentation_report(test_output_dirs: TestOutputDirectories) -> None:
+def test_generate_segmentation_report(test_output_dirs: OutputFolderForTests) -> None:
     reports_folder = Path(__file__).parent
     metrics_file = reports_folder / "metrics_hn.csv"
-    current_dir = Path(test_output_dirs.make_sub_dir("test_segmentation_report"))
+    current_dir = test_output_dirs.make_sub_dir("test_segmentation_report")
     result_file = current_dir / "report.ipynb"
     result_html = generate_segmentation_notebook(result_notebook=result_file,
                                                  test_metrics=metrics_file)

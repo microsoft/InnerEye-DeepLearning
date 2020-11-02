@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from InnerEye.Common import common_util
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import create_mlp
@@ -56,7 +56,7 @@ class NonImageEncoder(ScalarModelBase):
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issue on Windows build")
 @pytest.mark.parametrize("hidden_layer_num_feature_channels", [None, 2])
-def test_non_image_encoder(test_output_dirs: TestOutputDirectories,
+def test_non_image_encoder(test_output_dirs: OutputFolderForTests,
                            hidden_layer_num_feature_channels: Optional[int]) -> None:
     """
     Test if we can build a simple MLP model that only feeds off non-image features.

@@ -192,7 +192,7 @@ class Runner:
         # perform aggregation as cross val splits are now ready
         plot_crossval_config = crossval_config_from_model_config(self.model_config)
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
-        plot_crossval_config.outputs_directory = str(self.model_config.outputs_folder)
+        plot_crossval_config.outputs_directory = self.model_config.outputs_folder
         plot_crossval_config.settings_yaml_file = self.yaml_config_file
         cross_val_results_root = plot_cross_validation(plot_crossval_config)
         if self.post_cross_validation_hook:
@@ -328,9 +328,8 @@ class Runner:
             raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
         model_config_overrides = str(self.model_config.overrides)
         source_config = SourceConfig(
-            root_folder=str(self.project_root),
-            entry_script=os.path.abspath(sys.argv[0]),
-
+            root_folder=self.project_root,
+            entry_script=Path(sys.argv[0]).resolve(),
             conda_dependencies_files=[get_environment_yaml_file(),
                                       self.project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME],
             hyperdrive_config_func=lambda estimator: self.model_config.get_hyperdrive_config(estimator),

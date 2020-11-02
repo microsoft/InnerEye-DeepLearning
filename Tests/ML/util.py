@@ -34,9 +34,9 @@ machine_has_gpu = is_gpu_available()
 no_gpu_available = not machine_has_gpu
 
 
-def create_dataset_csv_file(csv_string: str, dst: str) -> Path:
+def create_dataset_csv_file(csv_string: str, dst: Path) -> Path:
     """Creates a dataset.csv in the destination path from the csv_string provided"""
-    (Path(dst) / "dataset.csv").write_text(csv_string)
+    (dst / "dataset.csv").write_text(csv_string)
     return Path(dst)
 
 

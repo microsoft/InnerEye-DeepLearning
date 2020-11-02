@@ -16,7 +16,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.build_config import BUILDINFORMATION_JSON, ExperimentResultLocation, \
     build_information_to_dot_net_json, build_information_to_dot_net_json_file
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import TrackedMetrics
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -41,7 +41,7 @@ class HyperDriveTestModelScalar(ScalarModelBase):
         return _create_dummy_hyperdrive_param_search_config(estimator)
 
 
-def test_build_config(test_output_dirs: TestOutputDirectories) -> None:
+def test_build_config(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that json with build information is created correctly.
     """
@@ -60,7 +60,7 @@ def test_build_config(test_output_dirs: TestOutputDirectories) -> None:
                '"ResultsContainerName": null, "ResultsUri": null, "DatasetFolder": null, "DatasetFolderUri": null, ' \
                '"AzureBatchJobName": "job"}'
     assert expected == net_json
-    result_folder = Path(test_output_dirs.root_dir) / "buildinfo"
+    result_folder = test_output_dirs.root_dir / "buildinfo"
     build_information_to_dot_net_json_file(config, result_location, folder=result_folder)
     result_file = result_folder / BUILDINFORMATION_JSON
     assert result_file.exists()
@@ -136,7 +136,7 @@ def test_get_total_number_of_cross_validation_runs(number_of_cross_validation_sp
 @pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [0, 2])
 def test_get_hyperdrive_config(number_of_cross_validation_splits: int,
                                number_of_cross_validation_splits_per_fold: int,
-                               test_output_dirs: TestOutputDirectories) -> None:
+                               test_output_dirs: OutputFolderForTests) -> None:
     """
     Test to make sure the number of dataset reader workers are set correctly
     """
@@ -150,17 +150,17 @@ def test_get_hyperdrive_config(number_of_cross_validation_splits: int,
     config.number_of_cross_validation_splits = number_of_cross_validation_splits
     # create HyperDrive config with dummy estimator for testing
     source_config = SourceConfig(root_folder=test_output_dirs.root_dir,
-                                 entry_script="something.py", conda_dependencies_files=[])
+                                 entry_script=Path("something.py"), conda_dependencies_files=[])
     estimator = Estimator(
-        source_directory=source_config.root_folder,
-        entry_script=source_config.entry_script,
+        source_directory=str(source_config.root_folder),
+        entry_script=str(source_config.entry_script),
         compute_target="Local"
     )
 
     hd_config = config.get_hyperdrive_config(estimator=estimator)
 
-    assert hd_config.estimator.source_directory == source_config.root_folder
-    assert hd_config.estimator.run_config.script == source_config.entry_script
+    assert hd_config.estimator.source_directory == str(source_config.root_folder)
+    assert hd_config.estimator.run_config.script == str(source_config.entry_script)
     assert hd_config.estimator._script_params == source_config.script_params
 
     if number_of_cross_validation_splits > 0 and number_of_cross_validation_splits_per_fold > 0:

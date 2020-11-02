@@ -10,12 +10,12 @@ from azureml.core import Experiment
 
 from InnerEye.Azure.azure_util import to_azure_friendly_string
 from InnerEye.Azure.run_pytest import download_pytest_result
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from Tests.ML.util import get_default_azure_config
 
 
-def test_download_pytest_file(test_output_dirs: TestOutputDirectories) -> None:
-    output_dir = Path(test_output_dirs.root_dir)
+def test_download_pytest_file(test_output_dirs: OutputFolderForTests) -> None:
+    output_dir = test_output_dirs.root_dir
     azure_config = get_default_azure_config()
     workspace = azure_config.get_workspace()
 

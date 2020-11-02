@@ -265,7 +265,7 @@ def create_estimator_from_configs(azure_config: AzureConfig,
     :return:
     """
     # AzureML seems to sometimes expect the entry script path in Linux format, hence convert to posix path
-    entry_script_relative_path = Path(source_config.entry_script).relative_to(source_config.root_folder).as_posix()
+    entry_script_relative_path = source_config.entry_script.relative_to(source_config.root_folder).as_posix()
     logging.info(f"Entry script {entry_script_relative_path} ({source_config.entry_script} relative to "
                  f"source directory {source_config.root_folder})")
     environment_variables = {
@@ -293,7 +293,7 @@ def create_estimator_from_configs(azure_config: AzureConfig,
         max_run_duration = run_duration_string_to_seconds(azure_config.max_run_duration)
     workspace = azure_config.get_workspace()
     estimator = PyTorch(
-        source_directory=source_config.root_folder,
+        source_directory=str(source_config.root_folder),
         entry_script=entry_script_relative_path,
         script_params=source_config.script_params,
         compute_target=azure_config.cluster,
