@@ -121,7 +121,7 @@ def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
                                                  checkpoint_folder: str,
                                                  test_output_dirs: TestOutputDirectories) -> None:
     # no pipeline created when checkpoint for epoch is None
-    assert create_inference_pipeline(config, None) is None
+    assert create_inference_pipeline(config, []) is None
     # no pipeline created when checkpoint path does not exist
     assert create_inference_pipeline(config, [Path("nonexist")]) is None
 
