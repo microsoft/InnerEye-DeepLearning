@@ -87,7 +87,13 @@ def test_get_test_epochs() -> None:
     assert c.get_test_epochs() == [100]
     c = DeepLearningConfig(num_epochs=100, epochs_to_test=[1, 3, 5],
                            should_validate=False)
-    assert c.get_test_epochs() == [1, 3, 5]
+    assert c.get_test_epochs() == [1, 3, 5, 100]
+
+    # epochs_to_test should have precedence over (test_start_epoch, test_diff_epochs and test_step_epochs)
+    c = DeepLearningConfig(num_epochs=150, epochs_to_test=[1, 3, 5],
+                           test_start_epoch=100, test_diff_epochs=2, test_step_epochs=10,
+                           should_validate=False)
+    assert c.get_test_epochs() == [1, 3, 5, 150]
 
 
 def test_get_total_number_of_validation_epochs() -> None:

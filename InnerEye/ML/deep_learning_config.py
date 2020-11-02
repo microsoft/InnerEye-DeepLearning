@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from enum import Enum, unique
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -266,18 +267,18 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                         "together with data parallel.")
     epochs_to_test: Optional[List[int]] = param.List(None, bounds=(1, None), allow_None=True, class_=int,
                                                      doc="Epochs to test on. This should be a list of integers > 1."
-                                                         "Note that this option is exclusive of the config option set "
-                                                         "`test_diff_epochs`, `test_step_epochs` and "
+                                                         "Note that this option takes precedence over the config option "
+                                                         "set `test_diff_epochs`, `test_step_epochs` and "
                                                          "`test_start_epoch`")
     test_diff_epochs: Optional[int] = param.Integer(None, allow_None=True,
                                                     doc="Number of different epochs of the same model to test. "
-                                                        "This option cannot be used with `epochs_to_test`")
+                                                        "This option will be ignored if `epochs_to_test` is set")
     test_step_epochs: Optional[int] = param.Integer(None, allow_None=True,
                                                     doc="How many epochs to move for each test "
-                                                        "This option cannot be used with `epochs_to_test`")
+                                                        "This option will be ignored if `epochs_to_test` is set")
     test_start_epoch: Optional[int] = param.Integer(None, allow_None=True,
                                                     doc="The first epoch on which testing should run."
-                                                        "This option cannot be used with `epochs_to_test`")
+                                                        "This option will be ignored if `epochs_to_test` is set")
     monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
                                                             "statistics. If 0 or less, do not log any resource "
                                                             "statistics.")
@@ -404,9 +405,12 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         if self.weights_url and self.local_weights_path:
             raise ValueError("Cannot specify both local_weights_path and weights_url.")
 
-        if self.epochs_to_test and (self.test_start_epoch or self.test_step_epochs or self.test_diff_epochs):
-            raise ValueError("Can use either epochs_to_start or a combination of (test_diff_epochs, test_step_epochs "
-                             "and test_start_epoch), not both.")
+        if self.test_start_epoch or self.test_step_epochs or self.test_diff_epochs:
+            warnings.warn("DEPRECATED: The combination of (test_diff_epochs, test_step_epochs "
+                             "and test_start_epoch) is deprecated, use epochs_to_start instead.", DeprecationWarning)
+            if self.epochs_to_test:
+                logging.warning("self.epochs_to_test will take precedence over the config parameter set "
+                                "(test_diff_epochs, test_step_epochs, test_start_epoch)")
 
         if self.number_of_cross_validation_splits == 1:
             raise ValueError(f"At least two splits required to perform cross validation found "
@@ -605,10 +609,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         only the last training epoch is returned.
         :return:
         """
-        if self.epochs_to_test:
-            return self.epochs_to_test
         test_epochs = {self.num_epochs}
-        if self.test_diff_epochs is not None and self.test_start_epoch is not None and \
+        if self.epochs_to_test:
+            return sorted(test_epochs | set(self.epochs_to_test))
+        elif self.test_diff_epochs is not None and self.test_start_epoch is not None and \
                 self.test_step_epochs is not None:
             for j in range(self.test_diff_epochs):
                 epoch = self.test_start_epoch + self.test_step_epochs * j
