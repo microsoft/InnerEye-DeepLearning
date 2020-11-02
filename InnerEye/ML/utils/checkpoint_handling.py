@@ -20,16 +20,20 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.Common import fixed_paths
 
 
+@dataclass
+class CheckpointPathsAndEpoch:
+    """
+    Holds the path path to a checkpoint and the checkpoint epoch.
+    """
+    epoch: int
+    checkpoint_paths: Optional[List[Path]]
+
+
 class CheckpointHandler:
     """
     This class handles which checkpoints are used to initialize the model during train or test time based on the
     azure config and model config.
     """
-
-    @dataclass
-    class CheckpointPathsAndEpoch:
-        epoch: int
-        checkpoint_paths: Optional[List[Path]]
 
     def __init__(self, model_config: DeepLearningConfig, azure_config: AzureConfig,
                  project_root: Path, run_context: Optional[Run] = None):
@@ -68,7 +72,7 @@ class CheckpointHandler:
             self.run_recovery = None
 
         if self.model_config.weights_url or self.model_config.local_weights_path:
-            self.local_weights_path = self.get_and_modify_local_weights()
+            self.local_weights_path = self.get_and_save_modified_weights()
 
     def additional_training_done(self) -> None:
         """
@@ -138,7 +142,7 @@ class CheckpointHandler:
                 logging.warning(f"Could not recover checkpoint path {path}")
 
         if len(checkpoint_exists) > 0:
-            return CheckpointHandler.CheckpointPathsAndEpoch(epoch=epoch, checkpoint_paths=checkpoint_exists)
+            return CheckpointPathsAndEpoch(epoch=epoch, checkpoint_paths=checkpoint_exists)
         else:
             logging.warning(f"Could not find any checkpoints in run recovery/training checkpoints for epoch {epoch}.")
             return None
@@ -163,8 +167,8 @@ class CheckpointHandler:
             # No recovery object and model was not trained, check if there is a local weight path.
             if self.local_weights_path.exists():
                 logging.info(f"Using model weights at {self.local_weights_path} to initialize model")
-                return [CheckpointHandler.CheckpointPathsAndEpoch(epoch=0,
-                                                                  checkpoint_paths=[self.local_weights_path])]
+                return [CheckpointPathsAndEpoch(epoch=0,
+                                                checkpoint_paths=[self.local_weights_path])]
             else:
                 logging.warning(f"Local weights_path does not exist, "
                                 f"cannot recover from {self.local_weights_path}")
@@ -216,10 +220,11 @@ class CheckpointHandler:
 
         return weights_path
 
-    def get_and_modify_local_weights(self) -> Path:
+    def get_and_save_modified_weights(self) -> Path:
         """
-        Download the checkpoint if needed. Pass the downloaded or local checkpoint to the modify_checkpoint function
-        from the model_config.
+        Downloads the checkpoint weights if needed.
+        Then passes the downloaded or local checkpoint to the modify_checkpoint function from the model_config and saves
+        the modified state dict from the function in the outputs folder with the name weights.pth.
         """
         weights_path = self.get_local_weights_path_or_download()
 

@@ -16,8 +16,7 @@ from InnerEye.Azure.azure_util import RUN_CONTEXT, download_outputs_from_run, fe
     get_cross_validation_split_index, is_cross_validation_child_run, tag_values_all_distinct
 from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.ML.common import create_checkpoint_path
-from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig
 
 
 @dataclass(frozen=True)

@@ -147,7 +147,7 @@ python Inner/ML/runner.py --azureml=True --model=Prostate --train=False --cluste
 ##### From a local checkpoint:
 Use the local_weights_path to specify the path to the model checkpoint, and set train to `False`.
 ```shell script
-python Inner/ML/runner.py --azureml=False --model=Prostate --train=False --local_weights_path=path_to_your_checkpoint
+python Inner/ML/runner.py --model=Prostate --train=False --local_weights_path=path_to_your_checkpoint
 ```
 
 Alternatively, to submit an AzureML run to apply a model to a single image on your local disc, 

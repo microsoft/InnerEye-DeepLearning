@@ -322,12 +322,12 @@ def test_get_and_modify_local_weights(test_output_dirs: TestOutputDirectories) -
 
     # If the model has neither local_weights_path or weights_url set, should fail.
     with pytest.raises(ValueError):
-        manage_recovery.get_and_modify_local_weights()
+        manage_recovery.get_and_save_modified_weights()
 
     # Pointing the model to a local_weights_path that does not exist will raise an error.
     config.local_weights_path = manage_recovery.project_root / "non_exist"
     with pytest.raises(FileNotFoundError):
-        manage_recovery.get_and_modify_local_weights()
+        manage_recovery.get_and_save_modified_weights()
 
     # Test that weights are properly modified when a local_weights_path is set
 
@@ -338,7 +338,7 @@ def test_get_and_modify_local_weights(test_output_dirs: TestOutputDirectories) -
     local_weights_path = manage_recovery.project_root / "exist.pth"
     local_weights_path.touch()
     config.local_weights_path = local_weights_path
-    weights_path = manage_recovery.get_and_modify_local_weights()
+    weights_path = manage_recovery.get_and_save_modified_weights()
     expected_path = manage_recovery.model_config.outputs_folder / WEIGHTS_FILE
     # read from weights_path and check that the dict has been written
     assert weights_path.is_file()
@@ -358,7 +358,7 @@ def test_get_and_modify_local_weights(test_output_dirs: TestOutputDirectories) -
     # Set the weights_url to the sample pytorch URL, which will be passed to modify_checkpoint
     config.local_weights_path = None
     config.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
-    weights_path = manage_recovery.get_and_modify_local_weights()
+    weights_path = manage_recovery.get_and_save_modified_weights()
     expected_path = manage_recovery.model_config.outputs_folder / WEIGHTS_FILE
     # read from weights_path and check that the dict has been written
     assert weights_path.is_file()

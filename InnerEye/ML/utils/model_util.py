@@ -92,8 +92,8 @@ class ModelAndInfo:
             raise ValueError("Mean teacher model has not been created.")
         return self._mean_teacher_model
 
-    @classmethod
-    def read_checkpoint(cls, path_to_checkpoint: Path, use_gpu: bool) -> Dict[str, Any]:
+    @staticmethod
+    def read_checkpoint(path_to_checkpoint: Path, use_gpu: bool) -> Dict[str, Any]:
         # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
         # if the model is small.
         map_location = None if use_gpu else 'cpu'
