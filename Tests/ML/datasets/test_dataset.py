@@ -10,7 +10,6 @@ import pytest
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import PaddingMode, SegmentationModelBase
 from InnerEye.ML.dataset.cropping_dataset import CroppingDataset
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset, collate_with_metadata
@@ -26,8 +25,6 @@ from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import DummyPatientMetadata, load_train_and_test_data_channels
 
 crop_size = [55, 55, 55]
-data_frame = pd.read_csv(full_ml_test_data_path(DATASET_CSV_FILE_NAME))
-
 
 @pytest.fixture
 def num_dataload_workers() -> int:
@@ -153,7 +150,7 @@ def test_sample(random_image_crop: Any, random_mask_crop: Any, random_label_crop
     Tests that after creating and extracting a sample we obtain the same result
     :return:
     """
-    metadata = PatientMetadata(patient_id=42, institution="foo")
+    metadata = PatientMetadata(patient_id='42', institution="foo")
     sample = Sample(image=random_image_crop,
                     mask=random_mask_crop,
                     labels=random_label_crop,
@@ -248,7 +245,7 @@ def test_cropping_dataset_padding(cropping_dataset: CroppingDataset, num_dataloa
 
 def test_cropping_dataset_has_reproducible_randomness(cropping_dataset: CroppingDataset,
                                                       num_dataload_workers: int) -> None:
-    cropping_dataset.dataset_indices = [1, 2] * 2
+    cropping_dataset.dataset_indices = ['1', '2'] * 2
     expected_center_indices = None
     for k in range(3):
         ml_util.set_random_seed(1)
@@ -381,8 +378,8 @@ def test_patient_metadata() -> None:
     :return:
     """
     file = full_ml_test_data_path("dataset_with_full_header.csv")
-    df = pd.read_csv(file)
-    subject = 511
+    df = pd.read_csv(file, dtype=str)
+    subject = "511"
     expected_institution = "85aaee5f-f5f3-4eae-b6cd-26b0070156d8"
     expected_series = "22ef9c5e149650f9cb241d1aa622ad1731b91d1a1df770c05541228b47845ae4"
     expected_tags = "FOO;BAR"
@@ -406,9 +403,9 @@ def test_min_patient_metadata() -> None:
     """
     Loading a dataset where only required columns are present
     """
-    df = pd.read_csv(full_ml_test_data_path("dataset.csv"))
+    df = pd.read_csv(full_ml_test_data_path("dataset.csv"), dtype=str)
     df = df.drop(columns="institutionId")
-    patient_id = 1
+    patient_id = "1"
     metadata = PatientMetadata.from_dataframe(df, patient_id)
     assert metadata.patient_id == patient_id
     assert metadata.series is None
@@ -418,8 +415,8 @@ def test_min_patient_metadata() -> None:
 
 def test_get_all_metadata(default_config: ModelConfigBase) -> None:
     df = default_config.get_dataset_splits().train
-    assert PatientMetadata.from_dataframe(df, 1) == PatientMetadata(patient_id=1, institution="1")
-    assert PatientMetadata.from_dataframe(df, 2) == PatientMetadata(patient_id=2, institution="2")
+    assert PatientMetadata.from_dataframe(df, '1') == PatientMetadata(patient_id='1', institution="1")
+    assert PatientMetadata.from_dataframe(df, '2') == PatientMetadata(patient_id='2', institution="2")
 
 
 def test_sample_metadata_field() -> None:
@@ -437,7 +434,7 @@ def test_custom_collate() -> None:
     """
     Tests the custom collate function that collates metadata into lists.
     """
-    metadata = PatientMetadata(patient_id=42)
+    metadata = PatientMetadata(patient_id='42')
     foo = "foo"
     d1 = {foo: 1, SAMPLE_METADATA_FIELD: "something"}
     d2 = {foo: 2, SAMPLE_METADATA_FIELD: metadata}
@@ -455,12 +452,12 @@ def test_sample_construct_copy(random_image_crop: Any, random_mask_crop: Any, ra
         image=random_image_crop,
         mask=random_mask_crop,
         labels=random_label_crop,
-        metadata=PatientMetadata(patient_id=1)
+        metadata=PatientMetadata(patient_id='1')
     )
 
     sample_clone = sample.clone_with_overrides()
     assert sample.get_dict() == sample_clone.get_dict()
     assert type(sample) == type(sample_clone)
 
-    sample_clone = sample.clone_with_overrides(metadata=PatientMetadata(patient_id=2))
+    sample_clone = sample.clone_with_overrides(metadata=PatientMetadata(patient_id='2'))
     assert sample_clone.patient_id == 2

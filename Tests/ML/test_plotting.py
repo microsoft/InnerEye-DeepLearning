@@ -39,7 +39,7 @@ def test_plot_dice_per_epoch(test_output_dirs: OutputFolderForTests, num_classes
     file_name = test_output_dirs.root_dir / f"dice_per_epoch_{num_classes}classes.png"
     plotting.add_legend(series_count)
     plotting.resize_and_save(5, 4, file_name)
-    assert os.path.exists(file_name)
+    assert file_name.is_file()
     # Try writing the same figure again, to see what the file overwrite behaviour is.
     # In actual training runs, the file will be overwritten repeatedly.
     plotting.resize_and_save(5, 4, file_name)
@@ -64,6 +64,8 @@ def test_plot_image_and_contour(test_output_dirs: OutputFolderForTests) -> None:
     plotting.plot_image_and_label_contour(image, labels, contour_arguments={'colors': 'r'}, plot_file_name=plot_file)
     assert plot_file.exists()
     expected = full_ml_test_data_path(file_name)
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(plot_file.read_bytes())
     assert file_as_bytes(plot_file) == file_as_bytes(expected)
 
 
@@ -84,6 +86,8 @@ def test_plot_image_and_contour_scaled(test_output_dirs: OutputFolderForTests) -
                                           image_range=(-5, 5), plot_file_name=plot_file)
     assert plot_file.exists()
     expected = full_ml_test_data_path(file_name)
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(plot_file.read_bytes())
     assert file_as_bytes(plot_file) == file_as_bytes(expected)
 
 
@@ -108,6 +112,8 @@ def test_plot_image_and_multiple_contours(test_output_dirs: OutputFolderForTests
                                           plot_file_name=plot_file)
     assert plot_file.exists()
     expected = full_ml_test_data_path(file_name)
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(plot_file.read_bytes())
     assert file_as_bytes(plot_file) == file_as_bytes(expected)
 
 
@@ -131,10 +137,12 @@ def compare_files(actual: List[Path], expected: List[str]) -> None:
         full_expected = full_ml_test_data_path(e)
         assert full_expected.exists()
         assert str(f).endswith(e)
+        # To update the stored results, uncomment this line:
+        # full_expected.write_bytes(f.read_bytes())
         assert file_as_bytes(f) == file_as_bytes(full_expected)
 
 
-@pytest.mark.skipif(common_util.is_linux(), reason="Rendering of the graph is slightly different on Linux")
+@pytest.mark.skipif(common_util.is_windows(), reason="Rendering of the graph is slightly different on Linux")
 def test_plot_normalization_result(test_output_dirs: OutputFolderForTests) -> None:
     """
     Tests plotting of before/after histograms in photometric normalization.

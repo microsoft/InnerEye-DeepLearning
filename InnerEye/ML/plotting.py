@@ -10,7 +10,7 @@ import numpy as np
 from matplotlib import colors
 from matplotlib.pyplot import Axes
 
-from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
+from InnerEye.Common.type_annotations import PathOrString, TupleFloat2, TupleFloat3
 from InnerEye.ML.dataset.full_image_dataset import Sample
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.utils import plotting_util
@@ -88,17 +88,17 @@ def add_legend(series_count: int) -> None:
     plt.legend(ncol=num_columns, loc="upper left", fontsize="x-small")
 
 
-def resize_and_save(width_inch: int, height_inch: int, filename: PathOrString, dpi: Optional[int] = 150) -> None:
+def resize_and_save(width_inch: int, height_inch: int, filename: PathOrString, dpi: int = 150) -> None:
     """
     Resizes the present figure to the given (width, height) in inches, and saves it to the given filename.
     :param width_inch: The width of the figure in inches.
     :param height_inch: The height of the figure in inches.
     :param filename: The filename to save to.
-    :param dpi: Image resolution dots per inch
+    :param dpi: Image resolution in dots per inch
     """
     fig = plt.gcf()
     fig.set_size_inches(width_inch, height_inch)
-    plt.savefig(filename, dpi=dpi)
+    plt.savefig(filename, dpi=dpi, bbox_inches='tight', pad_inches=0.1)
 
 
 def plot_image_and_label_contour(image: np.ndarray,
@@ -375,9 +375,10 @@ def segmentation_and_groundtruth_plot(prediction: np.ndarray, ground_truth: np.n
         fig.show()
 
 
-def sds_ground_truth_plot(ct: np.ndarray, ground_truth: np.ndarray, sds_full: np.ndarray, subject_id: int,
-                          structure: str, plane: Plane, output_img_dir: Path, dice: float = None, save_fig: bool = True,
-                          annotator: str = None) -> None:
+def surface_distance_ground_truth_plot(ct: np.ndarray, ground_truth: np.ndarray, sds_full: np.ndarray, subject_id: int,
+                                       structure: str, plane: Plane, output_img_dir: Path, dice: float = None,
+                                       save_fig: bool = True,
+                                       annotator: str = None) -> None:
     """
     Plot surface distances where prediction > 0, with ground truth contour
     :param ct: CT scan
@@ -450,3 +451,51 @@ def sds_ground_truth_plot(ct: np.ndarray, ground_truth: np.ndarray, sds_full: np
         resize_and_save(5, 5, figpath)
     else:
         fig.show()
+
+
+def scan_with_transparent_overlay(scan: np.ndarray,
+                                  overlay: np.ndarray,
+                                  dimension: int,
+                                  position: int,
+                                  spacing: TupleFloat3) -> None:
+    """
+    Creates a plot with one slice of a (CT) scan, with a transparent overlay that contains a second piece of
+    information in the range [0, 1]. High values of the `overlay` are shown as opaque red, low values as transparent
+    red.
+    Plots are created in the current axis.
+    :param scan: A 3-dimensional image in (Z, Y, X) ordering
+    :param overlay: A 3-dimensional image in (Z, Y, X) ordering, with values between 0 and 1.
+    :param dimension: The array dimension along with the plot should be created. dimension=0 will generate
+    an axial slice.
+    :param position: The index in the chosen dimension where the plot should be created.
+    :param spacing: The tuple of voxel spacings, in (Z, Y, X) order.
+    """
+    if dimension < 0 or dimension > 2:
+        raise ValueError(f"Dimension must be in the range [0, 2], but got: {dimension}")
+    if position < 0 or position >= scan.shape[dimension]:
+        raise IndexError(f"Position is outside valid range: {position}")
+    slicers = []
+    for i in range(0, 3):
+        if i == dimension:
+            slicers.append(slice(position, position + 1))
+        else:
+            slicers.append(slice(0, scan.shape[i]))
+    # Slice both the scan and the overlay
+    scan_sliced = scan[slicers[0], slicers[1], slicers[2]].squeeze(axis=dimension)
+    overlay_sliced = overlay[slicers[0], slicers[1], slicers[2]].squeeze(axis=dimension)
+    ax = plt.gca()
+    # Account for non-square pixel sizes. Spacing usually comes from Nifti headers.
+    if dimension == 0:
+        aspect = spacing[1] / spacing[2]
+    elif dimension == 1:
+        aspect = spacing[0] / spacing[2]
+    else:
+        aspect = spacing[0] / spacing[1]
+    # This ensures that the coronal and sagittal plot are showing with the head up. For the axial plot (dimension == 0)
+    # the default setting of imshow with origin 'upper' is OK.
+    origin = 'upper' if dimension == 0 else 'lower'
+    ax.imshow(scan_sliced, vmin=np.min(scan), vmax=np.max(scan), cmap='Greys_r', aspect=aspect, origin=origin)
+    red = np.ones_like(overlay_sliced)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.imshow(red, vmin=0, vmax=1, cmap='Reds', alpha=overlay_sliced, aspect=aspect, origin=origin)

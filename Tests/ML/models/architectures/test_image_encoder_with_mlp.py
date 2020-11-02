@@ -138,7 +138,7 @@ def test_image_encoder(test_output_dirs: OutputFolderForTests, encode_channels_j
     scan_files: List[str] = []
     for s in range(4):
         random_scan = np.random.uniform(0, 1, scan_size)
-        scan_file_name = f"scan{s + 1}{NumpyFile.Numpy.value}"
+        scan_file_name = f"scan{s + 1}{NumpyFile.NUMPY.value}"
         np.save(str(dataset_folder / scan_file_name), random_scan)
         scan_files.append(scan_file_name)
 

@@ -136,7 +136,6 @@ dmypy.json
 .idea/inspectionProfiles/profiles_settings.xml
 .idea/misc.xml
 .idea/mypy.xml
-.idea/InnerEye-DeepLearning.iml
 .idea/workspace.xml
 .idea/deployment.xml
 InnerEyeTestVariables.txt
@@ -149,10 +148,11 @@ Tests/ML/test_outputs
 /.vs/ProjectSettings.json
 /.idea/dictionaries
 /.idea/pylint.xml
-/.idea/InnerEye-DeepLearning.iml
 # Temp file that is generated if setup.py is run locally
 /package_version.txt
 # Test output from model registration
 /TestsOutsidePackage/azureml-models
 # This file contains the run recovery ID of the most recent job
 most_recent_run.txt
+# The default folder that contains downloaded Tensorboard files
+tensorboard_runs

@@ -4,6 +4,7 @@ variables:
   application_id: ''
   datasets_storage_account: 'innereyepublicdatasets'
   datasets_container: 'datasets'
+  azureml_datastore: 'innereyedatasets'
   resource_group: 'InnerEye-DeepLearning'
   docker_shm_size: '440g'
   workspace_name: 'InnerEye-DeepLearning'

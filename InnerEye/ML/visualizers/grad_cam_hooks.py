@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
-import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -14,6 +13,7 @@ from torch.nn import Module
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImagingFeatureType
+from InnerEye.ML.reports.notebook_report import convert_to_html
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
@@ -565,11 +565,7 @@ class VisualizationMaps:
                                                result_path,
                                                parameters=params_dict,
                                                progress_bar=False)
-                    subprocess.run(["jupyter",
-                                    "nbconvert",
-                                    "--to=html",
-                                    result_path,
-                                    "--no-input"])
+                    convert_to_html(Path(result_path))
 
     def _get_non_imaging_plot_labels(self, classification_item: Union[ScalarItem,
                                                                       List[ClassificationItemSequence[ScalarItem]]],

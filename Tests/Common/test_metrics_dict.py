@@ -126,7 +126,7 @@ def test_metrics_dict_roc() -> None:
         start = 0 if i == 0 else summed[i - 1]
         pred = predictions[start:end]
         label = labels[start:end]
-        subject_ids = list(range(len(pred)))
+        subject_ids = list(map(str, range(len(pred))))
         m.add_predictions(subject_ids, pred, label)
     assert m.has_prediction_entries
     actual_auc = m.get_roc_auc()
@@ -145,7 +145,7 @@ def test_metrics_dict_roc_degenerate() -> None:
     # MetricsDict will get that supplied in 3 chunks, and should return the same AUC value.
     predictions = np.array([0.5, 0.6, 0.1, 0.8, 0.2, 0.9])
     m = MetricsDict()
-    subject_ids = list(range(len(predictions)))
+    subject_ids = list(map(str, range(len(predictions))))
     m.add_predictions(subject_ids, predictions, np.ones_like(predictions))
     assert m.has_prediction_entries
     assert m.get_roc_auc() == 1.0
@@ -245,7 +245,7 @@ def test_metrics_dict_average_additional_metrics() -> None:
         start = 0 if i == 0 else summed[i - 1]
         pred = predictions[start:end]
         label = labels[start:end]
-        subject_ids = list(range(len(pred)))
+        subject_ids = list(map(str, range(len(pred))))
         m.add_predictions(subject_ids, pred, label)
     assert m.has_prediction_entries
 
@@ -378,9 +378,9 @@ def test_metrics_dict_per_subject() -> None:
 def test_metrics_dic_subject_ids() -> None:
     hue1 = "H1"
     m = ScalarMetricsDict(hues=[hue1], is_classification_metrics=True)
-    m.add_predictions(subject_ids=[0], predictions=np.zeros(1), labels=np.zeros(1), hue=hue1)
+    m.add_predictions(subject_ids=['0'], predictions=np.zeros(1), labels=np.zeros(1), hue=hue1)
     assert m.subject_ids() == []
-    assert m.subject_ids(hue=hue1) == [0]
+    assert m.subject_ids(hue=hue1) == ['0']
 
 
 def test_hue_entries() -> None:

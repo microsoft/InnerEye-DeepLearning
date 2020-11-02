@@ -23,7 +23,7 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.ML.run_ml import MLRunner
-from InnerEye.ML.utils.io_util import ImageHeader
+from InnerEye.ML.utils.image_util import get_unit_image_header
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_default_workspace, get_model_loader, \
     get_nifti_shape
 from Tests.fixed_paths_for_tests import RELATIVE_TEST_OUTPUTS_PATH, full_ml_test_data_path, tests_root_directory
@@ -142,7 +142,7 @@ def test_register_and_score_model(is_ensemble: bool,
 
             # sanity check the resulting segmentation
             expected_shape = get_nifti_shape(img_channel_1_path)
-            image_header = ImageHeader(origin=(0, 0, 0), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=(1, 1, 1))
+            image_header = get_unit_image_header()
             assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [0], np.ubyte)
 
         finally:

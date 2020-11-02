@@ -14,7 +14,7 @@ from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add
 from InnerEye.Azure.azure_util import download_outputs_from_run
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.plotting import sds_ground_truth_plot, segmentation_and_groundtruth_plot
+from InnerEye.ML.plotting import surface_distance_ground_truth_plot, segmentation_and_groundtruth_plot
 from InnerEye.ML.utils import surface_distance_utils as sd_util
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.csv_util import get_worst_performing_outliers, load_csv
@@ -162,8 +162,8 @@ def main() -> None:
 
         # Calculate and plot surface distance
         sds_full = sd_util.calculate_surface_distances(ground_truth, binary_prediction_mask, list(voxel_spacing))
-        sds_ground_truth_plot(ct, ground_truth, sds_full, subject_id, structure_name, plane, output_img_dir,
-                              annotator=annotator)
+        surface_distance_ground_truth_plot(ct, ground_truth, sds_full, subject_id, structure_name, plane, output_img_dir,
+                                           annotator=annotator)
 
         if annotator is not None:
             sds_for_annotator[annotator] += sds_full
@@ -173,8 +173,8 @@ def main() -> None:
         for annotator, sds in sds_for_annotator.items():
             num_classes = int(np.amax(np.unique(overall_gold_standard)))
             binarised_gold_standard = multi_label_array_to_binary(overall_gold_standard, num_classes)[1:].sum(axis=0)
-            sds_ground_truth_plot(ct, binarised_gold_standard, sds, subject_id, 'All', plane, output_img_dir,
-                                  annotator=annotator)
+            surface_distance_ground_truth_plot(ct, binarised_gold_standard, sds, subject_id, 'All', plane, output_img_dir,
+                                               annotator=annotator)
 
 
 if __name__ == "__main__":
