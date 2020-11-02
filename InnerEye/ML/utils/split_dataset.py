@@ -8,15 +8,14 @@ import logging
 import random
 import sys
 from dataclasses import dataclass
+from math import ceil
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 import numpy as np
 import pandas as pd
-from math import ceil
 from sklearn.model_selection import KFold
 
 from InnerEye.Common import common_util
-from InnerEye.Common.type_annotations import IntOrString
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SUBJECT_HEADER
 
@@ -136,11 +135,11 @@ class DatasetSplits:
         return result
 
     @staticmethod
-    def get_subject_ranges_for_splits(population: Sequence[IntOrString],
+    def get_subject_ranges_for_splits(population: Sequence[str],
                                       proportion_train: float,
                                       proportion_test: float,
                                       proportion_val: float) \
-            -> Dict[ModelExecutionMode, Set[IntOrString]]:
+            -> Dict[ModelExecutionMode, Set[str]]:
         """
         Get mutually exclusive subject ranges for each dataset split (w.r.t to the proportion provided)
         ensuring all sets have at least one item in them when possible.
@@ -222,9 +221,9 @@ class DatasetSplits:
 
     @staticmethod
     def from_subject_ids(df: pd.DataFrame,
-                         train_ids: Sequence[IntOrString],
-                         test_ids: Sequence[IntOrString],
-                         val_ids: Sequence[IntOrString],
+                         train_ids: Sequence[str],
+                         test_ids: Sequence[str],
+                         val_ids: Sequence[str],
                          subject_column: str = CSV_SUBJECT_HEADER) -> DatasetSplits:
         """
         Assuming a DataFrame with columns subject
@@ -254,7 +253,7 @@ class DatasetSplits:
                           random_seed: int = 0,
                           exclude_institutions: Optional[Iterable[str]] = None,
                           institutions_for_test_only: Optional[Iterable[str]] = None,
-                          subject_ids_for_test_only: Optional[Iterable[int]] = None) -> DatasetSplits:
+                          subject_ids_for_test_only: Optional[Iterable[str]] = None) -> DatasetSplits:
         """
         Assuming a DataFrame with columns subject and institutionId
         Takes a slice of values from each institution based on the train/test/val proportions provided,
@@ -342,7 +341,7 @@ class DatasetSplits:
                              subject_column=subject_column)
 
     @staticmethod
-    def get_df_from_ids(df: pd.DataFrame, ids: Sequence[IntOrString],
+    def get_df_from_ids(df: pd.DataFrame, ids: Sequence[str],
                         subject_column: str = CSV_SUBJECT_HEADER) -> pd.DataFrame:
         return df[df[subject_column].isin(ids)]
 

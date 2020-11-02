@@ -23,7 +23,7 @@ from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARE
 from InnerEye.Common.common_util import DataframeLogger
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict, get_column_name_for_logging, \
     get_metric_name_with_hue_prefix
-from InnerEye.Common.type_annotations import IntOrString, TupleFloat3
+from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -35,6 +35,7 @@ from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, r2_score
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 
 TRAIN_STATS_FILE = "train_stats.csv"
 
@@ -481,7 +482,7 @@ def store_epoch_stats_for_segmentation(outputs_dir: Path,
 
 
 def validate_and_store_model_parameters(writer: tensorboardX.SummaryWriter, epoch: int,
-                                        model: torch.nn.DataParallel) -> None:
+                                        model: DeviceAwareModule) -> None:
     """
     Validates and writes all model weights to the given TensorBoard writer.
     :param writer: TensorBoard summary writer
@@ -539,7 +540,7 @@ def store_epoch_metrics(azure_and_tensorboard_logger: AzureAndTensorboardLogger,
 
 
 def compute_scalar_metrics(metrics_dict: ScalarMetricsDict,
-                           subject_ids: Sequence[IntOrString],
+                           subject_ids: Sequence[str],
                            model_output: torch.Tensor,
                            labels: torch.Tensor,
                            loss_type: ScalarLoss = ScalarLoss.BinaryCrossEntropyWithLogits) -> None:

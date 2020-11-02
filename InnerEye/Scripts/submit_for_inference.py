@@ -145,7 +145,7 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
                        "--model-id": model_id, "score.py": ""},
         conda_dependencies_files=download_conda_dependency_files(model, source_directory_path)
     )
-    estimator = create_estimator_from_configs(workspace, azure_config, source_config, [])
+    estimator = create_estimator_from_configs(azure_config, source_config, [])
     exp = Experiment(workspace=workspace, name=args.experiment_name)
     run = exp.submit(estimator)
     logging.info(f"Submitted run {run.id} in experiment {run.experiment.name}")

@@ -110,12 +110,14 @@ def test_read_yaml_file_into_args(test_output_dirs: TestOutputDirectories) -> No
                          yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
         runner1.parse_and_load_model()
         assert len(runner1.azure_config.application_id) > 0
-        # When specifying a dummy YAML file that does not contain the application ID, it should not
-        # be set.
+        assert len(runner1.azure_config.resource_group) > 0
+        # When specifying a dummy YAML file that does not contain any settings, no information in AzureConfig should
+        # be set. Some settings are read from a private settings file, most notably application ID, which should
+        # be present on people's local dev boxes. Hence, only assert on `resource_group` here.
         runner2 = Runner(project_root=fixed_paths.repository_root_directory(),
                          yaml_config_file=empty_yaml)
         runner2.parse_and_load_model()
-        assert runner2.azure_config.application_id == ""
+        assert runner2.azure_config.resource_group == ""
 
 
 def test_parsing_with_custom_yaml(test_output_dirs: TestOutputDirectories) -> None:

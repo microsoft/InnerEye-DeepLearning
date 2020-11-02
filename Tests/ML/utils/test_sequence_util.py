@@ -10,7 +10,6 @@ import pytest
 import torch
 from torch.nn.utils.rnn import pack_sequence
 
-from InnerEye.Common.type_annotations import IntOrString
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels, map_packed_sequence_data, \
     sequences_to_padded_tensor
 
@@ -35,7 +34,7 @@ def test_get_masked_model_outputs_and_labels() -> None:
 
     def _create_masked_and_check_expected(_model_outputs: torch.Tensor,
                                           _labels: torch.Tensor,
-                                          _subject_ids: Sequence[IntOrString],
+                                          _subject_ids: Sequence[str],
                                           _sorted_indices: Optional[torch.Tensor] = None) -> None:
         _masked = get_masked_model_outputs_and_labels(_model_outputs, _labels, _subject_ids)
         assert _masked is not None
@@ -58,7 +57,7 @@ def test_get_masked_model_outputs_and_labels() -> None:
     # test base case where no masking needs to be applied
     model_outputs = torch.rand((3, 4, 1))
     labels = torch.rand((3, 4, 1)).round()
-    subject_ids = [1, 2, 3]
+    subject_ids = ['1', '2', '3']
 
     _create_masked_and_check_expected(model_outputs, labels, subject_ids)
 

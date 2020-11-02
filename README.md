@@ -49,19 +49,26 @@ Once training in AzureML is done, the models can be deployed from within AzureML
 
 ## Getting started
 
-Clone the repository into a subfolder of the current directory
+We recommend using our toolbox with Linux or with the Windows Subsystem for Linux (WSL2). Much of the core 
+functionality works fine on Windows, but PyTorch's full feature set is only available on Linux. Read [more about
+WSL here](docs/WSL.md).
+
+Clone the repository into a subfolder of the current directory:
 ```shell script
-git lfs install
 git clone https://github.com/microsoft/InnerEye-DeepLearning
 cd InnerEye-DeepLearning
+git lfs install
+git lfs pull
 ```
 After that, you need to set up your Python environment:
-- Install `conda` or `miniconda` for your operating system
+- Install `conda` or `miniconda` for your operating system. 
 - Create a Conda environment from the `environment.yml` file in the repository root, and activate it:
 ```shell script
 conda env create --file environment.yml
 conda activate InnerEye
 ``` 
+- If environment creation fails with odd error messages on a Windows machine, please [continue here](docs/WSL.md).
+
 Now try to run the HelloWorld segmentation model - that's a very simple model that will train for 2 epochs on any
 machine, no GPU required. You need to set the `PYTHONPATH` environment variable to point to the repository root first. 
 Assuming that your current directory is the repository root folder, on Linux `bash` that is: 
@@ -69,6 +76,8 @@ Assuming that your current directory is the repository root folder, on Linux `ba
 export PYTHONPATH=`pwd`
 python InnerEye/ML/runner.py --model=HelloWorld
 ```
+(Note the "backtick" around the `pwd` command, this is not a standard single quote!)
+
 On Windows:
 ```shell script
 set PYTHONPATH=%cd%
@@ -77,7 +86,10 @@ python InnerEye/ML/runner.py --model=HelloWorld
 
 If that works: Congratulations! You have successfully built your first model using the InnerEye toolbox.
 
-Detailed instructions, including setup in Azure, are here:
+If it fails, please check the 
+[troubleshooting page on the Wiki](https://github.com/microsoft/InnerEye-DeepLearning/wiki/Issues-with-code-setup-and-the-HelloWorld-model).
+
+Further detailed instructions, including setup in Azure, are here:
 1. [Setting up your environment](docs/environment.md)
 1. [Training a Hello World segmentation model](docs/hello_world_model.md)
 1. [Setting up Azure Machine Learning](docs/setting_up_aml.md)
@@ -85,6 +97,7 @@ Detailed instructions, including setup in Azure, are here:
 1. [Building models in Azure ML](docs/building_models.md)
 1. [Sample Segmentation and Classification tasks](docs/sample_tasks.md)
 1. [Debugging and monitoring models](docs/debugging_and_monitoring.md)
+1. [Model diagnostics](docs/model_diagnostics.md)
 
 ## More information
 

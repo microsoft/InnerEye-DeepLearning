@@ -20,8 +20,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 from git import Repo
 
 from InnerEye.Azure.azure_util import is_offline_run_context
-from InnerEye.Azure.secrets_handling import APPLICATION_KEY, DATASETS_ACCOUNT_KEY, SecretsHandling, \
-    read_all_settings
+from InnerEye.Azure.secrets_handling import SecretsHandling, read_all_settings
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
 
@@ -68,8 +67,11 @@ class AzureConfig(GenericConfig):
         param.String(doc="Optional: The access key for the storage account that holds the datasets. "
                          "This is only used for downloading datasets outside of AzureML.")
     datasets_container: str = param.String(doc="Optional: The blob storage container with the datasets.")
+    azureml_datastore: str = param.String(doc="The name of the AzureML datastore that holds the input training data. "
+                                              "This must be created manually, and point to a folder inside the "
+                                              "datasets storage account.")
     workspace_name: str = param.String(doc="The name of the AzureML workspace that should be used.")
-    resource_group: str = param.String(None, doc="The Azure resource group that contains the AzureML workspace.")
+    resource_group: str = param.String(doc="The Azure resource group that contains the AzureML workspace.")
     docker_shm_size: str = param.String("440g", doc="The shared memory in the docker image for the AzureML VMs.")
     hyperdrive: bool = param.Boolean(False, doc="If True, use AzureML HyperDrive for run execution.")
     cluster: str = param.String(doc="The name of the GPU cluster inside the AzureML workspace, that should "
@@ -97,14 +99,16 @@ class AzureConfig(GenericConfig):
                                             "If not provided, create the experiment off the git branch name.")
     build_number: int = param.Integer(0, doc="The numeric ID of the Azure pipeline that triggered this training run.")
     build_user: str = param.String(getpass.getuser(),
-                                   doc="The user to associate this experiment with.")
+                                   doc="The name of the user who started this run.")
+    build_user_email: str = param.String(getpass.getuser(),
+                                         doc="The email address of the user who started this run. Default: "
+                                             "alias of the current user")
     build_source_repository: str = param.String(doc="The name of the repository this source belongs to.")
     build_branch: str = param.String(doc="The branch this experiment has been triggered from.")
     build_source_id: str = param.String(doc="The git commit that was used to create this build.")
     build_source_message: str = param.String(doc="The message associated with the git commit that was used to create "
                                                  "this build.")
     build_source_author: str = param.String(doc="The author of the git commit that was used to create this build.")
-    user_friendly_name: str = param.String(doc="A user friendly name to identify this experiment.")
     tag: str = param.String(doc="A string that will be added as a tag to this experiment.")
     log_level: str = param.String("INFO",
                                   doc="The level of diagnostic information that should be printed out to the console.")
@@ -120,6 +124,9 @@ class AzureConfig(GenericConfig):
     project_root: Path = param.ClassSelector(class_=Path, default=fixed_paths.repository_root_directory(),
                                              doc="The root folder that contains all code of the project "
                                                  "that starts the InnerEye run.")
+    max_run_duration: str = param.String(doc="The maximum runtime that is allowed for this job when running in "
+                                             "AzureML. This is a floating point number with a string suffix s, m, h, d "
+                                             "for seconds, minutes, hours, day. Examples: '3.5h', '2d'")
     _workspace: Workspace = param.ClassSelector(class_=Workspace,
                                                 doc="The cached workspace object that has been created in the first"
                                                     "call to get_workspace")
@@ -190,7 +197,7 @@ class AzureConfig(GenericConfig):
         Gets the storage account key for the storage account that holds the dataset.
         """
         secrets_handler = SecretsHandling(project_root=self.project_root)
-        return secrets_handler.get_secret_from_environment(DATASETS_ACCOUNT_KEY, allow_missing=True)
+        return secrets_handler.get_secret_from_environment(fixed_paths.DATASETS_ACCOUNT_KEY, allow_missing=True)
 
     def get_workspace(self) -> Workspace:
         """
@@ -226,10 +233,10 @@ class AzureConfig(GenericConfig):
          is not present
         """
         secrets_handler = SecretsHandling(project_root=self.project_root)
-        application_key = secrets_handler.get_secret_from_environment(APPLICATION_KEY, allow_missing=True)
+        application_key = secrets_handler.get_secret_from_environment(fixed_paths.SERVICE_PRINCIPAL_KEY, allow_missing=True)
         if not application_key:
             logging.warning("Unable to retrieve the key for the Service Principal authentication "
-                            f"(expected in environment variable '{APPLICATION_KEY}' or YAML). "
+                            f"(expected in environment variable '{fixed_paths.SERVICE_PRINCIPAL_KEY}' or YAML). "
                             f"Switching to interactive login.")
             return InteractiveLoginAuthentication()
 

@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, Optional, cast, List
 
 import yaml
 
@@ -19,13 +19,6 @@ from InnerEye.Common import fixed_paths
 # The application key to access the subscription via ServicePrincipal authentication.
 from InnerEye.Common.fixed_paths import PRIVATE_SETTINGS_FILE
 
-APPLICATION_KEY = "APPLICATION_KEY"
-# The access key for the Azure storage account that holds the datasets.
-DATASETS_ACCOUNT_KEY = "DATASETS_ACCOUNT_KEY"
-
-# A list of all secrets that are stored in environment variables or local secrets files.
-SECRETS_IN_ENVIRONMENT = [APPLICATION_KEY, DATASETS_ACCOUNT_KEY]
-
 
 class SecretsHandling:
     """
@@ -39,16 +32,18 @@ class SecretsHandling:
         """
         self.project_root = project_root
 
-    def read_secrets_from_file(self) -> Optional[Dict[str, str]]:
+    def read_secrets_from_file(self, secrets_to_read: List[str]) -> Optional[Dict[str, str]]:
         """
         Reads the secrets from file in YAML format, and returns the contents as a dictionary. The YAML file is expected
         in the project root directory.
+        :param secrets_to_read: The list of secret names to read from the YAML file. These will be converted to
+        uppercase.
         :return: A dictionary with secrets, or None if the file does not exist.
         """
         secrets_file = self.project_root / fixed_paths.PROJECT_SECRETS_FILE
         if not secrets_file.is_file():
             return None
-        all_keys_upper = set([name.upper() for name in SECRETS_IN_ENVIRONMENT])
+        all_keys_upper = set([name.upper() for name in secrets_to_read])
         d: Dict[str, str] = {}
         for line in secrets_file.read_text().splitlines():
             parts = line.strip().split("=", 1)
@@ -57,17 +52,19 @@ class SecretsHandling:
                 d[key] = parts[1].strip()
         return d
 
-    def get_secrets_from_environment_or_file(self) -> Dict[str, Optional[str]]:
+    def get_secrets_from_environment_or_file(self, secrets_to_read: List[str]) -> Dict[str, Optional[str]]:
         """
         Attempts to read secrets from the project secret file. If there is no secrets file, it returns all secrets
-        in SECRETS_IN_ENVIRONMENT read from environment variables. When reading from environment, if an expected
+        in secrets_to_read read from environment variables. When reading from environment, if an expected
         secret is not found, its value will be None.
+        :param secrets_to_read: The list of secret names to read from the YAML file. These will be converted to
+        uppercase.
         """
         # Read all secrets from a local file if present, and sets the matching environment variables.
         # If no secrets file is present, no environment variable is modified or created.
-        secrets_from_file = self.read_secrets_from_file()
+        secrets_from_file = self.read_secrets_from_file(secrets_to_read=secrets_to_read)
         return secrets_from_file or {name: os.environ.get(name.upper(), None)  # type: ignore
-                                     for name in SECRETS_IN_ENVIRONMENT}
+                                     for name in secrets_to_read}
 
     def get_secret_from_environment(self, name: str, allow_missing: bool = False) -> Optional[str]:
         """
@@ -85,7 +82,7 @@ class SecretsHandling:
                 raise ValueError(message)
 
         name = name.upper()
-        secrets = self.get_secrets_from_environment_or_file()
+        secrets = self.get_secrets_from_environment_or_file(secrets_to_read=[name])
         if name not in secrets:
             return throw_or_return_none(f"There is no secret named '{name}' available.")
         value = secrets[name]
@@ -149,6 +146,9 @@ def read_settings_yaml_file(yaml_file: Path) -> Dict[str, Any]:
     yaml_contents = yaml.load(yaml_file.open('r'), Loader=yaml.Loader)
     v = "variables"
     if v in yaml_contents:
-        return cast(Dict[str, Any], yaml_contents[v])
+        if yaml_contents[v]:
+            return cast(Dict[str, Any], yaml_contents[v])
+        # If the file only contains the "variable:" prefix, but nothing below, then yaml_contents becomes None
+        return dict()
     else:
         raise KeyError(f"The Yaml file must contain a section '{v}', but that was not found in {yaml_file}")

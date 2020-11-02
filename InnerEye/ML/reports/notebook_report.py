@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import nbformat
 import papermill
@@ -12,6 +12,10 @@ from nbconvert import HTMLExporter
 from nbconvert.writers import FilesWriter
 
 from InnerEye.Common import fixed_paths
+
+
+def str_or_empty(p: Union[None, str, Path]) -> str:
+    return str(p) if p else ""
 
 
 def print_header(message: str, level: int = 2) -> None:
@@ -26,11 +30,26 @@ def print_header(message: str, level: int = 2) -> None:
 
 
 def generate_notebook(template_notebook: Path, notebook_params: Dict, result_notebook: Path) -> Path:
+    """
+    Generates a notebook report as jupyter notebook and html page
+    :param template_notebook: path to template notebook
+    :param notebook_params: parameters for the notebook
+    :param result_notebook: the path for the executed notebook
+    :return: returns path to the html page
+    """
     print(f"Writing report to {result_notebook}")
     papermill.execute_notebook(input_path=str(template_notebook),
                                output_path=str(result_notebook),
                                parameters=notebook_params,
                                progress_bar=False)
+    return convert_to_html(result_notebook)
+
+
+def convert_to_html(result_notebook: Path) -> Path:
+    """
+    :param result_notebook: The path to the result notebook
+    :return: Path with output extension
+    """
     print(f"Running conversion to HTML for {result_notebook}")
     with result_notebook.open() as f:
         notebook = nbformat.read(f, as_version=4)
@@ -55,8 +74,6 @@ def generate_segmentation_notebook(result_notebook: Path,
     Creates a reporting notebook for a segmentation model, using the given training, validation, and test set metrics.
     Returns the report file after HTML conversion.
     """
-    def str_or_empty(p: Optional[Path]) -> str:
-        return str(p) if p else ""
 
     notebook_params = \
         {
@@ -66,6 +83,34 @@ def generate_segmentation_notebook(result_notebook: Path,
             'test_metrics_csv': str_or_empty(test_metrics),
         }
     template = Path(__file__).absolute().parent / "segmentation_report.ipynb"
+    return generate_notebook(template,
+                             notebook_params=notebook_params,
+                             result_notebook=result_notebook)
+
+
+def generate_classification_notebook(result_notebook: Path,
+                                     train_metrics: Optional[Path] = None,
+                                     val_metrics: Optional[Path] = None,
+                                     test_metrics: Optional[Path] = None,
+                                     dataset_csv_path: Optional[Path] = None,
+                                     dataset_subject_column: Optional[str] = None,
+                                     dataset_file_column: Optional[str] = None) -> Path:
+    """
+    Creates a reporting notebook for a classification model, using the given training, validation, and test set metrics.
+    Returns the report file after HTML conversion.
+    """
+
+    notebook_params = \
+        {
+            'innereye_path': str(fixed_paths.repository_root_directory()),
+            'train_metrics_csv': str_or_empty(train_metrics),
+            'val_metrics_csv': str_or_empty(val_metrics),
+            'test_metrics_csv': str_or_empty(test_metrics),
+            'dataset_csv_path': str_or_empty(dataset_csv_path),
+            "dataset_subject_column": str_or_empty(dataset_subject_column),
+            "dataset_file_column": str_or_empty(dataset_file_column)
+        }
+    template = Path(__file__).absolute().parent / "classification_report.ipynb"
     return generate_notebook(template,
                              notebook_params=notebook_params,
                              result_notebook=result_notebook)

@@ -20,7 +20,7 @@ from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, EXECUTION_MODES_TO_DOWNLOAD, \
+from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
     METRICS_BY_MODE_AND_STRUCTURE_FILE, METRICS_BY_MODE_FILE, \
     OfflineCrossvalConfigAndFiles, PORTAL_QUERY_TEMPLATE, PlotCrossValidationConfig, RUN_RECOVERY_ID_KEY, \
     RunResultFiles, add_comparison_data, check_result_file_counts, create_portal_query_for_outliers, \
@@ -29,7 +29,7 @@ from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, EXECUTION_MO
 from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
 from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToyMultiLabelSequenceModel, \
     _get_multi_label_sequence_dataframe
-from Tests.ML.util import assert_file_contents_match_exactly, get_default_azure_config
+from Tests.ML.util import assert_text_files_match, get_default_azure_config
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
@@ -76,11 +76,11 @@ def download_metrics(config: PlotCrossValidationConfig) -> \
     return dataframes, root_folder
 
 
-def create_run_result_file_list(run_recovery_id: str, folder: str,
+def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str,
                                 perform_sub_fold_cross_validation: bool = False) -> List[RunResultFiles]:
     """
     Creates a list of input files for cross validation analysis, from files stored inside of the test data folder.
-    :param run_recovery_id: The run recovery id, format experiment:run, without the split suffix (_0, _1)
+    :param config: The overall cross validation config
     :param folder: The folder to read from, inside of test_data/plot_cross_validation.
     :param perform_sub_fold_cross_validation: If True then create input files for sub fold cross validation analysis.
     :return:
@@ -89,7 +89,7 @@ def create_run_result_file_list(run_recovery_id: str, folder: str,
     files: List[RunResultFiles] = []
     previous_dataset_file = None
     for split in ["0", "1", "1", "1"] if perform_sub_fold_cross_validation else ["0", "1"]:
-        for mode in EXECUTION_MODES_TO_DOWNLOAD:
+        for mode in config.execution_modes_to_download():
             metrics_file = full_folder / split / mode.value / METRICS_FILE_NAME
             dataset_file: Optional[Path] = full_folder / split / DATASET_CSV_FILE_NAME
             if dataset_file.exists():  # type: ignore
@@ -102,14 +102,15 @@ def create_run_result_file_list(run_recovery_id: str, folder: str,
                 file = RunResultFiles(execution_mode=mode,
                                       metrics_file=metrics_file,
                                       dataset_csv_file=dataset_file,
-                                      run_recovery_id=run_recovery_id + "_" + split,
+                                      run_recovery_id=config.run_recovery_id + "_" + split,  # type: ignore
                                       split_index=split)
                 files.append(file)
     return files
 
 
-def create_file_list_for_recovery_run() -> List[RunResultFiles]:
-    return create_run_result_file_list(run_recovery_id=DEFAULT_ENSEMBLE_RUN_RECOVERY_ID,
+def create_file_list_for_segmentation_recovery_run(test_config_ensemble: PlotCrossValidationConfig) -> \
+        List[RunResultFiles]:
+    return create_run_result_file_list(config=test_config_ensemble,
                                        folder="master_1570466706163110")
 
 
@@ -118,9 +119,9 @@ def test_metrics_preparation_for_segmentation(test_config_ensemble: PlotCrossVal
     Test if metrics dataframes can be loaded and prepared. The files in question are checked in, but
     were downloaded from a run, ID given in DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.
     """
-    files = create_file_list_for_recovery_run()
+    files = create_file_list_for_segmentation_recovery_run(test_config_ensemble)
     downloaded_metrics = load_dataframes(files, test_config_ensemble)
-    for mode in EXECUTION_MODES_TO_DOWNLOAD:
+    for mode in test_config_ensemble.execution_modes_to_download():
         expected_df = _get_metrics_df(mode)
         # Drop the "mode" column, because that was added after creating the test data
         metrics = downloaded_metrics[mode]
@@ -132,15 +133,14 @@ def test_metrics_preparation_for_segmentation(test_config_ensemble: PlotCrossVal
 
 def load_result_files_for_classification(perform_sub_fold_cross_validation: bool = False) -> \
         Tuple[List[RunResultFiles], PlotCrossValidationConfig]:
-    run_recovery_id = "local_branch:HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301"
-    files = create_run_result_file_list(run_recovery_id=run_recovery_id,
-                                        folder="HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301",
-                                        perform_sub_fold_cross_validation=perform_sub_fold_cross_validation)
     plotting_config = PlotCrossValidationConfig(
-        run_recovery_id=run_recovery_id,
+        run_recovery_id="local_branch:HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301",
         epoch=3,
         model_category=ModelCategory.Classification
     )
+    files = create_run_result_file_list(config=plotting_config,
+                                        folder="HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301",
+                                        perform_sub_fold_cross_validation=perform_sub_fold_cross_validation)
     return files, plotting_config
 
 
@@ -289,9 +289,9 @@ def test_save_outliers(test_config_ensemble: PlotCrossValidationConfig,
     test_config_ensemble.outlier_range = 0
     dataset_split_metrics = {x: _get_metrics_df(x) for x in [ModelExecutionMode.VAL]}
     save_outliers(test_config_ensemble, dataset_split_metrics, Path(test_config_ensemble.outputs_directory))
-    assert_file_contents_match_exactly(full_file=Path(test_config_ensemble.outputs_directory)
-                                                 / f"{ModelExecutionMode.VAL.value}_outliers.txt",
-                                       expected_file=Path(
+    assert_text_files_match(full_file=Path(test_config_ensemble.outputs_directory)
+                                      / f"{ModelExecutionMode.VAL.value}_outliers.txt",
+                            expected_file=Path(
                                            full_ml_test_data_path(
                                                f"{ModelExecutionMode.VAL.value}_outliers.txt")))
 
@@ -425,14 +425,14 @@ def test_load_files_with_prediction_target() -> None:
     For multi-week RNNs that predict at multiple sequence points: Test that the dataframes
     including the prediction_target column can be loaded.
     """
-    run_id = "foo"
     folder = "multi_label_sequence_in_crossval"
-    files = create_run_result_file_list(run_id, folder)
     plotting_config = PlotCrossValidationConfig(
-        run_recovery_id=run_id,
+        run_recovery_id="foo",
         epoch=1,
         model_category=ModelCategory.Classification
     )
+    files = create_run_result_file_list(plotting_config, folder)
+
     downloaded_metrics = load_dataframes(files, plotting_config)
     assert ModelExecutionMode.TEST not in downloaded_metrics
     metrics = downloaded_metrics[ModelExecutionMode.VAL]
@@ -453,13 +453,13 @@ def test_aggregate_files_with_prediction_target(test_output_dirs: TestOutputDire
     For multi-week RNNs that predict at multiple sequence points: Test that the dataframes
     including the prediction_target column can be aggregated.
     """
-    run_id = "foo"
-    files = create_run_result_file_list(run_id, "multi_label_sequence_in_crossval")
     plotting_config = PlotCrossValidationConfig(
-        run_recovery_id=run_id,
+        run_recovery_id="foo",
         epoch=1,
         model_category=ModelCategory.Classification
     )
+    files = create_run_result_file_list(plotting_config, "multi_label_sequence_in_crossval")
+
     root_folder = Path(test_output_dirs.root_dir)
     print(f"Writing result files to {root_folder}")
     plot_cross_validation_from_files(OfflineCrossvalConfigAndFiles(config=plotting_config, files=files),

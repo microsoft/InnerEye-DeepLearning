@@ -9,7 +9,8 @@ import pandas as pd
 
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML.reports.notebook_report import generate_segmentation_notebook
-from InnerEye.ML.reports.segmentation_report import describe_score
+from InnerEye.ML.reports.segmentation_report import describe_score, worst_patients_and_outliers
+from InnerEye.ML.utils.csv_util import COL_IS_OUTLIER
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 
 
@@ -51,3 +52,24 @@ def test_describe_metric() -> None:
 """
     with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', 150):
         assert str(df2).splitlines() == expected.splitlines()
+
+
+def test_worst_patients() -> None:
+    data = """Patient,foo
+A,0
+C,100
+D,101
+E,102
+F,200"""
+    df = pd.read_csv(StringIO(data))
+    assert df["foo"].std() < 80
+    # Metric values are constructed such that A and F are more than 1 std away from the mean. With outlier_range
+    # set to 1, we should get A and F back as outliers.
+    worst = worst_patients_and_outliers(df, outlier_range=1, metric_name="foo", high_values_are_good=True,
+                                        max_row_count=2)
+    assert worst["Patient"].to_list() == ["A", "C"]
+    assert worst[COL_IS_OUTLIER].to_list() == ["Yes", ""]
+    worst = worst_patients_and_outliers(df, outlier_range=1, metric_name="foo", high_values_are_good=False,
+                                        max_row_count=2)
+    assert worst["Patient"].to_list() == ["F", "E"]
+    assert worst[COL_IS_OUTLIER].to_list() == ["Yes", ""]

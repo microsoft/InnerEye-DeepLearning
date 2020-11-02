@@ -12,13 +12,14 @@ from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
 from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, ModelProcessing, \
-    empty_string_to_none, \
+    empty_string_to_none, DataframeLogger, \
     get_epoch_results_path, is_linux, logging_section, string_to_path
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config
+from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config, ScalarMetricsDict
 from InnerEye.ML import metrics, plotting
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
@@ -40,7 +41,7 @@ from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_ni
     save_lines_to_file
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
-from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_test
 
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
@@ -135,7 +136,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     :raises ValueError: When there are issues loading the model.
     :return A list with the mean dice score (across all structures apart from background) for each image.
     """
-    ml_util.set_random_seed(config.get_effective_random_seed(), "Model Training")
+    ml_util.set_random_seed(config.get_effective_random_seed(), "Model testing")
     results_folder = Path(results_folder)
     results_folder.mkdir(exist_ok=True)
 
@@ -351,28 +352,17 @@ def create_inference_pipeline(config: ModelConfigBase,
                               run_recovery: Optional[RunRecovery] = None) -> Optional[InferencePipelineBase]:
     """
     If multiple checkpoints are found in run_recovery then create EnsemblePipeline otherwise InferencePipeline.
+    If no checkpoint files exist in the run recovery or current run checkpoint folder, None will be returned.
     :param config: Model related configs.
     :param epoch: The epoch for which to create pipeline for.
     :param run_recovery: RunRecovery data if applicable
     :return: FullImageInferencePipelineBase or ScalarInferencePipelineBase
     """
-    if run_recovery:
-        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch, config.compute_mean_teacher_model)
-        pipeline = create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
-        if pipeline is not None:
-            # We found the checkpoint(s) in the run being recovered. If we didn't, it's probably because the epoch
-            # is from the current run, which has been doing more training, so we look for it there.
-            return pipeline
-    checkpoint_paths = [config.get_path_to_checkpoint(epoch, config.compute_mean_teacher_model)]
-    return create_pipeline_from_checkpoint_paths(config, checkpoint_paths)
+    checkpoint_paths = get_recovery_path_test(config=config, run_recovery=run_recovery,
+                                              epoch=epoch)
+    if not checkpoint_paths:
+        return None
 
-
-def create_pipeline_from_checkpoint_paths(config: ModelConfigBase,
-                                          checkpoint_paths: List[Path]) -> Optional[InferencePipelineBase]:
-    """
-    Attempt to create a pipeline from the provided checkpoint paths. If the files referred to by the paths
-    do not exist, or if there are no paths, None will be returned.
-    """
     if len(checkpoint_paths) > 1:
         if config.is_segmentation_model:
             assert isinstance(config, SegmentationModelBase)
@@ -450,8 +440,29 @@ def classification_model_test(config: ScalarModelBase,
         else:
             results[epoch] = epoch_result
 
+            if isinstance(epoch_result, ScalarMetricsDict):
+                epoch_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc)
+                csv_file = epoch_folder / METRICS_FILE_NAME
+
+                logging.info(f"Writing {data_split.value} metrics to file {str(csv_file)}")
+
+                # If we are running inference after a training run, the validation set metrics may have been written
+                # during train time. If this is not the case, or we are running on the test set, create the metrics
+                # file.
+                if not csv_file.exists():
+                    os.makedirs(str(epoch_folder), exist_ok=False)
+                    df_logger = DataframeLogger(csv_file)
+
+                    # cross validation split index not relevant during test time
+                    epoch_result.store_metrics_per_subject(epoch=epoch,
+                                                           df_logger=df_logger,
+                                                           mode=data_split)
+                    # write to disk
+                    df_logger.flush()
+
     if len(results) == 0:
         raise ValueError("There was no single checkpoint file available for model testing.")
+
     return InferenceMetricsForClassification(epochs=results)
 
 

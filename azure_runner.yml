@@ -5,9 +5,9 @@ dependencies:
   - pip=20.1.1
   - python=3.7.3
   - pip:
-      - azureml-sdk==1.12.0
-      - azureml-tensorboard==1.12.0
       - azure-mgmt-resource==10.2.0
+      - azureml-sdk==1.17.0
+      - azureml-tensorboard==1.17.0
       - blobxfer==1.9.4
       - gitpython==3.1.7
       - numpy==1.19.1

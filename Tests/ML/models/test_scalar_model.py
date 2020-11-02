@@ -16,7 +16,7 @@ from more_itertools import flatten
 
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, METRICS_AGGREGATES_FILE, \
-    METRICS_FILE_NAME, logging_to_stdout
+    METRICS_FILE_NAME, logging_to_stdout, epoch_folder_name
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict
 from InnerEye.Common.output_directories import TestOutputDirectories
 from InnerEye.ML import model_testing, model_training, runner
@@ -36,7 +36,7 @@ from Tests.ML.util import get_default_azure_config, machine_has_gpu
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
-@pytest.mark.gpu
+@pytest.mark.cpu_and_gpu
 @pytest.mark.parametrize("use_mixed_precision", [False, True])
 def test_train_classification_model(test_output_dirs: TestOutputDirectories,
                                     use_mixed_precision: bool) -> None:
@@ -127,6 +127,17 @@ Default,4,S2,0.5293986201286316,1.0,-1,Train
 """
         check_log_file(metrics_path, metrics_expected, ignore_columns=[])
 
+        # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
+        # Normally, we would run it on the Test and Val splits, but for convenience we test on the train split here.
+        inference_metrics_path = config.outputs_folder / Path(epoch_folder_name(config.num_epochs)) / \
+                           ModelExecutionMode.TRAIN.value / METRICS_FILE_NAME
+        inference_metrics_expected = \
+            """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
+Default,4,S2,0.5293986201286316,1.0,-1,Train
+Default,4,S4,0.5211275815963745,0.0,-1,Train
+"""
+        check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
+
 
 def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> None:
     df_expected = pd.read_csv(StringIO(expected_csv))
@@ -173,9 +184,10 @@ def test_run_ml_with_classification_model(test_output_dirs: TestOutputDirectorie
         # recognizes run_recovery_id == None as the signal to read from the local_run_results folder.
         config_and_files = get_config_and_results_for_offline_runs(train_config)
         result_files = config_and_files.files
-        assert len(result_files) == train_config.get_total_number_of_cross_validation_runs()
+        # One file for VAL and one for TRAIN for each child run
+        assert len(result_files) == train_config.get_total_number_of_cross_validation_runs() * 2
         for file in result_files:
-            assert file.execution_mode == ModelExecutionMode.VAL
+            assert file.execution_mode != ModelExecutionMode.TEST
             assert file.dataset_csv_file is not None
             assert file.dataset_csv_file.exists()
             assert file.metrics_file is not None
@@ -334,7 +346,7 @@ def _compute_scalar_metrics(output_values_list: List[List[float]],
         _labels = _labels.cuda()
         model_output = model_output.cuda()
     metrics_dict = ScalarMetricsDict(hues=hues, is_classification_metrics=is_classification)
-    subject_ids = list(range(model_output.shape[0]))
+    subject_ids = list(map(str, range(model_output.shape[0])))
     loss_type = ScalarLoss.BinaryCrossEntropyWithLogits if is_classification else ScalarLoss.MeanSquaredError
     compute_scalar_metrics(metrics_dict, subject_ids, model_output, _labels, loss_type=loss_type)
     return metrics_dict
@@ -379,8 +391,11 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         _counts_for_splits = list(_aggregates_csv[LoggingColumns.SubjectCount.value])
         assert all([x == _val_dataset_split_count for x in _counts_for_splits])
         _epochs = list(_aggregates_csv[LoggingColumns.Epoch.value])
-        assert len(_epochs) == train_config.num_epochs
-        assert all([x + 1 in _epochs for x in range(train_config.num_epochs)])
+        # Each epoch is recorded twice once for the training split and once for the validation
+        # split
+        assert len(_epochs) == train_config.num_epochs * 2
+        assert all([x + 1 in _epochs for x in list(range(train_config.num_epochs)) * 2])
+        # Only the validation mode is kept for unrolled aggregates
         unrolled = unroll_aggregate_metrics(_aggregates_csv)
         if train_config.is_classification_model:
             expected_metrics = {LoggingColumns.CrossEntropy.value,
@@ -396,7 +411,7 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
                                 LoggingColumns.MeanSquaredError.value,
                                 LoggingColumns.R2Score.value}
         expected_metrics = expected_metrics.union({LoggingColumns.SubjectCount.value})
-        assert len(unrolled) == len(_epochs) * len(expected_metrics)
+        assert len(unrolled) == train_config.num_epochs * len(expected_metrics)
         actual_metrics = set(m.metric_name for m in unrolled)
         assert actual_metrics == expected_metrics
         actual_epochs = set(m.epoch for m in unrolled)

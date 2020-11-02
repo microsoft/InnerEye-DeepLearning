@@ -19,8 +19,7 @@ from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX, ModelExecutionMode, \
-    create_unique_timestamp_id
+from InnerEye.ML.common import ModelExecutionMode, create_unique_timestamp_id, create_checkpoint_path
 
 VISUALIZATION_FOLDER = "Visualizations"
 CHECKPOINT_FOLDER = "checkpoints"
@@ -68,6 +67,7 @@ class ModelCategory(Enum):
     Classification = "Classification"  # All models that perform classification
     Regression = "Regression"  # All models that perform regression
 
+    @property
     def is_scalar(self) -> bool:
         """
         Return True if the current ModelCategory is either Classification or Regression
@@ -318,16 +318,16 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                         "on Linux, inference is currently disabled as the data loaders hang. "
                                         "If False, use the default data loader logic that starts new processes for "
                                         "each epoch.")
-    # The default multiprocessing start_method in both PyTorch and the Python standardlibrary is "fork" for Linux and
-    # "spawn" (the only available method) for Windows. However if the user does not specify a method, we default to
-    # "forkserver" for Linux, as there is evidence that this greatly reduces the risk of dataloader processes getting
-    # stuck.
+    # The default multiprocessing start_method in both PyTorch and the Python standard library is "fork" for Linux and
+    # "spawn" (the only available method) for Windows. There is some evidence that using "forkserver" on Linux
+    # can reduce the chance of stuck jobs.
     multiprocessing_start_method: MultiprocessingStartMethod = \
         param.ClassSelector(class_=MultiprocessingStartMethod,
                             default=(MultiprocessingStartMethod.spawn if is_windows()
-                                     else MultiprocessingStartMethod.forkserver),
+                                     else MultiprocessingStartMethod.fork),
                             doc="Method to be used to start child processes in pytorch. Should be one of forkserver, "
-                                "fork or spawn. If not specified, forkserver is used on Linux and spawn on Windows.")
+                                "fork or spawn. If not specified, fork is used on Linux and spawn on Windows. "
+                                "Set to forkserver as a possible remedy for stuck jobs.")
     output_to: Optional[str] = \
         param.String(default=None,
                      doc="If provided, the run outputs will be written to the given folder. If not provided, outputs "
@@ -431,7 +431,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         Returns True if the present model configuration belongs to the high-level category ModelCategory.Scalar
         i.e. for Classification or Regression models.
         """
-        return self.model_category.is_scalar()
+        return self.model_category.is_scalar
 
     @property
     def compute_grad_cam(self) -> bool:
@@ -595,7 +595,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                 test_epochs.add(epoch)
         return sorted(test_epochs)
 
-    def get_path_to_checkpoint(self, epoch: int, for_mean_teacher_model: bool = False) -> Path:
+    def get_path_to_checkpoint(self, epoch: int) -> Path:
         """
         Returns full path to a checkpoint given an epoch
         :param epoch: the epoch number
@@ -603,10 +603,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         path to the (main / student) model checkpoint.
         :return: path to a checkpoint given an epoch
         """
-        filename = MEAN_TEACHER_CHECKPOINT_FILE_SUFFIX if for_mean_teacher_model else CHECKPOINT_FILE_SUFFIX
-        return fixed_paths.repository_root_directory() \
-               / self.checkpoint_folder \
-               / f"{epoch}{filename}"
+        return create_checkpoint_path(path=fixed_paths.repository_root_directory() / self.checkpoint_folder,
+                                      epoch=epoch)
 
     def get_effective_random_seed(self) -> int:
         """

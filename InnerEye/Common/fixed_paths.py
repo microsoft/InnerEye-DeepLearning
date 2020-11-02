@@ -35,9 +35,6 @@ DEFAULT_LOGS_DIR_NAME = "logs"
 DEFAULT_MODEL_SUMMARIES_DIR_PATH = Path(DEFAULT_LOGS_DIR_NAME) / "model_summaries"
 # The folder at the project root directory that holds datasets for local execution.
 DATASETS_DIR_NAME = "datasets"
-# Inside of the AzureML workspace, a Datastore has to be created manually. That Datastore
-# points to a container inside of a storage account.
-AZUREML_DATASTORE_NAME = "innereyedatasets"
 
 ML_RELATIVE_SOURCE_PATH = os.path.join("ML")
 ML_RELATIVE_RUNNER_PATH = os.path.join(ML_RELATIVE_SOURCE_PATH, "runner.py")
@@ -50,6 +47,12 @@ PROJECT_SECRETS_FILE = "InnerEyeTestVariables.txt"
 # A file with additional settings that should not be added to source control.
 # This file is expected to live in the root folder of the repository or project.
 PRIVATE_SETTINGS_FILE = "InnerEyePrivateSettings.yml"
+
+# Names of secrets stored as environment variables or in the PROJECT_SECRETS_FILE:
+# Secret for the Service Principal
+SERVICE_PRINCIPAL_KEY = "APPLICATION_KEY"
+# The access key for the Azure storage account that holds the datasets.
+DATASETS_ACCOUNT_KEY = "DATASETS_ACCOUNT_KEY"
 
 INNEREYE_PACKAGE_ROOT = repository_root_directory(INNEREYE_PACKAGE_NAME)
 SETTINGS_YAML_FILE_NAME = "settings.yml"

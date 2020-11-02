@@ -12,7 +12,7 @@ import pandas as pd
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.Common.type_annotations import IntOrString, PathOrString, T, TupleFloat3
+from InnerEye.Common.type_annotations import PathOrString, T, TupleFloat3
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER, CSV_SUBJECT_HEADER, \
     CSV_TAGS_HEADER
@@ -27,14 +27,14 @@ class PatientMetadata:
     """
     Patient metadata
     """
-    patient_id: int
+    patient_id: str
     image_header: Optional[ImageHeader] = None
     institution: Optional[str] = None
     series: Optional[str] = None
     tags_str: Optional[str] = None
 
     @staticmethod
-    def from_dataframe(dataframe: pd.DataFrame, patient_id: IntOrString) -> PatientMetadata:
+    def from_dataframe(dataframe: pd.DataFrame, patient_id: str) -> PatientMetadata:
         """
         Extracts the patient metadata columns from a dataframe that represents a full dataset.
         For each of the columns "seriesId", "instituionId" and "tags", the distinct values for the given patient are
@@ -61,7 +61,7 @@ class PatientMetadata:
         if tags is not None:
             tags = tags.lstrip("[").rstrip("]")
         return PatientMetadata(
-            patient_id=int(patient_id),
+            patient_id=patient_id,
             institution=get_single_value(CSV_INSTITUTION_HEADER),
             series=get_single_value(CSV_SERIES_HEADER),
             tags_str=tags
