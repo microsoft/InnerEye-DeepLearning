@@ -191,6 +191,10 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
 
     logging.info("Finished training")
 
+    # Since we have trained the model further, let the checkpoint_handler object know so it can handle
+    # checkpoints correctly.
+    checkpoint_handler.additional_training_done()
+
     # Upload visualization directory to AML run context to be able to see it
     # in the Azure UI.
     if config.max_batch_grad_cam > 0 and config.visualization_folder.exists():

@@ -306,9 +306,6 @@ class MLRunner:
             if self.azure_config.train:
                 with logging_section("Model training"):
                     model_train(self.model_config, checkpoint_handler)
-                    # If we have trained the model further, let the checkpoint_handler object know so it can handle
-                    # checkpoints correctly.
-                    checkpoint_handler.additional_training_done()
             else:
                 self.model_config.write_dataset_files()
                 self.create_activation_maps()

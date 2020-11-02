@@ -45,7 +45,6 @@ def test_train_2d_classification_model(test_output_dirs: TestOutputDirectories,
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=Path(test_output_dirs.root_dir))
     model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
-    checkpoint_handler.additional_training_done()
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
 

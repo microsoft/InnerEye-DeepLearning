@@ -40,13 +40,12 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=Path(test_output_dirs.root_dir))
     train_results = model_train(config, checkpoint_handler=checkpoint_handler)
-    assert len(train_results.learning_rates_per_epoch) == 4
+    assert len(train_results.learning_rates_per_epoch) == config.num_epochs
 
     # Run inference on this
-    checkpoint_handler.additional_training_done()
     test_results = model_test(config=config, data_split=ModelExecutionMode.TEST, checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
-    assert list(test_results.epochs.keys()) == [4]
+    assert list(test_results.epochs.keys()) == [config.num_epochs]
 
     # Mimic using a run recovery and see if it is the same
     config_run_recovery = DummyClassification()
@@ -64,9 +63,9 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     test_results_run_recovery = model_test(config_run_recovery, data_split=ModelExecutionMode.TEST,
                                            checkpoint_handler=checkpoint_handler_run_recovery)
     assert isinstance(test_results_run_recovery, InferenceMetricsForClassification)
-    assert list(test_results_run_recovery.epochs.keys()) == [4]
-    assert test_results.epochs[4].values()[MetricType.CROSS_ENTROPY.value] == \
-           test_results_run_recovery.epochs[4].values()[MetricType.CROSS_ENTROPY.value]
+    assert list(test_results_run_recovery.epochs.keys()) == [config.num_epochs]
+    assert test_results.epochs[config.num_epochs].values()[MetricType.CROSS_ENTROPY.value] == \
+           test_results_run_recovery.epochs[config.num_epochs].values()[MetricType.CROSS_ENTROPY.value]
 
     # Run inference with the local checkpoints
     config_local_weights = DummyClassification()
@@ -76,7 +75,8 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     os.makedirs(str(config_local_weights.outputs_folder))
 
     local_weights_path = Path(test_output_dirs.root_dir) / "local_weights_file.pth"
-    shutil.copyfile(str(create_checkpoint_path(Path(config.checkpoint_folder), epoch=4)), local_weights_path)
+    shutil.copyfile(str(create_checkpoint_path(Path(config.checkpoint_folder), epoch=config.num_epochs)),
+                    local_weights_path)
     config_local_weights.local_weights_path = local_weights_path
 
     checkpoint_handler_local_weights = get_default_checkpoint_handler(model_config=config_local_weights,
@@ -86,5 +86,5 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
                                             checkpoint_handler=checkpoint_handler_local_weights)
     assert isinstance(test_results_local_weights, InferenceMetricsForClassification)
     assert list(test_results_local_weights.epochs.keys()) == [0]
-    assert test_results.epochs[4].values()[MetricType.CROSS_ENTROPY.value] == \
+    assert test_results.epochs[config.num_epochs].values()[MetricType.CROSS_ENTROPY.value] == \
            test_results_local_weights.epochs[0].values()[MetricType.CROSS_ENTROPY.value]

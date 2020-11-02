@@ -75,7 +75,6 @@ def test_non_image_encoder(test_output_dirs: TestOutputDirectories,
                                                         project_root=Path(test_output_dirs.root_dir))
     model_train(config, checkpoint_handler=checkpoint_handler)
     # run model inference
-    checkpoint_handler.additional_training_done()
     MLRunner(config).model_inference_train_and_test(checkpoint_handler=checkpoint_handler)
     assert config.get_total_number_of_non_imaging_features() == 18
 

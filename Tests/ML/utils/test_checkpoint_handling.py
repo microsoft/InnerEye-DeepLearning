@@ -104,7 +104,7 @@ def test_get_recovery_path_train(test_output_dirs: TestOutputDirectories) -> Non
     # Run recovery with start epoch provided should succeed
     config.start_epoch = 20
     expected_path = create_checkpoint_path(path=Path(config.checkpoint_folder) / DEFAULT_RUN_RECOVERY_ID.split(":")[1],
-                                           epoch=20)
+                                           epoch=config.start_epoch)
     assert checkpoint_handler.get_recovery_path_train() == expected_path
 
     # set an ensemble run as recovery - not supported
