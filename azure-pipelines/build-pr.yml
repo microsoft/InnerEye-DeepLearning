@@ -62,3 +62,6 @@ jobs:
           wait_for_completion: 'True'
           more_switches: '--use_dataset_mount=True'
           max_run_duration: '30m'
+      - template: tests_after_training.yml
+        parameters:
+          test_run_title: tests_after_training_submodule

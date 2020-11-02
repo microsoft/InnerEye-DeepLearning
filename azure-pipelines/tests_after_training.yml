@@ -7,8 +7,7 @@ steps:
       source activate AzureRunner
     displayName: Create InnerEye environment
 
-  # The run ID of the training run is now available in training_run.txt. Move that back to the default runID name,
-  # and run all tests that build upon that training run.
+  # The run ID of the training run is now available in most_recent_run.txt.
   - bash: |
       source activate AzureRunner
       pytest ./Tests/ -m "after_training" --junitxml=junit/test-results-after-training.xml

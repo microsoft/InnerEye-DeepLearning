@@ -12,6 +12,7 @@ from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
 from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.output_directories import OutputFolderForTests
+from Tests.ML.util import is_running_on_azure
 
 
 @pytest.mark.after_training
@@ -20,7 +21,9 @@ def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
     Downloads the model that was built in the most recent run, and checks if its file structure is as expected.
     """
     run_recovery_file = Path(RUN_RECOVERY_FILE)
-    if run_recovery_file.is_file():
+    if is_running_on_azure():
+        assert run_recovery_file.is_file(), "When running in cloud builds, this should pick up the ID of a previous " \
+                                            "training run"
         print("Reading run information from file.")
         most_recent_run = run_recovery_file.read_text().strip()
     else:
