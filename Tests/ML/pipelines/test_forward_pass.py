@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from pathlib import Path
 from typing import Any, List, Optional
 
 import numpy as np
@@ -13,7 +12,7 @@ from torch.nn import Identity
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import MetricsDataframeLoggers
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
@@ -25,10 +24,10 @@ from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConst
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.metrics_util import SummaryWriters
 from InnerEye.ML.utils.model_util import ModelAndInfo
-from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
 from Tests.ML.util import machine_has_gpu, no_gpu_available
@@ -218,7 +217,7 @@ def test_use_gpu_flag(use_gpu_override: bool) -> None:
 
 
 @pytest.mark.azureml
-def test_mean_teacher_model(test_output_dirs: TestOutputDirectories) -> None:
+def test_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and weight updates of the mean teacher model computation.
     """
@@ -291,12 +290,13 @@ def test_mean_teacher_model(test_output_dirs: TestOutputDirectories) -> None:
 @pytest.mark.skipif(no_gpu_available, reason="Testing AMP requires a GPU")
 @pytest.mark.parametrize("use_mixed_precision", [False, True])
 @pytest.mark.parametrize("execution_mode", [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL])
-def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirectories,
+def test_amp_and_parallel_for_scalar_models(test_output_dirs: OutputFolderForTests,
                                             execution_mode: ModelExecutionMode,
                                             use_mixed_precision: bool) -> None:
     """
     Tests the mix precision flag and data parallel for scalar models.
     """
+
     class ClassificationModelWithIdentity(ClassificationModelForTesting):
         def create_model(self) -> Any:
             return DummyScalarModel(expected_image_size_zyx=config.expected_image_size_zyx,
@@ -325,7 +325,7 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: TestOutputDirector
         data_loader=data_loaders[execution_mode],
         in_training_mode=execution_mode == ModelExecutionMode.TRAIN,
         gradient_scaler=gradient_scaler,
-        dataframe_loggers=MetricsDataframeLoggers(Path(test_output_dirs.root_dir)),
+        dataframe_loggers=MetricsDataframeLoggers(test_output_dirs.root_dir),
         summary_writers=SummaryWriters(train=None, val=None)  # type: ignore
     )
     training_steps = ModelTrainingStepsForScalarModel(config, train_val_parameters)

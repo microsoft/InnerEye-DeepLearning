@@ -3,12 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
-from pathlib import Path
 from unittest import mock
 
 from GPUtil import GPU
 
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.resource_monitor import GpuUtilization, ResourceMonitor
 
 
@@ -122,11 +121,11 @@ def test_utilization_max() -> None:
     )
 
 
-def test_resource_monitor(test_output_dirs: TestOutputDirectories) -> None:
+def test_resource_monitor(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if metrics are correctly updated in the ResourceMonitor class.
     """
-    tensorboard_folder = Path(test_output_dirs.root_dir)
+    tensorboard_folder = test_output_dirs.root_dir
     r = ResourceMonitor(interval_seconds=5, tensorboard_folder=tensorboard_folder)
 
     def create_gpu(id: int, load: float, mem_total: float, mem_used: float) -> GPU:
@@ -157,7 +156,7 @@ def test_resource_monitor(test_output_dirs: TestOutputDirectories) -> None:
     }
     r.writer.flush()
     r.store_to_file()
-    tb_file = list(Path(tensorboard_folder).rglob("*tfevents*"))[0]
+    tb_file = list(tensorboard_folder.rglob("*tfevents*"))[0]
     assert os.path.getsize(str(tb_file)) > 100
     assert r.aggregate_metrics_file.is_file
     assert len(r.aggregate_metrics_file.read_text().splitlines()) == 17
@@ -165,11 +164,11 @@ def test_resource_monitor(test_output_dirs: TestOutputDirectories) -> None:
     assert len(parsed_metrics) == 16
 
 
-def test_resource_monitor_store_to_file(test_output_dirs: TestOutputDirectories) -> None:
+def test_resource_monitor_store_to_file(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if storing metrics to a file works correctly.
     """
-    tensorboard_folder = Path(test_output_dirs.root_dir)
+    tensorboard_folder = test_output_dirs.root_dir
     r = ResourceMonitor(interval_seconds=5, tensorboard_folder=tensorboard_folder)
     r.gpu_aggregates = {
         1: GpuUtilization(id=1, mem_util=1, load=2, mem_reserved_gb=30.0, mem_allocated_gb=40.0, count=10),

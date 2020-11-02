@@ -13,14 +13,14 @@ from typing import Generator
 
 import pytest
 
-from InnerEye.Common.output_directories import TestOutputDirectories, make_test_output_dir
+from InnerEye.Common.output_directories import OutputFolderForTests, remove_and_create_folder
 from Tests.fixed_paths_for_tests import TEST_OUTPUTS_PATH
 
 
 @pytest.fixture(autouse=True, scope='session')
 def test_suite_setup() -> Generator:
     # create a default outputs root for all tests
-    make_test_output_dir(TEST_OUTPUTS_PATH)
+    remove_and_create_folder(TEST_OUTPUTS_PATH)
     # run the entire test suite
     yield
 
@@ -32,17 +32,8 @@ def test_output_dirs() -> Generator:
     removing this directory after the test has been executed.
     """
     # create dirs before executing the test
-    root_dir = make_output_dirs_for_test()
+    root_dir = TEST_OUTPUTS_PATH / str(uuid.uuid4().hex)
+    remove_and_create_folder(root_dir)
     print(f"Created temporary folder for test: {root_dir}")
     # let the test function run
-    yield TestOutputDirectories(root_dir=root_dir)
-
-
-def make_output_dirs_for_test() -> str:
-    """
-    Create a random output directory for a test inside the global test outputs root.
-    """
-    test_output_dir = TEST_OUTPUTS_PATH / str(uuid.uuid4().hex)
-    make_test_output_dir(test_output_dir)
-
-    return str(test_output_dir)
+    yield OutputFolderForTests(root_dir=root_dir)
