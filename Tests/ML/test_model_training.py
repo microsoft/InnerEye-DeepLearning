@@ -244,7 +244,7 @@ def create_data_loaders(train_config: DummyModel) -> None:
 
 
 def test_create_data_loaders_hdf5(test_output_dirs: OutputFolderForTests) -> None:
-    dataset_dir = convert_nifti_data_to_hdf5(Path(test_output_dirs.root_dir))
+    dataset_dir = convert_nifti_data_to_hdf5(test_output_dirs.root_dir)
     train_config = DummyModel()
     train_config.local_dataset = dataset_dir
     create_data_loaders(train_config)

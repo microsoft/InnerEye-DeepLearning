@@ -439,7 +439,7 @@ def test_load_metrics_from_df_with_hues(test_output_dirs: OutputFolderForTests) 
     for hue in expected_hues:
         assert len(metrics_dict._get_hue(hue).get_predictions()) == 4
     logger_output_file = test_output_dirs.create_file_or_folder_path("output.csv")
-    logger = DataframeLogger(csv_path=Path(logger_output_file))
+    logger = DataframeLogger(csv_path=logger_output_file)
     ScalarMetricsDict.aggregate_and_save_execution_mode_metrics(metrics, logger)
     output = pd.read_csv(logger_output_file, dtype=str)
     assert LoggingColumns.Hue.value in output
