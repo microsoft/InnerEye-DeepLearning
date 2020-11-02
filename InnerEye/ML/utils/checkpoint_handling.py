@@ -27,7 +27,7 @@ class CheckpointHandler:
     """
 
     @dataclass
-    class CheckPointPathsAndEpoch:
+    class CheckpointPathsAndEpoch:
         epoch: int
         checkpoint_paths: Optional[List[Path]]
 
@@ -41,16 +41,16 @@ class CheckpointHandler:
 
         self.local_weights_path: Optional[Path] = None
 
-        self.continued_training = False
+        self.has_continued_training = False
 
-    def discover_and_download_checkpoint_from_sibling_runs(self, outputsubdir_name: str) -> None:
+    def discover_and_download_checkpoint_from_sibling_runs(self, output_subdir_name: str) -> None:
         """
         Downloads checkpoints from sibling runs in a hyperdrive run. This is used to gather results from all
         splits in a hyperdrive run.
         """
 
         self.run_recovery = RunRecovery.download_checkpoints_from_run(self.model_config, self.run_context,
-                                                                      output_subdir_name=outputsubdir_name)
+                                                                      output_subdir_name=output_subdir_name)
         # Check paths are good, just in case
         for path in self.run_recovery.checkpoints_roots:
             if not path.is_dir():
@@ -74,7 +74,7 @@ class CheckpointHandler:
         """
         Lets the handler know that training was done in this run.
         """
-        self.continued_training = True
+        self.has_continued_training = True
 
     def get_recovery_path_train(self) -> Optional[Path]:
         """
@@ -103,9 +103,9 @@ class CheckpointHandler:
         else:
             return None
 
-    def get_checkpoint_from_epoch(self, epoch: int) -> Optional[CheckPointPathsAndEpoch]:
+    def get_checkpoint_from_epoch(self, epoch: int) -> Optional[CheckpointPathsAndEpoch]:
         """
-        Get a list of checkpints per epoch for testing/registration.
+        Get a list of checkpoints per epoch for testing/registration.
         1. If a run recovery object is used and no training was done in this run, use checkpoints from run recovery.
         2. If a run recovery object is used, and training was done in this run, but the start epoch is larger than
         the epoch parameter provided, use checkpoints from run recovery.
@@ -114,11 +114,11 @@ class CheckpointHandler:
         This function also checks that all the checkpoints at the returned checkpoint paths exist,
         and drops any that do not.
         """
-        if not self.run_recovery and not self.continued_training:
+        if not self.run_recovery and not self.has_continued_training:
             raise ValueError(f"Cannot recover checkpoint for epoch {epoch}, no run recovery object provided and"
                              f"no training has been done in this run.")
 
-        if self.run_recovery and (not self.continued_training or epoch <= self.model_config.start_epoch):
+        if self.run_recovery and (not self.has_continued_training or epoch <= self.model_config.start_epoch):
             checkpoint_paths = self.run_recovery.get_checkpoint_paths(epoch)
             logging.info(f"Using checkpoints from run recovery for epoch {epoch}")
         else:
@@ -138,12 +138,12 @@ class CheckpointHandler:
                 logging.warning(f"Could not recover checkpoint path {path}")
 
         if len(checkpoint_exists) > 0:
-            return CheckpointHandler.CheckPointPathsAndEpoch(epoch=epoch, checkpoint_paths=checkpoint_exists)
+            return CheckpointHandler.CheckpointPathsAndEpoch(epoch=epoch, checkpoint_paths=checkpoint_exists)
         else:
             logging.warning(f"Could not find any checkpoints in run recovery/training checkpoints for epoch {epoch}.")
             return None
 
-    def get_checkpoints_to_test(self) -> Optional[List[CheckPointPathsAndEpoch]]:
+    def get_checkpoints_to_test(self) -> Optional[List[CheckpointPathsAndEpoch]]:
         """
         Find the checkpoints to test. If a run recovery is provided, or if the model has been training, look for
         checkpoints corresponding to the epochs in get_test_epochs(). If there is no run recovery and the model was
@@ -152,18 +152,18 @@ class CheckpointHandler:
 
         test_epochs = self.model_config.get_test_epochs()
         # If recovery object exists, or model was trained, look for checkpoints by epoch
-        if self.run_recovery or self.continued_training:
+        if self.run_recovery or self.has_continued_training:
             checkpoints = []
             for epoch in test_epochs:
                 epoch_checkpoints = self.get_checkpoint_from_epoch(epoch)
                 if epoch_checkpoints:
                     checkpoints.append(epoch_checkpoints)
             return checkpoints if checkpoints else None
-        elif self.local_weights_path and not self.continued_training:
+        elif self.local_weights_path and not self.has_continued_training:
             # No recovery object and model was not trained, check if there is a local weight path.
             if self.local_weights_path.exists():
                 logging.info(f"Using model weights at {self.local_weights_path} to initialize model")
-                return [CheckpointHandler.CheckPointPathsAndEpoch(epoch=0,
+                return [CheckpointHandler.CheckpointPathsAndEpoch(epoch=0,
                                                                   checkpoint_paths=[self.local_weights_path])]
             else:
                 logging.warning(f"Local weights_path does not exist, "
@@ -226,7 +226,7 @@ class CheckpointHandler:
         if not weights_path or not weights_path.is_file():
             raise FileNotFoundError(f"Could not find the weights file at {weights_path}")
 
-        modified_weights = self.model_config.modify_checkpoint(weights_path)
+        modified_weights = self.model_config.load_checkpoint_and_modify(weights_path)
         target_file = self.model_config.outputs_folder / WEIGHTS_FILE
         torch.save(modified_weights, target_file)
         return target_file

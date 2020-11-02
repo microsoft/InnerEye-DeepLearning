@@ -439,9 +439,8 @@ def classification_model_test(config: ScalarModelBase,
 
     for checkpoint_paths_and_epoch in checkpoints_to_test:
         epoch = checkpoint_paths_and_epoch.epoch
-        checkpoint_paths = checkpoint_paths_and_epoch.checkpoint_paths
 
-        epoch_result = test_epoch(checkpoint_paths=checkpoint_paths)
+        epoch_result = test_epoch(checkpoint_paths=checkpoint_paths_and_epoch.checkpoint_paths)
         if epoch_result is None:
             logging.warning("There is no checkpoint file for epoch {}".format(epoch))
         else:
