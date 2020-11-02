@@ -355,7 +355,7 @@ def test_download_or_get_local_blobs(is_current_run: bool,
     assert test_config.run_recovery_id is not None
     run = Run.get_context() if is_current_run else fetch_run(azure_config.get_workspace(),
                                                              test_config.run_recovery_id)
-    run_outputs_dir = str(full_ml_test_data_path()) if is_current_run else DEFAULT_AML_UPLOAD_DIR
+    run_outputs_dir = full_ml_test_data_path() if is_current_run else Path(DEFAULT_AML_UPLOAD_DIR)
     test_config.outputs_directory = run_outputs_dir
     dst = test_config.download_or_get_local_file(
         blob_to_download="dataset.csv",
