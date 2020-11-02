@@ -119,7 +119,7 @@ def test_experiment_name() -> None:
     assert create_experiment_name(c) == "foo"
 
 
-def test_framework_version(test_output_dirs: TestOutputDirectories) -> None:
+def test_framework_version(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if the Pytorch framework version can be read correctly from the current environment file.
     """

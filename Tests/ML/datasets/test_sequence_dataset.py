@@ -2,12 +2,12 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import math
 from io import StringIO
 from pathlib import Path
 from typing import List, Optional, Union
 from unittest import mock
 
-import math
 import numpy as np
 import pandas as pd
 import pytest

@@ -3,23 +3,23 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+from pathlib import Path
+from typing import Any, Callable, Optional, Tuple
+from unittest import mock
+
 import SimpleITK as sitk
-import torch
 import numpy as np
 import pytest
-
-from pathlib import Path
-from typing import Any, Optional, Tuple, Callable
-from unittest import mock
+import torch
 from skimage.transform import resize
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sample import PatientDatasetSource, PatientMetadata
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
-from InnerEye.ML.utils.io_util import ImageHeader, is_nifti_file_path, is_numpy_file_path, \
-    load_image_in_known_formats, load_numpy_image, is_dicom_file_path, load_dicom_image, \
-    ImageAndSegmentations, load_images_and_stack, DicomTags, PhotometricInterpretation, reverse_tuple_float3
+from InnerEye.ML.utils.io_util import DicomTags, ImageAndSegmentations, ImageHeader, PhotometricInterpretation, \
+    is_dicom_file_path, is_nifti_file_path, is_numpy_file_path, load_dicom_image, load_image_in_known_formats, \
+    load_images_and_stack, load_numpy_image, reverse_tuple_float3
 from Tests.ML.util import assert_file_contains_string
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -47,7 +47,7 @@ def test_nii_load_image() -> None:
     assert np.array_equal(image_with_header.image, known_array)
 
 
-def test_nii_load_zyx(test_output_dirs: TestOutputDirectories) -> None:
+def test_nii_load_zyx(test_output_dirs: OutputFolderForTests) -> None:
     expected_shape = (44, 167, 167)
     file_path = full_ml_test_data_path("patch_sampling/scan_small.nii.gz")
     image: sitk.Image = sitk.ReadImage(str(file_path))

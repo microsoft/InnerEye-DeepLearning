@@ -266,7 +266,7 @@ def get_patient_results_folder(results_folder: Path, patient_id: int) -> Path:
 def store_inference_results(inference_result: InferencePipeline.Result,
                             config: SegmentationModelBase,
                             results_folder: Path,
-                            image_header: ImageHeader) -> List[str]:
+                            image_header: ImageHeader) -> List[Path]:
     """
     Store the segmentation, posteriors, and binary predictions into Nifti files.
     :param inference_result: The inference result for a given patient_id and epoch. Posteriors must be in

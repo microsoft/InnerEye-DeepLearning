@@ -140,7 +140,7 @@ class DatasetExample:
 
 def store_and_upload_example(dataset_example: DatasetExample,
                              args: Optional[SegmentationModelBase],
-                             images_folder: Optional[str] = None) -> None:
+                             images_folder: Optional[Path] = None) -> None:
     """
     Stores an example input and output of the network to Nifti files.
 
@@ -151,7 +151,7 @@ def store_and_upload_example(dataset_example: DatasetExample,
     the args.example_images_folder is used instead.
     """
 
-    folder = "" if images_folder is None else images_folder
+    folder = Path("") if images_folder is None else images_folder
     if args is not None:
         folder = args.example_images_folder
     if folder != "" and not os.path.exists(folder):

@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from io import StringIO
-from pathlib import Path
 from typing import Any, List, Optional, Tuple
 from unittest import mock
 
@@ -13,7 +12,7 @@ import pytest
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import METRICS_FILE_NAME, logging_to_stdout, ModelExecutionMode
+from InnerEye.Common.common_util import METRICS_FILE_NAME, ModelExecutionMode, logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, SequenceMetricsDict
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset

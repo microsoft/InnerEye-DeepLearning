@@ -139,8 +139,8 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
     for base in ["run_scoring.py", "score.py"]:
         shutil.copyfile(base, str(source_directory_path / base))
     source_config = SourceConfig(
-        root_folder=source_directory_name,
-        entry_script=str(source_directory_path / "run_scoring.py"),
+        root_folder=source_directory_path,
+        entry_script=source_directory_path / "run_scoring.py",
         script_params={"--data-folder": ".", "--spawnprocess": "python",
                        "--model-id": model_id, "score.py": ""},
         conda_dependencies_files=download_conda_dependency_files(model, source_directory_path)

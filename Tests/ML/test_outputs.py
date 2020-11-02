@@ -81,22 +81,22 @@ def test_store_inference_results(test_output_dirs: OutputFolderForTests) -> None
     results_folder = test_output_dirs.root_dir
     store_inference_results(inference_result, test_config, Path(results_folder), header)
 
-    assert_nifti_content(os.path.join(results_folder, "012", "posterior_background.nii.gz"),
+    assert_nifti_content(results_folder / "012" / "posterior_background.nii.gz",
                          segmentation.shape, header, list(posterior0), np.ubyte)
 
-    assert_nifti_content(os.path.join(results_folder, "012", "posterior_region.nii.gz"),
+    assert_nifti_content(results_folder / "012" / "posterior_region.nii.gz",
                          segmentation.shape, header, list(posterior1), np.ubyte)
 
-    assert_nifti_content(os.path.join(results_folder, "012", "background.nii.gz"),
+    assert_nifti_content(results_folder / "012" / "background.nii.gz",
                          segmentation.shape, header, list([0, 1]), np.ubyte)
 
-    assert_nifti_content(os.path.join(results_folder, "012", "region.nii.gz"),
+    assert_nifti_content(results_folder / "012" / "region.nii.gz",
                          segmentation.shape, header, list([0, 1]), np.ubyte)
 
-    assert_nifti_content(os.path.join(results_folder, "012", DEFAULT_RESULT_IMAGE_NAME),
+    assert_nifti_content(results_folder / "012" / DEFAULT_RESULT_IMAGE_NAME,
                          segmentation.shape, header, list(np.unique(segmentation)), np.ubyte)
 
-    assert_nifti_content(os.path.join(results_folder, "012", "uncertainty.nii.gz"),
+    assert_nifti_content(results_folder / "012" / "uncertainty.nii.gz",
                          inference_result.uncertainty.shape, header, list([248, 249, 253, 254]), np.ubyte)
 
 
@@ -104,10 +104,10 @@ def test_metrics_file(test_output_dirs: OutputFolderForTests) -> None:
     """Test if metrics files with Dice scores are written as expected."""
     folder = test_output_dirs.make_sub_dir("test_metrics_file")
 
-    def new_file(suffix: str) -> str:
-        file = os.path.join(folder, suffix)
-        if os.path.exists(file):
-            os.remove(file)
+    def new_file(suffix: str) -> Path:
+        file = folder / suffix
+        if file.is_file():
+            file.unlink()
         return file
 
     d = MetricsPerPatientWriter()

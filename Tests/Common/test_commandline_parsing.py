@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -139,7 +138,7 @@ def test_parsing_with_custom_yaml(test_output_dirs: OutputFolderForTests) -> Non
             "--random_seed", "2"]
     with mock.patch("sys.argv", args):
         runner = Runner(project_root=fixed_paths.repository_root_directory(),
-                                             yaml_config_file=yaml_file)
+                        yaml_config_file=yaml_file)
         loader_result = runner.parse_and_load_model()
     assert loader_result is not None
     assert runner.azure_config is not None

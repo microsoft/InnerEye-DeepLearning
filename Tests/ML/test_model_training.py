@@ -243,7 +243,7 @@ def create_data_loaders(train_config: DummyModel) -> None:
         check_patient_id_in_dataset(loader, split)
 
 
-def test_create_data_loaders_hdf5(test_output_dirs: TestOutputDirectories) -> None:
+def test_create_data_loaders_hdf5(test_output_dirs: OutputFolderForTests) -> None:
     dataset_dir = convert_nifti_data_to_hdf5(Path(test_output_dirs.root_dir))
     train_config = DummyModel()
     train_config.local_dataset = dataset_dir
@@ -252,35 +252,33 @@ def test_create_data_loaders_hdf5(test_output_dirs: TestOutputDirectories) -> No
 
 def convert_nifti_data_to_hdf5(output_hdf5_dir: Path) -> Path:
     # create dataset in hdf5
-    with open(base_path / "dataset.csv", "r") as f:
-        csv_str = f.read()
-        csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel1",
-                                  "p1.h5|volume|0,channel1")
-        csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel2",
-                                  "p1.h5|volume|1,channel2")
-        csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel1",
-                                  "p2.h5|volume|0,channel1")
-        csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel2",
-                                  "p2.h5|volume|1,channel2")
-        # segmentation
-        csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region",
-                                  "p1.h5|region|0,region")
-        csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region_1",
-                                  "p2.h5|region|0,region_1")
-        csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region",
-                                  "p2.h5|region|0,region")
-        csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region_1",
-                                  "p2.h5|region_1|1,region_1")
-        # mask
-        csv_str = csv_str.replace("train_and_test_data/id1_mask.nii.gz,mask",
-                                  "p1.h5|mask|0,mask")
-        csv_str = csv_str.replace("train_and_test_data/id2_mask.nii.gz,mask",
-                                  "p2.h5|mask|0,mask")
+    csv_str = (base_path / "dataset.csv").read_text()
+    csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel1",
+                              "p1.h5|volume|0,channel1")
+    csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel2",
+                              "p1.h5|volume|1,channel2")
+    csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel1",
+                              "p2.h5|volume|0,channel1")
+    csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel2",
+                              "p2.h5|volume|1,channel2")
+    # segmentation
+    csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region",
+                              "p1.h5|region|0,region")
+    csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region_1",
+                              "p2.h5|region|0,region_1")
+    csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region",
+                              "p2.h5|region|0,region")
+    csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region_1",
+                              "p2.h5|region_1|1,region_1")
+    # mask
+    csv_str = csv_str.replace("train_and_test_data/id1_mask.nii.gz,mask",
+                              "p1.h5|mask|0,mask")
+    csv_str = csv_str.replace("train_and_test_data/id2_mask.nii.gz,mask",
+                              "p2.h5|mask|0,mask")
 
     dataset_dir = output_hdf5_dir / "hdf5_dataset"
     dataset_dir.mkdir(parents=True, exist_ok=True)
-    with open(dataset_dir / "dataset.csv", "w") as f:
-        f.write(csv_str)
+    (dataset_dir / "dataset.csv").write_text(csv_str)
     train_data = base_path / "train_and_test_data"
     create_hdf5_from_nifti(train_data / "id1_channel1.nii.gz", train_data / "id1_region.nii.gz",
                            train_data / "id1_mask.nii.gz",

@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from pathlib import Path
 from typing import Any, List, Optional
 
 import numpy as np
@@ -25,10 +24,10 @@ from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConst
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.metrics_util import SummaryWriters
 from InnerEye.ML.utils.model_util import ModelAndInfo
-from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
 from Tests.ML.util import machine_has_gpu, no_gpu_available
@@ -297,6 +296,7 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: OutputFolderForTes
     """
     Tests the mix precision flag and data parallel for scalar models.
     """
+
     class ClassificationModelWithIdentity(ClassificationModelForTesting):
         def create_model(self) -> Any:
             return DummyScalarModel(expected_image_size_zyx=config.expected_image_size_zyx,
