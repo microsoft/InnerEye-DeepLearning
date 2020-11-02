@@ -76,12 +76,12 @@ class RunRecovery:
         if output_subdir_name:
             # From e.g. parent_dir/checkpoints we want parent_dir/output_subdir_name, to which we will
             # append split_index / checkpoints below to create child_dst.
-            checkpoint_path = Path(config.checkpoint_folder)
+            checkpoint_path = config.checkpoint_folder
             parent_path = checkpoint_path.parent
             checkpoint_subdir_name = checkpoint_path.name
             root_output_dir = parent_path / output_subdir_name
         else:
-            root_output_dir = Path(config.checkpoint_folder) / run.id
+            root_output_dir = config.checkpoint_folder / run.id
             checkpoint_subdir_name = None
         # download checkpoints for the run
         download_outputs_from_run(
@@ -97,7 +97,7 @@ class RunRecovery:
             for child in child_runs:
                 if child.id == RUN_CONTEXT.id:
                     # We expect to find the file(s) we need in config.checkpoint_folder
-                    child_dst = Path(config.checkpoint_folder)
+                    child_dst = config.checkpoint_folder
                 else:
                     subdir = str(child.tags[tag_to_use] if can_use_split_indices else child.number)
                     if checkpoint_subdir_name:

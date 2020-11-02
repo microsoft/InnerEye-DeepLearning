@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import shutil
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -11,7 +10,7 @@ import pytest
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import get_epoch_results_path
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, create_checkpoint_path
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE
@@ -31,7 +30,7 @@ from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
-def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
+def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
     train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
 
     config = DummyModel()
@@ -68,9 +67,9 @@ def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
     assert_file_contains_string(epoch_dir / DATASET_ID_FILE, placeholder_dataset_id)
     assert_file_contains_string(epoch_dir / GROUND_TRUTH_IDS_FILE, "region")
     assert_text_files_match(epoch_dir / model_testing.METRICS_FILE_NAME,
-                            Path(train_and_test_data_dir) / model_testing.METRICS_FILE_NAME)
+                            train_and_test_data_dir / model_testing.METRICS_FILE_NAME)
     assert_text_files_match(epoch_dir / model_testing.METRICS_AGGREGATES_FILE,
-                            Path(train_and_test_data_dir) / model_testing.METRICS_AGGREGATES_FILE)
+                            train_and_test_data_dir / model_testing.METRICS_AGGREGATES_FILE)
     # Plotting results vary between platforms. Can only check if the file is generated, but not its contents.
     assert (epoch_dir / model_testing.BOXPLOT_FILE).exists()
 
@@ -119,7 +118,7 @@ def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
                           (ClassificationModelForTesting(), "classification_data_generated_random/checkpoints")])
 def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
                                                  checkpoint_folder: str,
-                                                 test_output_dirs: TestOutputDirectories) -> None:
+                                                 test_output_dirs: OutputFolderForTests) -> None:
     # no pipeline created when checkpoint for epoch is None
     assert create_inference_pipeline(config, []) is None
     # no pipeline created when checkpoint path does not exist
@@ -139,7 +138,7 @@ def test_create_inference_pipeline(config: ModelConfigBase,
                                    checkpoint_folder: str,
                                    inference_type: type,
                                    ensemble_type: type,
-                                   test_output_dirs: TestOutputDirectories) -> None:
+                                   test_output_dirs: OutputFolderForTests) -> None:
     config.set_output_to(test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
     stored_checkpoints = full_ml_test_data_path(checkpoint_folder)

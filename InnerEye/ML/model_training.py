@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-import os
 from time import time
 from typing import Tuple, TypeVar
 
@@ -100,9 +99,9 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
                              f"{config.start_epoch}")
 
     # Create checkpoint directory for this run if it doesn't already exist
-    logging.info("Models are saved at {}".format(config.checkpoint_folder))
-    if not os.path.isdir(config.checkpoint_folder):
-        os.makedirs(config.checkpoint_folder)
+    logging.info(f"Models are saved at {config.checkpoint_folder}")
+    if not config.checkpoint_folder.is_dir():
+        config.checkpoint_folder.mkdir()
 
     # Create the SummaryWriters for Tensorboard
     writers = create_summary_writers(config)

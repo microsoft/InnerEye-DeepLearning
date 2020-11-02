@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 
-# This file here mimics how the InnerEye code would be used as a git submoTestdule. The test script will
-# copy the InnerEye code to a folder Submodule. The test will then invoke the present file as a runner,
+# This file here mimics how the InnerEye code would be used as a git submodule. The test script will
+# copy the InnerEye code to a folder called Submodule. The test will then invoke the present file as a runner,
 # and train a model in AzureML.
 
 repository_root = Path(__file__).absolute().parent.parent

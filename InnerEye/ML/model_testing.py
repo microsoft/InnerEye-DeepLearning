@@ -137,7 +137,6 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     :return A list with the mean dice score (across all structures apart from background) for each image.
     """
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model testing")
-    results_folder = Path(results_folder)
     results_folder.mkdir(exist_ok=True)
 
     test_dataframe = config.get_dataset_splits()[data_split]
@@ -260,13 +259,13 @@ def get_patient_results_folder(results_folder: Path, patient_id: int) -> Path:
     :param patient_id: The numeric ID of the patient.
     :return: A path like "root/017"
     """
-    return results_folder / Path("{0:03d}".format(int(patient_id)))
+    return results_folder / f"{int(patient_id):03d}"
 
 
 def store_inference_results(inference_result: InferencePipeline.Result,
                             config: SegmentationModelBase,
                             results_folder: Path,
-                            image_header: ImageHeader) -> List[str]:
+                            image_header: ImageHeader) -> List[Path]:
     """
     Store the segmentation, posteriors, and binary predictions into Nifti files.
     :param inference_result: The inference result for a given patient_id and epoch. Posteriors must be in
@@ -284,7 +283,7 @@ def store_inference_results(inference_result: InferencePipeline.Result,
         :return: A full path to the results folder for the file
         """
         file_path = _file_name + MedicalImageFileType.NIFTI_COMPRESSED_GZ.value
-        return _results_folder / Path(file_path)
+        return _results_folder / file_path
 
     # create the directory for the given patient inside the results dir
     patient_results_folder = get_patient_results_folder(results_folder, inference_result.patient_id)
@@ -294,7 +293,7 @@ def store_inference_results(inference_result: InferencePipeline.Result,
     image_paths = [io_util.store_as_ubyte_nifti(
         image=inference_result.segmentation,
         header=image_header,
-        file_name=str(create_file_path(patient_results_folder, "segmentation")))]
+        file_name=create_file_path(patient_results_folder, "segmentation"))]
 
     class_names_and_indices = config.class_and_index_with_background().items()
     binaries = binaries_from_multi_label_array(inference_result.segmentation, config.number_of_classes)
