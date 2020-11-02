@@ -187,16 +187,16 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert train_config.save_start_epoch == 1
     assert train_config.save_step_epochs == 100
     assert train_config.num_epochs == 2
-    assert os.path.isdir(train_config.checkpoint_folder)
-    assert os.path.isfile(os.path.join(train_config.checkpoint_folder, "2" + CHECKPOINT_FILE_SUFFIX))
+    assert train_config.checkpoint_folder.is_dir()
+    assert (train_config.checkpoint_folder / ("2" + CHECKPOINT_FILE_SUFFIX)).is_file()
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.VAL]).is_file()
     assert_file_contains_string(train_config.outputs_folder / TRAIN_STATS_FILE, expected_stats)
 
     # Test for saving of example images
-    assert os.path.isdir(train_config.example_images_folder)
-    example_files = os.listdir(train_config.example_images_folder)
+    assert train_config.example_images_folder.is_dir()
+    example_files = list(train_config.example_images_folder.rglob("*.*"))
     assert len(example_files) == 3 * 2
     # Path visualization: There should be 3 slices for each of the 2 subjects
     sampling_folder = train_config.outputs_folder / PATCH_SAMPLING_FOLDER
@@ -330,10 +330,10 @@ def test_recover_training_mean_teacher_model() -> None:
     # First round of training
     config.num_epochs = 2
     model_train(config)
-    assert len(os.listdir(config.checkpoint_folder)) == 1
+    assert len(list(config.checkpoint_folder.rglob("*."))) == 1
 
     # Restart training from previous run
     config.start_epoch = 2
     config.num_epochs = 3
     model_train(config)
-    assert len(os.listdir(config.checkpoint_folder)) == 2
+    assert len(list(config.checkpoint_folder.rglob("*."))) == 2
