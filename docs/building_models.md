@@ -137,10 +137,17 @@ run recovery ID without the final underscore and digit.
 
 ### Testing an existing model
 
+##### From a run_recovery:
 As for continuing training, but set `--train` to `False`. Thus your command should look like this:
+
 ```shell script
 python Inner/ML/runner.py --azureml=True --model=Prostate --train=False --cluster=my_cluster_name \
    --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
+```
+##### From a local checkpoint:
+Use the local_weights_path to specify the path to the model checkpoint, and set train to `False`.
+```shell script
+python Inner/ML/runner.py --azureml=False --model=Prostate --train=False --local_weights_path=path_to_your_checkpoint
 ```
 
 Alternatively, to submit an AzureML run to apply a model to a single image on your local disc, 
