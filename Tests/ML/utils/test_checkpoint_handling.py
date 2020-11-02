@@ -333,9 +333,9 @@ def test_get_and_modify_local_weights(test_output_dirs: TestOutputDirectories) -
 
     # Pointing the model to a local_weights_path that does not exist will raise an error.
     config.local_weights_path = manage_recovery.project_root / "non_exist"
-    with pytest.raises(FileNotFoundError) as ex:
+    with pytest.raises(FileNotFoundError) as file_ex:
         manage_recovery.get_and_save_modified_weights()
-        assert "Could not find the weights file" in ex.value.args[0]
+        assert "Could not find the weights file" in file_ex.value.args[0]
 
     # Test that weights are properly modified when a local_weights_path is set
 

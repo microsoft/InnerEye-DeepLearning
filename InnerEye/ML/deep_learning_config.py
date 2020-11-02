@@ -271,13 +271,16 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                          "set `test_diff_epochs`, `test_step_epochs` and "
                                                          "`test_start_epoch`")
     test_diff_epochs: Optional[int] = param.Integer(None, allow_None=True,
-                                                    doc="Number of different epochs of the same model to test. "
+                                                    doc="Deprecated: "
+                                                        "Number of different epochs of the same model to test. "
                                                         "This option will be ignored if `epochs_to_test` is set")
     test_step_epochs: Optional[int] = param.Integer(None, allow_None=True,
-                                                    doc="How many epochs to move for each test "
+                                                    doc="Deprecated: "
+                                                        "How many epochs to move for each test "
                                                         "This option will be ignored if `epochs_to_test` is set")
     test_start_epoch: Optional[int] = param.Integer(None, allow_None=True,
-                                                    doc="The first epoch on which testing should run."
+                                                    doc="Deprecated: "
+                                                        "The first epoch on which testing should run."
                                                         "This option will be ignored if `epochs_to_test` is set")
     monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
                                                             "statistics. If 0 or less, do not log any resource "
