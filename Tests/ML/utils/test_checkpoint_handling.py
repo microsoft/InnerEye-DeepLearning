@@ -167,7 +167,6 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
                                                       / DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
     assert checkpoint
-    assert checkpoint.checkpoint_paths
     assert len(checkpoint.checkpoint_paths) == 1
     assert expected_checkpoint == checkpoint.checkpoint_paths[0]
     assert checkpoint.epoch == 1
@@ -180,7 +179,6 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
                             for i in range(3)]
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
     assert checkpoint
-    assert checkpoint.checkpoint_paths
     assert len(checkpoint.checkpoint_paths) == 3
     assert set(expected_checkpoints) == set(checkpoint.checkpoint_paths)
     assert checkpoint.epoch == 1
@@ -202,7 +200,6 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
     expected_checkpoint = create_checkpoint_path(path=Path(config.checkpoint_folder)
                                                       / DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)
     assert checkpoint
-    assert checkpoint.checkpoint_paths
     assert len(checkpoint.checkpoint_paths) == 1
     assert checkpoint.checkpoint_paths[0] == expected_checkpoint
     assert checkpoint.epoch == 1
@@ -215,7 +212,6 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
     # Should now work for epoch 2
     checkpoint = manage_recovery.get_checkpoint_from_epoch(2)
     assert checkpoint
-    assert checkpoint.checkpoint_paths
     assert len(checkpoint.checkpoint_paths) == 1
     assert expected_checkpoint == checkpoint.checkpoint_paths[0]
     assert checkpoint.epoch == 2

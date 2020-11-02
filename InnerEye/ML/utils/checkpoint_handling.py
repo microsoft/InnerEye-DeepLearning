@@ -26,7 +26,7 @@ class CheckpointPathsAndEpoch:
     Holds the path path to a checkpoint and the checkpoint epoch.
     """
     epoch: int
-    checkpoint_paths: Optional[List[Path]]
+    checkpoint_paths: List[Path]
 
 
 class CheckpointHandler:

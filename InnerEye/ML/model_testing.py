@@ -94,14 +94,13 @@ def segmentation_model_test(config: SegmentationModelBase,
 
     for checkpoint_paths_and_epoch in checkpoints_to_test:
         epoch = checkpoint_paths_and_epoch.epoch
-        checkpoint_paths = checkpoint_paths_and_epoch.checkpoint_paths
         epoch_results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc)
         # save the datasets.csv used
         config.write_dataset_files(root=epoch_results_folder)
         epoch_and_split = "epoch {} {} set".format(epoch, data_split.value)
         epoch_dice_per_image = segmentation_model_test_epoch(config=copy.deepcopy(config),
                                                              data_split=data_split,
-                                                             checkpoint_paths=checkpoint_paths,
+                                                             checkpoint_paths=checkpoint_paths_and_epoch.checkpoint_paths,
                                                              results_folder=epoch_results_folder,
                                                              epoch_and_split=epoch_and_split)
         if epoch_dice_per_image is None:
@@ -121,7 +120,7 @@ def segmentation_model_test(config: SegmentationModelBase,
 
 def segmentation_model_test_epoch(config: SegmentationModelBase,
                                   data_split: ModelExecutionMode,
-                                  checkpoint_paths: Optional[List[Path]],
+                                  checkpoint_paths: List[Path],
                                   results_folder: Path,
                                   epoch_and_split: str) -> Optional[List[float]]:
     """
@@ -349,7 +348,7 @@ def store_run_information(results_folder: Path,
 
 
 def create_inference_pipeline(config: ModelConfigBase,
-                              checkpoint_paths: Optional[List[Path]]) -> Optional[InferencePipelineBase]:
+                              checkpoint_paths: List[Path]) -> Optional[InferencePipelineBase]:
     """
     If multiple checkpoints are found in run_recovery then create EnsemblePipeline otherwise InferencePipeline.
     If no checkpoint files exist in the run recovery or current run checkpoint folder, None will be returned.
@@ -399,7 +398,7 @@ def classification_model_test(config: ScalarModelBase,
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
 
-    def test_epoch(checkpoint_paths: Optional[List[Path]]) -> Optional[MetricsDict]:
+    def test_epoch(checkpoint_paths: List[Path]) -> Optional[MetricsDict]:
         pipeline = create_inference_pipeline(config=config,
                                              checkpoint_paths=checkpoint_paths)
 
