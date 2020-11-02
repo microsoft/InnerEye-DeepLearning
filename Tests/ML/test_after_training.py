@@ -53,10 +53,10 @@ def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
     for f in downloaded_folder.rglob("*"):
         print("  " + str(f.relative_to(downloaded_folder)))
     missing = []
-    for f in expected_files:
-        full_path = downloaded_folder / f
+    for expected in expected_files:
+        full_path = downloaded_folder / expected
         if not full_path.is_file():
-            missing.append(f)
+            missing.append(expected)
     if missing:
         print("Missing files:")
         for m in missing:
