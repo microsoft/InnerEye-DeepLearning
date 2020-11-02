@@ -173,7 +173,7 @@ def _test_result_aggregation_for_classification(files: List[RunResultFiles],
     Test how metrics are aggregated for cross validation runs on classification models.
     """
     print(f"Writing aggregated metrics to {plotting_config.outputs_directory}")
-    root_folder = Path(plotting_config.outputs_directory)
+    root_folder = plotting_config.outputs_directory
     plot_cross_validation_from_files(OfflineCrossvalConfigAndFiles(config=plotting_config, files=files),
                                      root_folder=root_folder)
     aggregates_file = root_folder / METRICS_AGGREGATES_FILE
@@ -210,7 +210,7 @@ def test_result_aggregation_for_classification(test_output_dirs: OutputFolderFor
     _test_result_aggregation_for_classification(files, plotting_config,
                                                 expected_aggregate_metrics=expected_aggregates,
                                                 expected_epochs={plotting_config.epoch})
-    dataset_csv = Path(plotting_config.outputs_directory) / DATASET_CSV_FILE_NAME
+    dataset_csv = plotting_config.outputs_directory / DATASET_CSV_FILE_NAME
     assert dataset_csv.exists()
 
 
@@ -222,10 +222,9 @@ def test_invalid_number_of_cv_files() -> None:
     files, plotting_config = load_result_files_for_classification()
     plotting_config.number_of_cross_validation_splits = 4
     print(f"Writing aggregated metrics to {plotting_config.outputs_directory}")
-    root_folder = Path(plotting_config.outputs_directory)
     with pytest.raises(ValueError):
         plot_cross_validation_from_files(OfflineCrossvalConfigAndFiles(config=plotting_config, files=files),
-                                         root_folder=root_folder)
+                                         root_folder=plotting_config.outputs_directory)
 
 
 def test_check_result_file_counts() -> None:
@@ -288,12 +287,10 @@ def test_save_outliers(test_config_ensemble: PlotCrossValidationConfig,
     test_config_ensemble.outputs_directory = test_output_dirs.root_dir
     test_config_ensemble.outlier_range = 0
     dataset_split_metrics = {x: _get_metrics_df(x) for x in [ModelExecutionMode.VAL]}
-    save_outliers(test_config_ensemble, dataset_split_metrics, Path(test_config_ensemble.outputs_directory))
-    assert_text_files_match(full_file=Path(test_config_ensemble.outputs_directory)
-                                      / f"{ModelExecutionMode.VAL.value}_outliers.txt",
-                            expected_file=Path(
-                                           full_ml_test_data_path(
-                                               f"{ModelExecutionMode.VAL.value}_outliers.txt")))
+    save_outliers(test_config_ensemble, dataset_split_metrics, test_config_ensemble.outputs_directory)
+    f = f"{ModelExecutionMode.VAL.value}_outliers.txt"
+    assert_text_files_match(full_file=test_config_ensemble.outputs_directory / f,
+                            expected_file=full_ml_test_data_path(f))
 
 
 def test_create_portal_query_for_outliers() -> None:
@@ -358,7 +355,7 @@ def test_download_or_get_local_blobs(is_current_run: bool,
     assert test_config.run_recovery_id is not None
     run = Run.get_context() if is_current_run else fetch_run(azure_config.get_workspace(),
                                                              test_config.run_recovery_id)
-    run_outputs_dir = str(full_ml_test_data_path()) if is_current_run else DEFAULT_AML_UPLOAD_DIR
+    run_outputs_dir = full_ml_test_data_path() if is_current_run else Path(DEFAULT_AML_UPLOAD_DIR)
     test_config.outputs_directory = run_outputs_dir
     dst = test_config.download_or_get_local_file(
         blob_to_download="dataset.csv",
@@ -375,7 +372,7 @@ def test_download_or_get_local_file_2(test_output_dirs: OutputFolderForTests) ->
                                        epoch=None,
                                        should_validate=False)
     download_to_folder = test_output_dirs.root_dir / CROSSVAL_RESULTS_FOLDER
-    config.outputs_directory = str(download_to_folder)
+    config.outputs_directory = download_to_folder
     local_results = full_ml_test_data_path("plot_cross_validation") / "HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301"
     config.local_run_results = str(local_results)
     # A file that sits in the root folder of the local_results should be downloaded into the

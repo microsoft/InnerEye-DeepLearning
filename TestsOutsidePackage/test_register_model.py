@@ -72,8 +72,8 @@ def test_register_and_score_model(is_ensemble: bool,
     config.set_output_to(test_output_dirs.root_dir)
     # copy checkpoints into the outputs (simulating a run)
     stored_checkpoints = full_ml_test_data_path(os.path.join("train_and_test_data", "checkpoints"))
-    shutil.copytree(str(stored_checkpoints), config.checkpoint_folder)
-    paths = [Path(config.checkpoint_folder) / "1_checkpoint.pth.tar"]
+    shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
+    paths = [config.checkpoint_folder / "1_checkpoint.pth.tar"]
     checkpoints = paths * 2 if is_ensemble else paths
     model = None
     model_path = None

@@ -52,11 +52,11 @@ def test_download_checkpoints(test_output_dirs: OutputFolderForTests, is_ensembl
     expected_checkpoint_file = "1" + CHECKPOINT_FILE_SUFFIX
     if is_ensemble:
         child_runs = fetch_child_runs(run_to_recover)
-        expected_files = [Path(config.checkpoint_folder) / run_to_recover.id
+        expected_files = [config.checkpoint_folder / run_to_recover.id
                           / str(x.get_tags()['cross_validation_split_index']) / expected_checkpoint_file
                           for x in child_runs]
     else:
-        expected_files = [Path(config.checkpoint_folder) / run_to_recover.id / expected_checkpoint_file]
+        expected_files = [config.checkpoint_folder / run_to_recover.id / expected_checkpoint_file]
 
     checkpoint_paths = run_recovery.get_checkpoint_paths(1)
     if is_ensemble:
@@ -82,7 +82,7 @@ def test_download_checkpoints_hyperdrive_run(test_output_dirs: OutputFolderForTe
     # recover child runs separately also to test hyperdrive child run recovery functionality
     expected_checkpoint_file = "1" + CHECKPOINT_FILE_SUFFIX
     for child in child_runs:
-        expected_files = [Path(config.checkpoint_folder) / child.id / expected_checkpoint_file]
+        expected_files = [config.checkpoint_folder / child.id / expected_checkpoint_file]
         run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config, child)
         assert all([x in expected_files for x in run_recovery.get_checkpoint_paths(epoch=1)])
         assert all([expected_file.exists() for expected_file in expected_files])

@@ -192,7 +192,7 @@ class Runner:
         # perform aggregation as cross val splits are now ready
         plot_crossval_config = crossval_config_from_model_config(self.model_config)
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
-        plot_crossval_config.outputs_directory = str(self.model_config.outputs_folder)
+        plot_crossval_config.outputs_directory = self.model_config.outputs_folder
         plot_crossval_config.settings_yaml_file = self.yaml_config_file
         cross_val_results_root = plot_cross_validation(plot_crossval_config)
         if self.post_cross_validation_hook:

@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import shutil
-from pathlib import Path
 from typing import Optional
 
 import numpy as np
@@ -27,8 +26,7 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers.plot_cross_validation import get_config_and_results_for_offline_runs
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import assert_file_contains_string, assert_text_files_match, assert_nifti_content, \
-    get_image_shape
+from Tests.ML.util import assert_file_contains_string, assert_nifti_content, assert_text_files_match, get_image_shape
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
@@ -65,9 +63,9 @@ def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
     assert_file_contains_string(epoch_dir / DATASET_ID_FILE, placeholder_dataset_id)
     assert_file_contains_string(epoch_dir / GROUND_TRUTH_IDS_FILE, "region")
     assert_text_files_match(epoch_dir / model_testing.METRICS_FILE_NAME,
-                            Path(train_and_test_data_dir) / model_testing.METRICS_FILE_NAME)
+                            train_and_test_data_dir / model_testing.METRICS_FILE_NAME)
     assert_text_files_match(epoch_dir / model_testing.METRICS_AGGREGATES_FILE,
-                            Path(train_and_test_data_dir) / model_testing.METRICS_AGGREGATES_FILE)
+                            train_and_test_data_dir / model_testing.METRICS_AGGREGATES_FILE)
     # Plotting results vary between platforms. Can only check if the file is generated, but not its contents.
     assert (epoch_dir / model_testing.BOXPLOT_FILE).exists()
 

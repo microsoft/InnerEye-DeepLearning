@@ -458,9 +458,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         return self.file_system_config.logs_folder
 
     @property
-    def checkpoint_folder(self) -> str:
+    def checkpoint_folder(self) -> Path:
         """Gets the full path in which the model checkpoints should be stored during training."""
-        return str(self.outputs_folder / CHECKPOINT_FOLDER)
+        return self.outputs_folder / CHECKPOINT_FOLDER
 
     @property
     def visualization_folder(self) -> Path:
@@ -599,12 +599,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         Returns full path to a checkpoint given an epoch
         :param epoch: the epoch number
-        :param for_mean_teacher_model: if True looking returns path to the mean teacher checkpoint. Else returns the
-        path to the (main / student) model checkpoint.
         :return: path to a checkpoint given an epoch
         """
-        return create_checkpoint_path(path=fixed_paths.repository_root_directory() / self.checkpoint_folder,
-                                      epoch=epoch)
+        return create_checkpoint_path(self.checkpoint_folder, epoch=epoch)
 
     def get_effective_random_seed(self) -> int:
         """
