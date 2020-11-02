@@ -85,6 +85,9 @@ def test_get_test_epochs() -> None:
     c = DeepLearningConfig(num_epochs=100, test_start_epoch=200, test_diff_epochs=None, test_step_epochs=10,
                            should_validate=False)
     assert c.get_test_epochs() == [100]
+    c = DeepLearningConfig(num_epochs=100, epochs_to_test=[1, 3, 5],
+                           should_validate=False)
+    assert c.get_test_epochs() == [1, 3, 5]
 
 
 def test_get_total_number_of_validation_epochs() -> None:
