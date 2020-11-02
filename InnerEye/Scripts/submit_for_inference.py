@@ -130,9 +130,8 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
     model_id = model.id
     logging.info(f"Identified model {model_id}")
     source_directory = tempfile.TemporaryDirectory()
-    source_directory_name = source_directory.name
-    logging.info(f"Building inference run submission in {source_directory_name}")
-    source_directory_path = Path(source_directory_name)
+    source_directory_path = Path(source_directory.name)
+    logging.info(f"Building inference run submission in {source_directory_path}")
     copy_image_file(args.image_file, source_directory_path / DEFAULT_DATA_FOLDER)
     # We copy over run_scoring.py, and score.py as well in case the model we're using
     # does not have sufficiently recent versions of those files.
@@ -152,7 +151,7 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
     logging.info(f"Run URL: {run.get_portal_url()}")
     if not args.keep_upload_folder:
         source_directory.cleanup()
-        logging.info(f"Deleted submission directory {source_directory_name}")
+        logging.info(f"Deleted submission directory {source_directory_path}")
     if args.download_folder is None:
         return None
     logging.info("Awaiting run completion")
