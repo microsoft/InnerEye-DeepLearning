@@ -79,7 +79,7 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
         :param target: Target label tensor in one-hot encoding.
         """
         if not (torch.sum(target == 1.0) == (target.nelement() / target.shape[1])):
-            raise ValueError("Focal loss is supported only for one-hot encoded ")
+            raise ValueError("Focal loss is supported only for one-hot encoded targets")
 
         posteriors = torch.nn.functional.softmax(logits, dim=1)
         # noinspection PyUnresolvedReferences,PyTypeChecker
