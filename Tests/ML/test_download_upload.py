@@ -3,9 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-from pathlib import Path
-
 import pytest
+
+from pathlib import Path
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run, get_results_blob_path
@@ -14,7 +14,7 @@ from InnerEye.Common.common_util import logging_section, logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import run_ml
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME
-from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.run_recovery import RunRecovery
@@ -22,7 +22,6 @@ from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN
 from Tests.ML.util import get_default_azure_config
 
 logging_to_stdout(logging.DEBUG)
-
 
 @pytest.fixture
 def runner_config() -> AzureConfig:
@@ -43,7 +42,7 @@ def test_download_checkpoints(test_output_dirs: OutputFolderForTests, is_ensembl
     output_dir = test_output_dirs.root_dir
     assert get_results_blob_path("some_run_id") == "azureml/ExperimentRun/dcid.some_run_id"
     # Any recent run ID from a PR build will do. Use a PR build because the checkpoint files are small there.
-    config = SegmentationModelBase(should_validate=False)
+    config = ModelConfigBase(should_validate=False)
     config.set_output_to(output_dir)
 
     runner_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID if is_ensemble else DEFAULT_RUN_RECOVERY_ID
@@ -75,7 +74,7 @@ def test_download_checkpoints(test_output_dirs: OutputFolderForTests, is_ensembl
 def test_download_checkpoints_hyperdrive_run(test_output_dirs: OutputFolderForTests,
                                              runner_config: AzureConfig) -> None:
     output_dir = test_output_dirs.root_dir
-    config = SegmentationModelBase(should_validate=False)
+    config = ModelConfigBase(should_validate=False)
     config.set_output_to(output_dir)
     runner_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
     child_runs = fetch_child_runs(run=fetch_run(runner_config.get_workspace(), DEFAULT_ENSEMBLE_RUN_RECOVERY_ID))
@@ -90,7 +89,7 @@ def test_download_checkpoints_hyperdrive_run(test_output_dirs: OutputFolderForTe
 
 def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> None:
     dataset_name = "test-dataset"
-    config = SegmentationModelBase(should_validate=False)
+    config = ModelConfigBase(should_validate=False)
     azure_config = get_default_azure_config()
     runner = MLRunner(config, azure_config)
     runner.project_root = test_output_dirs.root_dir
