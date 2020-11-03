@@ -104,7 +104,7 @@ def test_cross_entropy_loss_integration(focal_loss_gamma: float, loss_upper_boun
     # Define a basic model (We actually don't even a non-linear unit to solve it)
     net = ToyNet()
     opt = optim.Adam(net.parameters(), lr=0.001, betas=(0.9, 0.999))
-    loss_fn = CrossEntropyLoss(class_weight_power=1.0, focal_loss_gamma=focal_loss_gamma)
+    loss_fn = CrossEntropyLoss(class_weight_power=1.5, focal_loss_gamma=focal_loss_gamma)
 
     # Perform forward and backward passes
     net.train()

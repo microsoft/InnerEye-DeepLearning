@@ -87,6 +87,7 @@ class HeadAndNeckBase(SegmentationModelBase):
             save_start_epoch=num_epochs,
             save_step_epochs=num_epochs,
             architecture="UNet3D",
+            azure_dataset_id="c85093b3-9d7d-4ecb-8c7b-4722a9824eb3_nogeo_22str_ms",
             kernel_size=3,
             train_batch_size=4,
             inference_batch_size=1,
