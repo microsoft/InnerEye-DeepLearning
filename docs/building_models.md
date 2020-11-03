@@ -136,11 +136,21 @@ of the AzureML UI. The easiest way to get it is to go to any of the child runs a
 run recovery ID without the final underscore and digit.
 
 ### Testing an existing model
+To evaluate an existing model on a test set, you can use models from previous runs in AzureML or from local checkpoints.
 
-As for continuing training, but set `--train` to `False`. Thus your command should look like this:
+##### From a previus run in AzureML:
+This is similar to continuing training using a run_recovery object, but you will need to set `--train` to `False`. 
+Thus your command should look like this:
+
 ```shell script
 python Inner/ML/runner.py --azureml=True --model=Prostate --train=False --cluster=my_cluster_name \
    --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
+```
+##### From a local checkpoint:
+To evaluate a model using a local checkpoint, use the local_weights_path to specify the path to the model checkpoint 
+and set train to `False`.
+```shell script
+python Inner/ML/runner.py --model=Prostate --train=False --local_weights_path=path_to_your_checkpoint
 ```
 
 Alternatively, to submit an AzureML run to apply a model to a single image on your local disc, 

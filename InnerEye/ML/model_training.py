@@ -2,15 +2,14 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import argparse
 import logging
 from time import time
-from typing import Optional, Tuple, TypeVar
+from typing import Tuple, TypeVar
 
 from torch.cuda.amp import GradScaler
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
-from InnerEye.Common.common_util import empty_string_to_none, logging_section
+from InnerEye.Common.common_util import logging_section
 from InnerEye.Common.metrics_dict import MetricsDict
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML import metrics
@@ -24,12 +23,11 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util
-from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
-from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_train
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
@@ -39,13 +37,13 @@ MAX_LOAD_TIME_WARNINGS = 3
 T = TypeVar('T')
 
 
-def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = None) -> ModelTrainingResults:
+def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) -> ModelTrainingResults:
     """
     The main training loop. It creates the model, dataset, optimizer_type, and criterion, then proceeds
     to train the model. If a checkpoint was specified, then it loads the checkpoint before resuming training.
 
     :param config: The arguments which specify all required information.
-    :param run_recovery: Recovery information to restart training from an existing run.
+    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading a previous checkpoint.
     """
@@ -66,12 +64,11 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     data_loaders = config.create_data_loaders()
 
     # Get the path to the checkpoint to recover from
-    checkpoint_path = get_recovery_path_train(run_recovery=run_recovery,
-                                              epoch=config.start_epoch)
+    checkpoint_path = checkpoint_handler.get_recovery_path_train()
+
     models_and_optimizer = ModelAndInfo(config=config,
                                         model_execution_mode=ModelExecutionMode.TRAIN,
-                                        checkpoint_path=checkpoint_path if
-                                        config.should_load_checkpoint_for_training() else None)
+                                        checkpoint_path=checkpoint_path)
 
     # Create the main model
     # If continuing from a previous run at a specific epoch, then load the previous model.
@@ -94,10 +91,12 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
                              f"for given start_epoch {config.start_epoch}")
 
     # Create optimizer
-    optimizer_loaded = models_and_optimizer.try_create_optimizer_and_load_from_checkpoint()
-    if not optimizer_loaded:
-        raise ValueError("There was no checkpoint file available for the optimizer for given start_epoch {}"
-                         .format(config.start_epoch))
+    models_and_optimizer.create_optimizer()
+    if checkpoint_handler.should_load_optimizer_checkpoint():
+        optimizer_loaded = models_and_optimizer.try_load_checkpoint_for_optimizer()
+        if not optimizer_loaded:
+            raise ValueError(f"There was no checkpoint file available for the optimizer for given start_epoch "
+                             f"{config.start_epoch}")
 
     # Create checkpoint directory for this run if it doesn't already exist
     logging.info(f"Models are saved at {config.checkpoint_folder}")
@@ -190,6 +189,10 @@ def model_train(config: ModelConfigBase, run_recovery: Optional[RunRecovery] = N
     )
 
     logging.info("Finished training")
+
+    # Since we have trained the model further, let the checkpoint_handler object know so it can handle
+    # checkpoints correctly.
+    checkpoint_handler.additional_training_done()
 
     # Upload visualization directory to AML run context to be able to see it
     # in the Azure UI.
@@ -333,15 +336,3 @@ def create_model_training_steps(model_config: ModelConfigBase,
             return ModelTrainingStepsForScalarModel(model_config, train_val_params)
     else:
         raise NotImplementedError(f"There are no model training steps defined for config type {type(model_config)}")
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model", help="The name of the model to train", type=empty_string_to_none,
-                        required=True)
-    args = parser.parse_args()
-    model_train(ModelConfigLoader().create_model_config_from_name(args.model))
-
-
-if __name__ == '__main__':
-    main()

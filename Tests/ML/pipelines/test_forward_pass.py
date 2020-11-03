@@ -28,9 +28,11 @@ from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.metrics_util import SummaryWriters
 from InnerEye.ML.utils.model_util import ModelAndInfo
+
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
 from Tests.ML.util import machine_has_gpu, no_gpu_available
+from Tests.ML.util import get_default_checkpoint_handler
 
 
 class SimpleModel(BaseModel):
@@ -233,13 +235,15 @@ def test_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> None:
 
     config = DummyClassification()
     config.set_output_to(test_output_dirs.root_dir)
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
 
     config.num_epochs = 1
     # Set train batch size to be arbitrary big to ensure we have only one training step
     # i.e. one mean teacher update.
     config.train_batch_size = 100
     # Train without mean teacher
-    model_train(config)
+    model_train(config, checkpoint_handler=checkpoint_handler)
 
     # Retrieve the weight after one epoch
     model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
@@ -264,7 +268,7 @@ def test_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> None:
     # Now train with mean teacher and check the update of the weight
     alpha = 0.999
     config.mean_teacher_alpha = alpha
-    model_train(config)
+    model_train(config, checkpoint_handler=checkpoint_handler)
 
     # Retrieve weight of mean teacher model saved in the checkpoint
     model_and_info_mean_teacher = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,

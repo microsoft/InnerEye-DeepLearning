@@ -34,7 +34,7 @@ from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
-from Tests.ML.util import get_default_azure_config
+from Tests.ML.util import get_default_checkpoint_handler, get_default_azure_config
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 SCAN_SIZE = (6, 64, 60)
@@ -212,7 +212,8 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, SCAN_SIZE),
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
-        results = model_train(config)
+        results = model_train(config, get_default_checkpoint_handler(model_config=config,
+                                                                     project_root=test_output_dirs.root_dir))
         assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
                == config.get_total_number_of_save_epochs()
 
@@ -378,7 +379,8 @@ def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> 
     config.num_epochs = 2
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset(dataset_contents)
-    results = model_train(config)
+    results = model_train(config, get_default_checkpoint_handler(model_config=config,
+                                                                 project_root=test_output_dirs.root_dir))
 
     actual_train_loss = results.train_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
     actual_val_loss = results.val_results_per_epoch[-1].values()[MetricType.LOSS.value][0]

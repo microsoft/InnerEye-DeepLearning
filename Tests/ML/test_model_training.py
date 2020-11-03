@@ -9,6 +9,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import pytest
+import shutil
 from torch.utils.data import DataLoader
 
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict
@@ -27,6 +28,9 @@ from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
+from InnerEye.ML.utils.run_recovery import RunRecovery
+
+from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contains_string
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
@@ -80,6 +84,15 @@ def test_get_test_epochs() -> None:
     c = DeepLearningConfig(num_epochs=100, test_start_epoch=200, test_diff_epochs=None, test_step_epochs=10,
                            should_validate=False)
     assert c.get_test_epochs() == [100]
+    c = DeepLearningConfig(num_epochs=100, epochs_to_test=[1, 3, 5],
+                           should_validate=False)
+    assert c.get_test_epochs() == [1, 3, 5, 100]
+
+    # epochs_to_test should have precedence over (test_start_epoch, test_diff_epochs and test_step_epochs)
+    c = DeepLearningConfig(num_epochs=150, epochs_to_test=[1, 3, 5],
+                           test_start_epoch=100, test_diff_epochs=2, test_step_epochs=10,
+                           should_validate=False)
+    assert c.get_test_epochs() == [1, 3, 5, 150]
 
 
 def test_get_total_number_of_validation_epochs() -> None:
@@ -152,7 +165,10 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     expected_learning_rates = [[train_config.l_rate], [5.3589e-4]]
 
     loss_absolute_tolerance = 1e-3
-    model_training_result = model_training.model_train(train_config)
+    checkpoint_handler = get_default_checkpoint_handler(model_config=train_config,
+                                                       project_root=Path(output_dirs.root_dir))
+    model_training_result = model_training.model_train(train_config,
+                                                       checkpoint_handler=checkpoint_handler)
     assert isinstance(model_training_result, ModelTrainingResults)
 
     # check to make sure training batches are NOT all the same across epochs
@@ -319,7 +335,7 @@ def test_construct_loss_function() -> None:
     assert loss_fn.components[1][0] == weights[1] / sum(weights)
 
 
-def test_recover_training_mean_teacher_model() -> None:
+def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> None:
     """
     Tests that training can be recovered from a previous checkpoint.
     """
@@ -328,11 +344,20 @@ def test_recover_training_mean_teacher_model() -> None:
 
     # First round of training
     config.num_epochs = 2
-    model_train(config)
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
+    model_train(config, checkpoint_handler=checkpoint_handler)
     assert len(list(config.checkpoint_folder.rglob("*.*"))) == 1
 
     # Restart training from previous run
     config.start_epoch = 2
     config.num_epochs = 3
-    model_train(config)
+    # make if seem like run recovery objects have been downloaded
+    checkpoint_root = config.checkpoint_folder / "recovered"
+    shutil.copytree(config.checkpoint_folder, checkpoint_root)
+    checkpoint_handler.run_recovery = RunRecovery([checkpoint_root])
+
+    model_train(config, checkpoint_handler=checkpoint_handler)
+    # remove recovery checkpoints
+    shutil.rmtree(checkpoint_root)
     assert len(list(config.checkpoint_folder.rglob("*.*"))) == 2
