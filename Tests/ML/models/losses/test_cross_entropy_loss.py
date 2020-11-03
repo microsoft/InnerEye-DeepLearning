@@ -73,7 +73,7 @@ def test_cross_entropy_loss_forward_smoothing(is_segmentation: bool) -> None:
 
 
 @pytest.mark.parametrize(["focal_loss_gamma", "loss_upper_bound", "class_weight_power"],
-                         [(None, 1e-4, 0.0),
+                         [(None, 1e-4, 1.0),
                           (2.0, 1e-7, 0.0),
                           (2.0, 1e-7, 1.0)])
 def test_cross_entropy_loss_integration(focal_loss_gamma: float,
