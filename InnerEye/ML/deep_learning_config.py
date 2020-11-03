@@ -738,9 +738,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
         :param path_to_checkpoint: Path to the checkpoint file.
         :return: Dictionary with model and optimizer state dicts. The dict should have at least the following keys:
-        1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set the model state dict.
-        2. Key ModelAndInfo.EPOCH_KEY and value set the checkpoint epoch.
-        Other (optional) entries should corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
+        1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set to the model state dict.
+        2. Key ModelAndInfo.EPOCH_KEY and value set to the checkpoint epoch.
+        Other (optional) entries corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
         ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported.
         """
         import torch

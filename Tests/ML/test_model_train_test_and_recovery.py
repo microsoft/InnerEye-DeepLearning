@@ -54,7 +54,7 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
 
     checkpoint_handler_run_recovery = get_default_checkpoint_handler(model_config=config_run_recovery,
                                                                      project_root=test_output_dirs.root_dir)
-    # make if seem like run recovery objects have been downloaded
+    # make it seem like run recovery objects have been downloaded
     checkpoint_root = config_run_recovery.checkpoint_folder / "recovered"
     shutil.copytree(str(config.checkpoint_folder), str(checkpoint_root))
     checkpoint_handler_run_recovery.run_recovery = RunRecovery([checkpoint_root])
