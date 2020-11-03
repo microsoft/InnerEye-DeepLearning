@@ -4,10 +4,13 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import re
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import conda_merge
 import ruamel
+import yaml
 from azureml.core import Experiment, Run, Workspace, get_run
 from azureml.core._serialization_utils import _serialize_to_dict
 from azureml.core.conda_dependencies import CondaDependencies
@@ -313,26 +316,47 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
         logging.debug(f"    {p}")
 
 
+def merge_conda_files(files: List[Path], result_file: Path) -> None:
+    """
+    Merges the given Conda environment files using the conda_merge package, and writes the merged file to disk.
+    :param files: The Conda environment files to read.
+    :param result_file: The location where the merge results should be written.
+    """
+    env_definitions = [conda_merge.read_file(str(f)) for f in files]
+    unified_definition = {}
+    name = conda_merge.merge_names(env.get('name') for env in env_definitions)
+    if name:
+        unified_definition['name'] = name
+    try:
+        channels = conda_merge.merge_channels(env.get('channels') for env in env_definitions)
+    except conda_merge.MergeError:
+        logging.error("Failed to merge channel priorities.")
+        raise
+    if channels:
+        unified_definition['channels'] = channels
+    deps = conda_merge.merge_dependencies(env.get('dependencies') for env in env_definitions)
+    if deps:
+        unified_definition['dependencies'] = deps
+    # dump the unified environment definition to stdout
+    with result_file.open("w") as f:
+        yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
+
+
 def merge_conda_dependencies(files: List[Path]) -> CondaDependencies:
     """
     Creates a CondaDependencies object from the Conda environments specified in one or more files.
-    The resulting object contains the union of the Conda and pip packages in the files. If there are version
-    conflicts in pip packages, the contents of later files are given priority. If there are version
-    conflicts in Conda packages, all versions are retained, and conflict resolution is left to Conda.
+    The resulting object contains the union of the Conda and pip packages in the files, where merging
+    is done via the conda_merge package.
     :param files: The Conda environment files to read.
     :return: A CondaDependencies object that contains packages from all the files.
     """
-    merged_dependencies: Optional[CondaDependencies] = None
-
     for file in files:
-        conda_dependencies = CondaDependencies(file)
-        _log_conda_dependencies_stats(conda_dependencies, f"Conda environment in {file}")
-        if merged_dependencies is None:
-            merged_dependencies = conda_dependencies
-        else:
-            merged_dependencies._merge_dependencies(conda_dependencies)
-            _log_conda_dependencies_stats(merged_dependencies, "Merged Conda environment")
-    assert merged_dependencies is not None
+        _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
+    merged_file = tempfile.TemporaryFile()
+    merge_conda_files(files, result_file=Path(merged_file.name))
+    merged_dependencies = CondaDependencies(merged_file.name)
+    _log_conda_dependencies_stats(merged_dependencies, f"Merged Conda environment")
+    merged_file.close()
     return merged_dependencies
 
 

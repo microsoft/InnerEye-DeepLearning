@@ -48,5 +48,4 @@ def _full_test_data_path(prefix: str, suffix: str) -> Path:
     return root / prefix / "test_data" / suffix
 
 
-RELATIVE_TEST_OUTPUTS_PATH = "test_outputs"
-TEST_OUTPUTS_PATH = tests_root_directory().parent / RELATIVE_TEST_OUTPUTS_PATH
+TEST_OUTPUTS_PATH = tests_root_directory().parent / "test_outputs"

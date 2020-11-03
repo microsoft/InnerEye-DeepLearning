@@ -4,12 +4,14 @@
 #  ------------------------------------------------------------------------------------------
 import copy
 import logging
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch.multiprocessing
-from azureml.core import Run, Workspace
+from azureml.core import Run
 from azureml.core.model import Model
 from azureml.data import FileDataset
 
@@ -20,11 +22,12 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, \
     NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME, PARENT_RUN_CONTEXT, \
     PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
-    create_run_recovery_id, get_results_blob_path, has_input_datasets, is_offline_run_context, update_run_tags
+    create_run_recovery_id, get_results_blob_path, has_input_datasets, is_offline_run_context, merge_conda_files, \
+    update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section, print_exception
-from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
+from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod
@@ -33,7 +36,7 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner
+from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner, get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
@@ -160,8 +163,7 @@ class MLRunner:
                  model_config: ModelConfigBase,
                  azure_config: Optional[AzureConfig] = None,
                  project_root: Optional[Path] = None,
-                 model_deployment_hook: Optional[ModelDeploymentHookSignature] = None,
-                 innereye_submodule_name: Optional[str] = None):
+                 model_deployment_hook: Optional[ModelDeploymentHookSignature] = None) -> None:
         """
         Driver class to run a ML experiment. Note that the project root argument MUST be supplied when using InnerEye
         as a package!
@@ -175,7 +177,6 @@ class MLRunner:
         self.azure_config: AzureConfig = azure_config or AzureConfig()
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.model_deployment_hook = model_deployment_hook
-        self.innereye_submodule_name = innereye_submodule_name
 
     def is_offline_cross_val_parent_run(self) -> bool:
         """
@@ -211,7 +212,7 @@ class MLRunner:
 
             logging.info(f"Running model train and test on cross validation split: {x}")
             split_ml_runner = MLRunner(split_model_config, self.azure_config, self.project_root,
-                                       self.model_deployment_hook, self.innereye_submodule_name)
+                                       self.model_deployment_hook)
             split_ml_runner.run()
 
         cv_fold_indices = [list(range(_config.number_of_cross_validation_splits_per_fold))
@@ -334,12 +335,12 @@ class MLRunner:
         """
         registration_epoch = self.decide_registration_epoch_without_evaluating()
         if registration_epoch is not None:
-            self.register_model_for_epoch(RUN_CONTEXT, run_recovery, registration_epoch, np.nan, model_proc)
+            self.register_model_for_epoch(run_recovery, registration_epoch, np.nan, model_proc)
             if self.azure_config.register_model_only_for_epoch is not None:
                 return self.azure_config.register_model_only_for_epoch
 
         # run full image inference on existing or newly trained model on the training, and testing set
-        test_metrics, val_metrics, _ = self.model_inference_train_and_test(RUN_CONTEXT, run_recovery, model_proc)
+        test_metrics, val_metrics, _ = self.model_inference_train_and_test(run_recovery, model_proc)
 
         # register the generated model from the run if we haven't already done so
         if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
@@ -468,7 +469,6 @@ class MLRunner:
             torch.multiprocessing.set_start_method(method.name, force=True)
 
     def register_model_for_epoch(self,
-                                 run_context: Run,
                                  run_recovery: Optional[RunRecovery],
                                  best_epoch: int,
                                  best_epoch_dice: float,
@@ -483,14 +483,13 @@ class MLRunner:
             return
 
         if not self.model_config.is_offline_run:
-            split_index = run_context.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
+            split_index = RUN_CONTEXT.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
             if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-                update_run_tags(run_context, {IS_ENSEMBLE_KEY_NAME: model_proc == ModelProcessing.ENSEMBLE_CREATION})
+                update_run_tags(RUN_CONTEXT, {IS_ENSEMBLE_KEY_NAME: model_proc == ModelProcessing.ENSEMBLE_CREATION})
             elif PARENT_RUN_CONTEXT is not None:
-                update_run_tags(run_context, {PARENT_RUN_ID_KEY_NAME: PARENT_RUN_CONTEXT.id})
+                update_run_tags(RUN_CONTEXT, {PARENT_RUN_ID_KEY_NAME: PARENT_RUN_CONTEXT.id})
         with logging_section(f"Registering {model_proc.value} model"):
             self.register_segmentation_model(
-                run=run_context,
                 best_epoch=best_epoch,
                 best_epoch_dice=best_epoch_dice,
                 checkpoint_paths=checkpoint_paths,
@@ -513,11 +512,7 @@ class MLRunner:
                                     best_epoch: int,
                                     best_epoch_dice: float,
                                     checkpoint_paths: List[Path],
-                                    model_proc: ModelProcessing,
-                                    run: Optional[Run] = None,
-                                    workspace: Optional[Workspace] = None,
-                                    tags: Optional[Dict[str, str]] = None) -> \
-            Tuple[Optional[Model], Optional[Path], Any]:
+                                    model_proc: ModelProcessing) -> Optional[Tuple[Model, Optional[Any]]]:
         """
         Registers a new model in the workspace's model registry to be deployed further,
         and creates a model zip for portal deployment (if required). This model, is the
@@ -526,63 +521,70 @@ class MLRunner:
         :param best_epoch_dice: Dice metric for the best epoch
         :param checkpoint_paths: Checkpoint paths to use to upload model checkpoints to AML.
         :param model_proc: whether it's a single or ensemble model.
-        :param run: If provided then the run's workspace and tags will be used to register the model.
-        :param workspace: If provided, then this workspace will be used to register the model instead of the
-        workspace associated with the provided run.
-        :param tags: If provided, then these will be used instead of the tags found in the provided run.
-        :returns AML model object, the path to the specially-deployed model if any, and a further object
-        relating to model deployment; if model_deployment_hook is None, the last two are also None.
+        :returns Tuple element 1: AML model object. Tuple element 1: The result of running the
         However if a model cannot be registered because the run is an _OfflineRun, or the model_config is not
-        for a segmentation model, None is returned instead of a model.
+        model_deployment_hook, or None if no hook was supplied.
         """
         if not isinstance(self.model_config, SegmentationModelBase):
             logging.warning("Non-segmentation models cannot be registered")
-            return None, None, None
-        if (run is None) == (workspace is None):
-            raise ValueError("Either a run or a workspace must be provided but not both")
-        elif run:
-            if not hasattr(run, 'experiment'):
-                logging.warning("Not registering a model, because the run has no associated experiment")
-                return None, None, None
-            workspace = run.experiment.workspace
-            tags = run.get_tags()
-
-        relative_checkpoint_paths = [x.relative_to(self.project_root) if x.is_absolute() else x for x in
-                                     checkpoint_paths]
+            return None
+        is_offline_run = is_offline_run_context(RUN_CONTEXT)
+        temporary_directory = tempfile.TemporaryDirectory()
+        temp_folder = Path(temporary_directory.name)
+        relative_checkpoint_paths = []
+        for checkpoint in checkpoint_paths:
+            if checkpoint.is_absolute():
+                try:
+                    relative_checkpoint_paths.append(checkpoint.relative_to(self.project_root))
+                except ValueError:
+                    raise ValueError(f"Checkpoint file {checkpoint} was expected to be in a subfolder of "
+                                     f"{self.project_root}")
         model_inference_config = ModelInferenceConfig(model_name=self.model_config.model_name,
                                                       structure_names=self.model_config.ground_truth_ids_display_names,
                                                       colours=self.model_config.colours,
                                                       fill_holes=self.model_config.fill_holes,
                                                       model_configs_namespace=self.model_config.__class__.__module__,
                                                       checkpoint_paths=list(map(str, relative_checkpoint_paths)))
-        full_path_to_config = self.project_root / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
-        full_path_to_config.write_text(model_inference_config.to_json(), encoding='utf-8')  # type: ignore
-        relative_child_paths = self.get_child_paths(checkpoint_paths)
+        # Inference configuration must live in the root folder of the registered model
+        full_path_to_config = temp_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
+        full_path_to_config.write_text(model_inference_config.to_json(), encoding='utf-8')
+        # Merge the conda files into one merged environment file at the root of the model
+        merged_conda_file = temp_folder / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
+        merge_conda_files(get_all_environment_files(self.project_root), result_file=merged_conda_file)
+        # Copy all code from project and InnerEye into the model folder
+        self.copy_child_paths_to_folder(temp_folder, relative_checkpoint_paths)
+        description = f"Best epoch: {best_epoch}, Accuracy : {best_epoch_dice}"
+        if is_offline_run:
+            logging.info("Registering the model on the workspace.")
+            description = description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
+            model = Model.register(
+                workspace=self.azure_config.get_workspace(),
+                model_name=self.model_config.model_name,
+                model_path=str(temp_folder),
+                description=description
+            )
+        else:
+            logging.info(f"Registering the model on with run {RUN_CONTEXT.id}")
+            model = RUN_CONTEXT.register_model(
+                model_name=self.model_config.model_name,
+                model_path=str(temp_folder),
+                tags=RUN_CONTEXT.get_tags(),
+                description=description
+            )
 
-        # Add experiment and run ID to tags
-        if run is not None:
-            tags = self.tags_with_run_information(run, tags)
-        model = Model.register(
-            workspace=workspace,
-            model_path=str(self.project_root),
-            child_paths=relative_child_paths,
-            model_name=self.model_config.model_name,
-            tags=tags,
-            description="Best epoch: {}, Accuracy : {}".format(best_epoch, best_epoch_dice)
-        )
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
 
         # update the run's tags with the registered model information
-        if not self.model_config.is_offline_run:
-            update_run_tags(run, {MODEL_ID_KEY_NAME: model.id})
+        if not is_offline_run:
+            update_run_tags(RUN_CONTEXT, {MODEL_ID_KEY_NAME: model.id})
 
         # create a version of the model for deployment if the hook is provided
+        deployment_result = None
         if self.model_deployment_hook is not None:
             assert isinstance(self.model_config, SegmentationModelBase)
-            deployment_model_path, deployment_model_spec = self.model_deployment_hook(
+            deployment_result = self.model_deployment_hook(
                 self.model_config, self.azure_config, model, model_proc)
-            return model, deployment_model_path, deployment_model_spec
-        return model, None, None
+        return model, deployment_result
 
     @staticmethod
     def tags_with_run_information(run: Run, tags: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -592,57 +594,56 @@ class MLRunner:
         # Let values already in tags take priority:
         return {**extra_tags, **(tags or {})}
 
-    def get_child_paths(self, checkpoint_paths: List[Path]) -> List[str]:
+    def copy_child_paths_to_folder(self, temp_folder: Path, checkpoint_paths_relative: List[Path]) -> None:
         """
-        Gets the files that are required to register a model for inference
-        :param checkpoint_paths: Path(s) to checkpoint (multiple if model is an ensemble).
-        These need to be under path_to_current_model
-        :return: a list of relative paths to the model directory to register the model
+        Gets the files that are required to register a model for inference. The necessary files are copied from
+        the current folder structure into the given temporary folder.
+        :param checkpoint_paths_relative: Path to checkpoints (multiple checkpoints if model is an ensemble).
+        These need to be relative to the project root folder.
+        :param temp_folder: The folder into which all files should be copied.
         """
-        path_to_current_model = self.project_root
-        extra_code_directory = Path(
-            self.azure_config.extra_code_directory) if self.azure_config.extra_code_directory else None
-        model_name = self.model_config.model_name
-        full_child_paths_package = list((path_to_current_model / INNEREYE_PACKAGE_NAME).rglob('*.py'))
-        submodule_path: Optional[Path] = None
-        submodule_package_path: Optional[Path] = None
-        if self.innereye_submodule_name is not None:
-            submodule_path = path_to_current_model / self.innereye_submodule_name
-            submodule_package_path = submodule_path / INNEREYE_PACKAGE_NAME
-            # Paths under submodule/InnerEye
-            full_child_paths_submodule = list(submodule_package_path.rglob('*.py'))
-            # Paths matching submodule/*.py
-            full_child_paths_submodule += list(submodule_path.glob('*.py'))
-            # submodule/environment.yml
-            full_child_paths_submodule += [submodule_path / ENVIRONMENT_YAML_FILE_NAME]
-        else:
-            full_child_paths_submodule = []
-        if extra_code_directory not in [None, Path(INNEREYE_PACKAGE_NAME), submodule_package_path]:
-            full_child_paths_extra = list((path_to_current_model / extra_code_directory).rglob('*.py'))  # type: ignore
-        else:
-            full_child_paths_extra = []
-        full_child_paths = (full_child_paths_package + full_child_paths_submodule + full_child_paths_extra
-                            + checkpoint_paths)
-        full_child_paths.append(path_to_current_model / Path(fixed_paths.ENVIRONMENT_YAML_FILE_NAME))
-        full_child_paths.append(path_to_current_model / Path(fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME))
-        top_level_paths = list(path_to_current_model.glob("*.py"))
-        full_child_paths += top_level_paths
-        relative_child_path_names = [str(x.relative_to(path_to_current_model)) if x.is_absolute()
-                                     else str(x) for x in full_child_paths]
-        logging.info(f"Registering model {model_name} with {len(relative_child_path_names)} paths")
-        logging.info(f"  {len(full_child_paths_package)} of the paths are under {INNEREYE_PACKAGE_NAME}/")
-        logging.info(f"  {len(full_child_paths_submodule)} of the paths are under {submodule_path}/")
-        if extra_code_directory:
-            logging.info(f"  {len(full_child_paths_extra)} of the paths are under {extra_code_directory}/")
-        else:
-            logging.info("   Parameter extra_code_directory is unset, so no paths there")
-        logging.info(f"  {len(top_level_paths)} of the paths are *.py files at top level")
-        logging.debug("The paths are:")
-        for path_name in relative_child_path_names:
-            logging.debug(f"  {path_name}")
-        return relative_child_path_names
 
-    def model_inference_train_and_test(self, run_context: Optional[Run] = None,
+        def copy_folder(source_folder: Path, destination_folder: str = "") -> None:
+            logging.info(f"Copying folder for registration: {source_folder}")
+            destination_folder = destination_folder or source_folder.name
+            shutil.copytree(str(source_folder), str(temp_folder / destination_folder),
+                            ignore=shutil.ignore_patterns('*.pyc'))
+
+        def copy_file(source: Path, destination_file: str = "") -> None:
+            logging.info(f"Copying file for registration: {source}")
+            destination_file = destination_file or source.name
+            destination = temp_folder / destination_file
+            if destination.is_file():
+                logging.warning(f"Overwriting existing {source.name} with {source}")
+            shutil.copy(str(source), str(destination))
+
+        # InnerEye package: This can be either in Python's package folder, or a plain folder. In both cases,
+        # we can identify it by going up the folder structure off a known file (repository_root does exactly that)
+        repository_root = fixed_paths.repository_root_directory()
+        copy_folder(repository_root / INNEREYE_PACKAGE_NAME)
+        # Extra code directory is expected to be relative to the project root folder.
+        if self.azure_config.extra_code_directory:
+            extra_code_folder = self.project_root / self.azure_config.extra_code_directory
+            if extra_code_folder.is_dir():
+                copy_folder(extra_code_folder)
+        # All files at project root should be copied as-is. Those should be essential things like score.py that
+        # are needed for inference to run. First try to find them at repository root (but they might not be there
+        # if InnerEye is used as a package), then at project root.
+        files_to_copy = list(repository_root.glob("*.py"))
+        if repository_root != self.project_root:
+            files_to_copy.extend(self.project_root.glob("*.py"))
+        for f in files_to_copy:
+            copy_file(f)
+        # Checkpoints live in the outputs folder. There can be multiple checkpoint files that have the same name,
+        # coming from an ensemble run. Copy those including their folder structure.
+        for checkpoint in checkpoint_paths_relative:
+            source = self.project_root / checkpoint
+            if source.is_file():
+                copy_file(source, destination_file=str(checkpoint))
+            else:
+                raise ValueError(f"Checkpoint file {checkpoint} does not exist")
+
+    def model_inference_train_and_test(self,
                                        run_recovery: Optional[RunRecovery] = None,
                                        model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> \
             Tuple[Optional[InferenceMetrics], Optional[InferenceMetrics], Optional[InferenceMetrics]]:
@@ -666,8 +667,8 @@ class MLRunner:
             train_metrics = run_model_test(ModelExecutionMode.TRAIN)
 
         # log the metrics to AzureML experiment if possible
-        if config.is_segmentation_model and run_context is not None:
+        if config.is_segmentation_model and not is_offline_run_context(RUN_CONTEXT):
             log_metrics(val_metrics=val_metrics, test_metrics=test_metrics,  # type: ignore
-                        train_metrics=train_metrics, run_context=run_context)  # type: ignore
+                        train_metrics=train_metrics, run_context=RUN_CONTEXT)  # type: ignore
 
         return test_metrics, val_metrics, train_metrics

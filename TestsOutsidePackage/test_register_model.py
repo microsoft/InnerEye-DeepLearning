@@ -2,11 +2,9 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import os
 import shutil
 from pathlib import Path
 from typing import Any, Dict, List
-from unittest import mock
 
 import numpy as np
 import param
@@ -26,7 +24,7 @@ from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_default_workspace, get_model_loader, \
     get_nifti_shape
-from Tests.fixed_paths_for_tests import RELATIVE_TEST_OUTPUTS_PATH, full_ml_test_data_path, tests_root_directory
+from Tests.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
 from run_scoring import spawn_and_monitor_subprocess
 from score import DEFAULT_DATA_FOLDER
 
@@ -62,7 +60,6 @@ def test_register_and_score_model(is_ensemble: bool,
     2) Checking that a model zip from the registered model can be created successfully
     3) Calling the scoring pipeline to check inference can be run from the published model successfully
     """
-    ws = get_default_workspace()
     # Get an existing config as template
     loader = get_model_loader("Tests.ML.configs" if model_outside_package else None)
     config: SegmentationModelBase = loader.create_model_config_from_name(
@@ -70,87 +67,82 @@ def test_register_and_score_model(is_ensemble: bool,
     )
     config.dataset_expected_spacing_xyz = dataset_expected_spacing_xyz
     config.set_output_to(test_output_dirs.root_dir)
-    # copy checkpoints into the outputs (simulating a run)
-    stored_checkpoints = full_ml_test_data_path(os.path.join("train_and_test_data", "checkpoints"))
-    shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
-    paths = [config.checkpoint_folder / "1_checkpoint.pth.tar"]
-    checkpoints = paths * 2 if is_ensemble else paths
+    # Checkpoints must live relative to the project root. When running in AzureML, source code and model
+    # outputs are hanging off the same directory, but not here in the local tests.
+    stored_checkpoints = full_ml_test_data_path() / "train_and_test_data" / "checkpoints"
+    # To simulate ensemble models, there are two checkpoints, one in the root dir and one in a folder
+    checkpoints = list(stored_checkpoints.rglob("*.tar")) if is_ensemble else list(stored_checkpoints.glob("*.tar"))
+    # assert len(checkpoints) == (2 if is_ensemble else 1)
     model = None
-    model_path = None
-    # Mocking to get the source from the current directory
-    # the score.py and python_wrapper.py cannot be moved inside the InnerEye package, which will be the
-    # only code running (if these tests are run on the package).
-    with mock.patch('InnerEye.Common.fixed_paths.repository_root_directory',
-                    return_value=tests_root_directory().parent):
-        try:
-            tags = {"model_name": config.model_name}
-            azure_config = get_default_azure_config()
-            if model_outside_package:
-                azure_config.extra_code_directory = "Tests"  # contains DummyModel
-            deployment_hook = lambda cfg, azure_cfg, mdl, is_ens: (Path(cfg.model_name), azure_cfg.docker_shm_size)
-            ml_runner = MLRunner(config, azure_config, model_deployment_hook=deployment_hook)
-            model, deployment_path, deployment_details = ml_runner.register_segmentation_model(
-                workspace=ws,
-                tags=tags,
-                best_epoch=0,
-                best_epoch_dice=0,
-                checkpoint_paths=checkpoints,
-                model_proc=ModelProcessing.DEFAULT)
-            assert model is not None
-            model_path = Path(model.get_model_path(model.name, model.version, ws))
-            assert (model_path / fixed_paths.ENVIRONMENT_YAML_FILE_NAME).exists()
-            assert (model_path / Path("InnerEye/ML/runner.py")).exists()
-            assert deployment_path == Path(config.model_name)
-            assert deployment_details == azure_config.docker_shm_size
+    model_root = None
+    # Simulate a project root: We can't derive that from the repository root because that might point
+    # into Python's package folder
+    project_root = Path(__file__).parent.parent
+    # Double-check that we are at the right place, by testing for a file that would quite certainly not be found
+    # somewhere else
+    assert (project_root / "run_scoring.py").is_file()
+    try:
+        azure_config = get_default_azure_config()
+        if model_outside_package:
+            azure_config.extra_code_directory = "Tests"  # contains DummyModel
+        deployment_hook = lambda cfg, azure_cfg, mdl, is_ens: (Path(cfg.model_name), azure_cfg.docker_shm_size)
+        ml_runner = MLRunner(config, azure_config, project_root=project_root,
+                             model_deployment_hook=deployment_hook)
+        model, deployment_result = ml_runner.register_segmentation_model(
+            best_epoch=0,
+            best_epoch_dice=0,
+            checkpoint_paths=checkpoints,
+            model_proc=ModelProcessing.DEFAULT)
+        assert model is not None
+        assert deployment_result == (Path(config.model_name), azure_config.docker_shm_size)
 
-            # move test data into the data folder to simulate an actual run
-            train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
+        # download the registered model and test that we can run the score pipeline on it
+        model_root = Path(model.download(str(test_output_dirs.root_dir)))
+        for expected_file in [
+            fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
+            "InnerEye/ML/runner.py",
+            "score.py",
+            # "outputs/checkpoints/1_checkpoint.pth.tar",
+        ]:
+            assert (model_root / expected_file).is_file(), f"File {expected_file} missing"
 
-            img_channel_1_name = "id1_channel1.nii.gz"
-            img_channel_1_path = train_and_test_data_dir / img_channel_1_name
-            img_channel_2_name = "id1_channel2.nii.gz"
-            img_channel_2_path = train_and_test_data_dir / img_channel_2_name
+        # create a dummy datastore to store the image data
+        # this simulates the code shapshot being executed in a real AzureML. Inside of that data store, there
+        # must be a folder called DEFAULT_DATA_FOLDER
+        test_datastore = test_output_dirs.root_dir / "test_datastore"
+        # move test data into the data folder to simulate an actual run
+        train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
+        img_files = ["id1_channel1.nii.gz", "id1_channel2.nii.gz"]
+        data_root = test_datastore / DEFAULT_DATA_FOLDER
+        data_root.mkdir(parents=True)
+        for f in img_files:
+            shutil.copy(str(train_and_test_data_dir / f), str(data_root))
 
-            # download the registered model and test that we can run the score pipeline on it
-            model_root = Path(model.download(str(test_output_dirs.root_dir)))
-            # create a dummy datastore to store model checkpoints and image data
-            # this simulates the code shapshot being executed in a real run
-            test_datastore = test_output_dirs.root_dir / "test_datastore"
-            shutil.move(
-                str(model_root / "test_outputs"),
-                str(test_datastore / RELATIVE_TEST_OUTPUTS_PATH)
-            )
-            data_root = test_datastore / DEFAULT_DATA_FOLDER
-            os.makedirs(data_root)
-            shutil.copy(str(img_channel_1_path), data_root)
-            shutil.copy(str(img_channel_2_path), data_root)
+        # run score pipeline as a separate process using the python_wrapper.py code to simulate a real run
+        return_code = SubprocessConfig(process="python", args=[
+            str(model_root / "python_wrapper.py"),
+            "--spawnprocess=python",
+            str(model_root / "score.py"),
+            f"--data-folder={str(test_datastore)}",
+            f"--test_image_channels={img_files[0]},{img_files[1]}",
+            "--use_gpu=False"
+        ]).spawn_and_monitor_subprocess()
 
-            # run score pipeline as a separate process using the python_wrapper.py code to simulate a real run
-            return_code = SubprocessConfig(process="python", args=[
-                str(model_root / "python_wrapper.py"),
-                "--spawnprocess=python",
-                str(model_root / "score.py"),
-                f"--data-folder={str(test_datastore)}",
-                f"--test_image_channels={img_channel_1_name},{img_channel_2_name}",
-                "--use_gpu=False"
-            ]).spawn_and_monitor_subprocess()
+        # check that the process completed as expected
+        assert return_code == 0
+        expected_segmentation_path = Path(model_root) / DEFAULT_RESULT_IMAGE_NAME
+        assert expected_segmentation_path.exists()
 
-            # check that the process completed as expected
-            assert return_code == 0
-            expected_segmentation_path = Path(model_root) / DEFAULT_RESULT_IMAGE_NAME
-            assert expected_segmentation_path.exists()
+        # sanity check the resulting segmentation
+        expected_shape = get_nifti_shape(img_files[0])
+        image_header = get_unit_image_header()
+        assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [0], np.ubyte)
 
-            # sanity check the resulting segmentation
-            expected_shape = get_nifti_shape(img_channel_1_path)
-            image_header = get_unit_image_header()
-            assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [0], np.ubyte)
-
-        finally:
-            # delete the registered model, and any downloaded artifacts
-            shutil.rmtree(test_output_dirs.root_dir)
-            if model and model_path:
-                model.delete()
-                shutil.rmtree(model_path)
+    finally:
+        # delete the registered model
+        if model and model_root:
+            model.delete()
+            shutil.rmtree(model_root)
 
 
 def test_register_model_invalid() -> None:
