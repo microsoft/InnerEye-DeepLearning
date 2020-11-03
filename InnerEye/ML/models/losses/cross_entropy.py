@@ -133,13 +133,13 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
             class_weight = get_class_weights(target, class_weight_power=self.class_weight_power) 
 
         # Compute negative log-likelihood
-        log_prop = F.log_softmax(output, dim=1)
+        log_prob = F.log_softmax(output, dim=1)
         if self.smoothing_eps > 0.0:
-            loss = -1.0 * log_prop * target
+            loss = -1.0 * log_prob * target
             if class_weight is not None:
                 loss = torch.einsum('bc...,c->b...', loss, class_weight)
         else:
-            loss = F.nll_loss(log_prop, torch.argmax(target, dim=1), weight=class_weight, reduction='none')
+            loss = F.nll_loss(log_prob, torch.argmax(target, dim=1), weight=class_weight, reduction='none')
 
         # If focal loss is specified, apply pixel weighting
         if self.focal_loss_gamma is not None:
