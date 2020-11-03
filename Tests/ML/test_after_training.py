@@ -50,13 +50,13 @@ def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
             "InnerEye/ML/runner.py",
         ]
     print("Downloaded model contains these files:")
-    for f in downloaded_folder.rglob("*"):
-        print("  " + str(f.relative_to(downloaded_folder)))
+    for actual_file in downloaded_folder.rglob("*"):
+        print("  " + str(actual_file.relative_to(downloaded_folder)))
     missing = []
-    for f in expected_files:
-        full_path = downloaded_folder / f
+    for expected_file in expected_files:
+        full_path = downloaded_folder / expected_file
         if not full_path.is_file():
-            missing.append(f)
+            missing.append(expected_file)
     if missing:
         print("Missing files:")
         for m in missing:

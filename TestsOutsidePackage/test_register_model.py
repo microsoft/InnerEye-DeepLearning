@@ -9,7 +9,6 @@ from typing import Any, Dict, List
 import numpy as np
 import param
 import pytest
-from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import common_util, fixed_paths
@@ -88,11 +87,13 @@ def test_register_and_score_model(is_ensemble: bool,
         deployment_hook = lambda cfg, azure_cfg, mdl, is_ens: (Path(cfg.model_name), azure_cfg.docker_shm_size)
         ml_runner = MLRunner(config, azure_config, project_root=project_root,
                              model_deployment_hook=deployment_hook)
-        model, deployment_result = ml_runner.register_segmentation_model(
+        registration_result = ml_runner.register_segmentation_model(
             best_epoch=0,
             best_epoch_dice=0,
             checkpoint_paths=checkpoints,
             model_proc=ModelProcessing.DEFAULT)
+        assert registration_result is not None
+        model, deployment_result = registration_result
         assert model is not None
         assert deployment_result == (Path(config.model_name), azure_config.docker_shm_size)
 
@@ -129,9 +130,9 @@ def test_register_and_score_model(is_ensemble: bool,
         ]).spawn_and_monitor_subprocess()
 
         # check that the process completed as expected
-        assert return_code == 0
+        assert return_code == 0, f"Subprocess failed with return code {return_code}"
         expected_segmentation_path = Path(model_root) / DEFAULT_RESULT_IMAGE_NAME
-        assert expected_segmentation_path.exists()
+        assert expected_segmentation_path.exists(), f"Result file not found: {expected_segmentation_path}"
 
         # sanity check the resulting segmentation
         expected_shape = get_nifti_shape(img_files[0])
@@ -151,8 +152,6 @@ def test_register_model_invalid() -> None:
     with pytest.raises(Exception):
         ml_runner = MLRunner(config, None)
         ml_runner.register_segmentation_model(
-            run=Run.get_context(),
-            workspace=ws,
             best_epoch=0,
             best_epoch_dice=0,
             checkpoint_paths=checkpoint_paths,
@@ -170,24 +169,33 @@ def test_register_model_invalid() -> None:
 
 @pytest.mark.parametrize("is_ensemble", [True, False])
 @pytest.mark.parametrize("extra_code_directory", ["TestsOutsidePackage", ""])
-def test_get_child_paths(is_ensemble: bool, extra_code_directory: str) -> None:
+def test_get_child_paths(is_ensemble: bool,
+                         extra_code_directory: str,
+                         test_output_dirs: OutputFolderForTests) -> None:
     checkpoints = checkpoint_paths * 2 if is_ensemble else checkpoint_paths
     path_to_root = tests_root_directory().parent
+    checkpoints = [checkpoint.relative_to(path_to_root) for checkpoint in checkpoints]
     azure_config = AzureConfig(extra_code_directory=extra_code_directory)
     fake_model = ModelConfigBase(azure_dataset_id="fake_dataset_id")
     ml_runner = MLRunner(model_config=fake_model, azure_config=azure_config, project_root=path_to_root)
-    child_paths = ml_runner.get_child_paths(checkpoints)
-    assert fixed_paths.ENVIRONMENT_YAML_FILE_NAME in child_paths
-    assert fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME in child_paths
-    assert str(Path("InnerEye/ML/runner.py")) in child_paths
-    assert str(Path("InnerEye/ML/model_testing.py")) in child_paths
-    assert str(Path("InnerEye/Common/fixed_paths.py")) in child_paths
-    assert str(Path("InnerEye/Common/common_util.py")) in child_paths
-    trm = str(Path("TestsOutsidePackage/test_register_model.py"))
+    ml_runner.copy_child_paths_to_folder(temp_folder=test_output_dirs.root_dir,
+                                         checkpoint_paths_relative=checkpoints)
+    expected_files = [
+        fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
+        fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME,
+        "InnerEye/ML/runner.py",
+        "InnerEye/ML/model_testing.py",
+        "InnerEye/Common/fixed_paths.py",
+        "InnerEye/Common/common_util.py",
+    ]
+    for expected_file in expected_files:
+        assert (test_output_dirs.root_dir / expected_file).is_file(), f"File missing: {expected_file}"
+    trm = test_output_dirs.root_dir / "TestsOutsidePackage/test_register_model.py"
     if extra_code_directory:
-        assert trm in child_paths
+        assert trm.is_file()
     else:
-        assert trm not in child_paths
+        assert not trm.is_file()
+    # TODO antonsc: this is nonsense
     assert all([x.relative_to(path_to_root) for x in checkpoints])
 
 

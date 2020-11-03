@@ -258,7 +258,7 @@ def test_result_aggregation_for_classification_all_epochs(test_output_dirs: Outp
     Test how metrics are aggregated for classification models, when no epoch is specified.
     """
     files, plotting_config = load_result_files_for_classification()
-    plotting_config.outputs_directory = str(test_output_dirs.root_dir)
+    plotting_config.outputs_directory = test_output_dirs.root_dir
     plotting_config.epoch = None
     expected_aggregates = \
         ["Default,0.72361,0.90943,0.55618,0.13158,0.52500,0.33307,0.95800,0.21348,356.00000,Val,1",

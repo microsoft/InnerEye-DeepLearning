@@ -322,22 +322,26 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
     :param files: The Conda environment files to read.
     :param result_file: The location where the merge results should be written.
     """
+    # This code is a slightly modified version of conda_merge. That code can't be re-used easily
+    # it defaults to writing to stdout
     env_definitions = [conda_merge.read_file(str(f)) for f in files]
     unified_definition = {}
-    name = conda_merge.merge_names(env.get('name') for env in env_definitions)
+    NAME = "name"
+    CHANNELS = "channels"
+    DEPENDENCIES = "dependencies"
+    name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
     if name:
-        unified_definition['name'] = name
+        unified_definition[NAME] = name
     try:
-        channels = conda_merge.merge_channels(env.get('channels') for env in env_definitions)
+        channels = conda_merge.merge_channels(env.get(CHANNELS) for env in env_definitions)
     except conda_merge.MergeError:
         logging.error("Failed to merge channel priorities.")
         raise
     if channels:
-        unified_definition['channels'] = channels
-    deps = conda_merge.merge_dependencies(env.get('dependencies') for env in env_definitions)
+        unified_definition[CHANNELS] = channels
+    deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
     if deps:
-        unified_definition['dependencies'] = deps
-    # dump the unified environment definition to stdout
+        unified_definition[DEPENDENCIES] = deps
     with result_file.open("w") as f:
         yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
 
@@ -352,10 +356,10 @@ def merge_conda_dependencies(files: List[Path]) -> CondaDependencies:
     """
     for file in files:
         _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
-    merged_file = tempfile.TemporaryFile()
+    merged_file = tempfile.NamedTemporaryFile(delete=True)
     merge_conda_files(files, result_file=Path(merged_file.name))
     merged_dependencies = CondaDependencies(merged_file.name)
-    _log_conda_dependencies_stats(merged_dependencies, f"Merged Conda environment")
+    _log_conda_dependencies_stats(merged_dependencies, "Merged Conda environment")
     merged_file.close()
     return merged_dependencies
 

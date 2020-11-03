@@ -439,7 +439,7 @@ class MLRunner:
         else:
             best_epoch_dice = 0.0  # dummy value
         assert isinstance(self.model_config, SegmentationModelBase)
-        self.register_model_for_epoch(RUN_CONTEXT, checkpoint_handler, best_epoch, best_epoch_dice, model_proc)
+        self.register_model_for_epoch(checkpoint_handler, best_epoch, best_epoch_dice, model_proc)
         return best_epoch
 
     def save_build_info_for_dotnet_consumers(self) -> None:
@@ -547,7 +547,7 @@ class MLRunner:
                                                       checkpoint_paths=list(map(str, relative_checkpoint_paths)))
         # Inference configuration must live in the root folder of the registered model
         full_path_to_config = temp_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
-        full_path_to_config.write_text(model_inference_config.to_json(), encoding='utf-8')
+        full_path_to_config.write_text(model_inference_config.to_json(), encoding='utf-8')  # type: ignore
         # Merge the conda files into one merged environment file at the root of the model
         merged_conda_file = temp_folder / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
         merge_conda_files(get_all_environment_files(self.project_root), result_file=merged_conda_file)
@@ -637,6 +637,8 @@ class MLRunner:
         # Checkpoints live in the outputs folder. There can be multiple checkpoint files that have the same name,
         # coming from an ensemble run. Copy those including their folder structure.
         for checkpoint in checkpoint_paths_relative:
+            if checkpoint.is_absolute():
+                raise ValueError(f"Checkpoint paths must be relative to project root, but got: {checkpoint}")
             source = self.project_root / checkpoint
             if source.is_file():
                 copy_file(source, destination_file=str(checkpoint))
