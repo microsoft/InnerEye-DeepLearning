@@ -19,4 +19,4 @@ steps:
     env:
       PYTHONPATH: $(Agent.TempDirectory)/InnerEye
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
-    displayName: 'Queue AzureML Job'
+    displayName: 'Training and Recovery in AzureML'

@@ -16,7 +16,7 @@ import torch
 from pandas.util.testing import assert_frame_equal
 
 from InnerEye.Common import common_util
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
 from InnerEye.ML.dataset.scalar_dataset import DataSourceReader, ScalarDataSource, ScalarDataset, \
@@ -75,7 +75,7 @@ S1,single,foo
     assert "2 rows" in str(ex)
 
 
-def test_load_items(test_output_dirs: TestOutputDirectories) -> None:
+def test_load_items(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test loading file paths and labels from a datafrome.
     """
@@ -107,7 +107,7 @@ S2,label,,False,2.1,2.2,B1,A2
     assert items[1].numerical_non_image_features.tolist() == pytest.approx([0.7071068286895752, 0.7071067690849304])
 
 
-def test_load_items_classification_versus_regression(test_output_dirs: TestOutputDirectories) -> None:
+def test_load_items_classification_versus_regression(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test loading file paths and labels from a datafrome with diferrent configuration
     """
@@ -551,11 +551,11 @@ def test_string_to_float(text: str, expected: float) -> None:
         assert actual == expected
 
 
-def test_files_by_stem(test_output_dirs: TestOutputDirectories) -> None:
+def test_files_by_stem(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test enumeration of files recursively.
     """
-    root = Path(test_output_dirs.root_dir) / "foo"
+    root = test_output_dirs.root_dir / "foo"
     folder1 = root / "bar"
     folder1.mkdir(parents=True)
     f1 = root / "1.txt"
@@ -575,7 +575,7 @@ def test_files_by_stem(test_output_dirs: TestOutputDirectories) -> None:
 
 
 @pytest.mark.parametrize("center_crop_size", [(2, 2, 2), None])
-def test_dataset_traverse_dirs(test_output_dirs: TestOutputDirectories, center_crop_size: Optional[TupleInt3]) -> None:
+def test_dataset_traverse_dirs(test_output_dirs: OutputFolderForTests, center_crop_size: Optional[TupleInt3]) -> None:
     """
     Test dataset loading when the dataset file only contains file name stems, not full paths.
     """
@@ -604,7 +604,7 @@ S4,label,,False,3.0
                            numerical_columns=[],
                            traverse_dirs_when_loading=True,
                            center_crop_size=center_crop_size,
-                           local_dataset=Path(test_output_dirs.root_dir))
+                           local_dataset=test_output_dirs.root_dir)
     dataset = ScalarDataset(args, data_frame=df)
     assert len(dataset) == 4
     for i in range(4):
@@ -617,7 +617,7 @@ S4,label,,False,3.0
         assert images.shape == (1,) + expected_image_size
 
 
-def test_dataset_normalize_image(test_output_dirs: TestOutputDirectories) -> None:
+def test_dataset_normalize_image(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test dataset loading with window normalization image processing.
     """
@@ -642,7 +642,7 @@ S4,label,,False,3.0
                            non_image_feature_channels={},
                            numerical_columns=[],
                            traverse_dirs_when_loading=True,
-                           local_dataset=Path(test_output_dirs.root_dir))
+                           local_dataset=test_output_dirs.root_dir)
     raw_dataset = ScalarDataset(args, data_frame=df)
     normalized = ScalarDataset(args, data_frame=df, sample_transforms=WindowNormalizationForScalarItem())
     assert len(raw_dataset) == 4
@@ -751,7 +751,7 @@ def test_is_index_valid() -> None:
     assert not is_valid_item_index(_create(1), max_sequence_position_value=0)
 
 
-def test_categorical_and_numerical_columns_are_mutually_exclusive(test_output_dirs: TestOutputDirectories) -> None:
+def test_categorical_and_numerical_columns_are_mutually_exclusive(test_output_dirs: OutputFolderForTests) -> None:
     csv_string = """USUBJID,week,path,value,scalar1,categorical1
     S1,image,foo.nii
     S1,label,,True,1.1,False
@@ -791,7 +791,7 @@ def test_imbalanced_sampler() -> None:
     assert count_negative_subjects / float(len(drawn_subjects)) > 0.3
 
 
-def test_get_class_weights_dataset(test_output_dirs: TestOutputDirectories) -> None:
+def test_get_class_weights_dataset(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and testing of sequence models that predicts at multiple time points,
     when it is started via run_ml.

@@ -166,7 +166,7 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
         # have to look higher up.
         comparison_dataset_path: Optional[Path] = None
         comparison_metrics_path: Optional[Path] = None
-        destination_folder = Path(outputs_folder) / run_rec_id / blob_path
+        destination_folder = outputs_folder / run_rec_id / blob_path
         # Look for dataset.csv inside epoch_NNN/Test, epoch_NNN/ and at top level
         for blob_path_parent in step_up_directories(blob_path):
             try:

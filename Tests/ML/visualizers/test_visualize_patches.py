@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from InnerEye.Common.common_util import is_windows
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
@@ -24,7 +24,7 @@ from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
 @pytest.mark.parametrize("labels_to_boundary", [True, False])
-def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
+def test_visualize_patch_sampling(test_output_dirs: OutputFolderForTests,
                                   labels_to_boundary: bool) -> None:
     """
     Tests if patch sampling and producing diagnostic images works as expected.
@@ -92,7 +92,7 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
 
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
-def test_visualize_patch_sampling_2d(test_output_dirs: TestOutputDirectories) -> None:
+def test_visualize_patch_sampling_2d(test_output_dirs: OutputFolderForTests) -> None:
     """
     Tests if patch sampling works for 2D images.
     :param test_output_dirs:
@@ -139,7 +139,7 @@ def test_visualize_patch_sampling_2d(test_output_dirs: TestOutputDirectories) ->
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
 @pytest.mark.parametrize("dimension", [0, 1, 2])
-def test_plot_overlay(test_output_dirs: TestOutputDirectories,
+def test_plot_overlay(test_output_dirs: OutputFolderForTests,
                       dimension: int) -> None:
     set_random_seed(0)
     shape = (10, 30, 30)
@@ -160,7 +160,7 @@ def test_plot_overlay(test_output_dirs: TestOutputDirectories,
 
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
-def test_show_non_square_images(test_output_dirs: TestOutputDirectories) -> None:
+def test_show_non_square_images(test_output_dirs: OutputFolderForTests) -> None:
     input_file = full_ml_test_data_path("patch_sampling") / "scan_small.nii.gz"
     input = load_nifti_image(input_file)
     image = input.image
