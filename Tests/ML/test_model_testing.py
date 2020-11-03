@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import shutil
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -48,7 +47,7 @@ def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
         {ModelExecutionMode.TEST: FullImageDataset(config, df, full_image_sample_transforms=transform)}  # type: ignore
     execution_mode = ModelExecutionMode.TEST
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=Path(test_output_dirs.root_dir))
+                                                        project_root=test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
     stored_checkpoints = full_ml_test_data_path("checkpoints")
     shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
@@ -122,7 +121,7 @@ def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
     # no pipeline created when checkpoint for epoch is None
     assert create_inference_pipeline(config, []) is None
     # no pipeline created when checkpoint path does not exist
-    assert create_inference_pipeline(config, [Path("nonexist")]) is None
+    assert create_inference_pipeline(config, [test_output_dirs.root_dir / "nonexist.pth"]) is None
 
 
 @pytest.mark.parametrize(("config", "checkpoint_folder", "inference_type", "ensemble_type"),

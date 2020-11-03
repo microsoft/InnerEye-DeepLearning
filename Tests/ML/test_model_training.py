@@ -9,6 +9,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import pytest
+import shutil
 from torch.utils.data import DataLoader
 
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict
@@ -334,7 +335,7 @@ def test_construct_loss_function() -> None:
     assert loss_fn.components[1][0] == weights[1] / sum(weights)
 
 
-def test_recover_training_mean_teacher_model(test_output_dirs: TestOutputDirectories) -> None:
+def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> None:
     """
     Tests that training can be recovered from a previous checkpoint.
     """

@@ -9,10 +9,9 @@ import pytest
 import shutil
 
 from urllib.parse import urlparse
-from pathlib import Path
 
 from InnerEye.ML.deep_learning_config import WEIGHTS_FILE
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.fixed_paths import MODEL_WEIGHTS_DIR_NAME
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.common import create_checkpoint_path
@@ -26,14 +25,14 @@ from Tests.fixed_paths_for_tests import full_ml_test_data_path
 EXTERNAL_WEIGHTS_URL_EXAMPLE = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
 
 
-def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: TestOutputDirectories) -> None:
+def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
 
     # No checkpoint handling options set.
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=Path(test_output_dirs.root_dir))
+                                                        project_root=test_output_dirs.root_dir)
 
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
     assert not checkpoint_handler.run_recovery
@@ -43,19 +42,19 @@ def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: 
     checkpoint_handler.azure_config.run_recovery_id = DEFAULT_RUN_RECOVERY_ID
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
 
-    expected_checkpoint_root = Path(config.checkpoint_folder) / DEFAULT_RUN_RECOVERY_ID.split(":")[1]
+    expected_checkpoint_root = config.checkpoint_folder / DEFAULT_RUN_RECOVERY_ID.split(":")[1]
     expected_paths = [create_checkpoint_path(path=expected_checkpoint_root,
                                              epoch=epoch) for epoch in [1, 2, 3, 4, 20]]
     assert checkpoint_handler.run_recovery
     assert checkpoint_handler.run_recovery.checkpoints_roots == [expected_checkpoint_root]
     for path in expected_paths:
-        assert Path(path).is_file()
+        assert path.is_file()
 
     # Set a run recovery object - ensemble
     checkpoint_handler.azure_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
 
-    expected_checkpoint_roots = [Path(config.checkpoint_folder) / DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.split(":")[1]
+    expected_checkpoint_roots = [config.checkpoint_folder / DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.split(":")[1]
                                  / str(i) for i in range(3)]
     expected_path_lists = [[create_checkpoint_path(path=expected_checkpoint_root,
                                               epoch=epoch) for epoch in [1, 2]]
@@ -63,7 +62,7 @@ def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: 
     assert set(checkpoint_handler.run_recovery.checkpoints_roots) == set(expected_checkpoint_roots)
     for path_list in expected_path_lists:
         for path in path_list:
-            assert Path(path).is_file()
+            assert path.is_file()
 
     # weights from local_weights_path and weights_url will be modified if needed and stored at this location
     expected_path = checkpoint_handler.model_config.outputs_folder / WEIGHTS_FILE
@@ -77,7 +76,7 @@ def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: 
 
     # set a local_weights_path
     config.weights_url = ""
-    local_weights_path = Path(test_output_dirs.root_dir) / "exist.pth"
+    local_weights_path = test_output_dirs.root_dir / "exist.pth"
     stored_checkpoint = create_checkpoint_path(path=full_ml_test_data_path("checkpoints"), epoch=1)
     shutil.copyfile(str(stored_checkpoint), local_weights_path)
     config.local_weights_path = local_weights_path
@@ -85,12 +84,12 @@ def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: 
     assert checkpoint_handler.local_weights_path == expected_path
 
 
-def test_get_recovery_path_train(test_output_dirs: TestOutputDirectories) -> None:
+def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                     project_root=Path(test_output_dirs.root_dir))
+                                                        project_root=test_output_dirs.root_dir)
 
     assert checkpoint_handler.get_recovery_path_train() is None
 
@@ -104,7 +103,7 @@ def test_get_recovery_path_train(test_output_dirs: TestOutputDirectories) -> Non
 
     # Run recovery with start epoch provided should succeed
     config.start_epoch = 20
-    expected_path = create_checkpoint_path(path=Path(config.checkpoint_folder) / DEFAULT_RUN_RECOVERY_ID.split(":")[1],
+    expected_path = create_checkpoint_path(path=config.checkpoint_folder / DEFAULT_RUN_RECOVERY_ID.split(":")[1],
                                            epoch=config.start_epoch)
     assert checkpoint_handler.get_recovery_path_train() == expected_path
 
@@ -133,7 +132,7 @@ def test_get_recovery_path_train(test_output_dirs: TestOutputDirectories) -> Non
 
     # Set a local_weights_path to get checkpoint from
     config.weights_url = ""
-    local_weights_path = Path(test_output_dirs.root_dir) / "exist.pth"
+    local_weights_path = test_output_dirs.root_dir / "exist.pth"
     stored_checkpoint = create_checkpoint_path(full_ml_test_data_path("checkpoints"), epoch=1)
     shutil.copyfile(str(stored_checkpoint), local_weights_path)
     config.local_weights_path = local_weights_path
@@ -148,12 +147,12 @@ def test_get_recovery_path_train(test_output_dirs: TestOutputDirectories) -> Non
         assert ex.value.args == "Start epoch is > 0, but no run recovery object has been provided to resume training."
 
 
-def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> None:
+def test_get_checkpoint_from_epoch(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
     manage_recovery = get_default_checkpoint_handler(model_config=config,
-                                                     project_root=Path(test_output_dirs.root_dir))
+                                                     project_root=test_output_dirs.root_dir)
 
     # We have not set a run_recovery, nor have we trained, so this should fail to get a checkpoint
     with pytest.raises(ValueError) as ex:
@@ -163,7 +162,7 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
     # We have set a run_recovery_id now, so this should work
     manage_recovery.azure_config.run_recovery_id = DEFAULT_RUN_RECOVERY_ID
     manage_recovery.discover_and_download_checkpoints_from_previous_runs()
-    expected_checkpoint = create_checkpoint_path(path=Path(config.checkpoint_folder)
+    expected_checkpoint = create_checkpoint_path(path=config.checkpoint_folder
                                                       / DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
     assert checkpoint
@@ -174,7 +173,7 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
     # ensemble run recovery
     manage_recovery.azure_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
     manage_recovery.discover_and_download_checkpoints_from_previous_runs()
-    expected_checkpoints = [create_checkpoint_path(path=Path(config.checkpoint_folder)
+    expected_checkpoints = [create_checkpoint_path(path=config.checkpoint_folder
                                                        / DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.split(":")[1] / str(i), epoch=1)
                             for i in range(3)]
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
@@ -197,7 +196,7 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
 
     # Should work for epoch 1
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
-    expected_checkpoint = create_checkpoint_path(path=Path(config.checkpoint_folder)
+    expected_checkpoint = create_checkpoint_path(path=config.checkpoint_folder
                                                       / DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)
     assert checkpoint
     assert len(checkpoint.checkpoint_paths) == 1
@@ -206,7 +205,7 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
 
     # Copy over checkpoints to make it look like training has happened
     stored_checkpoint = create_checkpoint_path(path=full_ml_test_data_path("checkpoints"), epoch=1)
-    expected_checkpoint = create_checkpoint_path(path=Path(config.checkpoint_folder), epoch=2)
+    expected_checkpoint = create_checkpoint_path(path=config.checkpoint_folder, epoch=2)
     shutil.copyfile(str(stored_checkpoint), str(expected_checkpoint))
 
     # Should now work for epoch 2
@@ -217,17 +216,17 @@ def test_get_checkpoint_from_epoch(test_output_dirs: TestOutputDirectories) -> N
     assert checkpoint.epoch == 2
 
 
-def test_get_checkpoints_to_test(test_output_dirs: TestOutputDirectories) -> None:
+def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
     manage_recovery = get_default_checkpoint_handler(model_config=config,
-                                                     project_root=Path(test_output_dirs.root_dir))
+                                                     project_root=test_output_dirs.root_dir)
 
     # Set a local_weights_path to get checkpoint from. Model has not trained and no run recovery provided,
     # so the local weights should be used ignoring any epochs to test
     config.epochs_to_test = [1, 2]
-    local_weights_path = Path(test_output_dirs.root_dir) / "exist.pth"
+    local_weights_path = test_output_dirs.root_dir / "exist.pth"
     stored_checkpoint = create_checkpoint_path(full_ml_test_data_path("checkpoints"), epoch=1)
     shutil.copyfile(str(stored_checkpoint), local_weights_path)
     config.local_weights_path = local_weights_path
@@ -246,7 +245,7 @@ def test_get_checkpoints_to_test(test_output_dirs: TestOutputDirectories) -> Non
     manage_recovery.discover_and_download_checkpoints_from_previous_runs()
     # Copy checkpoint to make it seem like training has happened
     stored_checkpoint = create_checkpoint_path(path=full_ml_test_data_path("checkpoints"), epoch=1)
-    expected_checkpoint = create_checkpoint_path(path=Path(config.checkpoint_folder), epoch=2)
+    expected_checkpoint = create_checkpoint_path(path=config.checkpoint_folder, epoch=2)
     shutil.copyfile(str(stored_checkpoint), str(expected_checkpoint))
 
     checkpoint_and_paths = manage_recovery.get_checkpoints_to_test()
@@ -254,10 +253,10 @@ def test_get_checkpoints_to_test(test_output_dirs: TestOutputDirectories) -> Non
     assert checkpoint_and_paths
     assert len(checkpoint_and_paths) == 2
     assert checkpoint_and_paths[0].epoch == 1
-    assert checkpoint_and_paths[0].checkpoint_paths == [create_checkpoint_path(path=Path(config.checkpoint_folder)
+    assert checkpoint_and_paths[0].checkpoint_paths == [create_checkpoint_path(path=config.checkpoint_folder
                                                         / DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)]
     assert checkpoint_and_paths[1].epoch == 2
-    assert checkpoint_and_paths[1].checkpoint_paths == [create_checkpoint_path(path=Path(config.checkpoint_folder),
+    assert checkpoint_and_paths[1].checkpoint_paths == [create_checkpoint_path(path=config.checkpoint_folder,
                                                                                epoch=2)]
 
     # This epoch does not exist
@@ -266,22 +265,22 @@ def test_get_checkpoints_to_test(test_output_dirs: TestOutputDirectories) -> Non
     assert checkpoint_and_paths is None
 
 
-def test_download_model_weights(test_output_dirs: TestOutputDirectories) -> None:
+def test_download_model_weights(test_output_dirs: OutputFolderForTests) -> None:
 
     # Download a sample ResNet model from a URL given in the Pytorch docs
     # The downloaded model does not match the architecture, which is okay since we are only testing the download here.
 
     model_config = DummyModel(weights_url=EXTERNAL_WEIGHTS_URL_EXAMPLE)
     manage_recovery = get_default_checkpoint_handler(model_config=model_config,
-                                                     project_root=Path(test_output_dirs.root_dir))
+                                                     project_root=test_output_dirs.root_dir)
     result_path = manage_recovery.download_weights()
     assert result_path.is_file()
 
 
-def test_get_local_weights_path_or_download(test_output_dirs: TestOutputDirectories) -> None:
+def test_get_local_weights_path_or_download(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     manage_recovery = get_default_checkpoint_handler(model_config=config,
-                                                     project_root=Path(test_output_dirs.root_dir))
+                                                     project_root=test_output_dirs.root_dir)
 
     # If the model has neither local_weights_path or weights_url set, should fail.
     with pytest.raises(ValueError) as ex:
@@ -313,14 +312,14 @@ def test_get_local_weights_path_or_download(test_output_dirs: TestOutputDirector
     assert downloaded_weights_new.stat().st_mtime == modified_time
 
 
-def test_get_and_modify_local_weights(test_output_dirs: TestOutputDirectories) -> None:
+def test_get_and_modify_local_weights(test_output_dirs: OutputFolderForTests) -> None:
 
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
 
     manage_recovery = get_default_checkpoint_handler(model_config=config,
-                                                     project_root=Path(test_output_dirs.root_dir))
+                                                     project_root=test_output_dirs.root_dir)
 
     # If the model has neither local_weights_path or weights_url set, should fail.
     with pytest.raises(ValueError) as ex:

@@ -28,7 +28,6 @@ from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.metrics_util import SummaryWriters
 from InnerEye.ML.utils.model_util import ModelAndInfo
-from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
@@ -237,7 +236,7 @@ def test_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> None:
     config = DummyClassification()
     config.set_output_to(test_output_dirs.root_dir)
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=Path(test_output_dirs.root_dir))
+                                                        project_root=test_output_dirs.root_dir)
 
     config.num_epochs = 1
     # Set train batch size to be arbitrary big to ensure we have only one training step

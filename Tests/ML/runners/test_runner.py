@@ -5,7 +5,6 @@
 import logging
 import shutil
 import time
-
 import pytest
 
 from InnerEye.Common import common_util
@@ -38,7 +37,7 @@ def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
     shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
 
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=Path(test_output_dirs.root_dir))
+                                                        project_root=test_output_dirs.root_dir)
     checkpoint_handler.additional_training_done()
     result, _, _ = MLRunner(config).model_inference_train_and_test(checkpoint_handler=checkpoint_handler)
     if result is None:
