@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import os
 from pathlib import Path
 from typing import Any, List
 
@@ -13,7 +12,7 @@ import pytest
 from torch.utils.data import DataLoader
 
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics, model_training
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
@@ -112,18 +111,18 @@ def test_get_total_number_of_training_epochs() -> None:
 
 @pytest.mark.parametrize("image_channels", [["region"], ["random_123"]])
 @pytest.mark.parametrize("ground_truth_ids", [["region", "region"], ["region", "other_region"]])
-def test_invalid_model_train(test_output_dirs: TestOutputDirectories, image_channels: Any,
+def test_invalid_model_train(test_output_dirs: OutputFolderForTests, image_channels: Any,
                              ground_truth_ids: Any) -> None:
     with pytest.raises(ValueError):
         _test_model_train(test_output_dirs, image_channels, ground_truth_ids)
 
 
 @pytest.mark.parametrize("no_mask_channel", [True, False])
-def test_valid_model_train(test_output_dirs: TestOutputDirectories, no_mask_channel: bool) -> None:
+def test_valid_model_train(test_output_dirs: OutputFolderForTests, no_mask_channel: bool) -> None:
     _test_model_train(test_output_dirs, ["channel1", "channel2"], ["region", "region_1"], no_mask_channel)
 
 
-def _test_model_train(output_dirs: TestOutputDirectories,
+def _test_model_train(output_dirs: OutputFolderForTests,
                       image_channels: Any,
                       ground_truth_ids: Any,
                       no_mask_channel: bool = False) -> None:
@@ -187,16 +186,16 @@ def _test_model_train(output_dirs: TestOutputDirectories,
     assert train_config.save_start_epoch == 1
     assert train_config.save_step_epochs == 100
     assert train_config.num_epochs == 2
-    assert os.path.isdir(train_config.checkpoint_folder)
-    assert os.path.isfile(os.path.join(train_config.checkpoint_folder, "2" + CHECKPOINT_FILE_SUFFIX))
+    assert train_config.checkpoint_folder.is_dir()
+    assert (train_config.checkpoint_folder / ("2" + CHECKPOINT_FILE_SUFFIX)).is_file()
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.VAL]).is_file()
     assert_file_contains_string(train_config.outputs_folder / TRAIN_STATS_FILE, expected_stats)
 
     # Test for saving of example images
-    assert os.path.isdir(train_config.example_images_folder)
-    example_files = os.listdir(train_config.example_images_folder)
+    assert train_config.example_images_folder.is_dir()
+    example_files = list(train_config.example_images_folder.rglob("*.*"))
     assert len(example_files) == 3 * 2
     # Path visualization: There should be 3 slices for each of the 2 subjects
     sampling_folder = train_config.outputs_folder / PATCH_SAMPLING_FOLDER
@@ -243,8 +242,8 @@ def create_data_loaders(train_config: DummyModel) -> None:
         check_patient_id_in_dataset(loader, split)
 
 
-def test_create_data_loaders_hdf5(test_output_dirs: TestOutputDirectories) -> None:
-    dataset_dir = convert_nifti_data_to_hdf5(Path(test_output_dirs.root_dir))
+def test_create_data_loaders_hdf5(test_output_dirs: OutputFolderForTests) -> None:
+    dataset_dir = convert_nifti_data_to_hdf5(test_output_dirs.root_dir)
     train_config = DummyModel()
     train_config.local_dataset = dataset_dir
     create_data_loaders(train_config)
@@ -252,35 +251,33 @@ def test_create_data_loaders_hdf5(test_output_dirs: TestOutputDirectories) -> No
 
 def convert_nifti_data_to_hdf5(output_hdf5_dir: Path) -> Path:
     # create dataset in hdf5
-    with open(base_path / "dataset.csv", "r") as f:
-        csv_str = f.read()
-        csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel1",
-                                  "p1.h5|volume|0,channel1")
-        csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel2",
-                                  "p1.h5|volume|1,channel2")
-        csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel1",
-                                  "p2.h5|volume|0,channel1")
-        csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel2",
-                                  "p2.h5|volume|1,channel2")
-        # segmentation
-        csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region",
-                                  "p1.h5|region|0,region")
-        csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region_1",
-                                  "p2.h5|region|0,region_1")
-        csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region",
-                                  "p2.h5|region|0,region")
-        csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region_1",
-                                  "p2.h5|region_1|1,region_1")
-        # mask
-        csv_str = csv_str.replace("train_and_test_data/id1_mask.nii.gz,mask",
-                                  "p1.h5|mask|0,mask")
-        csv_str = csv_str.replace("train_and_test_data/id2_mask.nii.gz,mask",
-                                  "p2.h5|mask|0,mask")
+    csv_str = (base_path / "dataset.csv").read_text()
+    csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel1",
+                              "p1.h5|volume|0,channel1")
+    csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel2",
+                              "p1.h5|volume|1,channel2")
+    csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel1",
+                              "p2.h5|volume|0,channel1")
+    csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel2",
+                              "p2.h5|volume|1,channel2")
+    # segmentation
+    csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region",
+                              "p1.h5|region|0,region")
+    csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region_1",
+                              "p2.h5|region|0,region_1")
+    csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region",
+                              "p2.h5|region|0,region")
+    csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region_1",
+                              "p2.h5|region_1|1,region_1")
+    # mask
+    csv_str = csv_str.replace("train_and_test_data/id1_mask.nii.gz,mask",
+                              "p1.h5|mask|0,mask")
+    csv_str = csv_str.replace("train_and_test_data/id2_mask.nii.gz,mask",
+                              "p2.h5|mask|0,mask")
 
     dataset_dir = output_hdf5_dir / "hdf5_dataset"
     dataset_dir.mkdir(parents=True, exist_ok=True)
-    with open(dataset_dir / "dataset.csv", "w") as f:
-        f.write(csv_str)
+    (dataset_dir / "dataset.csv").write_text(csv_str)
     train_data = base_path / "train_and_test_data"
     create_hdf5_from_nifti(train_data / "id1_channel1.nii.gz", train_data / "id1_region.nii.gz",
                            train_data / "id1_mask.nii.gz",
@@ -332,10 +329,10 @@ def test_recover_training_mean_teacher_model() -> None:
     # First round of training
     config.num_epochs = 2
     model_train(config)
-    assert len(os.listdir(config.checkpoint_folder)) == 1
+    assert len(list(config.checkpoint_folder.rglob("*.*"))) == 1
 
     # Restart training from previous run
     config.start_epoch = 2
     config.num_epochs = 3
     model_train(config)
-    assert len(os.listdir(config.checkpoint_folder)) == 2
+    assert len(list(config.checkpoint_folder.rglob("*.*"))) == 2

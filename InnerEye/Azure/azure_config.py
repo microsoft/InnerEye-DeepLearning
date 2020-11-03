@@ -252,8 +252,8 @@ class SourceConfig:
     Contains all information that is required to submit a script to AzureML: Entry script, arguments,
     and information to set up the Python environment inside of the AzureML virtual machine.
     """
-    root_folder: str
-    entry_script: str
+    root_folder: Path
+    entry_script: Path
     conda_dependencies_files: List[Path]
     script_params: Optional[Dict[str, str]] = None
     hyperdrive_config_func: Optional[Callable[[MMLBaseEstimator], HyperDriveConfig]] = None

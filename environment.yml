@@ -10,10 +10,10 @@ dependencies:
   - torchvision=0.7.0
   - pip:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
-      - azureml-mlflow==1.12.0
-      - azureml-sdk==1.12.0
-      - azureml-tensorboard==1.12.0
       - azure-mgmt-resource==10.2.0
+      - azureml-mlflow==1.17.0
+      - azureml-sdk==1.17.0
+      - azureml-tensorboard==1.17.0
       - blobxfer==1.9.4
       - dataclasses-json==0.5.2
       - flake8==3.8.3
@@ -24,7 +24,7 @@ dependencies:
       - jupyter==1.0.0
       - jupyter-client==6.1.5
       - matplotlib==3.3.0
-      - mlflow==1.8.0
+      - mlflow==1.11.0
       - mypy==0.770
       - mypy-extensions==0.4.3
       - numpy==1.19.1

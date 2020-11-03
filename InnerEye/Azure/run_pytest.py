@@ -29,7 +29,7 @@ def run_pytest(pytest_mark: str, outputs_folder: Path) -> Tuple[bool, Path]:
     # Only run on tests in Tests/, to avoid the Tests/ directory if this repo is consumed as a submodule
     pytest_args = ["Tests/", f"--junitxml={str(_outputs_file)}"]
 
-    if pytest_mark is not None and len(pytest_mark) != 0:
+    if pytest_mark:
         pytest_args += ["-m", pytest_mark]
     logging.info(f"Starting pytest, with args: {pytest_args}")
     status_code = pytest.main(pytest_args)

@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, unique
 from math import isclose
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -591,11 +592,11 @@ class SegmentationModelBase(ModelConfigBase):
                                             output_size=self.get_output_size(ModelExecutionMode.TEST))
 
     @property
-    def example_images_folder(self) -> str:
+    def example_images_folder(self) -> Path:
         """
         Gets the full path in which the example images should be stored during training.
         """
-        return str(self.outputs_folder / EXAMPLE_IMAGES_FOLDER)
+        return self.outputs_folder / EXAMPLE_IMAGES_FOLDER
 
     @property
     def largest_connected_component_foreground_classes(self) -> LARGEST_CC_TYPE:

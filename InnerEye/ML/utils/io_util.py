@@ -466,8 +466,8 @@ def load_images_from_dataset_source(dataset_source: PatientDatasetSource) -> Sam
 
 def store_image_as_short_nifti(image: np.ndarray,
                                header: ImageHeader,
-                               file_name: str,
-                               args: Optional[SegmentationModelBase]) -> str:
+                               file_name: PathOrString,
+                               args: Optional[SegmentationModelBase]) -> Path:
     """
     Saves an image in nifti format as ubyte, and performs the following operations:
     1) transpose the image back into X,Y,Z from Z,Y,X
@@ -490,7 +490,7 @@ def store_image_as_short_nifti(image: np.ndarray,
     return store_as_nifti(image=image * 1000, header=header, file_name=file_name, image_type=np.short)
 
 
-def store_posteriors_as_nifti(image: np.ndarray, header: ImageHeader, file_name: str) -> str:
+def store_posteriors_as_nifti(image: np.ndarray, header: ImageHeader, file_name: PathOrString) -> Path:
     """
     Saves an array of posteriors in nifti format as ubyte, and performs the following operations:
     1) transpose the image back into X,Y,Z from Z,Y,X
@@ -511,8 +511,8 @@ def store_posteriors_as_nifti(image: np.ndarray, header: ImageHeader, file_name:
 
 def store_as_scaled_ubyte_nifti(image: np.ndarray,
                                 header: ImageHeader,
-                                file_name: str,
-                                input_range: Union[Iterable[int], Iterable[float]]) -> str:
+                                file_name: PathOrString,
+                                input_range: Union[Iterable[int], Iterable[float]]) -> Path:
     """
     Saves an image in nifti format as ubyte, and performs the following operations:
     1) transpose the image back into X,Y,Z from Z,Y,X
@@ -535,7 +535,7 @@ def store_as_scaled_ubyte_nifti(image: np.ndarray,
 
 def store_as_ubyte_nifti(image: np.ndarray,
                          header: ImageHeader,
-                         file_name: str) -> str:
+                         file_name: PathOrString) -> Path:
     """
     Saves an image in nifti format as ubyte, and performs the following operations:
     1) transpose the image back into X,Y,Z from Z,Y,X
@@ -549,7 +549,7 @@ def store_as_ubyte_nifti(image: np.ndarray,
     return store_as_nifti(image, header, file_name, np.ubyte)
 
 
-def store_binary_mask_as_nifti(image: np.ndarray, header: ImageHeader, file_name: str) -> str:
+def store_binary_mask_as_nifti(image: np.ndarray, header: ImageHeader, file_name: PathOrString) -> Path:
     """
     Saves a binary mask to nifti format, and performs the following operations:
     1) Check that the image really only contains binary values (0 and 1)
@@ -570,11 +570,11 @@ def store_binary_mask_as_nifti(image: np.ndarray, header: ImageHeader, file_name
 
 def store_as_nifti(image: np.ndarray,
                    header: ImageHeader,
-                   file_name: str,
+                   file_name: PathOrString,
                    image_type: Union[str, type, np.dtype],
                    scale: bool = False,
                    input_range: Optional[Iterable[Union[int, float]]] = None,
-                   output_range: Optional[Iterable[Union[int, float]]] = None) -> str:
+                   output_range: Optional[Iterable[Union[int, float]]] = None) -> Path:
     """
     Saves an image in nifti format (uploading to Azure also if an online Run), and performs the following operations:
     1) transpose the image back into X,Y,Z from Z,Y,X
@@ -617,8 +617,8 @@ def store_as_nifti(image: np.ndarray,
     image.SetSpacing(sitk.VectorDouble(reverse_tuple_float3(header.spacing)))  # Spacing needs to be X Y Z
     image.SetOrigin(header.origin)
     image.SetDirection(header.direction)
-    sitk.WriteImage(image, file_name)
-    return file_name
+    sitk.WriteImage(image, str(file_name))
+    return Path(file_name)
 
 
 def save_lines_to_file(file: Path, values: List[str]) -> None:
