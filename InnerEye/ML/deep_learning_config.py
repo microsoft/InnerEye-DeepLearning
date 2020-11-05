@@ -615,7 +615,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         test_epochs = {self.num_epochs}
         if self.epochs_to_test:
             return sorted(test_epochs | set(self.epochs_to_test))
-        elif not self.test_diff_epochs and not self.test_start_epoch and not self.test_step_epochs:
+        elif self.test_diff_epochs and self.test_start_epoch and self.test_step_epochs:
             for j in range(self.test_diff_epochs):
                 epoch = self.test_start_epoch + self.test_step_epochs * j
                 if epoch > self.num_epochs:
