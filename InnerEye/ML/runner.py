@@ -72,6 +72,7 @@ def suppress_logging_noise() -> None:
     logging.getLogger('matplotlib').setLevel(logging.INFO)
     # Urllib3 prints out connection information for each call to write metrics, etc
     logging.getLogger('urllib3').setLevel(logging.INFO)
+    logging.getLogger('msrest').setLevel(logging.INFO)
     # AzureML prints too many details about logging metrics
     logging.getLogger('azureml').setLevel(logging.INFO)
     # Jupyter notebook report generation
