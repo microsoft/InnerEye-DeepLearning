@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import param
@@ -39,7 +39,7 @@ class SubprocessConfig(GenericConfig):
     env: Dict[str, str] = param.Dict(instantiate=True, doc="Dictionary of environment variables "
                                                            "to override for this process")
 
-    def spawn_and_monitor_subprocess(self) -> int:
+    def spawn_and_monitor_subprocess(self) -> Tuple[int, List[str]]:
         return spawn_and_monitor_subprocess(process=self.process, args=self.args, env=self.env)
 
 
@@ -68,15 +68,17 @@ def test_register_and_score_model(is_ensemble: bool,
     config.set_output_to(test_output_dirs.root_dir)
     # Checkpoints must live relative to the project root. When running in AzureML, source code and model
     # outputs are hanging off the same directory, but not here in the local tests.
-    stored_checkpoints = full_ml_test_data_path() / "train_and_test_data" / "checkpoints"
+    stored_checkpoints = full_ml_test_data_path() / "checkpoints"
     # To simulate ensemble models, there are two checkpoints, one in the root dir and one in a folder
     checkpoints = list(stored_checkpoints.rglob("*.tar")) if is_ensemble else list(stored_checkpoints.glob("*.tar"))
-    # assert len(checkpoints) == (2 if is_ensemble else 1)
+    assert len(checkpoints) == (2 if is_ensemble else 1)
     model = None
     model_root = None
     # Simulate a project root: We can't derive that from the repository root because that might point
     # into Python's package folder
     project_root = Path(__file__).parent.parent
+    # Check that the checkpoint files are in a subfolder of the project root
+    relative_checkpoint_paths = [checkpoint.relative_to(project_root) for checkpoint in checkpoints]
     # Double-check that we are at the right place, by testing for a file that would quite certainly not be found
     # somewhere else
     assert (project_root / "run_scoring.py").is_file()
@@ -103,7 +105,7 @@ def test_register_and_score_model(is_ensemble: bool,
             fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
             "InnerEye/ML/runner.py",
             "score.py",
-            # "outputs/checkpoints/1_checkpoint.pth.tar",
+            *relative_checkpoint_paths,
         ]:
             assert (model_root / expected_file).is_file(), f"File {expected_file} missing"
 
@@ -120,7 +122,10 @@ def test_register_and_score_model(is_ensemble: bool,
             shutil.copy(str(train_and_test_data_dir / f), str(data_root))
 
         # run score pipeline as a separate process using the python_wrapper.py code to simulate a real run
-        return_code = SubprocessConfig(process="python", args=[
+        [return_code1, stdout1] = SubprocessConfig(process="python", args=["--version"]).spawn_and_monitor_subprocess()
+        assert return_code1 == 0
+        assert "Python 2.7" in stdout1[0]
+        return_code, _ = SubprocessConfig(process="python", args=[
             str(model_root / "python_wrapper.py"),
             "--spawnprocess=python",
             str(model_root / "score.py"),
@@ -147,7 +152,6 @@ def test_register_and_score_model(is_ensemble: bool,
 
 
 def test_register_model_invalid() -> None:
-    ws = get_default_workspace()
     config = get_model_loader().create_model_config_from_name("Lung")
     with pytest.raises(Exception):
         ml_runner = MLRunner(config, None)

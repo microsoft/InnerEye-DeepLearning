@@ -8,7 +8,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from azureml.core import Model, Run
 
@@ -18,13 +18,14 @@ INNEREYE_SUBMODULE_NAME = "innereye-deeplearning"
 PYTHONPATH_ENVIRONMENT_VARIABLE_NAME = "PYTHONPATH"
 
 
-def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, str]) -> int:
+def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, str]) -> Tuple[int, List[str]]:
     """
     Helper function to spawn and monitor subprocesses.
     :param process: The name or path of the process to spawn.
     :param args: The args to the process.
     :param env: The environment variables for the process (default is the environment variables of the parent).
-    :return: Return code after the process has finished.
+    :return: Return code after the process has finished, and the list of lines that were written to stdout by the
+    subprocess.
     """
     p = subprocess.Popen(
         [process] + args,
@@ -35,11 +36,12 @@ def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, s
     )
 
     # Read and print all the lines that are printed by the subprocess
-    for line in p.stdout:  # type: ignore
-        print(line.decode('UTF-8').strip())
+    stdout_lines = [line.decode('UTF-8').strip() for line in p.stdout]  # type: ignore
+    for line in stdout_lines:
+        print(line)
 
     # return the subprocess error code to the calling job so that it is reported to AzureML
-    return p.wait()
+    return p.wait(), stdout_lines
 
 
 def git_https_packages_to_uninstall(env_path: Path) -> List[str]:
@@ -74,6 +76,7 @@ def write_script(parser: argparse.ArgumentParser, script_path: Path, project_roo
 
         def echo(line: str) -> None:
             out.write(f"echo {script_path}: {line}\n")
+
         # Set the PYTHONPATH to the project root and the InnerEye-DeepLearning submodule within it, and also
         # to any subdirectory (assumed to be a model directory) that contains either the submodule or "InnerEye".
         # This ensures that the path is clean, there are no namespace clashes and that only the desired code is run.

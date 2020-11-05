@@ -530,7 +530,10 @@ class MLRunner:
             return None
         is_offline_run = is_offline_run_context(RUN_CONTEXT)
         temporary_directory = tempfile.TemporaryDirectory()
-        temp_folder = Path(temporary_directory.name)
+        # Inside of the temporary folder, create a subfolder. In AzureML, that folder will have the same name as the
+        # AzureML run
+        temp_folder = Path(temporary_directory.name) / self.project_root.name
+        temp_folder.mkdir()
         relative_checkpoint_paths = []
         for checkpoint in checkpoint_paths:
             if checkpoint.is_absolute():
@@ -571,6 +574,7 @@ class MLRunner:
                 tags=RUN_CONTEXT.get_tags(),
                 description=description
             )
+        temporary_directory.cleanup()
 
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
 
@@ -615,6 +619,7 @@ class MLRunner:
             destination = temp_folder / destination_file
             if destination.is_file():
                 logging.warning(f"Overwriting existing {source.name} with {source}")
+            destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(str(source), str(destination))
 
         # InnerEye package: This can be either in Python's package folder, or a plain folder. In both cases,
@@ -626,6 +631,9 @@ class MLRunner:
             extra_code_folder = self.project_root / self.azure_config.extra_code_directory
             if extra_code_folder.is_dir():
                 copy_folder(extra_code_folder)
+            else:
+                logging.warning(f"The `extra_code_directory` is set to '{self.azure_config.extra_code_directory}', "
+                                "but this folder does not exist in the project root folder.")
         # All files at project root should be copied as-is. Those should be essential things like score.py that
         # are needed for inference to run. First try to find them at repository root (but they might not be there
         # if InnerEye is used as a package), then at project root.
