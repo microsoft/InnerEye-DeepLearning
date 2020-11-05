@@ -20,6 +20,7 @@ class ProstatePaperBase(SegmentationModelBase):
 
     def __init__(self, **kwargs: Any) -> None:
         fg_classes = ["external", "femur_r", "femur_l", "rectum", "prostate", "bladder", "seminalvesicles"]
+        num_epochs=120
         super().__init__(
             should_validate=False,
             architecture="UNet3D",
@@ -44,7 +45,7 @@ class ProstatePaperBase(SegmentationModelBase):
             inference_batch_size=1,
             inference_stride_size=(64, 256, 256),
             start_epoch=0,
-            num_epochs=120,
+            num_epochs=num_epochs,
             l_rate=1e-3,
             min_l_rate=1e-5,
             l_rate_polynomial_gamma=0.9,
@@ -55,12 +56,10 @@ class ProstatePaperBase(SegmentationModelBase):
             weight_decay=1e-4,
             save_start_epoch=20,
             save_step_epochs=20,
-            test_start_epoch=120,
+            epochs_to_test=[num_epochs],
             use_mixed_precision=True,
             use_model_parallel=True,
             monitoring_interval_seconds=0,
-            test_diff_epochs=1,
-            test_step_epochs=1
         )
         self.add_and_validate(kwargs)
 

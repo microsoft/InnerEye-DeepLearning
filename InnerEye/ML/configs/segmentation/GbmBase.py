@@ -19,6 +19,7 @@ class GbmBase(SegmentationModelBase):
 
     def __init__(self, **kwargs: Any) -> None:
         fg_classes = ["tumour_mass"]
+        num_epochs=200
         super().__init__(
             should_validate=False,
             architecture=ModelArchitectureConfig.UNet3D,
@@ -42,7 +43,7 @@ class GbmBase(SegmentationModelBase):
             class_weights=equally_weighted_classes(fg_classes),
             train_batch_size=8,
             start_epoch=0,
-            num_epochs=200,
+            num_epochs=num_epochs,
             l_rate=1e-3,
             l_rate_polynomial_gamma=0.9,
             optimizer_type=OptimizerType.Adam,
@@ -52,9 +53,7 @@ class GbmBase(SegmentationModelBase):
             weight_decay=1e-4,
             save_start_epoch=50,
             save_step_epochs=10,
-            test_start_epoch=50,
-            test_diff_epochs=20,
-            test_step_epochs=10,
+            epochs_to_test=list(range(50, num_epochs + 1, 10)),
             use_mixed_precision=True,
             use_model_parallel=True,
         )

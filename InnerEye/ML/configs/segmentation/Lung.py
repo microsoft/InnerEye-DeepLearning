@@ -25,6 +25,7 @@ class Lung(SegmentationModelBase):
     def __init__(self, **kwargs: Any) -> None:
         fg_classes = ["spinalcord", "lung_r", "lung_l", "heart", "esophagus"]
         fg_display_names = ["SpinalCord", "Lung_R", "Lung_L", "Heart", "Esophagus"]
+        num_epochs=140
         super().__init__(
             architecture="UNet3D",
             feature_channels=[32],
@@ -47,7 +48,7 @@ class Lung(SegmentationModelBase):
             inference_batch_size=1,
             inference_stride_size=(64, 256, 256),
             start_epoch=0,
-            num_epochs=140,
+            num_epochs=num_epochs,
             l_rate=1e-3,
             min_l_rate=1e-5,
             l_rate_polynomial_gamma=0.9,
@@ -58,12 +59,10 @@ class Lung(SegmentationModelBase):
             weight_decay=1e-4,
             save_start_epoch=100,
             save_step_epochs=20,
-            test_start_epoch=140,
+            epochs_to_test=[num_epochs],
             use_mixed_precision=True,
             use_model_parallel=True,
             monitoring_interval_seconds=0,
-            test_diff_epochs=1,
-            test_step_epochs=1,
             loss_type=SegmentationLoss.Mixture,
             mixture_loss_components=[MixtureLossComponent(0.5, SegmentationLoss.Focal, 0.2),
                                      MixtureLossComponent(0.5, SegmentationLoss.SoftDice, 0.1)],

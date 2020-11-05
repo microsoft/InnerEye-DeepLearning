@@ -21,6 +21,7 @@ class ProstateBase(SegmentationModelBase):
         fg_display_names = ["External", "Femur_R", "Femur_L", "Rectum", "Prostate", "Bladder", "SeminalVesicles"]
         colors = [(255, 0, 0)] * len(fg_display_names)
         fill_holes = [True, True, True, True, True, False, True]
+        num_epochs=120
         super().__init__(
             should_validate=False,
             adam_betas=(0.9, 0.999),
@@ -45,15 +46,13 @@ class ProstateBase(SegmentationModelBase):
             monitoring_interval_seconds=0,
             norm_method=PhotometricNormalizationMethod.CtWindow,
             num_dataload_workers=8,
-            num_epochs=120,
+            num_epochs=num_epochs,
             opt_eps=1e-4,
             optimizer_type=OptimizerType.Adam,
             save_step_epochs=20,
             start_epoch=0,
             test_crop_size=(128, 512, 512),
-            test_diff_epochs=1,
-            test_start_epoch=120,
-            test_step_epochs=1,
+            epochs_to_test=[num_epochs],
             train_batch_size=8,
             use_mixed_precision=True,
             use_model_parallel=True,

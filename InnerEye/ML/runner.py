@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import time
+import warnings
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
@@ -81,6 +82,14 @@ def suppress_logging_noise() -> None:
     # This is working around a spurious error message thrown by MKL, see
     # https://github.com/pytorch/pytorch/issues/37377
     os.environ['MKL_THREADING_LAYER'] = 'GNU'
+
+
+def enable_warnings() -> None:
+    """
+    Python hides certain warnings (such as DeprecationWarnings) by default, enable them here.
+    """
+    warnings.simplefilter('always', DeprecationWarning)
+    warnings.simplefilter('always', PendingDeprecationWarning)
 
 
 class Runner:
@@ -365,6 +374,7 @@ class Runner:
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(self.azure_config.log_level)
         suppress_logging_noise()
+        enable_warnings()
         pytest_failed = False
         training_failed = False
         pytest_passed = True
