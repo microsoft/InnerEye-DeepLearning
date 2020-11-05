@@ -21,8 +21,7 @@ from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.image_util import get_unit_image_header
-from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_default_workspace, get_model_loader, \
-    get_nifti_shape
+from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
 from Tests.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
 from run_scoring import spawn_and_monitor_subprocess
 from score import DEFAULT_DATA_FOLDER
@@ -78,7 +77,7 @@ def test_register_and_score_model(is_ensemble: bool,
     # into Python's package folder
     project_root = Path(__file__).parent.parent
     # Check that the checkpoint files are in a subfolder of the project root
-    relative_checkpoint_paths = [checkpoint.relative_to(project_root) for checkpoint in checkpoints]
+    relative_checkpoint_paths = [str(checkpoint.relative_to(project_root)) for checkpoint in checkpoints]
     # Double-check that we are at the right place, by testing for a file that would quite certainly not be found
     # somewhere else
     assert (project_root / "run_scoring.py").is_file()
@@ -101,12 +100,13 @@ def test_register_and_score_model(is_ensemble: bool,
 
         # download the registered model and test that we can run the score pipeline on it
         model_root = Path(model.download(str(test_output_dirs.root_dir)))
-        for expected_file in [
+        expected_files = [
             fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
             "InnerEye/ML/runner.py",
             "score.py",
-            *relative_checkpoint_paths,
-        ]:
+        ]
+        expected_files.extend(relative_checkpoint_paths)
+        for expected_file in expected_files:
             assert (model_root / expected_file).is_file(), f"File {expected_file} missing"
 
         # create a dummy datastore to store the image data

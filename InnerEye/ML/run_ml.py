@@ -557,23 +557,23 @@ class MLRunner:
         # Copy all code from project and InnerEye into the model folder
         self.copy_child_paths_to_folder(temp_folder, relative_checkpoint_paths)
         description = f"Best epoch: {best_epoch}, Accuracy : {best_epoch_dice}"
-        if is_offline_run:
-            logging.info("Registering the model on the workspace.")
-            description = description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
-            model = Model.register(
-                workspace=self.azure_config.get_workspace(),
-                model_name=self.model_config.model_name,
-                model_path=str(temp_folder),
-                description=description
-            )
-        else:
-            logging.info(f"Registering the model on with run {RUN_CONTEXT.id}")
-            model = RUN_CONTEXT.register_model(
-                model_name=self.model_config.model_name,
-                model_path=str(temp_folder),
-                tags=RUN_CONTEXT.get_tags(),
-                description=description
-            )
+        logging.info("Registering the model on the workspace.")
+        description = description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
+        model = Model.register(
+            workspace=self.azure_config.get_workspace(),
+            model_name=self.model_config.model_name,
+            model_path=str(temp_folder),
+            description=description
+        )
+        # It would be better to register the model on the run for traceability, but this requires that the uploaded
+        # files all live in the run outputs folder.
+        #   logging.info(f"Registering the model with run {RUN_CONTEXT.id}")
+        #   model = RUN_CONTEXT.register_model(
+        #       model_name=self.model_config.model_name,
+        #       model_path=str(temp_folder),
+        #       tags=RUN_CONTEXT.get_tags(),
+        #       description=description
+        #   )
         temporary_directory.cleanup()
 
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
