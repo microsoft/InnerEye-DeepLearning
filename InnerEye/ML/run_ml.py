@@ -30,7 +30,7 @@ from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_sec
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import MultiprocessingStartMethod
+from InnerEye.ML.deep_learning_config import FINAL_MODEL_FOLDER, MultiprocessingStartMethod
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -529,11 +529,6 @@ class MLRunner:
             logging.warning("Non-segmentation models cannot be registered")
             return None
         is_offline_run = is_offline_run_context(RUN_CONTEXT)
-        temporary_directory = tempfile.TemporaryDirectory()
-        # Inside of the temporary folder, create a subfolder. In AzureML, that folder will have the same name as the
-        # AzureML run
-        temp_folder = Path(temporary_directory.name) / self.project_root.name
-        temp_folder.mkdir()
         relative_checkpoint_paths = []
         for checkpoint in checkpoint_paths:
             if checkpoint.is_absolute():
@@ -542,6 +537,7 @@ class MLRunner:
                 except ValueError:
                     raise ValueError(f"Checkpoint file {checkpoint} was expected to be in a subfolder of "
                                      f"{self.project_root}")
+        final_model_folder = self.model_config.final_model_folder
         model_inference_config = ModelInferenceConfig(model_name=self.model_config.model_name,
                                                       structure_names=self.model_config.ground_truth_ids_display_names,
                                                       colours=self.model_config.colours,
@@ -549,32 +545,33 @@ class MLRunner:
                                                       model_configs_namespace=self.model_config.__class__.__module__,
                                                       checkpoint_paths=list(map(str, relative_checkpoint_paths)))
         # Inference configuration must live in the root folder of the registered model
-        full_path_to_config = temp_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
+        full_path_to_config = final_model_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
         full_path_to_config.write_text(model_inference_config.to_json(), encoding='utf-8')  # type: ignore
         # Merge the conda files into one merged environment file at the root of the model
-        merged_conda_file = temp_folder / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
+        merged_conda_file = final_model_folder / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
         merge_conda_files(get_all_environment_files(self.project_root), result_file=merged_conda_file)
         # Copy all code from project and InnerEye into the model folder
-        self.copy_child_paths_to_folder(temp_folder, relative_checkpoint_paths)
+        self.copy_child_paths_to_folder(final_model_folder, relative_checkpoint_paths)
         description = f"Best epoch: {best_epoch}, Accuracy : {best_epoch_dice}"
-        logging.info("Registering the model on the workspace.")
-        description = description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
-        model = Model.register(
-            workspace=self.azure_config.get_workspace(),
-            model_name=self.model_config.model_name,
-            model_path=str(temp_folder),
-            description=description
-        )
-        # It would be better to register the model on the run for traceability, but this requires that the uploaded
-        # files all live in the run outputs folder.
-        #   logging.info(f"Registering the model with run {RUN_CONTEXT.id}")
-        #   model = RUN_CONTEXT.register_model(
-        #       model_name=self.model_config.model_name,
-        #       model_path=str(temp_folder),
-        #       tags=RUN_CONTEXT.get_tags(),
-        #       description=description
-        #   )
-        temporary_directory.cleanup()
+        if is_offline_run:
+            logging.info("Registering the model on the workspace.")
+            description = description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
+            model = Model.register(
+                workspace=self.azure_config.get_workspace(),
+                model_name=self.model_config.model_name,
+                model_path=str(final_model_folder),
+                description=description
+            )
+        else:
+            logging.info(f"Registering the model with run {RUN_CONTEXT.id}")
+            # When registering the model on the run, we need to provide a relative path inside of the run's output
+            # folder in `model_path`
+            model = RUN_CONTEXT.register_model(
+               model_name=self.model_config.model_name,
+               model_path=FINAL_MODEL_FOLDER,
+               tags=RUN_CONTEXT.get_tags(),
+               description=description
+            )
 
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
 

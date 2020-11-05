@@ -23,7 +23,10 @@ from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import ModelExecutionMode, create_unique_timestamp_id, create_checkpoint_path
 
 VISUALIZATION_FOLDER = "Visualizations"
-CHECKPOINT_FOLDER = "checkpoints"
+FINAL_MODEL_FOLDER = "final_model"
+# The checkpoints must be stored inside of the final model folder, if we want to avoid copying
+# them before registration.
+CHECKPOINT_FOLDER = FINAL_MODEL_FOLDER + "/checkpoints"
 ARGS_TXT = "args.txt"
 WEIGHTS_FILE = "weights.pth"
 
@@ -492,6 +495,13 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     def checkpoint_folder(self) -> Path:
         """Gets the full path in which the model checkpoints should be stored during training."""
         return self.outputs_folder / CHECKPOINT_FOLDER
+
+    @property
+    def final_model_folder(self) -> Path:
+        """
+        Gets the full path for all files that will be part of the final registered model.
+        """
+        return self.outputs_folder / FINAL_MODEL_FOLDER
 
     @property
     def visualization_folder(self) -> Path:
