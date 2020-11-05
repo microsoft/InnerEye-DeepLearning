@@ -5,7 +5,6 @@
 import copy
 import logging
 import shutil
-import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -40,8 +39,8 @@ from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner, get_all_env
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.blobxfer_util import download_blobs
-from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
+from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
@@ -282,9 +281,9 @@ class MLRunner:
 
         # configure recovery container if provided
         checkpoint_handler = CheckpointHandler(model_config=self.model_config,
-                                            azure_config=self.azure_config,
-                                            project_root=self.project_root,
-                                            run_context=RUN_CONTEXT)
+                                               azure_config=self.azure_config,
+                                               project_root=self.project_root,
+                                               run_context=RUN_CONTEXT)
         checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
@@ -350,7 +349,8 @@ class MLRunner:
                 if self.should_register_model():
                     assert test_metrics is None or isinstance(test_metrics, InferenceMetricsForSegmentation)
                     assert val_metrics is None or isinstance(val_metrics, InferenceMetricsForSegmentation)
-                    registration_epoch = self.register_model_for_best_epoch(checkpoint_handler, test_metrics, val_metrics,
+                    registration_epoch = self.register_model_for_best_epoch(checkpoint_handler, test_metrics,
+                                                                            val_metrics,
                                                                             model_proc)
             self.try_compare_scores_against_baselines(model_proc)
         else:
@@ -567,10 +567,10 @@ class MLRunner:
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
             model = RUN_CONTEXT.register_model(
-               model_name=self.model_config.model_name,
-               model_path=FINAL_MODEL_FOLDER,
-               tags=RUN_CONTEXT.get_tags(),
-               description=description
+                model_name=self.model_config.model_name,
+                model_path=FINAL_MODEL_FOLDER,
+                tags=RUN_CONTEXT.get_tags(),
+                description=description
             )
 
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
@@ -661,7 +661,8 @@ class MLRunner:
         config = self.model_config
 
         def run_model_test(data_split: ModelExecutionMode) -> Optional[InferenceMetrics]:
-            return model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler, model_proc=model_proc)
+            return model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler,
+                              model_proc=model_proc)
 
         if config.perform_validation_and_test_set_inference:
             # perform inference on test set

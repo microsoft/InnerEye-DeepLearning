@@ -100,8 +100,7 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
 
     # Create checkpoint directory for this run if it doesn't already exist
     logging.info(f"Models are saved at {config.checkpoint_folder}")
-    if not config.checkpoint_folder.is_dir():
-        config.checkpoint_folder.mkdir()
+    config.checkpoint_folder.mkdir(parents=True, exist_ok=True)
 
     # Create the SummaryWriters for Tensorboard
     writers = create_summary_writers(config)
