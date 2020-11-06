@@ -529,15 +529,15 @@ class MLRunner:
             logging.warning("Non-segmentation models cannot be registered")
             return None
         is_offline_run = is_offline_run_context(RUN_CONTEXT)
-        final_model_folder = self.model_config.final_model_folder
         relative_checkpoint_paths = []
         for checkpoint in checkpoint_paths:
             if checkpoint.is_absolute():
                 try:
-                    relative_checkpoint_paths.append(checkpoint.relative_to(final_model_folder))
+                    relative_checkpoint_paths.append(checkpoint.relative_to(self.project_root))
                 except ValueError:
                     raise ValueError(f"Checkpoint file {checkpoint} was expected to be in a subfolder of "
-                                     f"{final_model_folder}")
+                                     f"{self.project_root}")
+        final_model_folder = self.model_config.final_model_folder
         model_inference_config = ModelInferenceConfig(model_name=self.model_config.model_name,
                                                       structure_names=self.model_config.ground_truth_ids_display_names,
                                                       colours=self.model_config.colours,
@@ -550,9 +550,8 @@ class MLRunner:
         # Merge the conda files into one merged environment file at the root of the model
         merged_conda_file = final_model_folder / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
         merge_conda_files(get_all_environment_files(self.project_root), result_file=merged_conda_file)
-        # Copy all code from the calling project and from InnerEye into the model folder.
-        # The checkpoint files are expected to already live inside that folder, and do not need to be copied again.
-        self.copy_child_paths_to_folder(final_model_folder)
+        # Copy all code from project and InnerEye into the model folder
+        self.copy_child_paths_to_folder(final_model_folder, relative_checkpoint_paths)
         description = f"Best epoch: {best_epoch}, Accuracy : {best_epoch_dice}"
         if is_offline_run:
             logging.info("Registering the model on the workspace.")
@@ -596,10 +595,12 @@ class MLRunner:
         # Let values already in tags take priority:
         return {**extra_tags, **(tags or {})}
 
-    def copy_child_paths_to_folder(self, temp_folder: Path) -> None:
+    def copy_child_paths_to_folder(self, temp_folder: Path, checkpoint_paths_relative: List[Path]) -> None:
         """
         Gets the files that are required to register a model for inference. The necessary files are copied from
         the current folder structure into the given temporary folder.
+        :param checkpoint_paths_relative: Path to checkpoints (multiple checkpoints if model is an ensemble).
+        These need to be relative to the project root folder.
         :param temp_folder: The folder into which all files should be copied.
         """
 
@@ -638,6 +639,16 @@ class MLRunner:
             files_to_copy.extend(self.project_root.glob("*.py"))
         for f in files_to_copy:
             copy_file(f)
+        # Checkpoints live in the outputs folder. There can be multiple checkpoint files that have the same name,
+        # coming from an ensemble run. Copy those including their folder structure.
+        for checkpoint in checkpoint_paths_relative:
+            if checkpoint.is_absolute():
+                raise ValueError(f"Checkpoint paths must be relative to project root, but got: {checkpoint}")
+            source = self.project_root / checkpoint
+            if source.is_file():
+                copy_file(source, destination_file=str(checkpoint))
+            else:
+                raise ValueError(f"Checkpoint file {checkpoint} does not exist")
 
     def model_inference_train_and_test(self,
                                        checkpoint_handler: CheckpointHandler,
