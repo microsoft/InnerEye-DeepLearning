@@ -122,7 +122,7 @@ def test_register_and_score_model(is_ensemble: bool,
             "InnerEye/ML/runner.py",
             "score.py",
         ]
-        expected_files.extend(checkpoints_relative)
+        expected_files.extend(str(c) for c in checkpoints_relative)
         for expected_file in expected_files:
             assert (model_root / expected_file).is_file(), f"File {expected_file} missing"
 
