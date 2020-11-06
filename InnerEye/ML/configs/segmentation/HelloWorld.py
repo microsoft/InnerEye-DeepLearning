@@ -36,7 +36,7 @@ class HelloWorld(SegmentationModelBase):
 
     def __init__(self, **kwargs: Any) -> None:
         fg_classes = ["region", "region_1"]
-        num_epochs=2
+        num_epochs = 2
         super().__init__(
             # Data definition - in this section we define where to load the dataset from
             local_dataset=full_ml_test_data_path(),

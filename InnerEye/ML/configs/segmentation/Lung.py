@@ -25,7 +25,7 @@ class Lung(SegmentationModelBase):
     def __init__(self, **kwargs: Any) -> None:
         fg_classes = ["spinalcord", "lung_r", "lung_l", "heart", "esophagus"]
         fg_display_names = ["SpinalCord", "Lung_R", "Lung_L", "Heart", "Esophagus"]
-        num_epochs=140
+        num_epochs = 140
         super().__init__(
             architecture="UNet3D",
             feature_channels=[32],

@@ -20,7 +20,7 @@ class ProstatePaperBase(SegmentationModelBase):
 
     def __init__(self, **kwargs: Any) -> None:
         fg_classes = ["external", "femur_r", "femur_l", "rectum", "prostate", "bladder", "seminalvesicles"]
-        num_epochs=120
+        num_epochs = 120
         super().__init__(
             should_validate=False,
             architecture="UNet3D",

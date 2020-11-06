@@ -21,7 +21,7 @@ class ProstateBase(SegmentationModelBase):
         fg_display_names = ["External", "Femur_R", "Femur_L", "Rectum", "Prostate", "Bladder", "SeminalVesicles"]
         colors = [(255, 0, 0)] * len(fg_display_names)
         fill_holes = [True, True, True, True, True, False, True]
-        num_epochs=120
+        num_epochs = 120
         super().__init__(
             should_validate=False,
             adam_betas=(0.9, 0.999),

@@ -19,7 +19,7 @@ class GbmBase(SegmentationModelBase):
 
     def __init__(self, **kwargs: Any) -> None:
         fg_classes = ["tumour_mass"]
-        num_epochs=200
+        num_epochs = 200
         super().__init__(
             should_validate=False,
             architecture=ModelArchitectureConfig.UNet3D,
