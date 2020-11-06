@@ -16,17 +16,15 @@ from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
-from Tests.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
+from Tests.fixed_paths_for_tests import full_ml_test_data_path
 from run_scoring import spawn_and_monitor_subprocess
 from score import DEFAULT_DATA_FOLDER
-
-checkpoint_paths = [full_ml_test_data_path('checkpoints') / '1_checkpoint.pth.tar']
 
 
 class SubprocessConfig(GenericConfig):
@@ -42,12 +40,38 @@ class SubprocessConfig(GenericConfig):
         return spawn_and_monitor_subprocess(process=self.process, args=self.args, env=self.env)
 
 
+def create_checkpoints(model_config: SegmentationModelBase, is_ensemble: bool) -> Tuple[List[Path], List[Path]]:
+    """
+    Copies 1 or 2 checkpoint files from the stored test data into the model's checkpoint folder, and returns
+    the absolute paths of those files.
+    :param model_config: The model configuration, where a correct output folder must be set.
+    :param is_ensemble: If true, 2 checkpoints (simulating an ensemble run) will be created. If false, only a
+    single checkpoint will be created.
+    """
+    # To simulate ensemble models, there are two checkpoints, one in the root dir and one in a folder
+    stored_checkpoints = full_ml_test_data_path('checkpoints')
+    checkpoints = list(stored_checkpoints.rglob("*.tar")) if is_ensemble else list(stored_checkpoints.glob("*.tar"))
+    assert len(checkpoints) == (2 if is_ensemble else 1)
+    checkpoints_relative = [checkpoint.relative_to(stored_checkpoints) for checkpoint in checkpoints]
+    checkpoints_absolute = []
+    # copy_child_paths_to_folder expects all checkpoints to live inside the model's checkpoint folder
+    for (file_abs, file_relative) in list(zip(checkpoints, checkpoints_relative)):
+        destination_abs = model_config.checkpoint_folder / file_relative
+        destination_abs.parent.mkdir(exist_ok=True, parents=True)
+        shutil.copy(str(file_abs), str(destination_abs))
+        checkpoints_absolute.append(destination_abs)
+    return checkpoints_absolute, checkpoints_relative
+
+
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
-@pytest.mark.parametrize("is_ensemble", [True, False])
+# This is a very time-consuming test. Run it only with the most complex setup (ensemble, including code outside
+# package). The other settings are verified by checking the files in the registered model, in
+# test_copy_child_paths_to_folder
+@pytest.mark.parametrize("is_ensemble", [True])
+@pytest.mark.parametrize("model_outside_package", [True])
 # We currently don't support registered geonormalized models, so dataset_expected_spacing_xyz = (1.0, 1.0, 3.0)
 # is excluded.
 @pytest.mark.parametrize("dataset_expected_spacing_xyz", [None])
-@pytest.mark.parametrize("model_outside_package", [True, False])
 def test_register_and_score_model(is_ensemble: bool,
                                   dataset_expected_spacing_xyz: Any,
                                   model_outside_package: bool,
@@ -65,19 +89,12 @@ def test_register_and_score_model(is_ensemble: bool,
     )
     config.dataset_expected_spacing_xyz = dataset_expected_spacing_xyz
     config.set_output_to(test_output_dirs.root_dir)
-    # Checkpoints must live relative to the project root. When running in AzureML, source code and model
-    # outputs are hanging off the same directory, but not here in the local tests.
-    stored_checkpoints = full_ml_test_data_path() / "checkpoints"
-    # To simulate ensemble models, there are two checkpoints, one in the root dir and one in a folder
-    checkpoints = list(stored_checkpoints.rglob("*.tar")) if is_ensemble else list(stored_checkpoints.glob("*.tar"))
-    assert len(checkpoints) == (2 if is_ensemble else 1)
+    checkpoints_absolute, checkpoints_relative = create_checkpoints(config, is_ensemble)
     model = None
     model_root = None
     # Simulate a project root: We can't derive that from the repository root because that might point
     # into Python's package folder
     project_root = Path(__file__).parent.parent
-    # Check that the checkpoint files are in a subfolder of the project root
-    relative_checkpoint_paths = [str(checkpoint.relative_to(project_root)) for checkpoint in checkpoints]
     # Double-check that we are at the right place, by testing for a file that would quite certainly not be found
     # somewhere else
     assert (project_root / "run_scoring.py").is_file()
@@ -91,7 +108,7 @@ def test_register_and_score_model(is_ensemble: bool,
         registration_result = ml_runner.register_segmentation_model(
             best_epoch=0,
             best_epoch_dice=0,
-            checkpoint_paths=checkpoints,
+            checkpoint_paths=checkpoints_absolute,
             model_proc=ModelProcessing.DEFAULT)
         assert registration_result is not None
         model, deployment_result = registration_result
@@ -105,7 +122,7 @@ def test_register_and_score_model(is_ensemble: bool,
             "InnerEye/ML/runner.py",
             "score.py",
         ]
-        expected_files.extend(relative_checkpoint_paths)
+        expected_files.extend(checkpoints_relative)
         for expected_file in expected_files:
             assert (model_root / expected_file).is_file(), f"File {expected_file} missing"
 
@@ -152,6 +169,7 @@ def test_register_and_score_model(is_ensemble: bool,
 
 
 def test_register_model_invalid() -> None:
+    checkpoint_paths = [full_ml_test_data_path('checkpoints') / '1_checkpoint.pth.tar']
     config = get_model_loader().create_model_config_from_name("Lung")
     with pytest.raises(Exception):
         ml_runner = MLRunner(config, None)
@@ -173,17 +191,21 @@ def test_register_model_invalid() -> None:
 
 @pytest.mark.parametrize("is_ensemble", [True, False])
 @pytest.mark.parametrize("extra_code_directory", ["TestsOutsidePackage", ""])
-def test_get_child_paths(is_ensemble: bool,
-                         extra_code_directory: str,
-                         test_output_dirs: OutputFolderForTests) -> None:
-    checkpoints = checkpoint_paths * 2 if is_ensemble else checkpoint_paths
-    path_to_root = tests_root_directory().parent
-    checkpoints = [checkpoint.relative_to(path_to_root) for checkpoint in checkpoints]
+def test_copy_child_paths_to_folder(is_ensemble: bool,
+                                    extra_code_directory: str,
+                                    test_output_dirs: OutputFolderForTests) -> None:
     azure_config = AzureConfig(extra_code_directory=extra_code_directory)
-    fake_model = ModelConfigBase(azure_dataset_id="fake_dataset_id")
-    ml_runner = MLRunner(model_config=fake_model, azure_config=azure_config, project_root=path_to_root)
-    ml_runner.copy_child_paths_to_folder(temp_folder=test_output_dirs.root_dir,
-                                         checkpoint_paths_relative=checkpoints)
+    fake_model = SegmentationModelBase(should_validate=False)
+    fake_model.set_output_to(test_output_dirs.root_dir)
+    # To simulate ensemble models, there are two checkpoints, one in the root dir and one in a folder
+    checkpoints_absolute, checkpoints_relative = create_checkpoints(fake_model, is_ensemble)
+    # Simulate a project root: We can't derive that from the repository root because that might point
+    # into Python's package folder
+    project_root = Path(__file__).parent.parent
+    ml_runner = MLRunner(model_config=fake_model, azure_config=azure_config, project_root=project_root)
+    model_folder = test_output_dirs.root_dir / "final"
+    ml_runner.copy_child_paths_to_folder(model_folder=model_folder,
+                                         checkpoint_paths=checkpoints_absolute)
     expected_files = [
         fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
         fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME,
@@ -192,15 +214,15 @@ def test_get_child_paths(is_ensemble: bool,
         "InnerEye/Common/fixed_paths.py",
         "InnerEye/Common/common_util.py",
     ]
+    for r in checkpoints_relative:
+        expected_files.append(f"{CHECKPOINT_FOLDER}/{r}")
     for expected_file in expected_files:
-        assert (test_output_dirs.root_dir / expected_file).is_file(), f"File missing: {expected_file}"
-    trm = test_output_dirs.root_dir / "TestsOutsidePackage/test_register_model.py"
+        assert (model_folder / expected_file).is_file(), f"File missing: {expected_file}"
+    trm = model_folder / "TestsOutsidePackage/test_register_model.py"
     if extra_code_directory:
         assert trm.is_file()
     else:
         assert not trm.is_file()
-    # TODO antonsc: this is nonsense
-    assert all([x.relative_to(path_to_root) for x in checkpoints])
 
 
 def test_model_inference_config() -> None:

@@ -29,7 +29,7 @@ from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_sec
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import FINAL_MODEL_FOLDER, MultiprocessingStartMethod
+from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, FINAL_MODEL_FOLDER, MultiprocessingStartMethod
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -529,29 +529,12 @@ class MLRunner:
             logging.warning("Non-segmentation models cannot be registered")
             return None
         is_offline_run = is_offline_run_context(RUN_CONTEXT)
-        relative_checkpoint_paths = []
-        for checkpoint in checkpoint_paths:
-            if checkpoint.is_absolute():
-                try:
-                    relative_checkpoint_paths.append(checkpoint.relative_to(self.project_root))
-                except ValueError:
-                    raise ValueError(f"Checkpoint file {checkpoint} was expected to be in a subfolder of "
-                                     f"{self.project_root}")
         final_model_folder = self.model_config.final_model_folder
-        model_inference_config = ModelInferenceConfig(model_name=self.model_config.model_name,
-                                                      structure_names=self.model_config.ground_truth_ids_display_names,
-                                                      colours=self.model_config.colours,
-                                                      fill_holes=self.model_config.fill_holes,
-                                                      model_configs_namespace=self.model_config.__class__.__module__,
-                                                      checkpoint_paths=list(map(str, relative_checkpoint_paths)))
-        # Inference configuration must live in the root folder of the registered model
-        full_path_to_config = final_model_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
-        full_path_to_config.write_text(model_inference_config.to_json(), encoding='utf-8')  # type: ignore
-        # Merge the conda files into one merged environment file at the root of the model
-        merged_conda_file = final_model_folder / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
-        merge_conda_files(get_all_environment_files(self.project_root), result_file=merged_conda_file)
-        # Copy all code from project and InnerEye into the model folder
-        self.copy_child_paths_to_folder(final_model_folder, relative_checkpoint_paths)
+        # Copy all code from project and InnerEye into the model folder, and copy over checkpoints.
+        # This increases the size of the data stored for the run. The other option would be to store all checkpoints
+        # right in the final model folder - however, then that would also contain any other checkpoints that the model
+        # produced or downloaded for recovery, bloating the final model file.
+        self.copy_child_paths_to_folder(final_model_folder, checkpoint_paths)
         description = f"Best epoch: {best_epoch}, Accuracy : {best_epoch_dice}"
         if is_offline_run:
             logging.info("Registering the model on the workspace.")
@@ -595,30 +578,60 @@ class MLRunner:
         # Let values already in tags take priority:
         return {**extra_tags, **(tags or {})}
 
-    def copy_child_paths_to_folder(self, temp_folder: Path, checkpoint_paths_relative: List[Path]) -> None:
+    def copy_child_paths_to_folder(self,
+                                   model_folder: Path,
+                                   checkpoint_paths: List[Path]) -> None:
         """
         Gets the files that are required to register a model for inference. The necessary files are copied from
         the current folder structure into the given temporary folder.
-        :param checkpoint_paths_relative: Path to checkpoints (multiple checkpoints if model is an ensemble).
-        These need to be relative to the project root folder.
-        :param temp_folder: The folder into which all files should be copied.
+        :param model_folder: The folder into which all files should be copied.
+        :param checkpoint_paths: A list with absolute paths to checkpoint files. They are expected to be
+        inside of the model's checkpoint folder.
         """
 
         def copy_folder(source_folder: Path, destination_folder: str = "") -> None:
             logging.info(f"Copying folder for registration: {source_folder}")
             destination_folder = destination_folder or source_folder.name
-            shutil.copytree(str(source_folder), str(temp_folder / destination_folder),
+            shutil.copytree(str(source_folder), str(model_folder / destination_folder),
                             ignore=shutil.ignore_patterns('*.pyc'))
 
-        def copy_file(source: Path, destination_file: str = "") -> None:
-            logging.info(f"Copying file for registration: {source}")
-            destination_file = destination_file or source.name
-            destination = temp_folder / destination_file
+        def copy_file(source: Path, destination_file: str) -> None:
+            logging.info(f"Copying file for registration: {source} to {destination_file}")
+            destination = model_folder / destination_file
             if destination.is_file():
+                # This could happen if there is score.py inside of the InnerEye package and also inside the calling
+                # project. The latter will have precedence
                 logging.warning(f"Overwriting existing {source.name} with {source}")
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(str(source), str(destination))
 
+        relative_checkpoint_paths = []
+        for checkpoint in checkpoint_paths:
+            if checkpoint.is_absolute():
+                try:
+                    # Checkpoints live in a folder structure in the checkpoint folder. There can be multiple of
+                    # them, with identical names, coming from an ensemble run. Hence, preserve their folder structure.
+                    checkpoint_relative = checkpoint.relative_to(self.model_config.checkpoint_folder)
+                except ValueError:
+                    raise ValueError(f"Checkpoint file {checkpoint} was expected to be in a subfolder of "
+                                     f"{self.model_config.checkpoint_folder}")
+                # Checkpoints go into a newly created folder "checkpoints" inside of the model folder
+                relative_checkpoint_paths.append(str(Path(CHECKPOINT_FOLDER) / checkpoint_relative))
+            else:
+                raise ValueError(f"Expected an absolute path to a checkpoint file, but got: {checkpoint}")
+        model_folder.mkdir(parents=True, exist_ok=True)
+        model_inference_config = ModelInferenceConfig(model_name=self.model_config.model_name,
+                                                      structure_names=self.model_config.ground_truth_ids_display_names,
+                                                      colours=self.model_config.colours,
+                                                      fill_holes=self.model_config.fill_holes,
+                                                      model_configs_namespace=self.model_config.__class__.__module__,
+                                                      checkpoint_paths=relative_checkpoint_paths)
+        # Inference configuration must live in the root folder of the registered model
+        full_path_to_config = model_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
+        full_path_to_config.write_text(model_inference_config.to_json(), encoding='utf-8')  # type: ignore
+        # Merge the conda files into one merged environment file at the root of the model
+        merged_conda_file = model_folder / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
+        merge_conda_files(get_all_environment_files(self.project_root), result_file=merged_conda_file)
         # InnerEye package: This can be either in Python's package folder, or a plain folder. In both cases,
         # we can identify it by going up the folder structure off a known file (repository_root does exactly that)
         repository_root = fixed_paths.repository_root_directory()
@@ -638,17 +651,12 @@ class MLRunner:
         if repository_root != self.project_root:
             files_to_copy.extend(self.project_root.glob("*.py"))
         for f in files_to_copy:
-            copy_file(f)
-        # Checkpoints live in the outputs folder. There can be multiple checkpoint files that have the same name,
-        # coming from an ensemble run. Copy those including their folder structure.
-        for checkpoint in checkpoint_paths_relative:
-            if checkpoint.is_absolute():
-                raise ValueError(f"Checkpoint paths must be relative to project root, but got: {checkpoint}")
-            source = self.project_root / checkpoint
-            if source.is_file():
-                copy_file(source, destination_file=str(checkpoint))
+            copy_file(f, destination_file=f.name)
+        for (checkpoint_source, checkpoint_destination) in zip(checkpoint_paths, relative_checkpoint_paths):
+            if checkpoint_source.is_file():
+                copy_file(checkpoint_source, destination_file=str(checkpoint_destination))
             else:
-                raise ValueError(f"Checkpoint file {checkpoint} does not exist")
+                raise ValueError(f"Checkpoint file {checkpoint_source} does not exist")
 
     def model_inference_train_and_test(self,
                                        checkpoint_handler: CheckpointHandler,

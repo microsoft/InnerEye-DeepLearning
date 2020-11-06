@@ -23,10 +23,11 @@ from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import ModelExecutionMode, create_unique_timestamp_id, create_checkpoint_path
 
 VISUALIZATION_FOLDER = "Visualizations"
+# A folder inside of the outputs folder that will contain all information for running the model in inference mode
 FINAL_MODEL_FOLDER = "final_model"
 # The checkpoints must be stored inside of the final model folder, if we want to avoid copying
 # them before registration.
-CHECKPOINT_FOLDER = FINAL_MODEL_FOLDER + "/checkpoints"
+CHECKPOINT_FOLDER = "checkpoints"
 ARGS_TXT = "args.txt"
 WEIGHTS_FILE = "weights.pth"
 
@@ -196,8 +197,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     azure_dataset_id: str = param.String(doc="If provided, the ID of the dataset to use. This dataset must exist as a "
-                                                       "folder of the same name in the 'datasets' "
-                                                       "container in the datasets storage account.")
+                                             "folder of the same name in the 'datasets' "
+                                             "container in the datasets storage account.")
     local_dataset: Optional[Path] = param.ClassSelector(class_=Path,
                                                         default=None,
                                                         allow_None=True,
@@ -270,7 +271,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                         "together with data parallel.")
     epochs_to_test: Optional[List[int]] = param.List(None, bounds=(1, None), allow_None=True, class_=int,
                                                      doc="Epochs to test on. This should be a list of integers > 1."
-                                                         "Note that this option takes precedence over the config option "
+                                                         "Note that this option takes precedence over the config "
+                                                         "option "
                                                          "set `test_diff_epochs`, `test_step_epochs` and "
                                                          "`test_start_epoch`")
     test_diff_epochs: Optional[int] = param.Integer(None, allow_None=True,
@@ -382,10 +384,11 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
                                         "initialization.")
     local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
-                                                        default=None,
-                                                        allow_None=True,
-                                                        doc="The path to the weights to use for model initialization, "
-                                                            "when training is running outside Azure.")
+                                                             default=None,
+                                                             allow_None=True,
+                                                             doc="The path to the weights to use for model "
+                                                                 "initialization, "
+                                                                 "when training is running outside Azure.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
@@ -413,7 +416,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
         if self.test_start_epoch or self.test_step_epochs or self.test_diff_epochs:
             warnings.warn("DEPRECATED: The combination of (test_diff_epochs, test_step_epochs "
-                             "and test_start_epoch) is deprecated, use epochs_to_start instead.", DeprecationWarning)
+                          "and test_start_epoch) is deprecated, use epochs_to_start instead.", DeprecationWarning)
             if self.epochs_to_test:
                 logging.warning("self.epochs_to_test will take precedence over the config parameter set "
                                 "(test_diff_epochs, test_step_epochs, test_start_epoch)")
@@ -743,7 +746,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         NOTE: The model checkpoint will be loaded using the torch function load_state_dict() with argument strict=False,
         so extra care needs to be taken to check that the state dict is valid.
         Check the logs for warnings related to missing and unexpected keys.
-        See https://pytorch.org/tutorials/beginner/saving_loading_models.html#warmstarting-model-using-parameters-from-a-different-model
+        See https://pytorch.org/tutorials/beginner/saving_loading_models.html#warmstarting-model-using-parameters
+        -from-a-different-model
         for an explanation on why strict=False is useful when loading parameters from other models.
 
         :param path_to_checkpoint: Path to the checkpoint file.
