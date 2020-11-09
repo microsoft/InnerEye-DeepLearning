@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import os
 from pathlib import Path
 
 import pytest
@@ -9,7 +10,7 @@ from azureml.core import Model
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
-from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run
+from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run, to_azure_friendly_string
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, RUN_SCORING_SCRIPT, SCORE_SCRIPT
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -57,6 +58,7 @@ def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
     """
     model = get_most_recent_model()
     downloaded_folder = Path(model.download(str(test_output_dirs.root_dir)))
+    print(f"Model was downloaded to folder {downloaded_folder}")
     expected_files = \
         [
             "model_inference_config.json",
@@ -94,11 +96,18 @@ def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     assert image_file.exists(), f"Image file not found: {image_file}"
     settings_file = fixed_paths.SETTINGS_YAML_FILE
     assert settings_file.exists(), f"Settings file not found: {settings_file}"
+    azure_config = AzureConfig.from_yaml(settings_file, project_root=fixed_paths.repository_root_directory())
+    # Read the name of the branch from environment, so that the inference experiment is also listed alongside
+    # all other AzureML runs that belong to the current PR.
+    build_branch = os.environ.get("BUILD_BRANCH", None)
+    experiment_name = to_azure_friendly_string(build_branch) if build_branch else "model_inference"
+    azure_config.get_git_information()
     args = ["--image_file", str(image_file),
             "--model_id", model.id,
             "--settings", str(settings_file),
             "--download_folder", str(test_output_dirs.root_dir),
-            "--cluster", "training-nc12"]
+            "--cluster", "training-nc12",
+            "--experiment", experiment_name]
     seg_path = test_output_dirs.root_dir / DEFAULT_RESULT_IMAGE_NAME
     assert not seg_path.exists(), f"Result file {seg_path} should not yet exist"
     submit_for_inference.main(args, project_root=fixed_paths.repository_root_directory())

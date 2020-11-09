@@ -546,12 +546,13 @@ class MLRunner:
                 description=description
             )
         else:
-            logging.info(f"Registering the model with run {RUN_CONTEXT.id}")
+            model_path = f"{DEFAULT_AML_UPLOAD_DIR}/{FINAL_MODEL_FOLDER}"
+            logging.info(f"Registering the model on run {RUN_CONTEXT.id}, using files in {model_path}")
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
             model = RUN_CONTEXT.register_model(
                 model_name=self.model_config.model_name,
-                model_path=f"{DEFAULT_AML_UPLOAD_DIR}/{FINAL_MODEL_FOLDER}",
+                model_path=model_path,
                 tags=RUN_CONTEXT.get_tags(),
                 description=description
             )
