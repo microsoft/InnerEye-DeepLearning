@@ -356,7 +356,7 @@ def merge_conda_dependencies(files: List[Path]) -> CondaDependencies:
     """
     for file in files:
         _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
-    merged_file = tempfile.NamedTemporaryFile(delete=True)
+    merged_file = tempfile.NamedTemporaryFile(delete=False)
     merge_conda_files(files, result_file=Path(merged_file.name))
     merged_dependencies = CondaDependencies(merged_file.name)
     _log_conda_dependencies_stats(merged_dependencies, "Merged Conda environment")
