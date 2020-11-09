@@ -536,29 +536,29 @@ class MLRunner:
         # produced or downloaded for recovery, bloating the final model file.
         self.copy_child_paths_to_folder(final_model_folder, checkpoint_paths)
         description = f"Best epoch: {best_epoch}, Accuracy : {best_epoch_dice}"
-        if is_offline_run:
-            logging.info("Registering the model on the workspace.")
-            description = description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
-            model = Model.register(
-                workspace=self.azure_config.get_workspace(),
-                model_name=self.model_config.model_name,
-                model_path=str(final_model_folder),
-                description=description
-            )
-        else:
-            model_path = f"{DEFAULT_AML_UPLOAD_DIR}/{FINAL_MODEL_FOLDER}"
-            logging.info(f"Registering the model on run {RUN_CONTEXT.id}, using files in {model_path}")
-            # This is necessary to avoid random failures at model registration, where it says that no files
-            # have been uploaded yet.
-            RUN_CONTEXT.flush()
-            # When registering the model on the run, we need to provide a relative path inside of the run's output
-            # folder in `model_path`
-            model = RUN_CONTEXT.register_model(
-                model_name=self.model_config.model_name,
-                model_path=model_path,
-                tags=RUN_CONTEXT.get_tags(),
-                description=description
-            )
+        logging.info("Registering the model on the workspace.")
+        description = description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
+        model = Model.register(
+            workspace=self.azure_config.get_workspace(),
+            model_name=self.model_config.model_name,
+            model_path=str(final_model_folder),
+            description=description
+        )
+        # Actually, the model should be registered on the current run. However, that fails with random errors
+        # saying that no files in output/final_model are available.
+        #    model_path = f"{DEFAULT_AML_UPLOAD_DIR}/{FINAL_MODEL_FOLDER}"
+        #    logging.info(f"Registering the model on run {RUN_CONTEXT.id}, using files in {model_path}")
+        #    # This is necessary to avoid random failures at model registration, where it says that no files
+        #    # have been uploaded yet.
+        #    RUN_CONTEXT.flush()
+        #    # When registering the model on the run, we need to provide a relative path inside of the run's output
+        #    # folder in `model_path`
+        #    model = RUN_CONTEXT.register_model(
+        #        model_name=self.model_config.model_name,
+        #        model_path=model_path,
+        #        tags=RUN_CONTEXT.get_tags(),
+        #        description=description
+        #    )
 
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
 
