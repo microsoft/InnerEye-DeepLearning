@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import argparse
+import logging
 import os
 import subprocess
 import sys
@@ -67,8 +68,8 @@ def write_script(parser: argparse.ArgumentParser, script_path: Path, project_roo
     :param project_root: main directory in which code may be found
     """
     args, unknown_args = parser.parse_known_args()
-    if not unknown_args:
-        raise ValueError("Expected a command starting with score.py or equivalent")
+    if not unknown_args or len(unknown_args) != 1:
+        raise ValueError("Expected a single file name as the last argument")
 
     with script_path.open(mode='w') as out:
         def run(line: str) -> None:
@@ -113,11 +114,15 @@ def write_script(parser: argparse.ArgumentParser, script_path: Path, project_roo
             run("conda remove nvidia-apex")
             run(f"conda env update --name $CONDA_DEFAULT_ENV --file {merged_env}")
         # unknown_args should start with the script, so we prepend that with project_root if necessary.
-        scoring_script = unknown_args[0]
-        if not Path(scoring_script).exists():
-            unknown_args[0] = os.path.join(INNEREYE_SUBMODULE_NAME, scoring_script)
+        scoring_script = Path(unknown_args[0])
+        if not scoring_script.exists():
+            logging.warning(f"Scoring script {scoring_script} does not exist. Trying to find it in project root.")
+            scoring_script = project_root / scoring_script
+            if not scoring_script.exists():
+                raise ValueError(f"Scoring script {scoring_script} not found. Absolute path is: "
+                                 f"{Path(scoring_script).absolute()}")
         # Now the environment should be suitable for actually running inference.
-        spawn_command = (f"{args.spawnprocess} {' '.join(unknown_args)} --data_root {args.data_folder} "
+        spawn_command = (f"{args.spawnprocess} {scoring_script} --data_root {args.data_folder} "
                          f"--project_root {project_root} ")
         run(spawn_command)
         echo("Finished")
