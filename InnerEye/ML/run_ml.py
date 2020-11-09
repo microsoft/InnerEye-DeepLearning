@@ -548,6 +548,9 @@ class MLRunner:
         else:
             model_path = f"{DEFAULT_AML_UPLOAD_DIR}/{FINAL_MODEL_FOLDER}"
             logging.info(f"Registering the model on run {RUN_CONTEXT.id}, using files in {model_path}")
+            # This is necessary to avoid random failures at model registration, where it says that no files
+            # have been uploaded yet.
+            RUN_CONTEXT.flush()
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
             model = RUN_CONTEXT.register_model(
