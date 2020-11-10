@@ -20,8 +20,6 @@ from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, ENVIRONMENT_YAML_FILE_NAME, RUN_SCORING_SCRIPT, \
     SCORE_SCRIPT
 from InnerEye.Common.generic_parsing import GenericConfig
-from InnerEye.ML.utils.io_util import MedicalImageFileType
-from score import DEFAULT_DATA_FOLDER, DEFAULT_TEST_IMAGE_NAME
 
 
 class SubmitForInferenceConfig(GenericConfig):
@@ -51,7 +49,9 @@ class SubmitForInferenceConfig(GenericConfig):
         if not self.image_file.is_file():
             raise FileNotFoundError(self.image_file)
         basename = str(self.image_file.name)
-        extension = MedicalImageFileType.NIFTI_COMPRESSED_GZ.value
+        # Do not import the pre-defined constants from io_util here, so that we can keep the Conda environment for
+        # running tests_after_training.py small.
+        extension = ".nii.gz"
         if not basename.endswith(extension):
             raise ValueError(f"Bad image file name, does not end with {extension}: {self.image_file.name}")
         # If the user wants the result downloaded, the download folder must already exist
@@ -67,7 +67,7 @@ def copy_image_file(image: Path, image_directory: Path) -> None:
     """
     assert image.name.endswith(".nii.gz")
     image_directory.mkdir(parents=True, exist_ok=True)
-    dst = image_directory / DEFAULT_TEST_IMAGE_NAME
+    dst = image_directory / fixed_paths.DEFAULT_TEST_IMAGE_NAME
     logging.info(f"Copying {image} to {dst}")
     shutil.copyfile(str(image), str(dst))
 
@@ -161,7 +161,7 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
     source_directory = tempfile.TemporaryDirectory()
     source_directory_path = Path(source_directory.name)
     logging.info(f"Building inference run submission in {source_directory_path}")
-    copy_image_file(args.image_file, source_directory_path / DEFAULT_DATA_FOLDER)
+    copy_image_file(args.image_file, source_directory_path / fixed_paths.DEFAULT_DATA_FOLDER)
     model_sas_urls = model.get_sas_urls()
     # Identifies all the files with basename "environment.yml" in the model and downloads them.
     # Normally there will be only one of these if the model was build directly from a clone of the

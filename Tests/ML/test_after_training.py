@@ -2,6 +2,11 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+"""
+IMPORTANT: This file should ideally not import anything from the InnerEye.ML namespace.
+This can avoid creating a full InnerEye Conda environment in the test suite.
+"""
+
 import os
 from pathlib import Path
 
@@ -36,7 +41,8 @@ def get_most_recent_run() -> str:
         # Consequently, local execution of tests that use this run may fail, while executing in the cloud passes.
         # In this case, modify the run here to something more recent.
         print("Using hardcoded run ID.")
-        return "refs_pull_276_merge:refs_pull_276_merge_1604614910_f7e2e0cc"
+        # This is Run 54 in refs_pull_276_merge
+        return "refs_pull_276_merge:refs_pull_276_merge_1605014426_591da1f2"
 
 
 def get_most_recent_model() -> Model:

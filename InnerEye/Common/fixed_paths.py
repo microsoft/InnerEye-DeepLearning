@@ -71,6 +71,10 @@ SCORE_SCRIPT = "score.py"
 PYTHON_WRAPPER_SCRIPT = "python_wrapper.py"
 SCRIPTS_AT_ROOT = [RUN_SCORING_SCRIPT, SCORE_SCRIPT, PYTHON_WRAPPER_SCRIPT]
 
+# Constants needed for the score.py script
+DEFAULT_DATA_FOLDER = "data"
+DEFAULT_TEST_IMAGE_NAME = "test.nii.gz"
+
 
 def get_environment_yaml_file() -> Path:
     """

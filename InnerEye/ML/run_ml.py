@@ -588,6 +588,8 @@ class MLRunner:
         """
         Gets the files that are required to register a model for inference. The necessary files are copied from
         the current folder structure into the given temporary folder.
+        The folder will contain all source code in the InnerEye folder, possibly additional source code from the
+        extra_code_directory, and all checkpoints in a newly created "checkpoints" folder inside the model.
         :param model_folder: The folder into which all files should be copied.
         :param checkpoint_paths: A list with absolute paths to checkpoint files. They are expected to be
         inside of the model's checkpoint folder.

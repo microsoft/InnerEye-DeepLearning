@@ -125,6 +125,8 @@ def write_script(parser: argparse.ArgumentParser, script_path: Path, project_roo
         spawn_command = (f"{args.spawnprocess} {scoring_script} --data_root {args.data_folder} "
                          f"--project_root {project_root} ")
         run(spawn_command)
+        # Terminate the shell script if the Python job had a non-zero exit code
+        run("if [$? ne 0] then exit(1) fi")
         echo("Finished")
     with script_path.open(mode='r') as inp:
         print(f"Contents of {script_path}:\n")

@@ -38,15 +38,12 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.io_util import ImageWithHeader, load_nifti_image, reverse_tuple_float3, store_as_ubyte_nifti
 from run_scoring import PYTHONPATH_ENVIRONMENT_VARIABLE_NAME
 
-DEFAULT_DATA_FOLDER = "data"
-DEFAULT_TEST_IMAGE_NAME = "test.nii.gz"
-
 
 class ScorePipelineConfig(GenericConfig):
     data_root: str = param.String(None, doc="Path to the folder that contains the data "
                                             "(image channels and checkpoints) for scoring.")
     project_root: str = param.String(None, doc="Path to the folder that contains code root.")
-    test_image_channels: List[str] = param.List([DEFAULT_TEST_IMAGE_NAME], class_=str, instantiate=False,
+    test_image_channels: List[str] = param.List([fixed_paths.DEFAULT_TEST_IMAGE_NAME], class_=str, instantiate=False,
                                                 bounds=(1, None),
                                                 doc="The name of the image channels to run the pipeline on.")
     result_image_name: str = param.String(DEFAULT_RESULT_IMAGE_NAME, doc="The name of the resulting image from the "
@@ -159,7 +156,7 @@ def score_image(args: ScorePipelineConfig) -> Path:
     run_context = Run.get_context()
     logging.info(f"Run context={run_context.id}")
 
-    images = [load_nifti_image(project_root / DEFAULT_DATA_FOLDER / x) for x in args.test_image_channels]
+    images = [load_nifti_image(project_root / fixed_paths.DEFAULT_DATA_FOLDER / x) for x in args.test_image_channels]
     inference_pipeline, config = init_from_model_inference_json(project_root, args.use_gpu)
     segmentation = run_inference(images, inference_pipeline, config)
 

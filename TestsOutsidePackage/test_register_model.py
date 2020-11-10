@@ -24,7 +24,6 @@ from InnerEye.ML.utils.image_util import get_unit_image_header
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 from run_scoring import spawn_and_monitor_subprocess
-from score import DEFAULT_DATA_FOLDER
 
 
 class SubprocessConfig(GenericConfig):
@@ -101,7 +100,7 @@ def test_register_and_score_model(is_ensemble: bool,
     try:
         azure_config = get_default_azure_config()
         if model_outside_package:
-            azure_config.extra_code_directory = "Tests"  # contains DummyModel
+            azure_config.extra_code_directory = "Tests"  # contains BasicModel2EpochsOutsidePackage
         deployment_hook = lambda cfg, azure_cfg, mdl, is_ens: (Path(cfg.model_name), azure_cfg.docker_shm_size)
         ml_runner = MLRunner(config, azure_config, project_root=project_root,
                              model_deployment_hook=deployment_hook)
@@ -123,7 +122,7 @@ def test_register_and_score_model(is_ensemble: bool,
             fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME,
             "InnerEye/ML/runner.py",
         ]
-        expected_files.extend(str(c) for c in checkpoints_relative)
+        expected_files.extend(str(Path(CHECKPOINT_FOLDER) / c) for c in checkpoints_relative)
         for expected_file in expected_files:
             assert (model_root / expected_file).is_file(), f"File {expected_file} missing"
 
@@ -134,7 +133,7 @@ def test_register_and_score_model(is_ensemble: bool,
         # move test data into the data folder to simulate an actual run
         train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
         img_files = ["id1_channel1.nii.gz", "id1_channel2.nii.gz"]
-        data_root = test_datastore / DEFAULT_DATA_FOLDER
+        data_root = test_datastore / fixed_paths.DEFAULT_DATA_FOLDER
         data_root.mkdir(parents=True)
         for f in img_files:
             shutil.copy(str(train_and_test_data_dir / f), str(data_root))
