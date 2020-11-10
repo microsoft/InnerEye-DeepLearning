@@ -5,6 +5,9 @@
 """
 IMPORTANT: This file should ideally not import anything from the InnerEye.ML namespace.
 This can avoid creating a full InnerEye Conda environment in the test suite.
+
+All of the tests in this file rely on previous InnerEye runs that submit an AzureML job. They pick
+up the most recently run AzureML job from most_recent_run.txt
 """
 
 import os
