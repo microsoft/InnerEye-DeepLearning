@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import os
 import re
 import tempfile
 from pathlib import Path
@@ -405,3 +406,11 @@ def download_outputs_from_run(blobs_path: Path,
     else:
         run.download_files(blobs_root_path, str(destination), append_prefix=append_prefix)
     return destination
+
+
+def is_running_on_azure_agent() -> bool:
+    """
+    Returns True if the code appears to be running on an Azure build agent, and False otherwise.
+    """
+    # Guess by looking at the AGENT_OS variable, that all Azure hosted agents define.
+    return bool(os.environ.get("AGENT_OS", None))

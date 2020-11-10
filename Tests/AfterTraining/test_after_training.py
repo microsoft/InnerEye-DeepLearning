@@ -18,13 +18,12 @@ from azureml.core import Model
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
-from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run, to_azure_friendly_string
+from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run, is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Scripts import submit_for_inference
 from Tests import fixed_paths_for_tests
-from Tests.ML.util import is_running_on_azure
 
 
 def get_most_recent_run() -> str:
@@ -34,7 +33,7 @@ def get_most_recent_run() -> str:
     :return:
     """
     run_recovery_file = Path(RUN_RECOVERY_FILE)
-    if is_running_on_azure():
+    if is_running_on_azure_agent():
         assert run_recovery_file.is_file(), "When running in cloud builds, this should pick up the ID of a previous " \
                                             "training run"
         print("Reading run information from file.")
