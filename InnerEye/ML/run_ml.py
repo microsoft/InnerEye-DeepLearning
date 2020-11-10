@@ -26,10 +26,10 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section, print_exception
-from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
+from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, FINAL_MODEL_FOLDER, MultiprocessingStartMethod
+from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, MultiprocessingStartMethod
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig

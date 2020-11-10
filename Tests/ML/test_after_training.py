@@ -92,6 +92,10 @@ def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     :return:
     """
     model = get_most_recent_model()
+    # This test only makes sense if a single channel model was trained (submit_for_inference does not handle
+    # multiple input channels)
+    if model.name != "BasicModel2Epochs1Channel":
+        return
     image_file = fixed_paths_for_tests.full_ml_test_data_path() / "train_and_test_data" / "id1_channel1.nii.gz"
     assert image_file.exists(), f"Image file not found: {image_file}"
     settings_file = fixed_paths.SETTINGS_YAML_FILE
