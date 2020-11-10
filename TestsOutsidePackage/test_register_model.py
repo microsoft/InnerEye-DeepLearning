@@ -141,7 +141,7 @@ def test_register_and_score_model(is_ensemble: bool,
         # run score pipeline as a separate process using the python_wrapper.py code to simulate a real run
         [return_code1, stdout1] = SubprocessConfig(process="python", args=["--version"]).spawn_and_monitor_subprocess()
         assert return_code1 == 0
-        assert "Python 2.7" in stdout1[0]
+        print(f"Executing Python version {stdout1[0]}")
         return_code, _ = SubprocessConfig(process="python", args=[
             str(model_root / fixed_paths.PYTHON_WRAPPER_SCRIPT),
             "--spawnprocess=python",

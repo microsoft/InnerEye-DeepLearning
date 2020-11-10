@@ -13,7 +13,7 @@ steps:
 
   - task: PublishTestResults@2
     inputs:
-      testResultsFiles: junit/test-results-after-training.xml
+      testResultsFiles: junit/test-${{parameters.test_run_title}}.xml
       testRunTitle: ${{parameters.test_run_title}}
     condition: succeededOrFailed()
     displayName: Publish test results ${{parameters.test_run_title}}

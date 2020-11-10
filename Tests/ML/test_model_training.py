@@ -215,7 +215,8 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # Path visualization: There should be 3 slices for each of the 2 subjects
     sampling_folder = train_config.outputs_folder / PATCH_SAMPLING_FOLDER
     assert sampling_folder.is_dir()
-    assert len(list(sampling_folder.rglob("*.png"))) == 3 * 2
+    assert train_config.show_patch_sampling > 0
+    assert len(list(sampling_folder.rglob("*.png"))) == 3 * train_config.show_patch_sampling
 
 
 @pytest.mark.parametrize(["rates", "expected"],
