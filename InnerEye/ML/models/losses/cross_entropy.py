@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from enum import Enum
-from functools import reduce
 from typing import Any, Optional
 
 import torch
@@ -33,7 +32,6 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
                  class_weight_power: Optional[float] = None,
                  smoothing_eps: float = 0.0,
                  focal_loss_gamma: Optional[float] = None,
-                 reduction: ReductionType = ReductionType.MEAN,
                  ignore_index: int = -100):
         super().__init__(smoothing_eps)
         """
@@ -45,8 +43,6 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
                                  https://arxiv.org/pdf/1708.02002.pdf equation(4-5).
                                  When gamma equals to zero, it is equivalent to standard
                                  CE with no class balancing. (Gamma >= 0.0)
-        :param reduction: Reduction operation to aggregate loss term computed for each class.
-                          Default option is mean aggregation, i.e. mean of all classes.
         :param ignore_index: Specifies a target value that is ignored and does not contribute
                              to the input gradient
         """
@@ -59,7 +55,6 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
         self.class_weight_power = class_weight_power
         self.focal_loss_gamma = focal_loss_gamma
         self.ignore_index = ignore_index
-        self.reduction = reduction
         self.eps = 1e-6
 
     @staticmethod
@@ -76,20 +71,23 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
 
         return class_weight
 
+    @torch.no_grad()
     def get_focal_loss_pixel_weights(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Computes weights for each pixel/sample inversely proportional to the posterior likelihood.
         :param logits: Logits tensor.
         :param target: Target label tensor in one-hot encoding.
         """
+        if not (torch.sum(target == 1.0) == (target.nelement() / target.shape[1])):
+            raise ValueError("Focal loss is supported only for one-hot encoded targets")
+
         posteriors = torch.nn.functional.softmax(logits, dim=1)
         # noinspection PyUnresolvedReferences,PyTypeChecker
         pixel_weights: torch.Tensor = (1 - posteriors + self.eps).pow(self.focal_loss_gamma)  # type: ignore
+        pixel_weights = torch.sum(pixel_weights * target, dim=1)
 
-        # Normalise the weights to preserve the loss range and lr sensitivity
-        num_pixels = pixel_weights.nelement() / float(pixel_weights.size(1))
-        # noinspection PyTypeChecker
-        scaling = num_pixels / (torch.sum(torch.mul(pixel_weights, target)) + self.eps)  # type: ignore
+        # Normalise the pixel weights
+        scaling = pixel_weights.nelement() / (torch.sum(pixel_weights) + self.eps) 
 
         return pixel_weights * scaling
 
@@ -98,7 +96,7 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
         """Function that verifies input data types and dimensions"""
 
         # Check input data types
-        if type(logits) != torch.Tensor or type(target) != torch.Tensor:
+        if not isinstance(logits, torch.Tensor) or not isinstance(target, torch.Tensor):
             raise TypeError("Logits and target must be torch.Tensors")
         if not logits.is_floating_point():
             raise TypeError("Logits must be a float tensor")
@@ -130,32 +128,22 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
         # Check input tensors
         self._verify_inputs(output, target)
 
-        # Compute log posterior probabilities
-        log_prob = F.log_softmax(output, 1)
+        # Determine class weights for unbalanced datasets
+        if self.class_weight_power is not None and self.class_weight_power != 0.0:
+            class_weight = get_class_weights(target, class_weight_power=self.class_weight_power) 
 
-        axes = list(range(2, len(output.shape)))
+        # Compute negative log-likelihood
+        log_prob = F.log_softmax(output, dim=1)
+        if self.smoothing_eps > 0.0:
+            loss = -1.0 * log_prob * target
+            if class_weight is not None:
+                loss = torch.einsum('bc...,c->b...', loss, class_weight)
+        else:
+            loss = F.nll_loss(log_prob, torch.argmax(target, dim=1), weight=class_weight, reduction='none')
 
-        # Determine pixel/class weights for unbalanced datasets
+        # If focal loss is specified, apply pixel weighting
         if self.focal_loss_gamma is not None:
             pixel_weights = self.get_focal_loss_pixel_weights(output, target)
-            log_prob = log_prob * pixel_weights
-        if self.class_weight_power is not None and self.class_weight_power != 0.0:
-            # class_weight is shape (C).
-            class_weight = get_class_weights(target, class_weight_power=self.class_weight_power)
+            loss = loss * pixel_weights
 
-        # product: shape (B, C), value is total log prob of target class over all voxels in that batch that have
-        # that class.
-        product = target * log_prob
-        if axes:
-            product = product.sum(axes)
-        # loss will be shape (B):
-        if class_weight is not None:
-            # noinspection PyTypeChecker
-            loss = -torch.einsum("ij,j->i", product, class_weight)
-        else:
-            loss = -product.sum(dim=1)
-        if output.shape[2:]:
-            voxels_per_batch = reduce(lambda x, y: x * y, output.shape[2:])
-        else:
-            voxels_per_batch = 1
-        return loss.sum() / (output.shape[0] * voxels_per_batch)  # mean over all voxels in all batches
+        return torch.mean(loss)

@@ -28,6 +28,9 @@ Then, in PowerShell as Administrator:
 ```
 dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
 dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+```
+Restart your machine, then again in PowerShell:
+```
 wsl --set-default-version 2
 winget install ubuntu --version 20.04
 wsl --list --verbose
@@ -52,14 +55,12 @@ Note the "2" in Version column.
 
 ## Install git and Anaconda
 
-Start the Windows Terminal app, create an Ubuntu tab, and inside that:
+Start the Windows Terminal app, create an Ubuntu tab. In the shell, run the following commands:
 - `sudo apt update`
-- `sudo apt install git`
-- `sudo apt-get install git-lfs`
+- `sudo apt install git git-lfs python-dev build-essential`
 - `wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh`
 - `sh Miniconda3-latest-Linux-x86_64.sh`
-- `sudo apt-get install python-dev`
-- `sudo apt-get install build-essential`
+- Close your WSL shell and re-start it
 - Clone repo or access your repos via /mnt/c/...
 - Create conda environment: `conda env create --file environment.yml`
 - Create a file in the top level directory of the repository, named `InnerEyeTestVariables.txt`, with one line:
