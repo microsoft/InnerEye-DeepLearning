@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import shutil
 from pathlib import Path
 from typing import Any, List
 
@@ -9,9 +10,9 @@ import h5py
 import numpy as np
 import pandas as pd
 import pytest
-import shutil
 from torch.utils.data import DataLoader
 
+from InnerEye.Common import fixed_paths
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics, model_training
@@ -26,13 +27,11 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsForSegmentation
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.io_util import load_nifti_image
+from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
-from InnerEye.ML.utils.run_recovery import RunRecovery
-
-from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import assert_file_contains_string
+from Tests.ML.util import assert_file_contains_string, get_default_checkpoint_handler
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 config_path = full_ml_test_data_path()
@@ -166,7 +165,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
 
     loss_absolute_tolerance = 1e-3
     checkpoint_handler = get_default_checkpoint_handler(model_config=train_config,
-                                                       project_root=Path(output_dirs.root_dir))
+                                                        project_root=Path(output_dirs.root_dir))
     model_training_result = model_training.model_train(train_config,
                                                        checkpoint_handler=checkpoint_handler)
     assert isinstance(model_training_result, ModelTrainingResults)
@@ -361,3 +360,9 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
     # remove recovery checkpoints
     shutil.rmtree(checkpoint_root)
     assert len(list(config.checkpoint_folder.rglob("*.*"))) == 2
+
+
+def test_script_names_correct() -> None:
+    for file in fixed_paths.SCRIPTS_AT_ROOT:
+        full_file = fixed_paths.repository_root_directory() / file
+        assert full_file.exists(), f"{file} must exist at repository root."

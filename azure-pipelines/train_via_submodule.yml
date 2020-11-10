@@ -27,4 +27,5 @@ steps:
 
   - template: tests_after_training.yml
     parameters:
+      pytest_mark: "inference and after_training"
       test_run_title: "tests_after_train_submodule"

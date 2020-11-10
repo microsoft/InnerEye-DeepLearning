@@ -97,7 +97,7 @@ def test_register_and_score_model(is_ensemble: bool,
     project_root = Path(__file__).parent.parent
     # Double-check that we are at the right place, by testing for a file that would quite certainly not be found
     # somewhere else
-    assert (project_root / "run_scoring.py").is_file()
+    assert (project_root / fixed_paths.RUN_SCORING_SCRIPT).is_file()
     try:
         azure_config = get_default_azure_config()
         if model_outside_package:
@@ -118,9 +118,10 @@ def test_register_and_score_model(is_ensemble: bool,
         # download the registered model and test that we can run the score pipeline on it
         model_root = Path(model.download(str(test_output_dirs.root_dir)))
         expected_files = [
+            *fixed_paths.SCRIPTS_AT_ROOT,
             fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
+            fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME,
             "InnerEye/ML/runner.py",
-            "score.py",
         ]
         expected_files.extend(str(c) for c in checkpoints_relative)
         for expected_file in expected_files:
@@ -143,9 +144,9 @@ def test_register_and_score_model(is_ensemble: bool,
         assert return_code1 == 0
         assert "Python 2.7" in stdout1[0]
         return_code, _ = SubprocessConfig(process="python", args=[
-            str(model_root / "python_wrapper.py"),
+            str(model_root / fixed_paths.PYTHON_WRAPPER_SCRIPT),
             "--spawnprocess=python",
-            str(model_root / "score.py"),
+            str(model_root / fixed_paths.SCORE_SCRIPT),
             f"--data-folder={str(test_datastore)}",
             f"--test_image_channels={img_files[0]},{img_files[1]}",
             "--use_gpu=False"

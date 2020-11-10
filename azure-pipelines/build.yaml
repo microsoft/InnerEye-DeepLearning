@@ -68,7 +68,7 @@ steps:
   # hence don't set PYTHONPATH
   - bash: |
       source activate InnerEye
-      pytest ./Tests/ -m "not gpu and not azureml and not after_training" --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html -n 2 --dist=loadscope --verbose
+      pytest ./Tests/ -m "not gpu and not azureml and not after_training and not inference" --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html -n 2 --dist=loadscope --verbose
     env:
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
       DATASETS_ACCOUNT_KEY: $(InnerEyePublicDatasetsStorageKey)
@@ -79,7 +79,7 @@ steps:
   # Run all tests for code that does not live in the InnerEye package. For that, set PYTHONPATH
   - bash: |
       source activate InnerEye
-      pytest ./TestsOutsidePackage -n 2 --dist=loadscope --verbose
+      pytest ./TestsOutsidePackage -n 2 --dist=loadscope --verbose --junitxml=junit/tests-outside-package-results.xml
     env:
       PYTHONPATH: $(Build.SourcesDirectory)/
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)

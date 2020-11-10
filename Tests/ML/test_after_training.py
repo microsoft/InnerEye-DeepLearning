@@ -12,7 +12,7 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
 from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run, to_azure_friendly_string
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, RUN_SCORING_SCRIPT, SCORE_SCRIPT
+from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Scripts import submit_for_inference
 from Tests import fixed_paths_for_tests
@@ -61,10 +61,8 @@ def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
     print(f"Model was downloaded to folder {downloaded_folder}")
     expected_files = \
         [
-            "model_inference_config.json",
-            "score.py",
-            "python_wrapper.py",
-            "run_scoring.py",
+            *fixed_paths.SCRIPTS_AT_ROOT,
+            fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME,
             "InnerEye/ML/config.py",
             "InnerEye/ML/metrics.py",
             "InnerEye/ML/runner.py",
@@ -84,7 +82,7 @@ def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
         pytest.fail(f"{len(missing)} files in the registered model are missing: {missing[:5]}")
 
 
-@pytest.mark.after_training
+@pytest.mark.inference
 def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     """
     Execute the submit_for_inference script on the model that was recently trained. This starts an AzureML job,
@@ -92,10 +90,6 @@ def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     :return:
     """
     model = get_most_recent_model()
-    # This test only makes sense if a single channel model was trained (submit_for_inference does not handle
-    # multiple input channels)
-    if model.name != "BasicModel2Epochs1Channel":
-        return
     image_file = fixed_paths_for_tests.full_ml_test_data_path() / "train_and_test_data" / "id1_channel1.nii.gz"
     assert image_file.exists(), f"Image file not found: {image_file}"
     settings_file = fixed_paths.SETTINGS_YAML_FILE
@@ -116,9 +110,3 @@ def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     assert not seg_path.exists(), f"Result file {seg_path} should not yet exist"
     submit_for_inference.main(args, project_root=fixed_paths.repository_root_directory())
     assert seg_path.exists(), f"Result file {seg_path} was not created"
-
-
-def test_run_scoring_exists() -> None:
-    full_scoring_file = fixed_paths.repository_root_directory() / RUN_SCORING_SCRIPT
-    assert full_scoring_file.exists(), f"{RUN_SCORING_SCRIPT} must exist at repository root."
-    assert full_scoring_file.exists(), f"{SCORE_SCRIPT} must exist at repository root."

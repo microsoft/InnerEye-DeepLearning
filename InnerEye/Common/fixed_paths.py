@@ -65,9 +65,11 @@ MODEL_INFERENCE_JSON_FILE_NAME = 'model_inference_config.json'
 AZURE_RUNNER_ENVIRONMENT_YAML_FILE_NAME = "azure_runner.yml"
 AZURE_RUNNER_ENVIRONMENT_YAML = repository_root_directory(AZURE_RUNNER_ENVIRONMENT_YAML_FILE_NAME)
 
-# The names of two files at the repository root that are required for running the inference pipeline.
+# The names of files at the repository root that are required for running the inference pipeline.
 RUN_SCORING_SCRIPT = "run_scoring.py"
 SCORE_SCRIPT = "score.py"
+PYTHON_WRAPPER_SCRIPT = "python_wrapper.py"
+SCRIPTS_AT_ROOT = [RUN_SCORING_SCRIPT, SCORE_SCRIPT, PYTHON_WRAPPER_SCRIPT]
 
 
 def get_environment_yaml_file() -> Path:
