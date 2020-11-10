@@ -98,6 +98,7 @@ Further detailed instructions, including setup in Azure, are here:
 1. [Sample Segmentation and Classification tasks](docs/sample_tasks.md)
 1. [Debugging and monitoring models](docs/debugging_and_monitoring.md)
 1. [Model diagnostics](docs/model_diagnostics.md)
+1. [Deployment](docs/deploy_on_aml.md)
 
 ## More information
 
