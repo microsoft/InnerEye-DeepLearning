@@ -165,7 +165,7 @@ def run(project_root: Optional[Path] = None) -> None:
     env = dict(os.environ.items())
     # Work around https://github.com/pytorch/pytorch/issues/37377
     env['MKL_SERVICE_FORCE_INTEL'] = '1'
-    code = spawn_and_monitor_subprocess(process='bash', args=[str(script_path)], env=env)
+    code, _ = spawn_and_monitor_subprocess(process='bash', args=[str(script_path)], env=env)
     sys.exit(code)
 
 

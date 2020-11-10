@@ -14,6 +14,7 @@ steps:
     env:
       PYTHONPATH: $(Build.SourcesDirectory)
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
+      BUILD_BRANCH: $(Build.SourceBranch)
     displayName: Run pytests that require training run
 
   - task: PublishTestResults@2

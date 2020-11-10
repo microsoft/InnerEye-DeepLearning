@@ -23,7 +23,6 @@ steps:
     env:
       PYTHONPATH: $(Agent.TempDirectory)/InnerEye
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
-      BUILD_BRANCH: $(Build.SourceBranch)
     displayName: 'Training and Recovery in AzureML'
 
   - template: tests_after_training.yml
