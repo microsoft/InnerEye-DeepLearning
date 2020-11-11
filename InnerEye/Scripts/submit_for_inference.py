@@ -19,7 +19,6 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, ENVIRONMENT_YAML_FILE_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
-from InnerEye.ML.utils.io_util import MedicalImageFileType
 
 
 class SubmitForInferenceConfig(GenericConfig):
@@ -66,7 +65,6 @@ def copy_image_file(image: Path, destination_folder: Path) -> Path:
     :param destination_folder: top-level directory to copy image into (as test.nii.gz)
     :return: The full path of the image in the destination_folder
     """
-    assert image.name.endswith(MedicalImageFileType.NIFTI_COMPRESSED_GZ.value)
     destination_folder.mkdir(parents=True, exist_ok=True)
     destination = destination_folder / fixed_paths.DEFAULT_TEST_IMAGE_NAME
     logging.info(f"Copying {image} to {destination}")

@@ -155,8 +155,6 @@ def test_register_and_score_model(is_ensemble: bool,
             assert (model_root / expected_file).is_file(), f"File {expected_file} missing"
 
         # create a dummy datastore to store the image data
-        # this simulates the code shapshot being executed in a real AzureML. Inside of that data store, there
-        # must be a folder called DEFAULT_DATA_FOLDER
         test_datastore = test_output_dirs.root_dir / "test_datastore"
         # move test data into the data folder to simulate an actual run
         train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
@@ -174,7 +172,7 @@ def test_register_and_score_model(is_ensemble: bool,
         print(f"Executing Python version {stdout1[0]}")
         return_code, stdout2 = SubprocessConfig(process=python_executable, args=[
             str(model_root / fixed_paths.SCORE_SCRIPT),
-            f"--data_folder={str(test_datastore)}",
+            f"--data_folder={str(data_root)}",
             f"--image_files={img_files[0]},{img_files[1]}",
             "--use_gpu=False"
         ]).spawn_and_monitor_subprocess()
