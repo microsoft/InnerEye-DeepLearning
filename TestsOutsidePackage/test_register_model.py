@@ -4,6 +4,8 @@
 #  ------------------------------------------------------------------------------------------
 import os
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -24,7 +26,32 @@ from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
-from run_scoring import spawn_and_monitor_subprocess
+
+
+def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, str]) -> Tuple[int, List[str]]:
+    """
+    Helper function to spawn and monitor subprocesses.
+    :param process: The name or path of the process to spawn.
+    :param args: The args to the process.
+    :param env: The environment variables for the process (default is the environment variables of the parent).
+    :return: Return code after the process has finished, and the list of lines that were written to stdout by the
+    subprocess.
+    """
+    p = subprocess.Popen(
+        [process] + args,
+        shell=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        env=env
+    )
+
+    # Read and print all the lines that are printed by the subprocess
+    stdout_lines = [line.decode('UTF-8').strip() for line in p.stdout]  # type: ignore
+    for line in stdout_lines:
+        print(line)
+
+    # return the subprocess error code to the calling job so that it is reported to AzureML
+    return p.wait(), stdout_lines
 
 
 class SubprocessConfig(GenericConfig):
@@ -97,7 +124,7 @@ def test_register_and_score_model(is_ensemble: bool,
     project_root = Path(__file__).parent.parent
     # Double-check that we are at the right place, by testing for a file that would quite certainly not be found
     # somewhere else
-    assert (project_root / fixed_paths.RUN_SCORING_SCRIPT).is_file()
+    assert (project_root / fixed_paths.SCORE_SCRIPT).is_file()
     try:
         azure_config = get_default_azure_config()
         if model_outside_package:
@@ -139,16 +166,16 @@ def test_register_and_score_model(is_ensemble: bool,
         for f in img_files:
             shutil.copy(str(train_and_test_data_dir / f), str(data_root))
 
-        # run score pipeline as a separate process using the python_wrapper.py code to simulate a real run
-        [return_code1, stdout1] = SubprocessConfig(process="python", args=["--version"]).spawn_and_monitor_subprocess()
+        # run score pipeline as a separate process
+        python_executable = sys.executable
+        [return_code1, stdout1] = SubprocessConfig(process=python_executable,
+                                                   args=["--version"]).spawn_and_monitor_subprocess()
         assert return_code1 == 0
         print(f"Executing Python version {stdout1[0]}")
-        return_code, stdout2 = SubprocessConfig(process="python", args=[
-            str(model_root / fixed_paths.PYTHON_WRAPPER_SCRIPT),
-            "--spawnprocess=python",
+        return_code, stdout2 = SubprocessConfig(process=python_executable, args=[
             str(model_root / fixed_paths.SCORE_SCRIPT),
-            f"--data-folder={str(test_datastore)}",
-            f"--test_image_channels={img_files[0]},{img_files[1]}",
+            f"--data_folder={str(test_datastore)}",
+            f"--image_files={img_files[0]},{img_files[1]}",
             "--use_gpu=False"
         ]).spawn_and_monitor_subprocess()
 

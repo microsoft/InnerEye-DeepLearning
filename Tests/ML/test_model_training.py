@@ -364,6 +364,6 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
 
 
 def test_script_names_correct() -> None:
-    for file in fixed_paths.SCRIPTS_AT_ROOT:
+    for file in [*fixed_paths.SCRIPTS_AT_ROOT, fixed_paths.RUN_SCORING_SCRIPT]:
         full_file = fixed_paths.repository_root_directory() / file
-        assert full_file.exists(), f"{file} must exist at repository root."
+        assert full_file.exists(), f"{file} does not exist."

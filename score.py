@@ -2,21 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-"""
-IMPORTANT CONSTRAINTS
----------------------
-1) DO NOT move this file, this file is expected to be in the root directory of this project by
-the caller code in AML
-
-This is an executable that is called by the python_wrapper.py which handles inference of a single image
-(which is an AML construct called scoring, thus the name:
-https://docs.microsoft.com/en-us/python/api/overview/azureml-sdk/?view=azure-ml-py).
-"""
 
 import logging
 import os
 import sys
-from distutils.dir_util import copy_tree
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -36,33 +25,35 @@ from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.io_util import ImageWithHeader, load_nifti_image, reverse_tuple_float3, store_as_ubyte_nifti
-from run_scoring import PYTHONPATH_ENVIRONMENT_VARIABLE_NAME
 
 
 class ScorePipelineConfig(GenericConfig):
-    data_root: str = param.String(None, doc="Path to the folder that contains the data "
-                                            "(image channels and checkpoints) for scoring.")
-    project_root: str = param.String(None, doc="Path to the folder that contains code root.")
-    test_image_channels: List[str] = param.List([fixed_paths.DEFAULT_TEST_IMAGE_NAME], class_=str, instantiate=False,
-                                                bounds=(1, None),
-                                                doc="The name of the image channels to run the pipeline on.")
-    result_image_name: str = param.String(DEFAULT_RESULT_IMAGE_NAME, doc="The name of the resulting image from the "
-                                                                         "pipeline.")
+    data_folder: Path = param.ClassSelector(class_=Path, default=Path.cwd(),
+                                            doc="Path to the folder that contains the images that should be scored")
+    model_folder: str = param.String(doc="Path to the folder that contains the model, in particular inference "
+                                         "configuration and checkpoints. Defaults to the folder where the current "
+                                         "file lives.")
+    image_files: List[str] = param.List([fixed_paths.DEFAULT_TEST_IMAGE_NAME], class_=str, instantiate=False,
+                                        bounds=(1, None),
+                                        doc="The name of the images channels to run the pipeline on. These "
+                                            "files must exist in the data_folder.")
+    result_image_name: str = param.String(DEFAULT_RESULT_IMAGE_NAME,
+                                          doc="The name of the result image, created in the project root folder.")
     use_gpu: bool = param.Boolean(True, doc="If GPU should be used or not.")
 
 
-def init_from_model_inference_json(model_path: Path, use_gpu: bool = True) -> Tuple[FullImageInferencePipelineBase,
+def init_from_model_inference_json(model_folder: Path, use_gpu: bool = True) -> Tuple[FullImageInferencePipelineBase,
                                                                                       SegmentationModelBase]:
     """
     Loads the config and inference pipeline from the current directory using fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
     :return: Tuple[InferencePipeline, Config]
     """
     logging.info('Python version: ' + sys.version)
-    path_to_model_inference_config = model_path / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
+    path_to_model_inference_config = model_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
     logging.info(f'path_to_model_inference_config: {path_to_model_inference_config}')
     model_inference_config = read_model_inference_config(str(path_to_model_inference_config))
     logging.info(f'model_inference_config: {model_inference_config}')
-    full_path_to_checkpoints = [model_path / x for x in model_inference_config.checkpoint_paths]
+    full_path_to_checkpoints = [model_folder / x for x in model_inference_config.checkpoint_paths]
     logging.info(f'full_path_to_checkpoints: {full_path_to_checkpoints}')
     loader = ModelConfigLoader[SegmentationModelBase](
         model_configs_namespace=model_inference_config.model_configs_namespace)
@@ -71,7 +62,8 @@ def init_from_model_inference_json(model_path: Path, use_gpu: bool = True) -> Tu
 
 
 def create_inference_pipeline(model_config: SegmentationModelBase,
-                              full_path_to_checkpoints: List[Path], use_gpu: bool = True) \
+                              full_path_to_checkpoints: List[Path],
+                              use_gpu: bool = True) \
         -> Tuple[FullImageInferencePipelineBase, SegmentationModelBase]:
     """
     Create pipeline for inference, this can be a single model inference pipeline or an ensemble, if multiple
@@ -147,30 +139,35 @@ def score_image(args: ScorePipelineConfig) -> Path:
     :return:
     """
     logging.getLogger().setLevel(logging.INFO)
-    project_root = Path(args.project_root)
-
-    # copy the model to the current directory
-    copy_tree(args.data_root, str(project_root))
-    logging.info(f'Copied contents of data_root: {args.data_root} to {project_root}')
+    score_py_folder = Path(__file__).parent
+    model_folder = Path(args.model_folder or str(score_py_folder))
 
     run_context = Run.get_context()
     logging.info(f"Run context={run_context.id}")
 
-    images = [load_nifti_image(project_root / fixed_paths.DEFAULT_DATA_FOLDER / x) for x in args.test_image_channels]
-    inference_pipeline, config = init_from_model_inference_json(project_root, args.use_gpu)
+    test_images = []
+    data_folder = args.data_folder
+    for file in args.image_files:
+        full_file_path = data_folder / file
+        if not full_file_path.exists():
+            message = \
+                str(data_folder) if data_folder.is_absolute() else f"{data_folder}, absolute: {data_folder.absolute()}"
+            raise ValueError(f"File {file} does not exist in data folder {message}")
+        test_images.append(full_file_path)
+    images = [load_nifti_image(file) for file in test_images]
+    inference_pipeline, config = init_from_model_inference_json(model_folder, args.use_gpu)
     segmentation = run_inference(images, inference_pipeline, config)
 
-    segmentation_file_name = str(project_root / args.result_image_name)
+    segmentation_file_name = str(model_folder / args.result_image_name)
     result_dst = store_as_ubyte_nifti(segmentation, images[0].header, segmentation_file_name)
     if not is_offline_run_context(run_context):
         run_context.upload_file(args.result_image_name, segmentation_file_name)
     logging.info(f"Segmentation completed: {result_dst}")
-
-    return Path(result_dst)
+    return result_dst
 
 
 def main() -> None:
-    print(f"{PYTHONPATH_ENVIRONMENT_VARIABLE_NAME}: {os.environ.get(PYTHONPATH_ENVIRONMENT_VARIABLE_NAME)}")
+    print(f"PYTHONPATH: {os.environ.get('PYTHONPATH')}")
     score_image(ScorePipelineConfig.parse_args())
 
 
