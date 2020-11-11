@@ -29,7 +29,7 @@ from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_sec
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, MultiprocessingStartMethod
+from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, FINAL_MODEL_FOLDER, MultiprocessingStartMethod
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -538,27 +538,29 @@ class MLRunner:
         description = f"Best epoch: {best_epoch}, Accuracy : {best_epoch_dice}"
         logging.info("Registering the model on the workspace.")
         description = description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
-        model = Model.register(
-            workspace=self.azure_config.get_workspace(),
-            model_name=self.model_config.model_name,
-            model_path=str(final_model_folder),
-            description=description
-        )
-        # Actually, the model should be registered on the current run. However, that fails with random errors
-        # saying that no files in output/final_model are available.
-        #    model_path = f"{DEFAULT_AML_UPLOAD_DIR}/{FINAL_MODEL_FOLDER}"
-        #    logging.info(f"Registering the model on run {RUN_CONTEXT.id}, using files in {model_path}")
-        #    # This is necessary to avoid random failures at model registration, where it says that no files
-        #    # have been uploaded yet.
-        #    RUN_CONTEXT.flush()
-        #    # When registering the model on the run, we need to provide a relative path inside of the run's output
-        #    # folder in `model_path`
-        #    model = RUN_CONTEXT.register_model(
-        #        model_name=self.model_config.model_name,
-        #        model_path=model_path,
-        #        tags=RUN_CONTEXT.get_tags(),
-        #        description=description
-        #    )
+        if is_offline_run:
+            model = Model.register(
+                workspace=self.azure_config.get_workspace(),
+                model_name=self.model_config.model_name,
+                model_path=str(final_model_folder),
+                description=description
+            )
+        else:
+            # The files for the final model can't live in the outputs folder. If they do: when registering the model,
+            # the files are not yet uploaded by hosttools, and may (or not) cause errors. Hence, place the folder
+            # for the final models outside of "outputs", and upload manually.
+            model_path_in_run = FINAL_MODEL_FOLDER
+            logging.info(f"Uploading files in {final_model_folder} to the run with prefix '{model_path_in_run}'")
+            RUN_CONTEXT.upload_folder(model_path_in_run, final_model_folder)
+            logging.info(f"Registering the model on run {RUN_CONTEXT.id}")
+            # When registering the model on the run, we need to provide a relative path inside of the run's output
+            # folder in `model_path`
+            model = RUN_CONTEXT.register_model(
+                model_name=self.model_config.model_name,
+                model_path=model_path_in_run,
+                tags=RUN_CONTEXT.get_tags(),
+                description=description
+            )
 
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
 

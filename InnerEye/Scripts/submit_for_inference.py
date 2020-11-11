@@ -17,7 +17,7 @@ from InnerEye.Azure.azure_config import AzureConfig, SourceConfig
 from InnerEye.Azure.azure_runner import create_estimator_from_configs
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
-from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, ENVIRONMENT_YAML_FILE_NAME, SCORE_SCRIPT
+from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, ENVIRONMENT_YAML_FILE_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.utils.io_util import MedicalImageFileType
 

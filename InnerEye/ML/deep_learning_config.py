@@ -20,7 +20,7 @@ from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import ModelExecutionMode, create_unique_timestamp_id, create_checkpoint_path
+from InnerEye.ML.common import ModelExecutionMode, create_checkpoint_path, create_unique_timestamp_id
 
 VISUALIZATION_FOLDER = "Visualizations"
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
@@ -110,6 +110,8 @@ class DeepLearningFileSystemConfig(Parameterized):
                                                doc="The folder where all training and test outputs should go.")
     logs_folder: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
                                             doc="The folder for all log files and Tensorboard event files")
+    model_folder: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
+                                             doc="The folder with all files for the registered model")
     project_root: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
                                              doc="The root folder for the codebase that triggers the training run.")
     run_folder: Optional[Path] = param.ClassSelector(class_=Path, default=None, instantiate=False,
@@ -150,17 +152,23 @@ class DeepLearningFileSystemConfig(Parameterized):
             run_folder = root / f"{timestamp}_{model_name}"
             outputs_folder = run_folder
             logs_folder = run_folder / DEFAULT_LOGS_DIR_NAME
+            model_folder = run_folder / FINAL_MODEL_FOLDER
         else:
             logging.info("Running inside AzureML.")
             logging.info("All results will be written to a subfolder of the project root folder.")
             run_folder = None
             outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
             logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
+            # Inside of AzureML, the model folder should NOT live inside of the outputs folder, because
+            # files will be uploaded explicitly from this folder to the run. Automatic uploads later might
+            # cause name conflicts.
+            model_folder = project_root / FINAL_MODEL_FOLDER
         logging.info(f"Run outputs folder: {outputs_folder}")
         logging.info(f"Logs folder: {logs_folder}")
         return DeepLearningFileSystemConfig(
             outputs_folder=outputs_folder,
             logs_folder=logs_folder,
+            model_folder=model_folder,
             project_root=project_root,
             run_folder=run_folder
         )
@@ -504,7 +512,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         Gets the full path for all files that will be part of the final registered model.
         """
-        return self.outputs_folder / FINAL_MODEL_FOLDER
+        return self.file_system_config.model_folder
 
     @property
     def visualization_folder(self) -> Path:
