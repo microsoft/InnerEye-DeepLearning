@@ -27,7 +27,7 @@ from pathlib import Path
 INNEREYE_SUBMODULE_NAME = "innereye-deeplearning"
 
 
-def main() -> None:
+def main():  # type: ignore
     project_root = Path(__file__).parent.absolute()
     submodule_dir = project_root / INNEREYE_SUBMODULE_NAME
     if submodule_dir.exists():

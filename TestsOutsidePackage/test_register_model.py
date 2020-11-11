@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import os
 import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -142,7 +143,7 @@ def test_register_and_score_model(is_ensemble: bool,
         [return_code1, stdout1] = SubprocessConfig(process="python", args=["--version"]).spawn_and_monitor_subprocess()
         assert return_code1 == 0
         print(f"Executing Python version {stdout1[0]}")
-        return_code, _ = SubprocessConfig(process="python", args=[
+        return_code, stdout2 = SubprocessConfig(process="python", args=[
             str(model_root / fixed_paths.PYTHON_WRAPPER_SCRIPT),
             "--spawnprocess=python",
             str(model_root / fixed_paths.SCORE_SCRIPT),
@@ -152,7 +153,7 @@ def test_register_and_score_model(is_ensemble: bool,
         ]).spawn_and_monitor_subprocess()
 
         # check that the process completed as expected
-        assert return_code == 0, f"Subprocess failed with return code {return_code}"
+        assert return_code == 0, f"Subprocess failed with return code {return_code}. Stdout: {os.linesep.join(stdout2)}"
         expected_segmentation_path = Path(model_root) / DEFAULT_RESULT_IMAGE_NAME
         assert expected_segmentation_path.exists(), f"Result file not found: {expected_segmentation_path}"
 
