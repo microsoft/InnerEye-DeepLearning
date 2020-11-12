@@ -191,10 +191,10 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert train_config.logs_folder.is_dir()
 
     # The train and val folder should contain Tensorflow event files
-    assert (train_config.logs_folder / "train").is_dir()
-    assert (train_config.logs_folder / "val").is_dir()
-    assert len([(train_config.logs_folder / "train").glob("*")]) == 1
-    assert len([(train_config.logs_folder / "val").glob("*")]) == 1
+    assert (train_config.logs_folder / "train_proc0").is_dir()
+    assert (train_config.logs_folder / "val_proc0").is_dir()
+    assert len([(train_config.logs_folder / "train_proc0").glob("*")]) == 1
+    assert len([(train_config.logs_folder / "val_proc0").glob("*")]) == 1
 
     # Checkpoint folder
     # With these settings, we should see a checkpoint only at epoch 2:
