@@ -43,8 +43,8 @@ def get_most_recent_run() -> str:
         # Consequently, local execution of tests that use this run may fail, while executing in the cloud passes.
         # In this case, modify the run here to something more recent.
         print("Using hardcoded run ID.")
-        # This is Run 54 in refs_pull_276_merge
-        return "refs_pull_276_merge:refs_pull_276_merge_1605014426_591da1f2"
+        # This is Run 89 in refs_pull_276_merge
+        return "refs_pull_276_merge:refs_pull_276_merge_1605139760_18b251e1"
 
 
 def get_most_recent_model() -> Model:
@@ -118,6 +118,3 @@ def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     assert not seg_path.exists(), f"Result file {seg_path} should not yet exist"
     submit_for_inference.main(args, project_root=fixed_paths.repository_root_directory())
     assert seg_path.exists(), f"Result file {seg_path} was not created"
-    # Reduce the number of models that we keep from the PR builds
-    if is_running_on_azure_agent():
-        model.delete()
