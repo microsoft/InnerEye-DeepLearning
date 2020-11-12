@@ -3,12 +3,14 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import os
 from pathlib import Path
 from typing import Any, List, Optional, Union
 
 import numpy as np
 import pytest
 import torch
+from PIL import Image
 from azureml.core import Workspace
 
 from InnerEye.Azure.azure_config import AzureConfig
@@ -22,6 +24,8 @@ from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.io_util import ImageHeader, ImageWithHeader
 from InnerEye.ML.utils.ml_util import is_gpu_available
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 TEST_CHANNEL_IDS = ["channel1", "channel2"]
@@ -32,9 +36,9 @@ machine_has_gpu = is_gpu_available()
 no_gpu_available = not machine_has_gpu
 
 
-def create_dataset_csv_file(csv_string: str, dst: str) -> Path:
+def create_dataset_csv_file(csv_string: str, dst: Path) -> Path:
     """Creates a dataset.csv in the destination path from the csv_string provided"""
-    (Path(dst) / "dataset.csv").write_text(csv_string)
+    (dst / "dataset.csv").write_text(csv_string)
     return Path(dst)
 
 
@@ -79,7 +83,7 @@ def load_train_and_test_data_channels(patient_ids: List[int],
     return samples
 
 
-def assert_file_contents(full_file: Union[str, Path], expected: Any = None) -> None:
+def assert_file_contains_string(full_file: Union[str, Path], expected: Any = None) -> None:
     """
     Checks if the given file contains an expected string
     :param full_file: The path to the file.
@@ -92,7 +96,7 @@ def assert_file_contents(full_file: Union[str, Path], expected: Any = None) -> N
         _assert_line(file_path.read_text(), expected)
 
 
-def assert_file_contents_match_exactly(full_file: Path, expected_file: Path) -> None:
+def assert_text_files_match(full_file: Path, expected_file: Path) -> None:
     """
     Checks line by line (ignoring leading and trailing spaces) if the given two files contains the exact same strings
     :param full_file: The path to the file.
@@ -157,7 +161,29 @@ def assert_tensors_equal(t1: torch.Tensor, t2: Union[torch.Tensor, List], abs: f
     assert v1 == pytest.approx(v2, abs=abs), f"Tensor elements don't match with tolerance {abs}: {v1} != {v2}"
 
 
-DummyPatientMetadata = PatientMetadata(patient_id=42)
+def assert_binary_files_match(actual_file: Path, expected_file: Path) -> None:
+    """
+    Checks if two files contain exactly the same bytes. If PNG files mismatch, additional diagnostics is printed.
+    """
+    # Uncomment this line to batch-update all result files that use this assert function
+    # expected_file.write_bytes(actual_file.read_bytes())
+    assert_file_exists(actual_file)
+    assert_file_exists(expected_file)
+    actual = actual_file.read_bytes()
+    expected = expected_file.read_bytes()
+    if actual == expected:
+        return
+    if actual_file.suffix == ".png" and expected_file.suffix == ".png":
+        actual_image = Image.open(actual_file)
+        expected_image = Image.open(expected_file)
+        actual_size = actual_image.size
+        expected_size = expected_image.size
+        assert actual_size == expected_size, f"Image sizes don't match: actual {actual_size}, expected {expected_size}"
+        assert np.allclose(np.array(actual_image), np.array(expected_image)), "Image pixel data does not match."
+    assert False, f"File contents does not match: len(actual)={len(actual)}, len(expected)={len(expected)}"
+
+
+DummyPatientMetadata = PatientMetadata(patient_id='42')
 
 
 def get_model_loader(namespace: Optional[str] = None) -> ModelConfigLoader[SegmentationModelBase]:
@@ -176,9 +202,26 @@ def get_default_azure_config() -> AzureConfig:
                                  project_root=fixed_paths.repository_root_directory())
 
 
+def get_default_checkpoint_handler(model_config: DeepLearningConfig, project_root: Path) -> CheckpointHandler:
+    """
+    Gets a checkpoint handler, using the given model config and the default azure configuration.
+    """
+    azure_config = get_default_azure_config()
+    return CheckpointHandler(azure_config=azure_config, model_config=model_config,
+                             project_root=project_root)
+
+
 def get_default_workspace() -> Workspace:
     """
     Gets the project's default AzureML workspace.
     :return:
     """
     return get_default_azure_config().get_workspace()
+
+
+def is_running_on_azure() -> bool:
+    """
+    Returns True if the code appears to be running on an Azure build agent, and False otherwise.
+    """
+    # Guess by looking at the AGENT_OS variable, that all Azure hosted agents define.
+    return bool(os.environ.get("AGENT_OS", None))

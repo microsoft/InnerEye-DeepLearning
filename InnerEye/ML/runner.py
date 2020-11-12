@@ -192,8 +192,8 @@ class Runner:
         # perform aggregation as cross val splits are now ready
         plot_crossval_config = crossval_config_from_model_config(self.model_config)
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
-        plot_crossval_config.outputs_directory = str(self.model_config.outputs_folder)
-        plot_crossval_config.settings_yaml_file = str(self.yaml_config_file)
+        plot_crossval_config.outputs_directory = self.model_config.outputs_folder
+        plot_crossval_config.settings_yaml_file = self.yaml_config_file
         cross_val_results_root = plot_cross_validation(plot_crossval_config)
         if self.post_cross_validation_hook:
             self.post_cross_validation_hook(self.model_config, cross_val_results_root)
@@ -215,19 +215,19 @@ class Runner:
         Call MLRunner again after training cross-validation models, to create an ensemble model from them.
         """
         # Import only here in case of dependency issues in reduced environment
-        from InnerEye.ML.utils.run_recovery import RunRecovery
-        with logging_section("Downloading checkpoints from sibling runs"):
-            run_recovery = RunRecovery.download_checkpoints_from_run(
-                self.azure_config, self.model_config, PARENT_RUN_CONTEXT, output_subdir_name=OTHER_RUNS_SUBDIR_NAME)
-            # Check paths are good, just in case
-            for path in run_recovery.checkpoints_roots:
-                if not path.is_dir():
-                    raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
+        from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
         # Adjust parameters
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
-        best_epoch = self.create_ml_runner().run_inference_and_register_model(run_recovery,
+
+        with logging_section("Downloading checkpoints from sibling runs"):
+            checkpoint_handler = CheckpointHandler(model_config=self.model_config, azure_config=self.azure_config,
+                                                   project_root=self.project_root, run_context=PARENT_RUN_CONTEXT)
+            checkpoint_handler.discover_and_download_checkpoint_from_sibling_runs(
+                output_subdir_name=OTHER_RUNS_SUBDIR_NAME)
+
+        best_epoch = self.create_ml_runner().run_inference_and_register_model(checkpoint_handler=checkpoint_handler,
                                                                               model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
         crossval_dir = self.plot_cross_validation_and_upload_results()
@@ -330,9 +330,8 @@ class Runner:
             raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
         model_config_overrides = str(self.model_config.overrides)
         source_config = SourceConfig(
-            root_folder=str(self.project_root),
-            entry_script=os.path.abspath(sys.argv[0]),
-
+            root_folder=self.project_root,
+            entry_script=Path(sys.argv[0]).resolve(),
             conda_dependencies_files=[get_environment_yaml_file(),
                                       self.project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME],
             hyperdrive_config_func=lambda estimator: self.model_config.get_hyperdrive_config(estimator),

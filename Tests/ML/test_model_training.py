@@ -2,16 +2,18 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import os
+from pathlib import Path
 from typing import Any, List
 
+import h5py
 import numpy as np
 import pandas as pd
 import pytest
+import shutil
 from torch.utils.data import DataLoader
 
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics, model_training
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
@@ -23,9 +25,14 @@ from InnerEye.ML.model_training import model_train
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForSegmentation
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.sequence_config import SequenceModelBase
+from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.utils.training_util import ModelTrainingResults
+from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
+from InnerEye.ML.utils.run_recovery import RunRecovery
+
+from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import assert_file_contents
+from Tests.ML.util import assert_file_contains_string
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 config_path = full_ml_test_data_path()
@@ -77,6 +84,15 @@ def test_get_test_epochs() -> None:
     c = DeepLearningConfig(num_epochs=100, test_start_epoch=200, test_diff_epochs=None, test_step_epochs=10,
                            should_validate=False)
     assert c.get_test_epochs() == [100]
+    c = DeepLearningConfig(num_epochs=100, epochs_to_test=[1, 3, 5],
+                           should_validate=False)
+    assert c.get_test_epochs() == [1, 3, 5, 100]
+
+    # epochs_to_test should have precedence over (test_start_epoch, test_diff_epochs and test_step_epochs)
+    c = DeepLearningConfig(num_epochs=150, epochs_to_test=[1, 3, 5],
+                           test_start_epoch=100, test_diff_epochs=2, test_step_epochs=10,
+                           should_validate=False)
+    assert c.get_test_epochs() == [1, 3, 5, 150]
 
 
 def test_get_total_number_of_validation_epochs() -> None:
@@ -108,18 +124,18 @@ def test_get_total_number_of_training_epochs() -> None:
 
 @pytest.mark.parametrize("image_channels", [["region"], ["random_123"]])
 @pytest.mark.parametrize("ground_truth_ids", [["region", "region"], ["region", "other_region"]])
-def test_invalid_model_train(test_output_dirs: TestOutputDirectories, image_channels: Any,
+def test_invalid_model_train(test_output_dirs: OutputFolderForTests, image_channels: Any,
                              ground_truth_ids: Any) -> None:
     with pytest.raises(ValueError):
         _test_model_train(test_output_dirs, image_channels, ground_truth_ids)
 
 
 @pytest.mark.parametrize("no_mask_channel", [True, False])
-def test_valid_model_train(test_output_dirs: TestOutputDirectories, no_mask_channel: bool) -> None:
+def test_valid_model_train(test_output_dirs: OutputFolderForTests, no_mask_channel: bool) -> None:
     _test_model_train(test_output_dirs, ["channel1", "channel2"], ["region", "region_1"], no_mask_channel)
 
 
-def _test_model_train(output_dirs: TestOutputDirectories,
+def _test_model_train(output_dirs: OutputFolderForTests,
                       image_channels: Any,
                       ground_truth_ids: Any,
                       no_mask_channel: bool = False) -> None:
@@ -149,7 +165,10 @@ def _test_model_train(output_dirs: TestOutputDirectories,
     expected_learning_rates = [[train_config.l_rate], [5.3589e-4]]
 
     loss_absolute_tolerance = 1e-3
-    model_training_result = model_training.model_train(train_config)
+    checkpoint_handler = get_default_checkpoint_handler(model_config=train_config,
+                                                       project_root=Path(output_dirs.root_dir))
+    model_training_result = model_training.model_train(train_config,
+                                                       checkpoint_handler=checkpoint_handler)
     assert isinstance(model_training_result, ModelTrainingResults)
 
     # check to make sure training batches are NOT all the same across epochs
@@ -183,17 +202,21 @@ def _test_model_train(output_dirs: TestOutputDirectories,
     assert train_config.save_start_epoch == 1
     assert train_config.save_step_epochs == 100
     assert train_config.num_epochs == 2
-    assert os.path.isdir(train_config.checkpoint_folder)
-    assert os.path.isfile(os.path.join(train_config.checkpoint_folder, "2" + CHECKPOINT_FILE_SUFFIX))
+    assert train_config.checkpoint_folder.is_dir()
+    assert (train_config.checkpoint_folder / ("2" + CHECKPOINT_FILE_SUFFIX)).is_file()
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.VAL]).is_file()
-    assert_file_contents(train_config.outputs_folder / TRAIN_STATS_FILE, expected_stats)
+    assert_file_contains_string(train_config.outputs_folder / TRAIN_STATS_FILE, expected_stats)
 
     # Test for saving of example images
-    assert os.path.isdir(train_config.example_images_folder)
-    example_files = os.listdir(train_config.example_images_folder)
+    assert train_config.example_images_folder.is_dir()
+    example_files = list(train_config.example_images_folder.rglob("*.*"))
     assert len(example_files) == 3 * 2
+    # Path visualization: There should be 3 slices for each of the 2 subjects
+    sampling_folder = train_config.outputs_folder / PATCH_SAMPLING_FOLDER
+    assert sampling_folder.is_dir()
+    assert len(list(sampling_folder.rglob("*.png"))) == 3 * 2
 
 
 @pytest.mark.parametrize(["rates", "expected"],
@@ -209,6 +232,10 @@ def test_format_learning_rate(rates: Any, expected: str) -> None:
 
 def test_create_data_loaders() -> None:
     train_config = DummyModel()
+    create_data_loaders(train_config)
+
+
+def create_data_loaders(train_config: DummyModel) -> None:
     train_config.train_batch_size = 1
     train_config.local_dataset = base_path
     # create the dataset splits
@@ -231,6 +258,68 @@ def test_create_data_loaders() -> None:
         check_patient_id_in_dataset(loader, split)
 
 
+def test_create_data_loaders_hdf5(test_output_dirs: OutputFolderForTests) -> None:
+    dataset_dir = convert_nifti_data_to_hdf5(test_output_dirs.root_dir)
+    train_config = DummyModel()
+    train_config.local_dataset = dataset_dir
+    create_data_loaders(train_config)
+
+
+def convert_nifti_data_to_hdf5(output_hdf5_dir: Path) -> Path:
+    # create dataset in hdf5
+    csv_str = (base_path / "dataset.csv").read_text()
+    csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel1",
+                              "p1.h5|volume|0,channel1")
+    csv_str = csv_str.replace("train_and_test_data/id1_channel1.nii.gz,channel2",
+                              "p1.h5|volume|1,channel2")
+    csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel1",
+                              "p2.h5|volume|0,channel1")
+    csv_str = csv_str.replace("train_and_test_data/id2_channel1.nii.gz,channel2",
+                              "p2.h5|volume|1,channel2")
+    # segmentation
+    csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region",
+                              "p1.h5|region|0,region")
+    csv_str = csv_str.replace("train_and_test_data/id1_region.nii.gz,region_1",
+                              "p2.h5|region|0,region_1")
+    csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region",
+                              "p2.h5|region|0,region")
+    csv_str = csv_str.replace("train_and_test_data/id2_region.nii.gz,region_1",
+                              "p2.h5|region_1|1,region_1")
+    # mask
+    csv_str = csv_str.replace("train_and_test_data/id1_mask.nii.gz,mask",
+                              "p1.h5|mask|0,mask")
+    csv_str = csv_str.replace("train_and_test_data/id2_mask.nii.gz,mask",
+                              "p2.h5|mask|0,mask")
+
+    dataset_dir = output_hdf5_dir / "hdf5_dataset"
+    dataset_dir.mkdir(parents=True, exist_ok=True)
+    (dataset_dir / "dataset.csv").write_text(csv_str)
+    train_data = base_path / "train_and_test_data"
+    create_hdf5_from_nifti(train_data / "id1_channel1.nii.gz", train_data / "id1_region.nii.gz",
+                           train_data / "id1_mask.nii.gz",
+                           dataset_dir / "p1.h5")
+    create_hdf5_from_nifti(train_data / "id2_channel1.nii.gz", train_data / "id2_region.nii.gz",
+                           train_data / "id2_mask.nii.gz",
+                           dataset_dir / "p2.h5")
+    return dataset_dir
+
+
+def create_hdf5_from_nifti(input_nifti_volume: Path, input_nifti_seg: Path, input_nifti_mask: Path,
+                           output_h5: Path) -> None:
+    volume = load_nifti_image(input_nifti_volume).image
+    volume_with_channels = np.expand_dims(volume, axis=0)
+    volume_with_channels = np.resize(volume_with_channels, (2,) + volume_with_channels.shape[1:])
+    segmentation = load_nifti_image(input_nifti_seg).image
+    seg_with_channels = np.expand_dims(segmentation, axis=0)
+    mask = load_nifti_image(input_nifti_mask).image
+    mask_with_channels = np.expand_dims(mask, axis=0)
+    with h5py.File(str(output_h5), 'w') as hf:
+        hf.create_dataset('volume', data=volume_with_channels, compression="gzip", compression_opts=9)
+        hf.create_dataset('region', data=seg_with_channels, compression="gzip", compression_opts=9)
+        hf.create_dataset('region_1', data=seg_with_channels, compression="gzip", compression_opts=9)
+        hf.create_dataset('mask', data=mask_with_channels, compression="gzip", compression_opts=9)
+
+
 def test_construct_loss_function() -> None:
     model_config = DummyModel()
     model_config.loss_type = SegmentationLoss.Mixture
@@ -246,7 +335,7 @@ def test_construct_loss_function() -> None:
     assert loss_fn.components[1][0] == weights[1] / sum(weights)
 
 
-def test_recover_training_mean_teacher_model() -> None:
+def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> None:
     """
     Tests that training can be recovered from a previous checkpoint.
     """
@@ -255,11 +344,20 @@ def test_recover_training_mean_teacher_model() -> None:
 
     # First round of training
     config.num_epochs = 2
-    model_train(config)
-    assert len(os.listdir(config.checkpoint_folder)) == 1
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
+    model_train(config, checkpoint_handler=checkpoint_handler)
+    assert len(list(config.checkpoint_folder.rglob("*.*"))) == 1
 
     # Restart training from previous run
     config.start_epoch = 2
     config.num_epochs = 3
-    model_train(config)
-    assert len(os.listdir(config.checkpoint_folder)) == 2
+    # make if seem like run recovery objects have been downloaded
+    checkpoint_root = config.checkpoint_folder / "recovered"
+    shutil.copytree(config.checkpoint_folder, checkpoint_root)
+    checkpoint_handler.run_recovery = RunRecovery([checkpoint_root])
+
+    model_train(config, checkpoint_handler=checkpoint_handler)
+    # remove recovery checkpoints
+    shutil.rmtree(checkpoint_root)
+    assert len(list(config.checkpoint_folder.rglob("*.*"))) == 2

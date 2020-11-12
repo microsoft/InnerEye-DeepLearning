@@ -130,29 +130,28 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
     model_id = model.id
     logging.info(f"Identified model {model_id}")
     source_directory = tempfile.TemporaryDirectory()
-    source_directory_name = source_directory.name
-    logging.info(f"Building inference run submission in {source_directory_name}")
-    source_directory_path = Path(source_directory_name)
+    source_directory_path = Path(source_directory.name)
+    logging.info(f"Building inference run submission in {source_directory_path}")
     copy_image_file(args.image_file, source_directory_path / DEFAULT_DATA_FOLDER)
     # We copy over run_scoring.py, and score.py as well in case the model we're using
     # does not have sufficiently recent versions of those files.
     for base in ["run_scoring.py", "score.py"]:
         shutil.copyfile(base, str(source_directory_path / base))
     source_config = SourceConfig(
-        root_folder=source_directory_name,
-        entry_script=str(source_directory_path / "run_scoring.py"),
+        root_folder=source_directory_path,
+        entry_script=source_directory_path / "run_scoring.py",
         script_params={"--data-folder": ".", "--spawnprocess": "python",
                        "--model-id": model_id, "score.py": ""},
         conda_dependencies_files=download_conda_dependency_files(model, source_directory_path)
     )
-    estimator = create_estimator_from_configs(workspace, azure_config, source_config, [])
+    estimator = create_estimator_from_configs(azure_config, source_config, [])
     exp = Experiment(workspace=workspace, name=args.experiment_name)
     run = exp.submit(estimator)
     logging.info(f"Submitted run {run.id} in experiment {run.experiment.name}")
     logging.info(f"Run URL: {run.get_portal_url()}")
     if not args.keep_upload_folder:
         source_directory.cleanup()
-        logging.info(f"Deleted submission directory {source_directory_name}")
+        logging.info(f"Deleted submission directory {source_directory_path}")
     if args.download_folder is None:
         return None
     logging.info("Awaiting run completion")

@@ -2,19 +2,19 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import math
 from io import StringIO
 from pathlib import Path
 from typing import List, Optional, Union
 from unittest import mock
 
-import math
 import numpy as np
 import pandas as pd
 import pytest
 import torch
 
 from InnerEye.Common.common_util import is_windows
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.dataset.full_image_dataset import collate_with_metadata
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
@@ -530,7 +530,7 @@ def test_seq_to_tensor() -> None:
     assert stacked.shape == (len(items), item1.numel())
 
 
-def test_sequence_dataset_all(test_output_dirs: TestOutputDirectories) -> None:
+def test_sequence_dataset_all(test_output_dirs: OutputFolderForTests) -> None:
     """
     Check that the sequence dataset works end-to-end, including applying the right standardization.
     """
@@ -599,7 +599,7 @@ S4,0,True,4,40,M2,B1
         assert_tensors_equal(test_items[0].items[0].get_all_non_imaging_features(), [3., 3., 0., 1., 1., 0.])
 
 
-def test_get_class_weights_dataset(test_output_dirs: TestOutputDirectories) -> None:
+def test_get_class_weights_dataset(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and testing of sequence models that predicts at multiple time points,
     when it is started via run_ml.

@@ -17,7 +17,6 @@ from InnerEye.Azure.azure_util import RUN_CONTEXT, download_outputs_from_run, fe
 from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.ML.common import create_checkpoint_path
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig
-from InnerEye.ML.model_config_base import ModelConfigBase
 
 
 @dataclass(frozen=True)
@@ -29,7 +28,7 @@ class RunRecovery:
 
     @staticmethod
     def download_checkpoints_from_recovery_run(azure_config: AzureConfig,
-                                               config: ModelConfigBase,
+                                               config: DeepLearningConfig,
                                                run_context: Optional[Run] = None) -> RunRecovery:
         """
         Downloads checkpoints of run corresponding to the run_recovery_id in azure_config, and any
@@ -56,11 +55,10 @@ class RunRecovery:
             run_to_recover = next(x for x in fetch_child_runs(run_to_recover) if
                                   get_cross_validation_split_index(x) == get_cross_validation_split_index(run_context))
 
-        return RunRecovery.download_checkpoints_from_run(azure_config, config, run_to_recover)
+        return RunRecovery.download_checkpoints_from_run(config, run_to_recover)
 
     @staticmethod
-    def download_checkpoints_from_run(azure_config: AzureConfig,
-                                      config: ModelConfigBase,
+    def download_checkpoints_from_run(config: DeepLearningConfig,
                                       run: Run,
                                       output_subdir_name: Optional[str] = None) -> RunRecovery:
         """
@@ -78,12 +76,12 @@ class RunRecovery:
         if output_subdir_name:
             # From e.g. parent_dir/checkpoints we want parent_dir/output_subdir_name, to which we will
             # append split_index / checkpoints below to create child_dst.
-            checkpoint_path = Path(config.checkpoint_folder)
+            checkpoint_path = config.checkpoint_folder
             parent_path = checkpoint_path.parent
             checkpoint_subdir_name = checkpoint_path.name
             root_output_dir = parent_path / output_subdir_name
         else:
-            root_output_dir = Path(config.checkpoint_folder) / run.id
+            root_output_dir = config.checkpoint_folder / run.id
             checkpoint_subdir_name = None
         # download checkpoints for the run
         download_outputs_from_run(
@@ -99,7 +97,7 @@ class RunRecovery:
             for child in child_runs:
                 if child.id == RUN_CONTEXT.id:
                     # We expect to find the file(s) we need in config.checkpoint_folder
-                    child_dst = Path(config.checkpoint_folder)
+                    child_dst = config.checkpoint_folder
                 else:
                     subdir = str(child.tags[tag_to_use] if can_use_split_indices else child.number)
                     if checkpoint_subdir_name:
@@ -127,58 +125,3 @@ class RunRecovery:
     def __post_init__(self) -> None:
         self._validate()
         logging.info(f"Recovering from checkpoints roots: {self.checkpoints_roots}")
-
-
-def get_recovery_path_train(run_recovery: Optional[RunRecovery],
-                            epoch: int) -> Optional[Path]:
-    """
-    Decides the checkpoint path to use for the current training run. If a run recovery object is used, use the
-    checkpoint from there, otherwise use the checkpoints from the current run.
-    :param run_recovery: Optional run recovery object
-    :param epoch: Epoch to recover
-    :return: Constructed checkpoint path to recover from.
-    """
-    checkpoint_paths: Optional[Path]
-    if run_recovery:
-        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch)[0]
-    else:
-        logging.warning("No run recovery object provided to recover checkpoint from.")
-        checkpoint_paths = None
-    return checkpoint_paths
-
-
-def get_recovery_path_test(config: DeepLearningConfig, run_recovery: Optional[RunRecovery],
-                           epoch: int) -> Optional[List[Path]]:
-    """
-    Decides the checkpoint path to use for inference/registration. If a run recovery object is used, use the
-    checkpoint from there. If this checkpoint does not exist, or a run recovery object is not supplied,
-    use the checkpoints from the current run.
-    :param config: configuration file
-    :param run_recovery: Optional run recovery object
-    :param epoch: Epoch to recover
-    :return: Constructed checkpoint path to recover from.
-    """
-    if run_recovery:
-        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch)
-        checkpoint_exists = []
-        # Discard any checkpoint paths that do not exist - they will make inference/registration fail.
-        # This can happen when some child runs fail; it may still be worth running inference
-        # or registering the model.
-        for path in checkpoint_paths:
-            if path.is_file():
-                checkpoint_exists.append(path)
-            else:
-                logging.warning(f"Could not recover checkpoint path {path}")
-
-        if len(checkpoint_exists) > 0:
-            return checkpoint_exists
-
-    logging.warning(f"Using checkpoints from current run, "
-                    f"could not find any run recovery checkpoints for epoch {epoch}")
-    # We found the checkpoint(s) in the run being recovered. If we didn't, it's probably because the epoch
-    # is from the current run, which has been doing more training, so we look for it there.
-    checkpoint_path = config.get_path_to_checkpoint(epoch)
-    if not checkpoint_path.is_file():
-        logging.warning(f"Could not find checkpoint at path {checkpoint_path}")
-        return None
-    return [checkpoint_path]

@@ -67,8 +67,11 @@ class AzureConfig(GenericConfig):
         param.String(doc="Optional: The access key for the storage account that holds the datasets. "
                          "This is only used for downloading datasets outside of AzureML.")
     datasets_container: str = param.String(doc="Optional: The blob storage container with the datasets.")
+    azureml_datastore: str = param.String(doc="The name of the AzureML datastore that holds the input training data. "
+                                              "This must be created manually, and point to a folder inside the "
+                                              "datasets storage account.")
     workspace_name: str = param.String(doc="The name of the AzureML workspace that should be used.")
-    resource_group: str = param.String(None, doc="The Azure resource group that contains the AzureML workspace.")
+    resource_group: str = param.String(doc="The Azure resource group that contains the AzureML workspace.")
     docker_shm_size: str = param.String("440g", doc="The shared memory in the docker image for the AzureML VMs.")
     hyperdrive: bool = param.Boolean(False, doc="If True, use AzureML HyperDrive for run execution.")
     cluster: str = param.String(doc="The name of the GPU cluster inside the AzureML workspace, that should "
@@ -133,6 +136,10 @@ class AzureConfig(GenericConfig):
     def __init__(self, **params: Any) -> None:
         super().__init__(**params)
         self.git_information: Optional[GitInformation] = None
+
+    def validate(self) -> None:
+        if self.register_model_only_for_epoch and not self.run_recovery_id:
+            raise ValueError("If register_model_only_for_epoch is set, must also provide a valid run_recovery_id")
 
     def get_git_information(self) -> GitInformation:
         """
@@ -251,8 +258,8 @@ class SourceConfig:
     Contains all information that is required to submit a script to AzureML: Entry script, arguments,
     and information to set up the Python environment inside of the AzureML virtual machine.
     """
-    root_folder: str
-    entry_script: str
+    root_folder: Path
+    entry_script: Path
     conda_dependencies_files: List[Path]
     script_params: Optional[Dict[str, str]] = None
     hyperdrive_config_func: Optional[Callable[[MMLBaseEstimator], HyperDriveConfig]] = None

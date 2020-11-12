@@ -17,13 +17,13 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.Common.generic_parsing import GenericConfig
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.ML.run_ml import MLRunner
-from InnerEye.ML.utils.io_util import ImageHeader
+from InnerEye.ML.utils.image_util import get_unit_image_header
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_default_workspace, get_model_loader, \
     get_nifti_shape
 from Tests.fixed_paths_for_tests import RELATIVE_TEST_OUTPUTS_PATH, full_ml_test_data_path, tests_root_directory
@@ -55,7 +55,7 @@ class SubprocessConfig(GenericConfig):
 def test_register_and_score_model(is_ensemble: bool,
                                   dataset_expected_spacing_xyz: Any,
                                   model_outside_package: bool,
-                                  test_output_dirs: TestOutputDirectories) -> None:
+                                  test_output_dirs: OutputFolderForTests) -> None:
     """
     End-to-end test which ensures the scoring pipeline is functioning as expected by performing the following:
     1) Registering a pre-trained model to AML
@@ -72,8 +72,8 @@ def test_register_and_score_model(is_ensemble: bool,
     config.set_output_to(test_output_dirs.root_dir)
     # copy checkpoints into the outputs (simulating a run)
     stored_checkpoints = full_ml_test_data_path(os.path.join("train_and_test_data", "checkpoints"))
-    shutil.copytree(str(stored_checkpoints), config.checkpoint_folder)
-    paths = [Path(config.checkpoint_folder) / "1_checkpoint.pth.tar"]
+    shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
+    paths = [config.checkpoint_folder / "1_checkpoint.pth.tar"]
     checkpoints = paths * 2 if is_ensemble else paths
     model = None
     model_path = None
@@ -115,7 +115,7 @@ def test_register_and_score_model(is_ensemble: bool,
             model_root = Path(model.download(str(test_output_dirs.root_dir)))
             # create a dummy datastore to store model checkpoints and image data
             # this simulates the code shapshot being executed in a real run
-            test_datastore = Path(test_output_dirs.root_dir) / "test_datastore"
+            test_datastore = test_output_dirs.root_dir / "test_datastore"
             shutil.move(
                 str(model_root / "test_outputs"),
                 str(test_datastore / RELATIVE_TEST_OUTPUTS_PATH)
@@ -142,7 +142,7 @@ def test_register_and_score_model(is_ensemble: bool,
 
             # sanity check the resulting segmentation
             expected_shape = get_nifti_shape(img_channel_1_path)
-            image_header = ImageHeader(origin=(0, 0, 0), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=(1, 1, 1))
+            image_header = get_unit_image_header()
             assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [0], np.ubyte)
 
         finally:

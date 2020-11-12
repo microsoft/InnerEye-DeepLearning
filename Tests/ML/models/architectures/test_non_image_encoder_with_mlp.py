@@ -9,13 +9,15 @@ import pandas as pd
 import pytest
 
 from InnerEye.Common import common_util
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import create_mlp
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.split_dataset import DatasetSplits
+
+from Tests.ML.util import get_default_checkpoint_handler
 
 
 class NonImageEncoder(ScalarModelBase):
@@ -56,7 +58,7 @@ class NonImageEncoder(ScalarModelBase):
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issue on Windows build")
 @pytest.mark.parametrize("hidden_layer_num_feature_channels", [None, 2])
-def test_non_image_encoder(test_output_dirs: TestOutputDirectories,
+def test_non_image_encoder(test_output_dirs: OutputFolderForTests,
                            hidden_layer_num_feature_channels: Optional[int]) -> None:
     """
     Test if we can build a simple MLP model that only feeds off non-image features.
@@ -69,9 +71,11 @@ def test_non_image_encoder(test_output_dirs: TestOutputDirectories,
     config.max_batch_grad_cam = 1
     config.validate()
     # run model training
-    model_train(config)
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=Path(test_output_dirs.root_dir))
+    model_train(config, checkpoint_handler=checkpoint_handler)
     # run model inference
-    MLRunner(config).model_inference_train_and_test()
+    MLRunner(config).model_inference_train_and_test(checkpoint_handler=checkpoint_handler)
     assert config.get_total_number_of_non_imaging_features() == 18
 
 

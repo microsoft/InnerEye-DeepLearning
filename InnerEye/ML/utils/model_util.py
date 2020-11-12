@@ -6,7 +6,7 @@ import logging
 import os
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Dict
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -94,6 +94,14 @@ class ModelAndInfo:
             raise ValueError("Mean teacher model has not been created.")
         return self._mean_teacher_model
 
+    @staticmethod
+    def read_checkpoint(path_to_checkpoint: Path, use_gpu: bool) -> Dict[str, Any]:
+        # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
+        # if the model is small.
+        map_location = None if use_gpu else 'cpu'
+        checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
+        return checkpoint
+
     @classmethod
     def _load_checkpoint(cls, model: DeviceAwareModule, checkpoint_path: Path,
                          key_in_state_dict: str, use_gpu: bool, use_distributed_data_parallel: bool) -> int:
@@ -103,14 +111,19 @@ class ModelAndInfo:
         This method should not be called externally. Use instead try_load_checkpoint_for_model
         or try_load_checkpoint_for_mean_teacher_model
         :param model: model to load weights
+        :param checkpoint_path: Path to checkpoint
         :param key_in_state_dict: the key for the model weights in the checkpoint state dict
-        :return checkpoint epoch form the state dict
+        :param reader: Function which takes the path and returns a dict with model and optimizer states
+        :return checkpoint epoch from the state dict
         """
         logging.info(f"Loading checkpoint {checkpoint_path}")
-        # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
-        # if the model is small.
-        map_location = None if use_gpu else 'cpu'
-        checkpoint = torch.load(str(checkpoint_path), map_location=map_location)
+        checkpoint = ModelAndInfo.read_checkpoint(checkpoint_path, use_gpu)
+
+        try:
+            state_dict = checkpoint[key_in_state_dict]
+        except KeyError:
+            logging.error(f"Key {key_in_state_dict} not found in checkpoint")
+            return False
 
         if use_distributed_data_parallel:
             # Model was stored with DistributedDataParallel which stores the model in module, now loading without
@@ -118,11 +131,17 @@ class ModelAndInfo:
             for k, v in checkpoint['state_dict'].items():
                 name = k.replace('module.', '')  # remove `module.`
                 new_state_dict[name] = v
-            model.load_state_dict(new_state_dict)
+            result = model.load_state_dict(new_state_dict, strict=False)
         elif isinstance(model, torch.nn.DataParallel):
-            model.module.load_state_dict(checkpoint[key_in_state_dict])
+            result = model.module.load_state_dict(checkpoint[key_in_state_dict], strict=False)
         else:
-            model.load_state_dict(checkpoint[key_in_state_dict])
+            result = model.load_state_dict(state_dict, strict=False)
+
+        if result.missing_keys:
+            logging.warning(f"Missing keys in model checkpoint: {result.missing_keys}")
+        if result.unexpected_keys:
+            logging.warning(f"Unexpected keys in model checkpoint: {result.unexpected_keys}")
+
         return checkpoint[ModelAndInfo.EPOCH_KEY]
 
     @classmethod
@@ -398,13 +417,15 @@ class ModelAndInfo:
             return False
 
         logging.info(f"Loading checkpoint {self.checkpoint_path}")
-        # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
-        # if the model is small.
-        map_location = None if self.config.use_gpu else 'cpu'
-        checkpoint = torch.load(str(self.checkpoint_path), map_location=map_location)
+        checkpoint = ModelAndInfo.read_checkpoint(self.checkpoint_path, self.config.use_gpu)
 
-        if self._optimizer:
-            self._optimizer.load_state_dict(checkpoint[ModelAndInfo.OPTIMIZER_STATE_DICT_KEY])
+        try:
+            state_dict = checkpoint[ModelAndInfo.OPTIMIZER_STATE_DICT_KEY]
+        except KeyError:
+            logging.error(f"Key {ModelAndInfo.OPTIMIZER_STATE_DICT_KEY} not found in checkpoint")
+            return False
+
+        self._optimizer.load_state_dict(state_dict)
 
         logging.info(f"Loaded optimizer from checkpoint (epoch: {checkpoint[ModelAndInfo.EPOCH_KEY]})")
         self.checkpoint_epoch = checkpoint[ModelAndInfo.EPOCH_KEY]
@@ -446,7 +467,7 @@ class ModelAndInfo:
 
         torch.save(info_to_store, checkpoint_file_path)
         logging.getLogger().disabled = False
-        logging.info("Saved model checkpoint for epoch {epoch} to {checkpoint_file_path}")
+        logging.info(f"Saved model checkpoint for epoch {epoch} to {checkpoint_file_path}")
 
 
 def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:

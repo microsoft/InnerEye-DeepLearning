@@ -146,6 +146,9 @@ def read_settings_yaml_file(yaml_file: Path) -> Dict[str, Any]:
     yaml_contents = yaml.load(yaml_file.open('r'), Loader=yaml.Loader)
     v = "variables"
     if v in yaml_contents:
-        return cast(Dict[str, Any], yaml_contents[v])
+        if yaml_contents[v]:
+            return cast(Dict[str, Any], yaml_contents[v])
+        # If the file only contains the "variable:" prefix, but nothing below, then yaml_contents becomes None
+        return dict()
     else:
         raise KeyError(f"The Yaml file must contain a section '{v}', but that was not found in {yaml_file}")

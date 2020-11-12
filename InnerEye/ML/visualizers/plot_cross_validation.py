@@ -108,8 +108,9 @@ class PlotCrossValidationConfig(GenericConfig):
     compare_all_against_all: bool = param.Boolean(default=False,
                                                   doc="If set, include comparisons of comparison runs against "
                                                       "each other")
-    outputs_directory: str = param.String(default=".", doc="The path to store results and get results "
-                                                           "of plotting results for the current run")
+    outputs_directory: Path = param.ClassSelector(class_=Path, default=Path("."),
+                                                  doc="The path to store results and get results "
+                                                      "of plotting results for the current run")
     outlier_range: float = param.Number(3.0, doc="Number of standard deviations away from the mean to "
                                                  "use for outlier range")
     wilcoxon_test_p_value: float = param.Number(0.05, doc="Threshold for statistical tests")
@@ -117,9 +118,12 @@ class PlotCrossValidationConfig(GenericConfig):
     ignore_subjects: List[int] = param.List(None, class_=int, bounds=(1, None), allow_None=True, instantiate=False,
                                             doc="List of the subject ids to ignore from the results")
     is_zero_index: bool = param.Boolean(True, doc="If True, start cross validation split indices from 0 otherwise 1")
-    settings_yaml_file: str = param.String(default=str(fixed_paths.SETTINGS_YAML_FILE),
-                                           doc="Path to settings.yml file containing the Azure configuration "
-                                               "for the workspace")
+    settings_yaml_file: Path = param.ClassSelector(class_=Path, default=fixed_paths.SETTINGS_YAML_FILE,
+                                                   doc="Path to settings.yml file containing the Azure configuration "
+                                                       "for the workspace")
+    project_root: Path = param.ClassSelector(class_=Path, default=fixed_paths.repository_root_directory(),
+                                             doc="The root folder of the repository that starts the run. Used to "
+                                                 "read a private settings file.")
     _azure_config: Optional[AzureConfig] = \
         param.ClassSelector(class_=AzureConfig, allow_None=True,
                             doc="Azure-related options created from YAML file.")
@@ -190,7 +194,7 @@ class PlotCrossValidationConfig(GenericConfig):
         :return:
         """
         if self._azure_config is None:
-            self._azure_config = AzureConfig.from_yaml(Path(self.settings_yaml_file), project_root=None)
+            self._azure_config = AzureConfig.from_yaml(self.settings_yaml_file, project_root=self.project_root)
         return self._azure_config
 
     def download_or_get_local_file(self,
@@ -232,7 +236,7 @@ class PlotCrossValidationConfig(GenericConfig):
                 if self.local_run_result_split_suffix:
                     local_src = local_src / self.local_run_result_split_suffix
             else:
-                local_src = Path(self.outputs_directory)
+                local_src = self.outputs_directory
             if local_src_subdir is not None:
                 local_src = local_src / local_src_subdir
             local_src = local_src / blob_path
@@ -379,7 +383,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         runs_to_evaluate = []
     # create the root path to store the outputs
     if not download_to_folder:
-        download_to_folder = Path(config.outputs_directory) / CROSSVAL_RESULTS_FOLDER
+        download_to_folder = config.outputs_directory / CROSSVAL_RESULTS_FOLDER
         # Make the folder if it doesn't exist, but preserve any existing contents.
         download_to_folder.mkdir(parents=True, exist_ok=True)
     start_time = time.time()
@@ -414,7 +418,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
             folder_for_run.mkdir(parents=True, exist_ok=True)
             dataset_file = folder_for_run / DATASET_CSV_FILE_NAME
             # Copy the run-0 dataset.csv, which should be the same, as the parent run won't have one.
-            shutil.copy(str(Path(config.outputs_directory) / DATASET_CSV_FILE_NAME), str(dataset_file))
+            shutil.copy(str(config.outputs_directory / DATASET_CSV_FILE_NAME), str(dataset_file))
         else:
             dataset_file = config.download_or_get_local_file(run, DATASET_CSV_FILE_NAME, folder_for_run)
         if config.model_category == ModelCategory.Segmentation and not dataset_file:
@@ -462,7 +466,7 @@ def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) ->
     """
     plot_crossval_config = crossval_config_from_model_config(train_config)
     download_to_folder = train_config.outputs_folder / CROSSVAL_RESULTS_FOLDER
-    plot_crossval_config.outputs_directory = str(download_to_folder)
+    plot_crossval_config.outputs_directory = download_to_folder
     plot_crossval_config.local_run_results = str(train_config.outputs_folder)
 
     splits = [str(i) for i in range(plot_crossval_config.number_of_cross_validation_splits)] \

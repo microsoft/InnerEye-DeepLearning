@@ -3,18 +3,15 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import shutil
-from pathlib import Path
-from typing import Optional
-
 import numpy as np
 import pandas as pd
 import pytest
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import get_epoch_results_path
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, create_checkpoint_path
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -23,17 +20,16 @@ from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline
 from InnerEye.ML.utils import io_util
-from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers.plot_cross_validation import get_config_and_results_for_offline_runs
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import assert_file_contents, assert_file_contents_match_exactly, assert_nifti_content, \
-    get_image_shape
+from Tests.ML.util import assert_file_contains_string, assert_text_files_match, assert_nifti_content, \
+    get_image_shape, get_default_checkpoint_handler
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
-def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
+def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
     train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
 
     config = DummyModel()
@@ -43,9 +39,6 @@ def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
     assert config.get_test_epochs() == [epoch]
     placeholder_dataset_id = "place_holder_dataset_id"
     config.azure_dataset_id = placeholder_dataset_id
-    # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
-    stored_checkpoints = full_ml_test_data_path("checkpoints")
-    shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
     transform = config.get_full_image_sample_transforms().test
     df = pd.read_csv(full_ml_test_data_path(DATASET_CSV_FILE_NAME))
     df = df[df.subject.isin([1, 2])]
@@ -53,7 +46,15 @@ def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
     config._datasets_for_inference = \
         {ModelExecutionMode.TEST: FullImageDataset(config, df, full_image_sample_transforms=transform)}  # type: ignore
     execution_mode = ModelExecutionMode.TEST
-    inference_results = model_testing.segmentation_model_test(config, execution_mode)
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
+    # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
+    stored_checkpoints = full_ml_test_data_path("checkpoints")
+    shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
+    checkpoint_handler.additional_training_done()
+    inference_results = model_testing.segmentation_model_test(config,
+                                                              data_split=execution_mode,
+                                                              checkpoint_handler=checkpoint_handler)
     epoch_dir = config.outputs_folder / get_epoch_results_path(epoch, execution_mode)
     assert inference_results.epochs[epoch] == pytest.approx(0.66606902, abs=1e-6)
 
@@ -62,12 +63,12 @@ def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
     patient1 = io_util.load_nifti_image(train_and_test_data_dir / "id1_channel1.nii.gz")
     patient2 = io_util.load_nifti_image(train_and_test_data_dir / "id2_channel1.nii.gz")
 
-    assert_file_contents(epoch_dir / DATASET_ID_FILE, placeholder_dataset_id)
-    assert_file_contents(epoch_dir / GROUND_TRUTH_IDS_FILE, "region")
-    assert_file_contents_match_exactly(epoch_dir / model_testing.METRICS_FILE_NAME,
-                                       Path(train_and_test_data_dir) / model_testing.METRICS_FILE_NAME)
-    assert_file_contents_match_exactly(epoch_dir / model_testing.METRICS_AGGREGATES_FILE,
-                                       Path(train_and_test_data_dir) / model_testing.METRICS_AGGREGATES_FILE)
+    assert_file_contains_string(epoch_dir / DATASET_ID_FILE, placeholder_dataset_id)
+    assert_file_contains_string(epoch_dir / GROUND_TRUTH_IDS_FILE, "region")
+    assert_text_files_match(epoch_dir / model_testing.METRICS_FILE_NAME,
+                            train_and_test_data_dir / model_testing.METRICS_FILE_NAME)
+    assert_text_files_match(epoch_dir / model_testing.METRICS_AGGREGATES_FILE,
+                            train_and_test_data_dir / model_testing.METRICS_AGGREGATES_FILE)
     # Plotting results vary between platforms. Can only check if the file is generated, but not its contents.
     assert (epoch_dir / model_testing.BOXPLOT_FILE).exists()
 
@@ -116,16 +117,13 @@ def test_model_test(test_output_dirs: TestOutputDirectories) -> None:
                           (ClassificationModelForTesting(), "classification_data_generated_random/checkpoints")])
 def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
                                                  checkpoint_folder: str,
-                                                 test_output_dirs: TestOutputDirectories) -> None:
-    config.set_output_to(test_output_dirs.root_dir)
-    # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
-    stored_checkpoints = full_ml_test_data_path(checkpoint_folder)
-    shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
-    # no pipeline created when checkpoint for epoch does not exist
-    assert create_inference_pipeline(config, 10) is None
+                                                 test_output_dirs: OutputFolderForTests) -> None:
+    # no pipeline created when checkpoint for epoch is None
+    assert create_inference_pipeline(config, []) is None
+    # no pipeline created when checkpoint path does not exist
+    assert create_inference_pipeline(config, [test_output_dirs.root_dir / "nonexist.pth"]) is None
 
 
-@pytest.mark.parametrize("with_run_recovery", [False, True])
 @pytest.mark.parametrize(("config", "checkpoint_folder", "inference_type", "ensemble_type"),
                          [(DummyModel(), "checkpoints", InferencePipeline, EnsemblePipeline),
                           (ClassificationModelForTesting(mean_teacher_model=False),
@@ -135,24 +133,17 @@ def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
                            "classification_data_generated_random/checkpoints",
                            ScalarInferencePipeline, ScalarEnsemblePipeline)
                           ])
-def test_create_inference_pipeline(with_run_recovery: bool,
-                                   config: ModelConfigBase,
+def test_create_inference_pipeline(config: ModelConfigBase,
                                    checkpoint_folder: str,
                                    inference_type: type,
                                    ensemble_type: type,
-                                   test_output_dirs: TestOutputDirectories) -> None:
+                                   test_output_dirs: OutputFolderForTests) -> None:
     config.set_output_to(test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
     stored_checkpoints = full_ml_test_data_path(checkpoint_folder)
     shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
 
-    if with_run_recovery:
-        run_recovery: Optional[RunRecovery] = RunRecovery(checkpoints_roots=[stored_checkpoints])
-    else:
-        run_recovery = None
-    assert isinstance(create_inference_pipeline(config, 1, run_recovery), inference_type)
+    checkpoint_path = create_checkpoint_path(stored_checkpoints, epoch=1)
 
-    # test for ensemble pipeline if run_recovery is enabled
-    if with_run_recovery:
-        run_recovery = RunRecovery(checkpoints_roots=[stored_checkpoints] * 2)
-        assert isinstance(create_inference_pipeline(config, 1, run_recovery), ensemble_type)
+    assert isinstance(create_inference_pipeline(config, [checkpoint_path]), inference_type)
+    assert isinstance(create_inference_pipeline(config, [checkpoint_path] * 2), ensemble_type)

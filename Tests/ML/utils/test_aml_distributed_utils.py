@@ -11,7 +11,6 @@ from torch.cuda import device_count
 
 from InnerEye.ML.utils.aml_distributed_utils import get_local_rank, get_global_rank, get_global_size, get_local_size, \
     is_aml_mpi_run
-from Tests.ML.configs import DummyModel
 
 
 @pytest.mark.parametrize("local_rank_env_var", [None, 1, 10])
@@ -49,7 +48,7 @@ def test_get_global_rank(global_rank_env_var: Optional[int]) -> None:
 
 
 @pytest.mark.parametrize(["num_nodes", "num_workers_per_node"], [(1, 1), (5, 4), (2, 3)])
-def test_get_global_size_offline(num_nodes, num_workers_per_node) -> None:
+def test_get_global_size_offline(num_nodes: int, num_workers_per_node: int) -> None:
     """
     Assert that, for an offline run, get_global_size returns the number of cuda devices
     on the current machine
@@ -87,7 +86,7 @@ def test_get_global_size_aml(expected_global_size: int) -> None:
 
 
 @pytest.mark.parametrize("requested_num_workers_per_node", [1, 2, 5, 10])
-def test_get_local_size_offline(requested_num_workers_per_node) -> None:
+def test_get_local_size_offline(requested_num_workers_per_node: int) -> None:
     """
     Assert that, for an offline run, get_local_size returns the number of cuda devices
     on the current machine

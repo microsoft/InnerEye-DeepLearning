@@ -2,23 +2,23 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import shutil
-import pytest
 import math
-import pandas as pd
-import numpy as np
-
+import shutil
 from pathlib import Path
 
-from InnerEye.Common.output_directories import TestOutputDirectories
-from InnerEye.ML.reports.notebook_report import generate_classification_notebook
-from InnerEye.ML.reports.classification_report import ReportedMetrics, get_results, get_metric, \
-    get_k_best_and_worst_performing, get_correct_and_misclassified_examples, get_image_filepath_from_subject_id, \
+import numpy as np
+import pandas as pd
+import pytest
+
+from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.reports.classification_report import ReportedMetrics, get_correct_and_misclassified_examples, \
+    get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_results, \
     plot_image_from_filepath
+from InnerEye.ML.reports.notebook_report import generate_classification_notebook
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
 
 
-def test_generate_classification_report(test_output_dirs: TestOutputDirectories) -> None:
+def test_generate_classification_report(test_output_dirs: OutputFolderForTests) -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
     val_metrics_file = reports_folder / "val_metrics_classification.csv"
@@ -26,7 +26,7 @@ def test_generate_classification_report(test_output_dirs: TestOutputDirectories)
     dataset_subject_column = "subject"
     dataset_file_column = "filePath"
 
-    current_dir = Path(test_output_dirs.make_sub_dir("test_classification_report"))
+    current_dir = test_output_dirs.make_sub_dir("test_classification_report")
     result_file = current_dir / "report.ipynb"
     result_html = generate_classification_notebook(result_notebook=result_file,
                                                    val_metrics=val_metrics_file,
@@ -45,11 +45,11 @@ def test_get_results() -> None:
 
     results = get_results(test_metrics_file)
     assert all([results.subject_ids[i] == i for i in range(12)])
-    assert all([results.labels[i] == label for i, label in enumerate([1]*6 + [0]*6)])
+    assert all([results.labels[i] == label for i, label in enumerate([1] * 6 + [0] * 6)])
     assert all([results.model_outputs[i] == op for i, op in enumerate([0.0, 0.2, 0.4, 0.6, 0.8, 1.0] * 2)])
 
 
-def test_functions_with_invalid_csv(test_output_dirs: TestOutputDirectories) -> None:
+def test_functions_with_invalid_csv(test_output_dirs: OutputFolderForTests) -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
     val_metrics_file = reports_folder / "val_metrics_classification.csv"
@@ -89,7 +89,7 @@ def test_get_metric() -> None:
                         val_metrics_csv=val_metrics_file,
                         metric=ReportedMetrics.AUC_PR)
 
-    assert math.isclose(auc_pr, 13/24, abs_tol=1e-15)
+    assert math.isclose(auc_pr, 13 / 24, abs_tol=1e-15)
 
     accuracy = get_metric(test_metrics_csv=test_metrics_file,
                           val_metrics_csv=val_metrics_file,
@@ -183,7 +183,7 @@ def test_get_image_filepath_from_subject_id_invalid_id() -> None:
     assert not filepath
 
 
-def test_plot_image_from_filepath(test_output_dirs: TestOutputDirectories) -> None:
+def test_plot_image_from_filepath(test_output_dirs: OutputFolderForTests) -> None:
     im_size = (200, 300)
 
     array = np.ones([10, 10])

@@ -15,8 +15,8 @@ def repository_root_directory(path: Optional[PathOrString] = None) -> Path:
     :param path: if provided, a relative path to append to the absolute path to the repository root.
     :return: The full path to the repository's root directory, with symlinks resolved if any.
     """
-    current = os.path.dirname(os.path.realpath(__file__))
-    root = Path(os.path.realpath(os.path.join(current, "..", "..")))
+    current = Path(__file__)
+    root = current.parent.parent.parent
     if path:
         return root / path
     else:
@@ -35,9 +35,9 @@ DEFAULT_LOGS_DIR_NAME = "logs"
 DEFAULT_MODEL_SUMMARIES_DIR_PATH = Path(DEFAULT_LOGS_DIR_NAME) / "model_summaries"
 # The folder at the project root directory that holds datasets for local execution.
 DATASETS_DIR_NAME = "datasets"
-# Inside of the AzureML workspace, a Datastore has to be created manually. That Datastore
-# points to a container inside of a storage account.
-AZUREML_DATASTORE_NAME = "innereyedatasets"
+
+# Points to a folder at the project root directory that holds model weights downloaded from URLs.
+MODEL_WEIGHTS_DIR_NAME = "modelweights"
 
 ML_RELATIVE_SOURCE_PATH = os.path.join("ML")
 ML_RELATIVE_RUNNER_PATH = os.path.join(ML_RELATIVE_SOURCE_PATH, "runner.py")

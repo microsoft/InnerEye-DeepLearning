@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import os
 from pathlib import Path
 from typing import Any, Tuple
 
@@ -11,7 +10,7 @@ import numpy as np
 import pytest
 import torch
 
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, \
     PhotometricNormalizationMethod, SegmentationModelBase
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME, METRICS_AGGREGATES_FILE, store_inference_results, \
@@ -20,12 +19,13 @@ from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.plotting import resize_and_save
 from InnerEye.ML.reports.segmentation_report import boxplot_per_structure
 from InnerEye.ML.utils import io_util
+from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import ImageHeader
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 from InnerEye.ML.utils.transforms import LinearTransform, get_range_for_window_level
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import assert_file_contents, assert_file_contents_match_exactly, assert_nifti_content
+from Tests.ML.util import assert_file_contains_string, assert_nifti_content, assert_text_files_match
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 model_name = "Basic"
@@ -40,7 +40,7 @@ dim_y = 2
 dim_z = 3
 
 
-def _create_config_with_folders(test_dirs: TestOutputDirectories) -> SegmentationModelBase:
+def _create_config_with_folders(test_dirs: OutputFolderForTests) -> SegmentationModelBase:
     config = DummyModel()
     config.set_output_to(test_dirs.root_dir)
     return config
@@ -53,7 +53,7 @@ def to_unique_bytes(a: np.ndarray, input_range: Tuple[float, float]) -> Any:
     return np.unique(a.astype(np.ubyte))
 
 
-def test_store_inference_results(test_output_dirs: TestOutputDirectories) -> None:
+def test_store_inference_results(test_output_dirs: OutputFolderForTests) -> None:
     np.random.seed(0)
     num_classes = 2
     posterior = torch.nn.functional.softmax(
@@ -64,7 +64,7 @@ def test_store_inference_results(test_output_dirs: TestOutputDirectories) -> Non
     posterior0 = to_unique_bytes(posterior[0], (0, 1))
     posterior1 = to_unique_bytes(posterior[1], (0, 1))
     spacing = (2.0, 2.0, 2.0)
-    header = ImageHeader(origin=(0, 0, 0), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=spacing)
+    header = get_unit_image_header(spacing=spacing)
     inference_result = InferencePipeline.Result(
         epoch=1,
         patient_id=12,
@@ -80,33 +80,33 @@ def test_store_inference_results(test_output_dirs: TestOutputDirectories) -> Non
     results_folder = test_output_dirs.root_dir
     store_inference_results(inference_result, test_config, Path(results_folder), header)
 
-    assert_nifti_content(os.path.join(results_folder, "012", "posterior_background.nii.gz"),
+    assert_nifti_content(results_folder / "012" / "posterior_background.nii.gz",
                          segmentation.shape, header, list(posterior0), np.ubyte)
 
-    assert_nifti_content(os.path.join(results_folder, "012", "posterior_region.nii.gz"),
+    assert_nifti_content(results_folder / "012" / "posterior_region.nii.gz",
                          segmentation.shape, header, list(posterior1), np.ubyte)
 
-    assert_nifti_content(os.path.join(results_folder, "012", "background.nii.gz"),
+    assert_nifti_content(results_folder / "012" / "background.nii.gz",
                          segmentation.shape, header, list([0, 1]), np.ubyte)
 
-    assert_nifti_content(os.path.join(results_folder, "012", "region.nii.gz"),
+    assert_nifti_content(results_folder / "012" / "region.nii.gz",
                          segmentation.shape, header, list([0, 1]), np.ubyte)
 
-    assert_nifti_content(os.path.join(results_folder, "012", DEFAULT_RESULT_IMAGE_NAME),
+    assert_nifti_content(results_folder / "012" / DEFAULT_RESULT_IMAGE_NAME,
                          segmentation.shape, header, list(np.unique(segmentation)), np.ubyte)
 
-    assert_nifti_content(os.path.join(results_folder, "012", "uncertainty.nii.gz"),
+    assert_nifti_content(results_folder / "012" / "uncertainty.nii.gz",
                          inference_result.uncertainty.shape, header, list([248, 249, 253, 254]), np.ubyte)
 
 
-def test_metrics_file(test_output_dirs: TestOutputDirectories) -> None:
+def test_metrics_file(test_output_dirs: OutputFolderForTests) -> None:
     """Test if metrics files with Dice scores are written as expected."""
     folder = test_output_dirs.make_sub_dir("test_metrics_file")
 
-    def new_file(suffix: str) -> str:
-        file = os.path.join(folder, suffix)
-        if os.path.exists(file):
-            os.remove(file)
+    def new_file(suffix: str) -> Path:
+        file = folder / suffix
+        if file.is_file():
+            file.unlink()
         return file
 
     d = MetricsPerPatientWriter()
@@ -125,17 +125,17 @@ def test_metrics_file(test_output_dirs: TestOutputDirectories) -> None:
     metrics_file = new_file("metrics_file.csv")
     d.to_csv(Path(metrics_file))
     # Sorting should be first by structure name alphabetically, then Dice with lowest scores first.
-    assert_file_contents(metrics_file, "Patient,Structure,Dice,HausdorffDistance_mm,MeanDistance_mm\n"
-                                       "Patient3,kidney,0.400,1.000,0.100\n"
-                                       "Patient2,kidney,0.700,1.000,0.200\n"
-                                       "Patient1,liver,0.400,1.000,0.400\n"
-                                       "Patient2,liver,0.800,1.000,0.300\n"
-                                       "Patient1,liver,1.000,1.000,0.500\n")
+    assert_file_contains_string(metrics_file, "Patient,Structure,Dice,HausdorffDistance_mm,MeanDistance_mm\n"
+                                              "Patient3,kidney,0.400,1.000,0.100\n"
+                                              "Patient2,kidney,0.700,1.000,0.200\n"
+                                              "Patient1,liver,0.400,1.000,0.400\n"
+                                              "Patient2,liver,0.800,1.000,0.300\n"
+                                              "Patient1,liver,1.000,1.000,0.500\n")
     aggregates_file = new_file(METRICS_AGGREGATES_FILE)
     d.save_aggregates_to_csv(Path(aggregates_file))
     # Sorting should be first by structure name alphabetically, then Dice with lowest scores first.
-    assert_file_contents_match_exactly(Path(aggregates_file),
-                                       full_ml_test_data_path() / METRICS_AGGREGATES_FILE)
+    assert_text_files_match(Path(aggregates_file),
+                            full_ml_test_data_path() / METRICS_AGGREGATES_FILE)
     boxplot_per_structure(d.to_data_frame(),
                           column_name=MetricsFileColumns.DiceNumeric.value,
                           title="Dice score")
@@ -153,11 +153,11 @@ def test_metrics_file(test_output_dirs: TestOutputDirectories) -> None:
     resize_and_save(5, 4, boxplot2)
 
 
-def test_store_run_information(test_output_dirs: TestOutputDirectories) -> None:
+def test_store_run_information(test_output_dirs: OutputFolderForTests) -> None:
     dataset_id = "placeholder_dataset_id"
     ground_truth_ids = ["id1", "id2"]
     channel_ids = ["channel1", "channel2"]
-    results_folder = Path(test_output_dirs.root_dir)
+    results_folder = test_output_dirs.root_dir
 
     files = [results_folder / DATASET_ID_FILE,
              results_folder / GROUND_TRUTH_IDS_FILE,
@@ -175,7 +175,7 @@ def test_store_run_information(test_output_dirs: TestOutputDirectories) -> None:
                           (np.short, False, (0, 1), (0, 1)),
                           (np.ubyte, False, None, None),
                           (np.short, False, (0, 1), None)])
-def test_store_as_nifti(test_output_dirs: TestOutputDirectories, image_type: Any, scale: Any, input_range: Any,
+def test_store_as_nifti(test_output_dirs: OutputFolderForTests, image_type: Any, scale: Any, input_range: Any,
                         output_range: Any) \
         -> None:
     image = np.random.random_sample((dim_z, dim_y, dim_x))
@@ -198,7 +198,7 @@ def test_store_as_nifti(test_output_dirs: TestOutputDirectories, image_type: Any
                          [(None, None, None, None),
                           (np.ubyte, True, [0, 1], None),
                           (np.short, True, None, [0, 1])])
-def test_store_as_nifti_fail(test_output_dirs: TestOutputDirectories, image_type: Any, scale: Any, input_range: Any,
+def test_store_as_nifti_fail(test_output_dirs: OutputFolderForTests, image_type: Any, scale: Any, input_range: Any,
                              output_range: Any) \
         -> None:
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 1, 0, 0, 1, 0, 0), spacing=(1, 2, 4))
@@ -209,7 +209,7 @@ def test_store_as_nifti_fail(test_output_dirs: TestOutputDirectories, image_type
 
 
 @pytest.mark.parametrize("input_range", [(0, 1), (-1, 1), (0, 255)])
-def test_store_as_scaled_ubyte_nifti(test_output_dirs: TestOutputDirectories, input_range: Any) -> None:
+def test_store_as_scaled_ubyte_nifti(test_output_dirs: OutputFolderForTests, input_range: Any) -> None:
     image = np.random.random_sample((dim_z, dim_y, dim_x))
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=(1, 2, 4))
     io_util.store_as_scaled_ubyte_nifti(image, header,
@@ -222,7 +222,7 @@ def test_store_as_scaled_ubyte_nifti(test_output_dirs: TestOutputDirectories, in
 
 
 @pytest.mark.parametrize("input_range", [None])
-def test_store_as_scaled_ubyte_nifti_fail(test_output_dirs: TestOutputDirectories, input_range: Any) -> None:
+def test_store_as_scaled_ubyte_nifti_fail(test_output_dirs: OutputFolderForTests, input_range: Any) -> None:
     image = np.random.random_sample((dim_z, dim_y, dim_x))
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=(1, 2, 4))
     with pytest.raises(Exception):
@@ -231,7 +231,7 @@ def test_store_as_scaled_ubyte_nifti_fail(test_output_dirs: TestOutputDirectorie
                                             input_range)
 
 
-def test_store_as_ubyte_nifti(test_output_dirs: TestOutputDirectories) -> None:
+def test_store_as_ubyte_nifti(test_output_dirs: OutputFolderForTests) -> None:
     image = np.random.random_sample((dim_z, dim_y, dim_x))
     # get values in [0, 255] range
     image = np.array((image + 1) * 255).astype(int)
@@ -246,7 +246,7 @@ def test_store_as_ubyte_nifti(test_output_dirs: TestOutputDirectories) -> None:
                          [([[[1]], [[1]], [[1]]]),
                           ([[[0]], [[0]], [[0]]]),
                           ([[[0]], [[1]], [[1]]])])
-def test_store_as_binary_nifti(test_output_dirs: TestOutputDirectories, image: Any) -> None:
+def test_store_as_binary_nifti(test_output_dirs: OutputFolderForTests, image: Any) -> None:
     image = np.array(image)
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=(1, 2, 4))
     io_util.store_binary_mask_as_nifti(image, header,
@@ -257,7 +257,7 @@ def test_store_as_binary_nifti(test_output_dirs: TestOutputDirectories, image: A
 
 
 @pytest.mark.parametrize("image", [([[[0]], [[1]], [[2]]])])
-def test_store_as_binary_nifti_fail(test_output_dirs: TestOutputDirectories, image: Any) -> None:
+def test_store_as_binary_nifti_fail(test_output_dirs: OutputFolderForTests, image: Any) -> None:
     image = np.array(image)
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 1, 0, 0, 1, 0, 0), spacing=(1, 2, 4))
     with pytest.raises(Exception):
@@ -269,7 +269,7 @@ def test_store_as_binary_nifti_fail(test_output_dirs: TestOutputDirectories, ima
                          [([[[1]], [[1]], [[1]]], [255]),
                           ([[[0]], [[0]], [[0]]], [0]),
                           ([[[0.8]], [[0.1]], [[0.4]]], [25, 102, 204])])
-def test_store_posteriors_nifti(test_output_dirs: TestOutputDirectories, image: Any, expected: Any) -> None:
+def test_store_posteriors_nifti(test_output_dirs: OutputFolderForTests, image: Any, expected: Any) -> None:
     image = np.array(image)
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=(1, 1, 1))
     io_util.store_posteriors_as_nifti(image, header, test_output_dirs.create_file_or_folder_path(default_image_name))
@@ -278,7 +278,7 @@ def test_store_posteriors_nifti(test_output_dirs: TestOutputDirectories, image: 
 
 
 @pytest.mark.parametrize("image", [([[[0]], [[1]], [[2]]])])
-def test_store_posteriors_nifti_fail(test_output_dirs: TestOutputDirectories, image: Any) -> None:
+def test_store_posteriors_nifti_fail(test_output_dirs: OutputFolderForTests, image: Any) -> None:
     image = np.array(image)
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 1, 0, 0, 1, 0, 0), spacing=(1, 1, 1))
     with pytest.raises(Exception):
@@ -286,7 +286,7 @@ def test_store_posteriors_nifti_fail(test_output_dirs: TestOutputDirectories, im
                                           test_output_dirs.create_file_or_folder_path(default_image_name))
 
 
-def test_store_posteriors_nifti_invalid_entries(test_output_dirs: TestOutputDirectories) -> None:
+def test_store_posteriors_nifti_invalid_entries(test_output_dirs: OutputFolderForTests) -> None:
     image = np.array([0, 1, 2.71, np.nan])
     header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 1, 0, 0, 1, 0, 0), spacing=(1, 1, 1))
     with pytest.raises(ValueError) as ex:
@@ -302,7 +302,7 @@ def test_store_posteriors_nifti_invalid_entries(test_output_dirs: TestOutputDire
                           (PhotometricNormalizationMethod.CtWindow, [0, 255], (40, 50)),
                           (PhotometricNormalizationMethod.Unchanged, [-1, 1], None),
                           (PhotometricNormalizationMethod.Unchanged, [-40, 40], None)])
-def test_store_image_as_short_nifti(test_output_dirs: TestOutputDirectories,
+def test_store_image_as_short_nifti(test_output_dirs: OutputFolderForTests,
                                     norm_method: PhotometricNormalizationMethod,
                                     image_range: Any,
                                     window_level: Any) -> None:
@@ -331,7 +331,7 @@ def test_store_image_as_short_nifti(test_output_dirs: TestOutputDirectories,
     assert_nifti_content(nifti_name, image_shape, header, list(t), np.short)
 
 
-def test_scale_and_unscale_image(test_output_dirs: TestOutputDirectories) -> None:
+def test_scale_and_unscale_image(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if an image in the CT value range can be recovered when we save dataset examples
     (undoing the effects of CT Windowing)
