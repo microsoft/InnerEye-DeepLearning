@@ -3,14 +3,17 @@
 Note: At present, only segmentation model have a clearly defined deployment path. If you have a deployment
 path for classification model that you would like to see supported, please file an issue on Github.
 
-After training of a segmentation model, all code that was used in training, plus the last checkpoint of the model,
-are packaged up into a folder and then registered in AzureML for later use. This package of files is then available
+For deployment of a segmentation model, all code that was used in training, plus the checkpoint(s) of the model,
+are packaged up into a folder and then registered in AzureML for later use. The checkpoints are chosen from
+the checkpoints for the epochs specified in the `epochs_to_test` parameter: For those epochs, the model will be
+evaluated on the validation set. The checkpoint that is written into the deployed model is the one that achieved
+the best Dice score on the validation set. The whole package of source code and checkpoints files is then available
 in AzureML in the "Models" section of the workspace, see also the 
 [documentation](https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.model.model?view=azure-ml-py). 
 Each model has a name, a numeric version, and apart from the core files also contains tags and properties.
 
 When training a segmentation model with the InnerEye toolbox, you can see all files that make up the model in the
-`outputs/final_model` folder, acessible via the UI in the "Outputs + logs" tab. All those files will be packaged
+`final_model` folder, acessible via the UI in the "Outputs + logs" tab. All those files will be packaged
 up into an AzureML model that has the same name as the InnerEye model you are training. The model name and version
 will be written to a tag of the training run: In the AzureML run overview page, you can see a tag called `model_id`,
 with a value that looks like `Prostate:892` if the `Prostate` model in version 892 was registered in this run.
