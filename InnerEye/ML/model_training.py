@@ -93,11 +93,7 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
     :param run_recovery: Recovery information to restart training from an existing run.
     :return:
     """
-    from torch.distributed import init_process_group, destroy_process_group
     from torch.cuda.amp import GradScaler
-
-    print(f"Backend: {config.distributed_training_backend}")
-    print(f"init method: {config.distributed_training_init_method}")
 
     global_rank = get_global_rank() if rank is None else rank
 
@@ -105,6 +101,9 @@ def train(rank: Optional[int], config: ModelConfigBase, run_recovery: Optional[R
     device = determine_device(local_rank)
 
     if config.use_distributed_data_parallel:
+
+        from torch.distributed import init_process_group, destroy_process_group
+
         world_size = get_global_size(config)
         print(f"Running distributed training on device with global rank {global_rank} and local rank {local_rank}")
         init_process_group(

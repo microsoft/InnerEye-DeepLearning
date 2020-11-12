@@ -65,6 +65,8 @@ class DummyModel(SegmentationModelBase):
             test_start_epoch=1,
             test_diff_epochs=1,
             test_step_epochs=1,
+            num_nodes=1,
+            num_workers_per_node=1
         )
         self.add_and_validate(kwargs)
 

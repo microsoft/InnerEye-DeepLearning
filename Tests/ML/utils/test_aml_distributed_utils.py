@@ -2,16 +2,16 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Optional
-
+import os
 import pytest
+from typing import Optional
+from unittest import mock
 
 from torch.cuda import device_count
-from unittest import mock
 
 from InnerEye.ML.utils.aml_distributed_utils import get_local_rank, get_global_rank, get_global_size, get_local_size, \
     is_aml_mpi_run
-from Tests.ML.configs.DummyModel import DummyModel
+from Tests.ML.configs import DummyModel
 
 
 @pytest.mark.parametrize("local_rank_env_var", [None, 1, 10])
@@ -23,10 +23,10 @@ def test_get_local_rank(local_rank_env_var: Optional[int]) -> None:
     :return:
     """
     if local_rank_env_var is None:
-        with pytest.raises(TypeError):
+        with pytest.raises(AssertionError):
             get_local_rank()
     else:
-        with mock.patch("os.environ", {'OMPI_COMM_WORLD_LOCAL_RANK': local_rank_env_var}):
+        with mock.patch.dict(os.environ, {'OMPI_COMM_WORLD_LOCAL_RANK': str(local_rank_env_var)}):
             rank = get_local_rank()
         assert rank == local_rank_env_var
 
@@ -40,23 +40,31 @@ def test_get_global_rank(global_rank_env_var: Optional[int]) -> None:
     :return:
     """
     if global_rank_env_var is None:
-        with pytest.raises(TypeError):
+        with pytest.raises(AssertionError):
             get_global_rank()
     else:
-        with mock.patch("os.environ", {'OMPI_COMM_WORLD_RANK': global_rank_env_var}):
+        with mock.patch.dict(os.environ, {'OMPI_COMM_WORLD_RANK': str(global_rank_env_var)}):
             rank = get_global_rank()
         assert rank == global_rank_env_var
 
 
-def test_get_global_size_offline() -> None:
+@pytest.mark.parametrize(["num_nodes", "num_workers_per_node"], [(1, 1), (5, 4), (2, 3)])
+def test_get_global_size_offline(num_nodes, num_workers_per_node) -> None:
     """
     Assert that, for an offline run, get_global_size returns the number of cuda devices
     on the current machine
+    :param num_nodes:
+    :param num_workers_per_node:
     :return:
     """
-    config = DummyModel()
-    expected_global_size = device_count()
-    global_size = get_global_size(config)
+    with mock.patch("Tests.ML.configs.DummyModel") as MockConfig:
+        MockConfig.return_value.num_nodes = num_nodes
+        MockConfig.return_value.num_workers_per_node = num_workers_per_node
+        mock_config = MockConfig()
+    available_local_workers = min(device_count(), num_workers_per_node)
+    # for offline run, we assume 1 node regardless of config
+    expected_global_size = available_local_workers
+    global_size = get_global_size(mock_config)
     assert global_size == expected_global_size
 
 
@@ -71,37 +79,44 @@ def test_get_global_size_aml(expected_global_size: int) -> None:
     with mock.patch("os.environ", {'OMPI_COMM_WORLD_SIZE': expected_global_size}):
         with mock.patch("Tests.ML.configs.DummyModel") as MockConfig:
             MockConfig.return_value.is_offline_run = False
+            MockConfig.return_value.num_workers_per_node = expected_global_size
+            MockConfig.return_value.num_nodes = 1
             config = MockConfig()
             global_size = get_global_size(config)
     assert global_size == expected_global_size
 
 
-def test_get_local_size_offline() -> None:
+@pytest.mark.parametrize("requested_num_workers_per_node", [1, 2, 5, 10])
+def test_get_local_size_offline(requested_num_workers_per_node) -> None:
     """
     Assert that, for an offline run, get_local_size returns the number of cuda devices
     on the current machine
+    :param requested_num_workers_per_node:
     :return:
     """
-    config = DummyModel()
-    expected_local_size = device_count()
-    local_size = get_local_size(config)
-    assert local_size == expected_local_size
+    with mock.patch("Tests.ML.configs.DummyModel") as MockConfig:
+        MockConfig.return_value.num_workers_per_node = requested_num_workers_per_node
+        mock_config = MockConfig()
+    available_local_workers = device_count()
+    local_size = get_local_size(mock_config)
+    assert local_size == min(requested_num_workers_per_node, available_local_workers)
 
 
-@pytest.mark.parametrize("expected_local_size", [1, 2, 3])
-def test_get_local_size_aml(expected_local_size: int) -> None:
+@pytest.mark.parametrize("requested_num_workers_per_node", [1, 2, 3])
+def test_get_local_size_aml(requested_num_workers_per_node: int) -> None:
     """
     Assert that, for an AML run, get_local_size returns the value of the appropriate
     environment variable
-    :param expected_local_size:
+    :param requested_num_workers_per_node:
     :return:
     """
-    with mock.patch("os.environ", {'OMPI_COMM_WORLD_LOCAL_SIZE': expected_local_size}):
+    with mock.patch.dict(os.environ, {'OMPI_COMM_WORLD_LOCAL_SIZE': str(requested_num_workers_per_node)}):
         with mock.patch("Tests.ML.configs.DummyModel") as MockConfig:
             MockConfig.return_value.is_offline_run = False
+            MockConfig.return_value.num_workers_per_node = requested_num_workers_per_node
             config = MockConfig()
             local_size = get_local_size(config)
-    assert local_size == expected_local_size
+    assert local_size == requested_num_workers_per_node
 
 
 def test_is_aml_mpi_run() -> None:

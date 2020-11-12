@@ -664,14 +664,17 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     @property
     def use_distributed_data_parallel(self) -> bool:
         """
-        Distributed Data Parallel may used if GPUs are usable and the number of CUDA devices are greater than 1
-        and the OS is not windows. Additionally, the arg use_distributed_data_parallel must not be set to False
+        Distributed Data Parallel may used if GPUs are usable and the number of CUDA devices is greater than 1
+        and the package torch.distributed is available. Additionally, the product of num_nodes and workers_per_node
+        as set in the config must be greater than 1.
         :return:
         """
+        import torch.distributed as dist
         _devices = self.get_cuda_devices()
         if _devices is None:
             return False
-        return (len(_devices) > 1) & (not is_windows()) & (self.num_nodes * self.num_workers_per_node > 1)
+        world_size = self.num_nodes * self.num_workers_per_node
+        return (len(_devices)) > 1 & dist.is_available() & (world_size > 1)
 
     def write_args_file(self, root: Optional[Path] = None) -> None:
         """

@@ -28,7 +28,7 @@ def get_global_rank() -> int:
 def get_global_size(config: ModelConfigBase) -> int:
     """
     If running in AML, global size is the total number of devices across all machines. Otherwise,
-    asssumes 1 machine only, and will set global size as all devices on current machine. In both cases,
+    assumes 1 machine only, and will set global size as all devices on current machine. In both cases,
     global size is the maximum possible number of devices, but we may use fewer, if specified in the config
     :return:
     """
