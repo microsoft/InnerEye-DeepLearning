@@ -31,6 +31,15 @@ def full_ml_test_data_path(path: str = "") -> Path:
     """
     return _full_test_data_path("ML", path)
 
+def full_reconstruction_test_data_path(path: str = "") -> Path:
+    """
+    Takes a relative path inside of the Tests/Reconstruction/test_data folder, and returns its
+    full absolute path.
+
+    :param path: A path relative to the ML/tests/test_data
+    :return: The full absolute path of the argument.
+    """
+    return _full_test_data_path("Reconstruction", path)
 
 def full_azure_test_data_path(path: str = "") -> Path:
     """
