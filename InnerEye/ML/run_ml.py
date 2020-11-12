@@ -551,7 +551,8 @@ class MLRunner:
             # for the final models outside of "outputs", and upload manually.
             model_path_in_run = FINAL_MODEL_FOLDER
             logging.info(f"Uploading files in {final_model_folder} to the run with prefix '{model_path_in_run}'")
-            RUN_CONTEXT.upload_folder(model_path_in_run, final_model_folder)
+            final_model_folder_relative = final_model_folder.relative_to(Path.cwd())
+            RUN_CONTEXT.upload_folder(name=model_path_in_run, path=str(final_model_folder_relative))
             logging.info(f"Registering the model on run {RUN_CONTEXT.id}")
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
