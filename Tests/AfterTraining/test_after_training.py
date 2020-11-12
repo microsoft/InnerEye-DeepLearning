@@ -118,3 +118,6 @@ def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     assert not seg_path.exists(), f"Result file {seg_path} should not yet exist"
     submit_for_inference.main(args, project_root=fixed_paths.repository_root_directory())
     assert seg_path.exists(), f"Result file {seg_path} was not created"
+    # Reduce the number of models that we keep from the PR builds
+    if is_running_on_azure_agent():
+        model.delete()

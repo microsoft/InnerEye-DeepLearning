@@ -18,12 +18,15 @@ from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.image_util import get_unit_image_header
+from InnerEye.ML.utils.ml_util import set_random_seed
+from InnerEye.ML.utils.model_util import ModelAndInfo
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -109,6 +112,8 @@ def test_register_and_score_model(is_ensemble: bool,
     2) Checking that a model zip from the registered model can be created successfully
     3) Calling the scoring pipeline to check inference can be run from the published model successfully
     """
+    # We are creating checkpoints on the fly in this test, writing a randomly initialized model.
+    set_random_seed(0)
     # Get an existing config as template
     loader = get_model_loader("Tests.ML.configs" if model_outside_package else None)
     config: SegmentationModelBase = loader.create_model_config_from_name(
@@ -116,9 +121,15 @@ def test_register_and_score_model(is_ensemble: bool,
     )
     config.dataset_expected_spacing_xyz = dataset_expected_spacing_xyz
     config.set_output_to(test_output_dirs.root_dir)
-    checkpoints_absolute, checkpoints_relative = create_checkpoints(config, is_ensemble)
-    model = None
-    model_root = None
+    checkpoints_absolute = []
+    model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TRAIN)
+    model_and_info.create_model()
+    model_and_info.create_optimizer()
+    checkpoints_absolute.append(model_and_info.save_checkpoint(epoch=10))
+    if is_ensemble:
+        checkpoints_absolute.append(model_and_info.save_checkpoint(epoch=20))
+    checkpoints_relative = [f.relative_to(config.checkpoint_folder) for f in checkpoints_absolute]
+    azureml_model = None
     # Simulate a project root: We can't derive that from the repository root because that might point
     # into Python's package folder
     project_root = Path(__file__).parent.parent
@@ -138,18 +149,21 @@ def test_register_and_score_model(is_ensemble: bool,
             checkpoint_paths=checkpoints_absolute,
             model_proc=ModelProcessing.DEFAULT)
         assert registration_result is not None
-        model, deployment_result = registration_result
-        assert model is not None
+        azureml_model, deployment_result = registration_result
+        assert azureml_model is not None
         assert deployment_result == (Path(config.model_name), azure_config.docker_shm_size)
 
         # download the registered model and test that we can run the score pipeline on it
-        model_root = Path(model.download(str(test_output_dirs.root_dir)))
+        model_root = Path(azureml_model.download(str(test_output_dirs.root_dir)))
+        # The model needs to contain score.py at the root, the (merged) environment definition,
+        # and the inference config.
         expected_files = [
             *fixed_paths.SCRIPTS_AT_ROOT,
             fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
             fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME,
             "InnerEye/ML/runner.py",
         ]
+        # All checkpoints go into their own folder
         expected_files.extend(str(Path(CHECKPOINT_FOLDER) / c) for c in checkpoints_relative)
         for expected_file in expected_files:
             assert (model_root / expected_file).is_file(), f"File {expected_file} missing"
@@ -183,15 +197,14 @@ def test_register_and_score_model(is_ensemble: bool,
         assert expected_segmentation_path.exists(), f"Result file not found: {expected_segmentation_path}"
 
         # sanity check the resulting segmentation
-        expected_shape = get_nifti_shape(img_files[0])
+        expected_shape = get_nifti_shape(train_and_test_data_dir / img_files[0])
         image_header = get_unit_image_header()
-        assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [0], np.ubyte)
+        assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [3], np.ubyte)
 
     finally:
         # delete the registered model
-        if model and model_root:
-            model.delete()
-            shutil.rmtree(model_root)
+        if azureml_model:
+            azureml_model.delete()
 
 
 def test_register_model_invalid() -> None:

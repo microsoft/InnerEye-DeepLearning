@@ -5,7 +5,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional, Union, Dict
+from typing import Any, Dict, Optional, Union
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -369,7 +369,8 @@ class ModelAndInfo:
             self._optimizer = torch.optim.SGD(self._model.parameters(), self.config.l_rate, self.config.momentum,
                                               weight_decay=self.config.weight_decay)
         elif self.config.optimizer_type == OptimizerType.RMSprop:
-            self._optimizer = RMSprop(self._model.parameters(), self.config.l_rate, self.config.rms_alpha, self.config.opt_eps,
+            self._optimizer = RMSprop(self._model.parameters(), self.config.l_rate, self.config.rms_alpha,
+                                      self.config.opt_eps,
                                       self.config.weight_decay, self.config.momentum)
         else:
             raise NotImplementedError(f"Optimizer type {self.config.optimizer_type.value} is not implemented")
@@ -416,18 +417,19 @@ class ModelAndInfo:
             return self.try_load_checkpoint_for_optimizer()
         return True
 
-    def save_checkpoint(self, epoch: int) -> None:
+    def save_checkpoint(self, epoch: int) -> Path:
         """
         Saves a checkpoint of the current model and optimizer_type parameters in the specified folder
         and uploads it to the output blob storage of the current run context.
         The checkpoint's name for epoch 123 would be 123_checkpoint.pth.tar.
         :param epoch: The last epoch used to train the model.
+        :return: The full path of the checkpoint file.
         """
         logging.getLogger().disabled = True
-
         model_state_dict = self.model.module.state_dict() \
             if isinstance(self.model, torch.nn.DataParallel) else self.model.state_dict()
         checkpoint_file_path = self.config.get_path_to_checkpoint(epoch)
+        checkpoint_file_path.parent.mkdir(exist_ok=True, parents=True)
         info_to_store = {
             ModelAndInfo.EPOCH_KEY: epoch,
             ModelAndInfo.MODEL_STATE_DICT_KEY: model_state_dict,
@@ -443,6 +445,7 @@ class ModelAndInfo:
         torch.save(info_to_store, checkpoint_file_path)
         logging.getLogger().disabled = False
         logging.info(f"Saved model checkpoint for epoch {epoch} to {checkpoint_file_path}")
+        return checkpoint_file_path
 
 
 def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:
