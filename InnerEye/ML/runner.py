@@ -41,8 +41,7 @@ REPORT_HTML = "report.html"
 LOG_FILE_NAME = "stdout.txt"
 
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
-ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, ModelProcessing],
-                                        Tuple[Optional[Path], Optional[Any]]]
+ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, ModelProcessing], Any]
 
 
 def may_initialize_rpdb() -> None:

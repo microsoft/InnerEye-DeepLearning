@@ -49,9 +49,9 @@ def run() -> None:
     that this has been set up correctly (taking the environment.yml file stored in the model).
     All arguments that are not recognized by the present code will be passed through to `score.py` unmodified.
     Example arguments:
-        download_model_and_run_scoring.py --model-id=Foo:1 start.py --foo=1 --bar
-    This would attempt to download version 1 of model Foo, and then start the script start.py in the model's root
-    folder. Arguments --foo and --bar are passed through to start.py
+        download_model_and_run_scoring.py --model-id=Foo:1 score.py --foo=1 --bar
+    This would attempt to download version 1 of model Foo, and then start the script score.py in the model's root
+    folder. Arguments --foo and --bar are passed through to score.py
     """
     parser = argparse.ArgumentParser(description='Execute code inside of an AzureML model')
     # Use argument names with dashes here. The rest of the codebase uses _ as the separator, meaning that there

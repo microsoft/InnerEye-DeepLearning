@@ -335,7 +335,9 @@ class MLRunner:
         """
         registration_epoch = self.decide_registration_epoch_without_evaluating()
         if registration_epoch is not None:
-            self.register_model_for_epoch(checkpoint_handler, registration_epoch, np.nan, model_proc)
+            model_description = f"Registering model for epoch {registration_epoch} without considering metrics."
+            checkpoint_paths = checkpoint_handler.get_checkpoint_from_epoch(registration_epoch).checkpoint_paths
+            self.register_model_for_epoch(checkpoint_paths,model_description,model_proc)
             if self.azure_config.register_model_only_for_epoch is not None:
                 return self.azure_config.register_model_only_for_epoch
 
@@ -349,7 +351,8 @@ class MLRunner:
                 if self.should_register_model():
                     assert test_metrics is None or isinstance(test_metrics, InferenceMetricsForSegmentation)
                     assert val_metrics is None or isinstance(val_metrics, InferenceMetricsForSegmentation)
-                    registration_epoch = self.register_model_for_best_epoch(checkpoint_handler, test_metrics,
+                    registration_epoch = self.register_model_for_best_epoch(checkpoint_handler,
+                                                                            test_metrics,
                                                                             val_metrics,
                                                                             model_proc)
             self.try_compare_scores_against_baselines(model_proc)
@@ -424,22 +427,31 @@ class MLRunner:
             raise ValueError("Unable to mount or download input dataset.")
         return mounted
 
-    def register_model_for_best_epoch(self, checkpoint_handler: CheckpointHandler,
+    def register_model_for_best_epoch(self,
+                                      checkpoint_handler: CheckpointHandler,
                                       test_metrics: Optional[InferenceMetricsForSegmentation],
                                       val_metrics: Optional[InferenceMetricsForSegmentation],
                                       model_proc: ModelProcessing) -> int:
         if val_metrics is not None:
             best_epoch = val_metrics.get_best_epoch()
+            num_epochs = len(val_metrics.epochs)
+            model_description = f"Epoch {best_epoch} has best validation set metrics (out of {num_epochs} epochs " \
+                                f"available). Validation set Dice: {val_metrics.epochs[best_epoch]}. "
+            if test_metrics:
+                model_description += f"Test set Dice: {test_metrics.epochs[best_epoch]}."
+            else:
+                model_description += "Test set metrics not available."
         elif test_metrics is not None:
+            # We should normally not get here. We presently always run inference on both validation and test set
+            # together.
             best_epoch = test_metrics.get_best_epoch()
+            num_epochs = len(test_metrics.epochs)
+            model_description = f"Epoch {best_epoch} has best test set metrics (out of {num_epochs} epochs " \
+                                f"available). Test set Dice: {test_metrics.epochs[best_epoch]}"
         else:
-            best_epoch = self.model_config.get_test_epochs()[-1]
-        if test_metrics is not None:
-            best_epoch_dice = test_metrics.epochs[best_epoch]
-        else:
-            best_epoch_dice = 0.0  # dummy value
-        assert isinstance(self.model_config, SegmentationModelBase)
-        self.register_model_for_epoch(checkpoint_handler, best_epoch, best_epoch_dice, model_proc)
+            raise ValueError("At least one of val_metrics, test_metrics should be available.")
+        checkpoint_paths = checkpoint_handler.get_checkpoint_from_epoch(best_epoch).checkpoint_paths
+        self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
         return best_epoch
 
     def save_build_info_for_dotnet_consumers(self) -> None:
@@ -471,13 +483,17 @@ class MLRunner:
             torch.multiprocessing.set_start_method(method.name, force=True)
 
     def register_model_for_epoch(self,
-                                 checkpoint_handler: CheckpointHandler,
-                                 best_epoch: int,
-                                 best_epoch_dice: float,
+                                 checkpoint_paths: List[Path],
+                                 model_description: str,
                                  model_proc: ModelProcessing) -> None:
-
-        checkpoint_path_and_epoch = checkpoint_handler.get_checkpoint_from_epoch(epoch=best_epoch)
-        if not checkpoint_path_and_epoch or not checkpoint_path_and_epoch.checkpoint_paths:
+        """
+        Registers the model in AzureML, with the given set of checkpoints. The AzureML run's tags are updated
+        to describe with information about ensemble creation and the parent run ID.
+        :param checkpoint_paths: The set of Pytorch checkpoints that should be included.
+        :param model_description: A string description of the model, usually containing accuracy numbers.
+        :param model_proc: The type of model that is registered (single or ensemble)
+        """
+        if not checkpoint_paths:
             # No point continuing, since no checkpoints were found
             logging.warning("Abandoning model registration - no valid checkpoint paths found")
             return
@@ -490,9 +506,8 @@ class MLRunner:
                 update_run_tags(RUN_CONTEXT, {PARENT_RUN_ID_KEY_NAME: PARENT_RUN_CONTEXT.id})
         with logging_section(f"Registering {model_proc.value} model"):
             self.register_segmentation_model(
-                best_epoch=best_epoch,
-                best_epoch_dice=best_epoch_dice,
-                checkpoint_paths=checkpoint_path_and_epoch.checkpoint_paths,
+                checkpoint_paths=checkpoint_paths,
+                model_description=model_description,
                 model_proc=model_proc)
 
     def try_compare_scores_against_baselines(self, model_proc: ModelProcessing) -> None:
@@ -509,25 +524,22 @@ class MLRunner:
             print_exception(ex, "Model baseline comparison failed.")
 
     def register_segmentation_model(self,
-                                    best_epoch: int,
-                                    best_epoch_dice: float,
                                     checkpoint_paths: List[Path],
-                                    model_proc: ModelProcessing) -> Optional[Tuple[Model, Optional[Any]]]:
+                                    model_description: str,
+                                    model_proc: ModelProcessing) -> Tuple[Model, Optional[Any]]:
         """
         Registers a new model in the workspace's model registry to be deployed further,
-        and creates a model zip for portal deployment (if required). This model, is the
+        and creates a model zip for portal deployment (if required). This model is the
         model checkpoint with the highest test accuracy.
-        :param best_epoch: The training epoch that resulted in the highest validation score.
-        :param best_epoch_dice: Dice metric for the best epoch
+        :param model_description: A string description that is added to the deployed model. It would usually contain
+        the test set performance and information at which epoch the result was achieved.
         :param checkpoint_paths: Checkpoint paths to use to upload model checkpoints to AML.
         :param model_proc: whether it's a single or ensemble model.
-        :returns Tuple element 1: AML model object. Tuple element 1: The result of running the
-        However if a model cannot be registered because the run is an _OfflineRun, or the model_config is not
+        :returns Tuple element 1: AML model object. Tuple element 2: The result of running the
         model_deployment_hook, or None if no hook was supplied.
         """
         if not isinstance(self.model_config, SegmentationModelBase):
-            logging.warning("Non-segmentation models cannot be registered")
-            return None
+            raise ValueError(f"This function can only register segmentation models, but got {type(self.model_config)}")
         is_offline_run = is_offline_run_context(RUN_CONTEXT)
         final_model_folder = self.model_config.final_model_folder
         # Copy all code from project and InnerEye into the model folder, and copy over checkpoints.
@@ -535,32 +547,31 @@ class MLRunner:
         # right in the final model folder - however, then that would also contain any other checkpoints that the model
         # produced or downloaded for recovery, bloating the final model file.
         self.copy_child_paths_to_folder(final_model_folder, checkpoint_paths)
-        description = f"Best epoch: {best_epoch}, Accuracy : {best_epoch_dice}"
         logging.info("Registering the model on the workspace.")
-        description = description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
         if is_offline_run:
+            model_description = model_description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
             model = Model.register(
                 workspace=self.azure_config.get_workspace(),
                 model_name=self.model_config.model_name,
                 model_path=str(final_model_folder),
-                description=description
+                description=model_description
             )
         else:
             # The files for the final model can't live in the outputs folder. If they do: when registering the model,
             # the files are not yet uploaded by hosttools, and may (or not) cause errors. Hence, place the folder
             # for the final models outside of "outputs", and upload manually.
-            model_path_in_run = FINAL_MODEL_FOLDER
-            logging.info(f"Uploading files in {final_model_folder} to the run with prefix '{model_path_in_run}'")
+            artifacts_path = FINAL_MODEL_FOLDER
+            logging.info(f"Uploading files in {final_model_folder} to the run with prefix '{artifacts_path}'")
             final_model_folder_relative = final_model_folder.relative_to(Path.cwd())
-            RUN_CONTEXT.upload_folder(name=model_path_in_run, path=str(final_model_folder_relative))
+            RUN_CONTEXT.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
             logging.info(f"Registering the model on run {RUN_CONTEXT.id}")
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
             model = RUN_CONTEXT.register_model(
                 model_name=self.model_config.model_name,
-                model_path=model_path_in_run,
+                model_path=artifacts_path,
                 tags=RUN_CONTEXT.get_tags(),
-                description=description
+                description=model_description
             )
 
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
