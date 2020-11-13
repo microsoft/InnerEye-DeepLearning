@@ -503,11 +503,14 @@ class MLRunner:
                 update_run_tags(RUN_CONTEXT, {IS_ENSEMBLE_KEY_NAME: model_proc == ModelProcessing.ENSEMBLE_CREATION})
             elif PARENT_RUN_CONTEXT is not None:
                 update_run_tags(RUN_CONTEXT, {PARENT_RUN_ID_KEY_NAME: PARENT_RUN_CONTEXT.id})
-        with logging_section(f"Registering {model_proc.value} model"):
-            self.register_segmentation_model(
-                checkpoint_paths=checkpoint_paths,
-                model_description=model_description,
-                model_proc=model_proc)
+        if isinstance(self.model_config, SegmentationModelBase):
+            with logging_section(f"Registering {model_proc.value} model"):
+                self.register_segmentation_model(
+                    checkpoint_paths=checkpoint_paths,
+                    model_description=model_description,
+                    model_proc=model_proc)
+        else:
+            logging.info(f"No deployment done for this type of model: {type(self.model_config)}")
 
     def try_compare_scores_against_baselines(self, model_proc: ModelProcessing) -> None:
         """
@@ -537,8 +540,6 @@ class MLRunner:
         :returns Tuple element 1: AML model object. Tuple element 2: The result of running the
         model_deployment_hook, or None if no hook was supplied.
         """
-        if not isinstance(self.model_config, SegmentationModelBase):
-            raise ValueError(f"This function can only register segmentation models, but got {type(self.model_config)}")
         is_offline_run = is_offline_run_context(RUN_CONTEXT)
         final_model_folder = self.model_config.final_model_folder
         # Copy all code from project and InnerEye into the model folder, and copy over checkpoints.
