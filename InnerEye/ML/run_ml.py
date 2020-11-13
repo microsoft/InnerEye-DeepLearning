@@ -8,7 +8,6 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import numpy as np
 import torch.multiprocessing
 from azureml.core import Run
 from azureml.core.model import Model
@@ -337,7 +336,7 @@ class MLRunner:
         if registration_epoch is not None:
             model_description = f"Registering model for epoch {registration_epoch} without considering metrics."
             checkpoint_paths = checkpoint_handler.get_checkpoint_from_epoch(registration_epoch).checkpoint_paths
-            self.register_model_for_epoch(checkpoint_paths,model_description,model_proc)
+            self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
             if self.azure_config.register_model_only_for_epoch is not None:
                 return self.azure_config.register_model_only_for_epoch
 
