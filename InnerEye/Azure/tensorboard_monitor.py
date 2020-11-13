@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import sys
 from pathlib import Path
 from typing import Any, List, Optional
 
@@ -53,14 +54,14 @@ def monitor(monitor_config: AMLTensorBoardMonitorConfig, azure_config: AzureConf
     if monitor_config.run_ids is not None:
         if len(monitor_config.run_ids) == 0:
             print("At least one run_recovery_id must be given for monitoring.")
-            exit(-1)
+            sys.exit(1)
         exp_runs = [azure_util.fetch_run(workspace, run_id) for run_id in monitor_config.run_ids]
     else:
         if monitor_config.experiment_name not in workspace.experiments:
             print(
                 f"The experiment: {monitor_config.experiment_name} doesn't "
                 f"exist in the {monitor_config.workspace_name} workspace.")
-            exit(-1)
+            sys.exit(1)
 
         experiment = Experiment(workspace, monitor_config.experiment_name)
         filters = common_util.get_items_from_string(monitor_config.run_status) if monitor_config.run_status else []
@@ -71,7 +72,7 @@ def monitor(monitor_config: AMLTensorBoardMonitorConfig, azure_config: AzureConf
             _msg = "No runs to monitor"
             if monitor_config.run_status:
                 _msg += f"with status [{monitor_config.run_status}]."
-            exit(-1)
+            sys.exit(1)
 
     # Start TensorBoard on executing machine
     ts = Tensorboard(exp_runs, local_root=str(monitor_config.local_root), port=monitor_config.port)

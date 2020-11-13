@@ -448,7 +448,8 @@ class MLRunner:
             model_description = f"Epoch {best_epoch} has best test set metrics (out of {num_epochs} epochs " \
                                 f"available). Test set Dice: {test_metrics.epochs[best_epoch]}"
         else:
-            raise ValueError("At least one of val_metrics, test_metrics should be available.")
+            best_epoch = self.model_config.get_test_epochs()[-1]
+            model_description = f"Model for epoch {best_epoch}. No validation or test set metrics were available."
         checkpoint_paths = checkpoint_handler.get_checkpoint_paths_from_epoch_or_fail(best_epoch)
         self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
         return best_epoch

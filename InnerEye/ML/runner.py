@@ -363,7 +363,7 @@ class Runner:
         # If a pytest failed, the runner has exited with code -1 (see below)
         if self.azure_config.wait_for_completion and status != RunStatus.COMPLETED:
             logging.error(f"Job completed with status {status}. Exiting.")
-            exit(-1)
+            sys.exit(1)
         return azure_run
 
     def run_in_situ(self) -> None:
@@ -404,7 +404,7 @@ class Runner:
         if training_failed or pytest_failed or not pytest_passed:
             # Terminate if pytest or model training has failed. This makes the smoke test in
             # PR builds fail if pytest fails.
-            exit(-1)
+            sys.exit(1)
 
     def create_ml_runner(self) -> Any:
         """
