@@ -13,8 +13,15 @@ created.
 ### Added
 
 ### Changed
+- The arguments of the `score.py` script changed: `data_root` -> `data_folder`, it no longer assumes a fixed
+`data` subfolder. `project_root` -> `model_root`, `test_image_channels` -> `image_files`.
+- By default, the visualization of patch sampling for segmentation models will run on only 1 image (down from 5).
+This is because patch sampling is expensive to compute, taking 1min per large CT scan.
 
 ### Fixed
+- When registering a model, it now has a consistent folder structured, described [here](docs/deploy_on_aml.md). This
+folder structure is present irrespective of using InnerEye as a submodule or not. In particular, exactly 1 Conda
+environment will be contained in the model.
 
 ### Removed
 
