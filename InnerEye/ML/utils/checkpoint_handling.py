@@ -3,21 +3,21 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-import requests
 import os
 import uuid
-import torch
-
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
-from azureml.core import Run
-from dataclasses import dataclass
 from urllib.parse import urlparse
 
+import requests
+import torch
+from azureml.core import Run
+
 from InnerEye.Azure.azure_config import AzureConfig
+from InnerEye.Common import fixed_paths
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, WEIGHTS_FILE
 from InnerEye.ML.utils.run_recovery import RunRecovery
-from InnerEye.Common import fixed_paths
 
 
 @dataclass
@@ -146,6 +146,16 @@ class CheckpointHandler:
         else:
             logging.warning(f"Could not find any checkpoints in run recovery/training checkpoints for epoch {epoch}.")
             return None
+
+    def get_checkpoint_paths_from_epoch_or_fail(self, epoch: int) -> List[Path]:
+        """
+        Get a list of full checkpoint paths per epoch for testing/registration. If no information for that epoch
+        is found, raise a ValueError.
+        """
+        checkpoint_and_epoch = self.get_checkpoint_from_epoch(epoch)
+        if checkpoint_and_epoch:
+            return checkpoint_and_epoch.checkpoint_paths
+        raise ValueError(f"No checkpoints found for epoch {epoch}")
 
     def get_checkpoints_to_test(self) -> Optional[List[CheckpointPathsAndEpoch]]:
         """

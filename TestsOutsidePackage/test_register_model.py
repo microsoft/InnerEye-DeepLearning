@@ -144,8 +144,7 @@ def test_register_and_score_model(is_ensemble: bool,
         ml_runner = MLRunner(config, azure_config, project_root=project_root,
                              model_deployment_hook=deployment_hook)
         registration_result = ml_runner.register_segmentation_model(
-            best_epoch=0,
-            best_epoch_dice=0,
+            model_description="",
             checkpoint_paths=checkpoints_absolute,
             model_proc=ModelProcessing.DEFAULT)
         assert registration_result is not None
@@ -213,16 +212,14 @@ def test_register_model_invalid() -> None:
     with pytest.raises(Exception):
         ml_runner = MLRunner(config, None)
         ml_runner.register_segmentation_model(
-            best_epoch=0,
-            best_epoch_dice=0,
+            model_description="",
             checkpoint_paths=checkpoint_paths,
             model_proc=ModelProcessing.DEFAULT
         )
     with pytest.raises(Exception):
         ml_runner = MLRunner(config, get_default_azure_config())
         ml_runner.register_segmentation_model(
-            best_epoch=0,
-            best_epoch_dice=0,
+            model_description="",
             checkpoint_paths=checkpoint_paths,
             model_proc=ModelProcessing.DEFAULT
         )

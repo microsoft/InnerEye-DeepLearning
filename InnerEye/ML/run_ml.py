@@ -335,7 +335,7 @@ class MLRunner:
         registration_epoch = self.decide_registration_epoch_without_evaluating()
         if registration_epoch is not None:
             model_description = f"Registering model for epoch {registration_epoch} without considering metrics."
-            checkpoint_paths = checkpoint_handler.get_checkpoint_from_epoch(registration_epoch).checkpoint_paths
+            checkpoint_paths = checkpoint_handler.get_checkpoint_paths_from_epoch_or_fail(registration_epoch)
             self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
             if self.azure_config.register_model_only_for_epoch is not None:
                 return self.azure_config.register_model_only_for_epoch
@@ -449,7 +449,7 @@ class MLRunner:
                                 f"available). Test set Dice: {test_metrics.epochs[best_epoch]}"
         else:
             raise ValueError("At least one of val_metrics, test_metrics should be available.")
-        checkpoint_paths = checkpoint_handler.get_checkpoint_from_epoch(best_epoch).checkpoint_paths
+        checkpoint_paths = checkpoint_handler.get_checkpoint_paths_from_epoch_or_fail(best_epoch)
         self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
         return best_epoch
 
