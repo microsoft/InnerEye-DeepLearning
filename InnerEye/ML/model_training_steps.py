@@ -710,6 +710,7 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
                                     self.model_config)
         return result
 
+
 class ModelTrainingStepsForReconstruction(ModelTrainingStepsBase[ReconstructionModelBase, DeviceAwareModule]):
     def __init__(self, model_config: ReconstructionModelBase,
                  train_val_params: TrainValidateParameters[DeviceAwareModule]):
@@ -719,6 +720,7 @@ class ModelTrainingStepsForReconstruction(ModelTrainingStepsBase[ReconstructionM
         :param train_val_params: The parameters for training the model, including the optimizer and the data loaders.
         """
         super().__init__(model_config, train_val_params)
+        self.metrics = MetricsDict()
 
     def forward_and_backward_minibatch(self, sample: Dict[str, Any],
                                        batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
@@ -728,10 +730,20 @@ class ModelTrainingStepsForReconstruction(ModelTrainingStepsBase[ReconstructionM
         :param batch_index: The index of the present batch (supplied only for diagnostics).
         :param epoch: The number of the present epoch.
         """
+
+        labels = sample['recon']
         logits = self.train_val_params.model(sample['kspace'])
         posteriors = logits
-        loss = self.compute_loss(logits, sample['recon'])
-        return ModelForwardAndBackwardsOutputs(loss, logits, sample['recon'])
+        loss = self.compute_loss(logits, labels)
+
+        self.metrics.add_metric(MetricType.LOSS, loss.item())
+
+        if self.in_training_mode:
+            single_optimizer_step(loss,
+                                  self.train_val_params.optimizer,
+                                  self.train_val_params.gradient_scaler)
+
+        return ModelForwardAndBackwardsOutputs(loss, logits, labels)
 
     def get_epoch_results_and_store(self, epoch_time_seconds: float) -> MetricsDict:
         """
@@ -740,7 +752,24 @@ class ModelTrainingStepsForReconstruction(ModelTrainingStepsBase[ReconstructionM
         :param epoch_time_seconds: For diagnostics, this is the total time in seconds for training the present epoch.
         :return: An object that holds an aggregate of the training results over the epoch.
         """
-        raise NotImplementedError("get_epoch_results_and_store must be implemented by children")
+
+        self.metrics.add_metric(MetricType.SECONDS_PER_EPOCH, epoch_time_seconds)
+        assert len(self.train_val_params.epoch_learning_rate) == 1, "Expected a single entry for learning rate."
+        self.metrics.add_metric(MetricType.LEARNING_RATE, self.train_val_params.epoch_learning_rate[0])
+        averaged_across_hues = self.metrics.average(across_hues=False)
+        mode = ModelExecutionMode.TRAIN if self.in_training_mode else ModelExecutionMode.VAL
+        diagnostics_lines = averaged_across_hues.to_string()
+        logging.info(f"Results for epoch {self.train_val_params.epoch:3d} {mode.value}\n{diagnostics_lines}")
+
+        # Write metrics to Azure and TensorBoard
+        metrics.store_epoch_metrics(self.azure_and_tensorboard_logger,
+                                    self.df_logger,
+                                    self.train_val_params.epoch,
+                                    averaged_across_hues,
+                                    self.train_val_params.epoch_learning_rate,
+                                    self.model_config)
+
+        return self.metrics.average(across_hues=True)
 
     def create_loss_function(self) -> torch.nn.Module:
         """

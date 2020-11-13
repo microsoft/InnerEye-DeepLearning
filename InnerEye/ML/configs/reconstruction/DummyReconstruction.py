@@ -12,6 +12,7 @@ import param
 import torch
 
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.reconstruction_config import ReconstructionModelBase
 from InnerEye.ML.dataset import fastmri_dataset
@@ -32,6 +33,9 @@ class SimpleMriNet(torch.nn.Module):
 class DummyReconstruction(ReconstructionModelBase):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__()
+
+        # TODO: this should maybe be something else, but we have to set something for now.
+        self._model_category = ModelCategory.Regression
 
     def validate(self) -> None:
         """

@@ -21,6 +21,7 @@ from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics
 from InnerEye.ML import metrics, plotting
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
+from InnerEye.ML.reconstruction_config import ReconstructionModelBase
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForClassification, InferenceMetricsForSegmentation, \
@@ -70,6 +71,8 @@ def model_test(config: ModelConfigBase,
             return segmentation_model_test(config, data_split, checkpoint_handler, model_proc)
         if isinstance(config, ScalarModelBase):
             return classification_model_test(config, data_split, checkpoint_handler, model_proc)
+        if isinstance(config, ReconstructionModelBase):
+            return None
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 
