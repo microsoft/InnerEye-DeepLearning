@@ -26,6 +26,7 @@ from InnerEye.Common.type_annotations import T
 from InnerEye.ML import metrics
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationLoss, SegmentationModelBase
+from InnerEye.ML.reconstruction_config import ReconstructionModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
@@ -708,6 +709,45 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
                                     self.train_val_params.epoch_learning_rate,
                                     self.model_config)
         return result
+
+class ModelTrainingStepsForReconstruction(ModelTrainingStepsBase[ReconstructionModelBase, DeviceAwareModule]):
+    def __init__(self, model_config: ReconstructionModelBase,
+                 train_val_params: TrainValidateParameters[DeviceAwareModule]):
+        """
+        Creates a new instance of the class.
+        :param model_config: The configuration of a segmentation model.
+        :param train_val_params: The parameters for training the model, including the optimizer and the data loaders.
+        """
+        super().__init__(model_config, train_val_params)
+
+    def forward_and_backward_minibatch(self, sample: Dict[str, Any],
+                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
+        """
+        Runs training for a single minibatch of training data, and returns the loss.
+        :param sample: The batched sample on which the model should be trained.
+        :param batch_index: The index of the present batch (supplied only for diagnostics).
+        :param epoch: The number of the present epoch.
+        """
+        logits = self.train_val_params.model(sample['kspace'])
+        posteriors = logits
+        loss = self.compute_loss(logits, sample['recon'])
+        return ModelForwardAndBackwardsOutputs(loss, logits, sample['recon'])
+
+    def get_epoch_results_and_store(self, epoch_time_seconds: float) -> MetricsDict:
+        """
+        This method should assemble all training results that were achieved over all minibatches, store
+        or log them in a suitable way, and then return them.
+        :param epoch_time_seconds: For diagnostics, this is the total time in seconds for training the present epoch.
+        :return: An object that holds an aggregate of the training results over the epoch.
+        """
+        raise NotImplementedError("get_epoch_results_and_store must be implemented by children")
+
+    def create_loss_function(self) -> torch.nn.Module:
+        """
+        Returns a torch module that computes a loss function.
+        """
+        return MSELoss()
+
 
 
 # noinspection PyUnresolvedReferences

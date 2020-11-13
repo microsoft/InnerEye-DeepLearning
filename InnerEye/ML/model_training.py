@@ -15,11 +15,12 @@ from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML import metrics
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.reconstruction_config import ReconstructionModelBase
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
     ModelTrainingStepsForScalarModel, ModelTrainingStepsForSegmentation, ModelTrainingStepsForSequenceModel, \
-    TrainValidateParameters
+    TrainValidateParameters, ModelTrainingStepsForReconstruction
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util
@@ -329,6 +330,8 @@ def create_model_training_steps(model_config: ModelConfigBase,
     """
     if isinstance(model_config, SegmentationModelBase):
         return ModelTrainingStepsForSegmentation(model_config, train_val_params)
+    elif isinstance(model_config, ReconstructionModelBase):
+        return ModelTrainingStepsForReconstruction(model_config, train_val_params)
     elif isinstance(model_config, ScalarModelBase):
         if isinstance(model_config, SequenceModelBase):
             return ModelTrainingStepsForSequenceModel(model_config, train_val_params)

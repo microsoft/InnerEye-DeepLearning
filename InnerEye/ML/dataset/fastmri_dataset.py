@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Tuple
+from typing import Dict, Any
 
 import h5py
 import pandas as pd
@@ -35,14 +35,15 @@ class FastMriDataset(GeneralDataset):
     def __len__(self) -> int:
         return len(self.data_frame.index)
 
-    def __getitem__(self, idx) -> Tuple[torch.Tensor, torch.Tensor]:
-        item = self.data_frame.loc[idx]
+    def __getitem__(self, idx) -> Dict[str, Any]:
+        item = self.data_frame.loc[self.data_frame.index[idx]]
         
         f = item['FilePath']
         s = item['SliceIndex']
 
-        with h5py.File(f) as d:
+        with h5py.File(f, 'r') as d:
             kspace = torch.tensor(d[KSPACE_NAME][s, :])
             recon = torch.tensor(d[RECONSTRUCTION_NAME][s, :])
-            return (kspace, recon)
+            
+            return { 'kspace': kspace, 'recon': recon }
   

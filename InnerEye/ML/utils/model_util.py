@@ -18,6 +18,7 @@ from InnerEye.ML.config import ModelArchitectureConfig, PaddingMode, Segmentatio
 from InnerEye.ML.deep_learning_config import OptimizerType
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
+from InnerEye.ML.reconstruction_config import ReconstructionModelBase
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
 from InnerEye.ML.models.architectures.complex import ComplexModel
 from InnerEye.ML.models.architectures.unet_2d import UNet2D
@@ -549,6 +550,9 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
         # However, the model is not yet converted to float16 when this function is called, hence convert back to float32
         summary = ModelSummary(model)
         summary.generate_summary(input_tensors=model_inputs, log_summaries_to_files=config.log_summaries_to_files)
+    elif isinstance(config, ReconstructionModelBase):
+        random_state.restore_random_state()
+        return
     elif config.is_segmentation_model:
         summary_for_segmentation_models(config, model)
         assert model.summarizer
