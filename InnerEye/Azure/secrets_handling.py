@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional, cast, List
 
-import yaml
+import ruamel.yaml
 
 from InnerEye.Common import fixed_paths
 
@@ -143,7 +143,8 @@ def read_settings_yaml_file(yaml_file: Path) -> Dict[str, Any]:
     """
     if yaml_file is None:
         return dict()
-    yaml_contents = yaml.load(yaml_file.open('r'), Loader=yaml.Loader)
+
+    yaml_contents = ruamel.yaml.load(yaml_file.open('r'), Loader=ruamel.yaml.SafeLoader)
     v = "variables"
     if v in yaml_contents:
         if yaml_contents[v]:
