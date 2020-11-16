@@ -45,12 +45,21 @@ jobs:
           testRunTitle: 'tests_on_AzureML'
         condition: succeededOrFailed()
         displayName: Publish test results
+      - template: tests_after_training.yml
+        parameters:
+          pytest_mark: after_training
+          test_run_title: tests_after_training
 
+  # Now train a module, using the Github code as a submodule. Here, a simpler 1 channel model
+  # is trained, because we use this build to also check the "submit_for_inference" code, that
+  # presently only handles single channel models.
   - job: TrainInAzureMLViaSubmodule
     variables:
       - template: ../InnerEye/settings.yml
       - name: cluster
         value: 'training-nc12'
+      - name: model
+        value: 'BasicModel2Epochs1Channel'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:

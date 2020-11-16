@@ -65,6 +65,15 @@ MODEL_INFERENCE_JSON_FILE_NAME = 'model_inference_config.json'
 AZURE_RUNNER_ENVIRONMENT_YAML_FILE_NAME = "azure_runner.yml"
 AZURE_RUNNER_ENVIRONMENT_YAML = repository_root_directory(AZURE_RUNNER_ENVIRONMENT_YAML_FILE_NAME)
 
+# The names of files at the repository root that are required for running the inference pipeline.
+SCORE_SCRIPT = "score.py"
+SCRIPTS_AT_ROOT = [SCORE_SCRIPT]
+RUN_SCORING_SCRIPT = f"{INNEREYE_PACKAGE_NAME}/Scripts/download_model_and_run_scoring.py"
+
+# Constants needed for the score.py script
+DEFAULT_DATA_FOLDER = "data"
+DEFAULT_TEST_IMAGE_NAME = "test.nii.gz"
+
 
 def get_environment_yaml_file() -> Path:
     """

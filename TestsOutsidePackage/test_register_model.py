@@ -4,33 +4,57 @@
 #  ------------------------------------------------------------------------------------------
 import os
 import shutil
+import subprocess
+import sys
 from pathlib import Path
-from typing import Any, Dict, List
-from unittest import mock
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import param
 import pytest
-from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.image_util import get_unit_image_header
-from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_default_workspace, get_model_loader, \
-    get_nifti_shape
-from Tests.fixed_paths_for_tests import RELATIVE_TEST_OUTPUTS_PATH, full_ml_test_data_path, tests_root_directory
-from run_scoring import spawn_and_monitor_subprocess
-from score import DEFAULT_DATA_FOLDER
+from InnerEye.ML.utils.ml_util import set_random_seed
+from InnerEye.ML.utils.model_util import ModelAndInfo
+from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
+from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
-checkpoint_paths = [full_ml_test_data_path('checkpoints') / '1_checkpoint.pth.tar']
+
+def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, str]) -> Tuple[int, List[str]]:
+    """
+    Helper function to spawn and monitor subprocesses.
+    :param process: The name or path of the process to spawn.
+    :param args: The args to the process.
+    :param env: The environment variables for the process (default is the environment variables of the parent).
+    :return: Return code after the process has finished, and the list of lines that were written to stdout by the
+    subprocess.
+    """
+    p = subprocess.Popen(
+        [process] + args,
+        shell=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        env=env
+    )
+
+    # Read and print all the lines that are printed by the subprocess
+    stdout_lines = [line.decode('UTF-8').strip() for line in p.stdout]  # type: ignore
+    for line in stdout_lines:
+        print(line)
+
+    # return the subprocess error code to the calling job so that it is reported to AzureML
+    return p.wait(), stdout_lines
 
 
 class SubprocessConfig(GenericConfig):
@@ -42,16 +66,42 @@ class SubprocessConfig(GenericConfig):
     env: Dict[str, str] = param.Dict(instantiate=True, doc="Dictionary of environment variables "
                                                            "to override for this process")
 
-    def spawn_and_monitor_subprocess(self) -> int:
+    def spawn_and_monitor_subprocess(self) -> Tuple[int, List[str]]:
         return spawn_and_monitor_subprocess(process=self.process, args=self.args, env=self.env)
 
 
+def create_checkpoints(model_config: SegmentationModelBase, is_ensemble: bool) -> Tuple[List[Path], List[Path]]:
+    """
+    Copies 1 or 2 checkpoint files from the stored test data into the model's checkpoint folder, and returns
+    the absolute paths of those files.
+    :param model_config: The model configuration, where a correct output folder must be set.
+    :param is_ensemble: If true, 2 checkpoints (simulating an ensemble run) will be created. If false, only a
+    single checkpoint will be created.
+    """
+    # To simulate ensemble models, there are two checkpoints, one in the root dir and one in a folder
+    stored_checkpoints = full_ml_test_data_path('checkpoints')
+    checkpoints = list(stored_checkpoints.rglob("*.tar")) if is_ensemble else list(stored_checkpoints.glob("*.tar"))
+    assert len(checkpoints) == (2 if is_ensemble else 1)
+    checkpoints_relative = [checkpoint.relative_to(stored_checkpoints) for checkpoint in checkpoints]
+    checkpoints_absolute = []
+    # copy_child_paths_to_folder expects all checkpoints to live inside the model's checkpoint folder
+    for (file_abs, file_relative) in list(zip(checkpoints, checkpoints_relative)):
+        destination_abs = model_config.checkpoint_folder / file_relative
+        destination_abs.parent.mkdir(exist_ok=True, parents=True)
+        shutil.copy(str(file_abs), str(destination_abs))
+        checkpoints_absolute.append(destination_abs)
+    return checkpoints_absolute, checkpoints_relative
+
+
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
-@pytest.mark.parametrize("is_ensemble", [True, False])
+# This is a very time-consuming test. Run it only with the most complex setup (ensemble, including code outside
+# package). The other settings are verified by checking the files in the registered model, in
+# test_copy_child_paths_to_folder
+@pytest.mark.parametrize("is_ensemble", [True])
+@pytest.mark.parametrize("model_outside_package", [True])
 # We currently don't support registered geonormalized models, so dataset_expected_spacing_xyz = (1.0, 1.0, 3.0)
 # is excluded.
 @pytest.mark.parametrize("dataset_expected_spacing_xyz", [None])
-@pytest.mark.parametrize("model_outside_package", [True, False])
 def test_register_and_score_model(is_ensemble: bool,
                                   dataset_expected_spacing_xyz: Any,
                                   model_outside_package: bool,
@@ -62,7 +112,8 @@ def test_register_and_score_model(is_ensemble: bool,
     2) Checking that a model zip from the registered model can be created successfully
     3) Calling the scoring pipeline to check inference can be run from the published model successfully
     """
-    ws = get_default_workspace()
+    # We are creating checkpoints on the fly in this test, writing a randomly initialized model.
+    set_random_seed(0)
     # Get an existing config as template
     loader = get_model_loader("Tests.ML.configs" if model_outside_package else None)
     config: SegmentationModelBase = loader.create_model_config_from_name(
@@ -70,107 +121,105 @@ def test_register_and_score_model(is_ensemble: bool,
     )
     config.dataset_expected_spacing_xyz = dataset_expected_spacing_xyz
     config.set_output_to(test_output_dirs.root_dir)
-    # copy checkpoints into the outputs (simulating a run)
-    stored_checkpoints = full_ml_test_data_path(os.path.join("train_and_test_data", "checkpoints"))
-    shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
-    paths = [config.checkpoint_folder / "1_checkpoint.pth.tar"]
-    checkpoints = paths * 2 if is_ensemble else paths
-    model = None
-    model_path = None
-    # Mocking to get the source from the current directory
-    # the score.py and python_wrapper.py cannot be moved inside the InnerEye package, which will be the
-    # only code running (if these tests are run on the package).
-    with mock.patch('InnerEye.Common.fixed_paths.repository_root_directory',
-                    return_value=tests_root_directory().parent):
-        try:
-            tags = {"model_name": config.model_name}
-            azure_config = get_default_azure_config()
-            if model_outside_package:
-                azure_config.extra_code_directory = "Tests"  # contains DummyModel
-            deployment_hook = lambda cfg, azure_cfg, mdl, is_ens: (Path(cfg.model_name), azure_cfg.docker_shm_size)
-            ml_runner = MLRunner(config, azure_config, model_deployment_hook=deployment_hook)
-            model, deployment_path, deployment_details = ml_runner.register_segmentation_model(
-                workspace=ws,
-                tags=tags,
-                best_epoch=0,
-                best_epoch_dice=0,
-                checkpoint_paths=checkpoints,
-                model_proc=ModelProcessing.DEFAULT)
-            assert model is not None
-            model_path = Path(model.get_model_path(model.name, model.version, ws))
-            assert (model_path / fixed_paths.ENVIRONMENT_YAML_FILE_NAME).exists()
-            assert (model_path / Path("InnerEye/ML/runner.py")).exists()
-            assert deployment_path == Path(config.model_name)
-            assert deployment_details == azure_config.docker_shm_size
+    checkpoints_absolute = []
+    model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TRAIN)
+    model_and_info.create_model()
+    model_and_info.create_optimizer()
+    checkpoints_absolute.append(model_and_info.save_checkpoint(epoch=10))
+    if is_ensemble:
+        checkpoints_absolute.append(model_and_info.save_checkpoint(epoch=20))
+    checkpoints_relative = [f.relative_to(config.checkpoint_folder) for f in checkpoints_absolute]
+    azureml_model = None
+    # Simulate a project root: We can't derive that from the repository root because that might point
+    # into Python's package folder
+    project_root = Path(__file__).parent.parent
+    # Double-check that we are at the right place, by testing for a file that would quite certainly not be found
+    # somewhere else
+    assert (project_root / fixed_paths.SCORE_SCRIPT).is_file()
+    try:
+        azure_config = get_default_azure_config()
+        if model_outside_package:
+            azure_config.extra_code_directory = "Tests"  # contains BasicModel2EpochsOutsidePackage
+        deployment_hook = lambda cfg, azure_cfg, mdl, is_ens: (Path(cfg.model_name), azure_cfg.docker_shm_size)
+        ml_runner = MLRunner(config, azure_config, project_root=project_root,
+                             model_deployment_hook=deployment_hook)
+        registration_result = ml_runner.register_segmentation_model(
+            model_description="",
+            checkpoint_paths=checkpoints_absolute,
+            model_proc=ModelProcessing.DEFAULT)
+        assert registration_result is not None
+        azureml_model, deployment_result = registration_result
+        assert azureml_model is not None
+        assert deployment_result == (Path(config.model_name), azure_config.docker_shm_size)
 
-            # move test data into the data folder to simulate an actual run
-            train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
+        # download the registered model and test that we can run the score pipeline on it
+        model_root = Path(azureml_model.download(str(test_output_dirs.root_dir)))
+        # The model needs to contain score.py at the root, the (merged) environment definition,
+        # and the inference config.
+        expected_files = [
+            *fixed_paths.SCRIPTS_AT_ROOT,
+            fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
+            fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME,
+            "InnerEye/ML/runner.py",
+        ]
+        # All checkpoints go into their own folder
+        expected_files.extend(str(Path(CHECKPOINT_FOLDER) / c) for c in checkpoints_relative)
+        for expected_file in expected_files:
+            assert (model_root / expected_file).is_file(), f"File {expected_file} missing"
 
-            img_channel_1_name = "id1_channel1.nii.gz"
-            img_channel_1_path = train_and_test_data_dir / img_channel_1_name
-            img_channel_2_name = "id1_channel2.nii.gz"
-            img_channel_2_path = train_and_test_data_dir / img_channel_2_name
+        # create a dummy datastore to store the image data
+        test_datastore = test_output_dirs.root_dir / "test_datastore"
+        # move test data into the data folder to simulate an actual run
+        train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
+        img_files = ["id1_channel1.nii.gz", "id1_channel2.nii.gz"]
+        data_root = test_datastore / fixed_paths.DEFAULT_DATA_FOLDER
+        data_root.mkdir(parents=True)
+        for f in img_files:
+            shutil.copy(str(train_and_test_data_dir / f), str(data_root))
 
-            # download the registered model and test that we can run the score pipeline on it
-            model_root = Path(model.download(str(test_output_dirs.root_dir)))
-            # create a dummy datastore to store model checkpoints and image data
-            # this simulates the code shapshot being executed in a real run
-            test_datastore = test_output_dirs.root_dir / "test_datastore"
-            shutil.move(
-                str(model_root / "test_outputs"),
-                str(test_datastore / RELATIVE_TEST_OUTPUTS_PATH)
-            )
-            data_root = test_datastore / DEFAULT_DATA_FOLDER
-            os.makedirs(data_root)
-            shutil.copy(str(img_channel_1_path), data_root)
-            shutil.copy(str(img_channel_2_path), data_root)
+        # run score pipeline as a separate process
+        python_executable = sys.executable
+        [return_code1, stdout1] = SubprocessConfig(process=python_executable,
+                                                   args=["--version"]).spawn_and_monitor_subprocess()
+        assert return_code1 == 0
+        print(f"Executing Python version {stdout1[0]}")
+        return_code, stdout2 = SubprocessConfig(process=python_executable, args=[
+            str(model_root / fixed_paths.SCORE_SCRIPT),
+            f"--data_folder={str(data_root)}",
+            f"--image_files={img_files[0]},{img_files[1]}",
+            "--use_gpu=False"
+        ]).spawn_and_monitor_subprocess()
 
-            # run score pipeline as a separate process using the python_wrapper.py code to simulate a real run
-            return_code = SubprocessConfig(process="python", args=[
-                str(model_root / "python_wrapper.py"),
-                "--spawnprocess=python",
-                str(model_root / "score.py"),
-                f"--data-folder={str(test_datastore)}",
-                f"--test_image_channels={img_channel_1_name},{img_channel_2_name}",
-                "--use_gpu=False"
-            ]).spawn_and_monitor_subprocess()
+        # check that the process completed as expected
+        assert return_code == 0, f"Subprocess failed with return code {return_code}. Stdout: {os.linesep.join(stdout2)}"
+        expected_segmentation_path = Path(model_root) / DEFAULT_RESULT_IMAGE_NAME
+        assert expected_segmentation_path.exists(), f"Result file not found: {expected_segmentation_path}"
 
-            # check that the process completed as expected
-            assert return_code == 0
-            expected_segmentation_path = Path(model_root) / DEFAULT_RESULT_IMAGE_NAME
-            assert expected_segmentation_path.exists()
+        # sanity check the resulting segmentation
+        expected_shape = get_nifti_shape(train_and_test_data_dir / img_files[0])
+        image_header = get_unit_image_header()
+        assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [3], np.ubyte)
 
-            # sanity check the resulting segmentation
-            expected_shape = get_nifti_shape(img_channel_1_path)
-            image_header = get_unit_image_header()
-            assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [0], np.ubyte)
-
-        finally:
-            # delete the registered model, and any downloaded artifacts
-            shutil.rmtree(test_output_dirs.root_dir)
-            if model and model_path:
-                model.delete()
-                shutil.rmtree(model_path)
+    finally:
+        # delete the registered model
+        if azureml_model:
+            azureml_model.delete()
 
 
 def test_register_model_invalid() -> None:
-    ws = get_default_workspace()
+    checkpoint_paths = [full_ml_test_data_path('checkpoints') / '1_checkpoint.pth.tar']
     config = get_model_loader().create_model_config_from_name("Lung")
     with pytest.raises(Exception):
         ml_runner = MLRunner(config, None)
         ml_runner.register_segmentation_model(
-            run=Run.get_context(),
-            workspace=ws,
-            best_epoch=0,
-            best_epoch_dice=0,
+            model_description="",
             checkpoint_paths=checkpoint_paths,
             model_proc=ModelProcessing.DEFAULT
         )
     with pytest.raises(Exception):
         ml_runner = MLRunner(config, get_default_azure_config())
         ml_runner.register_segmentation_model(
-            best_epoch=0,
-            best_epoch_dice=0,
+            model_description="",
             checkpoint_paths=checkpoint_paths,
             model_proc=ModelProcessing.DEFAULT
         )
@@ -178,25 +227,38 @@ def test_register_model_invalid() -> None:
 
 @pytest.mark.parametrize("is_ensemble", [True, False])
 @pytest.mark.parametrize("extra_code_directory", ["TestsOutsidePackage", ""])
-def test_get_child_paths(is_ensemble: bool, extra_code_directory: str) -> None:
-    checkpoints = checkpoint_paths * 2 if is_ensemble else checkpoint_paths
-    path_to_root = tests_root_directory().parent
+def test_copy_child_paths_to_folder(is_ensemble: bool,
+                                    extra_code_directory: str,
+                                    test_output_dirs: OutputFolderForTests) -> None:
     azure_config = AzureConfig(extra_code_directory=extra_code_directory)
-    fake_model = ModelConfigBase(azure_dataset_id="fake_dataset_id")
-    ml_runner = MLRunner(model_config=fake_model, azure_config=azure_config, project_root=path_to_root)
-    child_paths = ml_runner.get_child_paths(checkpoints)
-    assert fixed_paths.ENVIRONMENT_YAML_FILE_NAME in child_paths
-    assert fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME in child_paths
-    assert str(Path("InnerEye/ML/runner.py")) in child_paths
-    assert str(Path("InnerEye/ML/model_testing.py")) in child_paths
-    assert str(Path("InnerEye/Common/fixed_paths.py")) in child_paths
-    assert str(Path("InnerEye/Common/common_util.py")) in child_paths
-    trm = str(Path("TestsOutsidePackage/test_register_model.py"))
+    fake_model = SegmentationModelBase(should_validate=False)
+    fake_model.set_output_to(test_output_dirs.root_dir)
+    # To simulate ensemble models, there are two checkpoints, one in the root dir and one in a folder
+    checkpoints_absolute, checkpoints_relative = create_checkpoints(fake_model, is_ensemble)
+    # Simulate a project root: We can't derive that from the repository root because that might point
+    # into Python's package folder
+    project_root = Path(__file__).parent.parent
+    ml_runner = MLRunner(model_config=fake_model, azure_config=azure_config, project_root=project_root)
+    model_folder = test_output_dirs.root_dir / "final"
+    ml_runner.copy_child_paths_to_folder(model_folder=model_folder,
+                                         checkpoint_paths=checkpoints_absolute)
+    expected_files = [
+        fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
+        fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME,
+        "InnerEye/ML/runner.py",
+        "InnerEye/ML/model_testing.py",
+        "InnerEye/Common/fixed_paths.py",
+        "InnerEye/Common/common_util.py",
+    ]
+    for r in checkpoints_relative:
+        expected_files.append(f"{CHECKPOINT_FOLDER}/{r}")
+    for expected_file in expected_files:
+        assert (model_folder / expected_file).is_file(), f"File missing: {expected_file}"
+    trm = model_folder / "TestsOutsidePackage/test_register_model.py"
     if extra_code_directory:
-        assert trm in child_paths
+        assert trm.is_file()
     else:
-        assert trm not in child_paths
-    assert all([x.relative_to(path_to_root) for x in checkpoints])
+        assert not trm.is_file()
 
 
 def test_model_inference_config() -> None:

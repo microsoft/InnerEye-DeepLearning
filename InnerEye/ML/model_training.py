@@ -23,11 +23,11 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
-from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
@@ -98,10 +98,7 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
             raise ValueError(f"There was no checkpoint file available for the optimizer for given start_epoch "
                              f"{config.start_epoch}")
 
-    # Create checkpoint directory for this run if it doesn't already exist
     logging.info(f"Models are saved at {config.checkpoint_folder}")
-    if not config.checkpoint_folder.is_dir():
-        config.checkpoint_folder.mkdir()
 
     # Create the SummaryWriters for Tensorboard
     writers = create_summary_writers(config)
