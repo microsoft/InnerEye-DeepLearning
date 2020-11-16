@@ -72,6 +72,7 @@ def monitor(monitor_config: AMLTensorBoardMonitorConfig, azure_config: AzureConf
             _msg = "No runs to monitor"
             if monitor_config.run_status:
                 _msg += f"with status [{monitor_config.run_status}]."
+            print(_msg)
             sys.exit(1)
 
     # Start TensorBoard on executing machine

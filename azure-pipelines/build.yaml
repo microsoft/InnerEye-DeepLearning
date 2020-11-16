@@ -17,8 +17,11 @@ steps:
   - bash: |
       conda env create --file environment.yml --name InnerEye --quiet
       source activate InnerEye
-      echo "Environment has been created with these packages:"
-      pip freeze
+      echo Storing environment for later use by ComponentGovernance
+      # This file is picked up later by ComponentGovernance
+      pip freeze > requirements.txt
+      echo Environment has been created with these packages:
+      cat requirements.txt
     failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
     condition: succeeded()
     displayName: Create conda environment
@@ -36,7 +39,7 @@ steps:
       source activate InnerEye
       flake8
     failOnStderr: true
-    condition: succeeded()
+    condition: succeededOrFailed()
     displayName: flake8
 
   - bash: |
@@ -52,6 +55,7 @@ steps:
       sed -i -e "s/subscription_id: ''/subscription_id: '$(InnerEyeDevSubscriptionID)'/" InnerEye/settings.yml
       sed -i -e "s/application_id: ''/application_id: '$(InnerEyeDeepLearningServicePrincipalID)'/" InnerEye/settings.yml
     displayName: Store subscription in settings.yml
+    condition: succeededOrFailed()
 
   # Install the InnerEye package without its dependencies. We have already create an environment that has everything
   # the package needs. If --no-deps is omitted, this causes a weird package conflict with azure-storage-blob
@@ -61,7 +65,7 @@ steps:
     env:
       IS_DEV_PACKAGE: True
     failOnStderr: false
-    condition: succeeded()
+    condition: succeededOrFailed()
     displayName: Install InnerEye (Dev) Package
 
   # First run all tests that require the InnerEye package. All code should be consumed via the InnerEye package,
