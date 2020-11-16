@@ -324,7 +324,6 @@ class Runner:
         if self.azure_config.azureml:
             run_object = self.submit_to_azureml()
         else:
-            raise ValueError("Expected to fail")
             self.run_in_situ()
         return self.model_config, run_object
 
@@ -362,7 +361,8 @@ class Runner:
         status = azure_run.get_status()
         # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
         if self.azure_config.wait_for_completion and status != RunStatus.COMPLETED:
-            raise ValueError(f"Job {azure_run} completed with status {status}.")
+            raise ValueError(f"Run {azure_run.id} in experiment {azure_run.experiment.name} completed with "
+                             f"status {status}.")
         return azure_run
 
     def run_in_situ(self) -> None:

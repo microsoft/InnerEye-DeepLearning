@@ -17,8 +17,11 @@ steps:
   - bash: |
       conda env create --file environment.yml --name InnerEye --quiet
       source activate InnerEye
-      echo "Environment has been created with these packages:"
-      pip freeze
+      echo Storing environment for later use by ComponentGovernance
+      # This file is picked up later by ComponentGovernance
+      pip freeze > requirements.txt
+      echo Environment has been created with these packages:
+      cat requirements.txt
     failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
     condition: succeeded()
     displayName: Create conda environment
