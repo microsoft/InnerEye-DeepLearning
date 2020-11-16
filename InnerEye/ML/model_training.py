@@ -5,7 +5,7 @@
 import logging
 import os
 from time import time
-from typing import Optional, Tuple, TypeVar, Union, Any
+from typing import Any, Optional, Tuple, TypeVar, Union
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import logging_section
@@ -22,14 +22,13 @@ from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util
-from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size, get_local_size, get_local_rank, \
+from InnerEye.ML.utils.aml_distributed_utils import get_global_rank, get_global_size, get_local_rank, get_local_size, \
     is_aml_mpi_run
-
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
-from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults, determine_device
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
@@ -128,7 +127,8 @@ def train(rank: Optional[int], config: ModelConfigBase, checkpoint_handler: Chec
     if config.use_distributed_data_parallel:
         train_dataset = data_loaders[ModelExecutionMode.TRAIN].dataset
         len_dataset = len(train_dataset)
-        assert 2 * len_dataset >= world_size, f"2* len(dataset) (={2*len_dataset}) must be >= num GPUs (={world_size})"
+        assert 2 * len_dataset >= world_size, f"2* len(dataset) (={2 * len_dataset}) must be >= num GPUs (=" \
+                                              f"{world_size})"
 
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
@@ -165,11 +165,7 @@ def train(rank: Optional[int], config: ModelConfigBase, checkpoint_handler: Chec
             raise ValueError(f"There was no checkpoint file available for the optimizer for given start_epoch "
                              f"{config.start_epoch}")
 
-    # Create checkpoint directory for this run if it doesn't already exist
-
     logging.info(f"Models are saved at {config.checkpoint_folder}")
-    if not os.path.isdir(config.checkpoint_folder):
-        os.makedirs(config.checkpoint_folder, exist_ok=True)
 
     # Create the SummaryWriters for Tensorboard
     writers = create_summary_writers(config, global_rank=global_rank)

@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-import os
 from pathlib import Path
 from typing import Any, List, Optional, Union
 
@@ -19,13 +18,13 @@ from InnerEye.Common.type_annotations import PathOrString, TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import PatientDatasetSource
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.utils import io_util
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.io_util import ImageHeader, ImageWithHeader
 from InnerEye.ML.utils.ml_util import is_gpu_available
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 TEST_CHANNEL_IDS = ["channel1", "channel2"]
@@ -217,11 +216,3 @@ def get_default_workspace() -> Workspace:
     :return:
     """
     return get_default_azure_config().get_workspace()
-
-
-def is_running_on_azure() -> bool:
-    """
-    Returns True if the code appears to be running on an Azure build agent, and False otherwise.
-    """
-    # Guess by looking at the AGENT_OS variable, that all Azure hosted agents define.
-    return bool(os.environ.get("AGENT_OS", None))

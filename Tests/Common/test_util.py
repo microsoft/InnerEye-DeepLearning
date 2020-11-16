@@ -16,8 +16,6 @@ DEFAULT_RUN_RECOVERY_ID = "melanibe_setup_branch_mock:melanibe_setup_branch_mock
 DEFAULT_ENSEMBLE_RUN_RECOVERY_ID_NUMERIC = "dacart_local_branch_202008:1"
 DEFAULT_RUN_RECOVERY_ID_NUMERIC = "melanibe_setup_branch_mock:1"
 
-DEFAULT_MODEL_ID_NUMERIC = "BasicModel2Epochs1Channel:1"
-
 
 def test_get_items_from_string() -> None:
     """

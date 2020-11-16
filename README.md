@@ -98,10 +98,13 @@ Further detailed instructions, including setup in Azure, are here:
 1. [Sample Segmentation and Classification tasks](docs/sample_tasks.md)
 1. [Debugging and monitoring models](docs/debugging_and_monitoring.md)
 1. [Model diagnostics](docs/model_diagnostics.md)
+1. [Deployment](docs/deploy_on_aml.md)
 
 ## More information
 
 1. [Project InnerEye](https://www.microsoft.com/en-us/research/project/medical-image-analysis/)
+1. [Releases](docs/releases.md)
+1. [Changelog](CHANGELOG.md)
 1. [Testing](docs/testing.md)
 1. [How to do pull requests](docs/pull_requests.md)
 1. [Contributing](docs/contributing.md)
