@@ -363,8 +363,7 @@ class Runner:
         # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
         # If a pytest failed, the runner has exited with code -1 (see below)
         if self.azure_config.wait_for_completion and status != RunStatus.COMPLETED:
-            logging.error(f"Job completed with status {status}. Exiting.")
-            sys.exit(1)
+            raise ValueError(f"Job {azure_run} completed with status {status}.")
         return azure_run
 
     def run_in_situ(self) -> None:
