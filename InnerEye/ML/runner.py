@@ -324,6 +324,7 @@ class Runner:
         if self.azure_config.azureml:
             run_object = self.submit_to_azureml()
         else:
+            raise ValueError("Expected to fail")
             self.run_in_situ()
         return self.model_config, run_object
 
@@ -363,7 +364,7 @@ class Runner:
         # If a pytest failed, the runner has exited with code -1 (see below)
         if self.azure_config.wait_for_completion and status != RunStatus.COMPLETED:
             logging.error(f"Job completed with status {status}. Exiting.")
-            sys.exit(1)
+            exit(-1)
         return azure_run
 
     def run_in_situ(self) -> None:
