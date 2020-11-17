@@ -23,10 +23,10 @@ from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, TemperatureScalingConfig
 from InnerEye.ML.metrics import TRAIN_STATS_FILE
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.model_training_steps import ModelTrainingStepsForSegmentation
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.io_util import load_nifti_image
+from InnerEye.ML.utils.model_util import create_segmentation_loss_function
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
@@ -328,7 +328,7 @@ def test_construct_loss_function() -> None:
     model_config.mixture_loss_components = [
         MixtureLossComponent(weights[0], SegmentationLoss.CrossEntropy, 0.2),
         MixtureLossComponent(weights[1], SegmentationLoss.SoftDice, 0.1)]
-    loss_fn = ModelTrainingStepsForSegmentation.construct_loss_function(model_config)
+    loss_fn = create_segmentation_loss_function(model_config)
     assert isinstance(loss_fn, MixtureLoss)
     assert len(loss_fn.components) == len(weights)
     assert loss_fn.components[0][0] == weights[0] / sum(weights)

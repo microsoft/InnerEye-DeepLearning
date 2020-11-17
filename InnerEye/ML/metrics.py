@@ -5,22 +5,19 @@
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import SimpleITK as sitk
-import math
 import numpy as np
 import tensorboardX
 import torch
 import torch.nn.functional as F
-from PIL import Image
 from azureml.core import Run
 
-from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARENT_RUN_CONTEXT, RUN_CONTEXT, \
-    get_run_context_or_default, is_offline_run_context
-from InnerEye.Common.common_util import DataframeLogger
+from InnerEye.Azure.azure_util import get_run_context_or_default
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict, get_column_name_for_logging, \
     get_metric_name_with_hue_prefix
 from InnerEye.Common.type_annotations import TupleFloat3
@@ -29,13 +26,14 @@ from InnerEye.ML.config import BACKGROUND_CLASS_NAME
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarLoss
 from InnerEye.ML.utils import metrics_util
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array, check_array_range, is_binary_array
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, r2_score
+from InnerEye.ML.utils.metrics_util import AzureAndTensorboardLogger, DataframeLogger, binary_classification_accuracy, \
+    mean_absolute_error, r2_score
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
-from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 
 TRAIN_STATS_FILE = "train_stats.csv"
 
@@ -131,126 +129,6 @@ class SegmentationMetricsPerClass:
         self.dice.append(dice)
         self.hausdorff_distance_mm.append(hausdorff_distance_mm)
         self.mean_distance_mm.append(mean_distance_mm)
-
-
-class AzureMLLogger:
-    """
-    Stores the information that is required to log metrics to AzureML.
-    """
-
-    def __init__(self,
-                 cross_validation_split_index: int,
-                 logging_prefix: str,
-                 log_to_parent_run: bool):
-        """
-        :param cross_validation_split_index: The cross validation split index, or its default value if not running
-        inside cross validation.
-        :param logging_prefix: A prefix string that will be added to all metrics names before logging.
-        :param log_to_parent_run: If true, all metrics will also be written to the Hyperdrive parent run when that
-        parent run is present.
-        """
-        self.logging_prefix = logging_prefix
-        self.cross_validation_split_index = cross_validation_split_index
-        self.log_to_parent_run = log_to_parent_run
-
-    def log_to_azure(self, label: str, metric: float) -> None:
-        """
-        Logs a metric as a key/value pair to AzureML.
-        """
-        if not is_offline_run_context(RUN_CONTEXT):
-            metric_name = self.logging_prefix + label
-            RUN_CONTEXT.log(metric_name, metric)
-            # When running in a cross validation setting, log all metrics to the hyperdrive parent run too,
-            # so that we can easily overlay graphs across runs.
-            if self.log_to_parent_run and PARENT_RUN_CONTEXT:
-                if self.cross_validation_split_index > DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-                    PARENT_RUN_CONTEXT.log(f"{metric_name}_Split{self.cross_validation_split_index}",
-                                           metric)
-
-
-class AzureAndTensorboardLogger:
-    """
-    Contains functionality to log metrics to both Azure run and TensorBoard event file
-    for both classification and segmentation models.
-    """
-
-    def __init__(self,
-                 azureml_logger: AzureMLLogger,
-                 tensorboard_logger: tensorboardX.SummaryWriter,
-                 epoch: int):
-        self.azureml_logger = azureml_logger
-        self.tensorboard_logger = tensorboard_logger
-        self.epoch = epoch
-
-    def log_to_azure_and_tensorboard(self, label: str, metric: float) -> None:
-        """
-        Writes a metric to the Azure run and to the TensorBoard event file
-        :param label: The string name of the metric.
-        :param metric: The value of the metric.
-        """
-        self.azureml_logger.log_to_azure(label, metric)
-        self.log_to_tensorboard(label, metric)
-
-    def log_to_tensorboard(self, label: str, metric: float) -> None:
-        """
-        Writes a metric to a Tensorboard event file.
-        :param label: The string name of the metric.
-        :param metric: The value of the metric.
-        """
-        # TensorBoard does not like tags that contain spaces, and prints out a warning for each logging attempt.
-        # Replace space with underscore to reduce logging noise.
-        writer = self.tensorboard_logger
-        label_without_spaces = label.replace(" ", "_")
-        writer.add_scalar(label_without_spaces, metric, self.epoch)
-
-    def log_image(self, name: str, path: str) -> None:
-        """
-        Logs a PNG image stored in `path` to Azure and Tensorboard.
-        """
-        if not is_offline_run_context(RUN_CONTEXT):
-            RUN_CONTEXT.log_image(name=name, path=path)
-        writer = self.tensorboard_logger
-        img = Image.open(path).convert("RGB")
-        img = np.transpose(np.asarray(img), (2, 0, 1))
-        writer.add_image(name, img, self.epoch)
-
-    def log_segmentation_epoch_metrics(self,
-                                       metrics: MetricsDict,
-                                       learning_rates: List[float]) -> None:
-        """
-        Logs segmentation metrics (e.g. loss, dice scores, learning rates) to an event file for TensorBoard
-        visualization and to the AzureML run context
-        :param learning_rates: The logged learning rates.
-        :param metrics: The metrics of the specified epoch, averaged along its batches.
-        """
-        logging_fn = self.log_to_azure_and_tensorboard
-        logging_fn(MetricType.LOSS.value, metrics.get_single_metric(MetricType.LOSS))
-        logging_fn("Dice/AverageExceptBackground", metrics.get_single_metric(MetricType.DICE))
-        logging_fn("Voxels/ProportionForeground", metrics.get_single_metric(MetricType.PROPORTION_FOREGROUND_VOXELS))
-        logging_fn("TimePerEpoch_Seconds", metrics.get_single_metric(MetricType.SECONDS_PER_EPOCH))
-
-        if learning_rates is not None:
-            for i, lr in enumerate(learning_rates):
-                logging_fn("LearningRate/Index_{}".format(i), lr)
-
-        for class_name in metrics.get_hue_names(include_default=False):
-            # Tensorboard groups metrics by what is before the slash.
-            # With metrics Dice/Foo and Dice/Bar, it will create a section for "Dice",
-            # and inside of it, there are graphs for Foo and Bar
-            get_label = lambda x, y: "{}/{}".format(x, y)
-            logging_fn(get_label("Dice", class_name),
-                       metrics.get_single_metric(MetricType.DICE, hue=class_name))
-            logging_fn(get_label("Voxels", class_name),
-                       metrics.get_single_metric(MetricType.PROPORTION_FOREGROUND_VOXELS, hue=class_name))
-
-    def log_classification_epoch_metrics(self, metrics: MetricsDict) -> None:
-        """
-        Writes all values from MetricsDict object into a file for Tensorboard visualization,
-        and into the AzureML run context.
-        :param metrics: dictionary containing the metrics to be logged, averaged over minibatches.
-        """
-        for hue_name, label, metric in metrics.enumerate_single_values():
-            self.log_to_azure_and_tensorboard(get_metric_name_with_hue_prefix(label, hue_name), metric)
 
 
 def vars_with_scalar_fields_only(o: Any) -> Dict[str, Any]:
@@ -481,8 +359,9 @@ def store_epoch_stats_for_segmentation(outputs_dir: Path,
         f.write(line + line_sep)
 
 
-def validate_and_store_model_parameters(writer: tensorboardX.SummaryWriter, epoch: int,
-                                        model: DeviceAwareModule) -> None:
+def store_model_parameters(writer: tensorboardX.SummaryWriter,
+                           epoch: int,
+                           model: DeviceAwareModule) -> None:
     """
     Validates and writes all model weights to the given TensorBoard writer.
     :param writer: TensorBoard summary writer
@@ -494,6 +373,46 @@ def validate_and_store_model_parameters(writer: tensorboardX.SummaryWriter, epoc
         param_numpy = param.clone().cpu().data.numpy()
         check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
         writer.add_histogram(name, param_numpy, epoch)
+
+
+def log_segmentation_epoch_metrics(logging_fn: Callable[[str, float], None],
+                                   metrics: MetricsDict,
+                                   learning_rates: List[float]) -> None:
+    """
+    Logs segmentation metrics (e.g. loss, dice scores, learning rates) to an event file for TensorBoard
+    visualization and to the AzureML run context
+    :param learning_rates: The logged learning rates.
+    :param metrics: The metrics of the specified epoch, averaged along its batches.
+    """
+    logging_fn(MetricType.LOSS.value, metrics.get_single_metric(MetricType.LOSS))
+    logging_fn("Dice/AverageExceptBackground", metrics.get_single_metric(MetricType.DICE))
+    logging_fn("Voxels/ProportionForeground", metrics.get_single_metric(MetricType.PROPORTION_FOREGROUND_VOXELS))
+    logging_fn("TimePerEpoch_Seconds", metrics.get_single_metric(MetricType.SECONDS_PER_EPOCH))
+
+    if learning_rates is not None:
+        for i, lr in enumerate(learning_rates):
+            logging_fn("LearningRate/Index_{}".format(i), lr)
+
+    for class_name in metrics.get_hue_names(include_default=False):
+        # Tensorboard groups metrics by what is before the slash.
+        # With metrics Dice/Foo and Dice/Bar, it will create a section for "Dice",
+        # and inside of it, there are graphs for Foo and Bar
+        get_label = lambda x, y: "{}/{}".format(x, y)
+        logging_fn(get_label("Dice", class_name),
+                   metrics.get_single_metric(MetricType.DICE, hue=class_name))
+        logging_fn(get_label("Voxels", class_name),
+                   metrics.get_single_metric(MetricType.PROPORTION_FOREGROUND_VOXELS, hue=class_name))
+
+
+def log_classification_epoch_metrics(logging_fn: Callable[[str, float], None],
+                                     metrics: MetricsDict) -> None:
+    """
+    Writes all values from MetricsDict object into a file for Tensorboard visualization,
+    and into the AzureML run context.
+    :param metrics: dictionary containing the metrics to be logged, averaged over minibatches.
+    """
+    for hue_name, label, metric in metrics.enumerate_single_values():
+        logging_fn(get_metric_name_with_hue_prefix(label, hue_name), metric)
 
 
 def store_epoch_metrics(azure_and_tensorboard_logger: AzureAndTensorboardLogger,
@@ -513,8 +432,8 @@ def store_epoch_metrics(azure_and_tensorboard_logger: AzureAndTensorboardLogger,
     :param config: one of SegmentationModelBase
     """
     if config.is_segmentation_model:
-        azure_and_tensorboard_logger.log_segmentation_epoch_metrics(metrics,
-                                                                    learning_rates)
+        log_segmentation_epoch_metrics(logging_fn=azure_and_tensorboard_logger.log_to_azure_and_tensorboard,
+                                       metrics=metrics, learning_rates=learning_rates)
         logger_row = {
             LoggingColumns.Dice.value: metrics.get_single_metric(MetricType.DICE),
             LoggingColumns.Loss.value: metrics.get_single_metric(MetricType.LOSS),
@@ -523,7 +442,8 @@ def store_epoch_metrics(azure_and_tensorboard_logger: AzureAndTensorboardLogger,
 
     elif config.is_scalar_model:
         assert isinstance(metrics, MetricsDict)
-        azure_and_tensorboard_logger.log_classification_epoch_metrics(metrics)
+        log_classification_epoch_metrics(logging_fn=azure_and_tensorboard_logger.log_to_azure_and_tensorboard,
+                                         metrics=metrics)
         logger_row: Dict[str, float] = {}  # type: ignore
         for hue_name, metric_name, metric_value in metrics.enumerate_single_values():
             logging_column_name = get_column_name_for_logging(metric_name, hue_name=hue_name)

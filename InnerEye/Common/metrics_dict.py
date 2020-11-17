@@ -15,13 +15,14 @@ from more_itertools import flatten
 from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_auc_score, roc_curve
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
-from InnerEye.Common.common_util import DataframeLogger, check_properties_are_not_none
+from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
 from InnerEye.ML.utils.io_util import tabulate_dataframe
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, mean_squared_error, \
+from InnerEye.ML.utils.metrics_util import DataframeLogger, binary_classification_accuracy, mean_absolute_error, \
+    mean_squared_error, \
     r2_score
 
 FloatOrInt = Union[float, int]

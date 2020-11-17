@@ -5,9 +5,10 @@
 import abc
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
+import tensorboardX
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 from pandas import DataFrame
@@ -15,6 +16,7 @@ from pandas import DataFrame
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES, TrackedMetrics
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.utils.metrics_util import AzureAndTensorboardLogger, AzureMLLogger, MetricsDataframeLoggers
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 
@@ -26,6 +28,13 @@ class ModelConfigBaseMeta(type(DeepLearningConfig), abc.ABCMeta):  # type: ignor
 
 
 class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta):
+
+    def __init__(self, **params: Any):
+        super().__init__(**params)
+        self.data_frame_loggers: Optional[MetricsDataframeLoggers] = None
+        self.azure_loggers_train: Optional[AzureAndTensorboardLogger] = None
+        self.azure_loggers_val: Optional[AzureAndTensorboardLogger] = None
+
     def read_dataset_into_dataframe_and_pre_process(self) -> None:
         """
         Loads a dataset from a file or other source, and saves it into the model's data_frame property.
@@ -135,9 +144,9 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
 
     def create_model(self) -> Any:
         """
-        Creates a torch model from the provided arguments and returns a torch.nn.Module object.
+        Creates a torch model from the provided arguments and returns a LightningModule.
         This is an abstract method that each model class (segmentation, regression) should override.
-        Return type should really be BaseModel, but that involves importing more than we can afford to.
+        Return type is LightningModule, not Any - but we want to avoid importing torch at this point.
         """
         # This method is factually an abstract method. We don't want to mark at as such
         # because this would prevent us from easily instantiating this class in tests.
@@ -242,6 +251,28 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         :param model: The torch model.
         """
         pass
+
+    def create_loggers_for_training(self) -> None:
+        azure_loggers: List[AzureAndTensorboardLogger] = []
+        # Disable tensorboardX's logs
+        logging.getLogger().disabled = True
+        for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
+            azureml_logger = AzureMLLogger(logging_prefix=f"{mode.value}_",
+                                           log_to_parent_run=self.log_to_parent_run,
+                                           cross_validation_split_index=self.cross_validation_split_index)
+            writer = tensorboardX.SummaryWriter(str(self.logs_folder / f"{mode.value}"))
+            azure_loggers.append(AzureAndTensorboardLogger(azureml_logger=azureml_logger,
+                                                           tensorboard_logger=writer))
+        # Reset logger
+        logging.getLogger().disabled = False
+        self.data_frame_loggers = MetricsDataframeLoggers(outputs_folder=self.outputs_folder)
+        self.azure_loggers_train = azure_loggers[0]
+        self.azure_loggers_val = azure_loggers[1]
+
+    def close_all_loggers(self) -> None:
+        self.azure_loggers_train.close()
+        self.azure_loggers_val.close()
+        self.data_frame_loggers.close_all()
 
 
 class ModelTransformsPerExecutionMode:

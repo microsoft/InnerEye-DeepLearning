@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from enum import Enum
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Union
+from typing import Any, Callable, Generator, Iterable, List, Optional, Union
 
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.Common.type_annotations import PathOrString
@@ -40,62 +40,6 @@ ENSEMBLE_SPLIT_NAME = "ENSEMBLE"
 
 SCATTERPLOTS_SUBDIR_NAME = "scatterplots"
 BASELINE_WILCOXON_RESULTS_FILE = "BaselineComparisonWilcoxonSignedRankTestResults.txt"
-
-
-class DataframeLogger:
-    """
-    Single DataFrame logger for logging to CSV file
-    """
-
-    def __init__(self, csv_path: Path):
-        self.records: List[Dict[str, Any]] = []
-        self.csv_path = csv_path
-
-    def add_record(self, record: Dict[str, Any]) -> None:
-        self.records.append(record)
-
-    def flush(self, log_info: bool = False) -> None:
-        """
-        Save the internal records to a csv file.
-        :param log_info: Log INFO if log_info is True.
-        """
-        import pandas as pd
-        if not self.csv_path.parent.is_dir():
-            self.csv_path.parent.mkdir(parents=True)
-        # Specifying columns such that the order in which columns appear matches the order in which
-        # columns were added in the code.
-        columns = self.records[0].keys() if len(self.records) > 0 else None
-        df = pd.DataFrame.from_records(self.records, columns=columns)
-        df.to_csv(self.csv_path, sep=',', mode='w', index=False)
-        if log_info:
-            logging.info(f"\n {df.to_string(index=False)}")
-
-
-class MetricsDataframeLoggers:
-    """
-    Contains DataframeLogger instances for logging metrics to CSV during training and validation stages respectively
-    """
-    def __init__(self, outputs_folder: Path):
-        self.outputs_folder = outputs_folder
-        _train_root = self.outputs_folder / ModelExecutionMode.TRAIN.value
-        _val_root = self.outputs_folder / ModelExecutionMode.VAL.value
-        # training loggers
-        self.train_subject_metrics = DataframeLogger(_train_root / METRICS_FILE_NAME)
-        self.train_epoch_metrics = DataframeLogger(_train_root / EPOCH_METRICS_FILE_NAME)
-        # validation loggers
-        self.val_subject_metrics = DataframeLogger(_val_root / METRICS_FILE_NAME)
-        self.val_epoch_metrics = DataframeLogger(_val_root / EPOCH_METRICS_FILE_NAME)
-        self._all_metrics = [
-            self.train_subject_metrics, self.train_epoch_metrics,
-            self.val_subject_metrics, self.val_epoch_metrics
-        ]
-
-    def close_all(self) -> None:
-        """
-        Save all records for each logger to disk.
-        """
-        for x in self._all_metrics:
-            x.flush()
 
 
 def epoch_folder_name(epoch: int) -> str:
@@ -321,9 +265,9 @@ def logging_section(gerund: str) -> Generator:
     elapsed = time() - start_time
     logging.info("")
     if elapsed >= 3600:
-        time_expr = f"{elapsed/3600:0.2f} hours"
+        time_expr = f"{elapsed / 3600:0.2f} hours"
     elif elapsed >= 60:
-        time_expr = f"{elapsed/60:0.2f} minutes"
+        time_expr = f"{elapsed / 60:0.2f} minutes"
     else:
         time_expr = f"{elapsed:0.2f} seconds"
     msg = f"**** FINISHED: {gerund} after {time_expr} "

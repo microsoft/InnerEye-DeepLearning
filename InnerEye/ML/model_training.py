@@ -6,7 +6,7 @@ import logging
 from time import time
 from typing import Tuple, TypeVar
 
-from torch.cuda.amp import GradScaler
+from pytorch_lightning import Trainer
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import logging_section
@@ -16,16 +16,16 @@ from InnerEye.ML import metrics
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
+from InnerEye.ML.metrics import store_model_parameters
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
-    ModelTrainingStepsForScalarModel, ModelTrainingStepsForSegmentation, ModelTrainingStepsForSequenceModel, \
-    TrainValidateParameters
+    ModelTrainingStepsForScalarModel, ModelTrainingStepsForSequenceModel, \
+    TrainValidateParameters, TrainingAndValidationDataForSegmentation
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
-from InnerEye.ML.utils.metrics_util import create_summary_writers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
@@ -99,13 +99,7 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
                              f"{config.start_epoch}")
 
     logging.info(f"Models are saved at {config.checkpoint_folder}")
-
-    # Create the SummaryWriters for Tensorboard
-    writers = create_summary_writers(config)
-    config.create_dataframe_loggers()
-
-    # Create LR scheduler
-    l_rate_scheduler = SchedulerWithWarmUp(config, models_and_optimizer.optimizer)
+    config.create_loggers_for_training()
 
     # Training loop
     logging.info("Starting training")
@@ -120,63 +114,64 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
                                            tensorboard_folder=diagnostics_events)
         resource_monitor.start()
 
-    gradient_scaler = GradScaler() if config.use_gpu and config.use_mixed_precision else None
     optimal_temperature_scale_values = []
-    for epoch in config.get_train_epochs():
-        logging.info("Starting epoch {}".format(epoch))
-        save_epoch = config.should_save_epoch(epoch) and models_and_optimizer.optimizer is not None
 
-        # store the learning rates used for each epoch
-        epoch_lrs = l_rate_scheduler.get_last_lr()
-        learning_rates_per_epoch.append(epoch_lrs)
-
-        train_val_params: TrainValidateParameters = \
-            TrainValidateParameters(data_loader=data_loaders[ModelExecutionMode.TRAIN],
-                                    model=models_and_optimizer.model,
-                                    mean_teacher_model=models_and_optimizer.mean_teacher_model,
-                                    epoch=epoch,
-                                    optimizer=models_and_optimizer.optimizer,
-                                    gradient_scaler=gradient_scaler,
-                                    epoch_learning_rate=epoch_lrs,
-                                    summary_writers=writers,
-                                    dataframe_loggers=config.metrics_data_frame_loggers,
-                                    in_training_mode=True)
-        training_steps = create_model_training_steps(config, train_val_params)
-        train_epoch_results = train_or_validate_epoch(training_steps)
-        train_results_per_epoch.append(train_epoch_results.metrics)
-
-        metrics.validate_and_store_model_parameters(writers.train, epoch, models_and_optimizer.model)
-        # Run without adjusting weights on the validation set
-        train_val_params.in_training_mode = False
-        train_val_params.data_loader = data_loaders[ModelExecutionMode.VAL]
-        # if temperature scaling is enabled then do not save validation metrics for the checkpoint epochs
-        # as these will be re-computed after performing temperature scaling on the validation set.
-        if isinstance(config, SequenceModelBase):
-            train_val_params.save_metrics = not (save_epoch and config.temperature_scaling_config)
-
-        training_steps = create_model_training_steps(config, train_val_params)
-        val_epoch_results = train_or_validate_epoch(training_steps)
-        val_results_per_epoch.append(val_epoch_results.metrics)
-
-        if config.is_segmentation_model:
-            metrics.store_epoch_stats_for_segmentation(config.outputs_folder, epoch, epoch_lrs,
-                                                       train_epoch_results.metrics,
-                                                       val_epoch_results.metrics)
-
-        if save_epoch:
-            # perform temperature scaling if required
-            if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
-                optimal_temperature, scaled_val_results = \
-                    temperature_scaling_steps(config, train_val_params, val_epoch_results)
-                optimal_temperature_scale_values.append(optimal_temperature)
-                # overwrite the metrics for the epoch with the metrics from the temperature scaled model
-                val_results_per_epoch[-1] = scaled_val_results.metrics
-
-            models_and_optimizer.save_checkpoint(epoch)
-
-        # Updating the learning rate should happen at the end of the training loop, so that the
-        # initial learning rate will be used for the very first epoch.
-        l_rate_scheduler.step()
+    trainer = Trainer(max_epochs=config.num_epochs)
+    lightning_model = config.create_model()
+    lightning_data = TrainingAndValidationDataForSegmentation(config)
+    trainer.fit(lightning_model, datamodule=lightning_data)
+    # for epoch in config.get_train_epochs():
+    #     logging.info("Starting epoch {}".format(epoch))
+    #     save_epoch = config.should_save_epoch(epoch) and models_and_optimizer.optimizer is not None
+#
+    #     # store the learning rates used for each epoch
+    #     epoch_lrs = l_rate_scheduler.get_last_lr()
+    #     learning_rates_per_epoch.append(epoch_lrs)
+#
+    #     train_val_params: TrainValidateParameters = \
+    #         TrainValidateParameters(data_loader=data_loaders[ModelExecutionMode.TRAIN],
+    #                                 model=models_and_optimizer.model,
+    #                                 mean_teacher_model=models_and_optimizer.mean_teacher_model,
+    #                                 epoch=epoch,
+    #                                 optimizer=models_and_optimizer.optimizer,
+    #                                 epoch_learning_rate=epoch_lrs,
+    #                                 in_training_mode=True)
+    #     training_steps = create_model_training_steps(config, train_val_params)
+    #     train_epoch_results = train_or_validate_epoch(training_steps)
+    #     train_results_per_epoch.append(train_epoch_results.metrics)
+#
+    #     store_model_parameters(config.azure_loggers_train.tensorboard_logger, epoch, models_and_optimizer.model)
+    #     # Run without adjusting weights on the validation set
+    #     train_val_params.in_training_mode = False
+    #     train_val_params.data_loader = data_loaders[ModelExecutionMode.VAL]
+    #     # if temperature scaling is enabled then do not save validation metrics for the checkpoint epochs
+    #     # as these will be re-computed after performing temperature scaling on the validation set.
+    #     if isinstance(config, SequenceModelBase):
+    #         train_val_params.save_metrics = not (save_epoch and config.temperature_scaling_config)
+#
+    #     training_steps = create_model_training_steps(config, train_val_params)
+    #     val_epoch_results = train_or_validate_epoch(training_steps)
+    #     val_results_per_epoch.append(val_epoch_results.metrics)
+#
+    #     if config.is_segmentation_model:
+    #         metrics.store_epoch_stats_for_segmentation(config.outputs_folder, epoch, epoch_lrs,
+    #                                                    train_epoch_results.metrics,
+    #                                                    val_epoch_results.metrics)
+#
+    #     if save_epoch:
+    #         # perform temperature scaling if required
+    #         if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
+    #             optimal_temperature, scaled_val_results = \
+    #                 temperature_scaling_steps(config, train_val_params, val_epoch_results)
+    #             optimal_temperature_scale_values.append(optimal_temperature)
+    #             # overwrite the metrics for the epoch with the metrics from the temperature scaled model
+    #             val_results_per_epoch[-1] = scaled_val_results.metrics
+#
+    #         models_and_optimizer.save_checkpoint(epoch)
+#
+    #     # Updating the learning rate should happen at the end of the training loop, so that the
+    #     # initial learning rate will be used for the very first epoch.
+    #     l_rate_scheduler.step()
 
     model_training_results = ModelTrainingResults(
         train_results_per_epoch=train_results_per_epoch,
@@ -196,8 +191,7 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
     if config.max_batch_grad_cam > 0 and config.visualization_folder.exists():
         RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(config.visualization_folder))
 
-    writers.close_all()
-    config.metrics_data_frame_loggers.close_all()
+    config.close_all_loggers()
     if resource_monitor:
         # stop the resource monitoring process
         logging.info("Shutting down the resource monitor process. Aggregate resource utilization:")
@@ -226,7 +220,7 @@ def temperature_scaling_steps(config: SequenceModelBase,
     """
     # re-create the training steps for the repeat pass, but with metrics saving enabled
     train_val_params.save_metrics = True
-    training_steps = create_model_training_steps(config, train_val_params)
+    training_steps = None  # create_model_training_steps(config, train_val_params)
     assert isinstance(training_steps, ModelTrainingStepsForSequenceModel)
     # make sure results for a validation epoch have been passed in
     assert val_results_for_epoch.is_train is False
@@ -314,22 +308,3 @@ def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutp
         model_outputs=model_outputs_epoch,
         is_train=train_val_params.in_training_mode
     )
-
-
-def create_model_training_steps(model_config: ModelConfigBase,
-                                train_val_params: TrainValidateParameters) -> ModelTrainingStepsBase:
-    """
-    Create model training steps based on the model config and train/val parameters
-    :param model_config: Model configs to use
-    :param train_val_params: Train/Val parameters to use
-    :return:
-    """
-    if isinstance(model_config, SegmentationModelBase):
-        return ModelTrainingStepsForSegmentation(model_config, train_val_params)
-    elif isinstance(model_config, ScalarModelBase):
-        if isinstance(model_config, SequenceModelBase):
-            return ModelTrainingStepsForSequenceModel(model_config, train_val_params)
-        else:
-            return ModelTrainingStepsForScalarModel(model_config, train_val_params)
-    else:
-        raise NotImplementedError(f"There are no model training steps defined for config type {type(model_config)}")

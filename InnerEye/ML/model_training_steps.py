@@ -5,48 +5,44 @@
 import logging
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, Generic, List, Tuple, TypeVar, Union
 
 import numpy as np
 import param
 import torch.cuda
 import torch.utils.data
+from pytorch_lightning import LightningDataModule, LightningModule
 from torch import Tensor
-from torch.cuda import amp
-from torch.cuda.amp import GradScaler
 from torch.nn import MSELoss
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
-from InnerEye.Common import common_util
-from InnerEye.Common.common_util import MetricsDataframeLoggers
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config
-from InnerEye.Common.type_annotations import T
 from InnerEye.ML import metrics
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationLoss, SegmentationModelBase
+from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.metrics import AzureAndTensorboardLogger, AzureMLLogger, compute_scalar_metrics
+from InnerEye.ML.metrics import compute_scalar_metrics
+from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
-from InnerEye.ML.models.losses.cross_entropy import CrossEntropyLoss
 from InnerEye.ML.models.losses.ece import ECELoss
-from InnerEye.ML.models.losses.mixture import MixtureLoss
-from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion, DataParallelModel, \
     execute_within_autocast_if_needed
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass, single_optimizer_step
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
-from InnerEye.ML.utils import dataset_util, metrics_util
+from InnerEye.ML.utils import dataset_util, image_util, metrics_util
 from InnerEye.ML.utils.dataset_util import DatasetExample
 from InnerEye.ML.utils.image_util import NumpyOrTorch
-from InnerEye.ML.utils.metrics_util import SummaryWriters
+from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
+from InnerEye.ML.utils.model_util import ScalarModelInputsAndLabels, create_optimizer, \
+    create_segmentation_loss_function, \
+    get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
-from InnerEye.ML.utils.supervised_criterion import BinaryCrossEntropyWithLogitsLoss, SupervisedLearningCriterion
+from InnerEye.ML.utils.supervised_criterion import BinaryCrossEntropyWithLogitsLoss
 from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.utils.training_util import ModelForwardAndBackwardsOutputs, gather_tensor
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
@@ -54,7 +50,6 @@ from InnerEye.ML.visualizers.regression_visualization import plot_variation_erro
 
 C = TypeVar('C', bound=DeepLearningConfig)
 M = TypeVar('M', bound=DeviceAwareModule)
-E = TypeVar('E', List[ClassificationItemSequence[ScalarItem]], ScalarItem)
 
 
 class TrainValidateParameters(param.Parameterized, Generic[M]):
@@ -71,11 +66,23 @@ class TrainValidateParameters(param.Parameterized, Generic[M]):
     epoch: int = param.Integer(None, bounds=(0, None))
     optimizer: Optimizer = param.ClassSelector(class_=Optimizer, instantiate=False)
     epoch_learning_rate: List[float] = param.List(None, class_=float, bounds=(1, None), instantiate=False)
-    summary_writers: SummaryWriters = param.ClassSelector(class_=SummaryWriters, instantiate=False)
     in_training_mode: bool = param.Boolean(default=True)
-    dataframe_loggers: MetricsDataframeLoggers = param.ClassSelector(class_=MetricsDataframeLoggers, instantiate=False)
     save_metrics: bool = param.Boolean(default=True)
-    gradient_scaler = param.ClassSelector(class_=GradScaler, instantiate=False)
+
+
+class TrainingAndValidationDataForSegmentation(LightningDataModule):
+    def _init__(self, config: ModelConfigBase):
+        super().__init__()
+        self.data_loaders = config.create_data_loaders()
+
+    def train_dataloader(self):
+        return self.data_loaders[ModelExecutionMode.TRAIN]
+
+    def val_dataloader(self):
+        return self.data_loaders[ModelExecutionMode.VAL]
+
+    def test_dataloader(self):
+        raise NotImplementedError("For segmentation models, the test dataset should not be evaluated patch-wise.")
 
 
 class ModelTrainingStepsBase(Generic[C, M], ABC):
@@ -89,20 +96,6 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         self.model_config = model_config
         self.train_val_params = train_val_params
         self.criterion = self.create_criterion()
-        if self.in_training_mode:
-            self.df_logger = self.train_val_params.dataframe_loggers.train_epoch_metrics
-            tensorboard_logger = self.train_val_params.summary_writers.train
-            azureml_logging_prefix = f"{ModelExecutionMode.TRAIN.value}_"
-        else:
-            self.df_logger = self.train_val_params.dataframe_loggers.val_epoch_metrics
-            tensorboard_logger = self.train_val_params.summary_writers.val
-            azureml_logging_prefix = f"{ModelExecutionMode.VAL.value}_"
-        azureml_logger = AzureMLLogger(logging_prefix=azureml_logging_prefix,
-                                       log_to_parent_run=model_config.log_to_parent_run,
-                                       cross_validation_split_index=model_config.cross_validation_split_index)
-        self.azure_and_tensorboard_logger = AzureAndTensorboardLogger(azureml_logger=azureml_logger,
-                                                                      tensorboard_logger=tensorboard_logger,
-                                                                      epoch=self.train_val_params.epoch)
 
     @property
     def in_training_mode(self) -> bool:
@@ -133,26 +126,6 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
         """
         raise NotImplementedError("get_epoch_results_and_store must be implemented by children")
 
-    @abstractmethod
-    def create_loss_function(self) -> torch.nn.Module:
-        """
-        Returns a torch module that computes a loss function.
-        """
-        raise NotImplementedError("create_loss_function must be implemented by children")
-
-    def create_criterion(self) -> torch.nn.Module:
-        """
-        Returns a torch module that creates a criterion module which can be a DataParallelCriterion
-        if use_data_parallel is enabled or the loss function module otherwise.
-        """
-        loss_function = self.create_loss_function()
-        if self.model_config.use_data_parallel:
-            return DataParallelCriterion(module=loss_function,
-                                         device_ids=self.model_config.get_cuda_devices(),  # type:ignore
-                                         use_mixed_precision=self.model_config.use_mixed_precision)
-        else:
-            return loss_function
-
     def compute_loss(self, model_output: torch.Tensor, labels: NumpyOrTorch) -> torch.Tensor:
         """
         Provided model outputs (logits) applies the criterion function and returns the loss tensor.
@@ -167,92 +140,6 @@ class ModelTrainingStepsBase(Generic[C, M], ABC):
             # Aggregate the loss values for each parallelized batch element.
             loss = torch.mean(loss)
         return loss
-
-    def forward_criterion(self, model_output: Union[torch.Tensor, List[torch.Tensor]],
-                          labels: NumpyOrTorch) -> torch.Tensor:
-        """
-        Handles the forward pass for the loss function.
-        :param model_output: A single Tensor, or a list if using DataParallelCriterion
-        :param labels: Labels to compute loss against.
-        :return: loss tensor.
-        """
-        return self.criterion(model_output, labels)
-
-    def forward_criterion_with_autocast(self,
-                                        model_output: Union[torch.Tensor, List[torch.Tensor]],
-                                        labels: NumpyOrTorch) -> torch.Tensor:
-        """
-        Handles the forward pass for the loss function, possibly taking mixed precision into account.
-        :param model_output: A single Tensor, or a list if using DataParallelCriterion
-        :param labels: Labels to compute loss against.
-        :return: loss tensor. This can be a float16 or float32 tensor, which should be cast to float32 before further
-        use.
-        """
-        if self.model_config.use_mixed_precision:
-            with amp.autocast():
-                return self.forward_criterion(model_output, labels)
-        else:
-            return self.forward_criterion(model_output, labels)
-
-
-@dataclass
-class ScalarModelInputsAndLabels(Generic[E, T]):
-    """
-    Holds the results of calling get_scalar_model_inputs_and_labels: For a given sample returned by the data loader,
-    create the model inputs, the labels, the list of subjects (data loader sample can be batched),
-    and the reconstructed data item.
-    """
-    model_inputs: List[torch.Tensor]
-    labels: T
-    subject_ids: List[str]
-    data_item: E
-
-    def __post_init__(self) -> None:
-        common_util.check_properties_are_not_none(self)
-
-
-def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
-                                       model: torch.nn.Module,
-                                       sample: Dict[str, Any]) -> ScalarModelInputsAndLabels:
-    """
-    For a model that predicts scalars, gets the model input tensors from a sample returned by the data loader.
-    :param model_config: The configuration object for the model.
-    :param model: The instantiated PyTorch model.
-    :param sample: A training sample, as returned by a PyTorch data loader (dictionary mapping from field name to value)
-    :return: An instance of ScalarModelInputsAndLabels, containing the list of model input tensors,
-    label tensor, subject IDs, and the data item reconstructed from the data loader output
-    """
-    if isinstance(model, DataParallelModel):
-        model = model.get_module()
-
-    if isinstance(model_config, SequenceModelBase):
-        sequence_model: DeviceAwareModule[List[ClassificationItemSequence], torch.Tensor] = model  # type: ignore
-        sequences = ClassificationItemSequence.from_minibatch(sample)
-        subject_ids = [x.id for x in sequences]
-        labels = ClassificationItemSequence.create_labels_tensor_for_minibatch(
-            sequences=sequences,
-            target_indices=model_config.get_target_indices()
-        )
-        model_inputs = sequence_model.get_input_tensors(sequences)
-
-        return ScalarModelInputsAndLabels[List[ClassificationItemSequence], torch.Tensor](
-            model_inputs=model_inputs,
-            labels=labels,
-            subject_ids=subject_ids,
-            data_item=sequences
-        )
-    else:
-        scalar_model: DeviceAwareModule[ScalarItem, torch.Tensor] = model  # type: ignore
-        scalar_item = ScalarItem.from_dict(sample)
-        subject_ids = [str(x.id) for x in scalar_item.metadata]  # type: ignore
-        model_inputs = scalar_model.get_input_tensors(scalar_item)
-
-        return ScalarModelInputsAndLabels[ScalarItem, torch.Tensor](
-            model_inputs=model_inputs,
-            labels=scalar_item.label,
-            subject_ids=subject_ids,
-            data_item=scalar_item
-        )
 
 
 F = TypeVar("F", bound=ScalarModelBase)
@@ -564,81 +451,43 @@ class ModelTrainingStepsForSequenceModel(ModelTrainingStepsForScalarModel[Sequen
         )
 
 
-class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModelBase, DeviceAwareModule]):
-    """
-    This class implements all steps necessary for training an image segmentation model during a single epoch.
-    """
+class SegmentationModel(LightningModule):
+    def __init__(self, config: SegmentationModelBase, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.config = config
+        self.model: torch.nn.Module = config.create_model()
+        self.loss_fn = create_segmentation_loss_function(config)
+        self.metrics = MetricsDict(hues=[BACKGROUND_CLASS_NAME] + config.ground_truth_ids)
 
-    def __init__(self, model_config: SegmentationModelBase,
-                 train_val_params: TrainValidateParameters[DeviceAwareModule]):
-        """
-        Creates a new instance of the class.
-        :param model_config: The configuration of a segmentation model.
-        :param train_val_params: The parameters for training the model, including the optimizer and the data loaders.
-        """
-        super().__init__(model_config, train_val_params)
-        self.example_to_save = np.random.randint(0, len(train_val_params.data_loader))
-        self.pipeline = SegmentationForwardPass(model=self.train_val_params.model,
-                                                model_config=self.model_config,
-                                                batch_size=self.model_config.train_batch_size,
-                                                optimizer=self.train_val_params.optimizer,
-                                                in_training_mode=self.train_val_params.in_training_mode,
-                                                criterion=self.compute_loss,
-                                                gradient_scaler=train_val_params.gradient_scaler)
-        self.metrics = MetricsDict(hues=[BACKGROUND_CLASS_NAME] + model_config.ground_truth_ids)
+    def configure_optimizers(self):
+        # TODO: This will be the same for all types of models
+        optimizer = create_optimizer(self.config, self.model.parameters())
+        l_rate_scheduler = SchedulerWithWarmUp(self.config, optimizer)
+        return [optimizer], [l_rate_scheduler]
 
-    def create_loss_function(self) -> torch.nn.Module:
-        """
-        Returns a torch module that computes a loss function.
-        """
-        return self.construct_loss_function(self.model_config)
+    def forward(self, patches) -> torch.Tensor:
+        return self.logits_to_posterior(self.model(patches))
 
-    @classmethod
-    def construct_loss_function(cls, model_config: SegmentationModelBase) -> SupervisedLearningCriterion:
+    def logits_to_posterior(self, logits: torch.Tensor) -> torch.Tensor:
         """
-        Returns a loss function from the model config; mixture losses are constructed as weighted combinations of
-        other loss functions.
+        Apply Softmax on dimension 1 (Class) to map model output into a posterior probability distribution [0,1]
         """
-        if model_config.loss_type == SegmentationLoss.Mixture:
-            components = model_config.mixture_loss_components
-            assert components is not None
-            sum_weights = sum(component.weight for component in components)
-            weights_and_losses = []
-            for component in components:
-                normalized_weight = component.weight / sum_weights
-                loss_function = cls.construct_non_mixture_loss_function(model_config, component.loss_type,
-                                                                        component.class_weight_power)
-                weights_and_losses.append((normalized_weight, loss_function))
-            return MixtureLoss(weights_and_losses)
-        return cls.construct_non_mixture_loss_function(model_config, model_config.loss_type,
-                                                       model_config.loss_class_weight_power)
+        return torch.nn.functional.softmax(logits, dim=1)
 
-    @classmethod
-    def construct_non_mixture_loss_function(cls,
-                                            model_config: SegmentationModelBase,
-                                            loss_type: SegmentationLoss,
-                                            power: Optional[float]) -> SupervisedLearningCriterion:
-        """
-        :param model_config: model configuration to get some parameters from
-        :param loss_type: type of loss function
-        :param power: value for class_weight_power for the loss function
-        :return: instance of loss function
-        """
-        if loss_type == SegmentationLoss.SoftDice:
-            return SoftDiceLoss(class_weight_power=power)
-        elif loss_type == SegmentationLoss.CrossEntropy:
-            return CrossEntropyLoss(class_weight_power=power,
-                                    smoothing_eps=model_config.label_smoothing_eps,
-                                    focal_loss_gamma=None)
-        elif loss_type == SegmentationLoss.Focal:
-            return CrossEntropyLoss(class_weight_power=power,
-                                    smoothing_eps=model_config.label_smoothing_eps,
-                                    focal_loss_gamma=model_config.focal_loss_gamma)
-        else:
-            raise NotImplementedError("Loss type {} is not implemented".format(loss_type))
+    def training_step(self,
+                      sample: Dict[str, Any],
+                      batch_index: int):
+        return self.training_or_validation_step(sample, batch_index, is_training_step=True)
 
-    def forward_and_backward_minibatch(self, sample: Dict[str, Any],
-                                       batch_index: int, epoch: int) -> ModelForwardAndBackwardsOutputs:
+    def validation_step(self,
+                        sample: Dict[str, Any],
+                        batch_index: int):
+        return self.training_or_validation_step(sample, batch_index, is_training_step=False)
+
+    def training_or_validation_step(self,
+                                    sample: Dict[str, Any],
+                                    batch_index: int,
+                                    is_training_step: bool):
         """
         Runs training for a single minibatch of training data, and computes all metrics.
         :param sample: The batched sample on which the model should be trained.
@@ -649,22 +498,27 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
         labels = self.model_config.get_gpu_tensor_if_possible(cropped_sample.labels_center_crop)
 
         mask = None if self.train_val_params.in_training_mode else cropped_sample.mask_center_crop
-        forward_pass_result = self.pipeline.forward_pass_patches(patches=cropped_sample.image,
-                                                                 labels=labels,
-                                                                 mask=mask)
-        # Clear the GPU cache between forward and backward passes to avoid possible out-of-memory
-        torch.cuda.empty_cache()
+        logits = self.model(cropped_sample.image)
+        loss = self.loss_fn(logits)
+
+        # apply Softmax on dimension 1 (Class) to map model output into a posterior probability distribution [0,1]
+        posteriors = self.logits_to_posterior(logits)
+
+        # apply mask if required
+        if is_training_step and mask is not None:
+            posteriors = image_util.apply_mask_to_posteriors(posteriors=posteriors, mask=mask)
+
+        # post process posteriors to compute result
+        segmentations = image_util.posteriors_to_segmentation(posteriors=posteriors).data.cpu().numpy()
+
         dice_for_all_classes = metrics.compute_dice_across_patches(
-            segmentation=torch.tensor(forward_pass_result.segmentations).long(),
+            segmentation=torch.tensor(segmentations).long(),
             ground_truth=labels,
             use_cuda=self.model_config.use_gpu,
             allow_multiple_classes_for_each_pixel=True).cpu().numpy()
         foreground_voxels = metrics_util.get_number_of_voxels_per_class(cropped_sample.labels)
         # loss is a scalar, also when running the forward pass over multiple crops.
         # dice_for_all_structures has one row per crop.
-        if forward_pass_result.loss is None:
-            raise ValueError("During training, the loss should always be computed, but the value is None.")
-        loss = forward_pass_result.loss
 
         # store metrics per batch
         self.metrics.add_metric(MetricType.LOSS, loss)
@@ -678,19 +532,23 @@ class ModelTrainingStepsForSegmentation(ModelTrainingStepsBase[SegmentationModel
         if isinstance(center_indices, torch.Tensor):
             center_indices = center_indices.cpu().numpy()
         self.metrics.add_diagnostics(MetricType.PATCH_CENTER.value, np.copy(center_indices))
-        if self.train_val_params.in_training_mode:
-            # store the sample train patch from this epoch for visualization
-            if batch_index == self.example_to_save and self.model_config.store_dataset_sample:
-                _store_dataset_sample(self.model_config, self.train_val_params.epoch, forward_pass_result,
-                                      cropped_sample)
+        # if self.train_val_params.in_training_mode:
+        #     # store the sample train patch from this epoch for visualization
+        #     if batch_index == self.example_to_save and self.model_config.store_dataset_sample:
+        #         _store_dataset_sample(self.model_config, self.train_val_params.epoch, forward_pass_result,
+        #                               cropped_sample)
+        self.log('loss', loss)
+        return loss
 
-        return ModelForwardAndBackwardsOutputs(
-            loss=loss,
-            logits=forward_pass_result.posteriors,
-            labels=forward_pass_result.segmentations
-        )
+    # def training_step_end(self, *args, **kwargs):
+    #     # Aggregate data parallel logits if multiple hardware are used in forward pass
+    #     if isinstance(logits, list):
+    #         # When using multiple GPUs, logits is a list of tensors. Gather will concatenate them
+    #         # across the first dimension, and move them to GPU0.
+    #         logits = torch.nn.parallel.gather(logits, target_device=0)
 
     def get_epoch_results_and_store(self, epoch_time_seconds: float) -> MetricsDict:
+        # TODO antonsc: this is legacy code
         """
         Assembles all training results that were achieved over all minibatches, writes them to Tensorboard and
         AzureML, and returns them as a MetricsDict object.

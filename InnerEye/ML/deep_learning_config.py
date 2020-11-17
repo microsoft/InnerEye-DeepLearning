@@ -16,7 +16,7 @@ from param import Parameterized
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
+from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
@@ -263,7 +263,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  doc="The betas parameter of Adam, default is (0.9, 0.999)")
     momentum: float = param.Number(0.6, doc="The momentum parameter of the optimizers")
     weight_decay: float = param.Number(1e-4, doc="The weight decay used to control L2 regularization")
-
     save_start_epoch: int = param.Integer(100, bounds=(0, None), doc="Save epoch checkpoints only when epoch is "
                                                                      "larger or equal to this value.")
     save_step_epochs: int = param.Integer(50, bounds=(0, None), doc="Save epoch checkpoints when epoch number is a "
@@ -327,11 +326,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     perform_validation_and_test_set_inference: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on validation and test set after training.")
-    _metrics_data_frame_loggers: MetricsDataframeLoggers = param.ClassSelector(default=None,
-                                                                               class_=MetricsDataframeLoggers,
-                                                                               instantiate=False,
-                                                                               doc="Data frame loggers for this model "
-                                                                                   "config")
     _dataset_data_frame: Optional[DataFrame] = \
         param.DataFrame(default=None,
                         doc="The dataframe that contains the dataset for the model. This is usually read from disk "
@@ -547,14 +541,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         self._dataset_data_frame = data_frame
 
-    @property
-    def metrics_data_frame_loggers(self) -> MetricsDataframeLoggers:
-        """
-        Gets the metrics data frame loggers for this config.
-        :return:
-        """
-        return self._metrics_data_frame_loggers
-
     def set_output_to(self, output_to: PathOrString) -> None:
         """
         Adjusts the file system settings in the present object such that all outputs are written to the given folder.
@@ -577,13 +563,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
             is_offline_run=self.is_offline_run,
             output_to=self.output_to
         )
-
-    def create_dataframe_loggers(self) -> None:
-        """
-        Initializes the metrics loggers that are stored in self._metrics_data_frame_loggers
-        :return:
-        """
-        self._metrics_data_frame_loggers = MetricsDataframeLoggers(outputs_folder=self.outputs_folder)
 
     def should_save_epoch(self, epoch: int) -> bool:
         """Returns True if the present epoch should be saved, as per the save_start_epoch and save_step_epochs

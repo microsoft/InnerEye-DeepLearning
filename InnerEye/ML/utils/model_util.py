@@ -4,33 +4,104 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Generic, List, Optional, TypeVar, Union, Iterator
 
 import torch
+from torch.nn.parameter import Parameter
 from torch.optim.optimizer import Optimizer
 from torch.optim.rmsprop import RMSprop
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
+from InnerEye.Common import common_util
+from InnerEye.Common.type_annotations import T
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.config import ModelArchitectureConfig, PaddingMode, SegmentationModelBase, \
+from InnerEye.ML.config import ModelArchitectureConfig, PaddingMode, SegmentationLoss, SegmentationModelBase, \
     basic_size_shrinkage
+from InnerEye.ML.dataset.scalar_sample import ScalarItem
+from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
 from InnerEye.ML.deep_learning_config import OptimizerType
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
 from InnerEye.ML.models.architectures.complex import ComplexModel
 from InnerEye.ML.models.architectures.unet_2d import UNet2D
 from InnerEye.ML.models.architectures.unet_3d import UNet3D
 from InnerEye.ML.models.layers.basic import BasicLayer
+from InnerEye.ML.models.losses.cross_entropy import CrossEntropyLoss
+from InnerEye.ML.models.losses.mixture import MixtureLoss
+from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
+from InnerEye.ML.utils.supervised_criterion import SupervisedLearningCriterion
 from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.visualizers.model_summary import ModelSummary
+
+
+def create_optimizer(config: ModelConfigBase, parameters: Iterator[Parameter]) -> torch.optim.Optimizer:
+    # Select optimizer type
+    if config.optimizer_type in [OptimizerType.Adam, OptimizerType.AMSGrad]:
+        return torch.optim.Adam(parameters, config.l_rate,
+                                config.adam_betas, config.opt_eps, config.weight_decay,
+                                amsgrad=config.optimizer_type == OptimizerType.AMSGrad)
+    elif config.optimizer_type == OptimizerType.SGD:
+        return torch.optim.SGD(parameters, config.l_rate, config.momentum,
+                               weight_decay=config.weight_decay)
+    elif config.optimizer_type == OptimizerType.RMSprop:
+        return RMSprop(parameters, config.l_rate, config.rms_alpha,
+                       config.opt_eps,
+                       config.weight_decay, config.momentum)
+    else:
+        raise NotImplementedError(f"Optimizer type {config.optimizer_type.value} is not implemented")
+
+
+def create_segmentation_loss_function(model_config: SegmentationModelBase) -> SupervisedLearningCriterion:
+    """
+    Returns a loss function from the model config; mixture losses are constructed as weighted combinations of
+    other loss functions.
+    """
+    if model_config.loss_type == SegmentationLoss.Mixture:
+        components = model_config.mixture_loss_components
+        assert components is not None
+        sum_weights = sum(component.weight for component in components)
+        weights_and_losses = []
+        for component in components:
+            normalized_weight = component.weight / sum_weights
+            loss_function = create_segmentation_loss_component(model_config,
+                                                               component.loss_type,
+                                                               component.class_weight_power)
+            weights_and_losses.append((normalized_weight, loss_function))
+        return MixtureLoss(weights_and_losses)
+    return create_segmentation_loss_component(model_config,
+                                              model_config.loss_type,
+                                              model_config.loss_class_weight_power)
+
+
+def create_segmentation_loss_component(model_config: SegmentationModelBase,
+                                       loss_type: SegmentationLoss,
+                                       power: Optional[float]) -> SupervisedLearningCriterion:
+    """
+    :param model_config: model configuration to get some parameters from
+    :param loss_type: type of loss function
+    :param power: value for class_weight_power for the loss function
+    :return: instance of loss function
+    """
+    if loss_type == SegmentationLoss.SoftDice:
+        return SoftDiceLoss(class_weight_power=power)
+    elif loss_type == SegmentationLoss.CrossEntropy:
+        return CrossEntropyLoss(class_weight_power=power,
+                                smoothing_eps=model_config.label_smoothing_eps,
+                                focal_loss_gamma=None)
+    elif loss_type == SegmentationLoss.Focal:
+        return CrossEntropyLoss(class_weight_power=power,
+                                smoothing_eps=model_config.label_smoothing_eps,
+                                focal_loss_gamma=model_config.focal_loss_gamma)
+    else:
+        raise NotImplementedError("Loss type {} is not implemented".format(loss_type))
 
 
 class ModelAndInfo:
@@ -359,21 +430,7 @@ class ModelAndInfo:
         # Make sure model is created before we create optimizer
         if self._model is None:
             raise ValueError("Model checkpoint must be created before optimizer checkpoint can be loaded.")
-
-        # Select optimizer type
-        if self.config.optimizer_type in [OptimizerType.Adam, OptimizerType.AMSGrad]:
-            self._optimizer = torch.optim.Adam(self._model.parameters(), self.config.l_rate,
-                                               self.config.adam_betas, self.config.opt_eps, self.config.weight_decay,
-                                               amsgrad=self.config.optimizer_type == OptimizerType.AMSGrad)
-        elif self.config.optimizer_type == OptimizerType.SGD:
-            self._optimizer = torch.optim.SGD(self._model.parameters(), self.config.l_rate, self.config.momentum,
-                                              weight_decay=self.config.weight_decay)
-        elif self.config.optimizer_type == OptimizerType.RMSprop:
-            self._optimizer = RMSprop(self._model.parameters(), self.config.l_rate, self.config.rms_alpha,
-                                      self.config.opt_eps,
-                                      self.config.weight_decay, self.config.momentum)
-        else:
-            raise NotImplementedError(f"Optimizer type {self.config.optimizer_type.value} is not implemented")
+        self._optimizer = create_optimizer(self.config, self._model.parameters())
 
     def try_load_checkpoint_for_optimizer(self) -> bool:
         """
@@ -572,3 +629,66 @@ def create_model_with_temperature_scaling(config: ModelConfigBase) -> Any:
     if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
         model = ModelWithTemperature(model, config.temperature_scaling_config)
     return model
+
+
+E = TypeVar('E', List[ClassificationItemSequence[ScalarItem]], ScalarItem)
+
+
+@dataclass
+class ScalarModelInputsAndLabels(Generic[E, T]):
+    """
+    Holds the results of calling get_scalar_model_inputs_and_labels: For a given sample returned by the data loader,
+    create the model inputs, the labels, the list of subjects (data loader sample can be batched),
+    and the reconstructed data item.
+    """
+    model_inputs: List[torch.Tensor]
+    labels: T
+    subject_ids: List[str]
+    data_item: E
+
+    def __post_init__(self) -> None:
+        common_util.check_properties_are_not_none(self)
+
+
+def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
+                                       model: torch.nn.Module,
+                                       sample: Dict[str, Any]) -> ScalarModelInputsAndLabels:
+    """
+    For a model that predicts scalars, gets the model input tensors from a sample returned by the data loader.
+    :param model_config: The configuration object for the model.
+    :param model: The instantiated PyTorch model.
+    :param sample: A training sample, as returned by a PyTorch data loader (dictionary mapping from field name to value)
+    :return: An instance of ScalarModelInputsAndLabels, containing the list of model input tensors,
+    label tensor, subject IDs, and the data item reconstructed from the data loader output
+    """
+    if isinstance(model, DataParallelModel):
+        model = model.get_module()
+
+    if isinstance(model_config, SequenceModelBase):
+        sequence_model: DeviceAwareModule[List[ClassificationItemSequence], torch.Tensor] = model  # type: ignore
+        sequences = ClassificationItemSequence.from_minibatch(sample)
+        subject_ids = [x.id for x in sequences]
+        labels = ClassificationItemSequence.create_labels_tensor_for_minibatch(
+            sequences=sequences,
+            target_indices=model_config.get_target_indices()
+        )
+        model_inputs = sequence_model.get_input_tensors(sequences)
+
+        return ScalarModelInputsAndLabels[List[ClassificationItemSequence], torch.Tensor](
+            model_inputs=model_inputs,
+            labels=labels,
+            subject_ids=subject_ids,
+            data_item=sequences
+        )
+    else:
+        scalar_model: DeviceAwareModule[ScalarItem, torch.Tensor] = model  # type: ignore
+        scalar_item = ScalarItem.from_dict(sample)
+        subject_ids = [str(x.id) for x in scalar_item.metadata]  # type: ignore
+        model_inputs = scalar_model.get_input_tensors(scalar_item)
+
+        return ScalarModelInputsAndLabels[ScalarItem, torch.Tensor](
+            model_inputs=model_inputs,
+            labels=scalar_item.label,
+            subject_ids=subject_ids,
+            data_item=scalar_item
+        )

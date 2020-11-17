@@ -26,7 +26,6 @@ from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.io_util import ImageDataType
-from InnerEye.ML.utils.metrics_util import SummaryWriters
 from InnerEye.ML.utils.model_util import ModelAndInfo
 
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
@@ -330,7 +329,6 @@ def test_amp_and_parallel_for_scalar_models(test_output_dirs: OutputFolderForTes
         in_training_mode=execution_mode == ModelExecutionMode.TRAIN,
         gradient_scaler=gradient_scaler,
         dataframe_loggers=MetricsDataframeLoggers(test_output_dirs.root_dir),
-        summary_writers=SummaryWriters(train=None, val=None)  # type: ignore
     )
     training_steps = ModelTrainingStepsForScalarModel(config, train_val_parameters)
     sample = list(data_loaders[execution_mode])[0]

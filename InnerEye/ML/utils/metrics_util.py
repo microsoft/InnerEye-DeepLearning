@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-from dataclasses import dataclass
 from functools import reduce
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
@@ -15,27 +14,71 @@ import torch
 from pandas import DataFrame
 from sklearn.metrics import r2_score as sklearn_r2_score
 
-from InnerEye.Common import common_util
+from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARENT_RUN_CONTEXT, RUN_CONTEXT, \
+    is_offline_run_context
+from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, METRICS_FILE_NAME
 from InnerEye.Common.type_annotations import TupleFloat3
-from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 
 
-@dataclass
-class SummaryWriters:
+class DataframeLogger:
     """
-    Wrapper class to store the tensorboard summaries for
-    validation and training.
+    Single DataFrame logger for logging to CSV file
     """
-    train: tensorboardX.SummaryWriter
-    val: tensorboardX.SummaryWriter
 
-    def __post_init__(self) -> None:
-        common_util.check_properties_are_not_none(self)
+    def __init__(self, csv_path: Path):
+        self.records: List[Dict[str, Any]] = []
+        self.csv_path = csv_path
+
+    def add_record(self, record: Dict[str, Any]) -> None:
+        self.records.append(record)
+
+    def flush(self, log_info: bool = False) -> None:
+        """
+        Save the internal records to a csv file.
+        :param log_info: Log INFO if log_info is True.
+        """
+        import pandas as pd
+        if not self.csv_path.parent.is_dir():
+            self.csv_path.parent.mkdir(parents=True)
+        # Specifying columns such that the order in which columns appear matches the order in which
+        # columns were added in the code.
+        columns = self.records[0].keys() if len(self.records) > 0 else None
+        df = pd.DataFrame.from_records(self.records, columns=columns)
+        df.to_csv(self.csv_path, sep=',', mode='w', index=False)
+        if log_info:
+            logging.info(f"\n {df.to_string(index=False)}")
+
+
+class MetricsDataframeLoggers:
+    """
+    Contains DataframeLogger instances for logging metrics to CSV during training and validation stages respectively
+    """
+
+    def __init__(self, outputs_folder: Path):
+        self.outputs_folder = outputs_folder
+        _train_root = self.outputs_folder / ModelExecutionMode.TRAIN.value
+        _val_root = self.outputs_folder / ModelExecutionMode.VAL.value
+        # training loggers
+        self.train_subject_metrics = DataframeLogger(_train_root / METRICS_FILE_NAME)
+        self.train_epoch_metrics = DataframeLogger(_train_root / EPOCH_METRICS_FILE_NAME)
+        # validation loggers
+        self.val_subject_metrics = DataframeLogger(_val_root / METRICS_FILE_NAME)
+        self.val_epoch_metrics = DataframeLogger(_val_root / EPOCH_METRICS_FILE_NAME)
+        self._all_metrics = [
+            self.train_subject_metrics,
+            self.train_epoch_metrics,
+            self.val_subject_metrics,
+            self.val_epoch_metrics
+        ]
 
     def close_all(self) -> None:
-        self.train.close()
-        self.val.close()
+        """
+        Save all records for each logger to disk.
+        """
+        for x in self._all_metrics:
+            x.flush()
 
 
 class MetricsPerPatientWriter:
@@ -133,24 +176,96 @@ class MetricsPerPatientWriter:
         return df
 
 
-def create_summary_writers(args: ModelConfigBase) -> SummaryWriters:
+class AzureMLLogger:
     """
-    Creates two tensorboard writers, one for training and one for
-    validation. Stored in a SummaryWriters objects.
-
-    :param args: config of the model
-    :return: SummaryWriters with tensorboard summary writers.
+    Stores the information that is required to log metrics to AzureML.
     """
-    # Disable tensorboardX's logs
-    logging.getLogger().disabled = True
 
-    writer_train = tensorboardX.SummaryWriter(str(args.logs_folder / "train"))
-    writer_val = tensorboardX.SummaryWriter(str(args.logs_folder / "val"))
+    def __init__(self,
+                 logging_prefix: str,
+                 cross_validation_split_index: int,
+                 log_to_parent_run: bool):
+        """
+        :param logging_prefix: A prefix string that will be added to all metrics names before logging.
+        :param cross_validation_split_index: The cross validation split index, or its default value if not running
+        inside cross validation.
+        :param log_to_parent_run: If true, all metrics will also be written to the Hyperdrive parent run when that
+        parent run is present.
+        """
+        self.logging_prefix = logging_prefix
+        self.cross_validation_split_index = cross_validation_split_index
+        self.log_to_parent_run = log_to_parent_run
 
-    # Reset logger
-    logging.getLogger().disabled = False
+    def log_to_azure(self,
+                     label: str,
+                     metric: float) -> None:
+        """
+        Logs a metric as a key/value pair to AzureML.
+        :param label: The name of the metric that should be logged
+        :param metric: The value of the metric.
+        """
+        if not is_offline_run_context(RUN_CONTEXT):
+            metric_name = self.logging_prefix + label
+            RUN_CONTEXT.log(metric_name, metric)
+            # When running in a cross validation setting, log all metrics to the hyperdrive parent run too,
+            # so that we can easily overlay graphs across runs.
+            if self.log_to_parent_run and PARENT_RUN_CONTEXT:
+                if self.cross_validation_split_index > DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
+                    PARENT_RUN_CONTEXT.log(f"{metric_name}_Split{self.cross_validation_split_index}",
+                                           metric)
 
-    return SummaryWriters(train=writer_train, val=writer_val)
+
+class AzureAndTensorboardLogger:
+    """
+    Contains functionality to log metrics to both Azure run and TensorBoard event file
+    for both classification and segmentation models.
+    """
+
+    def __init__(self,
+                 azureml_logger: AzureMLLogger,
+                 tensorboard_logger: tensorboardX.SummaryWriter,
+                 epoch: int):
+        self.azureml_logger = azureml_logger
+        self.tensorboard_logger = tensorboard_logger
+        self.epoch = epoch
+
+    def close(self) -> None:
+        """
+        Closes all loggers that require explicit closing.
+        """
+        self.tensorboard_logger.close()
+
+    def log_to_azure_and_tensorboard(self, label: str, metric: float) -> None:
+        """
+        Writes a metric to the Azure run and to the TensorBoard event file
+        :param label: The string name of the metric.
+        :param metric: The value of the metric.
+        """
+        self.azureml_logger.log_to_azure(label, metric)
+        self.log_to_tensorboard(label, metric)
+
+    def log_to_tensorboard(self, label: str, metric: float) -> None:
+        """
+        Writes a metric to a Tensorboard event file.
+        :param label: The string name of the metric.
+        :param metric: The value of the metric.
+        """
+        # TensorBoard does not like tags that contain spaces, and prints out a warning for each logging attempt.
+        # Replace space with underscore to reduce logging noise.
+        writer = self.tensorboard_logger
+        label_without_spaces = label.replace(" ", "_")
+        writer.add_scalar(label_without_spaces, metric, self.epoch)
+
+    def log_image(self, name: str, path: str) -> None:
+        """
+        Logs a PNG image stored in `path` to Azure and Tensorboard.
+        """
+        if not is_offline_run_context(RUN_CONTEXT):
+            RUN_CONTEXT.log_image(name=name, path=path)
+        writer = self.tensorboard_logger
+        img = Image.open(path).convert("RGB")
+        img = np.transpose(np.asarray(img), (2, 0, 1))
+        writer.add_image(name, img, self.epoch)
 
 
 def get_number_of_voxels_per_class(labels: Union[np.ndarray, torch.Tensor]) -> List[int]:
