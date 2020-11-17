@@ -96,11 +96,11 @@ steps:
   - bash: |
       source activate InnerEye
       python ./InnerEye/ML/runner.py --model=HelloWorld
-  env:
-    PYTHONPATH: $(Build.SourcesDirectory)/
-    failOnStderr: false
-    condition: succeededOrFailed()
-    displayName: Run HelloWorld model
+    env:
+      PYTHONPATH: $(Build.SourcesDirectory)/
+      failOnStderr: false
+      condition: succeededOrFailed()
+      displayName: Run HelloWorld model
 
   - task: PublishTestResults@2
     inputs:
