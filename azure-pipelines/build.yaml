@@ -91,6 +91,17 @@ steps:
     condition: succeededOrFailed()
     displayName: Run pytests on code outside package
 
+  # Build the HelloWorld model, without providing the secrets for the ServicePrincipal, to mimic running HelloWorld
+  # right after checking out.
+  - bash: |
+      source activate InnerEye
+      python ./InnerEye/ML/runner.py --model=HelloWorld
+  env:
+    PYTHONPATH: $(Build.SourcesDirectory)/
+    failOnStderr: false
+    condition: succeededOrFailed()
+    displayName: Run HelloWorld model
+
   - task: PublishTestResults@2
     inputs:
       testResultsFiles: '**/test*.xml'
