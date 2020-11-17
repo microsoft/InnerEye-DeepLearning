@@ -40,10 +40,11 @@ class FastMriDataset(GeneralDataset):
         
         f = item['FilePath']
         s = item['SliceIndex']
+        id = item['SubjectId']
 
         with h5py.File(f, 'r') as d:
             kspace = torch.tensor(d[KSPACE_NAME][s, :])
             recon = torch.tensor(d[RECONSTRUCTION_NAME][s, :])
             
-            return { 'kspace': kspace, 'recon': recon }
+            return { 'subjectid': id, 'kspace': kspace, 'recon': recon }
   

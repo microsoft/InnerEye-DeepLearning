@@ -221,3 +221,4 @@ class ScalarEnsemblePipeline(ScalarInferencePipelineBase):
             raise NotImplementedError(f"Ensemble aggregation type {aggregation_type} not implemented.")
 
         return aggregated_outputs
+

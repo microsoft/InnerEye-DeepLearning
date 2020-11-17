@@ -27,7 +27,7 @@ class SimpleMriNet(torch.nn.Module):
     def forward(self, x):
         x = fft.ifft(x, dim=(-2,-1))
         x = torch.sqrt(torch.abs(torch.sum(x**2, dim=1)))
-        x = torch.nn.functional.relu(self.conv1(x.unsqueeze(1))).squeeze()
+        x = torch.nn.functional.relu(self.conv1(x.unsqueeze(1))).squeeze(1)
         return x
 
 class DummyReconstruction(ReconstructionModelBase):

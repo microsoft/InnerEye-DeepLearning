@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import torch.nn.functional as F
 
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
 from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, ModelProcessing, DataframeLogger, \
@@ -25,12 +26,13 @@ from InnerEye.ML.reconstruction_config import ReconstructionModelBase
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForClassification, InferenceMetricsForSegmentation, \
-    compute_scalar_metrics
+    InferenceMetricsForReconstruction, compute_scalar_metrics
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline, InferencePipelineBase
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline, \
     ScalarInferencePipelineBase
+from InnerEye.ML.pipelines.reconstruction_inference import ReconstructionInferencePipeline, ReconstructionInferencePipelineBase
 from InnerEye.ML.reports.segmentation_report import boxplot_per_structure
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import io_util, ml_util
@@ -72,7 +74,7 @@ def model_test(config: ModelConfigBase,
         if isinstance(config, ScalarModelBase):
             return classification_model_test(config, data_split, checkpoint_handler, model_proc)
         if isinstance(config, ReconstructionModelBase):
-            return None
+            return reconstruction_model_test(config, data_split, checkpoint_handler, model_proc)
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 
@@ -366,22 +368,28 @@ def create_inference_pipeline(config: ModelConfigBase,
         if config.is_segmentation_model:
             assert isinstance(config, SegmentationModelBase)
             return EnsemblePipeline.create_from_checkpoints(path_to_checkpoints=checkpoint_paths, model_config=config)
+        elif isinstance(config, ReconstructionModelBase):
+            raise NotImplementedError("Unable to create ensemble inference pipeline for Reconstruction - Not implemented")
         elif config.is_scalar_model:
             assert isinstance(config, ScalarModelBase)
             return ScalarEnsemblePipeline.create_from_checkpoint(paths_to_checkpoint=checkpoint_paths, config=config)
         else:
-            raise NotImplementedError("Cannot create inference pipeline for unknown model type")
+            raise NotImplementedError("Cannot create ensemble pipeline for unknown model type")
     if len(checkpoint_paths) == 1:
         if config.is_segmentation_model:
             assert isinstance(config, SegmentationModelBase)
             return InferencePipeline.create_from_checkpoint(path_to_checkpoint=checkpoint_paths[0],
                                                             model_config=config)
+        elif isinstance(config, ReconstructionModelBase):
+            return ReconstructionInferencePipeline.create_from_checkpoint(path_to_checkpoint=checkpoint_paths[0],
+                                                                          config=config)
+
         elif config.is_scalar_model:
             assert isinstance(config, ScalarModelBase)
             return ScalarInferencePipeline.create_from_checkpoint(path_to_checkpoint=checkpoint_paths[0],
                                                                   config=config)
         else:
-            raise NotImplementedError("Cannot create ensemble pipeline for unknown model type")
+            raise NotImplementedError("Cannot create inference pipeline for unknown model type")
     return None
 
 
@@ -471,3 +479,92 @@ def classification_model_test(config: ScalarModelBase,
         raise ValueError("There was no single checkpoint file available for model testing.")
 
     return InferenceMetricsForClassification(epochs=results)
+
+
+def reconstruction_model_test(config: ReconstructionModelBase,
+                              data_split: ModelExecutionMode,
+                              checkpoint_handler: CheckpointHandler,
+                              model_proc: ModelProcessing) -> InferenceMetricsForReconstruction:
+    """
+    The main testing loop for reconstruction models. It runs a loop over all epochs for which testing should be done.
+    It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
+    :param config: The model configuration.
+    :param data_split: The name of the folder to store the results inside each epoch folder in the outputs_dir,
+                       used mainly in model evaluation using different dataset splits.
+    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
+    :param model_proc: whether we are testing an ensemble or single model
+    :return: InferenceMetricsForReconstruction object that contains metrics related for all of the checkpoint epochs.
+    """
+
+    def test_epoch(checkpoint_paths: List[Path]) -> Optional[MetricsDict]:
+        pipeline = create_inference_pipeline(config=config,
+                                             checkpoint_paths=checkpoint_paths)
+
+        if pipeline is None:
+            return None
+
+        # for mypy
+        assert isinstance(pipeline, ReconstructionInferencePipelineBase)
+
+        ml_util.set_random_seed(config.get_effective_random_seed(), "Model Testing")
+        ds = config.get_torch_dataset_for_inference(data_split).as_data_loader(
+            shuffle=False,
+            batch_size=1,
+            num_dataload_workers=0
+        )
+
+        logging.info(f"Starting to evaluate model from epoch {test_epoch} on {data_split.value} set.")
+        metrics_dict = MetricsDict()
+
+        for sample in ds:
+            result = pipeline.predict(sample)
+            sample_id, label_gpu, model_output = sample['subjectid'], result.labels, result.model_outputs
+    
+            loss = F.mse_loss(label_gpu.detach().cpu(), model_output.detach().cpu(), reduction='mean').item()
+            metrics_dict.add_metric(MetricType.MEAN_SQUARED_ERROR, loss)
+            logging.debug(f"Example {sample_id}: {metrics_dict.to_string()}")
+
+        average = metrics_dict.average(across_hues=False)
+        logging.info(average.to_string())
+
+        return metrics_dict
+
+    results: Dict[int, MetricsDict] = {}
+    checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
+
+    if not checkpoints_to_test:
+        raise ValueError("There were no checkpoints available for model testing.")
+
+    for checkpoint_paths_and_epoch in checkpoints_to_test:
+        epoch = checkpoint_paths_and_epoch.epoch
+
+        epoch_result = test_epoch(checkpoint_paths=checkpoint_paths_and_epoch.checkpoint_paths)
+        if epoch_result is None:
+            logging.warning("There is no checkpoint file for epoch {}".format(epoch))
+        else:
+            results[epoch] = epoch_result
+
+            if isinstance(epoch_result, ScalarMetricsDict):
+                epoch_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc)
+                csv_file = epoch_folder / METRICS_FILE_NAME
+
+                logging.info(f"Writing {data_split.value} metrics to file {str(csv_file)}")
+
+                # If we are running inference after a training run, the validation set metrics may have been written
+                # during train time. If this is not the case, or we are running on the test set, create the metrics
+                # file.
+                if not csv_file.exists():
+                    os.makedirs(str(epoch_folder), exist_ok=False)
+                    df_logger = DataframeLogger(csv_file)
+
+                    # cross validation split index not relevant during test time
+                    epoch_result.store_metrics_per_subject(epoch=epoch,
+                                                           df_logger=df_logger,
+                                                           mode=data_split)
+                    # write to disk
+                    df_logger.flush()
+
+    if len(results) == 0:
+        raise ValueError("There was no single checkpoint file available for model testing.")
+
+    return InferenceMetricsForReconstruction(epochs=results)

@@ -55,6 +55,12 @@ class InferenceMetricsForClassification(InferenceMetrics):
     """
     epochs: Dict[int, MetricsDict]
 
+@dataclass(frozen=True)
+class InferenceMetricsForReconstruction(InferenceMetrics):
+    """
+    Stores a dictionary mapping from epoch number to the metrics that were achieved in that epoch.
+    """
+    epochs: Dict[int, MetricsDict]
 
 @dataclass(frozen=True)
 class InferenceMetricsForSegmentation(InferenceMetrics):
