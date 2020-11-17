@@ -23,7 +23,3 @@ steps:
       sudo chown -R $USER /usr/share/miniconda
     condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
     displayName: Take ownership of conda installation
-
-  - bash: |
-      echo -e "variables:\n  subscription_id: '$(InnerEyeDevSubscriptionID)'\n  application_id: '$(InnerEyeDeepLearningServicePrincipalID)'" > InnerEyePrivateSettings.yml
-    displayName: Store subscription in InnerEyePrivateSettings.yml

@@ -2,6 +2,7 @@ steps:
   - template: azure_runner_env.yml
 
   - bash: |
+      set -e  # This makes the script fail if any command in it fails, not just the last one
       source activate AzureRunner
       branch_prefix="refs/heads/"
       full_branch_name=$(Build.SourceBranch)

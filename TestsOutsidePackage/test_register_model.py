@@ -8,6 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
+from unittest import mock
 
 import numpy as np
 import param
@@ -206,23 +207,23 @@ def test_register_and_score_model(is_ensemble: bool,
             azureml_model.delete()
 
 
-def test_register_model_invalid() -> None:
+def test_register_model_skip() -> None:
+    """
+    If the AzureML workspace can't be read, model registration should be skipped and return None.
+    """
     checkpoint_paths = [full_ml_test_data_path('checkpoints') / '1_checkpoint.pth.tar']
     config = get_model_loader().create_model_config_from_name("Lung")
-    with pytest.raises(Exception):
-        ml_runner = MLRunner(config, None)
-        ml_runner.register_segmentation_model(
+    ml_runner = MLRunner(config, None)
+    raises = mock.Mock()
+    raises.side_effect = Exception
+    with mock.patch.object(AzureConfig, 'get_workspace', raises):
+        model, deployment_result = ml_runner.register_segmentation_model(
             model_description="",
             checkpoint_paths=checkpoint_paths,
             model_proc=ModelProcessing.DEFAULT
         )
-    with pytest.raises(Exception):
-        ml_runner = MLRunner(config, get_default_azure_config())
-        ml_runner.register_segmentation_model(
-            model_description="",
-            checkpoint_paths=checkpoint_paths,
-            model_proc=ModelProcessing.DEFAULT
-        )
+    assert model is None
+    assert deployment_result is None
 
 
 @pytest.mark.parametrize("is_ensemble", [True, False])

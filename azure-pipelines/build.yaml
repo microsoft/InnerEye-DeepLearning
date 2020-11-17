@@ -1,5 +1,5 @@
 steps:
-  - template: checkout_and_settings.yml
+  - template: checkout.yml
 
   - task: CredScan@3
     condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
@@ -17,26 +17,20 @@ steps:
   - bash: |
       conda env create --file environment.yml --name InnerEye --quiet
       source activate InnerEye
-      echo "Environment has been created with these packages:"
-      pip freeze
+      echo Storing environment for later use by ComponentGovernance
+      # This file is picked up later by ComponentGovernance
+      pip freeze > requirements.txt
+      echo Environment has been created with these packages:
+      cat requirements.txt
     failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
     condition: succeeded()
     displayName: Create conda environment
-
-  - task: ComponentGovernanceComponentDetection@0
-    condition: succeeded()
-    inputs:
-      scanType: 'Register'
-      verbosity: 'Normal'
-      alertWarningLevel: 'High'
-      failOnAlert: true
-      failOnStderr: true
 
   - bash: |
       source activate InnerEye
       flake8
     failOnStderr: true
-    condition: succeeded()
+    condition: succeededOrFailed()
     displayName: flake8
 
   - bash: |
@@ -46,12 +40,24 @@ steps:
     condition: succeededOrFailed()
     displayName: mypy
 
+  # Build the HelloWorld model, without providing the secrets for the ServicePrincipal, to mimic running HelloWorld
+  # right after checking out. This must happen before we provide any additional information in settings.yml
+  - bash: |
+      source activate InnerEye
+      python ./InnerEye/ML/runner.py --model=HelloWorld
+    env:
+      PYTHONPATH: $(Build.SourcesDirectory)/
+    failOnStderr: false
+    condition: succeededOrFailed()
+    displayName: Run HelloWorld model
+
   # Pytest needs subscription information directly in settings.yml. Local package install will cause use of
   # the wrong default project root, hence InnerEyePrivateSettings.yml can't be picked up.
   - bash: |
       sed -i -e "s/subscription_id: ''/subscription_id: '$(InnerEyeDevSubscriptionID)'/" InnerEye/settings.yml
       sed -i -e "s/application_id: ''/application_id: '$(InnerEyeDeepLearningServicePrincipalID)'/" InnerEye/settings.yml
     displayName: Store subscription in settings.yml
+    condition: succeededOrFailed()
 
   # Install the InnerEye package without its dependencies. We have already create an environment that has everything
   # the package needs. If --no-deps is omitted, this causes a weird package conflict with azure-storage-blob
@@ -61,7 +67,7 @@ steps:
     env:
       IS_DEV_PACKAGE: True
     failOnStderr: false
-    condition: succeeded()
+    condition: succeededOrFailed()
     displayName: Install InnerEye (Dev) Package
 
   # First run all tests that require the InnerEye package. All code should be consumed via the InnerEye package,
@@ -100,6 +106,15 @@ steps:
       summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
       reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
     condition: succeededOrFailed()
+
+  - task: ComponentGovernanceComponentDetection@0
+    condition: succeeded()
+    inputs:
+      scanType: 'Register'
+      verbosity: 'Normal'
+      alertWarningLevel: 'High'
+      failOnAlert: true
+      failOnStderr: true
 
   - task: PublishBuildArtifacts@1
     inputs:

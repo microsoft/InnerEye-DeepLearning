@@ -10,8 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import conda_merge
-import ruamel
-import yaml
+import ruamel.yaml
 from azureml.core import Experiment, Run, Workspace, get_run
 from azureml.core._serialization_utils import _serialize_to_dict
 from azureml.core.conda_dependencies import CondaDependencies
@@ -344,7 +343,7 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
     if deps:
         unified_definition[DEPENDENCIES] = deps
     with result_file.open("w") as f:
-        yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
+        ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
 
 
 def merge_conda_dependencies(files: List[Path]) -> CondaDependencies:

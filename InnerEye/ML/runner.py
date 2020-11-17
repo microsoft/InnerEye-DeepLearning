@@ -363,10 +363,9 @@ class Runner:
             logging.info("No pytest_mark present, hence not downloading the pytest result file.")
         status = azure_run.get_status()
         # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
-        # If a pytest failed, the runner has exited with code -1 (see below)
         if self.azure_config.wait_for_completion and status != RunStatus.COMPLETED:
-            logging.error(f"Job completed with status {status}. Exiting.")
-            sys.exit(1)
+            raise ValueError(f"Run {azure_run.id} in experiment {azure_run.experiment.name} completed with "
+                             f"status {status}.")
         return azure_run
 
     def run_in_situ(self) -> None:
@@ -404,10 +403,17 @@ class Runner:
             if not training_failed and self.model_config.should_wait_for_other_cross_val_child_runs():
                 self.wait_for_cross_val_runs_to_finish_and_aggregate()
             disable_logging_to_file()
-        if training_failed or pytest_failed or not pytest_passed:
-            # Terminate if pytest or model training has failed. This makes the smoke test in
-            # PR builds fail if pytest fails.
-            sys.exit(1)
+        message = []
+        if training_failed:
+            message.append("Training failed")
+        if pytest_failed:
+            message.append("Unable to run Pytest")
+        if not pytest_passed:
+            message.append("At least 1 test in Pytest failed")
+        # Terminate if pytest or model training has failed. This makes the smoke test in
+        # PR builds fail if pytest fails.
+        if message:
+            raise ValueError(f"One component of the training pipeline failed: {'. '.join(message)}")
 
     def create_ml_runner(self) -> Any:
         """
