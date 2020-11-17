@@ -218,12 +218,16 @@ class AzureConfig(GenericConfig):
             return self._workspace
         run_context = Run.get_context()
         if is_offline_run_context(run_context):
-            service_principal_auth = self.get_service_principal_auth()
-            self._workspace = Workspace.get(
-                name=self.workspace_name,
-                auth=service_principal_auth,
-                subscription_id=self.subscription_id,
-                resource_group=self.resource_group)
+            if self.subscription_id and self.resource_group:
+                service_principal_auth = self.get_service_principal_auth()
+                self._workspace = Workspace.get(
+                    name=self.workspace_name,
+                    auth=service_principal_auth,
+                    subscription_id=self.subscription_id,
+                    resource_group=self.resource_group)
+            else:
+                raise ValueError("The values for 'subscription_id' and 'resource_group' were not found. "
+                                 "Was the Azure setup completed?")
         else:
             self._workspace = run_context.experiment.workspace
         return self._workspace

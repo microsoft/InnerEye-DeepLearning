@@ -1,0 +1,4 @@
+steps:
+  - bash: |
+      echo -e "variables:\n  subscription_id: '$(InnerEyeDevSubscriptionID)'\n  application_id: '$(InnerEyeDeepLearningServicePrincipalID)'" > InnerEyePrivateSettings.yml
+    displayName: Store subscription in InnerEyePrivateSettings.yml

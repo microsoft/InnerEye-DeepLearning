@@ -529,7 +529,7 @@ class MLRunner:
     def register_segmentation_model(self,
                                     checkpoint_paths: List[Path],
                                     model_description: str,
-                                    model_proc: ModelProcessing) -> Tuple[Model, Optional[Any]]:
+                                    model_proc: ModelProcessing) -> Tuple[Optional[Model], Optional[Any]]:
         """
         Registers a new model in the workspace's model registry to be deployed further,
         and creates a model zip for portal deployment (if required). This model is the
@@ -538,10 +538,21 @@ class MLRunner:
         the test set performance and information at which epoch the result was achieved.
         :param checkpoint_paths: Checkpoint paths to use to upload model checkpoints to AML.
         :param model_proc: whether it's a single or ensemble model.
-        :returns Tuple element 1: AML model object. Tuple element 2: The result of running the
-        model_deployment_hook, or None if no hook was supplied.
+        :returns Tuple element 1: AML model object, or None if no model could be registered.
+        Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
         """
         is_offline_run = is_offline_run_context(RUN_CONTEXT)
+        workspace = None
+        # Terminate early if this is running outside AzureML, and we can't access the AzureML workspace. This
+        # saves time copying around files.
+        if is_offline_run:
+            try:
+                workspace = self.azure_config.get_workspace()
+            except Exception:
+                logging.warning("Unable to retrieve AzureML workspace. Was the Azure setup completed?")
+                logging.info("No model was registered in AzureML.")
+                return None, None
+
         final_model_folder = self.model_config.final_model_folder
         # Copy all code from project and InnerEye into the model folder, and copy over checkpoints.
         # This increases the size of the data stored for the run. The other option would be to store all checkpoints
@@ -552,7 +563,7 @@ class MLRunner:
         if is_offline_run:
             model_description = model_description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
             model = Model.register(
-                workspace=self.azure_config.get_workspace(),
+                workspace=workspace,
                 model_name=self.model_config.model_name,
                 model_path=str(final_model_folder),
                 description=model_description
@@ -575,14 +586,12 @@ class MLRunner:
                 description=model_description
             )
 
+        deployment_result = None
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
-
         # update the run's tags with the registered model information
         if not is_offline_run:
             update_run_tags(RUN_CONTEXT, {MODEL_ID_KEY_NAME: model.id})
-
         # create a version of the model for deployment if the hook is provided
-        deployment_result = None
         if self.model_deployment_hook is not None:
             assert isinstance(self.model_config, SegmentationModelBase)
             deployment_result = self.model_deployment_hook(
