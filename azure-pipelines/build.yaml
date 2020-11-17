@@ -1,5 +1,5 @@
 steps:
-  - template: checkout_and_settings.yml
+  - template: checkout.yml
 
   - task: CredScan@3
     condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
@@ -26,15 +26,6 @@ steps:
     condition: succeeded()
     displayName: Create conda environment
 
-  - task: ComponentGovernanceComponentDetection@0
-    condition: succeeded()
-    inputs:
-      scanType: 'Register'
-      verbosity: 'Normal'
-      alertWarningLevel: 'High'
-      failOnAlert: true
-      failOnStderr: true
-
   - bash: |
       source activate InnerEye
       flake8
@@ -48,6 +39,17 @@ steps:
     failOnStderr: true
     condition: succeededOrFailed()
     displayName: mypy
+
+  # Build the HelloWorld model, without providing the secrets for the ServicePrincipal, to mimic running HelloWorld
+  # right after checking out. This must happen before we provide any additional information in settings.yml
+  - bash: |
+      source activate InnerEye
+      python ./InnerEye/ML/runner.py --model=HelloWorld
+    env:
+      PYTHONPATH: $(Build.SourcesDirectory)/
+    failOnStderr: false
+    condition: succeededOrFailed()
+    displayName: Run HelloWorld model
 
   # Pytest needs subscription information directly in settings.yml. Local package install will cause use of
   # the wrong default project root, hence InnerEyePrivateSettings.yml can't be picked up.
@@ -104,6 +106,15 @@ steps:
       summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
       reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
     condition: succeededOrFailed()
+
+  - task: ComponentGovernanceComponentDetection@0
+    condition: succeeded()
+    inputs:
+      scanType: 'Register'
+      verbosity: 'Normal'
+      alertWarningLevel: 'High'
+      failOnAlert: true
+      failOnStderr: true
 
   - task: PublishBuildArtifacts@1
     inputs:

@@ -1,5 +1,7 @@
 steps:
-  - template: checkout_and_settings.yml
+  - template: checkout.yml
+
+  - template: store_settings.yml
 
   - bash: |
       conda env create --file azure_runner.yml --name AzureRunner
