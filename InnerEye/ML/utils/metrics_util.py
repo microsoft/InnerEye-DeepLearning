@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import tensorboardX
 import torch
+from PIL.Image import Image
 from pandas import DataFrame
 from sklearn.metrics import r2_score as sklearn_r2_score
 
@@ -223,17 +224,23 @@ class AzureAndTensorboardLogger:
 
     def __init__(self,
                  azureml_logger: AzureMLLogger,
-                 tensorboard_logger: tensorboardX.SummaryWriter,
-                 epoch: int):
+                 tensorboard_logger: tensorboardX.SummaryWriter):
         self.azureml_logger = azureml_logger
         self.tensorboard_logger = tensorboard_logger
-        self.epoch = epoch
+        self.epoch = 0
 
     def close(self) -> None:
         """
         Closes all loggers that require explicit closing.
         """
         self.tensorboard_logger.close()
+
+    def set_epoch(self, epoch: int) -> None:
+        """
+        Sets the given value as the epoch for all following logging calls.
+        :param epoch: The current epoch
+        """
+        self.epoch = epoch
 
     def log_to_azure_and_tensorboard(self, label: str, metric: float) -> None:
         """

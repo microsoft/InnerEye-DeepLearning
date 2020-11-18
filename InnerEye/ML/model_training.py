@@ -20,7 +20,7 @@ from InnerEye.ML.metrics import store_model_parameters
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
     ModelTrainingStepsForScalarModel, ModelTrainingStepsForSequenceModel, \
-    TrainValidateParameters, TrainingAndValidationDataForSegmentation
+    SegmentationModel, TrainValidateParameters, TrainingAndValidationDataForSegmentation
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util
@@ -117,8 +117,9 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
     optimal_temperature_scale_values = []
 
     trainer = Trainer(max_epochs=config.num_epochs)
-    lightning_model = config.create_model()
+    lightning_model = SegmentationModel(config)
     lightning_data = TrainingAndValidationDataForSegmentation(config)
+    lightning_data.config = config
     trainer.fit(lightning_model, datamodule=lightning_data)
     # for epoch in config.get_train_epochs():
     #     logging.info("Starting epoch {}".format(epoch))

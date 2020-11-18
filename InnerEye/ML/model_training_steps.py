@@ -5,7 +5,7 @@
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, List, Tuple, TypeVar, Union
+from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import param
@@ -73,7 +73,11 @@ class TrainValidateParameters(param.Parameterized, Generic[M]):
 class TrainingAndValidationDataForSegmentation(LightningDataModule):
     def _init__(self, config: ModelConfigBase):
         super().__init__()
-        self.data_loaders = config.create_data_loaders()
+        self.config = config
+        self.data_loaders = None
+
+    def setup(self, stage: Optional[str] = None) -> None:
+        self.data_loaders = self.config.create_data_loaders()
 
     def train_dataloader(self):
         return self.data_loaders[ModelExecutionMode.TRAIN]
@@ -495,17 +499,17 @@ class SegmentationModel(LightningModule):
         :param epoch: The number of the present epoch.
         """
         cropped_sample: CroppedSample = CroppedSample.from_dict(sample=sample)
-        labels = self.model_config.get_gpu_tensor_if_possible(cropped_sample.labels_center_crop)
+        labels = cropped_sample.labels_center_crop
 
-        mask = None if self.train_val_params.in_training_mode else cropped_sample.mask_center_crop
+        mask = cropped_sample.mask_center_crop if is_training_step else None
         logits = self.model(cropped_sample.image)
-        loss = self.loss_fn(logits)
+        loss = self.loss_fn(logits, labels)
 
         # apply Softmax on dimension 1 (Class) to map model output into a posterior probability distribution [0,1]
         posteriors = self.logits_to_posterior(logits)
 
         # apply mask if required
-        if is_training_step and mask is not None:
+        if mask is not None:
             posteriors = image_util.apply_mask_to_posteriors(posteriors=posteriors, mask=mask)
 
         # post process posteriors to compute result
@@ -514,14 +518,14 @@ class SegmentationModel(LightningModule):
         dice_for_all_classes = metrics.compute_dice_across_patches(
             segmentation=torch.tensor(segmentations).long(),
             ground_truth=labels,
-            use_cuda=self.model_config.use_gpu,
+            use_cuda=self.config.use_gpu,
             allow_multiple_classes_for_each_pixel=True).cpu().numpy()
         foreground_voxels = metrics_util.get_number_of_voxels_per_class(cropped_sample.labels)
         # loss is a scalar, also when running the forward pass over multiple crops.
         # dice_for_all_structures has one row per crop.
 
         # store metrics per batch
-        self.metrics.add_metric(MetricType.LOSS, loss)
+        self.metrics.add_metric(MetricType.LOSS, loss.item())
         for i, ground_truth_id in enumerate(self.metrics.get_hue_names(include_default=False)):
             for b in range(dice_for_all_classes.shape[0]):
                 self.metrics.add_metric(MetricType.DICE, dice_for_all_classes[b, i].item(),
@@ -534,8 +538,8 @@ class SegmentationModel(LightningModule):
         self.metrics.add_diagnostics(MetricType.PATCH_CENTER.value, np.copy(center_indices))
         # if self.train_val_params.in_training_mode:
         #     # store the sample train patch from this epoch for visualization
-        #     if batch_index == self.example_to_save and self.model_config.store_dataset_sample:
-        #         _store_dataset_sample(self.model_config, self.train_val_params.epoch, forward_pass_result,
+        #     if batch_index == self.example_to_save and self.config.store_dataset_sample:
+        #         _store_dataset_sample(self.config, self.train_val_params.epoch, forward_pass_result,
         #                               cropped_sample)
         self.log('loss', loss)
         return loss
@@ -564,7 +568,7 @@ class SegmentationModel(LightningModule):
                                     self.train_val_params.epoch,
                                     result,
                                     self.train_val_params.epoch_learning_rate,
-                                    self.model_config)
+                                    self.config)
         return result
 
 
