@@ -17,7 +17,7 @@ from InnerEye.Common.metrics_dict import MetricsDict
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_models import SegmentationModel
+from InnerEye.ML.lightning_models import SegmentationLightning
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
     ModelTrainingStepsForSequenceModel, TrainValidateParameters, TrainingAndValidationDataForSegmentation
@@ -119,10 +119,11 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
                       max_epochs=config.num_epochs,
                       num_sanity_val_steps=0,  # Otherwise a small number of validation steps is run before first train
                       logger=TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version=""),
-                      callbacks=[checkpoint_callback])
-    lightning_model = SegmentationModel(config)
+                      callbacks=[checkpoint_callback],
+                      progress_bar_refresh_rate=0,  # Disable the progress bar
+                      )
+    lightning_model = SegmentationLightning(config)
     lightning_data = TrainingAndValidationDataForSegmentation(config)
-
     # TODO: Why can't we do that in the constructor?
     lightning_data.config = config
     trainer.fit(lightning_model,

@@ -253,8 +253,8 @@ class ModelAndInfo:
         """
         # self._model = create_model_with_temperature_scaling(self.config)
         # TODO antonsc: Undo that hack
-        from InnerEye.ML.lightning_models import SegmentationModel
-        self._model = SegmentationModel(self.config)
+        from InnerEye.ML.lightning_models import SegmentationLightning
+        self._model = SegmentationLightning(self.config)
 
     def try_load_checkpoint_for_model(self) -> bool:
         """

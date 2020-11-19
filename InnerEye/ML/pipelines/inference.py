@@ -18,18 +18,18 @@ from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import config
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.lightning_models import SegmentationModel
+from InnerEye.ML.lightning_models import SegmentationLightning
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
-from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import image_util, ml_util, model_util
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import compute_uncertainty_map_from_posteriors, gaussian_smooth_posteriors, \
     posteriors_to_segmentation
-from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 
 
 class InferencePipelineBase:
     """Base class for all inference pipelines."""
+
     def __init__(self, model_config: ModelConfigBase):
         self.model_config = model_config
 
@@ -224,7 +224,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
             model = model_and_info.model
         if not model_loaded:
             return None
-        assert isinstance(model, SegmentationModel)
+        assert isinstance(model, SegmentationLightning)
         model = model.model
         assert isinstance(model, BaseModel)
         # for mypy, if model has been loaded these will not be None

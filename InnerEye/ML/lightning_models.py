@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import torch
 from pytorch_lightning import LightningModule
@@ -14,9 +14,9 @@ from InnerEye.ML import metrics
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.utils import image_util, metrics_util, model_util
+from InnerEye.ML.utils import image_util, metrics_util, ml_util, model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
-
+from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -39,6 +39,7 @@ class InnerEyeLightning(LightningModule):
         self.validation_metrics_per_epoch: List[MetricsDict] = []
         # This will be initialized correctly in epoch_start
         self.metrics = MetricsDict()
+        self.random_state: Optional[RandomStateSnapshot] = None
 
     def configure_optimizers(self):
         # TODO: This will be the same for all types of models, can this be in base class?
@@ -47,10 +48,26 @@ class InnerEyeLightning(LightningModule):
         return [optimizer], [l_rate_scheduler]
 
     def on_train_epoch_end(self, outputs) -> None:
+        # Store the random number generator state, so that the next epoch starts from here.
+        # Lightning appears to mess with the random number generators in a way I was not able to find out.
+        self.random_state = RandomStateSnapshot.snapshot_random_state()
         self.epoch_end(is_training=True)
 
     def on_validation_epoch_end(self) -> None:
         self.epoch_end(is_training=False)
+
+    def on_train_epoch_start(self) -> None:
+        self.reset_timers()
+        # At the start of an epoch, retrieve the random generator state from the end of the previous epoch.
+        if self.random_state:
+            self.random_state.restore_random_state()
+
+    def on_validation_epoch_start(self) -> None:
+        self.reset_timers()
+        # reset the random state for validation, so that we get consistent behaviour when drawing random patches
+        # when training segmentation models
+        # TODO antonsc: This does not appear to work at all, we get same patches in training and validation
+        ml_util.set_random_seed(self.config.get_effective_random_seed(), "Model validation")
 
     def epoch_end(self, is_training: bool) -> None:
         epoch_time_seconds = time.time() - self.epoch_start_time
@@ -65,6 +82,7 @@ class InnerEyeLightning(LightningModule):
                 f"time threshold. Total loading time for the slow batches was {self.total_extra_load_time:0.2f}sec.")
         # TODO antonsc: Make that safer
         learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
+        # Aggregate the metrics in a way that is specific to individual types of models.
         result = self.aggregate_metrics()
         result.add_metric(MetricType.LEARNING_RATE, learning_rate)
         result.add_metric(MetricType.SECONDS_PER_EPOCH, epoch_time_seconds)
@@ -120,8 +138,11 @@ class InnerEyeLightning(LightningModule):
         self.total_load_time = 0.0
         self.num_batches = 0
 
+    def aggregate_metrics(self) -> MetricsDict:
+        raise NotImplementedError("This method must be overwritten in a derived class.")
 
-class SegmentationModel(InnerEyeLightning):
+
+class SegmentationLightning(InnerEyeLightning):
     def __init__(self, config: SegmentationModelBase, *args, **kwargs) -> None:
         super().__init__(config, *args, **kwargs)
         self.model = config.create_model()
@@ -137,13 +158,14 @@ class SegmentationModel(InnerEyeLightning):
         return torch.nn.functional.softmax(logits, dim=1)
 
     def on_train_epoch_start(self) -> None:
+        super().on_train_epoch_start()
         self.epoch_start()
 
     def on_validation_epoch_start(self) -> None:
+        super().on_validation_epoch_start()
         self.epoch_start()
 
     def epoch_start(self) -> None:
-        self.reset_timers()
         self.metrics = MetricsDict(hues=[BACKGROUND_CLASS_NAME] + self.config.ground_truth_ids)
 
     def training_step(self,
