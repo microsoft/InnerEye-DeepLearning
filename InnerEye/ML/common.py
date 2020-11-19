@@ -9,7 +9,11 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 DATASET_CSV_FILE_NAME = "dataset.csv"
-CHECKPOINT_FILE_SUFFIX = "_checkpoint.pth.tar"
+CHECKPOINT_FILENAME = "_checkpoint"
+CHECKPOINT_FILE_SUFFIX = CHECKPOINT_FILENAME + ".pth.tar"
+
+# The checkpoint file that is written by Pytorch Lightning in the last epoch of training
+CHECKPOINT_LAST_EPOCH = "last.ckpt"
 
 
 @unique
@@ -64,7 +68,7 @@ def create_checkpoint_path(path: Path, epoch: int) -> Path:
     :param path to checkpoint folder
     :param epoch
     """
-    return path / f"{epoch}{CHECKPOINT_FILE_SUFFIX}"
+    return path / CHECKPOINT_LAST_EPOCH
 
 
 def create_unique_timestamp_id() -> str:

@@ -55,18 +55,7 @@ class ModelTrainingResults:
     """
     train_results_per_epoch: List[MetricsDict]
     val_results_per_epoch: List[MetricsDict]
-    learning_rates_per_epoch: List[List[float]]
     optimal_temperature_scale_values_per_checkpoint_epoch: List[float] = field(default_factory=list)
-
-    def __post_init__(self) -> None:
-        common_util.check_properties_are_not_none(self)
-
-        if len(self.train_results_per_epoch) != len(self.val_results_per_epoch) != len(self.learning_rates_per_epoch):
-            raise Exception("train_results_per_epoch must be the same length as val_results_per_epoch found "
-                            "and learning_rates_per_epoch, found: train_metrics_per_epoch={}, "
-                            "val_metrics_per_epoch={}, learning_rates_per_epoch={}"
-                            .format(len(self.train_results_per_epoch), len(self.val_results_per_epoch),
-                                    len(self.learning_rates_per_epoch)))
 
 
 def gather_tensor(tensor: Union[torch.Tensor, List[torch.Tensor]],

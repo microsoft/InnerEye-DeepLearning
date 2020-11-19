@@ -21,7 +21,7 @@ from InnerEye.ML.config import ModelArchitectureConfig, PaddingMode, Segmentatio
     basic_size_shrinkage
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
-from InnerEye.ML.deep_learning_config import OptimizerType
+from InnerEye.ML.deep_learning_config import DeepLearningConfig, OptimizerType
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
 from InnerEye.ML.models.architectures.complex import ComplexModel
@@ -42,7 +42,7 @@ from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 
 
-def create_optimizer(config: ModelConfigBase, parameters: Iterator[Parameter]) -> torch.optim.Optimizer:
+def create_optimizer(config: DeepLearningConfig, parameters: Iterator[Parameter]) -> torch.optim.Optimizer:
     # Select optimizer type
     if config.optimizer_type in [OptimizerType.Adam, OptimizerType.AMSGrad]:
         return torch.optim.Adam(parameters, config.l_rate,

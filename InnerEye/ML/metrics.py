@@ -376,31 +376,26 @@ def store_model_parameters(writer: tensorboardX.SummaryWriter,
 
 
 def log_segmentation_epoch_metrics(logging_fn: Callable[[str, float], None],
-                                   metrics: MetricsDict,
-                                   learning_rates: List[float]) -> None:
+                                   metrics: MetricsDict) -> None:
     """
     Logs segmentation metrics (e.g. loss, dice scores, learning rates) to an event file for TensorBoard
     visualization and to the AzureML run context
-    :param learning_rates: The logged learning rates.
     :param metrics: The metrics of the specified epoch, averaged along its batches.
     """
     logging_fn(MetricType.LOSS.value, metrics.get_single_metric(MetricType.LOSS))
     logging_fn("Dice/AverageExceptBackground", metrics.get_single_metric(MetricType.DICE))
     logging_fn("Voxels/ProportionForeground", metrics.get_single_metric(MetricType.PROPORTION_FOREGROUND_VOXELS))
     logging_fn("TimePerEpoch_Seconds", metrics.get_single_metric(MetricType.SECONDS_PER_EPOCH))
-
-    if learning_rates is not None:
-        for i, lr in enumerate(learning_rates):
-            logging_fn("LearningRate/Index_{}".format(i), lr)
+    logging_fn("LearningRate", metrics.get_single_metric(MetricType.LEARNING_RATE))
 
     for class_name in metrics.get_hue_names(include_default=False):
         # Tensorboard groups metrics by what is before the slash.
         # With metrics Dice/Foo and Dice/Bar, it will create a section for "Dice",
         # and inside of it, there are graphs for Foo and Bar
-        get_label = lambda x, y: "{}/{}".format(x, y)
-        logging_fn(get_label("Dice", class_name),
+        get_label = lambda x: f"{x}/{class_name}"
+        logging_fn(get_label("Dice"),
                    metrics.get_single_metric(MetricType.DICE, hue=class_name))
-        logging_fn(get_label("Voxels", class_name),
+        logging_fn(get_label("Voxels"),
                    metrics.get_single_metric(MetricType.PROPORTION_FOREGROUND_VOXELS, hue=class_name))
 
 
@@ -419,7 +414,6 @@ def store_epoch_metrics(azure_and_tensorboard_logger: AzureAndTensorboardLogger,
                         df_logger: DataframeLogger,
                         epoch: int,
                         metrics: MetricsDict,
-                        learning_rates: List[float],
                         config: ModelConfigBase) -> None:
     """
     Writes the loss, Dice scores, and learning rates into a file for Tensorboard visualization,
@@ -428,12 +422,11 @@ def store_epoch_metrics(azure_and_tensorboard_logger: AzureAndTensorboardLogger,
     :param df_logger: An instance of DataframeLogger, for logging results to csv.
     :param epoch: The epoch corresponding to the results.
     :param metrics: The metrics of the specified epoch, averaged along its batches.
-    :param learning_rates: The logged learning rates.
     :param config: one of SegmentationModelBase
     """
     if config.is_segmentation_model:
         log_segmentation_epoch_metrics(logging_fn=azure_and_tensorboard_logger.log_to_azure_and_tensorboard,
-                                       metrics=metrics, learning_rates=learning_rates)
+                                       metrics=metrics)
         logger_row = {
             LoggingColumns.Dice.value: metrics.get_single_metric(MetricType.DICE),
             LoggingColumns.Loss.value: metrics.get_single_metric(MetricType.LOSS),

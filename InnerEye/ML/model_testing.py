@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import copy
 import logging
+import os
 from functools import partial
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
@@ -11,13 +12,12 @@ from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
-from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, ModelProcessing, DataframeLogger, \
+from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, ModelProcessing, \
     get_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config, ScalarMetricsDict
+from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict, create_metrics_dict_from_config
 from InnerEye.ML import metrics, plotting
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
@@ -33,12 +33,12 @@ from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, Scala
 from InnerEye.ML.reports.segmentation_report import boxplot_per_structure
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import io_util, ml_util
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
 from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, \
     save_lines_to_file
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
-from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
-from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
+from InnerEye.ML.utils.metrics_util import DataframeLogger, MetricsPerPatientWriter
 
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"

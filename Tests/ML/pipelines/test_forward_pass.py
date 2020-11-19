@@ -11,7 +11,6 @@ from torch.cuda.amp import GradScaler
 from torch.nn import Identity
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import MetricsDataframeLoggers
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -26,6 +25,7 @@ from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.io_util import ImageDataType
+from InnerEye.ML.utils.metrics_util import MetricsDataframeLoggers
 from InnerEye.ML.utils.model_util import ModelAndInfo
 
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting

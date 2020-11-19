@@ -35,7 +35,11 @@ class IdenImage(LightningModule):
         embedding = self.encoder(x)
         return embedding
 
+    def validation_step(self, *args, **kwargs):
+        print("validation")
+
     def training_step(self, batch, batch_idx):
+        print("training")
         # training_step defined the train loop.
         # It is independent of forward
         x, y = batch
@@ -60,5 +64,11 @@ if __name__ == '__main__':
 
     # most basic trainer, uses good defaults (auto-tensorboard, checkpoints, logs, and more)
     # trainer = pl.Trainer(gpus=8) (if you have GPUs)
-    trainer = pl.Trainer()
+    trainer = pl.Trainer(max_epochs=1, max_steps=5)
     trainer.fit(autoencoder, train_loader)
+    f = "checkpoint.ckpt"
+    print("saving")
+    trainer.save_checkpoint(f)
+    print("loading")
+    autoencoder.load_from_checkpoint(f)
+    print("done")

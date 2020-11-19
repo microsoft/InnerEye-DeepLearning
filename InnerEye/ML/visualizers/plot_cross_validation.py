@@ -34,7 +34,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, down
     fetch_run, is_offline_run_context, is_parent_run
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
-from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, DataframeLogger, ENSEMBLE_SPLIT_NAME, \
+from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     FULL_METRICS_DATAFRAME_FILE, \
     METRICS_AGGREGATES_FILE, OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
@@ -46,6 +46,7 @@ from InnerEye.ML.model_testing import METRICS_FILE_NAME, get_epoch_results_path
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER, CSV_SUBJECT_HEADER, OutlierType, \
     extract_outliers
 from InnerEye.ML.utils.metrics_constants import LoggingColumns, MetricsFileColumns
+from InnerEye.ML.utils.metrics_util import DataframeLogger
 from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_directory
 
 RUN_DICTIONARY_NAME = "RunDictionary.txt"
