@@ -475,9 +475,7 @@ class SegmentationModel(LightningModule):
         # Metrics for all epochs
         self.train_metrics_per_epoch: List[MetricsDict] = []
         self.validation_metrics_per_epoch: List[MetricsDict] = []
-        # Initialize these fields to dummy values, that are only populated correctly in prepare_for_training
-        self.config = DeepLearningConfig(should_validate=False)
-        self.loss_fn = torch.nn.Module()
+        # This will be initialized correctly in epoch_start
         self.metrics = MetricsDict()
 
     def configure_optimizers(self):
