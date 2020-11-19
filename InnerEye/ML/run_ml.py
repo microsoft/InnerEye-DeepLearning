@@ -336,7 +336,8 @@ class MLRunner:
         if registration_epoch is not None:
             model_description = f"Registering model for epoch {registration_epoch} without considering metrics."
             checkpoint_paths = checkpoint_handler.get_checkpoint_paths_from_epoch_or_fail(registration_epoch)
-            self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
+            # TODO antonsc: hack
+            # self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
             if self.azure_config.register_model_only_for_epoch is not None:
                 return self.azure_config.register_model_only_for_epoch
 

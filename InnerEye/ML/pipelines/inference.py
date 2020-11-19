@@ -18,8 +18,9 @@ from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import config
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.lightning_models import SegmentationModel
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.models.architectures.base_model import CropSizeConstraints
+from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import image_util, ml_util, model_util
 from InnerEye.ML.utils.image_util import compute_uncertainty_map_from_posteriors, gaussian_smooth_posteriors, \
@@ -221,10 +222,11 @@ class InferencePipeline(FullImageInferencePipelineBase):
         else:
             model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
             model = model_and_info.model
-
         if not model_loaded:
             return None
-
+        assert isinstance(model, SegmentationModel)
+        model = model.model
+        assert isinstance(model, BaseModel)
         # for mypy, if model has been loaded these will not be None
         assert model_and_info.checkpoint_epoch is not None
 
@@ -409,10 +411,7 @@ class InferenceBatch(CTImagesMaskedBatch):
             # slice over the batches to prepare batch
             batch = patches[batch_idx: batch_idx + batch_size, ...]
             # perform the forward pass
-            batch_predictions = self._model_fn(batch)
-            image_util.check_array_range(batch_predictions,
-                                         expected_range=InferencePipeline.MODEL_OUTPUT_POSTERIOR_RANGE,  # type: ignore
-                                         error_prefix="Model predictions for current batch")
+            batch_predictions = self._model_fn(batch).detach().numpy()
             # collect the predictions over each of the batches
             predictions.append(batch_predictions)
 
@@ -513,18 +512,11 @@ class InferenceBatch(CTImagesMaskedBatch):
         :return posteriors: Confidence maps [0,1] for each patch per class
         in format: Patches x Channels x Class x Z x Y x X
         """
-        model_config = self.get_configs()
-
         # get the model from the pipeline environment
         model = self.pipeline.get_variable(InferencePipeline.Variables.Model)
 
         # convert patches to Torch tensor
         patches = torch.from_numpy(patches).float()
 
-        return SegmentationForwardPass(
-            model=model,
-            model_config=model_config,
-            batch_size=model_config.inference_batch_size,
-            optimizer=None,
-            in_training_mode=False
-        ).forward_pass_patches(patches=patches).posteriors
+        # TODO antonsc: need to ensure this is in sync with what's in SegmentationModel
+        return torch.nn.functional.softmax(model(patches), dim=1)

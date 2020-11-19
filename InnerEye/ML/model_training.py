@@ -17,10 +17,10 @@ from InnerEye.Common.metrics_dict import MetricsDict
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
+from InnerEye.ML.lightning_models import SegmentationModel
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
-    ModelTrainingStepsForSequenceModel, \
-    SegmentationModel, TrainValidateParameters, TrainingAndValidationDataForSegmentation
+    ModelTrainingStepsForSequenceModel, TrainValidateParameters, TrainingAndValidationDataForSegmentation
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
@@ -76,7 +76,7 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
     generate_and_print_model_summary(config, models_and_optimizer.model)
 
     # Move model to GPU and adjust for multiple GPUs
-    models_and_optimizer.adjust_model_for_gpus()
+    # models_and_optimizer.adjust_model_for_gpus()
 
     # Create the mean teacher model and move to GPU
     if config.compute_mean_teacher_model:
@@ -85,13 +85,13 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
             raise ValueError("There was no checkpoint file available for the mean teacher model "
                              f"for given start_epoch {config.start_epoch}")
 
-    # Create optimizer
-    models_and_optimizer.create_optimizer()
-    if checkpoint_handler.should_load_optimizer_checkpoint():
-        optimizer_loaded = models_and_optimizer.try_load_checkpoint_for_optimizer()
-        if not optimizer_loaded:
-            raise ValueError(f"There was no checkpoint file available for the optimizer for given start_epoch "
-                             f"{config.start_epoch}")
+    # # Create optimizer
+    # models_and_optimizer.create_optimizer()
+    # if checkpoint_handler.should_load_optimizer_checkpoint():
+    #     optimizer_loaded = models_and_optimizer.try_load_checkpoint_for_optimizer()
+    #     if not optimizer_loaded:
+    #         raise ValueError(f"There was no checkpoint file available for the optimizer for given start_epoch "
+    #                          f"{config.start_epoch}")
 
     logging.info(f"Models are saved at {config.checkpoint_folder}")
     config.create_loggers_for_training()
@@ -114,7 +114,6 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
         dirpath=str(config.checkpoint_folder),
         filename='best_val_loss_checkpoint',
         monitor='val_loss',
-        period=10,
         save_last=True)
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
                       max_epochs=config.num_epochs,

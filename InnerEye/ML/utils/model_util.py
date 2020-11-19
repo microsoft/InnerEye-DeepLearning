@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Generic, List, Optional, TypeVar, Union, Iterator
 
 import torch
+from pytorch_lightning import LightningModule
 from torch.nn.parameter import Parameter
 from torch.optim.optimizer import Optimizer
 from torch.optim.rmsprop import RMSprop
@@ -172,7 +173,7 @@ class ModelAndInfo:
         return checkpoint
 
     @classmethod
-    def _load_checkpoint(cls, model: DeviceAwareModule, checkpoint_path: Path,
+    def _load_checkpoint(cls, model: LightningModule, checkpoint_path: Path,
                          key_in_state_dict: str, use_gpu: bool) -> int:
         """
         Loads a checkpoint of a model, may be the model or the mean teacher model. Assumes the model
@@ -250,7 +251,10 @@ class ModelAndInfo:
         """
         Creates a model (with temperature scaling) according to the config given.
         """
-        self._model = create_model_with_temperature_scaling(self.config)
+        # self._model = create_model_with_temperature_scaling(self.config)
+        # TODO antonsc: Undo that hack
+        from InnerEye.ML.lightning_models import SegmentationModel
+        self._model = SegmentationModel(self.config)
 
     def try_load_checkpoint_for_model(self) -> bool:
         """
@@ -333,7 +337,9 @@ class ModelAndInfo:
         :return True if checkpoint exists and was loaded, False otherwise.
         """
         success = self.try_create_model_and_load_from_checkpoint()
-        self.create_summary_and_adjust_model_for_gpus()
+        # TODO antonsc: undo hack
+        # self.create_summary_and_adjust_model_for_gpus()
+        self.config.adjust_after_mixed_precision_and_parallel(self.model.model)
         return success
 
     def create_mean_teacher_model(self) -> None:
@@ -584,7 +590,7 @@ def summary_for_segmentation_models(config: ModelConfigBase, model: DeviceAwareM
         logging.warning(f"summary_for_segmentation_models failed with exception {e}")
 
 
-def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAwareModule) -> None:
+def generate_and_print_model_summary(config: ModelConfigBase, model: Union[DeviceAwareModule, LightningModule]) -> None:
     """
     Writes a human readable summary of the present model to logging.info, and logs the number of trainable
     parameters to AzureML.
@@ -610,9 +616,9 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
         summary = ModelSummary(model)
         summary.generate_summary(input_tensors=model_inputs, log_summaries_to_files=config.log_summaries_to_files)
     elif config.is_segmentation_model:
-        summary_for_segmentation_models(config, model)
-        assert model.summarizer
-        summary = model.summarizer  # type: ignore
+        assert isinstance(model, LightningModule), f"Expecting a LightningModule, but got {type(model)}"
+        summary_for_segmentation_models(config, model.model)
+        summary = model.model.summarizer  # type: ignore
     else:
         raise ValueError("Don't know how to generate a summary for this type of model?")
     RUN_CONTEXT.log(LoggingColumns.NumTrainableParameters, summary.n_trainable_params)
