@@ -10,6 +10,8 @@ import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_for_scalar_models
+from pytorch_lightning import LightningModule
+from InnerEye.Common.metrics_dict import MetricType, MetricsDict
 from InnerEye.ML import metrics
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationModelBase
@@ -18,10 +20,12 @@ from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import image_util, metrics_util, ml_util, model_util
+from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 from InnerEye.ML.visualizers.regression_visualization import plot_variation_error_prediction
+from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -62,7 +66,8 @@ class InnerEyeLightning(LightningModule):
         self.train_metrics_per_epoch: List[MetricsDict] = []
         self.validation_metrics_per_epoch: List[MetricsDict] = []
         # This will be initialized correctly in epoch_start
-        self.metrics = MetricsDict()
+        self.metrics_train = MetricsDict()
+        self.metrics_validation = MetricsDict()
         self.random_state: Optional[RandomStateSnapshot] = None
 
     def configure_optimizers(self):
@@ -72,26 +77,24 @@ class InnerEyeLightning(LightningModule):
         return [optimizer], [l_rate_scheduler]
 
     def on_train_epoch_end(self, outputs) -> None:
-        # Store the random number generator state, so that the next epoch starts from here.
-        # Lightning appears to mess with the random number generators in a way I was not able to find out.
-        self.random_state = RandomStateSnapshot.snapshot_random_state()
         self.epoch_end(is_training=True)
 
     def on_validation_epoch_end(self) -> None:
+        # reset the random state for training, so that we get continue from where we were before the validation step.
+        self.random_state.restore_random_state()
         self.epoch_end(is_training=False)
 
     def on_train_epoch_start(self) -> None:
         self.reset_timers()
-        # At the start of an epoch, retrieve the random generator state from the end of the previous epoch.
-        if self.random_state:
-            self.random_state.restore_random_state()
 
     def on_validation_epoch_start(self) -> None:
         self.reset_timers()
+        # Store the random number generator state, so that the next training epoch starts from here.
+        self.random_state = RandomStateSnapshot.snapshot_random_state()
         # reset the random state for validation, so that we get consistent behaviour when drawing random patches
-        # when training segmentation models
-        # TODO antonsc: This does not appear to work at all, we get same patches in training and validation
-        ml_util.set_random_seed(self.config.get_effective_random_seed(), "Model validation")
+        # when validating segmentation models.
+        seed = self.config.get_effective_random_seed()
+        set_random_seed(seed, "Validation")
 
     def epoch_end(self, is_training: bool) -> MetricsDict:
         epoch_time_seconds = time.time() - self.epoch_start_time
@@ -107,7 +110,8 @@ class InnerEyeLightning(LightningModule):
         # TODO antonsc: Make that safer
         learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
         # Aggregate the metrics in a way that is specific to individual types of models.
-        result = self.aggregate_metrics()
+        epoch_metrics = self.metrics_train if is_training else self.metrics_validation
+        result = self.aggregate_metrics(epoch_metrics)
         result.add_metric(MetricType.LEARNING_RATE, learning_rate)
         result.add_metric(MetricType.SECONDS_PER_EPOCH, epoch_time_seconds)
         logger = self.config.azure_loggers_train if is_training else self.config.azure_loggers_val
@@ -163,7 +167,7 @@ class InnerEyeLightning(LightningModule):
         self.total_load_time = 0.0
         self.num_batches = 0
 
-    def aggregate_metrics(self) -> MetricsDict:
+    def aggregate_metrics(self, epoch_metrics: MetricsDict) -> MetricsDict:
         raise NotImplementedError("This method must be overwritten in a derived class.")
 
     def write_metric(self,
@@ -203,14 +207,11 @@ class SegmentationLightning(InnerEyeLightning):
 
     def on_train_epoch_start(self) -> None:
         super().on_train_epoch_start()
-        self.epoch_start()
+        self.metrics_train = MetricsDict(hues=[BACKGROUND_CLASS_NAME] + self.config.ground_truth_ids)
 
     def on_validation_epoch_start(self) -> None:
         super().on_validation_epoch_start()
-        self.epoch_start()
-
-    def epoch_start(self) -> None:
-        self.metrics = MetricsDict(hues=[BACKGROUND_CLASS_NAME] + self.config.ground_truth_ids)
+        self.metrics_validation = MetricsDict(hues=[BACKGROUND_CLASS_NAME] + self.config.ground_truth_ids)
 
     def training_step(self,
                       sample: Dict[str, Any],
@@ -232,6 +233,8 @@ class SegmentationLightning(InnerEyeLightning):
         :param batch_index: The index of the present batch (supplied only for diagnostics).
         :param epoch: The number of the present epoch.
         """
+        epoch_metrics = self.metrics_train if is_training else self.metrics_validation
+
         cropped_sample: CroppedSample = CroppedSample.from_dict(sample=sample)
         labels = cropped_sample.labels_center_crop
 
@@ -259,17 +262,17 @@ class SegmentationLightning(InnerEyeLightning):
         # dice_for_all_structures has one row per crop.
 
         # store metrics per batch
-        self.metrics.add_metric(MetricType.LOSS, loss.item())
-        for i, ground_truth_id in enumerate(self.metrics.get_hue_names(include_default=False)):
+        epoch_metrics.add_metric(MetricType.LOSS, loss.item())
+        for i, ground_truth_id in enumerate(epoch_metrics.get_hue_names(include_default=False)):
             for b in range(dice_for_all_classes.shape[0]):
-                self.metrics.add_metric(MetricType.DICE, dice_for_all_classes[b, i].item(),
+                epoch_metrics.add_metric(MetricType.DICE, dice_for_all_classes[b, i].item(),
                                         hue=ground_truth_id, skip_nan_when_averaging=True)
-            self.metrics.add_metric(MetricType.VOXEL_COUNT, foreground_voxels[i], hue=ground_truth_id)
+            epoch_metrics.add_metric(MetricType.VOXEL_COUNT, foreground_voxels[i], hue=ground_truth_id)
         # store diagnostics per batch
         center_indices = cropped_sample.center_indices
         if isinstance(center_indices, torch.Tensor):
             center_indices = center_indices.cpu().numpy()
-        self.metrics.add_diagnostics(MetricType.PATCH_CENTER.value, center_indices.copy())
+        epoch_metrics.add_diagnostics(MetricType.PATCH_CENTER.value, center_indices.copy())
         # if self.train_val_params.in_training_mode:
         #     # store the sample train patch from this epoch for visualization
         #     if batch_index == self.example_to_save and self.config.store_dataset_sample:
@@ -278,8 +281,8 @@ class SegmentationLightning(InnerEyeLightning):
         self.write_loss(is_training, loss)
         return loss
 
-    def aggregate_metrics(self) -> MetricsDict:
-        return metrics.aggregate_segmentation_metrics(self.metrics)
+    def aggregate_metrics(self, epoch_metrics: MetricsDict) -> MetricsDict:
+        return metrics.aggregate_segmentation_metrics(epoch_metrics)
 
 
 class ScalarLightning(InnerEyeLightning):
