@@ -73,7 +73,7 @@ class HookBasedFeatureExtractor(Module):
             self.outputs.append(output.data.clone())
 
     # noinspection PyTypeChecker
-    def forward(self, input):  # type: ignore
+    def forward(self, *inputs):  # type: ignore
 
         if self.layer_name is not None:
             submodule = self.net
@@ -86,5 +86,5 @@ class HookBasedFeatureExtractor(Module):
         else:
             hook = self.net.register_forward_hook(self.forward_hook_fn)
 
-        self.model(input)
+        self.model(*inputs)
         hook.remove()
