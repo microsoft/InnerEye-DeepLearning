@@ -8,7 +8,6 @@ from typing import Any, Dict, List, Optional
 
 import torch
 from pytorch_lightning import LightningModule
-from pytorch_lightning.trainer import seed_everything
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict
 from InnerEye.ML import metrics
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationModelBase
@@ -16,7 +15,7 @@ from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
-from InnerEye.ML.utils.ml_util import RandomStateSnapshot
+from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -49,11 +48,10 @@ class InnerEyeLightning(LightningModule):
         return [optimizer], [l_rate_scheduler]
 
     def on_train_epoch_end(self, outputs) -> None:
-        # Store the random number generator state, so that the next epoch starts from here.
-        # Lightning appears to mess with the random number generators in a way I was not able to find out.
         self.epoch_end(is_training=True)
 
     def on_validation_epoch_end(self) -> None:
+        # reset the random state for training, so that we get continue from where we were before the validation step.
         self.random_state.restore_random_state()
         self.epoch_end(is_training=False)
 
@@ -62,13 +60,12 @@ class InnerEyeLightning(LightningModule):
 
     def on_validation_epoch_start(self) -> None:
         self.reset_timers()
-        # reset the random state for validation, so that we get consistent behaviour when drawing random patches
-        # when validating segmentation models
-        # TODO antonsc: This does not appear to work at all, we get same patches in training and validation
+        # Store the random number generator state, so that the next training epoch starts from here.
         self.random_state = RandomStateSnapshot.snapshot_random_state()
+        # reset the random state for validation, so that we get consistent behaviour when drawing random patches
+        # when validating segmentation models.
         seed = self.config.get_effective_random_seed()
-        seed_everything(seed)
-        logging.debug(f"Validation random seed set to: {seed}")
+        set_random_seed(seed, "Validation")
 
     def epoch_end(self, is_training: bool) -> None:
         epoch_time_seconds = time.time() - self.epoch_start_time
