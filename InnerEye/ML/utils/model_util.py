@@ -10,6 +10,7 @@ from typing import Any, Dict, Generic, List, Optional, TypeVar, Union, Iterator
 
 import torch
 from pytorch_lightning import LightningModule
+from torch.nn import MSELoss
 from torch.nn.parameter import Parameter
 from torch.optim.optimizer import Optimizer
 from torch.optim.rmsprop import RMSprop
@@ -33,12 +34,12 @@ from InnerEye.ML.models.losses.cross_entropy import CrossEntropyLoss
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
-from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
-from InnerEye.ML.utils.supervised_criterion import SupervisedLearningCriterion
+from InnerEye.ML.utils.supervised_criterion import BinaryCrossEntropyWithLogitsLoss, SupervisedLearningCriterion
 from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 
@@ -103,6 +104,22 @@ def create_segmentation_loss_component(model_config: SegmentationModelBase,
                                 focal_loss_gamma=model_config.focal_loss_gamma)
     else:
         raise NotImplementedError("Loss type {} is not implemented".format(loss_type))
+
+
+def create_scalar_loss_function(config: ScalarModelBase) -> torch.nn.Module:
+    """
+    Returns a torch module that computes a loss function for classification and regression models.
+    """
+    if config.loss_type == ScalarLoss.BinaryCrossEntropyWithLogits:
+        return BinaryCrossEntropyWithLogitsLoss(smoothing_eps=config.label_smoothing_eps)
+    if config.loss_type == ScalarLoss.WeightedCrossEntropyWithLogits:
+        return BinaryCrossEntropyWithLogitsLoss(
+            smoothing_eps=config.label_smoothing_eps,
+            class_counts=config.get_training_class_counts())
+    elif config.loss_type == ScalarLoss.MeanSquaredError:
+        return MSELoss()
+    else:
+        raise NotImplementedError(f"Loss type {config.loss_type} is not implemented")
 
 
 class ModelAndInfo:

@@ -7,19 +7,43 @@ import time
 from typing import Any, Dict, List, Optional
 
 import torch
-from pytorch_lightning import LightningModule
+from pytorch_lightning import LightningDataModule, LightningModule
 
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict
+from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_for_scalar_models
 from InnerEye.ML import metrics
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import image_util, metrics_util, ml_util, model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
+from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
+from InnerEye.ML.visualizers.regression_visualization import plot_variation_error_prediction
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
+
+
+class TrainingAndValidationDataForSegmentation(LightningDataModule):
+    def _init__(self, config: ModelConfigBase):
+        super().__init__()
+        self.config = config
+        self.data_loaders = None
+
+    def setup(self, stage: Optional[str] = None) -> None:
+        self.data_loaders = self.config.create_data_loaders()
+
+    def train_dataloader(self):
+        return self.data_loaders[ModelExecutionMode.TRAIN]
+
+    def val_dataloader(self):
+        return self.data_loaders[ModelExecutionMode.VAL]
+
+    def test_dataloader(self):
+        raise NotImplementedError("For segmentation models, the test dataset should not be evaluated patch-wise.")
 
 
 class InnerEyeLightning(LightningModule):
@@ -69,7 +93,7 @@ class InnerEyeLightning(LightningModule):
         # TODO antonsc: This does not appear to work at all, we get same patches in training and validation
         ml_util.set_random_seed(self.config.get_effective_random_seed(), "Model validation")
 
-    def epoch_end(self, is_training: bool) -> None:
+    def epoch_end(self, is_training: bool) -> MetricsDict:
         epoch_time_seconds = time.time() - self.epoch_start_time
         status = "training" if is_training else "validation"
         logging.info(f"Epoch {self.current_epoch} {status} took {epoch_time_seconds:0.2f}sec, from which waiting for "
@@ -98,6 +122,7 @@ class InnerEyeLightning(LightningModule):
             self.train_metrics_per_epoch.append(result)
         else:
             self.validation_metrics_per_epoch.append(result)
+        return result
 
     def on_train_batch_start(self, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
         self.batch_start(batch_idx=batch_idx, is_training=True)
@@ -140,6 +165,25 @@ class InnerEyeLightning(LightningModule):
 
     def aggregate_metrics(self) -> MetricsDict:
         raise NotImplementedError("This method must be overwritten in a derived class.")
+
+    def write_metric(self,
+                     is_training: bool,
+                     metric_type: MetricType,
+                     metric_value: float,
+                     hue: str = MetricsDict.DEFAULT_HUE_KEY) -> None:
+        metrics = self.metrics_train if is_training else self.metrics_val
+        metrics.add_metric(metric_type, metric_value, hue)
+
+    def write_loss(self, is_training: bool, loss: Any) -> None:
+        """
+        Writes the given loss value to Lightning, labelled either "val_loss" or "train_loss".
+        :param is_training: If True, the logged metric will be called "train_loss". If False, "val_loss"
+=        """
+        metric_name = 'train_loss' if is_training else "val_loss"
+        self.log(metric_name, loss)
+        loss_scalar = loss.float().item() if torch.is_tensor(loss) else loss
+        metrics = self.metrics_train if is_training else self.metrics_val
+        metrics.add_metric(MetricType.LOSS, loss_scalar)
 
 
 class SegmentationLightning(InnerEyeLightning):
@@ -231,9 +275,69 @@ class SegmentationLightning(InnerEyeLightning):
         #     if batch_index == self.example_to_save and self.config.store_dataset_sample:
         #         _store_dataset_sample(self.config, self.train_val_params.epoch, forward_pass_result,
         #                               cropped_sample)
-        metric_name = 'train_loss' if is_training else "val_loss"
-        self.log(metric_name, loss)
+        self.write_loss(is_training, loss)
         return loss
 
     def aggregate_metrics(self) -> MetricsDict:
         return metrics.aggregate_segmentation_metrics(self.metrics)
+
+
+class ScalarLightning(InnerEyeLightning):
+    def __init__(self, config: ScalarModelBase, *args, **kwargs) -> None:
+        super().__init__(config, *args, **kwargs)
+        self.model = config.create_model()
+        # TODO antonsc: The old code also changed the datatype for the loss tensor, depending on the
+        # loss function
+        self.loss_fn = model_util.create_scalar_loss_function(config)
+        self.metrics = create_metrics_dict_for_scalar_models(config)
+        self.use_mean_teacher_model = self.model_config.compute_mean_teacher_model
+        self.logits_to_posterior_fn = config.get_post_loss_logits_normalization_function()
+        # TODO antonsc: Work out how we handle mean teacher model
+        # if config.compute_grad_cam:
+        #     model_to_evaluate = self.train_val_params.mean_teacher_model if \
+        #         config.compute_mean_teacher_model else self.train_val_params.model
+        #     self.guided_grad_cam = VisualizationMaps(model_to_evaluate, config)
+        #     config.visualization_folder.mkdir(exist_ok=True)
+
+    def forward(self, *model_inputs: torch.Tensor) -> torch.Tensor:
+        return self.logits_to_posterior(self.model(*model_inputs))
+
+    def logits_to_posterior(self, logits: torch.Tensor) -> torch.Tensor:
+        """
+        Apply the model-specific normalization to go from logits (model outputs) to posteriors.
+        """
+        return self.logits_to_posterior_fn(logits)
+
+    def training_or_validation_step(self,
+                                    sample: Dict[str, Any],
+                                    batch_index: int,
+                                    is_training: bool):
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.config, self.model, sample)  # type: ignore
+        labels = model_inputs_and_labels.labels
+        logits = self.model(*model_inputs_and_labels.model_inputs)
+        loss = self.loss_fn(logits, labels)
+
+        self.write_loss(is_training, loss)
+        return loss
+
+    def aggregate_metrics(self) -> MetricsDict:
+        return self.metrics.average(across_hues=False)
+
+    def epoch_end(self, is_training: bool) -> None:
+        # TODO antonsc: trian/val
+        metrics = self.metrics
+        # Store subject level metrics
+        subject_logger = self.config.data_frame_loggers.train_subject_metrics if is_training \
+            else self.config.data_frame_loggers.val_subject_metrics
+        metrics.store_metrics_per_subject(
+            epoch=self.train_val_params.epoch,
+            df_logger=subject_logger,
+            mode=ModelExecutionMode.TRAIN if is_training else ModelExecutionMode.VAL,
+            cross_validation_split_index=self.config.cross_validation_split_index)
+        if self._should_save_regression_error_plot(self.current_epoch):
+            error_plot_name = f"error_plot_{self.train_val_params.epoch}"
+            path = str(self.config.outputs_folder / f"{error_plot_name}.png")
+            plot_variation_error_prediction(metrics.get_labels(), metrics.get_predictions(), path)
+            logger = self.config.azure_loggers_train if is_training else self.config.azure_loggers_val
+            logger.log_image(error_plot_name, path)
+

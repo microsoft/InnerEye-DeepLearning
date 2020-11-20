@@ -5,18 +5,17 @@
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, Generic, List, Tuple, TypeVar, Union
 
 import param
 import torch.cuda
 import torch.utils.data
-from pytorch_lightning import LightningDataModule
 from torch import Tensor
 from torch.nn import MSELoss
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config
+from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_for_scalar_models
 from InnerEye.ML import metrics
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -25,7 +24,6 @@ from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import compute_scalar_metrics
-from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.models.losses.ece import ECELoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion, DataParallelModel, \
@@ -64,25 +62,6 @@ class TrainValidateParameters(param.Parameterized, Generic[M]):
     epoch_learning_rate: List[float] = param.List(None, class_=float, bounds=(1, None), instantiate=False)
     in_training_mode: bool = param.Boolean(default=True)
     save_metrics: bool = param.Boolean(default=True)
-
-
-class TrainingAndValidationDataForSegmentation(LightningDataModule):
-    def _init__(self, config: ModelConfigBase):
-        super().__init__()
-        self.config = config
-        self.data_loaders = None
-
-    def setup(self, stage: Optional[str] = None) -> None:
-        self.data_loaders = self.config.create_data_loaders()
-
-    def train_dataloader(self):
-        return self.data_loaders[ModelExecutionMode.TRAIN]
-
-    def val_dataloader(self):
-        return self.data_loaders[ModelExecutionMode.VAL]
-
-    def test_dataloader(self):
-        raise NotImplementedError("For segmentation models, the test dataset should not be evaluated patch-wise.")
 
 
 class ModelTrainingStepsBase(Generic[C, M], ABC):
@@ -160,7 +139,7 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
         # base class because the base class constructor create_loss_function
         self.label_tensor_dtype = torch.float32
         super().__init__(config, train_val_params)
-        self.metrics = create_metrics_dict_from_config(config)
+        self.metrics = create_metrics_dict_for_scalar_models(config)
         self.compute_mean_teacher_model = self.model_config.compute_mean_teacher_model
 
         if self.model_config.compute_grad_cam:
@@ -169,34 +148,6 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
             self.guided_grad_cam = VisualizationMaps(model_to_evaluate, self.model_config)
             self.model_config.visualization_folder.mkdir(exist_ok=True)
 
-    def create_loss_function(self) -> torch.nn.Module:
-        """
-        Returns a torch module that computes a loss function.
-        Depending on the chosen loss function, the required data type for the labels tensor is set in
-        self.
-        """
-        if self.model_config.loss_type == ScalarLoss.BinaryCrossEntropyWithLogits:
-            return BinaryCrossEntropyWithLogitsLoss(smoothing_eps=self.model_config.label_smoothing_eps)
-        if self.model_config.loss_type == ScalarLoss.WeightedCrossEntropyWithLogits:
-            return BinaryCrossEntropyWithLogitsLoss(
-                smoothing_eps=self.model_config.label_smoothing_eps,
-                class_counts=self.model_config.get_training_class_counts())
-        elif self.model_config.loss_type == ScalarLoss.MeanSquaredError:
-            self.label_tensor_dtype = torch.float32
-            return MSELoss()
-        else:
-            raise NotImplementedError("Loss type {} is not implemented".format(self.model_config.loss_type))
-
-    def get_label_tensor(self, labels: torch.Tensor) -> torch.Tensor:
-        """
-        Converts the given tensor to the right data format, depending on the chosen loss function.
-        :param labels: The label tensor that should be converted.
-        """
-        try:
-            labels = labels.to(dtype=self.label_tensor_dtype)
-        except ValueError as ex:
-            raise ValueError(f"Unable to convert tensor {labels} to data type {self.label_tensor_dtype}: {str(ex)}")
-        return self.model_config.get_gpu_tensor_if_possible(labels)
 
     def get_logits_and_posteriors(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
             -> Tuple[torch.Tensor, torch.Tensor]:

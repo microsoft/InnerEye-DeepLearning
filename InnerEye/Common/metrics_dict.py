@@ -29,7 +29,7 @@ FloatOrInt = Union[float, int]
 T = TypeVar('T', np.ndarray, float)
 
 
-def create_metrics_dict_from_config(config: ScalarModelBase) -> Union[ScalarMetricsDict, SequenceMetricsDict]:
+def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> Union[ScalarMetricsDict, SequenceMetricsDict]:
     """
     Create an instance of either a ScalarMetricsDict or SequenceMetricsDict, based on the
     type of config provided.

@@ -17,7 +17,7 @@ from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
 from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, ModelProcessing, \
     get_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict, create_metrics_dict_from_config
+from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict, create_metrics_dict_for_scalar_models
 from InnerEye.ML import metrics, plotting
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
@@ -42,6 +42,10 @@ from InnerEye.ML.utils.metrics_util import DataframeLogger, MetricsPerPatientWri
 
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
+
+
+# TODO antonsc:
+# We need to clarify if we want to keep the ability to test on multiple checkpoints
 
 
 def model_test(config: ModelConfigBase,
@@ -415,7 +419,7 @@ def classification_model_test(config: ScalarModelBase,
         )
 
         logging.info(f"Starting to evaluate model from epoch {test_epoch} on {data_split.value} set.")
-        metrics_dict = create_metrics_dict_from_config(config)
+        metrics_dict = create_metrics_dict_for_scalar_models(config)
         for sample in ds:
             result = pipeline.predict(sample)
             # Since batch size is 1, we only have 1 item in each of the fields in result
