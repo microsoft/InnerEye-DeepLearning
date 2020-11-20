@@ -6,7 +6,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Optional, TypeVar, Union, Iterator
+from typing import Any, Dict, Generic, Iterator, List, Optional, TypeVar, Union
 
 import torch
 from pytorch_lightning import LightningModule
@@ -269,9 +269,7 @@ class ModelAndInfo:
         Creates a model (with temperature scaling) according to the config given.
         """
         # self._model = create_model_with_temperature_scaling(self.config)
-        # TODO antonsc: Undo that hack
-        from InnerEye.ML.lightning_models import SegmentationLightning
-        self._model = SegmentationLightning(self.config)
+        # self._model = create_lightning_model(self.config)
 
     def try_load_checkpoint_for_model(self) -> bool:
         """
@@ -640,6 +638,8 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: Union[Devic
         raise ValueError("Don't know how to generate a summary for this type of model?")
     RUN_CONTEXT.log(LoggingColumns.NumTrainableParameters, summary.n_trainable_params)
     random_state.restore_random_state()
+    # Move model back to CPU, to not mess with where Lightning expects things.
+    model.cpu()
 
 
 def create_model_with_temperature_scaling(config: ModelConfigBase) -> Any:

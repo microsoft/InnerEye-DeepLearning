@@ -3,8 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-from pathlib import Path
-from time import time
 from typing import Tuple, TypeVar
 
 from pytorch_lightning import Trainer
@@ -13,19 +11,14 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import logging_section
-from InnerEye.Common.metrics_dict import MetricsDict
 from InnerEye.Common.resource_monitor import ResourceMonitor
-from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_models import SegmentationLightning
+from InnerEye.ML.lightning_models import TrainingAndValidationDataLightning, create_lightning_model
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.model_training_steps import ModelTrainingStepsBase, \
-    ModelTrainingStepsForSequenceModel, TrainValidateParameters, TrainingAndValidationDataForSegmentation
-from InnerEye.ML.sequence_config import SequenceModelBase
+from InnerEye.ML.model_training_steps import ModelTrainingStepsForSequenceModel
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
-from InnerEye.ML.utils.ml_util import RandomStateSnapshot
-from InnerEye.ML.utils.model_util import ModelAndInfo, generate_and_print_model_summary
+from InnerEye.ML.utils.model_util import generate_and_print_model_summary
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
@@ -61,37 +54,29 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
 
-    models_and_optimizer = ModelAndInfo(config=config,
-                                        model_execution_mode=ModelExecutionMode.TRAIN,
-                                        checkpoint_path=checkpoint_path)
+    lightning_model = create_lightning_model(config)
 
-    # Create the main model
-    # If continuing from a previous run at a specific epoch, then load the previous model.
-    model_loaded = models_and_optimizer.try_create_model_and_load_from_checkpoint()
-    if not model_loaded:
-        raise ValueError("There was no checkpoint file available for the model for given start_epoch {}"
-                         .format(config.start_epoch))
+    # models_and_optimizer = ModelAndInfo(config=config,
+    #                                     model_execution_mode=ModelExecutionMode.TRAIN,
+    #                                     checkpoint_path=checkpoint_path)
+    #
+    # # Create the main model
+    # # If continuing from a previous run at a specific epoch, then load the previous model.
+    # model_loaded = models_and_optimizer.try_create_model_and_load_from_checkpoint()
+    # if not model_loaded:
+    #     raise ValueError("There was no checkpoint file available for the model for given start_epoch {}"
+    #                      .format(config.start_epoch))
 
     # Print out a detailed breakdown of layers, memory consumption and time.
-    generate_and_print_model_summary(config, models_and_optimizer.model)
+    generate_and_print_model_summary(config, lightning_model.model)
 
-    # Move model to GPU and adjust for multiple GPUs
-    # models_and_optimizer.adjust_model_for_gpus()
-
-    # Create the mean teacher model and move to GPU
-    if config.compute_mean_teacher_model:
-        mean_teacher_model_loaded = models_and_optimizer.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
-        if not mean_teacher_model_loaded:
-            raise ValueError("There was no checkpoint file available for the mean teacher model "
-                             f"for given start_epoch {config.start_epoch}")
-
-    # # Create optimizer
-    # models_and_optimizer.create_optimizer()
-    # if checkpoint_handler.should_load_optimizer_checkpoint():
-    #     optimizer_loaded = models_and_optimizer.try_load_checkpoint_for_optimizer()
-    #     if not optimizer_loaded:
-    #         raise ValueError(f"There was no checkpoint file available for the optimizer for given start_epoch "
-    #                          f"{config.start_epoch}")
+    # # Create the mean teacher model and move to GPU
+    # if config.compute_mean_teacher_model:
+    #     mean_teacher_model_loaded =
+    #     models_and_optimizer.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
+    #     if not mean_teacher_model_loaded:
+    #         raise ValueError("There was no checkpoint file available for the mean teacher model "
+    #                          f"for given start_epoch {config.start_epoch}")
 
     logging.info(f"Models are saved at {config.checkpoint_folder}")
     config.create_loggers_for_training()
@@ -120,71 +105,18 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
                       num_sanity_val_steps=0,  # Otherwise a small number of validation steps is run before first train
                       logger=TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version=""),
                       callbacks=[checkpoint_callback],
-                      progress_bar_refresh_rate=0,  # Disable the progress bar
+                      progress_bar_refresh_rate=0,  # Disable the progress bar,
+                      # TODO antonsc: review. Some tests fail without this option
+                      gpus=0,
                       )
-    lightning_model = SegmentationLightning(config)
-    lightning_data = TrainingAndValidationDataForSegmentation(config)
+    lightning_data = TrainingAndValidationDataLightning(config)
     # TODO: Why can't we do that in the constructor?
     lightning_data.config = config
     trainer.fit(lightning_model,
                 datamodule=lightning_data,
                 )
-
-    # for epoch in config.get_train_epochs():
-    #     logging.info("Starting epoch {}".format(epoch))
-    #     save_epoch = config.should_save_epoch(epoch) and models_and_optimizer.optimizer is not None
-    #
-    #     # store the learning rates used for each epoch
-    #     epoch_lrs = l_rate_scheduler.get_last_lr()
-    #     learning_rates_per_epoch.append(epoch_lrs)
-    #
-    #     train_val_params: TrainValidateParameters = \
-    #         TrainValidateParameters(data_loader=data_loaders[ModelExecutionMode.TRAIN],
-    #                                 model=models_and_optimizer.model,
-    #                                 mean_teacher_model=models_and_optimizer.mean_teacher_model,
-    #                                 epoch=epoch,
-    #                                 optimizer=models_and_optimizer.optimizer,
-    #                                 epoch_learning_rate=epoch_lrs,
-    #                                 in_training_mode=True)
-    #     training_steps = create_model_training_steps(config, train_val_params)
-    #     train_epoch_results = train_or_validate_epoch(training_steps)
-    #     train_results_per_epoch.append(train_epoch_results.metrics)
-    #
-    #     store_model_parameters(config.azure_loggers_train.tensorboard_logger, epoch, models_and_optimizer.model)
-    #     # Run without adjusting weights on the validation set
-    #     train_val_params.in_training_mode = False
-    #     train_val_params.data_loader = data_loaders[ModelExecutionMode.VAL]
-    #     # if temperature scaling is enabled then do not save validation metrics for the checkpoint epochs
-    #     # as these will be re-computed after performing temperature scaling on the validation set.
-    #     if isinstance(config, SequenceModelBase):
-    #         train_val_params.save_metrics = not (save_epoch and config.temperature_scaling_config)
-    #
-    #     training_steps = create_model_training_steps(config, train_val_params)
-    #     val_epoch_results = train_or_validate_epoch(training_steps)
-    #     val_results_per_epoch.append(val_epoch_results.metrics)
-    #
-    #     if config.is_segmentation_model:
-    #         metrics.store_epoch_stats_for_segmentation(config.outputs_folder, epoch, epoch_lrs,
-    #                                                    train_epoch_results.metrics,
-    #                                                    val_epoch_results.metrics)
-    #
-    #     if save_epoch:
-    #         # perform temperature scaling if required
-    #         if isinstance(config, SequenceModelBase) and config.temperature_scaling_config:
-    #             optimal_temperature, scaled_val_results = \
-    #                 temperature_scaling_steps(config, train_val_params, val_epoch_results)
-    #             optimal_temperature_scale_values.append(optimal_temperature)
-    #             # overwrite the metrics for the epoch with the metrics from the temperature scaled model
-    #             val_results_per_epoch[-1] = scaled_val_results.metrics
-    #
-    #         models_and_optimizer.save_checkpoint(epoch)
-    #
-    #     # Updating the learning rate should happen at the end of the training loop, so that the
-    #     # initial learning rate will be used for the very first epoch.
-    #     l_rate_scheduler.step()
-
     model_training_results = ModelTrainingResults(
-        train_results_per_epoch=lightning_model.train_metrics_per_epoch,
+        train_results_per_epoch=lightning_model.training_metrics_per_epoch,
         val_results_per_epoch=lightning_model.validation_metrics_per_epoch,
         optimal_temperature_scale_values_per_checkpoint_epoch=optimal_temperature_scale_values
     )
@@ -213,9 +145,7 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
     return model_training_results
 
 
-def temperature_scaling_steps(config: SequenceModelBase,
-                              train_val_params: TrainValidateParameters,
-                              val_results_for_epoch: ModelOutputsAndMetricsForEpoch) -> \
+def temperature_scaling_steps(val_results_for_epoch: ModelOutputsAndMetricsForEpoch) -> \
         Tuple[float, ModelOutputsAndMetricsForEpoch]:
     """
     Perform the steps required for temperature scaling:
@@ -228,7 +158,6 @@ def temperature_scaling_steps(config: SequenceModelBase,
     :return: the optimal temperature value and the validation results after scaling has been performed.
     """
     # re-create the training steps for the repeat pass, but with metrics saving enabled
-    train_val_params.save_metrics = True
     training_steps = None  # create_model_training_steps(config, train_val_params)
     assert isinstance(training_steps, ModelTrainingStepsForSequenceModel)
     # make sure results for a validation epoch have been passed in
@@ -238,82 +167,6 @@ def temperature_scaling_steps(config: SequenceModelBase,
     labels = val_results_for_epoch.get_labels()
     temperature_value = training_steps.learn_temperature_scale_parameter(logits, labels)
     # recompute the validation set results for the temperature scaled model
-    val_epoch_results = train_or_validate_epoch(training_steps)
+    val_epoch_results = None  # Should evaluate on validation set
 
     return temperature_value, val_epoch_results
-
-
-def train_or_validate_epoch(training_steps: ModelTrainingStepsBase) -> ModelOutputsAndMetricsForEpoch:
-    """
-    Trains or validates the model for one epoch.
-    :param training_steps: Training pipeline to use.
-    :returns: The results for training or validation. Result type depends on the type of model that is trained.
-    """
-    epoch_start_time = time()
-    training_random_state = None
-    train_val_params = training_steps.train_val_params
-    config = training_steps.model_config
-    if not train_val_params.in_training_mode:
-        # take the snapshot of the existing random state
-        training_random_state = RandomStateSnapshot.snapshot_random_state()
-        # reset the random state for validation
-        ml_util.set_random_seed(config.get_effective_random_seed(), "Model validation")
-
-    status_string = "training" if train_val_params.in_training_mode else "validation"
-    item_start_time = time()
-    num_load_time_warnings = 0
-    num_load_time_exceeded = 0
-    num_batches = 0
-    total_extra_load_time = 0.0
-    total_load_time = 0.0
-    model_outputs_epoch = []
-    for batch_index, sample in enumerate(train_val_params.data_loader):
-        item_finish_time = time()
-        item_load_time = item_finish_time - item_start_time
-        # Having slow minibatch loading is OK in the very first batch of the every epoch, where processes
-        # are spawned. Later, the load time should be zero.
-        if batch_index == 0:
-            logging.info(f"Loaded the first minibatch of {status_string} data in {item_load_time:0.2f} sec.")
-        elif item_load_time > MAX_ITEM_LOAD_TIME_SEC:
-            num_load_time_exceeded += 1
-            total_extra_load_time += item_load_time
-            if num_load_time_warnings < MAX_LOAD_TIME_WARNINGS:
-                logging.warning(f"Loading {status_string} minibatch {batch_index} took {item_load_time:0.2f} sec. "
-                                f"This can mean that there are not enough data loader worker processes, or that there "
-                                f"is a "
-                                f"performance problem in loading. This warning will be printed at most "
-                                f"{MAX_LOAD_TIME_WARNINGS} times.")
-                num_load_time_warnings += 1
-        model_outputs_minibatch = training_steps.forward_and_backward_minibatch(
-            sample, batch_index, train_val_params.epoch)
-        model_outputs_epoch.append(model_outputs_minibatch)
-        train_finish_time = time()
-        logging.debug(f"Epoch {train_val_params.epoch} {status_string} batch {batch_index}: "
-                      f"Loaded in {item_load_time:0.2f}sec, "
-                      f"{status_string} in {(train_finish_time - item_finish_time):0.2f}sec. "
-                      f"Loss = {model_outputs_minibatch.loss}")
-        total_load_time += item_finish_time - item_start_time
-        num_batches += 1
-        item_start_time = time()
-
-    # restore the training random state when validation has finished
-    if training_random_state is not None:
-        training_random_state.restore_random_state()
-
-    epoch_time_seconds = time() - epoch_start_time
-    logging.info(f"Epoch {train_val_params.epoch} {status_string} took {epoch_time_seconds:0.2f} sec, "
-                 f"of which waiting for next minibatch took {total_load_time:0.2f} sec total. {num_batches} "
-                 "minibatches in total.")
-    if num_load_time_exceeded > 0:
-        logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
-                        f"{MAX_ITEM_LOAD_TIME_SEC}sec.")
-        logging.warning(f"In this epoch, {num_load_time_exceeded} out of {num_batches} batches exceeded the load time "
-                        f"threshold. The total loading time for the slow batches was {total_extra_load_time:0.2f}sec.")
-
-    _metrics = training_steps.get_epoch_results_and_store(epoch_time_seconds) \
-        if train_val_params.save_metrics else MetricsDict()
-    return ModelOutputsAndMetricsForEpoch(
-        metrics=_metrics,
-        model_outputs=model_outputs_epoch,
-        is_train=train_val_params.in_training_mode
-    )
