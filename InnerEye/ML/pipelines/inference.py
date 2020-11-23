@@ -18,7 +18,7 @@ from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import config
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.lightning_models import create_lightning_model
+from InnerEye.ML.lightning_models import create_lightning_model, create_model_from_lightning_checkpoint
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
 from InnerEye.ML.utils import image_util, ml_util
@@ -213,17 +213,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
         :return InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint
         file for this epoch.
         """
-        lightning_model = create_lightning_model(model_config)
-        # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
-        # if the model is small.
-        map_location = None if model_config.use_gpu else 'cpu'
-        type(lightning_model).load_from_checkpoint(checkpoint_path=str(path_to_checkpoint),
-                                                   map_location=map_location,
-                                                   config=model_config)
-        model = lightning_model.model
-        model_config.adjust_after_mixed_precision_and_parallel(model)
-        assert isinstance(model, BaseModel)
-
+        model = create_model_from_lightning_checkpoint(model_config, path_to_checkpoint).model
         for name, param in model.named_parameters():
             param_numpy = param.clone().cpu().data.numpy()
             image_util.check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
