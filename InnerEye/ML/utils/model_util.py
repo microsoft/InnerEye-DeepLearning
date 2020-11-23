@@ -605,11 +605,10 @@ def summary_for_segmentation_models(config: ModelConfigBase, model: DeviceAwareM
         logging.warning(f"summary_for_segmentation_models failed with exception {e}")
 
 
-def generate_and_print_model_summary(config: ModelConfigBase, model: Union[DeviceAwareModule, LightningModule]) -> None:
+def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAwareModule) -> None:
     """
     Writes a human readable summary of the present model to logging.info, and logs the number of trainable
     parameters to AzureML.
-
     :param config: The configuration for the model.
     :param model: The instantiated Pytorch model.
     """
@@ -631,9 +630,8 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: Union[Devic
         summary = ModelSummary(model)
         summary.generate_summary(input_tensors=model_inputs, log_summaries_to_files=config.log_summaries_to_files)
     elif config.is_segmentation_model:
-        assert isinstance(model, LightningModule), f"Expecting a LightningModule, but got {type(model)}"
-        summary_for_segmentation_models(config, model.model)
-        summary = model.model.summarizer  # type: ignore
+        summary_for_segmentation_models(config, model)
+        summary = model.summarizer  # type: ignore
     else:
         raise ValueError("Don't know how to generate a summary for this type of model?")
     RUN_CONTEXT.log(LoggingColumns.NumTrainableParameters, summary.n_trainable_params)

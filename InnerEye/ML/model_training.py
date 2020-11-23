@@ -13,7 +13,7 @@ from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import logging_section
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_models import TrainingAndValidationDataLightning, create_lightning_model
+from InnerEye.ML.lightning_models import InnerEyeLightning, TrainingAndValidationDataLightning, create_lightning_model
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForSequenceModel
 from InnerEye.ML.utils import ml_util
@@ -68,6 +68,7 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
     #                      .format(config.start_epoch))
 
     # Print out a detailed breakdown of layers, memory consumption and time.
+    assert isinstance(lightning_model, InnerEyeLightning)
     generate_and_print_model_summary(config, lightning_model.model)
 
     # # Create the mean teacher model and move to GPU

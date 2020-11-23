@@ -52,6 +52,7 @@ class InnerEyeLightning(LightningModule):
     def __init__(self, config: DeepLearningConfig, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.config = config
+        self.model = torch.nn.Module()
         # Timers for monitoring data loading time
         self.epoch_start_time = 0
         self.item_start_time = 0
@@ -364,7 +365,7 @@ class ScalarLightning(InnerEyeLightning):
 
 def create_lightning_model(config: ModelConfigBase) -> LightningModule:
     if config.is_segmentation_model:
-        SegmentationLightning(config)
+        return SegmentationLightning(config)
     elif config.is_scalar_model:
         return ScalarLightning(config)
     else:

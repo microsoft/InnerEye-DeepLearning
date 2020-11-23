@@ -156,14 +156,14 @@ def _test_model_train(output_dirs: OutputFolderForTests,
 
     expected_train_losses = [0.455538, 0.455213]
     expected_val_losses = [0.455190, 0.455139]
+    loss_absolute_tolerance = 1e-3
 
     expected_stats = "Epoch\tLearningRate\tTrainLoss\tTrainDice\tValLoss\tValDice\n" \
                      "1\t1.00e-03\t0.456\t0.242\t0.455\t0.000\n" \
                      "2\t5.36e-04\t0.455\t0.247\t0.455\t0.000"
 
-    expected_learning_rates = [[train_config.l_rate], [5.3589e-4]]
+    expected_learning_rates = [train_config.l_rate, 5.3589e-4]
 
-    loss_absolute_tolerance = 1e-3
     checkpoint_handler = get_default_checkpoint_handler(model_config=train_config,
                                                         project_root=Path(output_dirs.root_dir))
     model_training_result = model_training.model_train(train_config,
@@ -175,15 +175,16 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # check to make sure validation batches are all the same across epochs
     _check_patch_centers(model_training_result.val_results_per_epoch, should_equal=True)
     assert isinstance(model_training_result.train_results_per_epoch[0], MetricsDict)
-    actual_train_losses = [m.get_single_metric(MetricType.LOSS)
-                           for m in model_training_result.train_results_per_epoch]
-    actual_val_losses = [m.get_single_metric(MetricType.LOSS)
-                         for m in model_training_result.val_results_per_epoch]
+    def get_single_metric(metrics: List[MetricsDict], metric_type: MetricType) -> List[float]:
+        return [m.get_single_metric(metric_type) for m in metrics]
+    actual_train_losses = get_single_metric(model_training_result.train_results_per_epoch, MetricType.LOSS)
+    actual_val_losses = get_single_metric(model_training_result.val_results_per_epoch, MetricType.LOSS)
+    actual_learning_rates = get_single_metric(model_training_result.train_results_per_epoch, MetricType.LEARNING_RATE)
     print("actual_train_losses = {}".format(actual_train_losses))
     print("actual_val_losses = {}".format(actual_val_losses))
-    assert np.allclose(actual_train_losses, expected_train_losses, atol=loss_absolute_tolerance)
-    assert np.allclose(actual_val_losses, expected_val_losses, atol=loss_absolute_tolerance)
-    assert np.allclose(model_training_result.learning_rates_per_epoch, expected_learning_rates, rtol=1e-6)
+    assert np.allclose(actual_train_losses, expected_train_losses, atol=loss_absolute_tolerance), "Train losses"
+    assert np.allclose(actual_val_losses, expected_val_losses, atol=loss_absolute_tolerance), "Val losses"
+    assert np.allclose(actual_learning_rates, expected_learning_rates, rtol=1e-6), "Learning rates"
 
     # check output files/directories
     assert train_config.outputs_folder.is_dir()

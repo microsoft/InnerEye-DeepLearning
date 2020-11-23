@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
-import tensorboardX
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 from pandas import DataFrame
@@ -260,6 +259,8 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
             azureml_logger = AzureMLLogger(logging_prefix=f"{mode.value}_",
                                            log_to_parent_run=self.log_to_parent_run,
                                            cross_validation_split_index=self.cross_validation_split_index)
+            # Use a local import here to keep the environment in azure_runner.yml small
+            import tensorboardX
             writer = tensorboardX.SummaryWriter(str(self.logs_folder / f"{mode.value}"))
             azure_loggers.append(AzureAndTensorboardLogger(azureml_logger=azureml_logger,
                                                            tensorboard_logger=writer))
