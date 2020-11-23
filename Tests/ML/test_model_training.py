@@ -203,7 +203,9 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert train_config.save_step_epochs == 100
     assert train_config.num_epochs == 2
     assert train_config.checkpoint_folder.is_dir()
-    assert (train_config.checkpoint_folder / ("2" + CHECKPOINT_FILE_SUFFIX)).is_file()
+    assert len(list(train_config.checkpoint_folder.rglob("*.ckpt"))) == 2
+    assert (train_config.checkpoint_folder / "last.ckpt").is_file()
+    assert (train_config.checkpoint_folder / "best_val_loss_checkpoint-v0.ckpt").is_file()
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.VAL]).is_file()
