@@ -77,6 +77,8 @@ jobs:
         value: 'training-nc12'
       - name: model
         value: 'BasicModel2Epochs1Channel'
+      - name: number_of_cross_validation_splits
+        value: 2
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -85,4 +87,4 @@ jobs:
           wait_for_completion: 'True'
           pytest_mark: ''
           max_run_duration: '1h'
-          more_switches: '--number_of_cross_validation_splits=2 --use_dataset_mount=True'
+          more_switches: '--use_dataset_mount=True'
