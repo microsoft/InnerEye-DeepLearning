@@ -7,8 +7,10 @@ from typing import List, Tuple
 
 import torch
 
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.models.architectures.base_model import BaseModel
 from InnerEye.ML.visualizers.embedding_lookup import EmbeddingsStore, _find_nearest
+from Tests.ML import util
 
 
 def _generate_batch(batch_size: int, input_dim: int) -> Tuple[torch.Tensor, List[str]]:
@@ -92,6 +94,38 @@ def test_embedding_lookup():
     assert similarities.shape == (num_test_samples, num_neighbors)
 
 
-# TODO Add tests for embedding serialization
-def test_embedding_serialization():
-    pass
+def test_embedding_serialization(test_output_dirs: OutputFolderForTests):
+    input_dim = 10
+    num_stored_samples = 100
+
+    all_inputs, all_subject_ids = _generate_batch(num_stored_samples, input_dim)
+
+    model = IdentityModel()
+
+    embeddings_store = EmbeddingsStore(model)
+    embeddings_store.store_embeddings([all_inputs], all_subject_ids)
+
+    embeddings_dir = test_output_dirs.root_dir
+    filename = "embeddings"
+
+    embeddings_path = embeddings_store.save(filename, embeddings_dir)
+    util.assert_file_exists(embeddings_path)
+
+    # Check file contents match original data
+    payload = torch.load(embeddings_path)
+    assert torch.allclose(payload['embeddings'], embeddings_store.get_embeddings(), atol=1e-15)
+    assert payload['subject_ids'] == embeddings_store.subject_ids
+
+    # Check consistency of recovered EmbeddingsStore
+    new_embeddings_store = EmbeddingsStore(model)
+    new_embeddings_store.load(filename, embeddings_dir)
+    assert torch.allclose(embeddings_store.get_embeddings(),
+                          new_embeddings_store.get_embeddings(), atol=1e-15)
+    assert embeddings_store.subject_ids == new_embeddings_store.subject_ids
+
+    # The files have the same length but are not identical, so the following check fails.
+    # PyTorch presumably adds some metadata when saving.
+    #
+    # new_filename = "new_embeddings"
+    # new_embeddings_path = new_embeddings_store.save(new_filename, embeddings_dir)
+    # util.assert_binary_files_match(embeddings_path, new_embeddings_path)

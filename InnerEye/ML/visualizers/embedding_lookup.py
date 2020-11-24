@@ -81,15 +81,15 @@ class EmbeddingsStore:
         # both shapes: (num_test, num_neighbors)
         return sorted_top_subject_ids, sorted_top_similarities.cpu().numpy()
 
-    def save(self,
-             subject_ids: Sequence[str],
-             filename: str,
-             embeddings_dir: Path) -> None:
-        # TODO Save stored embeddings
-        raise NotImplementedError
+    def save(self, filename: str, embeddings_dir: Path) -> Path:
+        embeddings_path = embeddings_dir / (filename + ".pt")
+        payload = {'embeddings': self.get_embeddings(), 'subject_ids': self.subject_ids}
+        torch.save(payload, embeddings_path)
+        return embeddings_path
 
-    def load(self,
-             filename: str,
-             embeddings_dir: Path) -> None:
-        # TODO Load embeddings from disk
-        raise NotImplementedError
+    def load(self, filename: str, embeddings_dir: Path) -> None:
+        embeddings_path = embeddings_dir / (filename + ".pt")
+        payload = torch.load(embeddings_path)
+        self.embeddings = None
+        self.extractor.outputs.append(payload['embeddings'])
+        self.subject_ids = payload['subject_ids']
