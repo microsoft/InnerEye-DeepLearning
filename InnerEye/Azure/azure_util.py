@@ -401,8 +401,10 @@ def download_outputs_from_run(blobs_path: Path,
     blobs_root_path = str(fixed_paths.DEFAULT_AML_UPLOAD_DIR / blobs_path)
     if is_file:
         destination = destination / blobs_path.name
+        logging.info(f"Downloading single file from run {run.id}: {blobs_root_path} -> {str(destination)}")
         run.download_file(blobs_root_path, str(destination), _validate_checksum=True)
     else:
+        logging.info(f"Downloading multiple files from run {run.id}: {blobs_root_path} -> {str(destination)}")
         run.download_files(blobs_root_path, str(destination), append_prefix=append_prefix)
     return destination
 

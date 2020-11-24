@@ -14,7 +14,7 @@ from azureml.core import Run
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import RUN_CONTEXT, download_outputs_from_run, fetch_child_runs, fetch_run, \
     get_cross_validation_split_index, is_cross_validation_child_run, tag_values_all_distinct
-from InnerEye.Common.common_util import check_properties_are_not_none
+from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, check_properties_are_not_none
 from InnerEye.ML.common import create_checkpoint_path
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig
 
@@ -59,37 +59,17 @@ class RunRecovery:
 
     @staticmethod
     def download_checkpoints_from_run(config: DeepLearningConfig,
-                                      run: Run,
-                                      output_subdir_name: Optional[str] = None) -> RunRecovery:
+                                      run: Run) -> RunRecovery:
         """
         Downloads checkpoints of the provided run or, if applicable, its children.
-        :param azure_config: Azure related configs.
         :param config: Model related configs.
         :param run: Run whose checkpoints should be recovered
         :return: run recovery information
         """
+        # TODO antonsc: Clarify how we handle the case of multiple checkpoint being downloaded
         child_runs: List[Run] = fetch_child_runs(run)
-        logging.debug(f"Run has ID {run.id} and initial child runs are:")
-        for child_run in child_runs:
-            logging.debug(f"     {child_run.id}")
-        checkpoint_subdir_name: Optional[str]
-        if output_subdir_name:
-            # From e.g. parent_dir/checkpoints we want parent_dir/output_subdir_name, to which we will
-            # append split_index / checkpoints below to create child_dst.
-            checkpoint_path = config.checkpoint_folder
-            parent_path = checkpoint_path.parent
-            checkpoint_subdir_name = checkpoint_path.name
-            root_output_dir = parent_path / output_subdir_name
-        else:
-            root_output_dir = config.checkpoint_folder / run.id
-            checkpoint_subdir_name = None
-        # download checkpoints for the run
-        download_outputs_from_run(
-            blobs_path=Path(CHECKPOINT_FOLDER),
-            destination=root_output_dir,
-            run=run
-        )
-        if len(child_runs) > 0:
+        if child_runs:
+            logging.info(f"Run has ID {run.id}, child runs: {', '.join(c.id for c in child_runs)}")
             tag_to_use = 'cross_validation_split_index'
             can_use_split_indices = tag_values_all_distinct(child_runs, tag_to_use)
             # download checkpoints for the child runs in the root of the parent
@@ -100,10 +80,7 @@ class RunRecovery:
                     child_dst = config.checkpoint_folder
                 else:
                     subdir = str(child.tags[tag_to_use] if can_use_split_indices else child.number)
-                    if checkpoint_subdir_name:
-                        child_dst = root_output_dir / subdir / checkpoint_subdir_name
-                    else:
-                        child_dst = root_output_dir / subdir
+                    child_dst = config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / subdir
                     download_outputs_from_run(
                         blobs_path=Path(CHECKPOINT_FOLDER),
                         destination=child_dst,
@@ -112,6 +89,14 @@ class RunRecovery:
                 child_runs_checkpoints_roots.append(child_dst)
             return RunRecovery(checkpoints_roots=child_runs_checkpoints_roots)
         else:
+            logging.info(f"Run with ID {run.id} has no child runs")
+            root_output_dir = config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME
+            # download checkpoints for the run
+            download_outputs_from_run(
+                blobs_path=Path(CHECKPOINT_FOLDER),
+                destination=root_output_dir,
+                run=run
+            )
             return RunRecovery(checkpoints_roots=[root_output_dir])
 
     def get_checkpoint_paths(self, epoch: int) -> List[Path]:
@@ -124,4 +109,6 @@ class RunRecovery:
 
     def __post_init__(self) -> None:
         self._validate()
-        logging.info(f"Recovering from checkpoints roots: {self.checkpoints_roots}")
+        logging.info(f"Storing {len(self.checkpoints_roots)}checkpoints roots:")
+        for p in self.checkpoints_roots:
+            logging.info(str(p))
