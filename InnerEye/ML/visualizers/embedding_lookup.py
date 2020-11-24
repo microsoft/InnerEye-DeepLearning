@@ -66,18 +66,19 @@ class EmbeddingsStore:
                similarity_fn: SimilarityFunction = DEFAULT_SIMILARITY) \
             -> Tuple[np.ndarray, np.ndarray]:
         test_extractor = _get_embedding_extractor(self.model)
-        stored_embeddings = self.get_embeddings()
+        stored_embeddings = self.get_embeddings()  # shape: (num_stored, dims)
 
         test_extractor.forward(*test_input)
-        test_embeddings: torch.Tensor = test_extractor.outputs[0]
-        test_embeddings = test_embeddings.unsqueeze(-3)
+        test_embeddings: torch.Tensor = test_extractor.outputs[0]  # shape: (num_test, dims)
+        test_embeddings = test_embeddings.unsqueeze(-2)  # shape: (num_test, 1, dims)
 
-        # similarities.shape == (N_test, N_stored)
+        # similarities.shape: (num_test, num_stored)
         similarities = similarity_fn(test_embeddings, stored_embeddings)
         sorted_top_indices, sorted_top_similarities = _find_nearest(similarities, num_neighbors)
 
         sorted_top_subject_ids = np.take(self.subject_ids, sorted_top_indices)
 
+        # both shapes: (num_test, num_neighbors)
         return sorted_top_subject_ids, sorted_top_similarities.cpu().numpy()
 
     def save(self,
