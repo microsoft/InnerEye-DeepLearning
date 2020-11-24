@@ -321,7 +321,8 @@ def plot_image_for_subject(subject_id: str,
                            dataset_file_column: str,
                            dataset_dir: Path,
                            im_size: Tuple,
-                           model_output: float) -> None:
+                           model_output: float,
+                           header: Optional[str]) -> None:
     """
     Given a subject ID, plots the corresponding image.
     :param subject_id: Subject to plot image for
@@ -333,6 +334,7 @@ def plot_image_for_subject(subject_id: str,
     :param model_output: The predicted value for this image
     """
     print_header("", level=4)
+    print_header(header, level=4)
     print_header(f"ID: {subject_id} Score: {model_output}", level=4)
 
     filepath = get_image_filepath_from_subject_id(subject_id=str(subject_id),
@@ -377,7 +379,8 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                dataset_file_column=dataset_file_column,
                                dataset_dir=dataset_dir,
                                im_size=im_size,
-                               model_output=model_output)
+                               model_output=model_output,
+                               header="False Positive")
 
     print_header(f"Top {k} false negatives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.false_negatives[LoggingColumns.Patient.value],
@@ -388,7 +391,8 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                dataset_file_column=dataset_file_column,
                                dataset_dir=dataset_dir,
                                im_size=im_size,
-                               model_output=model_output)
+                               model_output=model_output,
+                               header="False Negative")
 
     print_header(f"Top {k} true positives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.true_positives[LoggingColumns.Patient.value],
@@ -399,7 +403,8 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                dataset_file_column=dataset_file_column,
                                dataset_dir=dataset_dir,
                                im_size=im_size,
-                               model_output=model_output)
+                               model_output=model_output,
+                               header="True Positive")
 
     print_header(f"Top {k} true negatives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.true_negatives[LoggingColumns.Patient.value],
@@ -410,4 +415,5 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                dataset_file_column=dataset_file_column,
                                dataset_dir=dataset_dir,
                                im_size=im_size,
-                               model_output=model_output)
+                               model_output=model_output,
+                               header="True Negative")
