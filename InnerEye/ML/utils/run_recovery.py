@@ -73,7 +73,6 @@ class RunRecovery:
         # TODO antonsc: Clarify how we handle the case of multiple checkpoint being downloaded.
         child_runs: List[Run] = fetch_child_runs(run)
         if child_runs:
-            raise ValueError("This should fail")
             logging.info(f"Run has ID {run.id}, child runs: {', '.join(c.id for c in child_runs)}")
             tag_to_use = 'cross_validation_split_index'
             can_use_split_indices = tag_values_all_distinct(child_runs, tag_to_use)

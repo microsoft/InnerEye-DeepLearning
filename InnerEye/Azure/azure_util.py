@@ -427,11 +427,11 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
     """
     def is_completed(run: Run) -> bool:
         status = run.get_status()
-        if run.status == RunStatus.Completed:
+        if run.status == RunStatus.COMPLETED:
             return True
-        logging.info(f"Run {run.id} in experiment {run.experiment.name} completed with status {status}.")
+        logging.info(f"Run {run.id} in experiment {run.experiment.name} finished with status {status}.")
         return False
 
-    runs = run.get_children()
+    runs = list(run.get_children())
     runs.append(run)
     return all(is_completed(run) for run in runs)
