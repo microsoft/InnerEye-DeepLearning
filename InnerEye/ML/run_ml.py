@@ -721,9 +721,11 @@ class MLRunner:
             # perform inference on training set if required
             train_metrics = run_model_test(ModelExecutionMode.TRAIN)
 
-        # log the metrics to AzureML experiment if possible
+        # log the metrics to AzureML experiment if possible. When doing ensemble runs, log to the Hyperdrive parent run,
+        # so that we get the metrics of child run 0 and the ensemble separated.
         if config.is_segmentation_model and not is_offline_run_context(RUN_CONTEXT):
+            run_for_logging = PARENT_RUN_CONTEXT if model_proc.ENSEMBLE_CREATION else RUN_CONTEXT
             log_metrics(val_metrics=val_metrics, test_metrics=test_metrics,  # type: ignore
-                        train_metrics=train_metrics, run_context=RUN_CONTEXT)  # type: ignore
+                        train_metrics=train_metrics, run_context=run_for_logging)  # type: ignore
 
         return test_metrics, val_metrics, train_metrics
