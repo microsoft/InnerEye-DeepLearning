@@ -62,11 +62,15 @@ class RunRecovery:
                                       run: Run) -> RunRecovery:
         """
         Downloads checkpoints of the provided run or, if applicable, its children.
+        When downloading from a run that does not have sibling runs, a single folder inside the checkpoints folder
+        will be created that contains the downloaded checkpoints.
+        When downloading from a run that has sibling runs, the checkpoints for the sibling runs will go into
+        folder 'OTHER_RUNS/<cross_validation_split>'
         :param config: Model related configs.
         :param run: Run whose checkpoints should be recovered
         :return: run recovery information
         """
-        # TODO antonsc: Clarify how we handle the case of multiple checkpoint being downloaded
+        # TODO antonsc: Clarify how we handle the case of multiple checkpoint being downloaded.
         child_runs: List[Run] = fetch_child_runs(run)
         if child_runs:
             logging.info(f"Run has ID {run.id}, child runs: {', '.join(c.id for c in child_runs)}")
@@ -90,7 +94,7 @@ class RunRecovery:
             return RunRecovery(checkpoints_roots=child_runs_checkpoints_roots)
         else:
             logging.info(f"Run with ID {run.id} has no child runs")
-            root_output_dir = config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME
+            root_output_dir = config.checkpoint_folder / run.id
             # download checkpoints for the run
             download_outputs_from_run(
                 blobs_path=Path(CHECKPOINT_FOLDER),
