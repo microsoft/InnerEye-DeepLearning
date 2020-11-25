@@ -19,7 +19,8 @@ from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables, \
     parse_arguments, submit_to_azureml
-from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME
+from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, \
+    is_run_and_child_runs_completed
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
@@ -357,11 +358,10 @@ class Runner:
             download_pytest_result(azure_run)
         else:
             logging.info("No pytest_mark present, hence not downloading the pytest result file.")
-        status = azure_run.get_status()
         # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
-        if self.azure_config.wait_for_completion and status != RunStatus.COMPLETED:
-            raise ValueError(f"Run {azure_run.id} in experiment {azure_run.experiment.name} completed with "
-                             f"status {status}.")
+        if self.azure_config.wait_for_completion and is_run_and_child_runs_completed(azure_run):
+            raise ValueError(f"Run {azure_run.id} in experiment {azure_run.experiment.name} or one of its child "
+                             "runs failed.")
         return azure_run
 
     def run_in_situ(self) -> None:

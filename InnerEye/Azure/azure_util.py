@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import conda_merge
 import ruamel.yaml
+from azureml._restclient.constants import RunStatus
 from azureml.core import Experiment, Run, Workspace, get_run
 from azureml.core._serialization_utils import _serialize_to_dict
 from azureml.core.conda_dependencies import CondaDependencies
@@ -415,3 +416,22 @@ def is_running_on_azure_agent() -> bool:
     """
     # Guess by looking at the AGENT_OS variable, that all Azure hosted agents define.
     return bool(os.environ.get("AGENT_OS", None))
+
+
+def is_run_and_child_runs_completed(run: Run) -> bool:
+    """
+    Checks if the given run has successfully completed. If the run has child runs, it also checks if the child runs
+    completed successfully.
+    :param run: The AzureML run to check.
+    :return: True if the run and all child runs completed successfully.
+    """
+    def is_completed(run: Run) -> bool:
+        status = run.get_status()
+        if run.status == RunStatus.Completed:
+            return True
+        logging.info(f"Run {run.id} in experiment {run.experiment.name} completed with status {status}.")
+        return False
+
+    runs = run.get_children()
+    runs.append(run)
+    return all(is_completed(run) for run in runs)
