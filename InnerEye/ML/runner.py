@@ -359,7 +359,7 @@ class Runner:
         else:
             logging.info("No pytest_mark present, hence not downloading the pytest result file.")
         # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
-        if self.azure_config.wait_for_completion and is_run_and_child_runs_completed(azure_run):
+        if self.azure_config.wait_for_completion and not is_run_and_child_runs_completed(azure_run):
             raise ValueError(f"Run {azure_run.id} in experiment {azure_run.experiment.name} or one of its child "
                              "runs failed.")
         return azure_run
