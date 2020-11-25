@@ -24,7 +24,6 @@ from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
-from InnerEye.ML.visualizers.regression_visualization import plot_variation_error_prediction
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -374,12 +373,13 @@ def create_lightning_model(config: ModelConfigBase) -> LightningModule:
 
 
 def create_model_from_lightning_checkpoint(config: ModelConfigBase, checkpoint_path: Path) -> torch.nn.Module:
-    lightning_model = create_lightning_model(config)
+    # Create a Lighting model that matches the configuration, but keep only the type of it
+    lightning_model_type = type(create_lightning_model(config))
     # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
     # if the model is small.
     map_location = None if config.use_gpu else 'cpu'
-    type(lightning_model).load_from_checkpoint(checkpoint_path=str(checkpoint_path),
-                                               map_location=map_location,
-                                               config=config)
+    lightning_model = lightning_model_type.load_from_checkpoint(checkpoint_path=str(checkpoint_path),
+                                                                map_location=map_location,
+                                                                config=config)
     config.adjust_after_mixed_precision_and_parallel(lightning_model.model)
     return lightning_model

@@ -71,15 +71,12 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
         expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
         expected_val_loss = [0.737061, 0.736690, 0.736321, 0.735952]
 
-    def extract_metric(metric: MetricType, results: List[MetricsDict]) -> List[float]:
-        return [d.values()[metric.value][0] for d in results]
-
-    actual_train_loss = extract_metric(MetricType.LOSS, model_training_result.train_results_per_epoch)
-    actual_val_loss = extract_metric(MetricType.LOSS, model_training_result.val_results_per_epoch)
-    actual_learning_rates = extract_metric(MetricType.LEARNING_RATE, model_training_result.train_results_per_epoch)
-    assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6)
-    assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6)
-    assert actual_learning_rates == pytest.approx(expected_learning_rates, rel=1e-5)
+    actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS)
+    actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS)
+    actual_learning_rates = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE)
+    assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6), "Training loss"
+    assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6), "Validation loss"
+    assert actual_learning_rates == pytest.approx(expected_learning_rates, rel=1e-5), "Learning rates"
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
                                             checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
@@ -96,7 +93,7 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
         }
     for epoch in expected_epochs:
         assert test_results.epochs[epoch].values()[MetricType.CROSS_ENTROPY.value] == \
-               pytest.approx(expected_metrics[epoch], abs=1e-6)
+               pytest.approx(expected_metrics[epoch], abs=2e-4), f"Cross entropy epoch {epoch}"
     # Run detailed logs file check only on CPU, it will contain slightly different metrics on GPU, but here
     # we want to mostly assert that the files look reasonable
     if not machine_has_gpu:
@@ -398,7 +395,7 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         # Each epoch is recorded twice once for the training split and once for the validation
         # split
         assert len(_epochs) == train_config.num_epochs * 2
-        assert all([x + 1 in _epochs for x in list(range(train_config.num_epochs)) * 2])
+        assert _epochs == list(range(train_config.num_epochs)) * 2
         # Only the validation mode is kept for unrolled aggregates
         unrolled = unroll_aggregate_metrics(_aggregates_csv)
         if train_config.is_classification_model:
