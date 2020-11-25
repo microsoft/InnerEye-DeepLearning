@@ -10,7 +10,7 @@ from pathlib import Path
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run, get_results_blob_path
 from InnerEye.Common import common_util, fixed_paths
-from InnerEye.Common.common_util import logging_section, logging_to_stdout
+from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import run_ml
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME
@@ -51,7 +51,8 @@ def test_download_checkpoints(test_output_dirs: OutputFolderForTests, is_ensembl
     expected_checkpoint_file = "1" + CHECKPOINT_FILE_SUFFIX
     if is_ensemble:
         child_runs = fetch_child_runs(run_to_recover)
-        expected_files = [config.checkpoint_folder / run_to_recover.id
+        expected_files = [config.checkpoint_folder
+                          / OTHER_RUNS_SUBDIR_NAME
                           / str(x.get_tags()['cross_validation_split_index']) / expected_checkpoint_file
                           for x in child_runs]
     else:

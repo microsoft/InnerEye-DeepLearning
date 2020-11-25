@@ -10,6 +10,7 @@ import shutil
 
 from urllib.parse import urlparse
 
+from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME
 from InnerEye.ML.deep_learning_config import WEIGHTS_FILE
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.fixed_paths import MODEL_WEIGHTS_DIR_NAME
@@ -54,8 +55,7 @@ def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: 
     checkpoint_handler.azure_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
 
-    expected_checkpoint_roots = [config.checkpoint_folder / DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.split(":")[1]
-                                 / str(i) for i in range(3)]
+    expected_checkpoint_roots = [config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / str(i) for i in range(3)]
     expected_path_lists = [[create_checkpoint_path(path=expected_checkpoint_root,
                                               epoch=epoch) for epoch in [1, 2]]
                       for expected_checkpoint_root in expected_checkpoint_roots]
@@ -174,7 +174,7 @@ def test_get_checkpoint_from_epoch(test_output_dirs: OutputFolderForTests) -> No
     manage_recovery.azure_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
     manage_recovery.discover_and_download_checkpoints_from_previous_runs()
     expected_checkpoints = [create_checkpoint_path(path=config.checkpoint_folder
-                                                       / DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.split(":")[1] / str(i), epoch=1)
+                                                       / OTHER_RUNS_SUBDIR_NAME / str(i), epoch=1)
                             for i in range(3)]
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
     assert checkpoint

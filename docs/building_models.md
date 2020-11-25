@@ -163,15 +163,16 @@ python InnerEye/Scripts/submit_for_inference.py --image_file ~/somewhere/ct.nii.
 ### Model Ensembles
 
 An ensemble model will be created automatically and registered in the AzureML model registry whenever cross-validation
-models are trained. The ensemble model
-creation is done by the child whose `cross_validation_split_index` is 0; you can identify this child by looking
-at the "Child Runs" tab in the parent run page in AzureML. To find the ID of the ensemble model, look in the
-driver log for the child run and search for the string "Registered model". There should be exactly two occurrences of
-this string. The first is for the child model itself (each child run in fact registers one of these) and the
-second is for the ensemble. 
+models are trained. The ensemble model creation is done by the child whose `cross_validation_split_index` is 0; 
+you can identify this child by looking at the "Child Runs" tab in the parent run page in AzureML. 
 
-As well as registering the model, the child run runs it on the validation and test sets. The results are aggregated 
-based on the `ensemble_aggregation_type` value in the model config,
+To find the registered ensemble model, find the Hyperdrive parent run in AzureML. In the "Details" tab, there is an
+entry for "Registered models", that links to the ensemble model that was just created. Note that each of the child runs
+also registers a model, namely the one that was built off its specific subset of data, without taking into account
+the other crossvalidation folds.
+
+As well as registering the model, child run 0 runs the ensemble model on the validation and test sets. The results are
+aggregated based on the `ensemble_aggregation_type` value in the model config,
 and the generated posteriors are passed to the usual model testing downstream pipelines, e.g. metrics computation.
 
 
