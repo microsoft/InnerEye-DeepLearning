@@ -47,14 +47,13 @@ class CheckpointHandler:
 
         self.has_continued_training = False
 
-    def discover_and_download_checkpoint_from_sibling_runs(self, output_subdir_name: str) -> None:
+    def discover_and_download_checkpoint_from_sibling_runs(self) -> None:
         """
         Downloads checkpoints from sibling runs in a hyperdrive run. This is used to gather results from all
         splits in a hyperdrive run.
         """
 
-        self.run_recovery = RunRecovery.download_checkpoints_from_run(self.model_config, self.run_context,
-                                                                      output_subdir_name=output_subdir_name)
+        self.run_recovery = RunRecovery.download_checkpoints_from_run(self.model_config, self.run_context)
         # Check paths are good, just in case
         for path in self.run_recovery.checkpoints_roots:
             if not path.is_dir():

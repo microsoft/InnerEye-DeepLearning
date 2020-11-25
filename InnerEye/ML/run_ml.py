@@ -28,7 +28,8 @@ from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_sec
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, FINAL_MODEL_FOLDER, MultiprocessingStartMethod
+from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER, \
+    MultiprocessingStartMethod
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -555,8 +556,11 @@ class MLRunner:
                 logging.warning("Unable to retrieve AzureML workspace. Was the Azure setup completed?")
                 logging.info("No model was registered in AzureML.")
                 return None, None
-
-        final_model_folder = self.model_config.final_model_folder
+        # The files for the final model can't live in the outputs folder. If they do: when registering the model,
+        # the files may not yet uploaded by hosttools, and that may (or not) cause errors. Hence, place the folder
+        # for the final models outside of "outputs", and upload manually.
+        model_subfolder = FINAL_MODEL_FOLDER if model_proc == ModelProcessing.DEFAULT else FINAL_ENSEMBLE_MODEL_FOLDER
+        final_model_folder = self.model_config.file_system_config.run_folder / model_subfolder
         # Copy all code from project and InnerEye into the model folder, and copy over checkpoints.
         # This increases the size of the data stored for the run. The other option would be to store all checkpoints
         # right in the final model folder - however, then that would also contain any other checkpoints that the model
@@ -572,17 +576,22 @@ class MLRunner:
                 description=model_description
             )
         else:
-            # The files for the final model can't live in the outputs folder. If they do: when registering the model,
-            # the files are not yet uploaded by hosttools, and may (or not) cause errors. Hence, place the folder
-            # for the final models outside of "outputs", and upload manually.
-            artifacts_path = FINAL_MODEL_FOLDER
-            logging.info(f"Uploading files in {final_model_folder} to the run with prefix '{artifacts_path}'")
+            # This is the path under which AzureML will know the files: Either "final_model" or "final_ensemble_model"
+            artifacts_path = model_subfolder
+            # If the present run is a child run of a Hyperdrive parent run, and we are building an ensemble model,
+            # register it the model on the parent run.
+            if PARENT_RUN_CONTEXT and model_proc == ModelProcessing.ENSEMBLE_CREATION:
+                run_to_register_on = PARENT_RUN_CONTEXT
+                logging.info(f"Registering the model on the parent run {run_to_register_on.id}")
+            else:
+                run_to_register_on = RUN_CONTEXT
+                logging.info(f"Registering the model on the current run {run_to_register_on.id}")
+            logging.info(f"Uploading files in {final_model_folder} with prefix '{artifacts_path}'")
             final_model_folder_relative = final_model_folder.relative_to(Path.cwd())
-            RUN_CONTEXT.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
-            logging.info(f"Registering the model on run {RUN_CONTEXT.id}")
+            run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
-            model = RUN_CONTEXT.register_model(
+            model = run_to_register_on.register_model(
                 model_name=self.model_config.model_name,
                 model_path=artifacts_path,
                 tags=RUN_CONTEXT.get_tags(),
@@ -715,9 +724,11 @@ class MLRunner:
             # perform inference on training set if required
             train_metrics = run_model_test(ModelExecutionMode.TRAIN)
 
-        # log the metrics to AzureML experiment if possible
+        # log the metrics to AzureML experiment if possible. When doing ensemble runs, log to the Hyperdrive parent run,
+        # so that we get the metrics of child run 0 and the ensemble separated.
         if config.is_segmentation_model and not is_offline_run_context(RUN_CONTEXT):
+            run_for_logging = PARENT_RUN_CONTEXT if model_proc.ENSEMBLE_CREATION else RUN_CONTEXT
             log_metrics(val_metrics=val_metrics, test_metrics=test_metrics,  # type: ignore
-                        train_metrics=train_metrics, run_context=RUN_CONTEXT)  # type: ignore
+                        train_metrics=train_metrics, run_context=run_for_logging)  # type: ignore
 
         return test_metrics, val_metrics, train_metrics

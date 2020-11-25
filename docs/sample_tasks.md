@@ -81,14 +81,13 @@ The full configuration for the Lung model is at InnerEye/ML/configs/segmentation
 All that needs to be done is change the dataset. We will do this by subclassing Lung in a new config 
 stored in InnerEyeLocal/ML
 1. Create folder configs/segmentation under InnerEyeLocal/ML
-1. Create a config file called LungExt.py there which extends the GlaucomaPublic class that looks like
+1. Create a config file called LungExt.py there which extends the GlaucomaPublic class that looks like this:
     ```python
-from InnerEye.ML.configs.segmentation.Lung import Lung
+    from InnerEye.ML.configs.segmentation.Lung import Lung  
 
-
-class LungExt(Lung):
-    def __init__(self) -> None:
-        super().__init__(azure_dataset_id="name_of_your_dataset_on_azure")
+    class LungExt(Lung):
+        def __init__(self) -> None:
+            super().__init__(azure_dataset_id="name_of_your_dataset_on_azure")
     ``` 
 1. In `settings.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
 is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.

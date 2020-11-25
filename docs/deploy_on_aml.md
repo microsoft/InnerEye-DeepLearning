@@ -18,6 +18,9 @@ up into an AzureML model that has the same name as the InnerEye model you are tr
 will be written to a tag of the training run: In the AzureML run overview page, you can see a tag called `model_id`,
 with a value that looks like `Prostate:892` if the `Prostate` model in version 892 was registered in this run.
 
+The newly registered model is also linked directly on the "Details" tab of the AzureML run: In "Details" / "Properties",
+you will see an entry for "Registered models", that will take you to the model that has just been registered.
+
 In AzureML, navigate to the "Models" section, then locate the model that has just been registered. In the "Artifacts"
 tab, you can inspect the files that have been registered. This will have a structure like this:
 ```
@@ -47,3 +50,15 @@ have a second folder with code that you would like to deploy alongside the Inner
 `extra_code_directory` commandline argument).
 - `checkpoints/`: A folder with 1 or more PyTorch checkpoint files. Multiple checkpoint files are only present if
 the model comes out of an ensemble training run.
+
+## Ensemble models
+Ensemble models built from different cross validation runs will be registered with the same file structure. The only 
+differences are
+- The top-level folder is called `final_ensemble_model`.
+- There will be more checkpoints stored in the model itself, one checkpoint for each cross validation fold.
+
+The final ensemble model will be registered on the Hyperdrive parent run. Recall that crossvalidation is started
+from a parent run, with a child run for each individual fold. Each of those child run will register its own model, 
+that was built on its specific subset of data. Then the ensemble model is built using the checkpoints from all, say,
+5 crossvalidation folds, and registered on the parent run - even though the work of registering is done by the
+child run with index 0.
