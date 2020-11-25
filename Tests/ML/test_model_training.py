@@ -175,11 +175,9 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # check to make sure validation batches are all the same across epochs
     _check_patch_centers(model_training_result.val_results_per_epoch, should_equal=True)
     assert isinstance(model_training_result.train_results_per_epoch[0], MetricsDict)
-    def get_single_metric(metrics: List[MetricsDict], metric_type: MetricType) -> List[float]:
-        return [m.get_single_metric(metric_type) for m in metrics]
-    actual_train_losses = get_single_metric(model_training_result.train_results_per_epoch, MetricType.LOSS)
-    actual_val_losses = get_single_metric(model_training_result.val_results_per_epoch, MetricType.LOSS)
-    actual_learning_rates = get_single_metric(model_training_result.train_results_per_epoch, MetricType.LEARNING_RATE)
+    actual_train_losses = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS)
+    actual_val_losses = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS)
+    actual_learning_rates = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE)
     print("actual_train_losses = {}".format(actual_train_losses))
     print("actual_val_losses = {}".format(actual_val_losses))
     assert np.allclose(actual_train_losses, expected_train_losses, atol=loss_absolute_tolerance), "Train losses"

@@ -10,7 +10,7 @@ import numpy as np
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.Common.metrics_dict import MetricsDict
+from InnerEye.Common.metrics_dict import MetricType, MetricsDict
 
 
 @dataclass
@@ -56,6 +56,17 @@ class ModelTrainingResults:
     train_results_per_epoch: List[MetricsDict]
     val_results_per_epoch: List[MetricsDict]
     optimal_temperature_scale_values_per_checkpoint_epoch: List[float] = field(default_factory=list)
+
+    def get_metric(self, is_training: bool, metric_type: MetricType) -> List[float]:
+        """
+        Gets a scalar metric out of either the list of training or the list of valiation results.
+        :param is_training: If True, read metrics from the `train_results_per_epoch` field, if False read from the
+        `val_results_per_epoch` field.
+        :param metric_type: The metric to extract.
+        :return: A list of floating point numbers, with one entry per entry in the the training or validation results.
+        """
+        metrics = self.train_results_per_epoch if is_training else self.val_results_per_epoch
+        return [m.get_single_metric(metric_type) for m in metrics]
 
 
 def gather_tensor(tensor: Union[torch.Tensor, List[torch.Tensor]],

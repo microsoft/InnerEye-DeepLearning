@@ -3,9 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-from typing import Tuple, TypeVar
+from typing import Tuple, TypeVar, Union
 
-from pytorch_lightning import Trainer
+from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
@@ -28,15 +28,14 @@ MAX_LOAD_TIME_WARNINGS = 3
 T = TypeVar('T')
 
 
-def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) -> ModelTrainingResults:
+def model_train(config: ModelConfigBase,
+                checkpoint_handler: CheckpointHandler) -> ModelTrainingResults:
     """
-    The main training loop. It creates the model, dataset, optimizer_type, and criterion, then proceeds
-    to train the model. If a checkpoint was specified, then it loads the checkpoint before resuming training.
-
+    The main training loop. It creates the Pytorch model based on the configuration options passed in,
+    creates a Pytorch Lightning trainer, and trains the model.
+    If a checkpoint was specified, then it loads the checkpoint before resuming training.
     :param config: The arguments which specify all required information.
     :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
-    :raises TypeError: If the arguments are of the wrong type.
-    :raises ValueError: When there are issues loading a previous checkpoint.
     """
     # Save the dataset files for later use in cross validation analysis
     config.write_dataset_files()
@@ -50,11 +49,17 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model training")
 
     logging.debug("Creating the PyTorch model.")
+    lightning_model = create_lightning_model(config)
+
+    # Print out a detailed breakdown of layers, memory consumption and time.
+    assert isinstance(lightning_model, InnerEyeLightning)
+    generate_and_print_model_summary(config, lightning_model.model)
+
+    logging.info(f"Model checkpoints are saved at {config.checkpoint_folder}")
+    config.create_loggers_for_training()
 
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
-
-    lightning_model = create_lightning_model(config)
 
     # models_and_optimizer = ModelAndInfo(config=config,
     #                                     model_execution_mode=ModelExecutionMode.TRAIN,
@@ -67,10 +72,6 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
     #     raise ValueError("There was no checkpoint file available for the model for given start_epoch {}"
     #                      .format(config.start_epoch))
 
-    # Print out a detailed breakdown of layers, memory consumption and time.
-    assert isinstance(lightning_model, InnerEyeLightning)
-    generate_and_print_model_summary(config, lightning_model.model)
-
     # # Create the mean teacher model and move to GPU
     # if config.compute_mean_teacher_model:
     #     mean_teacher_model_loaded =
@@ -78,9 +79,6 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
     #     if not mean_teacher_model_loaded:
     #         raise ValueError("There was no checkpoint file available for the mean teacher model "
     #                          f"for given start_epoch {config.start_epoch}")
-
-    logging.info(f"Models are saved at {config.checkpoint_folder}")
-    config.create_loggers_for_training()
 
     # Training loop
     logging.info("Starting training")
@@ -109,6 +107,7 @@ def model_train(config: ModelConfigBase, checkpoint_handler: CheckpointHandler) 
                       progress_bar_refresh_rate=0,  # Disable the progress bar,
                       # TODO antonsc: review. Some tests fail without this option
                       gpus=0,
+                      terminate_on_nan=config.detect_anomaly,
                       )
     lightning_data = TrainingAndValidationDataLightning(config)
     # TODO: Why can't we do that in the constructor?

@@ -2,7 +2,9 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, List, Optional
+from typing import Any, Optional
+from unittest import mock
+import math
 
 import numpy as np
 import pytest
@@ -27,95 +29,26 @@ from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.metrics_util import MetricsDataframeLoggers
 from InnerEye.ML.utils.model_util import ModelAndInfo
-
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
-from Tests.ML.util import machine_has_gpu, no_gpu_available
-from Tests.ML.util import get_default_checkpoint_handler
+from Tests.ML.util import get_default_checkpoint_handler, machine_has_gpu, no_gpu_available
 
 
 class SimpleModel(BaseModel):
     def __init__(self, input_channels: int, channels: list, n_classes: int, kernel_size: int,
-                 insert_value_in_output: Optional[float] = None,
                  crop_size_constraints: CropSizeConstraints = None):
         super().__init__(input_channels=input_channels, name="SimpleModel", crop_size_constraints=crop_size_constraints)
         self.channels = channels
         self.n_classes = n_classes
         self.kernel_size = kernel_size
-        self.insert_value_in_output = insert_value_in_output
-        self._model = torch.nn.Sequential(
+        self.model = torch.nn.Sequential(
             torch.nn.Conv3d(input_channels, channels[0], kernel_size=self.kernel_size),
             torch.nn.ConvTranspose3d(channels[0], n_classes, kernel_size=self.kernel_size)
         )
 
     def forward(self, x: Any) -> Any:  # type: ignore
-        x = self._model(x)
-        if self.insert_value_in_output:
-            x[..., 0] = self.insert_value_in_output
+        x = self.model(x)
         return x
-
-    def get_all_child_layers(self) -> List[torch.nn.Module]:
-        return list(self._model.children())
-
-
-@pytest.mark.parametrize("value_to_insert", [1.0, np.NaN, np.Inf])
-@pytest.mark.parametrize("in_training_mode", [True, False])
-def test_anomaly_detection(value_to_insert: float, in_training_mode: bool) -> None:
-    """
-    Test anomaly detection for the segmentation forward pass.
-    :param value_to_insert: The value to insert in the image image (nan, inf, or a valid float)
-    :param in_training_mode: If true, run the segmentation forward pass in training mode, otherwise use the
-    settings for running on the validation set.
-    :return:
-    """
-    image_size = [1, 1, 4, 4, 4]
-    labels_size = [1, 2, 4, 4, 4]
-    mask_size = [1, 4, 4, 4]
-    crop_size = (4, 4, 4)
-    inference_stride_size = (2, 2, 2)
-    ground_truth_ids = ["Lung"]
-
-    # image to run inference on
-    image = torch.from_numpy(np.random.uniform(size=image_size).astype(ImageDataType.IMAGE.value))
-    # labels for criterion
-    labels = torch.from_numpy(np.random.uniform(size=labels_size).astype(ImageDataType.SEGMENTATION.value))
-    # create a random mask if required
-    mask = torch.from_numpy((np.round(np.random.uniform(size=mask_size)).astype(dtype=ImageDataType.MASK.value)))
-
-    config = SegmentationModelBase(
-        crop_size=crop_size,
-        inference_stride_size=inference_stride_size,
-        image_channels=["ct"],
-        ground_truth_ids=ground_truth_ids,
-        should_validate=False,
-        detect_anomaly=True
-    )
-
-    model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TRAIN,
-                                  checkpoint_path=None)
-    model_and_info._model: BaseModel = SimpleModel(1, [1], 2, 2)  # type: ignore
-    model_and_info.create_summary_and_adjust_model_for_gpus()
-    model_and_info.try_create_optimizer_and_load_from_checkpoint()
-    config.use_gpu = False
-
-    model = model_and_info.model
-    optimizer = model_and_info.optimizer
-
-    # Create the loss criterion
-    criterion = lambda x, y: torch.tensor(value_to_insert, requires_grad=True)
-    pipeline = SegmentationForwardPass(model,
-                                       config,
-                                       batch_size=1,
-                                       optimizer=optimizer,
-                                       in_training_mode=in_training_mode,
-                                       criterion=criterion)
-    image[0, 0, 0, 0, 0] = value_to_insert
-    if np.isnan(value_to_insert) or np.isinf(value_to_insert):
-        with pytest.raises(RuntimeError) as ex:
-            pipeline.forward_pass_patches(patches=image, mask=mask, labels=labels)
-        assert f"loss computation returned {value_to_insert}" in str(ex)
-    else:
-        pipeline.forward_pass_patches(patches=image, mask=mask, labels=labels)
 
 
 @pytest.mark.gpu
