@@ -47,3 +47,9 @@ have a second folder with code that you would like to deploy alongside the Inner
 `extra_code_directory` commandline argument).
 - `checkpoints/`: A folder with 1 or more PyTorch checkpoint files. Multiple checkpoint files are only present if
 the model comes out of an ensemble training run.
+
+## Ensemble models
+Ensemble models built from different cross validation runs will be registered with the same file structure. The only 
+differences are
+- The top-level folder is called `final_ensemble_model`
+- There will be more checkpoints stored in the 
