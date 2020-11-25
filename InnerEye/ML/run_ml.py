@@ -575,13 +575,20 @@ class MLRunner:
         else:
             # This is the path under which AzureML will know the files: Either "final_model" or "final_ensemble_model"
             artifacts_path = model_subfolder
-            logging.info(f"Uploading files in {final_model_folder} to the run with prefix '{artifacts_path}'")
+            # If the present run is a child run of a Hyperdrive parent run, and we are building an ensemble model,
+            # register it the model on the parent run.
+            if PARENT_RUN_CONTEXT and model_proc == ModelProcessing.ENSEMBLE_CREATION:
+                run_to_register_on = PARENT_RUN_CONTEXT
+                logging.info(f"Registering the model on the parent run {run_to_register_on.id}")
+            else:
+                run_to_register_on = RUN_CONTEXT
+                logging.info(f"Registering the model on the current run {run_to_register_on.id}")
+            logging.info(f"Uploading files in {final_model_folder} with prefix '{artifacts_path}'")
             final_model_folder_relative = final_model_folder.relative_to(Path.cwd())
-            RUN_CONTEXT.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
-            logging.info(f"Registering the model on run {RUN_CONTEXT.id}")
+            run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
-            model = RUN_CONTEXT.register_model(
+            model = run_to_register_on.register_model(
                 model_name=self.model_config.model_name,
                 model_path=artifacts_path,
                 tags=RUN_CONTEXT.get_tags(),
