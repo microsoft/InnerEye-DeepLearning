@@ -334,7 +334,8 @@ def plot_image_for_subject(subject_id: str,
     :param model_output: The predicted value for this image
     """
     print_header("", level=4)
-    print_header(header, level=4)
+    if header:
+        print_header(header, level=4)
     print_header(f"ID: {subject_id} Score: {model_output}", level=4)
 
     filepath = get_image_filepath_from_subject_id(subject_id=str(subject_id),
