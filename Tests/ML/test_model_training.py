@@ -129,6 +129,7 @@ def test_invalid_model_train(test_output_dirs: OutputFolderForTests, image_chann
         _test_model_train(test_output_dirs, image_channels, ground_truth_ids)
 
 
+@pytest.mark.cpu_and_gpu
 @pytest.mark.parametrize("no_mask_channel", [True, False])
 def test_valid_model_train(test_output_dirs: OutputFolderForTests, no_mask_channel: bool) -> None:
     _test_model_train(test_output_dirs, ["channel1", "channel2"], ["region", "region_1"], no_mask_channel)
