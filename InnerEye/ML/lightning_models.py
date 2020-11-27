@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
+from pytorch_lightning.utilities import rank_zero_only
 
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict, \
     create_metrics_dict_for_scalar_models
@@ -103,7 +104,9 @@ class InnerEyeLightning(LightningModule):
         seed = self.config.get_effective_random_seed()
         set_random_seed(seed, "Validation")
 
-    def epoch_end(self, is_training: bool) -> MetricsDict:
+    def epoch_end(self, is_training: bool) -> None:
+        if self.global_rank != 0:
+            return
         epoch_time_seconds = time.time() - self.epoch_start_time
         status = "training" if is_training else "validation"
         logging.info(f"Epoch {self.current_epoch} {status} took {epoch_time_seconds:0.2f}sec, from which waiting for "
@@ -157,7 +160,10 @@ class InnerEyeLightning(LightningModule):
         raise NotImplementedError("This method must be overwritten in a derived class.")
 
     def batch_start(self, batch_idx: int, is_training: bool) -> None:
-        # TODO antonsc: Do we want that only on rank zero?
+        # Print out data loading statistics only on local rank 0. This will print out stats about data loading
+        # once on each individual machine in DDP
+        if self.local_rank != 0:
+            return
         item_finish_time = time.time()
         item_load_time = item_finish_time - self.item_start_time
         self.total_load_time += item_load_time
@@ -259,13 +265,12 @@ class SegmentationLightning(InnerEyeLightning):
             posteriors = image_util.apply_mask_to_posteriors(posteriors=posteriors, mask=mask)
 
         # post process posteriors to compute result
-        segmentations = image_util.posteriors_to_segmentation(posteriors=posteriors).data.cpu().numpy()
+        segmentations = image_util.posteriors_to_segmentation(posteriors=posteriors)
 
         epoch_metrics = self.current_metrics(is_training)
         dice_for_all_classes = compute_dice_across_patches(
-            segmentation=torch.tensor(segmentations).long(),
+            segmentation=segmentations,
             ground_truth=labels,
-            use_cuda=self.config.use_gpu,
             allow_multiple_classes_for_each_pixel=True).cpu().numpy()
         foreground_voxels = metrics_util.get_number_of_voxels_per_class(cropped_sample.labels)
         # loss is a scalar, also when running the forward pass over multiple crops.
