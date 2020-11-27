@@ -291,8 +291,6 @@ class MLRunner:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
             self.model_config.local_dataset = self.mount_or_download_dataset()
-            self.model_config.write_args_file()
-            logging.info(str(self.model_config))
             # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
             make_pytorch_reproducible()
 
