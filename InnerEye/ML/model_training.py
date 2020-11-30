@@ -10,13 +10,13 @@ from typing import Tuple, TypeVar
 import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import MLFlowLogger, TensorBoardLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import logging_section
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_models import InnerEyeLightning, TrainingAndValidationDataLightning, create_lightning_model
+from InnerEye.ML.lightning_models import TrainingAndValidationDataLightning, create_lightning_model
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForSequenceModel
 from InnerEye.ML.utils import ml_util
@@ -58,12 +58,17 @@ def model_train(config: ModelConfigBase,
         save_last=True)
     num_gpus = torch.cuda.device_count() if config.use_gpu else 0
     accelerator = "ddp" if num_gpus > 1 else None
+    logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
+    loggers = [TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")]
+    if not is_offline_run_context(RUN_CONTEXT):
+        loggers.append(MLFlowLogger(experiment_name=RUN_CONTEXT.experiment.name,
+                                    tracking_uri=RUN_CONTEXT.experiment.workspace.get_mlflow_tracking_uri()))
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
                       accelerator=accelerator,
                       max_epochs=config.num_epochs,
                       num_sanity_val_steps=0,  # Otherwise a small number of validation steps is run before first train
-                      logger=TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version=""),
                       callbacks=[checkpoint_callback],
+                      logger=loggers,
                       progress_bar_refresh_rate=0,  # Disable the progress bar,
                       # TODO antonsc: review. Some tests fail without this option
                       gpus=num_gpus,
@@ -105,27 +110,8 @@ def model_train(config: ModelConfigBase,
 
         lightning_model.create_loggers_for_training()
 
-    # Get the path to the checkpoint to recover from
+    # TODO antonsc: Enable initializing the trainer from a checkpoint
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
-
-    # models_and_optimizer = ModelAndInfo(config=config,
-    #                                     model_execution_mode=ModelExecutionMode.TRAIN,
-    #                                     checkpoint_path=checkpoint_path)
-    #
-    # # Create the main model
-    # # If continuing from a previous run at a specific epoch, then load the previous model.
-    # model_loaded = models_and_optimizer.try_create_model_and_load_from_checkpoint()
-    # if not model_loaded:
-    #     raise ValueError("There was no checkpoint file available for the model for given start_epoch {}"
-    #                      .format(config.start_epoch))
-
-    # # Create the mean teacher model and move to GPU
-    # if config.compute_mean_teacher_model:
-    #     mean_teacher_model_loaded =
-    #     models_and_optimizer.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
-    #     if not mean_teacher_model_loaded:
-    #         raise ValueError("There was no checkpoint file available for the mean teacher model "
-    #                          f"for given start_epoch {config.start_epoch}")
 
     # Training loop
     logging.info("Starting training")

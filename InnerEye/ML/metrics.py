@@ -419,6 +419,7 @@ def store_epoch_metrics(azure_and_tensorboard_logger: AzureAndTensorboardLogger,
     :param config: one of SegmentationModelBase
     """
     if config.is_segmentation_model:
+        # TODO antonsc: re-enable logging to TB and AzureML (unless MLFlow handles that already)
         log_segmentation_epoch_metrics(logging_fn=azure_and_tensorboard_logger.log_to_azure_and_tensorboard,
                                        metrics=metrics)
         logger_row = {

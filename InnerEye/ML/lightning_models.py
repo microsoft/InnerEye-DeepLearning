@@ -245,7 +245,7 @@ class InnerEyeLightning(LightningModule):
         :param is_training: If True, the logged metric will be called "train_loss". If False, "val_loss"
 =        """
         metric_name = 'train_loss' if is_training else "val_loss"
-        self.log(metric_name, loss)
+        self.log(metric_name, loss, sync_dist=True)
         loss_scalar = loss.float().item() if torch.is_tensor(loss) else loss
         self.write_metric(is_training, MetricType.LOSS, loss_scalar)
 
