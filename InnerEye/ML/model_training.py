@@ -103,7 +103,7 @@ def model_train(config: ModelConfigBase,
                                                tensorboard_folder=diagnostics_events)
             resource_monitor.start()
 
-    config.create_loggers_for_training()
+        lightning_model.create_loggers_for_training()
 
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
@@ -159,7 +159,7 @@ def model_train(config: ModelConfigBase,
     if config.max_batch_grad_cam > 0 and config.visualization_folder.exists():
         RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(config.visualization_folder))
 
-    config.close_all_loggers()
+    lightning_model.close_all_loggers()
     if resource_monitor:
         # stop the resource monitoring process
         logging.info("Shutting down the resource monitor process. Aggregate resource utilization:")

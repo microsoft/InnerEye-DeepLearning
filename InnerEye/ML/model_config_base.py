@@ -15,7 +15,6 @@ from pandas import DataFrame
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES, TrackedMetrics
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.utils.metrics_util import AzureAndTensorboardLogger, AzureMLLogger, MetricsDataframeLoggers
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 
@@ -30,9 +29,6 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
 
     def __init__(self, **params: Any):
         super().__init__(**params)
-        self.data_frame_loggers: Optional[MetricsDataframeLoggers] = None
-        self.azure_loggers_train: Optional[AzureAndTensorboardLogger] = None
-        self.azure_loggers_val: Optional[AzureAndTensorboardLogger] = None
 
     def read_dataset_into_dataframe_and_pre_process(self) -> None:
         """
@@ -250,30 +246,6 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         :param model: The torch model.
         """
         pass
-
-    def create_loggers_for_training(self) -> None:
-        azure_loggers: List[AzureAndTensorboardLogger] = []
-        # Disable tensorboardX's logs
-        logging.getLogger().disabled = True
-        for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
-            azureml_logger = AzureMLLogger(logging_prefix=f"{mode.value}_",
-                                           log_to_parent_run=self.log_to_parent_run,
-                                           cross_validation_split_index=self.cross_validation_split_index)
-            # Use a local import here to keep the environment in azure_runner.yml small
-            import tensorboardX
-            writer = tensorboardX.SummaryWriter(str(self.logs_folder / f"{mode.value}"))
-            azure_loggers.append(AzureAndTensorboardLogger(azureml_logger=azureml_logger,
-                                                           tensorboard_logger=writer))
-        # Reset logger
-        logging.getLogger().disabled = False
-        self.data_frame_loggers = MetricsDataframeLoggers(outputs_folder=self.outputs_folder)
-        self.azure_loggers_train = azure_loggers[0]
-        self.azure_loggers_val = azure_loggers[1]
-
-    def close_all_loggers(self) -> None:
-        self.azure_loggers_train.close()
-        self.azure_loggers_val.close()
-        self.data_frame_loggers.close_all()
 
 
 class ModelTransformsPerExecutionMode:

@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.utilities import rank_zero_only
+import tensorboardX
 
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict, \
     create_metrics_dict_for_scalar_models
@@ -23,6 +24,7 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
+from InnerEye.ML.utils.metrics_util import AzureAndTensorboardLogger, AzureMLLogger, MetricsDataframeLoggers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 
@@ -69,6 +71,9 @@ class InnerEyeLightning(LightningModule):
         self.training_metrics = MetricsDict()
         self.validation_metrics = MetricsDict()
         self.random_state: Optional[RandomStateSnapshot] = None
+        self.data_frame_loggers: Optional[MetricsDataframeLoggers] = None
+        self.azure_loggers_train: Optional[AzureAndTensorboardLogger] = None
+        self.azure_loggers_val: Optional[AzureAndTensorboardLogger] = None
 
     def configure_optimizers(self):
         optimizer = model_util.create_optimizer(self.config, self.model.parameters())
@@ -81,6 +86,28 @@ class InnerEyeLightning(LightningModule):
         initialization.
         """
         return MetricsDict()
+
+    def create_loggers_for_training(self) -> None:
+        azure_loggers: List[AzureAndTensorboardLogger] = []
+        # Disable tensorboardX's logs
+        logging.getLogger().disabled = True
+        for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
+            azureml_logger = AzureMLLogger(logging_prefix=f"{mode.value}_",
+                                           log_to_parent_run=self.config.log_to_parent_run,
+                                           cross_validation_split_index=self.config.cross_validation_split_index)
+            writer = tensorboardX.SummaryWriter(str(self.config.logs_folder / f"{mode.value}"))
+            azure_loggers.append(AzureAndTensorboardLogger(azureml_logger=azureml_logger,
+                                                           tensorboard_logger=writer))
+        # Reset logger
+        logging.getLogger().disabled = False
+        self.data_frame_loggers = MetricsDataframeLoggers(outputs_folder=self.config.outputs_folder)
+        self.azure_loggers_train = azure_loggers[0]
+        self.azure_loggers_val = azure_loggers[1]
+
+    def close_all_loggers(self) -> None:
+        self.azure_loggers_train.close()
+        self.azure_loggers_val.close()
+        self.data_frame_loggers.close_all()
 
     def on_train_epoch_end(self, outputs) -> None:
         self.epoch_end(is_training=True)
@@ -123,9 +150,9 @@ class InnerEyeLightning(LightningModule):
         result = self.aggregate_metrics(self.current_metrics(is_training))
         result.add_metric(MetricType.LEARNING_RATE, learning_rate)
         result.add_metric(MetricType.SECONDS_PER_EPOCH, epoch_time_seconds)
-        logger = self.config.azure_loggers_train if is_training else self.config.azure_loggers_val
-        df_logger = self.config.data_frame_loggers.train_epoch_metrics if is_training \
-            else self.config.data_frame_loggers.val_epoch_metrics
+        logger = self.azure_loggers_train if is_training else self.azure_loggers_val
+        df_logger = self.data_frame_loggers.train_epoch_metrics if is_training \
+            else self.data_frame_loggers.val_epoch_metrics
         store_epoch_metrics(logger,
                             df_logger,
                             self.current_epoch,
