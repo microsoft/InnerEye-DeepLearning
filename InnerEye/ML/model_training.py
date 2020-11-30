@@ -62,8 +62,12 @@ def model_train(config: ModelConfigBase,
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
     loggers = [TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")]
     if not is_offline_run_context(RUN_CONTEXT):
-        loggers.append(MLFlowLogger(experiment_name=RUN_CONTEXT.experiment.name,
-                                    tracking_uri=RUN_CONTEXT.experiment.workspace.get_mlflow_tracking_uri()))
+        mlflow_logger = MLFlowLogger(experiment_name=RUN_CONTEXT.experiment.name,
+                                     tracking_uri=RUN_CONTEXT.experiment.workspace.get_mlflow_tracking_uri())
+        # The MLFlow logger needs to get its ID from the AzureML run context, otherwise there will be two sets of
+        # results for each run, one from native AzureML and one from the MLFlow logger.
+        mlflow_logger._run_id = RUN_CONTEXT.id
+        loggers.append(mlflow_logger)
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
                       accelerator=accelerator,
                       max_epochs=config.num_epochs,
