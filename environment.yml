@@ -14,7 +14,6 @@ dependencies:
       - azureml-mlflow==1.17.0
       - azureml-sdk==1.17.0
       - azureml-tensorboard==1.17.0
-      - blobxfer==1.9.4
       - conda-merge==0.1.5
       - dataclasses-json==0.5.2
       - flake8==3.8.3

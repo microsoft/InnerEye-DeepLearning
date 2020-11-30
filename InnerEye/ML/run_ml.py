@@ -38,7 +38,6 @@ from InnerEye.ML.model_training import model_train
 from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner, get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
-from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
 from InnerEye.ML.visualizers import activation_maps
@@ -88,6 +87,7 @@ def download_dataset_via_blobxfer(dataset_id: str,
     if result_folder.is_dir():
         logging.info(f"Folder already exists, skipping download: {result_folder}")
         return result_folder
+    from InnerEye.ML.utils.blobxfer_util import download_blobs
     with logging_section(f"Downloading dataset {dataset_id}"):
         download_blobs(
             account=azure_config.datasets_storage_account,
