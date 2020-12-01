@@ -68,6 +68,7 @@ def model_train(config: ModelConfigBase,
         # results for each run, one from native AzureML and one from the MLFlow logger.
         mlflow_logger._run_id = RUN_CONTEXT.id
         loggers.append(mlflow_logger)
+
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
                       accelerator=accelerator,
                       max_epochs=config.num_epochs,
