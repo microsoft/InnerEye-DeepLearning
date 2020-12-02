@@ -17,7 +17,8 @@ import torch.nn.functional as F
 from azureml.core import Run
 
 from InnerEye.Azure.azure_util import get_run_context_or_default
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict, get_metric_name_with_hue_prefix
+from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, ScalarMetricsDict, \
+    get_metric_name_with_hue_prefix
 from InnerEye.Common.type_annotations import DictStrFloat, TupleFloat3
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
@@ -26,7 +27,7 @@ from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array, check_array_range, is_binary_array
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.metrics_util import DataframeLogger, binary_classification_accuracy, \
+from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, \
     mean_absolute_error, r2_score
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels

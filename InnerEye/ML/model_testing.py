@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import copy
+dimport copy
 import logging
 import os
 from functools import partial
@@ -14,10 +14,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
-from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, ModelProcessing, \
+from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, ModelProcessing, SUBJECT_METRICS_FILE_NAME, \
     get_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict, create_metrics_dict_for_scalar_models
+from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, ScalarMetricsDict, \
+    create_metrics_dict_for_scalar_models
 from InnerEye.ML import metrics, plotting
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
@@ -38,7 +39,7 @@ from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
 from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, \
     save_lines_to_file
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
-from InnerEye.ML.utils.metrics_util import DataframeLogger, MetricsPerPatientWriter
+from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"

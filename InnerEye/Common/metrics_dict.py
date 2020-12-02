@@ -4,9 +4,11 @@
 #  ------------------------------------------------------------------------------------------
 from __future__ import annotations
 
+import logging
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum, unique
+from pathlib import Path
 from typing import Any, Dict, Generic, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
@@ -21,9 +23,8 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
 from InnerEye.ML.utils.io_util import tabulate_dataframe
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.metrics_util import DataframeLogger, binary_classification_accuracy, mean_absolute_error, \
-    mean_squared_error, \
-    r2_score
+from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, \
+    mean_squared_error, r2_score
 
 FloatOrInt = Union[float, int]
 T = TypeVar('T', np.ndarray, float)
@@ -464,7 +465,8 @@ class MetricsDict:
                     _values[MetricType.SUBJECT_COUNT.value] = [len(self.get_predictions(_hue))]
                 _all_values[_hue] = _values
             # noinspection PyTypeChecker
-            return list(flatten([list(map(lambda x: (k, *x), v.items())) for k, v in _all_values.items()]))  # type: ignore
+            return list(
+                flatten([list(map(lambda x: (k, *x), v.items())) for k, v in _all_values.items()]))  # type: ignore
 
         def _fill_new_metrics_dict(m: MetricsDict, average: bool = False) -> MetricsDict:
             for _m_hue, _m_metric_name, _m_value in _get_all_metrics():
@@ -870,3 +872,41 @@ class SequenceMetricsDict(ScalarMetricsDict):
             except:
                 pass
         raise ValueError(f"Unable to extract target index from this string: {hue_name}")
+
+
+class DataframeLogger:
+    """
+    Single DataFrame logger for logging to CSV file
+    """
+
+    def __init__(self, csv_path: Path):
+        self.records: List[Dict[str, Any]] = []
+        self.csv_path = csv_path
+
+    def add_record(self, record: Dict[str, Any]) -> None:
+        self.records.append(record)
+
+    def flush(self, log_info: bool = False) -> None:
+        """
+        Save the internal records to a csv file.
+        :param log_info: Log INFO if log_info is True.
+        """
+        import pandas as pd
+        if not self.csv_path.parent.is_dir():
+            self.csv_path.parent.mkdir(parents=True)
+        # Specifying columns such that the order in which columns appear matches the order in which
+        # columns were added in the code.
+        columns = self.records[0].keys() if len(self.records) > 0 else None
+        df = pd.DataFrame.from_records(self.records, columns=columns)
+        special_formatting = {
+            MetricType.LEARNING_RATE.value: ".6e",
+            MetricType.SECONDS_PER_EPOCH.value: ".2f",
+            MetricType.SECONDS_PER_BATCH.value: ".2f",
+        }
+        for column, column_format in special_formatting.items():
+            if column in df:
+                column_format = "{0:" + column_format + "}"
+                df[column] = df[column].map(lambda x: column_format.format(x))
+        df.to_csv(self.csv_path, sep=',', mode='w', index=False, float_format="%.6f")
+        if log_info:
+            logging.info(f"\n {df.to_string(index=False)}")

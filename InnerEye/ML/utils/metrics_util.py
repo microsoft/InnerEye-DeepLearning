@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
 from functools import reduce
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
@@ -19,35 +18,6 @@ from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARE
     is_offline_run_context
 from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
-
-
-class DataframeLogger:
-    """
-    Single DataFrame logger for logging to CSV file
-    """
-
-    def __init__(self, csv_path: Path):
-        self.records: List[Dict[str, Any]] = []
-        self.csv_path = csv_path
-
-    def add_record(self, record: Dict[str, Any]) -> None:
-        self.records.append(record)
-
-    def flush(self, log_info: bool = False) -> None:
-        """
-        Save the internal records to a csv file.
-        :param log_info: Log INFO if log_info is True.
-        """
-        import pandas as pd
-        if not self.csv_path.parent.is_dir():
-            self.csv_path.parent.mkdir(parents=True)
-        # Specifying columns such that the order in which columns appear matches the order in which
-        # columns were added in the code.
-        columns = self.records[0].keys() if len(self.records) > 0 else None
-        df = pd.DataFrame.from_records(self.records, columns=columns)
-        df.to_csv(self.csv_path, sep=',', mode='w', index=False)
-        if log_info:
-            logging.info(f"\n {df.to_string(index=False)}")
 
 
 class MetricsPerPatientWriter:

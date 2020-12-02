@@ -38,7 +38,7 @@ from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_
     FULL_METRICS_DATAFRAME_FILE, \
     METRICS_AGGREGATES_FILE, OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
-from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, ScalarMetricsDict
+from InnerEye.Common.metrics_dict import DataframeLogger, INTERNAL_TO_LOGGING_COLUMN_NAMES, ScalarMetricsDict
 from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, ModelCategory
@@ -46,7 +46,6 @@ from InnerEye.ML.model_testing import SUBJECT_METRICS_FILE_NAME, get_epoch_resul
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER, CSV_SUBJECT_HEADER, OutlierType, \
     extract_outliers
 from InnerEye.ML.utils.metrics_constants import LoggingColumns, MetricsFileColumns
-from InnerEye.ML.utils.metrics_util import DataframeLogger
 from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_directory
 
 RUN_DICTIONARY_NAME = "RunDictionary.txt"

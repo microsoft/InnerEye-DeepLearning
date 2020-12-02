@@ -5,14 +5,14 @@
 import logging
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
 
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_for_scalar_models
+from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, create_metrics_dict_for_scalar_models
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationModelBase
@@ -24,7 +24,6 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
-from InnerEye.ML.utils.metrics_util import DataframeLogger
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 
@@ -80,7 +79,8 @@ class StoringLogger(LightningLoggerBase):
         result = {}
         for metrics in self.results:
             epoch, metrics_dict = self.extract_by_prefix(metrics, prefix_filter)
-            result[epoch] = metrics_dict
+            if len(metrics_dict) != 0:
+                result[epoch] = metrics_dict
         return result
 
 
@@ -129,6 +129,21 @@ class InnerEyeLightning(LightningModule):
         self.train_diagnostics = []
         self.val_diagnostics = []
         self.use_sync_dist = self.use_ddp
+
+    def log_on_epoch(self, name: Union[MetricType, str], value: float, is_training: bool,
+                     reduce_fx: Callable = torch.mean) -> None:
+        """
+        Logs a metrics to Pytorch Lightning with the on_epoch flag set. The metric will get a prefix indicating
+        if it is a training or a validation metric. A custom reducer function can be provided.
+        The method also ensures that the correct synchronization across nodes is used.
+        :param name: The name of the metric to log
+        :param value: The value of the metric
+        :param is_training: If true, give the metric a "train/" prefix, otherwise a "val/" prefix.
+        """
+        metric_name = name if isinstance(name, str) else name.value
+        prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
+        self.log(prefix + metric_name, value,
+                 sync_dist=self.use_sync_dist, on_step=False, on_epoch=True, reduce_fx=reduce_fx)
 
     def configure_optimizers(self):
         optimizer = model_util.create_optimizer(self.config, self.model.parameters())
@@ -181,15 +196,12 @@ class InnerEyeLightning(LightningModule):
             logging.warning(
                 f"In this epoch, {self.num_load_time_exceeded} out of {self.num_batches} batches exceeded the load "
                 f"time threshold. Total loading time for the slow batches was {self.total_extra_load_time:0.2f}sec.")
-        # TODO antonsc: Make that safer
-        learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
         prefix_filter = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         # Get the last set of metrics that the logger stores. That set belongs to the current train/validation
         # epoch because it was written just before this hook is called.
         epoch, metrics = self.storing_logger.extract_by_prefix(self.storing_logger.results[-1], prefix_filter)
         # Sanity check: We should see metrics for the current epoch.
         assert epoch == self.current_epoch, f"Epochs don't match: logger has {epoch}, module has {self.current_epoch}"
-        metrics[MetricType.LEARNING_RATE.value] = learning_rate
         metrics[MetricType.SECONDS_PER_EPOCH.value] = epoch_time_seconds
         self.store_epoch_results(metrics, epoch, is_training)
 
@@ -206,6 +218,12 @@ class InnerEyeLightning(LightningModule):
 
     def on_validation_batch_start(self, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
         self.batch_start(batch_idx=batch_idx, is_training=False)
+
+    def on_train_batch_end(self, outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
+        self.batch_end()
+
+    def on_validation_batch_end(self, outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
+        self.batch_end()
 
     def training_step(self,
                       sample: Dict[str, Any],
@@ -246,7 +264,7 @@ class InnerEyeLightning(LightningModule):
                                 f"{MAX_LOAD_TIME_WARNINGS} times.")
                 self.num_load_time_warnings += 1
 
-    def on_batch_end(self):
+    def batch_end(self) -> None:
         self.item_start_time = time.time()
         self.num_batches += 1
 
@@ -268,11 +286,14 @@ class InnerEyeLightning(LightningModule):
 
     def write_loss(self, is_training: bool, loss: Any) -> None:
         """
-        Writes the given loss value to Lightning, labelled either "val_loss" or "train_loss".
+        Writes the given loss value to Lightning, labelled either "val/loss" or "train/loss".
+        If this comes from a training step, then also log the learning rate.
         :param is_training: If True, the logged metric will be called "train_loss". If False, "val_loss"
 =        """
-        metric_name = f"{TRAIN_PREFIX if is_training else VALIDATION_PREFIX}{MetricType.LOSS.value}"
-        self.log(metric_name, loss, sync_dist=self.use_sync_dist, on_step=False, on_epoch=True)
+        self.log_on_epoch(MetricType.LOSS, loss, is_training)
+        learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
+        if is_training:
+            self.log_on_epoch(MetricType.LEARNING_RATE, learning_rate, is_training)
 
 
 class SegmentationLightning(InnerEyeLightning):
@@ -330,19 +351,14 @@ class SegmentationLightning(InnerEyeLightning):
         # dice_for_all_structures has one row per crop.
 
         # store metrics per batch
-        prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         for i, ground_truth_id in enumerate(self.config.ground_truth_ids):
-            dice_name = f"{prefix}{MetricType.DICE.value}/{ground_truth_id}"
+            dice_name = f"{MetricType.DICE.value}/{ground_truth_id}"
             for b in range(dice_for_all_classes.shape[0]):
-                self.log(dice_name,
-                         value=dice_for_all_classes[b, i].item(),
-                         on_step=False,
-                         on_epoch=True,
-                         reduce_fx=nanmean)
-            self.log(name=f"{prefix}{MetricType.VOXEL_COUNT.value}/{ground_truth_id}",
-                     value=foreground_voxels[i],
-                     on_step=False,
-                     on_epoch=True)
+                self.log_on_epoch(name=dice_name, value=dice_for_all_classes[b, i].item(),
+                                  is_training=is_training, reduce_fx=nanmean)
+            self.log_on_epoch(name=f"{MetricType.VOXEL_COUNT.value}/{ground_truth_id}",
+                              value=foreground_voxels[i],
+                              is_training=is_training)
         # store diagnostics per batch
         center_indices = cropped_sample.center_indices
         if isinstance(center_indices, torch.Tensor):
