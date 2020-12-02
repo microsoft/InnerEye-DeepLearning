@@ -3,12 +3,10 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-import math
 import time
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-import tensorboardX
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
@@ -26,8 +24,7 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
-from InnerEye.ML.utils.metrics_util import AzureAndTensorboardLogger, AzureMLLogger, DataframeLogger, \
-    MetricsDataframeLoggers
+from InnerEye.ML.utils.metrics_util import DataframeLogger
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 
@@ -123,12 +120,14 @@ class InnerEyeLightning(LightningModule):
         self.storing_logger = StoringLogger()
         # This will be initialized correctly in epoch_start
         self.random_state: Optional[RandomStateSnapshot] = None
-        _val_root = self.outputs_folder / ModelExecutionMode.VAL.value
         # training loggers
-        self.train_metrics_folder = self.outputs_folder / ModelExecutionMode.TRAIN.value
-        self.val_metrics_folder = self.outputs_folder / ModelExecutionMode.VAL.value
+        self.train_metrics_folder = self.config.outputs_folder / ModelExecutionMode.TRAIN.value
+        self.val_metrics_folder = self.config.outputs_folder / ModelExecutionMode.VAL.value
         self.train_epoch_metrics = DataframeLogger(self.train_metrics_folder / EPOCH_METRICS_FILE_NAME)
         self.val_epoch_metrics = DataframeLogger(self.val_metrics_folder / EPOCH_METRICS_FILE_NAME)
+        # Fields to store diagnostics for testing
+        self.train_diagnostics = []
+        self.val_diagnostics = []
         self.use_sync_dist = self.use_ddp
 
     def configure_optimizers(self):
@@ -143,11 +142,9 @@ class InnerEyeLightning(LightningModule):
         """
         return MetricsDict()
 
-    def create_loggers_for_training(self) -> None:
-        self.data_frame_loggers = MetricsDataframeLoggers(outputs_folder=self.config.outputs_folder)
-
     def close_all_loggers(self) -> None:
-        self.data_frame_loggers.close_all()
+        self.train_epoch_metrics.flush()
+        self.val_epoch_metrics.flush()
 
     def on_train_epoch_end(self, outputs) -> None:
         self.epoch_end(is_training=True)
@@ -285,8 +282,6 @@ class SegmentationLightning(InnerEyeLightning):
         self.config = config
         self.model = config.create_model()
         self.loss_fn = model_util.create_segmentation_loss_function(config)
-        self.patch_centers_train = []
-        self.patch_centers_validation = []
 
     def create_empty_metrics_dict(self) -> MetricsDict:
         return MetricsDict(hues=[BACKGROUND_CLASS_NAME] + self.config.ground_truth_ids)
@@ -353,9 +348,9 @@ class SegmentationLightning(InnerEyeLightning):
         if isinstance(center_indices, torch.Tensor):
             center_indices = center_indices.cpu().numpy()
         if is_training:
-            self.patch_centers_train.append(center_indices)
+            self.train_diagnostics.append(center_indices)
         else:
-            self.patch_centers_validation.append(center_indices)
+            self.val_diagnostics.append(center_indices)
         # if self.train_val_params.in_training_mode:
         #     # store the sample train patch from this epoch for visualization
         #     if batch_index == self.example_to_save and self.config.store_dataset_sample:

@@ -10,7 +10,6 @@ from torch.optim import LBFGS  # type: ignore
 
 from InnerEye.Common.type_annotations import T
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
-from InnerEye.ML.metrics import AzureAndTensorboardLogger
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule, E
 
 
@@ -56,15 +55,13 @@ class ModelWithTemperature(DeviceAwareModule):
                         labels: torch.Tensor,
                         criterion_fn: Callable[[torch.Tensor, torch.Tensor],
                                                Tuple[torch.Tensor, torch.Tensor]],
-                        use_gpu: bool,
-                        logger: Optional[AzureAndTensorboardLogger] = None) -> float:
+                        use_gpu: bool) -> float:
         """
         Tune the temperature of the model using the provided logits and labels.
         :param logits: Logits to use to learn the temperature parameter
         :param labels: Labels to use to learn the temperature parameter
         :param criterion_fn: A criterion function s.t: (logits, labels) => (loss, ECE)
         :param use_gpu: If True then GPU will be used otherwise CPU will be used.
-        :param logger: If provided, the intermediate loss and ECE values in the optimization will be reported
         :return Optimal temperature value
         """
         if use_gpu:
@@ -84,9 +81,10 @@ class ModelWithTemperature(DeviceAwareModule):
             # zero the gradients for the next optimization step
             optimizer.zero_grad()
             loss, ece = criterion_fn(self.temperature_scale(logits), labels)
-            if logger:
-                logger.log_to_azure_and_tensorboard("Temp_Scale_LOSS", loss.item())
-                logger.log_to_azure_and_tensorboard("Temp_Scale_ECE", ece.item())
+            # TODO antonsc: re-enable logging
+            # if logger:
+            #     logger.log_to_azure_and_tensorboard("Temp_Scale_LOSS", loss.item())
+            #     logger.log_to_azure_and_tensorboard("Temp_Scale_ECE", ece.item())
             loss.backward()
             return loss
 

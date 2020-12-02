@@ -138,8 +138,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
                       image_channels: Any,
                       ground_truth_ids: Any,
                       no_mask_channel: bool = False) -> None:
-    def _check_patch_centers(epoch_results: List[MetricsDict], should_equal: bool) -> None:
-        diagnostics_per_epoch = [m.diagnostics[MetricType.PATCH_CENTER.value] for m in epoch_results]
+    def _check_patch_centers(diagnostics_per_epoch: List[np.ndarray], should_equal: bool) -> None:
         patch_centers_epoch1 = diagnostics_per_epoch[0]
         for diagnostic in diagnostics_per_epoch[1:]:
             assert np.array_equal(patch_centers_epoch1, diagnostic) == should_equal
@@ -171,10 +170,9 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert isinstance(model_training_result, ModelTrainingResults)
 
     # check to make sure training batches are NOT all the same across epochs
-    _check_patch_centers(model_training_result.train_results_per_epoch, should_equal=False)
+    _check_patch_centers(model_training_result.train_diagnostics, should_equal=False)
     # check to make sure validation batches are all the same across epochs
-    _check_patch_centers(model_training_result.val_results_per_epoch, should_equal=True)
-    assert isinstance(model_training_result.train_results_per_epoch[0], MetricsDict)
+    _check_patch_centers(model_training_result.val_diagnostics, should_equal=True)
     actual_train_losses = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS)
     actual_val_losses = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS)
     actual_learning_rates = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE)

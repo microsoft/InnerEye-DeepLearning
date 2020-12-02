@@ -119,8 +119,6 @@ def model_train(config: ModelConfigBase,
                                                tensorboard_folder=diagnostics_events)
             resource_monitor.start()
 
-        lightning_model.create_loggers_for_training()
-
     # TODO antonsc: Enable initializing the trainer from a checkpoint
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
 
@@ -142,6 +140,8 @@ def model_train(config: ModelConfigBase,
     model_training_results = ModelTrainingResults(
         train_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values()),
         val_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=VALIDATION_PREFIX).values()),
+        train_diagnostics=lightning_model.train_diagnostics,
+        val_diagnostics=lightning_model.val_diagnostics,
         optimal_temperature_scale_values_per_checkpoint_epoch=[]
     )
 
