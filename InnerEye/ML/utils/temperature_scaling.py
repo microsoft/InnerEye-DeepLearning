@@ -29,7 +29,7 @@ class ModelWithTemperature(DeviceAwareModule):
         # assign this parameter to the first model device otherwise use PyTorch default.
         _model_devices = model.get_devices()
         _device = _model_devices[0] if _model_devices else None
-        self.temperature = torch.nn.Parameter(torch.ones(1, device=_device), requires_grad=True)
+        self.temperature = torch.nn.Parameter(torch.ones(1, device=_device), requires_grad=False)
 
     def forward(self, *x: torch.Tensor) -> torch.Tensor:  # type: ignore
         logits = self.model(*x)
@@ -77,8 +77,10 @@ class ModelWithTemperature(DeviceAwareModule):
               .format(before_temperature_loss.item(), before_temperature_ece.item()))
 
         # Next: optimize the temperature w.r.t. the provided criterion function
+        self.temperature.requires_grad = True
         optimizer = LBFGS([self.temperature], lr=self.temperature_scaling_config.lr,
                                       max_iter=self.temperature_scaling_config.max_iter)
+
 
         def eval_criterion() -> torch.Tensor:
             # zero the gradients for the next optimization step
@@ -96,4 +98,6 @@ class ModelWithTemperature(DeviceAwareModule):
         print('Optimal temperature: {:.3f}'.format(self.temperature.item()))
         print('After temperature scaling - LOSS: {:.3f} ECE: {:.3f}'
               .format(after_temperature_loss.item(), after_temperature_ece.item()))
+
+        self.temperature.requires_grad = False
         return self.temperature.item()
