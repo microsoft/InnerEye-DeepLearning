@@ -21,7 +21,6 @@ from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_models import StoringLogger, TRAIN_PREFIX, TrainingAndValidationDataLightning, \
     VALIDATION_PREFIX, create_lightning_model
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.model_training_steps import ModelTrainingStepsForSequenceModel
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary
@@ -183,7 +182,6 @@ def temperature_scaling_steps(val_results_for_epoch: ModelOutputsAndMetricsForEp
     """
     # re-create the training steps for the repeat pass, but with metrics saving enabled
     training_steps = None  # create_model_training_steps(config, train_val_params)
-    assert isinstance(training_steps, ModelTrainingStepsForSequenceModel)
     # make sure results for a validation epoch have been passed in
     assert val_results_for_epoch.is_train is False
     # perform temperature scaling

@@ -20,7 +20,6 @@ from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoderWithMlp, \
     ImagingFeatureType
 from InnerEye.ML.run_ml import MLRunner
@@ -30,7 +29,7 @@ from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES, segmentation_to_one_hot
 from InnerEye.ML.utils.io_util import ImageAndSegmentations, NumpyFile
 from InnerEye.ML.utils.ml_util import is_gpu_available, set_random_seed
-from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from InnerEye.ML.visualizers.model_summary import ModelSummary
