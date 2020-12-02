@@ -28,6 +28,7 @@ dependencies:
       - mypy==0.770
       - mypy-extensions==0.4.3
       - numpy==1.19.1
+      - numba==0.51.2
       - pandas==1.1.0
       - papermill==2.2.2
       - param==1.9.3
