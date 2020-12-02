@@ -2,9 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Optional
-from unittest import mock
-import math
+from typing import Any
 
 import numpy as np
 import pytest

@@ -2,19 +2,18 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from pl_examples.domain_templates.generative_adversarial_net import MNISTDataModule
-from pytorch_lightning import LightningModule
 
-a = MNISTDataModule(...)
+import pytorch_lightning as pl
 import os
 import torch
-from torch import nn
 import torch.nn.functional as F
+from pytorch_lightning import LightningModule
+from torch import nn
 from torchvision.datasets import MNIST
 from torchvision import transforms
 from torch.utils.data import DataLoader
-import pytorch_lightning as pl
-
+from pl_examples.domain_templates.generative_adversarial_net import MNISTDataModule
+a = MNISTDataModule(...)
 
 class IdenImage(LightningModule):
     def __init__(self):

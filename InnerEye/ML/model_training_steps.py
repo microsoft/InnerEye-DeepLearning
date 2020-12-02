@@ -11,7 +11,6 @@ import param
 import torch.cuda
 import torch.utils.data
 from torch import Tensor
-from torch.nn import MSELoss
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
@@ -29,14 +28,13 @@ from InnerEye.ML.models.losses.ece import ECELoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion, DataParallelModel, \
     execute_within_autocast_if_needed
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass, single_optimizer_step
-from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
+from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import dataset_util
 from InnerEye.ML.utils.dataset_util import DatasetExample
 from InnerEye.ML.utils.image_util import NumpyOrTorch
 from InnerEye.ML.utils.model_util import ScalarModelInputsAndLabels, get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
-from InnerEye.ML.utils.supervised_criterion import BinaryCrossEntropyWithLogitsLoss
 from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.utils.training_util import ModelForwardAndBackwardsOutputs, gather_tensor
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
@@ -147,7 +145,6 @@ class ModelTrainingStepsForScalarModel(ModelTrainingStepsBase[F, DeviceAwareModu
                 self.model_config.compute_mean_teacher_model else self.train_val_params.model
             self.guided_grad_cam = VisualizationMaps(model_to_evaluate, self.model_config)
             self.model_config.visualization_folder.mkdir(exist_ok=True)
-
 
     def get_logits_and_posteriors(self, *model_inputs: torch.Tensor, use_mean_teacher_model: bool = False) \
             -> Tuple[torch.Tensor, torch.Tensor]:

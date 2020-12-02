@@ -10,7 +10,6 @@ from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.models.layers.identity import Identity
-from InnerEye.ML.models.parallel.data_parallel import execute_within_autocast_if_needed
 
 
 class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
