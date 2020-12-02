@@ -248,15 +248,6 @@ def get_run_id(run: Optional[Run] = None) -> str:
         return run_context.id
 
 
-def storage_account_from_full_name(full_account_name: str) -> str:
-    """
-    Extracts the actual storage account name from the full name, like "/subscriptions/abc123../something/account_name"
-    :param full_account_name: Full name of account
-    :return: Storage account name
-    """
-    return full_account_name.split("/")[-1]
-
-
 def get_cross_validation_split_index(run: Run) -> int:
     """
     Gets the cross validation index from the run's tags or returns the default
@@ -425,6 +416,7 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
     :param run: The AzureML run to check.
     :return: True if the run and all child runs completed successfully.
     """
+
     def is_completed(run: Run) -> bool:
         status = run.get_status()
         if run.status == RunStatus.COMPLETED:
