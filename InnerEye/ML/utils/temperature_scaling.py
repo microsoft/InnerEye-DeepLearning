@@ -81,7 +81,6 @@ class ModelWithTemperature(DeviceAwareModule):
         optimizer = LBFGS([self.temperature], lr=self.temperature_scaling_config.lr,
                                       max_iter=self.temperature_scaling_config.max_iter)
 
-
         def eval_criterion() -> torch.Tensor:
             # zero the gradients for the next optimization step
             optimizer.zero_grad()

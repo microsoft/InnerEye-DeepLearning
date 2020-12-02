@@ -18,9 +18,9 @@ from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import config
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.lightning_models import create_lightning_model, create_model_from_lightning_checkpoint
+from InnerEye.ML.lightning_models import create_model_from_lightning_checkpoint
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
+from InnerEye.ML.models.architectures.base_model import CropSizeConstraints
 from InnerEye.ML.utils import image_util, ml_util
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import compute_uncertainty_map_from_posteriors, gaussian_smooth_posteriors, \

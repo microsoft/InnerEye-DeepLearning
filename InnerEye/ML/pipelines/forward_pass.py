@@ -4,21 +4,18 @@
 #  ------------------------------------------------------------------------------------------
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, Tuple
+from typing import Callable, Optional
 
 import numpy as np
 import torch
-from torch import Tensor, autograd
 from torch.cuda.amp import GradScaler
 # noinspection PyUnresolvedReferences
 from torch.optim import Optimizer  # type: ignore
 
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
-from InnerEye.ML.models.parallel.data_parallel import execute_within_autocast_if_needed
-from InnerEye.ML.utils import image_util, ml_util
+from InnerEye.ML.utils import ml_util
 
 
 class SegmentationForwardPass:
@@ -59,7 +56,6 @@ class SegmentationForwardPass:
         if in_training_mode and (optimizer is None or criterion is None):
             raise ValueError("When running in training mode, an optimizer and criterion must be provided.")
         self.in_training_mode = in_training_mode
-
 
 
 def single_optimizer_step(loss: torch.Tensor,
