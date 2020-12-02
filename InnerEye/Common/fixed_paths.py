@@ -54,8 +54,6 @@ PRIVATE_SETTINGS_FILE = "InnerEyePrivateSettings.yml"
 # Names of secrets stored as environment variables or in the PROJECT_SECRETS_FILE:
 # Secret for the Service Principal
 SERVICE_PRINCIPAL_KEY = "APPLICATION_KEY"
-# The access key for the Azure storage account that holds the datasets.
-DATASETS_ACCOUNT_KEY = "DATASETS_ACCOUNT_KEY"
 
 INNEREYE_PACKAGE_ROOT = repository_root_directory(INNEREYE_PACKAGE_NAME)
 SETTINGS_YAML_FILE_NAME = "settings.yml"

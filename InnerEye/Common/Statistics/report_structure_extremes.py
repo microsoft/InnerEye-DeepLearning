@@ -26,19 +26,16 @@ This means: slices 79 to 107 inclusive in the z direction are missing, i.e. ther
 
 import csv
 import os
-import sys
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Set, TextIO, Tuple
 
 import numpy as np
 import param
-from azure.storage.blob.blockblobservice import BlockBlobService
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
-from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.io_util import read_image_as_array_with_header
 
 MISSING_SLICE_MARKER = "Ms:"
@@ -78,7 +75,8 @@ def report_structure_extremes(dataset_dir: str, azure_config: AzureConfig) -> No
     :param azure_config: An object with all necessary information for accessing Azure.
     :param dataset_dir: directory containing subject subdirectories with integer names.
     """
-    download_dataset_directory(azure_config, dataset_dir)
+    if not os.path.isdir(dataset_dir):
+        raise ValueError(f"Invalid path: {dataset_dir}")
     subjects: Set[int] = set()
     series_map = None
     institution_map = None
@@ -122,36 +120,10 @@ def report_structure_extremes(dataset_dir: str, azure_config: AzureConfig) -> No
         if index % 25 == 0:
             print(f"Processed {index} subjects")
     print(f"Processed all {len(subjects)} subjects")
-    upload_to_dataset_directory(azure_config, dataset_dir, files_created)
     # If we found any structures with missing slices, raise an exception, which should be
     # uncaught where necessary to make any appropriate build step fail.
     if n_missing > 0:
         raise ValueError(f"Found {n_missing} structures with missing slices")
-
-
-def download_dataset_directory(azure_config: AzureConfig, dataset_dir: str) -> bool:
-    if os.path.isdir(dataset_dir):
-        return False
-    account_key = azure_config.get_dataset_storage_account_key()
-    blobs_root_path = os.path.join(azure_config.datasets_container, os.path.basename(dataset_dir)) + "/"
-    sys.stdout.write(f"Downloading data to {dataset_dir} ...")
-    assert account_key is not None  # for mypy
-    download_blobs(azure_config.datasets_storage_account, account_key, blobs_root_path, Path(dataset_dir))
-    sys.stdout.write("done\n")
-    return True
-
-
-def upload_to_dataset_directory(azure_config: AzureConfig, dataset_dir: str, files: Set[str]) -> None:
-    if not files:
-        return
-    account_key = azure_config.get_dataset_storage_account_key()
-    block_blob_service = BlockBlobService(account_name=azure_config.datasets_storage_account, account_key=account_key)
-    container_name = os.path.join(azure_config.datasets_container, os.path.basename(dataset_dir))
-    for path in files:
-        blob_name = path[len(dataset_dir) + 1:]
-        block_blob_service.create_blob_from_path(container_name, blob_name, path)
-        print(f"Uploaded {path} to {azure_config.datasets_storage_account}:{container_name}/{blob_name}")
-
 
 def report_structure_extremes_for_subject(subj_dir: str, series_id: str) -> Iterator[str]:
     """

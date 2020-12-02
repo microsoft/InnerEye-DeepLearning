@@ -59,13 +59,6 @@ class AzureConfig(GenericConfig):
     subscription_id: str = param.String(doc="The ID of your Azure subscription.")
     tenant_id: str = param.String(doc="The Azure tenant ID.")
     application_id: str = param.String(doc="Optional: The ID of the Service Principal for authentication to Azure.")
-    datasets_storage_account: str = \
-        param.String(doc="Optional: The blob storage account to use when downloading datasets for use outside of "
-                         "AzureML. This storage account must be the same as the one configured as a 'datastore' "
-                         "in AzureML.")
-    datasets_storage_account_key: str = \
-        param.String(doc="Optional: The access key for the storage account that holds the datasets. "
-                         "This is only used for downloading datasets outside of AzureML.")
     datasets_container: str = param.String(doc="Optional: The blob storage container with the datasets.")
     azureml_datastore: str = param.String(doc="The name of the AzureML datastore that holds the input training data. "
                                               "This must be created manually, and point to a folder inside the "
@@ -195,13 +188,6 @@ class AzureConfig(GenericConfig):
         if project_root:
             config.project_root = project_root
         return config
-
-    def get_dataset_storage_account_key(self) -> Optional[str]:
-        """
-        Gets the storage account key for the storage account that holds the dataset.
-        """
-        secrets_handler = SecretsHandling(project_root=self.project_root)
-        return secrets_handler.get_secret_from_environment(fixed_paths.DATASETS_ACCOUNT_KEY, allow_missing=True)
 
     def get_workspace(self) -> Workspace:
         """
