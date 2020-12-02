@@ -517,17 +517,17 @@ def compute_scalar_metrics(metrics_dict: ScalarMetricsDict,
                 masked_model_outputs_and_labels.model_outputs.data, \
                 masked_model_outputs_and_labels.labels.data, \
                 masked_model_outputs_and_labels.subject_ids
-
+            # Convert labels to the same datatype as the model outputs, necessary when running with AMP
+            _labels = _labels.to(dtype=_model_output.dtype)
             if loss_type == ScalarLoss.MeanSquaredError:
                 metrics = {
-                    MetricType.MEAN_SQUARED_ERROR: F.mse_loss(_model_output, _labels.float(), reduction='mean').item(),
+                    MetricType.MEAN_SQUARED_ERROR: F.mse_loss(_model_output, _labels, reduction='mean').item(),
                     MetricType.MEAN_ABSOLUTE_ERROR: mean_absolute_error(_model_output, _labels),
                     MetricType.R2_SCORE: r2_score(_model_output, _labels)
                 }
             else:
                 metrics = {
-                    MetricType.CROSS_ENTROPY: F.binary_cross_entropy(_model_output, _labels.float(),
-                                                                     reduction='mean').item(),
+                    MetricType.CROSS_ENTROPY: F.binary_cross_entropy(_model_output, _labels, reduction='mean').item(),
                     MetricType.ACCURACY_AT_THRESHOLD_05: binary_classification_accuracy(_model_output, _labels)
                 }
             for key, value in metrics.items():
