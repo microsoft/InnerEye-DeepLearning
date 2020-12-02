@@ -682,9 +682,6 @@ def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
     :return: An instance of ScalarModelInputsAndLabels, containing the list of model input tensors,
     label tensor, subject IDs, and the data item reconstructed from the data loader output
     """
-    if isinstance(model, DataParallelModel):
-        model = model.get_module()
-
     if isinstance(model_config, SequenceModelBase):
         sequence_model: DeviceAwareModule[List[ClassificationItemSequence], torch.Tensor] = model  # type: ignore
         sequences = ClassificationItemSequence.from_minibatch(sample)

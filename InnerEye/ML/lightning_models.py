@@ -22,10 +22,12 @@ from InnerEye.ML.metrics import add_average_dice, compute_dice_across_patches, c
     nanmean, store_epoch_metrics
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
+from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -386,7 +388,11 @@ class ScalarLightning(InnerEyeLightning):
         self.model = config.create_model()
         # TODO antonsc: The old code also changed the datatype for the loss tensor, depending on the
         # loss function
-        self.loss_fn = model_util.create_scalar_loss_function(config)
+        raw_loss = model_util.create_scalar_loss_function(config)
+        if isinstance(config, SequenceModelBase):
+            self.loss_fn = lambda model_output, loss: apply_sequence_model_loss(raw_loss, model_output, loss)
+        else:
+            self.loss_fn = raw_loss
         self.use_mean_teacher_model = self.config.compute_mean_teacher_model
         self.logits_to_posterior_fn = config.get_post_loss_logits_normalization_function()
         # TODO antonsc: Work out how we handle mean teacher model
