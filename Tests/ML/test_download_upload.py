@@ -3,9 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-import pytest
-
 from pathlib import Path
+
+import pytest
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run, get_results_blob_path
@@ -20,6 +20,7 @@ from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN
 from Tests.ML.util import get_default_azure_config
 
 logging_to_stdout(logging.DEBUG)
+
 
 @pytest.fixture
 def runner_config() -> AzureConfig:
