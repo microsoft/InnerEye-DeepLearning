@@ -24,6 +24,7 @@ folder structure is present irrespective of using InnerEye as a submodule or not
 environment will be contained in the model.
 
 ### Removed
+- Removed blobxfer completely
 
 ### Deprecated
 
