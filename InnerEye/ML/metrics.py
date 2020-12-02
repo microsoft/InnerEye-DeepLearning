@@ -8,7 +8,7 @@ import logging
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Iterable
 
 import SimpleITK as sitk
 import numpy as np
@@ -20,7 +20,7 @@ from azureml.core import Run
 from InnerEye.Azure.azure_util import get_run_context_or_default
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict, get_column_name_for_logging, \
     get_metric_name_with_hue_prefix
-from InnerEye.Common.type_annotations import TupleFloat3
+from InnerEye.Common.type_annotations import DictStrFloat, TupleFloat3
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -404,6 +404,39 @@ def log_classification_epoch_metrics(logging_fn: Callable[[str, float], None],
         logging_fn(get_metric_name_with_hue_prefix(label, hue_name), metric)
 
 
+def nanmean(values: Iterable[float]) -> float:
+    valid = [v for v in values if not math.isnan(v)]
+    if len(valid) == 0:
+        # This should only handle the case when all entries in a minibatch have no Dice score.
+        return 0.0
+    return sum(valid) / len(valid)
+
+
+def store_segmentation_epoch_metrics(metrics: DictStrFloat,
+                                     epoch: int,
+                                     file_logger: DataframeLogger,
+                                     cross_validation_split_index: int) -> None:
+    """
+    Writes the loss, Dice scores, and learning rates into a CSV file.
+    :param file_logger: An instance of DataframeLogger, for logging results to csv.
+    :param epoch: The epoch corresponding to the results.
+    :param metrics: The metrics of the specified epoch, averaged along its batches.
+    :param cross_validation_split_index: The current split if running inside cross validation.
+    """
+    logger_row = {}
+    # Compute the average Dice over all structures (they look like Dice/foo, Dice/bar),
+    # but also write the per-structure Dice to the file
+    dice_dict = {name: value for name, value in metrics.items() if name.startswith(MetricType.DICE.value)}
+    logger_row[LoggingColumns.Dice.value] = nanmean(dice_dict.values())
+    logger_row[LoggingColumns.Loss.value] = metrics[MetricType.LOSS.value]
+    logger_row.update(**dice_dict)
+    logger_row[LoggingColumns.SecondsPerEpoch.value] = metrics[MetricType.SECONDS_PER_EPOCH.value]
+    logger_row[LoggingColumns.Epoch.value] = epoch
+    logger_row[LoggingColumns.CrossValidationSplitIndex.value] = cross_validation_split_index
+    file_logger.add_record(logger_row)
+    file_logger.flush()
+
+
 def store_epoch_metrics(azure_and_tensorboard_logger: AzureAndTensorboardLogger,
                         df_logger: DataframeLogger,
                         epoch: int,
@@ -484,17 +517,17 @@ def compute_scalar_metrics(metrics_dict: ScalarMetricsDict,
                 masked_model_outputs_and_labels.model_outputs.data, \
                 masked_model_outputs_and_labels.labels.data, \
                 masked_model_outputs_and_labels.subject_ids
-
+            # Convert labels to the same datatype as the model outputs, necessary when running with AMP
+            _labels = _labels.to(dtype=_model_output.dtype)
             if loss_type == ScalarLoss.MeanSquaredError:
                 metrics = {
-                    MetricType.MEAN_SQUARED_ERROR: F.mse_loss(_model_output, _labels.float(), reduction='mean').item(),
+                    MetricType.MEAN_SQUARED_ERROR: F.mse_loss(_model_output, _labels, reduction='mean').item(),
                     MetricType.MEAN_ABSOLUTE_ERROR: mean_absolute_error(_model_output, _labels),
                     MetricType.R2_SCORE: r2_score(_model_output, _labels)
                 }
             else:
                 metrics = {
-                    MetricType.CROSS_ENTROPY: F.binary_cross_entropy(_model_output, _labels.float(),
-                                                                     reduction='mean').item(),
+                    MetricType.CROSS_ENTROPY: F.binary_cross_entropy(_model_output, _labels, reduction='mean').item(),
                     MetricType.ACCURACY_AT_THRESHOLD_05: binary_classification_accuracy(_model_output, _labels)
                 }
             for key, value in metrics.items():

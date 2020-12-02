@@ -59,7 +59,8 @@ class ModelTrainingResults:
 
     def get_metric(self, is_training: bool, metric_type: MetricType) -> List[float]:
         """
-        Gets a scalar metric out of either the list of training or the list of valiation results.
+        Gets a scalar metric out of either the list of training or the list of validation results. This returns
+        that value that a specific metric attains in all of the epochs.
         :param is_training: If True, read metrics from the `train_results_per_epoch` field, if False read from the
         `val_results_per_epoch` field.
         :param metric_type: The metric to extract.

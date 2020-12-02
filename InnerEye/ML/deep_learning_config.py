@@ -664,12 +664,12 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         _devices = self.get_cuda_devices()
         return _devices is not None and len(_devices) > 1
 
-    def write_args_file(self, root: Optional[Path] = None) -> None:
+    def write_args_file(self) -> None:
         """
-        Writes the current config to disk. The file is written either to the given folder, or if omitted,
-        to the default outputs folder.
+        Writes the current config to disk in the default output folder.
         """
-        dst = (root or self.outputs_folder) / ARGS_TXT
+        self.outputs_folder.mkdir(exist_ok=True, parents=True)
+        dst = self.outputs_folder / ARGS_TXT
         dst.write_text(data=str(self))
 
     def should_wait_for_other_cross_val_child_runs(self) -> bool:
