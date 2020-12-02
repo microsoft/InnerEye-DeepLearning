@@ -32,7 +32,7 @@ from typing import Dict, Iterator, List, Optional, Set, TextIO, Tuple
 
 import numpy as np
 import param
-from azure.storage.blob import BlockBlobService
+from azure.storage.blob.blockblobservice import BlockBlobService
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
