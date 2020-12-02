@@ -5,6 +5,7 @@
 import copy
 import logging
 import shutil
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -69,7 +70,6 @@ def download_dataset(azure_dataset_id: str,
     AzureML dataset attached to the given AzureML workspace. The dataset is downloaded into the `target_folder`,
     in a subfolder that has the same name as the dataset. If there already appears to be such a folder, and the folder
     contains a dataset.csv file, no download is started.
-    :param local_dataset: The path to an existing local dataset.
     :param azure_dataset_id: The name of a dataset that is registered in the AzureML workspace.
     :param target_folder: The folder in which to download the dataset from Azure.
     :param azure_config: All Azure-related configuration options.
@@ -88,7 +88,10 @@ def download_dataset(azure_dataset_id: str,
         return expected_dataset_path
     logging.info("Starting to download the dataset - WARNING, this could take very long!")
     with logging_section("Downloading dataset"):
+        t0 = time.perf_counter()
         azure_dataset.download(target_path=str(expected_dataset_path), overwrite=False)
+        t1 = time.perf_counter() - t0
+        logging.info(f"Azure dataset '{azure_dataset_id}' downloaded in {t1} seconds")
     logging.info(f"Azure dataset '{azure_dataset_id}' is now available in {expected_dataset_path}")
     return expected_dataset_path
 
