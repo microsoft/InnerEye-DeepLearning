@@ -25,7 +25,7 @@ from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    METRICS_FILE_NAME, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, disable_logging_to_file, \
+    SUBJECT_METRICS_FILE_NAME, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, disable_logging_to_file, \
     get_epoch_results_path, is_linux, logging_section, logging_to_file, logging_to_stdout, \
     print_exception, remove_file_or_directory
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
@@ -169,7 +169,7 @@ class Runner:
         try:
             def get_epoch_path(mode: ModelExecutionMode) -> Path:
                 p = get_epoch_results_path(best_epoch, mode=mode, model_proc=model_proc)
-                return config.outputs_folder / p / METRICS_FILE_NAME
+                return config.outputs_folder / p / SUBJECT_METRICS_FILE_NAME
 
             path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
             path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)

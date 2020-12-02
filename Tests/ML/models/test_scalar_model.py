@@ -12,11 +12,10 @@ from unittest import mock
 import pandas as pd
 import pytest
 import torch
-from more_itertools import flatten
 
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, METRICS_AGGREGATES_FILE, \
-    METRICS_FILE_NAME, logging_to_stdout, epoch_folder_name
+    SUBJECT_METRICS_FILE_NAME, epoch_folder_name, logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, model_training, runner
@@ -30,10 +29,9 @@ from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get_config_and_results_for_offline_runs, \
     unroll_aggregate_metrics
-
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_azure_config, machine_has_gpu, get_default_checkpoint_handler
+from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler, machine_has_gpu
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
@@ -114,7 +112,7 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
                        ignore_columns=[LoggingColumns.SecondsPerBatch.value, LoggingColumns.SecondsPerEpoch.value])
 
         # Check log METRICS_FILE_NAME
-        metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / METRICS_FILE_NAME
+        metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
         metrics_expected = \
             """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
 Default,1,S4,0.5216594338417053,0.0,-1,Train
@@ -131,7 +129,7 @@ Default,4,S2,0.5293986201286316,1.0,-1,Train
         # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
         # Normally, we would run it on the Test and Val splits, but for convenience we test on the train split here.
         inference_metrics_path = config.outputs_folder / Path(epoch_folder_name(config.num_epochs)) / \
-                           ModelExecutionMode.TRAIN.value / METRICS_FILE_NAME
+                                 ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
         inference_metrics_expected = \
             """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
 Default,4,S2,0.5293986201286316,1.0,-1,Train
@@ -367,7 +365,7 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         expected_outputs_folder = root / str(x)
         assert expected_outputs_folder.exists()
         for m in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
-            metrics_path = expected_outputs_folder / m.value / METRICS_FILE_NAME
+            metrics_path = expected_outputs_folder / m.value / SUBJECT_METRICS_FILE_NAME
             assert metrics_path.exists()
             split_metrics = pd.read_csv(metrics_path)
             if m in metrics:
@@ -499,9 +497,9 @@ def test_get_dataset_splits() -> None:
     sub_fold_dataset_splits = model.get_dataset_splits()
     # the validation and the test set must be the same for parent and sub fold
     pd.testing.assert_frame_equal(dataset_splits.val, sub_fold_dataset_splits.val,
-                                         check_like=True, check_dtype=False)
+                                  check_like=True, check_dtype=False)
     pd.testing.assert_frame_equal(dataset_splits.test,
-                                         sub_fold_dataset_splits.test, check_like=True,
-                                         check_dtype=False)
+                                  sub_fold_dataset_splits.test, check_like=True,
+                                  check_dtype=False)
     # make sure the training set is the expected subset of the parent
     assert list(sub_fold_dataset_splits[ModelExecutionMode.TRAIN].subjectID.unique()) == ['S2', 'S10']

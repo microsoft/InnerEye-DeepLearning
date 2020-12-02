@@ -42,7 +42,7 @@ from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, Scala
 from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, ModelCategory
-from InnerEye.ML.model_testing import METRICS_FILE_NAME, get_epoch_results_path
+from InnerEye.ML.model_testing import SUBJECT_METRICS_FILE_NAME, get_epoch_results_path
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER, CSV_SUBJECT_HEADER, OutlierType, \
     extract_outliers
 from InnerEye.ML.utils.metrics_constants import LoggingColumns, MetricsFileColumns
@@ -333,9 +333,9 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     if config.model_category == ModelCategory.Segmentation:
         if epoch is None:
             raise ValueError("Epoch must be provided in segmentation runs")
-        src = get_epoch_results_path(epoch, mode) / METRICS_FILE_NAME
+        src = get_epoch_results_path(epoch, mode) / SUBJECT_METRICS_FILE_NAME
     else:
-        src = Path(mode.value) / METRICS_FILE_NAME
+        src = Path(mode.value) / SUBJECT_METRICS_FILE_NAME
 
     # download (or copy from local disc) subject level metrics for the given epoch
     local_src_subdir = Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME if is_parent_run(run) else None

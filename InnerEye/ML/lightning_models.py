@@ -13,27 +13,29 @@ import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
 
+from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_for_scalar_models
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.metrics import compute_dice_across_patches, compute_scalar_metrics, \
-    nanmean, store_segmentation_epoch_metrics
+from InnerEye.ML.metrics import add_average_dice, compute_dice_across_patches, compute_scalar_metrics, \
+    nanmean, store_epoch_metrics
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
-from InnerEye.ML.utils.metrics_util import AzureAndTensorboardLogger, AzureMLLogger, MetricsDataframeLoggers
+from InnerEye.ML.utils.metrics_util import AzureAndTensorboardLogger, AzureMLLogger, DataframeLogger, \
+    MetricsDataframeLoggers
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
 
-TRAIN_PREFIX = "train_"
-VALIDATION_PREFIX = "val_"
+TRAIN_PREFIX = "train/"
+VALIDATION_PREFIX = "val/"
 
 
 class StoringLogger(LightningLoggerBase):
@@ -63,7 +65,8 @@ class StoringLogger(LightningLoggerBase):
         return 0
 
     def extract_by_prefix(self, metrics: Dict[str, float], prefix_filter: str = "") -> Tuple[int, DictStrFloat]:
-        epoch = metrics.get("epoch", None)
+        epoch_name = "epoch"
+        epoch = metrics.get(epoch_name, None)
         if epoch is None:
             raise ValueError("Each of the logged metrics should have an 'epoch' key.")
         metrics_dict = {}
@@ -71,7 +74,7 @@ class StoringLogger(LightningLoggerBase):
             assert isinstance(key, str), f"All dictionary keys should be strings, but got: {type(key)}"
             # Add the metric if either there is no prefix filter (prefix does not matter), or if the prefix
             # filter is supplied and really matches the metric name
-            if (not prefix_filter) or key.startswith(prefix_filter):
+            if key != epoch_name and (not prefix_filter) or key.startswith(prefix_filter):
                 stripped_key = key[len(prefix_filter):]
                 metrics_dict[stripped_key] = value
         return epoch, metrics_dict
@@ -120,7 +123,12 @@ class InnerEyeLightning(LightningModule):
         self.storing_logger = StoringLogger()
         # This will be initialized correctly in epoch_start
         self.random_state: Optional[RandomStateSnapshot] = None
-        self.data_frame_loggers: Optional[MetricsDataframeLoggers] = None
+        _val_root = self.outputs_folder / ModelExecutionMode.VAL.value
+        # training loggers
+        self.train_metrics_folder = self.outputs_folder / ModelExecutionMode.TRAIN.value
+        self.val_metrics_folder = self.outputs_folder / ModelExecutionMode.VAL.value
+        self.train_epoch_metrics = DataframeLogger(self.train_metrics_folder / EPOCH_METRICS_FILE_NAME)
+        self.val_epoch_metrics = DataframeLogger(self.val_metrics_folder / EPOCH_METRICS_FILE_NAME)
         self.use_sync_dist = self.use_ddp
 
     def configure_optimizers(self):
@@ -136,25 +144,9 @@ class InnerEyeLightning(LightningModule):
         return MetricsDict()
 
     def create_loggers_for_training(self) -> None:
-        azure_loggers: List[AzureAndTensorboardLogger] = []
-        # Disable tensorboardX's logs
-        logging.getLogger().disabled = True
-        for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
-            azureml_logger = AzureMLLogger(logging_prefix=f"{mode.value}_",
-                                           log_to_parent_run=self.config.log_to_parent_run,
-                                           cross_validation_split_index=self.config.cross_validation_split_index)
-            writer = tensorboardX.SummaryWriter(str(self.config.logs_folder / f"{mode.value}"))
-            azure_loggers.append(AzureAndTensorboardLogger(azureml_logger=azureml_logger,
-                                                           tensorboard_logger=writer))
-        # Reset logger
-        logging.getLogger().disabled = False
         self.data_frame_loggers = MetricsDataframeLoggers(outputs_folder=self.config.outputs_folder)
-        self.azure_loggers_train = azure_loggers[0]
-        self.azure_loggers_val = azure_loggers[1]
 
     def close_all_loggers(self) -> None:
-        self.azure_loggers_train.close()
-        self.azure_loggers_val.close()
         self.data_frame_loggers.close_all()
 
     def on_train_epoch_end(self, outputs) -> None:
@@ -205,6 +197,11 @@ class InnerEyeLightning(LightningModule):
         self.store_epoch_results(metrics, epoch, is_training)
 
     def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool) -> None:
+        file_logger = self.train_epoch_metrics if is_training else self.val_epoch_metrics
+        store_epoch_metrics(metrics,
+                            epoch,
+                            file_logger=file_logger,
+                            cross_validation_split_index=self.config.cross_validation_split_index)
         pass
 
     def on_train_batch_start(self, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
@@ -368,12 +365,8 @@ class SegmentationLightning(InnerEyeLightning):
         return loss
 
     def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool):
-        file_logger = self.data_frame_loggers.train_epoch_metrics if is_training \
-            else self.data_frame_loggers.val_epoch_metrics
-        store_segmentation_epoch_metrics(metrics,
-                                         epoch,
-                                         file_logger=file_logger,
-                                         cross_validation_split_index=self.config.cross_validation_split_index)
+        metrics = add_average_dice(metrics)
+        super().store_epoch_results(metrics, epoch, is_training)
 
 
 class ScalarLightning(InnerEyeLightning):
@@ -424,9 +417,9 @@ class ScalarLightning(InnerEyeLightning):
     def epoch_end(self, is_training: bool) -> None:
         super().epoch_end(is_training)
 
-    def store_epoch_results(self, metrics: MetricsDict, epoch: int, is_training: bool) -> None:
+    def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool) -> None:
         # TODO antonsc: We want the per-subject metrics per epoch?
-        pass
+        super().store_epoch_results(metrics, epoch, is_training)
         # epoch_metrics = self.current_metrics(is_training)
         # assert isinstance(epoch_metrics, ScalarMetricsDict)
         # # Store subject level metrics

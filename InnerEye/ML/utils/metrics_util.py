@@ -17,9 +17,7 @@ from sklearn.metrics import r2_score as sklearn_r2_score
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARENT_RUN_CONTEXT, RUN_CONTEXT, \
     is_offline_run_context
-from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, METRICS_FILE_NAME
 from InnerEye.Common.type_annotations import TupleFloat3
-from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 
 
@@ -50,36 +48,6 @@ class DataframeLogger:
         df.to_csv(self.csv_path, sep=',', mode='w', index=False)
         if log_info:
             logging.info(f"\n {df.to_string(index=False)}")
-
-
-class MetricsDataframeLoggers:
-    """
-    Contains DataframeLogger instances for logging metrics to CSV during training and validation stages respectively
-    """
-
-    def __init__(self, outputs_folder: Path):
-        self.outputs_folder = outputs_folder
-        _train_root = self.outputs_folder / ModelExecutionMode.TRAIN.value
-        _val_root = self.outputs_folder / ModelExecutionMode.VAL.value
-        # training loggers
-        self.train_subject_metrics = DataframeLogger(_train_root / METRICS_FILE_NAME)
-        self.train_epoch_metrics = DataframeLogger(_train_root / EPOCH_METRICS_FILE_NAME)
-        # validation loggers
-        self.val_subject_metrics = DataframeLogger(_val_root / METRICS_FILE_NAME)
-        self.val_epoch_metrics = DataframeLogger(_val_root / EPOCH_METRICS_FILE_NAME)
-        self._all_metrics = [
-            self.train_subject_metrics,
-            self.train_epoch_metrics,
-            self.val_subject_metrics,
-            self.val_epoch_metrics
-        ]
-
-    def close_all(self) -> None:
-        """
-        Save all records for each logger to disk.
-        """
-        for x in self._all_metrics:
-            x.flush()
 
 
 class MetricsPerPatientWriter:

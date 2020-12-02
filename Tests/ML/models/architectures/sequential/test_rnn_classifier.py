@@ -12,7 +12,7 @@ import pytest
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import METRICS_FILE_NAME, ModelExecutionMode, logging_to_stdout
+from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, ModelExecutionMode, logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, SequenceMetricsDict
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
@@ -458,7 +458,7 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: OutputFolderFo
     MLRunner(config, azure_config).run()
     # The metrics file should have one entry per epoch per subject per prediction target,
     # for all the 3 prediction targets.
-    metrics_file = config.outputs_folder / "Train" / METRICS_FILE_NAME
+    metrics_file = config.outputs_folder / "Train" / SUBJECT_METRICS_FILE_NAME
     assert metrics_file.exists()
     metrics = pd.read_csv(metrics_file)
     assert LoggingColumns.Patient.value in metrics

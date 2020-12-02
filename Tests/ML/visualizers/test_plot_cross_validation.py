@@ -12,7 +12,7 @@ from pandas.core.dtypes.common import is_string_dtype
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetch_run
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    METRICS_FILE_NAME, logging_to_stdout
+    SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
@@ -90,7 +90,7 @@ def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str,
     previous_dataset_file = None
     for split in ["0", "1", "1", "1"] if perform_sub_fold_cross_validation else ["0", "1"]:
         for mode in config.execution_modes_to_download():
-            metrics_file = full_folder / split / mode.value / METRICS_FILE_NAME
+            metrics_file = full_folder / split / mode.value / SUBJECT_METRICS_FILE_NAME
             dataset_file: Optional[Path] = full_folder / split / DATASET_CSV_FILE_NAME
             if dataset_file.exists():  # type: ignore
                 # Reduce amount of checked-in large files. dataset files can be large, and usually duplicate across

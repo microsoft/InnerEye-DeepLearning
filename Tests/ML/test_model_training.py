@@ -21,7 +21,6 @@ from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, TemperatureScalingConfig
-from InnerEye.ML.metrics import TRAIN_STATS_FILE
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.sequence_config import SequenceModelBase
@@ -208,7 +207,6 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.VAL]).is_file()
-    assert_file_contains_string(train_config.outputs_folder / TRAIN_STATS_FILE, expected_stats)
 
     # Test for saving of example images
     assert train_config.example_images_folder.is_dir()
