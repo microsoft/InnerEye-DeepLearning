@@ -15,9 +15,11 @@ from pytorch_lightning.loggers.mlflow import MLFlowLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import logging_section
+from InnerEye.Common.metrics_dict import MetricType
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_models import TrainingAndValidationDataLightning, create_lightning_model
+from InnerEye.ML.lightning_models import StoringLogger, TRAIN_PREFIX, TrainingAndValidationDataLightning, \
+    VALIDATION_PREFIX, create_lightning_model
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training_steps import ModelTrainingStepsForSequenceModel
 from InnerEye.ML.utils import ml_util
@@ -55,12 +57,14 @@ def model_train(config: ModelConfigBase,
     checkpoint_callback = ModelCheckpoint(
         dirpath=str(config.checkpoint_folder),
         filename='best_val_loss_checkpoint',
-        monitor='val_loss',
+        monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
         save_last=True)
     num_gpus = torch.cuda.device_count() if config.use_gpu else 0
     accelerator = "ddp" if num_gpus > 1 else None
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
-    loggers = [TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")]
+    storing_logger = StoringLogger()
+    loggers = [storing_logger,
+               TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")]
     if not is_offline_run_context(RUN_CONTEXT):
         mlflow_logger = MLFlowLogger(experiment_name=RUN_CONTEXT.experiment.name,
                                      tracking_uri=RUN_CONTEXT.experiment.workspace.get_mlflow_tracking_uri())
@@ -85,6 +89,7 @@ def model_train(config: ModelConfigBase,
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model training")
     logging.debug("Creating the PyTorch model.")
     lightning_model = create_lightning_model(config)
+    lightning_model.storing_logger = storing_logger
 
     resource_monitor = None
     # Execute some bookkeeping tasks only once if running distributed:
@@ -134,8 +139,8 @@ def model_train(config: ModelConfigBase,
         logging.info(f"Terminating training thread with rank {lightning_model.global_rank}.")
         sys.exit()
     model_training_results = ModelTrainingResults(
-        train_results_per_epoch=lightning_model.training_metrics_per_epoch,
-        val_results_per_epoch=lightning_model.validation_metrics_per_epoch,
+        train_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values()),
+        val_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=VALIDATION_PREFIX).values()),
         optimal_temperature_scale_values_per_checkpoint_epoch=[]
     )
 
