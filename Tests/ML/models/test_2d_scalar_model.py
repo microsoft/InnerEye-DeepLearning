@@ -52,8 +52,8 @@ def test_train_2d_classification_model(test_output_dirs: OutputFolderForTests,
     def extract_loss(results: List[MetricsDict]) -> List[float]:
         return [d.values()[MetricType.LOSS.value][0] for d in results]
 
-    actual_train_loss = extract_loss(model_training_result.train_results_per_epoch)
-    actual_val_loss = extract_loss(model_training_result.val_results_per_epoch)
+    actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS)
+    actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS)
     actual_learning_rates = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE)
 
     assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6)

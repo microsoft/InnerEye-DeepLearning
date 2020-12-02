@@ -64,7 +64,7 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
     use_mixed_precision_and_gpu = use_mixed_precision and machine_has_gpu
     if use_mixed_precision_and_gpu:
         expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
-        expected_val_loss = [0.737039, 0.736721, 0.736339, 0.735957]
+        expected_val_loss = [0.737061, 0.736691, 0.736321, 0.735952]
     else:
         expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
         expected_val_loss = [0.737061, 0.736690, 0.736321, 0.735952]
