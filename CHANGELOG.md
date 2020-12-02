@@ -24,7 +24,7 @@ folder structure is present irrespective of using InnerEye as a submodule or not
 environment will be contained in the model.
 
 ### Removed
-- Removed blobxfer completely
+- Removed blobxfer completely. AzureML Data-stores for reading datasets make the following configs obsolete: 'datasets_storage_account' and 'datasets_storage_account_key' and they are not longer supported. 
 
 ### Deprecated
 
