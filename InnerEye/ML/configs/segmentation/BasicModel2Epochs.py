@@ -32,7 +32,7 @@ class BasicModel2Epochs(SegmentationModelBase):
             level=50,
             window=200,
             class_weights=equally_weighted_classes(fg_classes),
-            num_dataload_workers=4,
+            num_dataload_workers=1,
             train_batch_size=8,
             start_epoch=0,
             num_epochs=2,
