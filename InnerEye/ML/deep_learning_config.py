@@ -698,10 +698,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     def __str__(self) -> str:
         """Returns a string describing the present object, as a list of key == value pairs."""
         arguments_str = "\nArguments:\n"
-        property_dict = vars(self)
-        keys = sorted(property_dict)
-        for key in keys:
-            arguments_str += "\t{:18}: {}\n".format(key, property_dict[key])
+        for key, value in self.param.get_param_values():
+            arguments_str += f"\t{key:18}: {value}\n"
         return arguments_str
 
     def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:

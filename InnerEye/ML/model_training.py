@@ -59,7 +59,7 @@ def model_train(config: ModelConfigBase,
         monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
         save_last=True)
     num_gpus = torch.cuda.device_count() if config.use_gpu else 0
-    accelerator = "ddp_spawn" if num_gpus > 1 else None
+    accelerator = "ddp" if num_gpus > 1 else None
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
     storing_logger = StoringLogger()
     loggers = [storing_logger,
