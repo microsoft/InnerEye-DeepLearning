@@ -108,8 +108,16 @@ class TrainingAndValidationDataLightning(LightningDataModule):
 class InnerEyeLightning(LightningModule):
     def __init__(self, config: DeepLearningConfig, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.config = config
+        self.outputs_folder = config.outputs_folder
         self.model = torch.nn.Module()
+        # These two will be set later in set_optimizer_and_scheduler.
+        # The ddp_spawn accelerator only works if the model configuration object is
+        # not stored in here. Hence, need to do operations that require a full config
+        # in a way that does not require storing the config.
+        self.optimizer = None
+        self.l_rate_scheduler = None
+        self.cross_validation_split_index = config.cross_validation_split_index
+        self.effective_random_seed = config.get_effective_random_seed()
         # Timers for monitoring data loading time
         self.epoch_start_time = 0
         self.item_start_time = 0
@@ -123,8 +131,8 @@ class InnerEyeLightning(LightningModule):
         # This will be initialized correctly in epoch_start
         self.random_state: Optional[RandomStateSnapshot] = None
         # training loggers
-        self.train_metrics_folder = self.config.outputs_folder / ModelExecutionMode.TRAIN.value
-        self.val_metrics_folder = self.config.outputs_folder / ModelExecutionMode.VAL.value
+        self.train_metrics_folder = self.outputs_folder / ModelExecutionMode.TRAIN.value
+        self.val_metrics_folder = self.outputs_folder / ModelExecutionMode.VAL.value
         self.train_epoch_metrics = DataframeLogger(self.train_metrics_folder / EPOCH_METRICS_FILE_NAME)
         self.val_epoch_metrics = DataframeLogger(self.val_metrics_folder / EPOCH_METRICS_FILE_NAME)
         # Fields to store diagnostics for testing
@@ -147,10 +155,12 @@ class InnerEyeLightning(LightningModule):
         self.log(prefix + metric_name, value,
                  sync_dist=self.use_sync_dist, on_step=False, on_epoch=True, reduce_fx=reduce_fx)
 
+    def set_optimizer_and_scheduler(self, config: DeepLearningConfig) -> None:
+        self.optimizer = model_util.create_optimizer(config, self.model.parameters())
+        self.l_rate_scheduler = SchedulerWithWarmUp(config, self.optimizer)
+
     def configure_optimizers(self):
-        optimizer = model_util.create_optimizer(self.config, self.model.parameters())
-        l_rate_scheduler = SchedulerWithWarmUp(self.config, optimizer)
-        return [optimizer], [l_rate_scheduler]
+        return [self.optimizer], [self.l_rate_scheduler]
 
     def create_empty_metrics_dict(self) -> MetricsDict:
         """
@@ -172,7 +182,6 @@ class InnerEyeLightning(LightningModule):
         self.epoch_end(is_training=False)
 
     def on_train_epoch_start(self) -> None:
-        self.training_metrics = self.create_empty_metrics_dict()
         self.reset_timers()
 
     def on_validation_epoch_start(self) -> None:
@@ -182,7 +191,7 @@ class InnerEyeLightning(LightningModule):
         self.random_state = RandomStateSnapshot.snapshot_random_state()
         # reset the random state for validation, so that we get consistent behaviour when drawing random patches
         # when validating segmentation models.
-        seed = self.config.get_effective_random_seed()
+        seed = self.effective_random_seed
         set_random_seed(seed, "Validation")
 
     def epoch_end(self, is_training: bool) -> None:
@@ -212,7 +221,7 @@ class InnerEyeLightning(LightningModule):
         store_epoch_metrics(metrics,
                             epoch,
                             file_logger=file_logger,
-                            cross_validation_split_index=self.config.cross_validation_split_index)
+                            cross_validation_split_index=self.cross_validation_split_index)
         pass
 
     def on_train_batch_start(self, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
@@ -301,13 +310,12 @@ class InnerEyeLightning(LightningModule):
 class SegmentationLightning(InnerEyeLightning):
     def __init__(self, config: SegmentationModelBase, *args, **kwargs) -> None:
         super().__init__(config, *args, **kwargs)
-        # This is not necessary, but helps PyCharm understand that in this class config is SegmentationModelBase
-        self.config = config
         self.model = config.create_model()
         self.loss_fn = model_util.create_segmentation_loss_function(config)
+        self.ground_truth_ids = config.ground_truth_ids
 
     def create_empty_metrics_dict(self) -> MetricsDict:
-        return MetricsDict(hues=[BACKGROUND_CLASS_NAME] + self.config.ground_truth_ids)
+        return MetricsDict(hues=[BACKGROUND_CLASS_NAME] + self.ground_truth_ids)
 
     def forward(self, patches) -> torch.Tensor:
         return self.logits_to_posterior(self.model(patches))
@@ -353,7 +361,7 @@ class SegmentationLightning(InnerEyeLightning):
         # dice_for_all_structures has one row per crop.
 
         # store metrics per batch
-        for i, ground_truth_id in enumerate(self.config.ground_truth_ids):
+        for i, ground_truth_id in enumerate(self.ground_truth_ids):
             dice_name = f"{MetricType.DICE.value}/{ground_truth_id}"
             for b in range(dice_for_all_classes.shape[0]):
                 self.log_on_epoch(name=dice_name, value=dice_for_all_classes[b, i].item(),
@@ -391,19 +399,22 @@ class ScalarLightning(InnerEyeLightning):
         raw_loss = model_util.create_scalar_loss_function(config)
         if isinstance(config, SequenceModelBase):
             self.loss_fn = lambda model_output, loss: apply_sequence_model_loss(raw_loss, model_output, loss)
+            self.target_indices = config.get_target_indices()
+            self.sequence_target_positions = config.sequence_target_positions
         else:
             self.loss_fn = raw_loss
-        self.use_mean_teacher_model = self.config.compute_mean_teacher_model
+            self.target_indices = []
+            self.sequence_target_positions = []
+        self.is_classification_model = config.is_classification_model
+        self.use_mean_teacher_model = config.compute_mean_teacher_model
         self.logits_to_posterior_fn = config.get_post_loss_logits_normalization_function()
+        self.loss_type = config.loss_type
         # TODO antonsc: Work out how we handle mean teacher model
         # if config.compute_grad_cam:
         #     model_to_evaluate = self.train_val_params.mean_teacher_model if \
         #         config.compute_mean_teacher_model else self.train_val_params.model
         #     self.guided_grad_cam = VisualizationMaps(model_to_evaluate, config)
         #     config.visualization_folder.mkdir(exist_ok=True)
-
-    def create_empty_metrics_dict(self) -> MetricsDict:
-        return create_metrics_dict_for_scalar_models(self.config)
 
     def forward(self, *model_inputs: torch.Tensor) -> torch.Tensor:
         return self.logits_to_posterior(self.model(*model_inputs))
@@ -418,17 +429,21 @@ class ScalarLightning(InnerEyeLightning):
                                     sample: Dict[str, Any],
                                     batch_index: int,
                                     is_training: bool):
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.config, self.model, sample)  # type: ignore
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model, self.target_indices, sample)
         labels = model_inputs_and_labels.labels
         logits = self.model(*model_inputs_and_labels.model_inputs)
         loss = self.loss_fn(logits, labels)
-        compute_scalar_metrics(self.current_metrics(is_training),
+        self.write_loss(is_training, loss)
+        metrics = create_metrics_dict_for_scalar_models(is_classification_model=self.is_classification_model,
+                                                        sequence_target_positions=self.sequence_target_positions)
+        compute_scalar_metrics(metrics,
                                subject_ids=model_inputs_and_labels.subject_ids,
                                model_output=self.logits_to_posterior(logits),
                                labels=labels,
-                               loss_type=self.config.loss_type)
-
-        self.write_loss(is_training, loss)
+                               loss_type=self.loss_type)
+        for hue, name, value in metrics.enumerate_single_values():
+            hue_suffix = "" if hue == MetricsDict.DEFAULT_HUE_KEY else "/" + hue
+            self.log_on_epoch(name=name + hue_suffix, value=value, is_training=is_training)
         return loss
 
     def epoch_end(self, is_training: bool) -> None:
@@ -457,11 +472,13 @@ class ScalarLightning(InnerEyeLightning):
 
 def create_lightning_model(config: ModelConfigBase) -> InnerEyeLightning:
     if config.is_segmentation_model:
-        return SegmentationLightning(config)
+        model = SegmentationLightning(config)
     elif config.is_scalar_model:
-        return ScalarLightning(config)
+        model = ScalarLightning(config)
     else:
         raise NotImplementedError(f"Don't know how to handle config of type {type(config)}")
+    model.set_optimizer_and_scheduler(config)
+    return model
 
 
 def create_model_from_lightning_checkpoint(config: ModelConfigBase, checkpoint_path: Path) -> torch.nn.Module:

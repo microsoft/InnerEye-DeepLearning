@@ -280,7 +280,9 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         batch = next(iter(dataloader))
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(config, model, batch)  # type: ignore
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(model,
+                                                                     target_indices=config.get_target_indices(),
+                                                                     sample=batch)  # type: ignore
     number_sequences = model_inputs_and_labels.model_inputs[0].shape[1]
     number_subjects = len(model_inputs_and_labels.subject_ids)
     visualizer = VisualizationMaps(model, config)
@@ -513,7 +515,9 @@ def test_visualization_for_different_target_weeks(test_output_dirs: OutputFolder
                                  data_frame=config.dataset_data_frame).as_data_loader(shuffle=False,
                                                                                       batch_size=2)
     batch = next(iter(dataloader))
-    model_inputs_and_labels = get_scalar_model_inputs_and_labels(config, model, batch)  # type: ignore
+    model_inputs_and_labels = get_scalar_model_inputs_and_labels(model,
+                                                                 target_indices=config.get_target_indices(),
+                                                                 sample=batch)
 
     visualizer = VisualizationMaps(model, config)
     # Pseudo-grad cam explaining the prediction at target sequence 2

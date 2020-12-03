@@ -30,16 +30,18 @@ FloatOrInt = Union[float, int]
 T = TypeVar('T', np.ndarray, float)
 
 
-def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> Union[ScalarMetricsDict, SequenceMetricsDict]:
+def create_metrics_dict_for_scalar_models(is_classification_model: bool,
+                                          sequence_target_positions: Optional[List[int]] = None) -> \
+        Union[ScalarMetricsDict, SequenceMetricsDict]:
     """
-    Create an instance of either a ScalarMetricsDict or SequenceMetricsDict, based on the
-    type of config provided.
-    :param config: Model configuration information.
+    Create an instance of either a ScalarMetricsDict or SequenceMetricsDict. If sequence_target_positions are provided,
+    a SequenceMetricsDict will be created, otherwise a ScalarMetricsDict.
     """
-    if isinstance(config, SequenceModelBase):
-        return SequenceMetricsDict.create_from_config(config)
+    if sequence_target_positions:
+        return SequenceMetricsDict.create(is_classification_model=is_classification_model,
+                                          sequence_target_positions=sequence_target_positions)
     else:
-        return ScalarMetricsDict.create_from_config(config)
+        return ScalarMetricsDict(is_classification_model=is_classification_model)
 
 
 def average_metric_values(values: List[float], skip_nan_when_averaging: bool) -> float:
@@ -711,16 +713,6 @@ class ScalarMetricsDict(MetricsDict):
     def __init__(self, hues: Optional[List[str]] = None, is_classification_metrics: bool = True) -> None:
         super().__init__(hues, is_classification_metrics=is_classification_metrics)
 
-    @staticmethod
-    def create_from_config(config: ScalarModelBase) -> ScalarMetricsDict:
-        """
-        Creates an instance of the ScalarMetricsDict from the provided ScalarModelBase config.
-        Label channels for the provided model config will be used to set the hues for this dictionary.
-        :param config: ScalarModelBase
-        :return: ScalarMetricsDict
-        """
-        return ScalarMetricsDict(is_classification_metrics=config.is_classification_model)
-
     def binary_classification_accuracy(self, hue: str = MetricsDict.DEFAULT_HUE_KEY) -> float:
         """
         :param hue: The hue to restrict the values, otherwise all values will be used.
@@ -844,12 +836,12 @@ class SequenceMetricsDict(ScalarMetricsDict):
         super().__init__(hues, is_classification_metrics=is_classification_metrics)
 
     @staticmethod
-    def create_from_config(config: SequenceModelBase) -> SequenceMetricsDict:
+    def create(is_classification_model: bool, sequence_target_positions: List[int]) -> SequenceMetricsDict:
         # Create labels for the different prediction target positions that give numerically increasing positions
         # when using string sorting
         hues = [SequenceMetricsDict.get_hue_name_from_target_index(p)
-                for p in config.sequence_target_positions]
-        return SequenceMetricsDict(hues=hues, is_classification_metrics=config.is_classification_model)
+                for p in sequence_target_positions]
+        return SequenceMetricsDict(hues=hues, is_classification_metrics=is_classification_model)
 
     @staticmethod
     def get_hue_name_from_target_index(target_index: int) -> str:

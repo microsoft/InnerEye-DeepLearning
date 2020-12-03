@@ -624,11 +624,15 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
         # get_model_input function to convert the dataset item to input tensors, and feed them through the model.
         train_dataset = config.get_torch_dataset_for_inference(ModelExecutionMode.TRAIN)
         train_item_0 = next(iter(train_dataset.as_data_loader(shuffle=False, batch_size=1, num_dataload_workers=0)))
-        model_inputs = get_scalar_model_inputs_and_labels(config, model, train_item_0).model_inputs
+        target_indices = config.get_target_indices() if isinstance(config, SequenceModelBase) else []
+        model_inputs = get_scalar_model_inputs_and_labels(model,
+                                                          target_indices=target_indices,
+                                                          sample=train_item_0)
         # The model inputs may already be converted to float16, assuming that we would do mixed precision.
         # However, the model is not yet converted to float16 when this function is called, hence convert back to float32
         summary = ModelSummary(model)
-        summary.generate_summary(input_tensors=model_inputs, log_summaries_to_files=config.log_summaries_to_files)
+        summary.generate_summary(input_tensors=model_inputs.model_inputs,
+                                 log_summaries_to_files=config.log_summaries_to_files)
     elif config.is_segmentation_model:
         summary_for_segmentation_models(config, model)
         summary = model.summarizer  # type: ignore
@@ -671,24 +675,26 @@ class ScalarModelInputsAndLabels(Generic[E, T]):
         common_util.check_properties_are_not_none(self)
 
 
-def get_scalar_model_inputs_and_labels(model_config: ScalarModelBase,
-                                       model: torch.nn.Module,
+def get_scalar_model_inputs_and_labels(model: torch.nn.Module,
+                                       target_indices: List[int],
                                        sample: Dict[str, Any]) -> ScalarModelInputsAndLabels:
     """
     For a model that predicts scalars, gets the model input tensors from a sample returned by the data loader.
-    :param model_config: The configuration object for the model.
     :param model: The instantiated PyTorch model.
+    :param target_indices: If this list is non-empty, assume that the model is a sequence model, and build the
+    model inputs and labels for a model that predicts those specific positions in the sequence. If the list is empty,
+    assume that the model is a normal (non-sequence) model.
     :param sample: A training sample, as returned by a PyTorch data loader (dictionary mapping from field name to value)
     :return: An instance of ScalarModelInputsAndLabels, containing the list of model input tensors,
     label tensor, subject IDs, and the data item reconstructed from the data loader output
     """
-    if isinstance(model_config, SequenceModelBase):
+    if target_indices:
         sequence_model: DeviceAwareModule[List[ClassificationItemSequence], torch.Tensor] = model  # type: ignore
         sequences = ClassificationItemSequence.from_minibatch(sample)
         subject_ids = [x.id for x in sequences]
         labels = ClassificationItemSequence.create_labels_tensor_for_minibatch(
             sequences=sequences,
-            target_indices=model_config.get_target_indices()
+            target_indices=target_indices
         )
         model_inputs = sequence_model.get_input_tensors(sequences)
 

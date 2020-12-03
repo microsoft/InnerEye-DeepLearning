@@ -353,7 +353,9 @@ def test_visualization_with_scalar_model(use_non_imaging_features: bool,
                                                       segmentations=np.random.randint(0, 2, (6, 64, 60)))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         batch = next(iter(dataloader))
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(config, model, batch)
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(model,
+                                                                     target_indices=[],
+                                                                     sample=batch)
 
     number_channels = len(config.image_channels)
     number_subjects = len(model_inputs_and_labels.subject_ids)

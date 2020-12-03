@@ -11,12 +11,13 @@ from typing import Any, Dict, List, Optional
 
 import torch
 
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.lightning_models import create_model_from_lightning_checkpoint
 from InnerEye.ML.pipelines.inference import InferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType, ScalarModelBase
+from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
-from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 
 
@@ -115,7 +116,11 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         :return: Returns ScalarInferencePipelineBase.Result with  the subject ids, ground truth labels and predictions.
         """
         assert isinstance(self.model_config, ScalarModelBase)
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model_config, self.model, sample)
+        target_indices = self.model_config.get_target_indices() \
+            if isinstance(self.model_config, SequenceModelBase) else []
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model,
+                                                                     target_indices=target_indices,
+                                                                     sample=sample)
         subject_ids = model_inputs_and_labels.subject_ids
         labels = model_inputs_and_labels.labels
 

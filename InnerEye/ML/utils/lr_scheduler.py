@@ -42,6 +42,18 @@ class LinearWarmUp(_LRScheduler):
         return [self.final_lr * self.warmup_multiplier()]
 
 
+class PolynomialLR:
+    def __init__(self, gamma: float, l_rate: float, min_l_rate: float, epochs_after_warmup: int) -> None:
+        self.gamma = gamma
+        self.l_rate = l_rate
+        self.min_l_rate = min_l_rate
+        self.epochs_after_warmup = epochs_after_warmup
+
+    def get_lr(self, epoch: int) -> float:
+        x = self.min_l_rate / self.l_rate
+        return (1 - x) * ((1. - float(epoch) / self.epochs_after_warmup) ** self.gamma) + x
+
+
 class SchedulerWithWarmUp(_LRScheduler):
     """
     LR Scheduler which runs a warmup schedule (linear ramp-up) for a few iterations, and then switches to one
@@ -85,11 +97,12 @@ class SchedulerWithWarmUp(_LRScheduler):
                                     gamma=args.l_rate_multi_step_gamma,
                                     last_epoch=self.last_epoch)
         elif args.l_rate_scheduler == LRSchedulerType.Polynomial:
-            x = args.min_l_rate / args.l_rate
-            polynomial_decay: Any = lambda epoch: (1 - x) * (
-                    (1. - float(epoch) / epochs_after_warmup) ** args.l_rate_polynomial_gamma) + x
+            polynomial_lr = PolynomialLR(gamma=args.l_rate_polynomial_gamma,
+                                         l_rate = args.l_rate,
+                                         min_l_rate=args.min_l_rate,
+                                         epochs_after_warmup=epochs_after_warmup)
             scheduler = LambdaLR(optimizer=self.optimizer,
-                                 lr_lambda=polynomial_decay,
+                                 lr_lambda=polynomial_lr.get_lr,
                                  last_epoch=self.last_epoch)
         elif args.l_rate_scheduler == LRSchedulerType.Cosine:
             scheduler = CosineAnnealingLR(optimizer=self.optimizer,
