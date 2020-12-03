@@ -14,7 +14,7 @@ for p in sys.path:
     print(f"  {p}")
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
-innereye_root = Path(__file__).parent.parent.parent
+innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
     innereye_root_str = str(innereye_root)
     if not innereye_root_str in sys.path:
