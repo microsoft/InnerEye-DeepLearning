@@ -2,6 +2,12 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import sys
+
+print("PYTHONPATH components:")
+for p in sys.path:
+    print(f"  {p}")
+
 import logging
 import os
 import sys
