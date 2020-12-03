@@ -2,13 +2,24 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import sys
 import os
+import sys
+from pathlib import Path
 
+# Diagnostics showing how PYTHONPATH is set: This can be helpful to figure out issues with multiple processes spawning
+# but they don't pick up the paths correctly
 print(f"Working directory: {os.getcwd()}")
-print("PYTHONPATH components:")
+print("The following directories are in sys.path:")
 for p in sys.path:
     print(f"  {p}")
+# Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
+# the working directory is not correctly picked up in sys.path
+innereye_root = Path(__file__).parent.parent.parent
+if (innereye_root / "InnerEye").is_dir():
+    innereye_root_str = str(innereye_root)
+    if not innereye_root_str in sys.path:
+        print(f"Adding to sys.path: {innereye_root_str}")
+        sys.path.insert(0, innereye_root_str)
 
 import logging
 import time
@@ -31,7 +42,8 @@ from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    SUBJECT_METRICS_FILE_NAME, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, disable_logging_to_file, \
+    SUBJECT_METRICS_FILE_NAME, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, \
+    disable_logging_to_file, \
     get_epoch_results_path, is_linux, logging_section, logging_to_file, logging_to_stdout, \
     print_exception, remove_file_or_directory
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
