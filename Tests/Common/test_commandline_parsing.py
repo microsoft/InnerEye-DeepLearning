@@ -141,7 +141,6 @@ def test_parsing_with_custom_yaml(test_output_dirs: OutputFolderForTests) -> Non
     assert loader_result is not None
     assert runner.azure_config is not None
     # This is only present in yaml
-    assert runner.azure_config.datasets_storage_account == "account"
     # This is present in yaml and command line, and the latter should be used.
     assert runner.azure_config.tenant_id == "bar"
     # Settings in model config: start_epoch is only in yaml
