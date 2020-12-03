@@ -59,6 +59,10 @@ def model_train(config: ModelConfigBase,
         monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
         save_last=True)
     num_gpus = torch.cuda.device_count() if config.use_gpu else 0
+    logging.info(f"Number of available GPUs: {num_gpus}")
+    if config.max_num_gpus >= 0 and config.max_num_gpus < num_gpus:
+        num_gpus = config.max_num_gpus
+        logging.info(f"Restricting the number of GPUs to {num_gpus}")
     # Alternative: use 'ddp_spawn'. However, when running inside AzureML, hits an issue with pickling a SimpleQueue
     # object (it works fine on a GPU VM)
     accelerator = "ddp" if num_gpus > 1 else None

@@ -153,6 +153,8 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.random_seed = 42
     train_config.class_weights = [0.5, 0.25, 0.25]
     train_config.store_dataset_sample = True
+    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+    train_config.max_num_gpus = 1
 
     expected_train_losses = [0.455572, 0.455031]
     expected_val_losses = [0.455479, 0.455430]

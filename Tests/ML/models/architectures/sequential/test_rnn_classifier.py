@@ -206,6 +206,8 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
                               use_encoder_layer_norm=use_encoder_layer_norm,
                               use_mean_teacher_model=use_mean_teacher_model,
                               should_validate=False)
+    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+    config.max_num_gpus = 1
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     # Patch the load_images function that will be called once we access a dataset item
@@ -379,6 +381,8 @@ def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> 
     logging_to_stdout()
     config = ToySequenceModel2(should_validate=False)
     config.num_epochs = 2
+    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+    config.max_num_gpus = 1
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset(dataset_contents)
     results = model_train(config, get_default_checkpoint_handler(model_config=config,

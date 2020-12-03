@@ -252,6 +252,8 @@ def test_image_encoder_with_segmentation(test_output_dirs: OutputFolderForTests,
                           should_validate=False,
                           aggregation_type=aggregation_type,
                           scan_size=scan_size)
+    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+    config.max_num_gpus = 1
     config.set_output_to(test_output_dirs.root_dir)
     config.num_epochs = 1
     config.local_dataset = Path()

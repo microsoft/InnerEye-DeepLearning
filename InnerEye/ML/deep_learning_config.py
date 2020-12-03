@@ -383,6 +383,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                              doc="The path to the weights to use for model "
                                                                  "initialization, "
                                                                  "when training is running outside Azure.")
+    max_num_gpus: int = param.Integer(default=-1, doc="The maximum number of GPUS to use. If set to a value < 0, use"
+                                                      "all available GPUs.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
@@ -696,10 +698,13 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         return self.mean_teacher_alpha is not None
 
     def __str__(self) -> str:
-        """Returns a string describing the present object, as a list of key == value pairs."""
+        """Returns a string describing the present object, as a list of key: value strings."""
         arguments_str = "\nArguments:\n"
+        # Avoid callable params, the bindings that are printed out can be humongous.
+        callable_params = {name for name, value in self.param.params().items() if isinstance(value, param.Callable)}
         for key, value in self.param.get_param_values():
-            arguments_str += f"\t{key:18}: {value}\n"
+            if key not in callable_params:
+                arguments_str += f"\t{key:30}: {value}\n"
         return arguments_str
 
     def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:
