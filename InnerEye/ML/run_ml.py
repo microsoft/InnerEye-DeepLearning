@@ -88,7 +88,10 @@ def download_dataset(azure_dataset_id: str,
         return expected_dataset_path
     logging.info("Starting to download the dataset - WARNING, this could take very long!")
     with logging_section("Downloading dataset"):
+        t0 = time.perf_counter()
         azure_dataset.download(target_path=str(expected_dataset_path), overwrite=False)
+        t1 = time.perf_counter() - t0
+        logging.info(f"Azure dataset '{azure_dataset_id}' downloaded in {t1} seconds")
     logging.info(f"Azure dataset '{azure_dataset_id}' is now available in {expected_dataset_path}")
     return expected_dataset_path
 
