@@ -30,7 +30,6 @@ def runner_config() -> AzureConfig:
     config = get_default_azure_config()
     config.model = ""
     config.train = False
-    config.datasets_container = ""
     return config
 
 

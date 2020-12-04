@@ -34,7 +34,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
 
     args_list = [f"--model={model_name}", "--train=True", "--l_rate=100.0",
                  "--norm_method=Simple Norm", "--subscription_id", "Test1", "--tenant_id=Test2",
-                 "--application_id", "Test3", "--datasets_container", "Test5",
+                 "--application_id", "Test3", "--azureml_datastore", "Test5",
                  "--pytest_mark", "gpu", f"--output_to={outputs_folder}"]
     if not is_default_namespace:
         args_list.append(f"--model_configs_namespace={model_configs_namespace}")
@@ -59,7 +59,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
         assert model_config.outputs_folder == (project_root / DEFAULT_AML_UPLOAD_DIR)
         assert model_config.logs_folder == (project_root / DEFAULT_LOGS_DIR_NAME)
 
-    assert not hasattr(model_config, "datasets_container")
+    assert not hasattr(model_config, "azureml_datastore")
     assert azure_config.pytest_mark == "gpu"
 
 

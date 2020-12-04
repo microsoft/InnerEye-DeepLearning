@@ -59,7 +59,6 @@ class AzureConfig(GenericConfig):
     subscription_id: str = param.String(doc="The ID of your Azure subscription.")
     tenant_id: str = param.String(doc="The Azure tenant ID.")
     application_id: str = param.String(doc="Optional: The ID of the Service Principal for authentication to Azure.")
-    datasets_container: str = param.String(doc="Optional: The blob storage container with the datasets.")
     azureml_datastore: str = param.String(doc="The name of the AzureML datastore that holds the input training data. "
                                               "This must be created manually, and point to a folder inside the "
                                               "datasets storage account.")
