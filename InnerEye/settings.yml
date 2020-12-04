@@ -2,7 +2,6 @@ variables:
   tenant_id: '72f988bf-86f1-41af-91ab-2d7cd011db47'
   subscription_id: ''
   application_id: ''
-  datasets_container: 'datasets'
   azureml_datastore: 'innereyedatasets'
   resource_group: 'InnerEye-DeepLearning'
   docker_shm_size: '440g'

@@ -120,7 +120,7 @@ def test_create_runner_parser(with_config: bool) -> None:
     # but not in the list overrides
     from_yaml = {
         "workspace_name": "InnerEye-DeepLearning",
-        "datasets_container": "datasets",
+        "azureml_datastore": "innereyedatasets",
     }
     for prop, value in from_yaml.items():
         assert prop in parser_result.args, f"Property {prop} missing in args"
