@@ -14,7 +14,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.loggers.mlflow import MLFlowLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
-from InnerEye.Common.common_util import logging_section, restore_environ
+from InnerEye.Common.common_util import logging_section
 from InnerEye.Common.metrics_dict import MetricType
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
