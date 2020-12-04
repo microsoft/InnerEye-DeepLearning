@@ -14,7 +14,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.loggers.mlflow import MLFlowLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
-from InnerEye.Common.common_util import logging_section
+from InnerEye.Common.common_util import logging_section, restore_environ
 from InnerEye.Common.metrics_dict import MetricType
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
@@ -78,6 +78,10 @@ def model_train(config: ModelConfigBase,
         mlflow_logger._run_id = RUN_CONTEXT.id
         loggers.append(mlflow_logger)
 
+    # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
+    # those environment variables will mislead the training runs in the test suite, and make them crash.
+    # Hence, restore the original environment after training.
+    old_environ = dict(os.environ)
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
                       accelerator=accelerator,
                       max_epochs=config.num_epochs,
@@ -142,6 +146,11 @@ def model_train(config: ModelConfigBase,
     if lightning_model.global_rank != 0:
         logging.info(f"Terminating training thread with rank {lightning_model.global_rank}.")
         sys.exit()
+
+    # Restore the environment to what it was before training.
+    os.environ.clear()
+    os.environ.update(old_environ)
+
     model_training_results = ModelTrainingResults(
         train_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values()),
         val_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=VALIDATION_PREFIX).values()),
