@@ -704,7 +704,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         callable_params = {name for name, value in self.param.params().items() if isinstance(value, param.Callable)}
         for key, value in self.param.get_param_values():
             if key not in callable_params:
-                arguments_str += f"\t{key:30}: {value}\n"
+                arguments_str += f"\t{key:40}: {value}\n"
         return arguments_str
 
     def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:
