@@ -128,6 +128,9 @@ please email InnerEyeCommercial@microsoft.com. We can also provide input on usin
 [Azure Stack Hub](https://azure.microsoft.com/en-us/products/azure-stack/hub/), a hybrid cloud solution
 that allows for on-premise medical image analysis that complies with data handling regulations.
 
+## Publications
+
+Oktay O, Nanavati J, Schwaighofer A, et al. Evaluation of Deep Learning to Augment Image-Guided Radiotherapy for Head and Neck and Prostate Cancers. JAMA Netw Open. 2020;3(11):e2027426. doi:10.1001/jamanetworkopen.2020.27426
 
 ## Contributing
 
