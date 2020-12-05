@@ -130,7 +130,7 @@ that allows for on-premise medical image analysis that complies with data handli
 
 ## Publications
 
-Oktay O, Nanavati J, Schwaighofer A, et al. Evaluation of Deep Learning to Augment Image-Guided Radiotherapy for Head and Neck and Prostate Cancers. JAMA Netw Open. 2020;3(11):e2027426. doi:10.1001/jamanetworkopen.2020.27426
+Oktay O., Nanavati J., Schwaighofer A., Carter D., Bristow M., Tanno R., Jena R., Barnett G., Noble D., Rimmer Y., Glocker B., O’Hara K., Bishop C., Alvarez-Valle J., Nori A.: Evaluation of Deep Learning to Augment Image-Guided Radiotherapy for Head and Neck and Prostate Cancers. JAMA Netw Open. 2020;3(11):e2027426. doi:10.1001/jamanetworkopen.2020.27426
 
 ## Contributing
 
