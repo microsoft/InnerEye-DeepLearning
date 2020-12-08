@@ -25,7 +25,7 @@ from Tests.AfterTraining.test_after_training import get_most_recent_run
 EXTERNAL_WEIGHTS_URL_EXAMPLE = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
 
 
-def test_discover_and_download_checkpoints_from_previous_runs_(test_output_dirs: OutputFolderForTests) -> None:
+def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
