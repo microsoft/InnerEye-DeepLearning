@@ -94,20 +94,27 @@ def model_train(config: ModelConfigBase,
 
     optimal_temperature_scale_values = []
 
-    checkpoint_callback = ModelCheckpoint(
-        dirpath=str(config.checkpoint_folder),
-        filename='best_val_loss_checkpoint',
-        monitor='val_loss',
-        save_last=True)
+    last_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
+                                               filename='best_val_loss_checkpoint',
+                                               monitor='val_loss',
+                                               save_last=True)
+
+    recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
+                                                   filename='{epoch}_checkpoint',
+                                                   save_top_k=-1,
+                                                   period=config.save_step_epochs
+                                                   )
+
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
                       max_epochs=config.num_epochs,
                       num_sanity_val_steps=0,  # Otherwise a small number of validation steps is run before first train
                       logger=TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version=""),
-                      callbacks=[checkpoint_callback],
+                      callbacks=[last_checkpoint_callback, recovery_checkpoint_callback],
                       progress_bar_refresh_rate=0,  # Disable the progress bar,
                       # TODO antonsc: review. Some tests fail without this option
                       gpus=0,
                       terminate_on_nan=config.detect_anomaly,
+                      resume_from_checkpoint=str(checkpoint_path) if checkpoint_path else None
                       )
     lightning_data = TrainingAndValidationDataLightning(config)
     # TODO: Why can't we do that in the constructor?

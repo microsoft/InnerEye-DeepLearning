@@ -12,9 +12,6 @@ DATASET_CSV_FILE_NAME = "dataset.csv"
 CHECKPOINT_FILENAME = "_checkpoint"
 CHECKPOINT_FILE_SUFFIX = CHECKPOINT_FILENAME + ".pth.tar"
 
-# The checkpoint file that is written by Pytorch Lightning in the last epoch of training
-CHECKPOINT_LAST_EPOCH = "last.ckpt"
-
 
 @unique
 class ModelExecutionMode(Enum):
@@ -68,7 +65,7 @@ def create_checkpoint_path(path: Path, epoch: int) -> Path:
     :param path to checkpoint folder
     :param epoch
     """
-    return path / CHECKPOINT_LAST_EPOCH
+    return path / f"epoch={epoch-1}_checkpoint.ckpt"
 
 
 def create_unique_timestamp_id() -> str:
