@@ -2,34 +2,56 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any
+from typing import Any, List, Optional
 
 import pandas as pd
 
+from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.deep_learning_config import OptimizerType
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-
 
 class ProstateBase(SegmentationModelBase):
     """
     Prostate radiotherapy image segmentation model.
     """
 
-    def __init__(self, **kwargs: Any) -> None:
-        fg_classes = ["external", "femur_r", "femur_l", "rectum", "prostate", "bladder", "seminalvesicles"]
-        fg_display_names = ["External", "Femur_R", "Femur_L", "Rectum", "Prostate", "Bladder", "SeminalVesicles"]
-        colors = [(255, 0, 0)] * len(fg_display_names)
-        fill_holes = [True, True, True, True, True, False, True]
+    def __init__(self,
+                 ground_truth_ids: List[str],
+                 ground_truth_ids_display_names: Optional[List[str]] = None,
+                 colors: Optional[List[TupleInt3]] = None,
+                 fill_holes: Optional[List[bool]] = None,
+                 class_weights: Optional[List[float]] = None,
+                 largest_connected_component_foreground_classes: Optional[List[str]] = None,
+                 **kwargs: Any) -> None:
+        '''
+        Creates a new instance of the class.
+        :param ground_truth_ids: List of ground truth ids.
+        :param ground_truth_ids_display_names: Optional list of ground truth id display names. If
+        present then must be of the same length as ground_truth_ids.
+        :param colors: Optional list of colours. If
+        present then must be of the same length as ground_truth_ids.
+        :param fill_holes: Optional list of fill hole flags. If
+        present then must be of the same length as ground_truth_ids.
+        :param class_weights: Optional list of class weights. If
+        present then must be of the same length as ground_truth_ids + 1.
+        :param kwargs: Additional arguments that will be passed through to the SegmentationModelBase constructor.
+        '''
+        ground_truth_ids_display_names = ground_truth_ids_display_names or [f"zz_{name}" for name in ground_truth_ids]
+        colors = colors or [(255, 0, 0)] * len(ground_truth_ids)
+        fill_holes = fill_holes or [True] * len(ground_truth_ids)
+        class_weights = class_weights or equally_weighted_classes(ground_truth_ids, background_weight=0.02)
+        largest_connected_component_foreground_classes = largest_connected_component_foreground_classes or \
+            ground_truth_ids
         super().__init__(
             should_validate=False,
             adam_betas=(0.9, 0.999),
             architecture="UNet3D",
-            class_weights=equally_weighted_classes(fg_classes, background_weight=0.02),
+            class_weights=class_weights,
             crop_size=(64, 224, 224),
             feature_channels=[32],
-            ground_truth_ids=fg_classes,
-            ground_truth_ids_display_names=[f"zz_{name}" for name in fg_display_names],
+            ground_truth_ids=ground_truth_ids,
+            ground_truth_ids_display_names=ground_truth_ids_display_names,
             colours=colors,
             fill_holes=fill_holes,
             image_channels=["ct"],
@@ -39,7 +61,7 @@ class ProstateBase(SegmentationModelBase):
             l_rate=1e-3,
             min_l_rate=1e-5,
             l_rate_polynomial_gamma=0.9,
-            largest_connected_component_foreground_classes=[name for name in fg_classes if name != "seminalvesicles"],
+            largest_connected_component_foreground_classes=[name for name in ground_truth_ids if name != "seminalvesicles"],
             level=50,
             momentum=0.9,
             monitoring_interval_seconds=0,
