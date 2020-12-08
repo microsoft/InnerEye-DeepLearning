@@ -19,7 +19,7 @@ class ProstateBase(SegmentationModelBase):
     def __init__(self,
                  ground_truth_ids: List[str],
                  ground_truth_ids_display_names: Optional[List[str]] = None,
-                 colors: Optional[List[TupleInt3]] = None,
+                 colours: Optional[List[TupleInt3]] = None,
                  fill_holes: Optional[List[bool]] = None,
                  class_weights: Optional[List[float]] = None,
                  largest_connected_component_foreground_classes: Optional[List[str]] = None,
@@ -29,7 +29,7 @@ class ProstateBase(SegmentationModelBase):
         :param ground_truth_ids: List of ground truth ids.
         :param ground_truth_ids_display_names: Optional list of ground truth id display names. If
         present then must be of the same length as ground_truth_ids.
-        :param colors: Optional list of colours. If
+        :param colours: Optional list of colours. If
         present then must be of the same length as ground_truth_ids.
         :param fill_holes: Optional list of fill hole flags. If
         present then must be of the same length as ground_truth_ids.
@@ -38,7 +38,7 @@ class ProstateBase(SegmentationModelBase):
         :param kwargs: Additional arguments that will be passed through to the SegmentationModelBase constructor.
         '''
         ground_truth_ids_display_names = ground_truth_ids_display_names or [f"zz_{name}" for name in ground_truth_ids]
-        colors = colors or [(255, 0, 0)] * len(ground_truth_ids)
+        colours = colours or [(255, 0, 0)] * len(ground_truth_ids)
         fill_holes = fill_holes or [True] * len(ground_truth_ids)
         class_weights = class_weights or equally_weighted_classes(ground_truth_ids, background_weight=0.02)
         largest_connected_component_foreground_classes = largest_connected_component_foreground_classes or \
@@ -52,7 +52,7 @@ class ProstateBase(SegmentationModelBase):
             feature_channels=[32],
             ground_truth_ids=ground_truth_ids,
             ground_truth_ids_display_names=ground_truth_ids_display_names,
-            colours=colors,
+            colours=colours,
             fill_holes=fill_holes,
             image_channels=["ct"],
             inference_batch_size=1,

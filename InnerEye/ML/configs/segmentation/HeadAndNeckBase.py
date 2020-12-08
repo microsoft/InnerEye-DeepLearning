@@ -71,7 +71,7 @@ class HeadAndNeckBase(SegmentationModelBase):
         # from a subclass.
         num_feature_channels = num_feature_channels or 32 if num_structures <= 20 else 26
         bg_weight = 0.02 if len(ground_truth_ids) > 1 else 0.25
-        class_weights = class_weights or equally_weighted_classes(ground_truth_ids, background_weight=bg_weight),
+        class_weights = class_weights or equally_weighted_classes(ground_truth_ids, background_weight=bg_weight)
         # In case of vertical overlap between brainstem and spinal_cord, we separate them
         # by converting brainstem voxels to cord, as the latter is clinically more sensitive.
         # We do the same to separate SPC and MPC; in this case, the direction of change is unimportant,
@@ -117,7 +117,7 @@ class HeadAndNeckBase(SegmentationModelBase):
             largest_connected_component_foreground_classes=ground_truth_ids,
             colours=colours,
             fill_holes=fill_holes,
-            class_weights=equally_weighted_classes(ground_truth_ids, background_weight=bg_weight),
+            class_weights=class_weights,
             slice_exclusion_rules=slice_exclusion_rules,
             summed_probability_rules=summed_probability_rules,
         )

@@ -20,14 +20,14 @@ class ProstatePaper(ProstateBase):
         :param kwargs: Additional arguments that will be passed through to the SegmentationModelBase constructor.
         '''
         ground_truth_ids_display_names=[f"zz_{name}" for name in fg_display_names]
-        colors = [(255, 0, 0)] * len(fg_display_names)
+        colours = [(255, 0, 0)] * len(fg_display_names)
         fill_holes = [True, True, True, True, True, False, True]
         class_weights=equally_weighted_classes(fg_classes, background_weight=0.02)
         largest_connected_component_foreground_classes=[name for name in fg_classes if name != "seminalvesicles"]
         super().__init__(
             ground_truth_ids=fg_classes,
             ground_truth_ids_display_names=ground_truth_ids_display_names,
-            colors=colors,
+            colours=colours,
             fill_holes=fill_holes,
             class_weights=class_weights,
             largest_connected_component_foreground_classes=largest_connected_component_foreground_classes,
