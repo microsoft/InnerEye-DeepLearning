@@ -20,7 +20,6 @@ from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoderWithMlp, \
     ImagingFeatureType
 from InnerEye.ML.run_ml import MLRunner
@@ -30,7 +29,7 @@ from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES, segmentation_to_one_hot
 from InnerEye.ML.utils.io_util import ImageAndSegmentations, NumpyFile
 from InnerEye.ML.utils.ml_util import is_gpu_available, set_random_seed
-from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from InnerEye.ML.visualizers.model_summary import ModelSummary
@@ -253,6 +252,8 @@ def test_image_encoder_with_segmentation(test_output_dirs: OutputFolderForTests,
                           should_validate=False,
                           aggregation_type=aggregation_type,
                           scan_size=scan_size)
+    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+    config.max_num_gpus = 1
     config.set_output_to(test_output_dirs.root_dir)
     config.num_epochs = 1
     config.local_dataset = Path()
@@ -354,7 +355,9 @@ def test_visualization_with_scalar_model(use_non_imaging_features: bool,
                                                       segmentations=np.random.randint(0, 2, (6, 64, 60)))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         batch = next(iter(dataloader))
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(config, model, batch)
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(model,
+                                                                     target_indices=[],
+                                                                     sample=batch)
 
     number_channels = len(config.image_channels)
     number_subjects = len(model_inputs_and_labels.subject_ids)

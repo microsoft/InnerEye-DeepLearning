@@ -16,12 +16,11 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics, model_training
-from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, TemperatureScalingConfig
-from InnerEye.ML.metrics import TRAIN_STATS_FILE
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.sequence_config import SequenceModelBase
@@ -129,6 +128,7 @@ def test_invalid_model_train(test_output_dirs: OutputFolderForTests, image_chann
         _test_model_train(test_output_dirs, image_channels, ground_truth_ids)
 
 
+@pytest.mark.cpu_and_gpu
 @pytest.mark.parametrize("no_mask_channel", [True, False])
 def test_valid_model_train(test_output_dirs: OutputFolderForTests, no_mask_channel: bool) -> None:
     _test_model_train(test_output_dirs, ["channel1", "channel2"], ["region", "region_1"], no_mask_channel)
@@ -138,9 +138,9 @@ def _test_model_train(output_dirs: OutputFolderForTests,
                       image_channels: Any,
                       ground_truth_ids: Any,
                       no_mask_channel: bool = False) -> None:
-    def _check_patch_centers(epoch_results: List[MetricsDict], should_equal: bool) -> None:
-        diagnostics_per_epoch = [m.diagnostics[MetricType.PATCH_CENTER.value] for m in epoch_results]
+    def _check_patch_centers(diagnostics_per_epoch: List[np.ndarray], should_equal: bool) -> None:
         patch_centers_epoch1 = diagnostics_per_epoch[0]
+        assert len(diagnostics_per_epoch) > 1, "Not enough data to check patch centers, need at least 2"
         for diagnostic in diagnostics_per_epoch[1:]:
             assert np.array_equal(patch_centers_epoch1, diagnostic) == should_equal
 
@@ -153,15 +153,12 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.random_seed = 42
     train_config.class_weights = [0.5, 0.25, 0.25]
     train_config.store_dataset_sample = True
+    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+    train_config.max_num_gpus = 1
 
-    expected_train_losses = [0.455538, 0.455213]
-    expected_val_losses = [0.455190, 0.455139]
-    loss_absolute_tolerance = 1e-3
-
-    expected_stats = "Epoch\tLearningRate\tTrainLoss\tTrainDice\tValLoss\tValDice\n" \
-                     "1\t1.00e-03\t0.456\t0.242\t0.455\t0.000\n" \
-                     "2\t5.36e-04\t0.455\t0.247\t0.455\t0.000"
-
+    expected_train_losses = [0.455572, 0.455031]
+    expected_val_losses = [0.455479, 0.455430]
+    loss_absolute_tolerance = 1e-6
     expected_learning_rates = [train_config.l_rate, 5.3589e-4]
 
     checkpoint_handler = get_default_checkpoint_handler(model_config=train_config,
@@ -171,10 +168,9 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert isinstance(model_training_result, ModelTrainingResults)
 
     # check to make sure training batches are NOT all the same across epochs
-    _check_patch_centers(model_training_result.train_results_per_epoch, should_equal=False)
+    _check_patch_centers(model_training_result.train_diagnostics, should_equal=False)
     # check to make sure validation batches are all the same across epochs
-    _check_patch_centers(model_training_result.val_results_per_epoch, should_equal=True)
-    assert isinstance(model_training_result.train_results_per_epoch[0], MetricsDict)
+    _check_patch_centers(model_training_result.val_diagnostics, should_equal=True)
     actual_train_losses = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS)
     actual_val_losses = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS)
     actual_learning_rates = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE)
@@ -188,11 +184,9 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert train_config.outputs_folder.is_dir()
     assert train_config.logs_folder.is_dir()
 
-    # The train and val folder should contain Tensorflow event files
-    assert (train_config.logs_folder / "train").is_dir()
-    assert (train_config.logs_folder / "val").is_dir()
-    assert len([(train_config.logs_folder / "train").glob("*")]) == 1
-    assert len([(train_config.logs_folder / "val").glob("*")]) == 1
+    # Tensorboard event files go into a Lightning subfolder (Pytorch Lightning default)
+    assert (train_config.logs_folder / "Lightning").is_dir()
+    assert len([(train_config.logs_folder / "Lightning").glob("events*")]) == 1
 
     # Checkpoint folder
     # With these settings, we should see a checkpoint only at epoch 2:
@@ -207,17 +201,19 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.VAL]).is_file()
-    assert_file_contains_string(train_config.outputs_folder / TRAIN_STATS_FILE, expected_stats)
 
-    # Test for saving of example images
-    assert train_config.example_images_folder.is_dir()
-    example_files = list(train_config.example_images_folder.rglob("*.*"))
-    assert len(example_files) == 3 * 2
     # Path visualization: There should be 3 slices for each of the 2 subjects
     sampling_folder = train_config.outputs_folder / PATCH_SAMPLING_FOLDER
     assert sampling_folder.is_dir()
     assert train_config.show_patch_sampling > 0
     assert len(list(sampling_folder.rglob("*.png"))) == 3 * train_config.show_patch_sampling
+
+    # TODO antonsc: enable
+    # # Test for saving of example images
+    # assert train_config.example_images_folder.is_dir()
+    # example_files = list(train_config.example_images_folder.rglob("*.*"))
+    # assert len(example_files) == 3 * 2
+
 
 
 @pytest.mark.parametrize(["rates", "expected"],

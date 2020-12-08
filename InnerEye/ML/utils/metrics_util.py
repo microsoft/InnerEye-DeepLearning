@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
 from functools import reduce
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
@@ -17,69 +16,8 @@ from sklearn.metrics import r2_score as sklearn_r2_score
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARENT_RUN_CONTEXT, RUN_CONTEXT, \
     is_offline_run_context
-from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, METRICS_FILE_NAME
 from InnerEye.Common.type_annotations import TupleFloat3
-from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
-
-
-class DataframeLogger:
-    """
-    Single DataFrame logger for logging to CSV file
-    """
-
-    def __init__(self, csv_path: Path):
-        self.records: List[Dict[str, Any]] = []
-        self.csv_path = csv_path
-
-    def add_record(self, record: Dict[str, Any]) -> None:
-        self.records.append(record)
-
-    def flush(self, log_info: bool = False) -> None:
-        """
-        Save the internal records to a csv file.
-        :param log_info: Log INFO if log_info is True.
-        """
-        import pandas as pd
-        if not self.csv_path.parent.is_dir():
-            self.csv_path.parent.mkdir(parents=True)
-        # Specifying columns such that the order in which columns appear matches the order in which
-        # columns were added in the code.
-        columns = self.records[0].keys() if len(self.records) > 0 else None
-        df = pd.DataFrame.from_records(self.records, columns=columns)
-        df.to_csv(self.csv_path, sep=',', mode='w', index=False)
-        if log_info:
-            logging.info(f"\n {df.to_string(index=False)}")
-
-
-class MetricsDataframeLoggers:
-    """
-    Contains DataframeLogger instances for logging metrics to CSV during training and validation stages respectively
-    """
-
-    def __init__(self, outputs_folder: Path):
-        self.outputs_folder = outputs_folder
-        _train_root = self.outputs_folder / ModelExecutionMode.TRAIN.value
-        _val_root = self.outputs_folder / ModelExecutionMode.VAL.value
-        # training loggers
-        self.train_subject_metrics = DataframeLogger(_train_root / METRICS_FILE_NAME)
-        self.train_epoch_metrics = DataframeLogger(_train_root / EPOCH_METRICS_FILE_NAME)
-        # validation loggers
-        self.val_subject_metrics = DataframeLogger(_val_root / METRICS_FILE_NAME)
-        self.val_epoch_metrics = DataframeLogger(_val_root / EPOCH_METRICS_FILE_NAME)
-        self._all_metrics = [
-            self.train_subject_metrics,
-            self.train_epoch_metrics,
-            self.val_subject_metrics,
-            self.val_epoch_metrics
-        ]
-
-    def close_all(self) -> None:
-        """
-        Save all records for each logger to disk.
-        """
-        for x in self._all_metrics:
-            x.flush()
 
 
 class MetricsPerPatientWriter:
@@ -291,7 +229,8 @@ def get_number_of_voxels_per_class(labels: Union[np.ndarray, torch.Tensor]) -> L
     if len(labels.shape) == 4:
         labels = labels[None, ...]
 
-    return [np.sum(c).item() for c in np.count_nonzero(labels, axis=0)]
+    # TODO antonsc: Switch to Pytorch 1.7 and use torch.count_nonzero
+    return [np.sum(c).item() for c in np.count_nonzero(labels.cpu().numpy(), axis=0)]
 
 
 def get_label_overlap_stats(labels: np.ndarray, label_names: List[str]) -> Dict[str, int]:

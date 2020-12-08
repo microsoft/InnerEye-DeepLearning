@@ -14,10 +14,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
-from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, ModelProcessing, \
+from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, ModelProcessing, SUBJECT_METRICS_FILE_NAME, \
     get_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict, create_metrics_dict_for_scalar_models
+from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, ScalarMetricsDict, \
+    create_metrics_dict_for_scalar_models
 from InnerEye.ML import metrics, plotting
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
@@ -38,7 +39,7 @@ from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
 from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, \
     save_lines_to_file
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
-from InnerEye.ML.utils.metrics_util import DataframeLogger, MetricsPerPatientWriter
+from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
@@ -206,7 +207,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
                                hausdorff_distance_mm=hd_for_struct,
                                mean_distance_mm=md_for_struct)
 
-    metrics_writer.to_csv(results_folder / METRICS_FILE_NAME)
+    metrics_writer.to_csv(results_folder / SUBJECT_METRICS_FILE_NAME)
     metrics_writer.save_aggregates_to_csv(results_folder / METRICS_AGGREGATES_FILE)
     if config.is_plotting_enabled:
         plt.figure()
@@ -450,7 +451,7 @@ def classification_model_test(config: ScalarModelBase,
 
             if isinstance(epoch_result, ScalarMetricsDict):
                 epoch_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc)
-                csv_file = epoch_folder / METRICS_FILE_NAME
+                csv_file = epoch_folder / SUBJECT_METRICS_FILE_NAME
 
                 logging.info(f"Writing {data_split.value} metrics to file {str(csv_file)}")
 

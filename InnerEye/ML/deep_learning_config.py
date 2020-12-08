@@ -383,6 +383,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                              doc="The path to the weights to use for model "
                                                                  "initialization, "
                                                                  "when training is running outside Azure.")
+    max_num_gpus: int = param.Integer(default=-1, doc="The maximum number of GPUS to use. If set to a value < 0, use"
+                                                      "all available GPUs.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
@@ -664,12 +666,12 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         _devices = self.get_cuda_devices()
         return _devices is not None and len(_devices) > 1
 
-    def write_args_file(self, root: Optional[Path] = None) -> None:
+    def write_args_file(self) -> None:
         """
-        Writes the current config to disk. The file is written either to the given folder, or if omitted,
-        to the default outputs folder.
+        Writes the current config to disk in the default output folder.
         """
-        dst = (root or self.outputs_folder) / ARGS_TXT
+        self.outputs_folder.mkdir(exist_ok=True, parents=True)
+        dst = self.outputs_folder / ARGS_TXT
         dst.write_text(data=str(self))
 
     def should_wait_for_other_cross_val_child_runs(self) -> bool:
@@ -696,12 +698,13 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         return self.mean_teacher_alpha is not None
 
     def __str__(self) -> str:
-        """Returns a string describing the present object, as a list of key == value pairs."""
+        """Returns a string describing the present object, as a list of key: value strings."""
         arguments_str = "\nArguments:\n"
-        property_dict = vars(self)
-        keys = sorted(property_dict)
-        for key in keys:
-            arguments_str += "\t{:18}: {}\n".format(key, property_dict[key])
+        # Avoid callable params, the bindings that are printed out can be humongous.
+        callable_params = {name for name, value in self.param.params().items() if isinstance(value, param.Callable)}
+        for key, value in self.param.get_param_values():
+            if key not in callable_params:
+                arguments_str += f"\t{key:40}: {value}\n"
         return arguments_str
 
     def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:

@@ -196,6 +196,8 @@ def get_or_create_dataset(azure_config: AzureConfig,
 
     These behaviours can be verified by calling "ds.download()" on each dataset ds.
     """
+    if not azure_config.azureml_datastore:
+        raise ValueError("No value set for 'azureml_datastore' (name of the datastore in the AzureML workspace)")
     logging.info(f"Retrieving datastore '{azure_config.azureml_datastore}' from AzureML workspace")
     workspace = azure_config.get_workspace()
     datastore = Datastore.get(workspace, azure_config.azureml_datastore)

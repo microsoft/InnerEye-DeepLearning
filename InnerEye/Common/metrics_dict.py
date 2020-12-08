@@ -4,9 +4,11 @@
 #  ------------------------------------------------------------------------------------------
 from __future__ import annotations
 
+import logging
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum, unique
+from pathlib import Path
 from typing import Any, Dict, Generic, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
@@ -21,24 +23,25 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
 from InnerEye.ML.utils.io_util import tabulate_dataframe
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.metrics_util import DataframeLogger, binary_classification_accuracy, mean_absolute_error, \
-    mean_squared_error, \
-    r2_score
+from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, \
+    mean_squared_error, r2_score
 
 FloatOrInt = Union[float, int]
 T = TypeVar('T', np.ndarray, float)
 
 
-def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> Union[ScalarMetricsDict, SequenceMetricsDict]:
+def create_metrics_dict_for_scalar_models(is_classification_model: bool,
+                                          sequence_target_positions: Optional[List[int]] = None) -> \
+        Union[ScalarMetricsDict, SequenceMetricsDict]:
     """
-    Create an instance of either a ScalarMetricsDict or SequenceMetricsDict, based on the
-    type of config provided.
-    :param config: Model configuration information.
+    Create an instance of either a ScalarMetricsDict or SequenceMetricsDict. If sequence_target_positions are provided,
+    a SequenceMetricsDict will be created, otherwise a ScalarMetricsDict.
     """
-    if isinstance(config, SequenceModelBase):
-        return SequenceMetricsDict.create_from_config(config)
+    if sequence_target_positions:
+        return SequenceMetricsDict.create(is_classification_model=is_classification_model,
+                                          sequence_target_positions=sequence_target_positions)
     else:
-        return ScalarMetricsDict.create_from_config(config)
+        return ScalarMetricsDict(is_classification_model=is_classification_model)
 
 
 def average_metric_values(values: List[float], skip_nan_when_averaging: bool) -> float:
@@ -464,7 +467,8 @@ class MetricsDict:
                     _values[MetricType.SUBJECT_COUNT.value] = [len(self.get_predictions(_hue))]
                 _all_values[_hue] = _values
             # noinspection PyTypeChecker
-            return list(flatten([list(map(lambda x: (k, *x), v.items())) for k, v in _all_values.items()]))  # type: ignore
+            return list(
+                flatten([list(map(lambda x: (k, *x), v.items())) for k, v in _all_values.items()]))  # type: ignore
 
         def _fill_new_metrics_dict(m: MetricsDict, average: bool = False) -> MetricsDict:
             for _m_hue, _m_metric_name, _m_value in _get_all_metrics():
@@ -709,16 +713,6 @@ class ScalarMetricsDict(MetricsDict):
     def __init__(self, hues: Optional[List[str]] = None, is_classification_metrics: bool = True) -> None:
         super().__init__(hues, is_classification_metrics=is_classification_metrics)
 
-    @staticmethod
-    def create_from_config(config: ScalarModelBase) -> ScalarMetricsDict:
-        """
-        Creates an instance of the ScalarMetricsDict from the provided ScalarModelBase config.
-        Label channels for the provided model config will be used to set the hues for this dictionary.
-        :param config: ScalarModelBase
-        :return: ScalarMetricsDict
-        """
-        return ScalarMetricsDict(is_classification_metrics=config.is_classification_model)
-
     def binary_classification_accuracy(self, hue: str = MetricsDict.DEFAULT_HUE_KEY) -> float:
         """
         :param hue: The hue to restrict the values, otherwise all values will be used.
@@ -842,12 +836,12 @@ class SequenceMetricsDict(ScalarMetricsDict):
         super().__init__(hues, is_classification_metrics=is_classification_metrics)
 
     @staticmethod
-    def create_from_config(config: SequenceModelBase) -> SequenceMetricsDict:
+    def create(is_classification_model: bool, sequence_target_positions: List[int]) -> SequenceMetricsDict:
         # Create labels for the different prediction target positions that give numerically increasing positions
         # when using string sorting
         hues = [SequenceMetricsDict.get_hue_name_from_target_index(p)
-                for p in config.sequence_target_positions]
-        return SequenceMetricsDict(hues=hues, is_classification_metrics=config.is_classification_model)
+                for p in sequence_target_positions]
+        return SequenceMetricsDict(hues=hues, is_classification_metrics=is_classification_model)
 
     @staticmethod
     def get_hue_name_from_target_index(target_index: int) -> str:
@@ -870,3 +864,41 @@ class SequenceMetricsDict(ScalarMetricsDict):
             except:
                 pass
         raise ValueError(f"Unable to extract target index from this string: {hue_name}")
+
+
+class DataframeLogger:
+    """
+    Single DataFrame logger for logging to CSV file
+    """
+
+    def __init__(self, csv_path: Path):
+        self.records: List[Dict[str, Any]] = []
+        self.csv_path = csv_path
+
+    def add_record(self, record: Dict[str, Any]) -> None:
+        self.records.append(record)
+
+    def flush(self, log_info: bool = False) -> None:
+        """
+        Save the internal records to a csv file.
+        :param log_info: Log INFO if log_info is True.
+        """
+        import pandas as pd
+        if not self.csv_path.parent.is_dir():
+            self.csv_path.parent.mkdir(parents=True)
+        # Specifying columns such that the order in which columns appear matches the order in which
+        # columns were added in the code.
+        columns = self.records[0].keys() if len(self.records) > 0 else None
+        df = pd.DataFrame.from_records(self.records, columns=columns)
+        special_formatting = {
+            MetricType.LEARNING_RATE.value: ".6e",
+            MetricType.SECONDS_PER_EPOCH.value: ".2f",
+            MetricType.SECONDS_PER_BATCH.value: ".2f",
+        }
+        for column, column_format in special_formatting.items():
+            if column in df:
+                column_format = "{0:" + column_format + "}"
+                df[column] = df[column].map(lambda x: column_format.format(x))
+        df.to_csv(self.csv_path, sep=',', mode='w', index=False, float_format="%.6f")
+        if log_info:
+            logging.info(f"\n {df.to_string(index=False)}")

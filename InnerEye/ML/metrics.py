@@ -7,8 +7,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
 
 import SimpleITK as sitk
 import numpy as np
@@ -18,24 +17,20 @@ import torch.nn.functional as F
 from azureml.core import Run
 
 from InnerEye.Azure.azure_util import get_run_context_or_default
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict, get_column_name_for_logging, \
+from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, ScalarMetricsDict, \
     get_metric_name_with_hue_prefix
-from InnerEye.Common.type_annotations import TupleFloat3
+from InnerEye.Common.type_annotations import DictStrFloat, TupleFloat3
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
-from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarLoss
-from InnerEye.ML.utils import metrics_util
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array, check_array_range, is_binary_array
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.metrics_util import AzureAndTensorboardLogger, DataframeLogger, binary_classification_accuracy, \
+from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, \
     mean_absolute_error, r2_score
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
-
-TRAIN_STATS_FILE = "train_stats.csv"
 
 
 @dataclass(frozen=True)
@@ -268,22 +263,16 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
 
 def compute_dice_across_patches(segmentation: torch.Tensor,
                                 ground_truth: torch.Tensor,
-                                use_cuda: bool,
                                 allow_multiple_classes_for_each_pixel: bool = False) -> torch.Tensor:
     """
     Computes the Dice scores for all classes across all patches in the arguments.
     :param segmentation: Tensor containing class ids predicted by a model.
     :param ground_truth: One-hot encoded torch tensor containing ground-truth label ids.
-    :param use_cuda: If set to True, uses CUDA backend for computations
     :param allow_multiple_classes_for_each_pixel: If set to False, ground-truth tensor has
     to contain only one foreground label for each pixel.
     :return A torch tensor of size (Patches, Classes) with the Dice scores. Dice scores are computed for
     all classes including the background class at index 0.
     """
-    if use_cuda:
-        segmentation = segmentation.cuda()
-        ground_truth = ground_truth.cuda()
-
     check_size_matches(segmentation, ground_truth, 4, 5, [0, -3, -2, -1],
                        arg1_name="segmentation", arg2_name="ground_truth")
 
@@ -321,44 +310,6 @@ def format_learning_rates(learning_rates: List[float]) -> str:
     return "; ".join("{:0.2e}".format(lr) for lr in learning_rates)
 
 
-def store_epoch_stats_for_segmentation(outputs_dir: Path,
-                                       epoch: int,
-                                       learning_rates: List[float],
-                                       training_results: MetricsDict,
-                                       validation_results: MetricsDict) -> None:
-    """
-    Writes a dictionary of statistics for a segmentation training run to a file. Successive calls to the function
-    append another line of metrics. The first line of the file contains the column headers (names of the metrics).
-    :param training_results: A MetricsDict object with all metrics that were achieved on the training set in the
-    current epoch.
-    :param validation_results: A MetricsDict object with all metrics that were achieved on the validation set in the
-    current epoch.
-    :param learning_rates: The learning rates that were used in the current epoch.
-    :param epoch: The number of the current training epoch.
-    :param outputs_dir: The directory in which the statistics file should be created.
-    :return:
-    """
-    epoch_stats = {
-        "Epoch": str(epoch),
-        "LearningRate": format_learning_rates(learning_rates),
-        "TrainLoss": metrics_util.format_metric(training_results.get_single_metric(MetricType.LOSS)),
-        "TrainDice": metrics_util.format_metric(training_results.get_single_metric(MetricType.DICE)),
-        "ValLoss": metrics_util.format_metric(validation_results.get_single_metric(MetricType.LOSS)),
-        "ValDice": metrics_util.format_metric(validation_results.get_single_metric(MetricType.DICE)),
-    }
-    # When using os.linesep, additional LF characters are inserted. Expected behaviour only when
-    # using this on both Windows and Linux.
-    line_sep = "\n"
-    tab = "\t"
-    full_file = outputs_dir / TRAIN_STATS_FILE
-    if not full_file.exists():
-        header = tab.join(epoch_stats.keys())
-        full_file.write_text(header + line_sep)
-    line = tab.join(epoch_stats.values())
-    with full_file.open("a") as f:
-        f.write(line + line_sep)
-
-
 def store_model_parameters(writer: tensorboardX.SummaryWriter,
                            epoch: int,
                            model: DeviceAwareModule) -> None:
@@ -375,30 +326,6 @@ def store_model_parameters(writer: tensorboardX.SummaryWriter,
         writer.add_histogram(name, param_numpy, epoch)
 
 
-def log_segmentation_epoch_metrics(logging_fn: Callable[[str, float], None],
-                                   metrics: MetricsDict) -> None:
-    """
-    Logs segmentation metrics (e.g. loss, dice scores, learning rates) to an event file for TensorBoard
-    visualization and to the AzureML run context
-    :param metrics: The metrics of the specified epoch, averaged along its batches.
-    """
-    logging_fn(MetricType.LOSS.value, metrics.get_single_metric(MetricType.LOSS))
-    logging_fn("Dice/AverageExceptBackground", metrics.get_single_metric(MetricType.DICE))
-    logging_fn("Voxels/ProportionForeground", metrics.get_single_metric(MetricType.PROPORTION_FOREGROUND_VOXELS))
-    logging_fn("TimePerEpoch_Seconds", metrics.get_single_metric(MetricType.SECONDS_PER_EPOCH))
-    logging_fn("LearningRate", metrics.get_single_metric(MetricType.LEARNING_RATE))
-
-    for class_name in metrics.get_hue_names(include_default=False):
-        # Tensorboard groups metrics by what is before the slash.
-        # With metrics Dice/Foo and Dice/Bar, it will create a section for "Dice",
-        # and inside of it, there are graphs for Foo and Bar
-        get_label = lambda x: f"{x}/{class_name}"
-        logging_fn(get_label("Dice"),
-                   metrics.get_single_metric(MetricType.DICE, hue=class_name))
-        logging_fn(get_label("Voxels"),
-                   metrics.get_single_metric(MetricType.PROPORTION_FOREGROUND_VOXELS, hue=class_name))
-
-
 def log_classification_epoch_metrics(logging_fn: Callable[[str, float], None],
                                      metrics: MetricsDict) -> None:
     """
@@ -410,46 +337,47 @@ def log_classification_epoch_metrics(logging_fn: Callable[[str, float], None],
         logging_fn(get_metric_name_with_hue_prefix(label, hue_name), metric)
 
 
-def store_epoch_metrics(azure_and_tensorboard_logger: AzureAndTensorboardLogger,
-                        df_logger: DataframeLogger,
-                        epoch: int,
-                        metrics: MetricsDict,
-                        config: ModelConfigBase) -> None:
+def nanmean(values: Iterable[float]) -> float:
+    valid = [v for v in values if not math.isnan(v)]
+    if len(valid) == 0:
+        # This should only handle the case when all entries in a minibatch have no Dice score.
+        return 0.0
+    return sum(valid) / len(valid)
+
+
+def add_average_dice(metrics: DictStrFloat) -> DictStrFloat:
     """
-    Writes the loss, Dice scores, and learning rates into a file for Tensorboard visualization,
-    and into the AzureML run context.
-    :param azure_and_tensorboard_logger: An instance of AzureAndTensorboardLogger.
-    :param df_logger: An instance of DataframeLogger, for logging results to csv.
+    Takes a dictionary containing metrics, searches for all metrics that have the "Dice/" prefix,
+    and adds their average value as a new metric called "dice". If the argument already contains "dice",
+    the result is equal to the argument.
+    :param metrics: Dictionary with metrics, key is the metric name, value is the value of the metric.
+    :return: A new metrics dictionary with a metric "dice" that is the average Dice score.
+    """
+    result = {}
+    if LoggingColumns.Dice.value not in metrics:
+        dice_dict = {name: value for name, value in metrics.items() if name.startswith(MetricType.DICE.value)}
+        result[LoggingColumns.Dice.value] = nanmean(dice_dict.values())
+    result.update(**metrics)
+    return result
+
+
+def store_epoch_metrics(metrics: DictStrFloat,
+                        epoch: int,
+                        file_logger: DataframeLogger,
+                        cross_validation_split_index: int) -> None:
+    """
+    Writes all metrics into a CSV file, with additional columns for epoch and cross validation split.
+    :param file_logger: An instance of DataframeLogger, for logging results to csv.
     :param epoch: The epoch corresponding to the results.
     :param metrics: The metrics of the specified epoch, averaged along its batches.
-    :param config: one of SegmentationModelBase
+    :param cross_validation_split_index: The current split if running inside cross validation.
     """
-    if config.is_segmentation_model:
-        log_segmentation_epoch_metrics(logging_fn=azure_and_tensorboard_logger.log_to_azure_and_tensorboard,
-                                       metrics=metrics)
-        logger_row = {
-            LoggingColumns.Dice.value: metrics.get_single_metric(MetricType.DICE),
-            LoggingColumns.Loss.value: metrics.get_single_metric(MetricType.LOSS),
-            LoggingColumns.SecondsPerEpoch.value: metrics.get_single_metric(MetricType.SECONDS_PER_EPOCH)
-        }
-
-    elif config.is_scalar_model:
-        assert isinstance(metrics, MetricsDict)
-        log_classification_epoch_metrics(logging_fn=azure_and_tensorboard_logger.log_to_azure_and_tensorboard,
-                                         metrics=metrics)
-        logger_row: Dict[str, float] = {}  # type: ignore
-        for hue_name, metric_name, metric_value in metrics.enumerate_single_values():
-            logging_column_name = get_column_name_for_logging(metric_name, hue_name=hue_name)
-            logger_row[logging_column_name] = metric_value
-    else:
-        raise ValueError("Model must be either classification, regression or segmentation model")
-
-    logger_row.update({
-        LoggingColumns.Epoch.value: epoch,
-        LoggingColumns.CrossValidationSplitIndex.value: config.cross_validation_split_index
-    })
-
-    df_logger.add_record(logger_row)
+    logger_row = {}
+    logger_row.update(**metrics)
+    logger_row[LoggingColumns.Epoch.value] = epoch
+    logger_row[LoggingColumns.CrossValidationSplitIndex.value] = cross_validation_split_index
+    file_logger.add_record(logger_row)
+    file_logger.flush()
 
 
 def compute_scalar_metrics(metrics_dict: ScalarMetricsDict,
@@ -489,17 +417,17 @@ def compute_scalar_metrics(metrics_dict: ScalarMetricsDict,
                 masked_model_outputs_and_labels.model_outputs.data, \
                 masked_model_outputs_and_labels.labels.data, \
                 masked_model_outputs_and_labels.subject_ids
-
+            # Convert labels to the same datatype as the model outputs, necessary when running with AMP
+            _labels = _labels.to(dtype=_model_output.dtype)
             if loss_type == ScalarLoss.MeanSquaredError:
                 metrics = {
-                    MetricType.MEAN_SQUARED_ERROR: F.mse_loss(_model_output, _labels.float(), reduction='mean').item(),
+                    MetricType.MEAN_SQUARED_ERROR: F.mse_loss(_model_output, _labels, reduction='mean').item(),
                     MetricType.MEAN_ABSOLUTE_ERROR: mean_absolute_error(_model_output, _labels),
                     MetricType.R2_SCORE: r2_score(_model_output, _labels)
                 }
             else:
                 metrics = {
-                    MetricType.CROSS_ENTROPY: F.binary_cross_entropy(_model_output, _labels.float(),
-                                                                     reduction='mean').item(),
+                    MetricType.CROSS_ENTROPY: F.binary_cross_entropy(_model_output, _labels, reduction='mean').item(),
                     MetricType.ACCURACY_AT_THRESHOLD_05: binary_classification_accuracy(_model_output, _labels)
                 }
             for key, value in metrics.items():

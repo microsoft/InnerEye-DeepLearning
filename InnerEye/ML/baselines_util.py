@@ -18,7 +18,7 @@ from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestCon
 from InnerEye.Common.common_util import BASELINE_WILCOXON_RESULTS_FILE, ENSEMBLE_SPLIT_NAME, \
     EPOCH_FOLDER_NAME_PATTERN, \
     FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_FILE_NAME, \
+    SUBJECT_METRICS_FILE_NAME, \
     ModelProcessing, OTHER_RUNS_SUBDIR_NAME, remove_file_or_directory
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
@@ -68,7 +68,7 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
         return
     # Use the last (highest-numbered) epoch path for the current run.
     model_epoch_path = model_epoch_paths[-1]
-    model_metrics_path = model_epoch_path / ModelExecutionMode.TEST.value / METRICS_FILE_NAME
+    model_metrics_path = model_epoch_path / ModelExecutionMode.TEST.value / SUBJECT_METRICS_FILE_NAME
     model_dataset_path = model_epoch_path / ModelExecutionMode.TEST.value / DATASET_CSV_FILE_NAME
     if not model_dataset_path.exists():
         logging.warning(f"Not comparing with baselines because no {model_dataset_path} file found for this run")
@@ -184,9 +184,9 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
         # Look for epoch_NNN/Test/metrics.csv
         try:
             comparison_metrics_path = download_outputs_from_run(
-                blob_path / METRICS_FILE_NAME, destination_folder, run, True)
+                blob_path / SUBJECT_METRICS_FILE_NAME, destination_folder, run, True)
         except ValueError:
-            logging.warning(f"cannot find {METRICS_FILE_NAME} at {blob_path} in {run_rec_id}")
+            logging.warning(f"cannot find {SUBJECT_METRICS_FILE_NAME} at {blob_path} in {run_rec_id}")
         # If both dataset.csv and metrics.csv were downloaded successfully, read their contents and
         # add a tuple to the comparison data.
         if comparison_dataset_path is not None and comparison_metrics_path is not None and \

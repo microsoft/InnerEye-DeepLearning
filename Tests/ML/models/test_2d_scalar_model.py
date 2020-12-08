@@ -4,11 +4,10 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
-import pytest
-
-from typing import List
-from more_itertools import flatten
 from pathlib import Path
+from typing import List
+
+import pytest
 
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict
@@ -16,7 +15,6 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, model_training
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.metrics import InferenceMetricsForClassification
-
 from Tests.ML.configs.ClassificationModelForTesting2D import ClassificationModelForTesting2D
 from Tests.ML.util import get_default_checkpoint_handler
 
@@ -54,8 +52,8 @@ def test_train_2d_classification_model(test_output_dirs: OutputFolderForTests,
     def extract_loss(results: List[MetricsDict]) -> List[float]:
         return [d.values()[MetricType.LOSS.value][0] for d in results]
 
-    actual_train_loss = extract_loss(model_training_result.train_results_per_epoch)
-    actual_val_loss = extract_loss(model_training_result.val_results_per_epoch)
+    actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS)
+    actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS)
     actual_learning_rates = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE)
 
     assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6)

@@ -19,6 +19,7 @@ from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
@@ -30,32 +31,6 @@ from InnerEye.ML.utils.ml_util import set_random_seed
 from InnerEye.ML.utils.model_util import ModelAndInfo
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
-
-
-def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, str]) -> Tuple[int, List[str]]:
-    """
-    Helper function to spawn and monitor subprocesses.
-    :param process: The name or path of the process to spawn.
-    :param args: The args to the process.
-    :param env: The environment variables for the process (default is the environment variables of the parent).
-    :return: Return code after the process has finished, and the list of lines that were written to stdout by the
-    subprocess.
-    """
-    p = subprocess.Popen(
-        [process] + args,
-        shell=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        env=env
-    )
-
-    # Read and print all the lines that are printed by the subprocess
-    stdout_lines = [line.decode('UTF-8').strip() for line in p.stdout]  # type: ignore
-    for line in stdout_lines:
-        print(line)
-
-    # return the subprocess error code to the calling job so that it is reported to AzureML
-    return p.wait(), stdout_lines
 
 
 class SubprocessConfig(GenericConfig):

@@ -12,15 +12,14 @@ import pandas as pd
 import pytest
 from sklearn.metrics import roc_auc_score, roc_curve
 
-from InnerEye.Common.metrics_dict import Hue, MetricType, MetricsDict, PredictionEntry, ScalarMetricsDict, \
-    SequenceMetricsDict, average_metric_values
+from InnerEye.Common.metrics_dict import DataframeLogger, Hue, MetricType, MetricsDict, PredictionEntry, \
+    ScalarMetricsDict, SequenceMetricsDict, average_metric_values
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
 from InnerEye.ML.utils.io_util import tabulate_dataframe
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.metrics_util import DataframeLogger
 
 
 def test_average_metric_values() -> None:

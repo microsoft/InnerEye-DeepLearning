@@ -134,7 +134,6 @@ def test_compute_dice_across_patches() -> None:
     prediction_argmax[0, 1, 0, 0] = 1
     dice = metrics.compute_dice_across_patches(prediction_argmax,
                                                ground_truth,
-                                               use_cuda=False,
                                                allow_multiple_classes_for_each_pixel=True).cpu().numpy()
 
     expected_dice_patch0 = np.array([2 * 3 / (4 + 3), 2 * 1 / (4 + 1), 0])

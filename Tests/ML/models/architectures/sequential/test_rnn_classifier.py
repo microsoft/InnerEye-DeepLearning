@@ -12,14 +12,13 @@ import pytest
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import METRICS_FILE_NAME, ModelExecutionMode, logging_to_stdout
+from InnerEye.Common.common_util import ModelExecutionMode, SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, SequenceMetricsDict
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoder, ImagingFeatureType
 from InnerEye.ML.models.architectures.sequential.rnn_classifier import RNNClassifier, RNNClassifierWithEncoder
 from InnerEye.ML.run_ml import MLRunner
@@ -31,10 +30,11 @@ from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentat
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.io_util import ImageAndSegmentations
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
+from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling, \
+    get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
-from Tests.ML.util import get_default_checkpoint_handler, get_default_azure_config
+from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 SCAN_SIZE = (6, 64, 60)
@@ -206,6 +206,8 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
                               use_encoder_layer_norm=use_encoder_layer_norm,
                               use_mean_teacher_model=use_mean_teacher_model,
                               should_validate=False)
+    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+    config.max_num_gpus = 1
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     # Patch the load_images function that will be called once we access a dataset item
@@ -280,7 +282,9 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         batch = next(iter(dataloader))
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(config, model, batch)  # type: ignore
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(model,
+                                                                     target_indices=config.get_target_indices(),
+                                                                     sample=batch)  # type: ignore
     number_sequences = model_inputs_and_labels.model_inputs[0].shape[1]
     number_subjects = len(model_inputs_and_labels.subject_ids)
     visualizer = VisualizationMaps(model, config)
@@ -377,6 +381,8 @@ def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> 
     logging_to_stdout()
     config = ToySequenceModel2(should_validate=False)
     config.num_epochs = 2
+    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+    config.max_num_gpus = 1
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset(dataset_contents)
     results = model_train(config, get_default_checkpoint_handler(model_config=config,
@@ -458,7 +464,7 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: OutputFolderFo
     MLRunner(config, azure_config).run()
     # The metrics file should have one entry per epoch per subject per prediction target,
     # for all the 3 prediction targets.
-    metrics_file = config.outputs_folder / "Train" / METRICS_FILE_NAME
+    metrics_file = config.outputs_folder / "Train" / SUBJECT_METRICS_FILE_NAME
     assert metrics_file.exists()
     metrics = pd.read_csv(metrics_file)
     assert LoggingColumns.Patient.value in metrics
@@ -513,7 +519,9 @@ def test_visualization_for_different_target_weeks(test_output_dirs: OutputFolder
                                  data_frame=config.dataset_data_frame).as_data_loader(shuffle=False,
                                                                                       batch_size=2)
     batch = next(iter(dataloader))
-    model_inputs_and_labels = get_scalar_model_inputs_and_labels(config, model, batch)  # type: ignore
+    model_inputs_and_labels = get_scalar_model_inputs_and_labels(model,
+                                                                 target_indices=config.get_target_indices(),
+                                                                 sample=batch)
 
     visualizer = VisualizationMaps(model, config)
     # Pseudo-grad cam explaining the prediction at target sequence 2

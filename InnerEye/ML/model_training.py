@@ -3,19 +3,24 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-from typing import Tuple, TypeVar, Union
+import os
+import sys
+from typing import Tuple, TypeVar
 
-from pytorch_lightning import LightningModule, Trainer
+import torch
+from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers.mlflow import MLFlowLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import logging_section
+from InnerEye.Common.metrics_dict import MetricType
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_models import InnerEyeLightning, TrainingAndValidationDataLightning, create_lightning_model
+from InnerEye.ML.lightning_models import StoringLogger, TRAIN_PREFIX, TrainingAndValidationDataLightning, \
+    VALIDATION_PREFIX, create_lightning_model
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.model_training_steps import ModelTrainingStepsForSequenceModel
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary
@@ -28,6 +33,17 @@ MAX_LOAD_TIME_WARNINGS = 3
 T = TypeVar('T')
 
 
+def is_rank_zero() -> bool:
+    """
+    Tries to guess if the current process is running as DDP rank zero, before the training has actually started,
+    by looking at environment variables.
+    :return: True if the current process is global_rank 0.
+    """
+    global_rank = os.getenv('GLOBAL_RANK')
+    local_rank = os.getenv('LOCAL_RANK')
+    return global_rank is None and local_rank is None
+
+
 def model_train(config: ModelConfigBase,
                 checkpoint_handler: CheckpointHandler) -> ModelTrainingResults:
     """
@@ -37,66 +53,12 @@ def model_train(config: ModelConfigBase,
     :param config: The arguments which specify all required information.
     :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     """
-    # Save the dataset files for later use in cross validation analysis
-    config.write_dataset_files()
-
-    # set the random seed for all libraries
-    ml_util.set_random_seed(config.get_effective_random_seed(), "Patch visualization")
-    # Visualize how patches are sampled for segmentation models. This changes the random generator, but we don't
-    # want training to depend on how many patients we visualized, and hence set the random seed again right after.
-    with logging_section("Visualizing the effect of sampling random crops for training"):
-        visualize_random_crops_for_dataset(config)
-    ml_util.set_random_seed(config.get_effective_random_seed(), "Model training")
-
-    logging.debug("Creating the PyTorch model.")
-    lightning_model = create_lightning_model(config)
-
-    # Print out a detailed breakdown of layers, memory consumption and time.
-    assert isinstance(lightning_model, InnerEyeLightning)
-    generate_and_print_model_summary(config, lightning_model.model)
-
-    logging.info(f"Model checkpoints are saved at {config.checkpoint_folder}")
-    config.create_loggers_for_training()
-
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
 
-    # models_and_optimizer = ModelAndInfo(config=config,
-    #                                     model_execution_mode=ModelExecutionMode.TRAIN,
-    #                                     checkpoint_path=checkpoint_path)
-    #
-    # # Create the main model
-    # # If continuing from a previous run at a specific epoch, then load the previous model.
-    # model_loaded = models_and_optimizer.try_create_model_and_load_from_checkpoint()
-    # if not model_loaded:
-    #     raise ValueError("There was no checkpoint file available for the model for given start_epoch {}"
-    #                      .format(config.start_epoch))
-
-    # # Create the mean teacher model and move to GPU
-    # if config.compute_mean_teacher_model:
-    #     mean_teacher_model_loaded =
-    #     models_and_optimizer.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
-    #     if not mean_teacher_model_loaded:
-    #         raise ValueError("There was no checkpoint file available for the mean teacher model "
-    #                          f"for given start_epoch {config.start_epoch}")
-
-    # Training loop
-    logging.info("Starting training")
-
-    resource_monitor = None
-    if config.monitoring_interval_seconds > 0:
-        # initialize and start GPU monitoring
-        diagnostics_events = config.logs_folder / "diagnostics"
-        logging.info(f"Starting resource monitor, outputting to {diagnostics_events}")
-        resource_monitor = ResourceMonitor(interval_seconds=config.monitoring_interval_seconds,
-                                           tensorboard_folder=diagnostics_events)
-        resource_monitor.start()
-
-    optimal_temperature_scale_values = []
-
     last_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
                                                filename='best_val_loss_checkpoint',
-                                               monitor='val_loss',
+                                               monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
                                                save_last=True)
 
     recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
@@ -105,27 +67,106 @@ def model_train(config: ModelConfigBase,
                                                    period=config.save_step_epochs
                                                    )
 
+    num_gpus = torch.cuda.device_count() if config.use_gpu else 0
+    logging.info(f"Number of available GPUs: {num_gpus}")
+    if config.max_num_gpus >= 0 and config.max_num_gpus < num_gpus:
+        num_gpus = config.max_num_gpus
+        logging.info(f"Restricting the number of GPUs to {num_gpus}")
+    # Alternative: use 'ddp_spawn'. However, when running inside AzureML, hits an issue with pickling a SimpleQueue
+    # object (it works fine on a GPU VM)
+    accelerator = "ddp" if num_gpus > 1 else None
+    logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
+    storing_logger = StoringLogger()
+    loggers = [storing_logger,
+               TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")]
+    if not is_offline_run_context(RUN_CONTEXT):
+        mlflow_logger = MLFlowLogger(experiment_name=RUN_CONTEXT.experiment.name,
+                                     tracking_uri=RUN_CONTEXT.experiment.workspace.get_mlflow_tracking_uri())
+        # The MLFlow logger needs to get its ID from the AzureML run context, otherwise there will be two sets of
+        # results for each run, one from native AzureML and one from the MLFlow logger.
+        mlflow_logger._run_id = RUN_CONTEXT.id
+        loggers.append(mlflow_logger)
+
+    # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
+    # those environment variables will mislead the training runs in the test suite, and make them crash.
+    # Hence, restore the original environment after training.
+    old_environ = dict(os.environ)
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
+                      accelerator=accelerator,
                       max_epochs=config.num_epochs,
                       num_sanity_val_steps=0,  # Otherwise a small number of validation steps is run before first train
-                      logger=TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version=""),
                       callbacks=[last_checkpoint_callback, recovery_checkpoint_callback],
+                      logger=loggers,
                       progress_bar_refresh_rate=0,  # Disable the progress bar,
                       # TODO antonsc: review. Some tests fail without this option
-                      gpus=0,
+                      gpus=num_gpus,
                       terminate_on_nan=config.detect_anomaly,
                       resume_from_checkpoint=str(checkpoint_path) if checkpoint_path else None
                       )
+
+    logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
+                 f"trainer.global_rank: {trainer.global_rank}")
+    ml_util.set_random_seed(config.get_effective_random_seed(), "Model training")
+    logging.debug("Creating the PyTorch model.")
+    lightning_model = create_lightning_model(config)
+    lightning_model.storing_logger = storing_logger
+
+    resource_monitor = None
+    # Execute some bookkeeping tasks only once if running distributed:
+    if is_rank_zero():
+        config.write_args_file()
+        logging.info(str(config))
+        # Save the dataset files for later use in cross validation analysis
+        config.write_dataset_files()
+        logging.info(f"Model checkpoints are saved at {config.checkpoint_folder}")
+
+        # set the random seed for all libraries
+        ml_util.set_random_seed(config.get_effective_random_seed(), "Patch visualization")
+        # Visualize how patches are sampled for segmentation models. This changes the random generator, but we don't
+        # want training to depend on how many patients we visualized, and hence set the random seed again right after.
+        with logging_section("Visualizing the effect of sampling random crops for training"):
+            visualize_random_crops_for_dataset(config)
+
+        # Print out a detailed breakdown of layers, memory consumption and time.
+        generate_and_print_model_summary(config, lightning_model.model)
+
+        if config.monitoring_interval_seconds > 0:
+            # initialize and start GPU monitoring
+            diagnostics_events = config.logs_folder / "diagnostics"
+            logging.info(f"Starting resource monitor, outputting to {diagnostics_events}")
+            resource_monitor = ResourceMonitor(interval_seconds=config.monitoring_interval_seconds,
+                                               tensorboard_folder=diagnostics_events)
+            resource_monitor.start()
+
+    # TODO antonsc: Enable initializing the trainer from a checkpoint
+    checkpoint_path = checkpoint_handler.get_recovery_path_train()
+
+    # Training loop
+    logging.info("Starting training")
+
     lightning_data = TrainingAndValidationDataLightning(config)
     # TODO: Why can't we do that in the constructor?
     lightning_data.config = config
     trainer.fit(lightning_model,
                 datamodule=lightning_data,
                 )
+    # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
+    # We can now use the global_rank of the Lightining model, rather than environment variables, because DDP has set
+    # all necessary properties.
+    if lightning_model.global_rank != 0:
+        logging.info(f"Terminating training thread with rank {lightning_model.global_rank}.")
+        sys.exit()
+
+    # Restore the environment to what it was before training.
+    os.environ.clear()
+    os.environ.update(old_environ)
+
     model_training_results = ModelTrainingResults(
-        train_results_per_epoch=lightning_model.training_metrics_per_epoch,
-        val_results_per_epoch=lightning_model.validation_metrics_per_epoch,
-        optimal_temperature_scale_values_per_checkpoint_epoch=optimal_temperature_scale_values
+        train_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values()),
+        val_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=VALIDATION_PREFIX).values()),
+        train_diagnostics=lightning_model.train_diagnostics,
+        val_diagnostics=lightning_model.val_diagnostics,
+        optimal_temperature_scale_values_per_checkpoint_epoch=[]
     )
 
     logging.info("Finished training")
@@ -139,7 +180,7 @@ def model_train(config: ModelConfigBase,
     if config.max_batch_grad_cam > 0 and config.visualization_folder.exists():
         RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(config.visualization_folder))
 
-    config.close_all_loggers()
+    lightning_model.close_all_loggers()
     if resource_monitor:
         # stop the resource monitoring process
         logging.info("Shutting down the resource monitor process. Aggregate resource utilization:")
@@ -166,7 +207,6 @@ def temperature_scaling_steps(val_results_for_epoch: ModelOutputsAndMetricsForEp
     """
     # re-create the training steps for the repeat pass, but with metrics saving enabled
     training_steps = None  # create_model_training_steps(config, train_val_params)
-    assert isinstance(training_steps, ModelTrainingStepsForSequenceModel)
     # make sure results for a validation epoch have been passed in
     assert val_results_for_epoch.is_train is False
     # perform temperature scaling

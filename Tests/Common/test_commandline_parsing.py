@@ -34,7 +34,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
 
     args_list = [f"--model={model_name}", "--train=True", "--l_rate=100.0",
                  "--norm_method=Simple Norm", "--subscription_id", "Test1", "--tenant_id=Test2",
-                 "--application_id", "Test3", "--datasets_storage_account=Test4", "--datasets_container", "Test5",
+                 "--application_id", "Test3", "--datasets_container", "Test5",
                  "--pytest_mark", "gpu", f"--output_to={outputs_folder}"]
     if not is_default_namespace:
         args_list.append(f"--model_configs_namespace={model_configs_namespace}")
@@ -45,7 +45,6 @@ def test_create_ml_runner_args(is_default_namespace: bool,
             runner.parse_and_load_model()
             azure_config = runner.azure_config
             model_config = runner.model_config
-    assert azure_config.datasets_storage_account == "Test4"
     assert azure_config.model == model_name
     assert model_config.l_rate == 100.0
     assert model_config.norm_method == PhotometricNormalizationMethod.SimpleNorm
@@ -60,7 +59,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
         assert model_config.outputs_folder == (project_root / DEFAULT_AML_UPLOAD_DIR)
         assert model_config.logs_folder == (project_root / DEFAULT_LOGS_DIR_NAME)
 
-    assert not hasattr(model_config, "datasets_storage_account")
+    assert not hasattr(model_config, "datasets_container")
     assert azure_config.pytest_mark == "gpu"
 
 
@@ -126,7 +125,6 @@ def test_parsing_with_custom_yaml(test_output_dirs: OutputFolderForTests) -> Non
     yaml_file = test_output_dirs.root_dir / "custom.yml"
     yaml_file.write_text("""variables:
   tenant_id: 'foo'
-  datasets_storage_account: 'account'
   start_epoch: 7
   random_seed: 1
 """)
@@ -143,7 +141,6 @@ def test_parsing_with_custom_yaml(test_output_dirs: OutputFolderForTests) -> Non
     assert loader_result is not None
     assert runner.azure_config is not None
     # This is only present in yaml
-    assert runner.azure_config.datasets_storage_account == "account"
     # This is present in yaml and command line, and the latter should be used.
     assert runner.azure_config.tenant_id == "bar"
     # Settings in model config: start_epoch is only in yaml
