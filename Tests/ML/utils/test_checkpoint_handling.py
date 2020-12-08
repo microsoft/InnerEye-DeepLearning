@@ -19,15 +19,13 @@ from InnerEye.ML.common import create_checkpoint_path
 
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_checkpoint_handler
-from Tests.Common.test_util import DEFAULT_RUN_RECOVERY_ID, DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
-
+from Tests.AfterTraining.test_after_training import get_most_recent_run
 
 EXTERNAL_WEIGHTS_URL_EXAMPLE = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
 
 
-@pytest.mark.after_training
-def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: OutputFolderForTests) -> None:
+def test_discover_and_download_checkpoints_from_previous_runs_(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
@@ -39,33 +37,6 @@ def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: 
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
     assert not checkpoint_handler.run_recovery
     assert not checkpoint_handler.local_weights_path
-
-    # Set a run recovery object - non ensemble
-    checkpoint_handler.azure_config.run_recovery_id = DEFAULT_RUN_RECOVERY_ID
-    checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
-
-    expected_checkpoint_root = config.checkpoint_folder / DEFAULT_RUN_RECOVERY_ID.split(":")[1]
-    expected_paths = [create_checkpoint_path(path=expected_checkpoint_root,
-                                             epoch=epoch) for epoch in [1, 2, 3, 4, 20]]
-    assert checkpoint_handler.run_recovery
-    assert checkpoint_handler.run_recovery.checkpoints_roots == [expected_checkpoint_root]
-    for path in expected_paths:
-        assert path.is_file()
-
-    '''
-    # Set a run recovery object - ensemble
-    checkpoint_handler.azure_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
-    checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
-
-    expected_checkpoint_roots = [config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / str(i) for i in range(3)]
-    expected_path_lists = [[create_checkpoint_path(path=expected_checkpoint_root,
-                                              epoch=epoch) for epoch in [1, 2]]
-                      for expected_checkpoint_root in expected_checkpoint_roots]
-    assert set(checkpoint_handler.run_recovery.checkpoints_roots) == set(expected_checkpoint_roots)
-    for path_list in expected_path_lists:
-        for path in path_list:
-            assert path.is_file()
-    '''
 
     # weights from local_weights_path and weights_url will be modified if needed and stored at this location
     expected_path = checkpoint_handler.model_config.outputs_folder / WEIGHTS_FILE
@@ -87,6 +58,57 @@ def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: 
     assert checkpoint_handler.local_weights_path == expected_path
 
 
+@pytest.mark.after_training_single_run
+def test_discover_and_download_checkpoints_from_previous_runs_single_run(test_output_dirs: OutputFolderForTests) -> None:
+    config = ModelConfigBase(should_validate=False)
+    config.set_output_to(test_output_dirs.root_dir)
+    config.outputs_folder.mkdir()
+
+    # No checkpoint handling options set.
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
+
+    run_recovery_id = get_most_recent_run()
+
+    # Set a run recovery object - non ensemble
+    checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
+    checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
+
+    expected_checkpoint_root = config.checkpoint_folder / run_recovery_id.split(":")[1]
+    expected_paths = [create_checkpoint_path(path=expected_checkpoint_root,
+                                             epoch=epoch) for epoch in [1, 2]]
+    assert checkpoint_handler.run_recovery
+    assert checkpoint_handler.run_recovery.checkpoints_roots == [expected_checkpoint_root]
+    for path in expected_paths:
+        assert path.is_file()
+
+
+@pytest.mark.after_training_ensemble_run
+def test_discover_and_download_checkpoints_from_previous_runs_ensemble_run(test_output_dirs: OutputFolderForTests) -> None:
+    config = ModelConfigBase(should_validate=False)
+    config.set_output_to(test_output_dirs.root_dir)
+    config.outputs_folder.mkdir()
+
+    # No checkpoint handling options set.
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
+
+    run_recovery_id = get_most_recent_run()
+
+    # Set a run recovery object - ensemble
+    checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
+    checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
+
+    expected_checkpoint_roots = [config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / str(i) for i in range(2)]
+    expected_path_lists = [[create_checkpoint_path(path=expected_checkpoint_root,
+                                                   epoch=epoch) for epoch in [1, 2]]
+                                                   for expected_checkpoint_root in expected_checkpoint_roots]
+    assert set(checkpoint_handler.run_recovery.checkpoints_roots) == set(expected_checkpoint_roots)
+    for path_list in expected_path_lists:
+        for path in path_list:
+            assert path.is_file()
+
+
 def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
@@ -95,27 +117,6 @@ def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None
                                                         project_root=test_output_dirs.root_dir)
 
     assert checkpoint_handler.get_recovery_path_train() is None
-
-    checkpoint_handler.azure_config.run_recovery_id = DEFAULT_RUN_RECOVERY_ID
-    checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
-
-    # We have not set a start_epoch but we are trying to use run_recovery, this should fail
-    with pytest.raises(ValueError) as ex:
-        checkpoint_handler.get_recovery_path_train()
-        assert "Run recovery set, but start epoch is 0" in ex.value.args[0]
-
-    # Run recovery with start epoch provided should succeed
-    config.start_epoch = 20
-    expected_path = create_checkpoint_path(path=config.checkpoint_folder / DEFAULT_RUN_RECOVERY_ID.split(":")[1],
-                                           epoch=config.start_epoch)
-    assert checkpoint_handler.get_recovery_path_train() == expected_path
-
-    # set an ensemble run as recovery - not supported
-    checkpoint_handler.azure_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
-    checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
-    with pytest.raises(ValueError) as ex:
-        checkpoint_handler.get_recovery_path_train()
-        assert "Found more than one checkpoint for epoch" in ex.value.args[0]
 
     # weights from local_weights_path and weights_url will be modified if needed and stored at this location
     expected_path = checkpoint_handler.model_config.outputs_folder / WEIGHTS_FILE
@@ -150,7 +151,59 @@ def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None
         assert ex.value.args == "Start epoch is > 0, but no run recovery object has been provided to resume training."
 
 
-def test_get_checkpoint_from_epoch(test_output_dirs: OutputFolderForTests) -> None:
+@pytest.mark.after_training_single_run
+def test_get_recovery_path_train_single_run(test_output_dirs: OutputFolderForTests) -> None:
+    config = ModelConfigBase(should_validate=False)
+    config.set_output_to(test_output_dirs.root_dir)
+    config.outputs_folder.mkdir()
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
+
+    run_recovery_id = get_most_recent_run()
+
+    checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
+    checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
+
+    # We have not set a start_epoch but we are trying to use run_recovery, this should fail
+    with pytest.raises(ValueError) as ex:
+        checkpoint_handler.get_recovery_path_train()
+        assert "Run recovery set, but start epoch is 0" in ex.value.args[0]
+
+    # Run recovery with start epoch provided should succeed
+    config.start_epoch = 20
+    expected_path = create_checkpoint_path(path=config.checkpoint_folder / run_recovery_id.split(":")[1],
+                                           epoch=config.start_epoch)
+    assert checkpoint_handler.get_recovery_path_train() == expected_path
+
+
+@pytest.mark.after_training_ensemble_run
+def test_get_recovery_path_train_ensemble_run(test_output_dirs: OutputFolderForTests) -> None:
+    config = ModelConfigBase(should_validate=False)
+    config.set_output_to(test_output_dirs.root_dir)
+    config.outputs_folder.mkdir()
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
+
+    run_recovery_id = get_most_recent_run()
+
+    checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
+    checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
+
+    # We have not set a start_epoch but we are trying to use run_recovery, this should fail
+    with pytest.raises(ValueError) as ex:
+        checkpoint_handler.get_recovery_path_train()
+        assert "Run recovery set, but start epoch is 0" in ex.value.args[0]
+
+    # set an ensemble run as recovery - not supported
+    checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
+    checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
+    with pytest.raises(ValueError) as ex:
+        checkpoint_handler.get_recovery_path_train()
+        assert "Found more than one checkpoint for epoch" in ex.value.args[0]
+
+
+@pytest.mark.after_training_single_run
+def test_get_checkpoint_from_epoch_single_run(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
@@ -162,34 +215,24 @@ def test_get_checkpoint_from_epoch(test_output_dirs: OutputFolderForTests) -> No
         manage_recovery.get_checkpoint_from_epoch(1)
         assert "no run recovery object provided and no training has been done in this run" in ex.value.args[0]
 
+    run_recovery_id = get_most_recent_run()
+
     # We have set a run_recovery_id now, so this should work
-    manage_recovery.azure_config.run_recovery_id = DEFAULT_RUN_RECOVERY_ID
+    manage_recovery.azure_config.run_recovery_id = run_recovery_id
     manage_recovery.discover_and_download_checkpoints_from_previous_runs()
     expected_checkpoint = create_checkpoint_path(path=config.checkpoint_folder
-                                                      / DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)
+                                                      / run_recovery_id.split(":")[1], epoch=1)
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
     assert checkpoint
     assert len(checkpoint.checkpoint_paths) == 1
     assert expected_checkpoint == checkpoint.checkpoint_paths[0]
     assert checkpoint.epoch == 1
 
-    # ensemble run recovery
-    manage_recovery.azure_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
-    manage_recovery.discover_and_download_checkpoints_from_previous_runs()
-    expected_checkpoints = [create_checkpoint_path(path=config.checkpoint_folder
-                                                       / OTHER_RUNS_SUBDIR_NAME / str(i), epoch=1)
-                            for i in range(3)]
-    checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
-    assert checkpoint
-    assert len(checkpoint.checkpoint_paths) == 3
-    assert set(expected_checkpoints) == set(checkpoint.checkpoint_paths)
-    assert checkpoint.epoch == 1
-
     # From now on, the checkpoint handler will think that the run was started from epoch 1, i.e. we should use the
     # run recovery checkpoint for epoch 1 and the training run checkpoint for epoch 2
     manage_recovery.additional_training_done()
     # go back to non ensemble run recovery
-    manage_recovery.azure_config.run_recovery_id = DEFAULT_RUN_RECOVERY_ID
+    manage_recovery.azure_config.run_recovery_id = run_recovery_id
     manage_recovery.discover_and_download_checkpoints_from_previous_runs()
 
     config.start_epoch = 1
@@ -200,7 +243,7 @@ def test_get_checkpoint_from_epoch(test_output_dirs: OutputFolderForTests) -> No
     # Should work for epoch 1
     checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
     expected_checkpoint = create_checkpoint_path(path=config.checkpoint_folder
-                                                      / DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)
+                                                      / run_recovery_id.split(":")[1], epoch=1)
     assert checkpoint
     assert len(checkpoint.checkpoint_paths) == 1
     assert checkpoint.checkpoint_paths[0] == expected_checkpoint
@@ -217,6 +260,34 @@ def test_get_checkpoint_from_epoch(test_output_dirs: OutputFolderForTests) -> No
     assert len(checkpoint.checkpoint_paths) == 1
     assert expected_checkpoint == checkpoint.checkpoint_paths[0]
     assert checkpoint.epoch == 2
+
+
+@pytest.mark.after_training_ensemble_run
+def test_get_checkpoint_from_epoch_ensemble_run(test_output_dirs: OutputFolderForTests) -> None:
+    config = ModelConfigBase(should_validate=False)
+    config.set_output_to(test_output_dirs.root_dir)
+    config.outputs_folder.mkdir()
+    manage_recovery = get_default_checkpoint_handler(model_config=config,
+                                                     project_root=test_output_dirs.root_dir)
+
+    # We have not set a run_recovery, nor have we trained, so this should fail to get a checkpoint
+    with pytest.raises(ValueError) as ex:
+        manage_recovery.get_checkpoint_from_epoch(1)
+        assert "no run recovery object provided and no training has been done in this run" in ex.value.args[0]
+
+    run_recovery_id = get_most_recent_run()
+
+    # We have set a run_recovery_id now, so this should work
+    manage_recovery.azure_config.run_recovery_id = run_recovery_id
+    manage_recovery.discover_and_download_checkpoints_from_previous_runs()
+    expected_checkpoints = [create_checkpoint_path(path=config.checkpoint_folder
+                                                       / OTHER_RUNS_SUBDIR_NAME / str(i), epoch=1)
+                            for i in range(2)]
+    checkpoint = manage_recovery.get_checkpoint_from_epoch(1)
+    assert checkpoint
+    assert len(checkpoint.checkpoint_paths) == 2
+    assert set(expected_checkpoints) == set(checkpoint.checkpoint_paths)
+    assert checkpoint.epoch == 1
 
 
 def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None:
@@ -240,10 +311,50 @@ def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None
     assert checkpoint_and_paths[0].epoch == 0
     assert checkpoint_and_paths[0].checkpoint_paths == [manage_recovery.model_config.outputs_folder / WEIGHTS_FILE]
 
+    config.start_epoch = 1
+    config.epochs_to_test = [1, 2]
+    manage_recovery.additional_training_done()
+    config.checkpoint_folder.mkdir()
+
+    # Copy checkpoint to make it seem like training has happened
+    stored_checkpoint = create_checkpoint_path(path=full_ml_test_data_path("checkpoints"), epoch=1)
+    expected_checkpoint_epoch_1 = create_checkpoint_path(path=config.checkpoint_folder, epoch=1)
+    shutil.copyfile(str(stored_checkpoint), str(expected_checkpoint_epoch_1))
+    expected_checkpoint_epoch_2 = create_checkpoint_path(path=config.checkpoint_folder, epoch=2)
+    shutil.copyfile(str(stored_checkpoint), str(expected_checkpoint_epoch_2))
+
+    checkpoint_and_paths = manage_recovery.get_checkpoints_to_test()
+
+    assert checkpoint_and_paths
+    assert len(checkpoint_and_paths) == 2
+    assert checkpoint_and_paths[0].epoch == 1
+    assert checkpoint_and_paths[0].checkpoint_paths == [create_checkpoint_path(path=config.checkpoint_folder,
+                                                                               epoch=1)]
+    assert checkpoint_and_paths[1].epoch == 2
+    assert checkpoint_and_paths[1].checkpoint_paths == [create_checkpoint_path(path=config.checkpoint_folder,
+                                                                               epoch=2)]
+
+    # This epoch does not exist
+    config.epochs_to_test = [3]
+    checkpoint_and_paths = manage_recovery.get_checkpoints_to_test()
+    assert checkpoint_and_paths is None
+
+
+@pytest.mark.after_training_single_run
+def test_get_checkpoints_to_test_single_run(test_output_dirs: OutputFolderForTests) -> None:
+    config = ModelConfigBase(should_validate=False)
+    config.set_output_to(test_output_dirs.root_dir)
+    config.outputs_folder.mkdir()
+    manage_recovery = get_default_checkpoint_handler(model_config=config,
+                                                     project_root=test_output_dirs.root_dir)
+
+    run_recovery_id = get_most_recent_run()
+
     # Now set a run recovery object and set the start epoch to 1, so we get one epoch from
     # run recovery and one from the training checkpoints
-    manage_recovery.azure_config.run_recovery_id = DEFAULT_RUN_RECOVERY_ID
+    manage_recovery.azure_config.run_recovery_id = run_recovery_id
     config.start_epoch = 1
+    config.epochs_to_test = [1, 2]
     manage_recovery.additional_training_done()
     manage_recovery.discover_and_download_checkpoints_from_previous_runs()
     # Copy checkpoint to make it seem like training has happened
@@ -257,7 +368,7 @@ def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None
     assert len(checkpoint_and_paths) == 2
     assert checkpoint_and_paths[0].epoch == 1
     assert checkpoint_and_paths[0].checkpoint_paths == [create_checkpoint_path(path=config.checkpoint_folder
-                                                        / DEFAULT_RUN_RECOVERY_ID.split(":")[1], epoch=1)]
+                                                        / run_recovery_id.split(":")[1], epoch=1)]
     assert checkpoint_and_paths[1].epoch == 2
     assert checkpoint_and_paths[1].checkpoint_paths == [create_checkpoint_path(path=config.checkpoint_folder,
                                                                                epoch=2)]

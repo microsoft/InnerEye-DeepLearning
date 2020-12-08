@@ -6,7 +6,7 @@ steps:
   # The run ID of the training run is now available in most_recent_run.txt.
   - bash: |
       source activate AzureRunner
-      pytest ./Tests/AfterTraining -m "${{parameters.pytest_mark}}" --junitxml=junit/test-${{parameters.test_run_title}}.xml
+      pytest ./Tests -m "${{parameters.pytest_mark}}" --junitxml=junit/test-${{parameters.test_run_title}}.xml
     env:
       PYTHONPATH: $(Build.SourcesDirectory)
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)

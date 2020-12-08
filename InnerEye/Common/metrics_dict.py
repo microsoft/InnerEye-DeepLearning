@@ -41,7 +41,7 @@ def create_metrics_dict_for_scalar_models(is_classification_model: bool,
         return SequenceMetricsDict.create(is_classification_model=is_classification_model,
                                           sequence_target_positions=sequence_target_positions)
     else:
-        return ScalarMetricsDict(is_classification_model=is_classification_model)
+        return ScalarMetricsDict(is_classification_metrics=is_classification_model)
 
 
 def average_metric_values(values: List[float], skip_nan_when_averaging: bool) -> float:
