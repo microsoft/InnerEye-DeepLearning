@@ -121,6 +121,7 @@ class InnerEyeLightning(LightningModule):
         # Timers for monitoring data loading time
         self.epoch_start_time = 0
         self.item_start_time = 0
+        self.batch_start_time = 0
         self.num_load_time_warnings = 0
         self.num_load_time_exceeded = 0
         self.num_batches = 0
@@ -133,8 +134,8 @@ class InnerEyeLightning(LightningModule):
         # training loggers
         self.train_metrics_folder = self.outputs_folder / ModelExecutionMode.TRAIN.value
         self.val_metrics_folder = self.outputs_folder / ModelExecutionMode.VAL.value
-        self.train_epoch_metrics = DataframeLogger(self.train_metrics_folder / EPOCH_METRICS_FILE_NAME)
-        self.val_epoch_metrics = DataframeLogger(self.val_metrics_folder / EPOCH_METRICS_FILE_NAME)
+        self.train_epoch_metrics_logger = DataframeLogger(self.train_metrics_folder / EPOCH_METRICS_FILE_NAME)
+        self.val_epoch_metrics_logger = DataframeLogger(self.val_metrics_folder / EPOCH_METRICS_FILE_NAME)
         # Fields to store diagnostics for testing
         self.train_diagnostics = []
         self.val_diagnostics = []
@@ -170,8 +171,8 @@ class InnerEyeLightning(LightningModule):
         return MetricsDict()
 
     def close_all_loggers(self) -> None:
-        self.train_epoch_metrics.flush()
-        self.val_epoch_metrics.flush()
+        self.train_epoch_metrics_logger.flush()
+        self.val_epoch_metrics_logger.flush()
 
     def on_train_epoch_end(self, outputs) -> None:
         self.epoch_end(is_training=True)
@@ -217,7 +218,7 @@ class InnerEyeLightning(LightningModule):
         self.store_epoch_results(metrics, epoch, is_training)
 
     def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool) -> None:
-        file_logger = self.train_epoch_metrics if is_training else self.val_epoch_metrics
+        file_logger = self.train_epoch_metrics_logger if is_training else self.val_epoch_metrics_logger
         store_epoch_metrics(metrics,
                             epoch,
                             file_logger=file_logger,
@@ -231,10 +232,10 @@ class InnerEyeLightning(LightningModule):
         self.batch_start(batch_idx=batch_idx, is_training=False)
 
     def on_train_batch_end(self, outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
-        self.batch_end()
+        self.batch_end(is_training=True)
 
     def on_validation_batch_end(self, outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
-        self.batch_end()
+        self.batch_end(is_training=False)
 
     def training_step(self,
                       sample: Dict[str, Any],
@@ -274,8 +275,10 @@ class InnerEyeLightning(LightningModule):
                                 "is a performance problem in loading. This warning will be printed at most "
                                 f"{MAX_LOAD_TIME_WARNINGS} times.")
                 self.num_load_time_warnings += 1
+        self.batch_start_time = time.time()
 
-    def batch_end(self) -> None:
+    def batch_end(self, is_training: bool) -> None:
+        self.log_on_epoch(MetricType.SECONDS_PER_BATCH, time.time() - self.batch_start_time, is_training=is_training)
         self.item_start_time = time.time()
         self.num_batches += 1
 
@@ -382,6 +385,11 @@ class SegmentationLightning(InnerEyeLightning):
         #     if batch_index == self.example_to_save and self.config.store_dataset_sample:
         #         _store_dataset_sample(self.config, self.train_val_params.epoch, forward_pass_result,
         #                               cropped_sample)
+        num_subjects = cropped_sample.image.shape[0]
+        self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
+                          value=num_subjects,
+                          is_training=is_training,
+                          reduce_fx=sum)
         self.write_loss(is_training, loss)
         return loss
 
@@ -444,6 +452,10 @@ class ScalarLightning(InnerEyeLightning):
         for hue, name, value in metrics.enumerate_single_values():
             hue_suffix = "" if hue == MetricsDict.DEFAULT_HUE_KEY else "/" + hue
             self.log_on_epoch(name=name + hue_suffix, value=value, is_training=is_training)
+        self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
+                          value=len(model_inputs_and_labels.subject_ids),
+                          is_training=is_training,
+                          reduce_fx=sum)
         return loss
 
     def epoch_end(self, is_training: bool) -> None:
