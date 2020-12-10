@@ -46,12 +46,26 @@ from InnerEye.ML.configs.segmentation.ProstateBase import ProstateBase
 
 class Prostate(ProstateBase):
     def __init__(self) -> None:
-        super().__init__(azure_dataset_id="id-of-your-blob-containing-prostate-data")
+        super().__init__(
+            ground_truth_ids=[list of ground truth ids]
+            azure_dataset_id="id-of-your-blob-containing-prostate-data")
 ```
 The allowed parameters and their meanings are defined in [`SegmentationModelBase`](/InnerEye/ML/config.py).
 The class name must be the same as the basename of the file containing it, so `Prostate.py` must contain `Prostate`. 
 In `settings.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
 is found by the runner.
+
+A `Head and Neck` model might inherit from `HeadAndNeckBase` by creating `HeadAndNeck.py` with the following contents:
+```python
+from InnerEye.ML.configs.segmentation.HeadAndNeckBase import HeadAndNeckBase
+
+
+class HeadAndNeck(HeadAndNeckBase):
+    def __init__(self) -> None:
+        super().__init__(
+            ground_truth_ids=[list of ground truth ids]
+            azure_dataset_id="id-of-your-blob-containing-prostate-data")
+```
 
 ### Training a new model
 
