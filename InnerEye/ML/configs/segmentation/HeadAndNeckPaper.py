@@ -7,8 +7,8 @@ import random
 from typing import Any, Optional
 
 from InnerEye.ML.config import SliceExclusionRule, SummedProbabilityRule, equally_weighted_classes
+from InnerEye.ML.configs.segmentation.HeadAndNeckBase import HeadAndNeckBase
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
-from .HeadAndNeckBase import HeadAndNeckBase
 
 # List of structures to segment. The order is important, because different values of num_structures
 # in the constructor will select different prefixes of the list.

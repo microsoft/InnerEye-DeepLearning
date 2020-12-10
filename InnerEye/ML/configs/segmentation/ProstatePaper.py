@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from InnerEye.ML.config import equally_weighted_classes
-from .ProstateBase import ProstateBase
+from InnerEye.ML.configs.segmentation.ProstateBase import ProstateBase
 
 fg_classes = ["external", "femur_r", "femur_l", "rectum", "prostate", "bladder", "seminalvesicles"]
 fg_display_names = ["External", "Femur_R", "Femur_L", "Rectum", "Prostate", "Bladder", "SeminalVesicles"]

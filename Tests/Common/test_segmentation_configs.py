@@ -12,6 +12,7 @@ from InnerEye.ML.config import SliceExclusionRule, SummedProbabilityRule
 from InnerEye.ML.configs.segmentation.HeadAndNeckBase import HeadAndNeckBase
 from InnerEye.ML.configs.segmentation.HeadAndNeckPaper import HeadAndNeckPaper, \
     STRUCTURE_LIST as DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
+from InnerEye.ML.configs.segmentation.ProstateBase import ProstateBase
 from InnerEye.ML.configs.segmentation.ProstatePaper import ProstatePaper, \
     fg_classes as DEFAULT_PROSTATE_GROUND_TRUTH_IDS
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
@@ -19,36 +20,77 @@ from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
 RANDOM_COLOUR_GENERATOR = random.Random(0)
 
 
-def generate_random_string(N: int) -> str:
+def generate_random_string(size: int) -> str:
     '''
-    Generate a random string (upper case or digits) of length N
+    Generate a random string (upper case or digits) of length size
     :param N: length of string to generate.
     '''
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=N))
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=size))
 
 
-def generate_random_display_ids(N: int) -> List[str]:
-    return [generate_random_string(6) for i in range(N)]
-
-
-def generate_random_fill_holes(N: int) -> List[bool]:
-    return [bool(random.getrandbits(1)) for i in range(N)]
-
-
-def generate_random_class_weights(N: int) -> List[float]:
+def generate_random_display_ids(size: int) -> List[str]:
     '''
-    Generate a list of random class weights of length N.
+    Generate a list of random display ids of length size.
     '''
-    class_weights = [random.random() for i in range(0, N)]
+    return [generate_random_string(6) for i in range(size)]
+
+
+def generate_random_fill_holes(size: int) -> List[bool]:
+    '''
+    Generate a list of random bools of length size.
+    '''
+    return [bool(random.getrandbits(1)) for i in range(size)]
+
+
+def generate_random_class_weights(size: int) -> List[float]:
+    '''
+    Generate a list of random class weights of length size.
+    '''
+    class_weights = [random.random() for i in range(size)]
     total = sum(class_weights)
     scaled_class_weights = [w / total for w in class_weights]
     return scaled_class_weights
 
 
-def test_head_and_neck_base_with_3_ground_truth_ids() -> None:
-    ground_truth_ids = ["parotid_r", "parotid_l", "larynx"]
+def test_head_and_neck_base() -> None:
+    '''
+    Check we can instantiate HeadAndNeckBase class.
+    '''
+    ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
     config = HeadAndNeckBase(ground_truth_ids)
     assert config.ground_truth_ids == ground_truth_ids
+
+
+def test_head_and_neck_base_with_optional_params() -> None:
+    '''
+    Check that optional parameters can be passed in to HeadAndNeckBase class.
+    '''
+    ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
+    ground_truth_count = len(ground_truth_ids)
+    ground_truth_ids_display_names = generate_random_display_ids(ground_truth_count)
+    colours = generate_random_colours_list(RANDOM_COLOUR_GENERATOR, ground_truth_count)
+    fill_holes = generate_random_fill_holes(ground_truth_count)
+    class_weights = generate_random_class_weights(ground_truth_count + 1)
+    num_feature_channels = random.randint(1, ground_truth_count)
+    slice_exclusion_rules = [SliceExclusionRule("brainstem", "spinal_cord", False)]
+    summed_probability_rules = [SummedProbabilityRule("spinal_cord", "brainstem", "external")]
+    config = HeadAndNeckBase(
+        ground_truth_ids=ground_truth_ids,
+        ground_truth_ids_display_names=ground_truth_ids_display_names,
+        colours=colours,
+        fill_holes=fill_holes,
+        class_weights=class_weights,
+        slice_exclusion_rules=slice_exclusion_rules,
+        summed_probability_rules=summed_probability_rules,
+        num_feature_channels=num_feature_channels)
+    assert config.ground_truth_ids == ground_truth_ids
+    assert config.ground_truth_ids_display_names == ground_truth_ids_display_names
+    assert config.colours == colours
+    assert config.fill_holes == fill_holes
+    assert config.class_weights == class_weights
+    assert config.feature_channels == [num_feature_channels]
+    assert config.slice_exclusion_rules == slice_exclusion_rules
+    assert config.summed_probability_rules == summed_probability_rules
 
 
 def test_head_and_neck_paper_with_no_ground_truth_ids() -> None:
@@ -162,7 +204,46 @@ def test_head_and_neck_paper_with_mismatched_class_weights_raises() -> None:
         _ = HeadAndNeckPaper(num_structures=ground_truth_count, class_weights=class_weights)
 
 
+def test_prostate_base() -> None:
+    '''
+    Check that ProstateBase class can be instantiated.
+    '''
+    ground_truth_ids = DEFAULT_PROSTATE_GROUND_TRUTH_IDS
+    config = ProstateBase(ground_truth_ids)
+    assert config.ground_truth_ids == ground_truth_ids
+
+
+def test_prostate_base_with_optional_params() -> None:
+    '''
+    Check that optional parameters can be passed in to ProstateBase class.
+    '''
+    ground_truth_ids = DEFAULT_PROSTATE_GROUND_TRUTH_IDS
+    ground_truth_count = len(ground_truth_ids)
+    ground_truth_ids_display_names = generate_random_display_ids(ground_truth_count)
+    colours = generate_random_colours_list(RANDOM_COLOUR_GENERATOR, ground_truth_count)
+    fill_holes = generate_random_fill_holes(ground_truth_count)
+    class_weights = generate_random_class_weights(ground_truth_count + 1)
+    largest_connected_component_foreground_classes = DEFAULT_PROSTATE_GROUND_TRUTH_IDS[1:3]
+    config = ProstateBase(
+        ground_truth_ids,
+        ground_truth_ids_display_names=ground_truth_ids_display_names,
+        colours=colours,
+        fill_holes=fill_holes,
+        class_weights=class_weights,
+        largest_connected_component_foreground_classes=largest_connected_component_foreground_classes)
+    assert config.ground_truth_ids == ground_truth_ids
+    assert config.ground_truth_ids_display_names == ground_truth_ids_display_names
+    assert config.colours == colours
+    assert config.fill_holes == fill_holes
+    assert config.class_weights == class_weights
+    expected_lccfc = [(c, None) for c in largest_connected_component_foreground_classes]
+    assert config.largest_connected_component_foreground_classes == expected_lccfc
+
+
 def test_prostate_paper() -> None:
+    '''
+    Check that ProstatePaper class can be instantiated.
+    '''
     ground_truth_ids = DEFAULT_PROSTATE_GROUND_TRUTH_IDS
     config = ProstatePaper()
     assert config.ground_truth_ids == ground_truth_ids
@@ -170,7 +251,7 @@ def test_prostate_paper() -> None:
 
 def test_prostate_paper_with_optional_params() -> None:
     '''
-    Check that optional parameters can be passed in.
+    Check that optional parameters can be passed in to ProstatePaper class.
     '''
     ground_truth_ids = DEFAULT_PROSTATE_GROUND_TRUTH_IDS
     ground_truth_count = len(ground_truth_ids)

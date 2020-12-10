@@ -70,7 +70,7 @@ class HeadAndNeckBase(SegmentationModelBase):
         # number of feature channels. The following is a sensible default to avoid out-of-memory,
         # but you can override is by passing in another (singleton list) value for feature_channels
         # from a subclass.
-        num_feature_channels = num_feature_channels or 32 if num_structures <= 20 else 26
+        num_feature_channels = num_feature_channels or (32 if num_structures <= 20 else 26)
         bg_weight = 0.02 if len(ground_truth_ids) > 1 else 0.25
         class_weights = class_weights or equally_weighted_classes(ground_truth_ids, background_weight=bg_weight)
         # In case of vertical overlap between brainstem and spinal_cord, we separate them
