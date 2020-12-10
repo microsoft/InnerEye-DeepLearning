@@ -31,7 +31,10 @@ class HeadAndNeckPaper(HeadAndNeckBase):
         '''
         # Number of structures to predict; if positive but less than the length of STRUCTURE_LIST, the relevant prefix
         # of STRUCTURE_LIST will be predicted.
-        if (num_structures is None) or num_structures <= 0 or num_structures > len(STRUCTURE_LIST):
+        if (num_structures is not None) and \
+            (num_structures <= 0 or num_structures > len(STRUCTURE_LIST)):
+            raise ValueError(f"num structures must be between 0 and {len(STRUCTURE_LIST)}")
+        if num_structures is None:
             num_structures = len(STRUCTURE_LIST)
         ground_truth_ids = STRUCTURE_LIST[:num_structures]
         ground_truth_ids_display_names = kwargs.pop("ground_truth_ids_display_names", [f"zz_{x}" for x in ground_truth_ids])
@@ -48,20 +51,30 @@ class HeadAndNeckPaper(HeadAndNeckBase):
         # by converting brainstem voxels to cord, as the latter is clinically more sensitive.
         # We do the same to separate SPC and MPC; in this case, the direction of change is unimportant,
         # so we choose SPC-to-MPC arbitrarily.
-        slice_exclusion_rules = []
-        summed_probability_rules = []
-        if "brainstem" in ground_truth_ids and "spinal_cord" in ground_truth_ids:
-            slice_exclusion_rules.append(SliceExclusionRule("brainstem", "spinal_cord", False))
-            if "external" in ground_truth_ids:
-                summed_probability_rules.append(SummedProbabilityRule("spinal_cord", "brainstem", "external"))
-        if "spc_muscle" in ground_truth_ids and "mpc_muscle" in ground_truth_ids:
-            slice_exclusion_rules.append(SliceExclusionRule("spc_muscle", "mpc_muscle", False))
-            if "external" in ground_truth_ids:
-                summed_probability_rules.append(SummedProbabilityRule("mpc_muscle", "spc_muscle", "external"))
-        if "optic_chiasm" in ground_truth_ids and "pituitary_gland" in ground_truth_ids:
-            slice_exclusion_rules.append(SliceExclusionRule("optic_chiasm", "pituitary_gland", True))
-            if "external" in ground_truth_ids:
-                summed_probability_rules.append(SummedProbabilityRule("optic_chiasm", "pituitary_gland", "external"))
+        if "slice_exclusion_rules" in kwargs:
+            slice_exclusion_rules = kwargs.pop("slice_exclusion_rules")
+        else:
+            slice_exclusion_rules = []
+            if "brainstem" in ground_truth_ids and "spinal_cord" in ground_truth_ids:
+                slice_exclusion_rules.append(SliceExclusionRule("brainstem", "spinal_cord", False))
+            if "spc_muscle" in ground_truth_ids and "mpc_muscle" in ground_truth_ids:
+                slice_exclusion_rules.append(SliceExclusionRule("spc_muscle", "mpc_muscle", False))
+            if "optic_chiasm" in ground_truth_ids and "pituitary_gland" in ground_truth_ids:
+                slice_exclusion_rules.append(SliceExclusionRule("optic_chiasm", "pituitary_gland", True))
+
+        if "summed_probability_rules" in kwargs:
+            summed_probability_rules = kwargs.pop("summed_probability_rules")
+        else:
+            summed_probability_rules = []
+            if "brainstem" in ground_truth_ids and "spinal_cord" in ground_truth_ids and \
+                "external" in ground_truth_ids:
+                    summed_probability_rules.append(SummedProbabilityRule("spinal_cord", "brainstem", "external"))
+            if "spc_muscle" in ground_truth_ids and "mpc_muscle" in ground_truth_ids and \
+                "external" in ground_truth_ids:
+                    summed_probability_rules.append(SummedProbabilityRule("mpc_muscle", "spc_muscle", "external"))
+            if "optic_chiasm" in ground_truth_ids and "pituitary_gland" in ground_truth_ids and \
+                "external" in ground_truth_ids:
+                    summed_probability_rules.append(SummedProbabilityRule("optic_chiasm", "pituitary_gland", "external"))
         super().__init__(
             ground_truth_ids=ground_truth_ids,
             ground_truth_ids_display_names=ground_truth_ids_display_names,
