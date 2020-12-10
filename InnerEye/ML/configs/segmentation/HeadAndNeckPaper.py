@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 import random
 from typing import Any, Optional
 
@@ -37,20 +38,39 @@ class HeadAndNeckPaper(HeadAndNeckBase):
                 (num_structures <= 0 or num_structures > len(STRUCTURE_LIST)):
             raise ValueError(f"num structures must be between 0 and {len(STRUCTURE_LIST)}")
         if num_structures is None:
+            logging.info(f'setting num_structures to: {len(STRUCTURE_LIST)}')
             num_structures = len(STRUCTURE_LIST)
         ground_truth_ids = STRUCTURE_LIST[:num_structures]
-        ground_truth_ids_display_names = kwargs.pop("ground_truth_ids_display_names",
-                                                    [f"zz_{x}" for x in ground_truth_ids])
-        colours = kwargs.pop("colours", COLOURS[:num_structures])
-        fill_holes = kwargs.pop("fill_holes", [True] * num_structures)
+        if "ground_truth_ids_display_names" in kwargs:
+            ground_truth_ids_display_names = kwargs.pop("ground_truth_ids_display_names")
+        else:
+            logging.info('using default ground_truth_ids_display_names')
+            ground_truth_ids_display_names = [f"zz_{x}" for x in ground_truth_ids]
+        if "colours" in kwargs:
+            colours = kwargs.pop("colours")
+        else:
+            logging.info('using default colours')
+            colours = COLOURS[:num_structures]
+        if "fill_holes" in kwargs:
+            fill_holes = kwargs.pop("fill_holes")
+        else:
+            logging.info('using default fill_holes')
+            fill_holes = [True] * num_structures
         # The amount of GPU memory required increases with both the number of structures and the
         # number of feature channels. The following is a sensible default to avoid out-of-memory,
         # but you can override is by passing in another (singleton list) value for feature_channels
         # from a subclass.
-        num_feature_channels = kwargs.pop("num_feature_channels", 32 if num_structures <= 20 else 26)
+        if "num_feature_channels" in kwargs:
+            num_feature_channels = kwargs.pop("num_feature_channels")
+        else:
+            logging.info('using default num_feature_channels')
+            num_feature_channels = 32 if num_structures <= 20 else 26
         bg_weight = 0.02 if len(ground_truth_ids) > 1 else 0.25
-        class_weights = kwargs.pop("class_weights",
-                                   equally_weighted_classes(ground_truth_ids, background_weight=bg_weight))
+        if "class_weights" in kwargs:
+            class_weights = kwargs.pop("class_weights")
+        else:
+            logging.info('using default class_weights')
+            class_weights = equally_weighted_classes(ground_truth_ids, background_weight=bg_weight)
         # In case of vertical overlap between brainstem and spinal_cord, we separate them
         # by converting brainstem voxels to cord, as the latter is clinically more sensitive.
         # We do the same to separate SPC and MPC; in this case, the direction of change is unimportant,
@@ -58,6 +78,7 @@ class HeadAndNeckPaper(HeadAndNeckBase):
         if "slice_exclusion_rules" in kwargs:
             slice_exclusion_rules = kwargs.pop("slice_exclusion_rules")
         else:
+            logging.info('using default slice_exclusion_rules')
             slice_exclusion_rules = []
             if "brainstem" in ground_truth_ids and "spinal_cord" in ground_truth_ids:
                 slice_exclusion_rules.append(SliceExclusionRule("brainstem", "spinal_cord", False))
@@ -69,6 +90,7 @@ class HeadAndNeckPaper(HeadAndNeckBase):
         if "summed_probability_rules" in kwargs:
             summed_probability_rules = kwargs.pop("summed_probability_rules")
         else:
+            logging.info('using default summed_probability_rules')
             summed_probability_rules = []
             if "brainstem" in ground_truth_ids and "spinal_cord" in ground_truth_ids and \
                     "external" in ground_truth_ids:
