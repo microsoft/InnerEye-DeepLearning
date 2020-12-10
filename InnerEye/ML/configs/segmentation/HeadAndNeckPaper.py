@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import random
 from typing import Any, Optional
+
 from InnerEye.ML.config import SliceExclusionRule, SummedProbabilityRule, equally_weighted_classes
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
 from .HeadAndNeckBase import HeadAndNeckBase
@@ -17,6 +18,7 @@ STRUCTURE_LIST = ["external", "parotid_l", "parotid_r", "smg_l", "smg_r", "spina
                   "lacrimal_gland_l", "lacrimal_gland_r"]
 RANDOM_COLOUR_GENERATOR = random.Random(0)
 COLOURS = generate_random_colours_list(RANDOM_COLOUR_GENERATOR, len(STRUCTURE_LIST))
+
 
 class HeadAndNeckPaper(HeadAndNeckBase):
     '''
@@ -32,12 +34,13 @@ class HeadAndNeckPaper(HeadAndNeckBase):
         # Number of structures to predict; if positive but less than the length of STRUCTURE_LIST, the relevant prefix
         # of STRUCTURE_LIST will be predicted.
         if (num_structures is not None) and \
-            (num_structures <= 0 or num_structures > len(STRUCTURE_LIST)):
+                (num_structures <= 0 or num_structures > len(STRUCTURE_LIST)):
             raise ValueError(f"num structures must be between 0 and {len(STRUCTURE_LIST)}")
         if num_structures is None:
             num_structures = len(STRUCTURE_LIST)
         ground_truth_ids = STRUCTURE_LIST[:num_structures]
-        ground_truth_ids_display_names = kwargs.pop("ground_truth_ids_display_names", [f"zz_{x}" for x in ground_truth_ids])
+        ground_truth_ids_display_names = kwargs.pop("ground_truth_ids_display_names",
+                                                    [f"zz_{x}" for x in ground_truth_ids])
         colours = kwargs.pop("colours", COLOURS[:num_structures])
         fill_holes = kwargs.pop("fill_holes", [True] * num_structures)
         # The amount of GPU memory required increases with both the number of structures and the
@@ -46,7 +49,8 @@ class HeadAndNeckPaper(HeadAndNeckBase):
         # from a subclass.
         num_feature_channels = kwargs.pop("num_feature_channels", 32 if num_structures <= 20 else 26)
         bg_weight = 0.02 if len(ground_truth_ids) > 1 else 0.25
-        class_weights = kwargs.pop("class_weights", equally_weighted_classes(ground_truth_ids, background_weight=bg_weight))
+        class_weights = kwargs.pop("class_weights",
+                                   equally_weighted_classes(ground_truth_ids, background_weight=bg_weight))
         # In case of vertical overlap between brainstem and spinal_cord, we separate them
         # by converting brainstem voxels to cord, as the latter is clinically more sensitive.
         # We do the same to separate SPC and MPC; in this case, the direction of change is unimportant,
@@ -67,14 +71,14 @@ class HeadAndNeckPaper(HeadAndNeckBase):
         else:
             summed_probability_rules = []
             if "brainstem" in ground_truth_ids and "spinal_cord" in ground_truth_ids and \
-                "external" in ground_truth_ids:
-                    summed_probability_rules.append(SummedProbabilityRule("spinal_cord", "brainstem", "external"))
+                    "external" in ground_truth_ids:
+                summed_probability_rules.append(SummedProbabilityRule("spinal_cord", "brainstem", "external"))
             if "spc_muscle" in ground_truth_ids and "mpc_muscle" in ground_truth_ids and \
-                "external" in ground_truth_ids:
-                    summed_probability_rules.append(SummedProbabilityRule("mpc_muscle", "spc_muscle", "external"))
+                    "external" in ground_truth_ids:
+                summed_probability_rules.append(SummedProbabilityRule("mpc_muscle", "spc_muscle", "external"))
             if "optic_chiasm" in ground_truth_ids and "pituitary_gland" in ground_truth_ids and \
-                "external" in ground_truth_ids:
-                    summed_probability_rules.append(SummedProbabilityRule("optic_chiasm", "pituitary_gland", "external"))
+                    "external" in ground_truth_ids:
+                summed_probability_rules.append(SummedProbabilityRule("optic_chiasm", "pituitary_gland", "external"))
         super().__init__(
             ground_truth_ids=ground_truth_ids,
             ground_truth_ids_display_names=ground_truth_ids_display_names,

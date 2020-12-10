@@ -11,6 +11,7 @@ from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModel
 from InnerEye.ML.deep_learning_config import OptimizerType
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
+
 class ProstateBase(SegmentationModelBase):
     """
     Prostate radiotherapy image segmentation model.
@@ -42,7 +43,7 @@ class ProstateBase(SegmentationModelBase):
         fill_holes = fill_holes or [True] * len(ground_truth_ids)
         class_weights = class_weights or equally_weighted_classes(ground_truth_ids, background_weight=0.02)
         largest_connected_component_foreground_classes = largest_connected_component_foreground_classes or \
-            ground_truth_ids
+                                                         ground_truth_ids
         super().__init__(
             should_validate=False,
             adam_betas=(0.9, 0.999),
@@ -61,7 +62,7 @@ class ProstateBase(SegmentationModelBase):
             l_rate=1e-3,
             min_l_rate=1e-5,
             l_rate_polynomial_gamma=0.9,
-            largest_connected_component_foreground_classes=[name for name in ground_truth_ids if name != "seminalvesicles"],
+            largest_connected_component_foreground_classes=largest_connected_component_foreground_classes,
             level=50,
             momentum=0.9,
             monitoring_interval_seconds=0,

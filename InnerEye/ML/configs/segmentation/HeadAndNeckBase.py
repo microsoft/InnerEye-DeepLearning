@@ -16,6 +16,7 @@ from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 RANDOM_COLOUR_GENERATOR = random.Random(0)
 
+
 # This configuration needs to be supplied with a value for azure_dataset_id that refers to your
 # dataset. You may also supply a value for num_structures, feature_channels or any other feature. For example,
 # with the appropriate dataset, this would build the model whose results are reported in the InnerEye team's
