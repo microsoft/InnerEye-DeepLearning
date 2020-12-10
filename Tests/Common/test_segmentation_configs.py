@@ -24,23 +24,25 @@ def generate_random_string(N: int) -> str:
     '''
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=N))
 
+def generate_random_display_ids(N: int) -> List[str]:
+    return [generate_random_string(6) for i in range(N)]
+
+def generate_random_fill_holes(N:int) -> List[bool]:
+    return [bool(random.getrandbits(1)) for i in range(N)]
+
 def generate_random_class_weights(N: int) -> List[float]:
+    '''
+    Generate a list of random class weights of length N.
+    '''
     class_weights = [random.random() for i in range(0, N)]
     total = sum(class_weights)
     scaled_class_weights = [w/total for w in class_weights]
     return scaled_class_weights
 
-def check_hn_ground_truths(config, expected_ground_truth_ids: List[str]):
-    assert len(config.class_weights) == len(expected_ground_truth_ids) + 1
-    assert config.ground_truth_ids == expected_ground_truth_ids
-    assert len(config.ground_truth_ids_display_names) == len(expected_ground_truth_ids)
-    assert len(config.colours) == len(expected_ground_truth_ids)
-    assert len(config.fill_holes) == len(expected_ground_truth_ids)
-
 def test_head_and_neck_base_with_3_ground_truth_ids() -> None:
     ground_truth_ids = ["parotid_r", "parotid_l", "larynx"]
     config = HeadAndNeckBase(ground_truth_ids)
-    check_hn_ground_truths(config, ground_truth_ids)
+    assert config.ground_truth_ids == ground_truth_ids
 
 def test_head_and_neck_paper_with_no_ground_truth_ids() -> None:
     '''
@@ -48,14 +50,14 @@ def test_head_and_neck_paper_with_no_ground_truth_ids() -> None:
     '''
     ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
     config = HeadAndNeckPaper()
-    check_hn_ground_truths(config, ground_truth_ids)
+    assert config.ground_truth_ids == ground_truth_ids
 
 def test_head_and_neck_paper_with_0_ground_truth_ids() -> None:
     '''
     Check that passing num_structures = 0 raises ValueError exception.
     '''
     with pytest.raises(ValueError):
-        config = HeadAndNeckPaper(num_structures=0)
+        _ = HeadAndNeckPaper(num_structures=0)
 
 @pytest.mark.parametrize("ground_truth_count", list(range(1, len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS), 3)))
 def test_head_and_neck_paper_with_some_ground_truth_ids(
@@ -65,7 +67,7 @@ def test_head_and_neck_paper_with_some_ground_truth_ids(
     '''
     ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS[:ground_truth_count]
     config = HeadAndNeckPaper(num_structures=ground_truth_count)
-    check_hn_ground_truths(config, ground_truth_ids)
+    assert config.ground_truth_ids == ground_truth_ids
 
 def test_head_and_neck_paper_with_too_many_ground_truth_ids() -> None:
     '''
@@ -73,7 +75,7 @@ def test_head_and_neck_paper_with_too_many_ground_truth_ids() -> None:
     '''
     ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) + 2
     with pytest.raises(ValueError):
-        config = HeadAndNeckPaper(num_structures=ground_truth_count)
+        _ = HeadAndNeckPaper(num_structures=ground_truth_count)
 
 @pytest.mark.parametrize("ground_truth_count", list(range(1, len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS), 3)))
 def test_head_and_neck_paper_with_optional_params(
@@ -82,9 +84,9 @@ def test_head_and_neck_paper_with_optional_params(
     Check that optional parameters can be passed in.
     '''
     ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS[:ground_truth_count]
-    ground_truth_ids_display_names = [generate_random_string(6) for i in range(0, ground_truth_count)]
+    ground_truth_ids_display_names = generate_random_display_ids(ground_truth_count)
     colours = generate_random_colours_list(RANDOM_COLOUR_GENERATOR, ground_truth_count)
-    fill_holes = [bool(random.getrandbits(1)) for i in range(0, ground_truth_count)]
+    fill_holes = generate_random_fill_holes(ground_truth_count)
     class_weights = generate_random_class_weights(ground_truth_count + 1)
     num_feature_channels = random.randint(1, ground_truth_count)
     slice_exclusion_rules = [SliceExclusionRule("brainstem", "spinal_cord", False)]
@@ -103,18 +105,47 @@ def test_head_and_neck_paper_with_optional_params(
     assert config.fill_holes == fill_holes
     assert config.class_weights == class_weights
     assert config.feature_channels == [num_feature_channels]
-    check_hn_ground_truths(config, ground_truth_ids)
+    assert config.ground_truth_ids == ground_truth_ids
+    assert config.slice_exclusion_rules == slice_exclusion_rules
+    assert config.summed_probability_rules == summed_probability_rules
 
-def test_head_and_neck_paper_with_mismatched_colours_throws() -> None:
+def test_head_and_neck_paper_with_mismatched_display_names_raises() -> None:
     '''
     Check that passing too many colours raises ValueError exception.
     '''
     ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) - 2
-    colours = [(255, 0, 0)] * (ground_truth_count + 2)
+    ground_truth_ids_display_names = generate_random_display_ids(ground_truth_count - 1)
     with pytest.raises(ValueError):
-        config = HeadAndNeckPaper(num_structures=ground_truth_count, colours=colours)
+        _ = HeadAndNeckPaper(num_structures=ground_truth_count, ground_truth_ids_display_names=ground_truth_ids_display_names)
+
+def test_head_and_neck_paper_with_mismatched_colours_raises() -> None:
+    '''
+    Check that passing too many colours raises ValueError exception.
+    '''
+    ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) - 2
+    colours = generate_random_colours_list(RANDOM_COLOUR_GENERATOR, ground_truth_count - 1)
+    with pytest.raises(ValueError):
+        _ = HeadAndNeckPaper(num_structures=ground_truth_count, colours=colours)
+
+def test_head_and_neck_paper_with_mismatched_fill_holes_raises() -> None:
+    '''
+    Check that passing too many colours raises ValueError exception.
+    '''
+    ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) - 2
+    fill_holes = generate_random_fill_holes(ground_truth_count - 1)
+    with pytest.raises(ValueError):
+        _ = HeadAndNeckPaper(num_structures=ground_truth_count, fill_holes=fill_holes)
+
+def test_head_and_neck_paper_with_mismatched_class_weights_raises() -> None:
+    '''
+    Check that passing too many colours raises ValueError exception.
+    '''
+    ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) - 2
+    class_weights = generate_random_class_weights(ground_truth_count - 1)
+    with pytest.raises(ValueError):
+        _ = HeadAndNeckPaper(num_structures=ground_truth_count, class_weights=class_weights)
 
 def test_prostate_paper() -> None:
     ground_truth_ids = DEFAULT_PROSTATE_GROUND_TRUTH_IDS
     config = ProstatePaper()
-    check_hn_ground_truths(config, ground_truth_ids)
+    assert config.ground_truth_ids == ground_truth_ids
