@@ -44,7 +44,7 @@ class HeadAndNeckBase(SegmentationModelBase):
                  summed_probability_rules: Optional[List[SummedProbabilityRule]] = None,
                  num_feature_channels: Optional[int] = None,
                  **kwargs: Any) -> None:
-        '''
+        """
         Creates a new instance of the class.
         :param ground_truth_ids: List of ground truth ids.
         :param ground_truth_ids_display_names: Optional list of ground truth id display names. If
@@ -59,7 +59,7 @@ class HeadAndNeckBase(SegmentationModelBase):
         :param summed_probability_rules: Optional list of SummedProbabilityRule.
         :param num_feature_channels: Optional number of feature channels.
         :param kwargs: Additional arguments that will be passed through to the SegmentationModelBase constructor.
-        '''
+        """
         # Number of training epochs
         num_epochs = 120
         num_structures = len(ground_truth_ids)

@@ -518,6 +518,16 @@ class SegmentationModelBase(ModelConfigBase):
         if self.mean_teacher_alpha is not None:
             raise ValueError("Mean teacher model is currently only supported for ScalarModels."
                              "Please reset mean_teacher_alpha to None.")
+        if not self.disable_extra_postprocessing:
+            if self.slice_exclusion_rules is not None:
+                for rule in self.slice_exclusion_rules:
+                    if rule.higher_class not in self.ground_truth_ids:
+                        raise Exception(f"slice_exclusion_rules: {rule.higher_class} not in ground truth IDs")
+                    if rule.lower_class not in self.ground_truth_ids:
+                        raise Exception(f"slice_exclusion_rules: {rule.lower_class} not in ground truth IDs")
+            if self.summed_probability_rules is not None:
+                for rule in self.summed_probability_rules:
+                    rule.validate(self.ground_truth_ids)
 
     @staticmethod
     def validate_class_weights(class_weights: List[float]) -> None:

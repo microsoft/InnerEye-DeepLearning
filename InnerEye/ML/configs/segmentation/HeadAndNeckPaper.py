@@ -22,16 +22,16 @@ COLOURS = generate_random_colours_list(RANDOM_COLOUR_GENERATOR, len(STRUCTURE_LI
 
 
 class HeadAndNeckPaper(HeadAndNeckBase):
-    '''
+    """
     Head and Neck model, as used in the paper.
-    '''
+    """
 
     def __init__(self, num_structures: Optional[int] = None, **kwargs: Any) -> None:
-        '''
+        """
         Creates a new instance of the class.
         :param num_structures: number of structures from STRUCTURE_LIST to predict (default: all structures)
         :param kwargs: Additional arguments that will be passed through to the SegmentationModelBase constructor.
-        '''
+        """
         # Number of structures to predict; if positive but less than the length of STRUCTURE_LIST, the relevant prefix
         # of STRUCTURE_LIST will be predicted.
         if (num_structures is not None) and \

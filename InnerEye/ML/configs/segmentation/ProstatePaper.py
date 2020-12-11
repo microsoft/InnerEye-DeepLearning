@@ -18,10 +18,10 @@ class ProstatePaper(ProstateBase):
     """
 
     def __init__(self, **kwargs: Any) -> None:
-        '''
+        """
         Creates a new instance of the class.
         :param kwargs: Additional arguments that will be passed through to the SegmentationModelBase constructor.
-        '''
+        """
         ground_truth_ids = fg_classes
         if "ground_truth_ids_display_names" in kwargs:
             ground_truth_ids_display_names = kwargs.pop("ground_truth_ids_display_names")
