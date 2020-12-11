@@ -128,10 +128,11 @@ def test_head_and_neck_base_with_invalid_slice_exclusion_rule() -> None:
     """
     ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
     slice_exclusion_rules = [SliceExclusionRule("brainstem2", "spinal_cord", False)]
-    with pytest.raises(Exception):
-        _ = HeadAndNeckBase(
+    with pytest.raises(Exception) as e:
+        assert HeadAndNeckBase(
             ground_truth_ids=ground_truth_ids,
             slice_exclusion_rules=slice_exclusion_rules)
+    assert str(e.value) == "slice_exclusion_rules: brainstem2 not in ground truth IDs"
 
 
 def test_head_and_neck_base_with_invalid_slice_exclusion_rule2() -> None:
@@ -140,10 +141,11 @@ def test_head_and_neck_base_with_invalid_slice_exclusion_rule2() -> None:
     """
     ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
     slice_exclusion_rules = [SliceExclusionRule("brainstem", "spinal_cord2", False)]
-    with pytest.raises(Exception):
-        _ = HeadAndNeckBase(
+    with pytest.raises(Exception) as e:
+        assert HeadAndNeckBase(
             ground_truth_ids=ground_truth_ids,
             slice_exclusion_rules=slice_exclusion_rules)
+    assert str(e.value) == "slice_exclusion_rules: spinal_cord2 not in ground truth IDs"
 
 
 def test_head_and_neck_base_with_invalid_summed_probability_rule() -> None:
@@ -152,10 +154,11 @@ def test_head_and_neck_base_with_invalid_summed_probability_rule() -> None:
     """
     ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
     summed_probability_rules = [SummedProbabilityRule("spinal_cord2", "brainstem", "external")]
-    with pytest.raises(ValueError):
-        _ = HeadAndNeckBase(
+    with pytest.raises(ValueError) as e:
+        assert HeadAndNeckBase(
             ground_truth_ids=ground_truth_ids,
             summed_probability_rules=summed_probability_rules)
+    assert str(e.value) == "SummedProbabilityRule.validate: spinal_cord2 not in ground truth IDs"
 
 
 def test_head_and_neck_base_with_invalid_summed_probability_rule2() -> None:
@@ -163,11 +166,12 @@ def test_head_and_neck_base_with_invalid_summed_probability_rule2() -> None:
     Check that an invalid summed probability rule raises a ValueError.
     """
     ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
-    summed_probability_rules = [SummedProbabilityRule("spinal_cord2", "brainstem2", "external")]
-    with pytest.raises(ValueError):
-        _ = HeadAndNeckBase(
+    summed_probability_rules = [SummedProbabilityRule("spinal_cord", "brainstem2", "external")]
+    with pytest.raises(ValueError) as e:
+        assert HeadAndNeckBase(
             ground_truth_ids=ground_truth_ids,
             summed_probability_rules=summed_probability_rules)
+    assert str(e.value) == "SummedProbabilityRule.validate: brainstem2 not in ground truth IDs"
 
 
 def test_head_and_neck_base_with_invalid_summed_probability_rule3() -> None:
@@ -176,10 +180,11 @@ def test_head_and_neck_base_with_invalid_summed_probability_rule3() -> None:
     """
     ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
     summed_probability_rules = [SummedProbabilityRule("spinal_cord", "brainstem", "external2")]
-    with pytest.raises(ValueError):
-        _ = HeadAndNeckBase(
+    with pytest.raises(ValueError) as e:
+        assert HeadAndNeckBase(
             ground_truth_ids=ground_truth_ids,
             summed_probability_rules=summed_probability_rules)
+    assert str(e.value) == "SummedProbabilityRule.validate: external2 not in ground truth IDs"
 
 
 def test_head_and_neck_paper_with_no_ground_truth_ids() -> None:
@@ -195,8 +200,9 @@ def test_head_and_neck_paper_with_0_ground_truth_ids() -> None:
     """
     Check that passing num_structures = 0 raises ValueError exception.
     """
-    with pytest.raises(ValueError):
-        _ = HeadAndNeckPaper(num_structures=0)
+    with pytest.raises(ValueError) as e:
+        assert HeadAndNeckPaper(num_structures=0)
+    assert str(e.value) == f"num structures must be between 0 and {len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS)}"
 
 
 @pytest.mark.parametrize("ground_truth_count", list(range(1, len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS), 3)))
@@ -215,8 +221,9 @@ def test_head_and_neck_paper_with_too_many_ground_truth_ids() -> None:
     Check that passing num_structures larger than len(defaults) raises ValueError exception.
     """
     ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) + 2
-    with pytest.raises(ValueError):
-        _ = HeadAndNeckPaper(num_structures=ground_truth_count)
+    with pytest.raises(ValueError) as e:
+        assert HeadAndNeckPaper(num_structures=ground_truth_count)
+    assert str(e.value) == f"num structures must be between 0 and {len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS)}"
 
 
 @pytest.mark.parametrize("ground_truth_count", list(range(1, len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS), 3)))
@@ -258,9 +265,10 @@ def test_head_and_neck_paper_with_mismatched_display_names_raises() -> None:
     """
     ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) - 2
     ground_truth_ids_display_names = generate_random_display_ids(ground_truth_count - 1)
-    with pytest.raises(ValueError):
-        _ = HeadAndNeckPaper(num_structures=ground_truth_count,
-                             ground_truth_ids_display_names=ground_truth_ids_display_names)
+    with pytest.raises(ValueError) as e:
+        assert HeadAndNeckPaper(num_structures=ground_truth_count,
+                                ground_truth_ids_display_names=ground_truth_ids_display_names)
+    assert str(e.value) == "len(ground_truth_ids_display_names)!=len(ground_truth_ids)"
 
 
 def test_head_and_neck_paper_with_mismatched_colours_raises() -> None:
@@ -269,8 +277,9 @@ def test_head_and_neck_paper_with_mismatched_colours_raises() -> None:
     """
     ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) - 2
     colours = generate_random_colours_list(RANDOM_COLOUR_GENERATOR, ground_truth_count - 1)
-    with pytest.raises(ValueError):
-        _ = HeadAndNeckPaper(num_structures=ground_truth_count, colours=colours)
+    with pytest.raises(ValueError) as e:
+        assert HeadAndNeckPaper(num_structures=ground_truth_count, colours=colours)
+    assert str(e.value) == "len(ground_truth_ids_display_names)!=len(colours)"
 
 
 def test_head_and_neck_paper_with_mismatched_fill_holes_raises() -> None:
@@ -279,8 +288,9 @@ def test_head_and_neck_paper_with_mismatched_fill_holes_raises() -> None:
     """
     ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) - 2
     fill_holes = generate_random_fill_holes(ground_truth_count - 1)
-    with pytest.raises(ValueError):
-        _ = HeadAndNeckPaper(num_structures=ground_truth_count, fill_holes=fill_holes)
+    with pytest.raises(ValueError) as e:
+        assert HeadAndNeckPaper(num_structures=ground_truth_count, fill_holes=fill_holes)
+    assert str(e.value) == "len(ground_truth_ids_display_names)!=len(fill_holes)"
 
 
 def test_head_and_neck_paper_with_mismatched_class_weights_raises() -> None:
@@ -289,8 +299,9 @@ def test_head_and_neck_paper_with_mismatched_class_weights_raises() -> None:
     """
     ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) - 2
     class_weights = generate_random_class_weights(ground_truth_count - 1)
-    with pytest.raises(ValueError):
-        _ = HeadAndNeckPaper(num_structures=ground_truth_count, class_weights=class_weights)
+    with pytest.raises(ValueError) as e:
+        assert HeadAndNeckPaper(num_structures=ground_truth_count, class_weights=class_weights)
+    assert str(e.value) == "class_weights needs to be equal to number of ground_truth_ids + 1"
 
 
 def test_prostate_base() -> None:
