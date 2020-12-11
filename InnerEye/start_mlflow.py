@@ -25,11 +25,6 @@ class MLFlowSettings(GenericConfig):
 
 def aml_ui(backend_store_uri, default_artifact_root, port, host) -> None:
     try:
-        initialize_backend_stores(backend_store_uri, default_artifact_root)
-    except Exception as ex:
-        print_exception(ex, "Unable to initialize back-end")
-        sys.exit(1)
-    try:
         _run_server(backend_store_uri, default_artifact_root, host, port, None, 1)
     except Exception as ex:
         print_exception(ex, "Unable to start MLFlow server")
