@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
-from pathlib import Path
 from typing import Dict
 
 import pytest
@@ -11,10 +10,10 @@ import pytest
 from InnerEye.Azure import secrets_handling
 from InnerEye.Azure.secrets_handling import SecretsHandling
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 
 # A list of all secrets that are stored in environment variables or local secrets files.
-SECRETS_IN_ENVIRONMENT = [fixed_paths.SERVICE_PRINCIPAL_KEY, fixed_paths.DATASETS_ACCOUNT_KEY]
+SECRETS_IN_ENVIRONMENT = [fixed_paths.SERVICE_PRINCIPAL_KEY]
 
 
 def set_environment_variables(variables: Dict[str, str]) -> None:
@@ -74,11 +73,11 @@ def test_all_secrets_is_upper() -> None:
         assert name == name.upper(), "Secret '{}' should have a only uppercase value".format(name)
 
 
-def test_read_variables_from_yaml(test_output_dirs: TestOutputDirectories) -> None:
+def test_read_variables_from_yaml(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that variables are read from a yaml file correctly.
     """
-    root = Path(test_output_dirs.root_dir)
+    root = test_output_dirs.root_dir
     # this will return a dictionary of all variables in the yaml file
     yaml_path = root / "foo.yml"
     yaml_path.write_text("""variables:
@@ -126,7 +125,7 @@ def test_parse_yaml() -> None:
     assert os.path.isfile(fixed_paths.SETTINGS_YAML_FILE)
     variables = secrets_handling.read_settings_yaml_file(fixed_paths.SETTINGS_YAML_FILE)
     # Check that there are at least two of the variables that we know of
-    tenant_id = "tenant_id"
-    assert tenant_id in variables
-    assert variables[tenant_id] == "72f988bf-86f1-41af-91ab-2d7cd011db47"
-    assert "datasets_container" in variables
+    azureml_datastore = "azureml_datastore"
+    assert azureml_datastore in variables
+    assert variables[azureml_datastore] == "innereyedatasets"
+    assert "tenant_id" in variables

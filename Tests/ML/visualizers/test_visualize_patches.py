@@ -8,8 +8,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+from InnerEye.Azure.azure_util import is_running_on_azure_agent
 from InnerEye.Common.common_util import is_windows
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
@@ -18,13 +19,13 @@ from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.utils.ml_util import set_random_seed
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops
-from Tests.ML.util import assert_binary_files_match, assert_file_exists, is_running_on_azure
+from Tests.ML.util import assert_binary_files_match, assert_file_exists
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
 @pytest.mark.parametrize("labels_to_boundary", [True, False])
-def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
+def test_visualize_patch_sampling(test_output_dirs: OutputFolderForTests,
                                   labels_to_boundary: bool) -> None:
     """
     Tests if patch sampling and producing diagnostic images works as expected.
@@ -54,7 +55,7 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
     sample = Sample(image=image,
                     mask=mask,
                     labels=labels,
-                    metadata=PatientMetadata(patient_id=123,
+                    metadata=PatientMetadata(patient_id='123',
                                              image_header=image_header))
     expected_folder = full_ml_test_data_path("patch_sampling")
     heatmap = visualize_random_crops(sample, config, output_folder=output_folder)
@@ -84,7 +85,7 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
         for f in thumbnails:
             # Uncomment this line to update test results
             # (expected_folder / f).write_bytes((output_folder / f).read_bytes())
-            if not is_running_on_azure():
+            if not is_running_on_azure_agent():
                 # When running on the Azure build agents, it appears that the bounding box of the images
                 # is slightly different than on local runs, even with equal dpi settings.
                 # Not able to figure out how to make the run results consistent, hence disable in cloud runs.
@@ -92,7 +93,7 @@ def test_visualize_patch_sampling(test_output_dirs: TestOutputDirectories,
 
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
-def test_visualize_patch_sampling_2d(test_output_dirs: TestOutputDirectories) -> None:
+def test_visualize_patch_sampling_2d(test_output_dirs: OutputFolderForTests) -> None:
     """
     Tests if patch sampling works for 2D images.
     :param test_output_dirs:
@@ -114,7 +115,7 @@ def test_visualize_patch_sampling_2d(test_output_dirs: TestOutputDirectories) ->
     sample = Sample(image=image,
                     mask=mask,
                     labels=labels,
-                    metadata=PatientMetadata(patient_id=123,
+                    metadata=PatientMetadata(patient_id='123',
                                              image_header=image_header))
     heatmap = visualize_random_crops(sample, config, output_folder=output_folder)
     expected_folder = full_ml_test_data_path("patch_sampling")
@@ -129,7 +130,7 @@ def test_visualize_patch_sampling_2d(test_output_dirs: TestOutputDirectories) ->
     expected = expected_folder / "sampling_2d.png"
     # To update the stored results, uncomment this line:
     # expected.write_bytes(actual_file.read_bytes())
-    if not is_running_on_azure():
+    if not is_running_on_azure_agent():
         # When running on the Azure build agents, it appears that the bounding box of the images
         # is slightly different than on local runs, even with equal dpi settings.
         # It says: Image sizes don't match: actual (685, 469), expected (618, 424)
@@ -139,7 +140,7 @@ def test_visualize_patch_sampling_2d(test_output_dirs: TestOutputDirectories) ->
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
 @pytest.mark.parametrize("dimension", [0, 1, 2])
-def test_plot_overlay(test_output_dirs: TestOutputDirectories,
+def test_plot_overlay(test_output_dirs: OutputFolderForTests,
                       dimension: int) -> None:
     set_random_seed(0)
     shape = (10, 30, 30)
@@ -160,7 +161,7 @@ def test_plot_overlay(test_output_dirs: TestOutputDirectories,
 
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")
-def test_show_non_square_images(test_output_dirs: TestOutputDirectories) -> None:
+def test_show_non_square_images(test_output_dirs: OutputFolderForTests) -> None:
     input_file = full_ml_test_data_path("patch_sampling") / "scan_small.nii.gz"
     input = load_nifti_image(input_file)
     image = input.image

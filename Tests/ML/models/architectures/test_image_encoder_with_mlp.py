@@ -15,7 +15,7 @@ import torch
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import logging_to_stdout
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
@@ -34,7 +34,7 @@ from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from InnerEye.ML.visualizers.model_summary import ModelSummary
-from Tests.ML.util import get_default_azure_config
+from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler
 
 
 class ImageEncoder(ScalarModelBase):
@@ -120,7 +120,7 @@ class ImageEncoder(ScalarModelBase):
 @pytest.mark.parametrize("aggregation_type", [AggregationType.Average,
                                               AggregationType.ZAdaptive3dAvg,
                                               AggregationType.GatedPooling])
-def test_image_encoder(test_output_dirs: TestOutputDirectories, encode_channels_jointly: bool,
+def test_image_encoder(test_output_dirs: OutputFolderForTests, encode_channels_jointly: bool,
                        use_non_imaging_features: bool,
                        kernel_size_per_encoding_block: Optional[Union[TupleInt3, List[TupleInt3]]],
                        stride_size_per_encoding_block: Optional[Union[TupleInt3, List[TupleInt3]]],
@@ -138,7 +138,7 @@ def test_image_encoder(test_output_dirs: TestOutputDirectories, encode_channels_
     scan_files: List[str] = []
     for s in range(4):
         random_scan = np.random.uniform(0, 1, scan_size)
-        scan_file_name = f"scan{s + 1}{NumpyFile.Numpy.value}"
+        scan_file_name = f"scan{s + 1}{NumpyFile.NUMPY.value}"
         np.save(str(dataset_folder / scan_file_name), random_scan)
         scan_files.append(scan_file_name)
 
@@ -213,7 +213,8 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
     summarizer.generate_summary(input_sizes=input_size)
     config.local_dataset = dataset_folder
     config.validate()
-    model_train(config)
+    model_train(config, checkpoint_handler=get_default_checkpoint_handler(model_config=config,
+                                                                          project_root=Path(test_output_dirs.root_dir)))
     # No further asserts here because the models are still in experimental state. Most errors would come
     # from having invalid model architectures, which would throw runtime errors during training.
 
@@ -227,7 +228,7 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
                                               AggregationType.ZAdaptive3dAvg])
 @pytest.mark.parametrize("imaging_feature_type", [ImagingFeatureType.Segmentation,
                                                   ImagingFeatureType.ImageAndSegmentation])
-def test_image_encoder_with_segmentation(test_output_dirs: TestOutputDirectories,
+def test_image_encoder_with_segmentation(test_output_dirs: OutputFolderForTests,
                                          encode_channels_jointly: bool,
                                          aggregation_type: AggregationType,
                                          imaging_feature_type: ImagingFeatureType) -> None:
@@ -314,7 +315,7 @@ def test_segmentation_to_one_hot(use_gpu: bool, input_on_gpu: bool) -> None:
 def test_visualization_with_scalar_model(use_non_imaging_features: bool,
                                          imaging_feature_type: ImagingFeatureType,
                                          encode_channels_jointly: bool,
-                                         test_output_dirs: TestOutputDirectories) -> None:
+                                         test_output_dirs: OutputFolderForTests) -> None:
     dataset_contents = """subject,channel,path,label,numerical1,numerical2,categorical1,categorical2
     S1,week0,scan1.npy,,1,10,Male,Val1
     S1,week1,scan2.npy,True,2,20,Female,Val2

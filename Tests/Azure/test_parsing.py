@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from enum import Enum
+from pathlib import Path
 from typing import Any, Optional
 from unittest import mock
 
@@ -85,7 +86,7 @@ def test_create_runner_parser(with_config: bool) -> None:
     azure_parser = create_runner_parser(SegmentationModelBase if with_config else None)
     args_list = ["--model=Lung", "--train=False", "--l_rate=100.0",
                  "--unknown=1", "--subscription_id", "Test1", "--tenant_id=Test2",
-                 "--application_id", "Test3", "--datasets_storage_account=Test4",
+                 "--application_id", "Test3",
                  "--log_level=INFO",
                  # Normally we don't use extra index URLs in InnerEye, hence this won't be set in YAML.
                  "--pip_extra_index_url=foo"]
@@ -95,7 +96,6 @@ def test_create_runner_parser(with_config: bool) -> None:
 
     # These values have been set on the commandline, to values that are not the parser defaults.
     non_default_args = {
-        "datasets_storage_account": "Test4",
         "train": False,
         "model": "Lung",
         "subscription_id": "Test1",
@@ -120,7 +120,7 @@ def test_create_runner_parser(with_config: bool) -> None:
     # but not in the list overrides
     from_yaml = {
         "workspace_name": "InnerEye-DeepLearning",
-        "datasets_container": "datasets",
+        "azureml_datastore": "innereyedatasets",
     }
     for prop, value in from_yaml.items():
         assert prop in parser_result.args, f"Property {prop} missing in args"
@@ -153,7 +153,7 @@ def test_source_config_set_params() -> None:
     Check that commandline arguments are set correctly when submitting the script to AzureML.
     In particular, the azureml flag should be omitted, irrespective of how the argument is written.
     """
-    s = SourceConfig(root_folder="", entry_script="something.py", conda_dependencies_files=[])
+    s = SourceConfig(root_folder=Path(""), entry_script=Path("something.py"), conda_dependencies_files=[])
 
     def assert_has_params(expected_args: str) -> None:
         assert s.script_params is not None

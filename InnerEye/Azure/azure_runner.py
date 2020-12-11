@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from azureml.core import Dataset, Experiment, Run, Workspace
+from azureml.core import Dataset, Experiment, Run
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.datastore import Datastore
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
@@ -26,7 +26,6 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_
     merge_conda_dependencies
 from InnerEye.Azure.secrets_handling import read_all_settings
 from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
-from InnerEye.Common.fixed_paths import AZUREML_DATASTORE_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.utils.config_util import ModelConfigLoader
@@ -64,12 +63,8 @@ def submit_to_azureml(azure_config: AzureConfig,
 
     for s in [signal.SIGINT, signal.SIGTERM]:
         signal.signal(s, interrupt_handler)
-
-    # Retrieve the AzureML workspace
-    workspace = azure_config.get_workspace()
-
     # create train/test experiment
-    azure_run = create_and_submit_experiment(workspace, azure_config, source_config, model_config_overrides,
+    azure_run = create_and_submit_experiment(azure_config, source_config, model_config_overrides,
                                              azure_dataset_id)
 
     if azure_config.wait_for_completion:
@@ -124,14 +119,12 @@ def create_experiment_name(azure_config: AzureConfig) -> str:
 
 
 def create_and_submit_experiment(
-        workspace: Workspace,
         azure_config: AzureConfig,
         source_config: SourceConfig,
         model_config_overrides: str,
         azure_dataset_id: str) -> Run:
     """
-    Creates an AzureML experiment in the provided workspace and submits it for execution.
-    :param workspace: configured workspace to use to run the experiment in
+    Creates an AzureML experiment in the workspace and submits it for execution.
     :param azure_config: azure related configurations to setup valid workspace
     :param source_config: The information about which code should be submitted, and which arguments should be used.
     :param model_config_overrides: A string that describes which model parameters were overwritten by commandline
@@ -139,9 +132,10 @@ def create_and_submit_experiment(
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
     :returns: Run object for the submitted AzureML run
     """
+    workspace = azure_config.get_workspace()
     experiment_name = create_experiment_name(azure_config)
     exp = Experiment(workspace=workspace, name=azure_util.to_azure_friendly_string(experiment_name))
-    pt_env = create_pytorch_environment(workspace, azure_config, source_config, azure_dataset_id)
+    pt_env = create_pytorch_environment(azure_config, source_config, azure_dataset_id)
 
     # submit a training/testing run associated with the experiment
     run: Run = exp.submit(pt_env)
@@ -178,7 +172,7 @@ def create_and_submit_experiment(
     return run
 
 
-def get_or_create_dataset(workspace: Workspace,
+def get_or_create_dataset(azure_config: AzureConfig,
                           azure_dataset_id: str) -> Dataset:
     """
     Looks in the AzureML datastore for a dataset of the given name. If there is no such dataset, a dataset is created
@@ -202,8 +196,9 @@ def get_or_create_dataset(workspace: Workspace,
 
     These behaviours can be verified by calling "ds.download()" on each dataset ds.
     """
-    logging.info(f"Retrieving datastore '{AZUREML_DATASTORE_NAME}' from AzureML workspace")
-    datastore = Datastore.get(workspace, AZUREML_DATASTORE_NAME)
+    logging.info(f"Retrieving datastore '{azure_config.azureml_datastore}' from AzureML workspace")
+    workspace = azure_config.get_workspace()
+    datastore = Datastore.get(workspace, azure_config.azureml_datastore)
     try:
         logging.info(f"Trying to retrieve AzureML Dataset '{azure_dataset_id}'")
         azureml_dataset = Dataset.get_by_name(workspace, name=azure_dataset_id)
@@ -217,8 +212,7 @@ def get_or_create_dataset(workspace: Workspace,
     return azureml_dataset
 
 
-def create_pytorch_environment(workspace: Workspace,
-                               azure_config: AzureConfig,
+def create_pytorch_environment(azure_config: AzureConfig,
                                source_config: SourceConfig,
                                azure_dataset_id: str) -> PyTorch:
     """
@@ -230,7 +224,7 @@ def create_pytorch_environment(workspace: Workspace,
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
     :return: The configured PyTorch environment to be used for experimentation
     """
-    azureml_dataset = get_or_create_dataset(workspace, azure_dataset_id=azure_dataset_id)
+    azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
     if azureml_dataset:
         if azure_config.use_dataset_mount:
             logging.info("Inside AzureML, the dataset will be provided as a mounted folder.")
@@ -241,7 +235,7 @@ def create_pytorch_environment(workspace: Workspace,
     else:
         raise ValueError("No AzureML dataset was found.")
 
-    return create_estimator_from_configs(workspace, azure_config, source_config, estimator_inputs)
+    return create_estimator_from_configs(azure_config, source_config, estimator_inputs)
 
 
 def pytorch_version_from_conda_dependencies(conda_dependencies: CondaDependencies) -> Optional[str]:
@@ -260,18 +254,18 @@ def pytorch_version_from_conda_dependencies(conda_dependencies: CondaDependencie
     return None
 
 
-def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfig, source_config: SourceConfig,
+def create_estimator_from_configs(azure_config: AzureConfig,
+                                  source_config: SourceConfig,
                                   estimator_inputs: List[DatasetConsumptionConfig]) -> PyTorch:
     """
     Create an return a PyTorch estimator from the provided configuration information.
-    :param workspace: workspace that should contain a datastore named "workspaceblobstore", for storing source
     :param azure_config: Azure configuration, used to store various values for the job to be submitted
     :param source_config: source configutation, for other needed values
     :param estimator_inputs: value for the "inputs" field of the estimator.
     :return:
     """
     # AzureML seems to sometimes expect the entry script path in Linux format, hence convert to posix path
-    entry_script_relative_path = Path(source_config.entry_script).relative_to(source_config.root_folder).as_posix()
+    entry_script_relative_path = source_config.entry_script.relative_to(source_config.root_folder).as_posix()
     logging.info(f"Entry script {entry_script_relative_path} ({source_config.entry_script} relative to "
                  f"source directory {source_config.root_folder})")
     environment_variables = {
@@ -292,12 +286,14 @@ def create_estimator_from_configs(workspace: Workspace, azure_config: AzureConfi
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
     # create Estimator environment
     framework_version = pytorch_version_from_conda_dependencies(conda_dependencies)
+    assert framework_version is not None, "The AzureML SDK is behind PyTorch, it does not yet know the version we use."
     logging.info(f"PyTorch framework version: {framework_version}")
     max_run_duration = None
     if azure_config.max_run_duration:
         max_run_duration = run_duration_string_to_seconds(azure_config.max_run_duration)
+    workspace = azure_config.get_workspace()
     estimator = PyTorch(
-        source_directory=source_config.root_folder,
+        source_directory=str(source_config.root_folder),
         entry_script=entry_script_relative_path,
         script_params=source_config.script_params,
         compute_target=azure_config.cluster,

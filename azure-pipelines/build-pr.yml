@@ -1,3 +1,8 @@
+pr:
+  branches:
+    include:
+    - '*'
+
 name: PR-$(Date:yyyyMMdd)$(Rev:-r)
 variables:
   model: 'BasicModel2Epochs'
@@ -40,12 +45,21 @@ jobs:
           testRunTitle: 'tests_on_AzureML'
         condition: succeededOrFailed()
         displayName: Publish test results
+      - template: tests_after_training.yml
+        parameters:
+          pytest_mark: after_training
+          test_run_title: tests_after_training
 
+  # Now train a module, using the Github code as a submodule. Here, a simpler 1 channel model
+  # is trained, because we use this build to also check the "submit_for_inference" code, that
+  # presently only handles single channel models.
   - job: TrainInAzureMLViaSubmodule
     variables:
       - template: ../InnerEye/settings.yml
       - name: cluster
         value: 'training-nc12'
+      - name: model
+        value: 'BasicModel2Epochs1Channel'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -54,3 +68,23 @@ jobs:
           wait_for_completion: 'True'
           more_switches: '--use_dataset_mount=True'
           max_run_duration: '30m'
+
+  # Train a 2-element ensemble model
+  - job: TrainEnsemble
+    variables:
+      - template: ../InnerEye/settings.yml
+      - name: cluster
+        value: 'training-nc12'
+      - name: model
+        value: 'BasicModel2Epochs1Channel'
+      - name: number_of_cross_validation_splits
+        value: 2
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          pytest_mark: ''
+          max_run_duration: '1h'
+          more_switches: '--use_dataset_mount=True'

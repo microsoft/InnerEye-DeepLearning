@@ -27,4 +27,4 @@ def test_visualize_commandline1() -> None:
     assert updated_config.norm_method == old_photonorm
     assert updated_config.get_effective_random_seed() == old_random_seed
     # Credentials and variables should have been picked up from yaml files
-    assert len(runner_config.datasets_container) > 0
+    assert len(runner_config.azureml_datastore) > 0

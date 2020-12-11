@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-import os
 from pathlib import Path
 from typing import Any, List, Optional, Union
 
@@ -19,8 +18,10 @@ from InnerEye.Common.type_annotations import PathOrString, TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import PatientDatasetSource
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.utils import io_util
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.io_util import ImageHeader, ImageWithHeader
 from InnerEye.ML.utils.ml_util import is_gpu_available
@@ -34,9 +35,9 @@ machine_has_gpu = is_gpu_available()
 no_gpu_available = not machine_has_gpu
 
 
-def create_dataset_csv_file(csv_string: str, dst: str) -> Path:
+def create_dataset_csv_file(csv_string: str, dst: Path) -> Path:
     """Creates a dataset.csv in the destination path from the csv_string provided"""
-    (Path(dst) / "dataset.csv").write_text(csv_string)
+    (dst / "dataset.csv").write_text(csv_string)
     return Path(dst)
 
 
@@ -181,7 +182,7 @@ def assert_binary_files_match(actual_file: Path, expected_file: Path) -> None:
     assert False, f"File contents does not match: len(actual)={len(actual)}, len(expected)={len(expected)}"
 
 
-DummyPatientMetadata = PatientMetadata(patient_id=42)
+DummyPatientMetadata = PatientMetadata(patient_id='42')
 
 
 def get_model_loader(namespace: Optional[str] = None) -> ModelConfigLoader[SegmentationModelBase]:
@@ -200,17 +201,18 @@ def get_default_azure_config() -> AzureConfig:
                                  project_root=fixed_paths.repository_root_directory())
 
 
+def get_default_checkpoint_handler(model_config: DeepLearningConfig, project_root: Path) -> CheckpointHandler:
+    """
+    Gets a checkpoint handler, using the given model config and the default azure configuration.
+    """
+    azure_config = get_default_azure_config()
+    return CheckpointHandler(azure_config=azure_config, model_config=model_config,
+                             project_root=project_root)
+
+
 def get_default_workspace() -> Workspace:
     """
     Gets the project's default AzureML workspace.
     :return:
     """
     return get_default_azure_config().get_workspace()
-
-
-def is_running_on_azure() -> bool:
-    """
-    Returns True if the code appears to be running on an Azure build agent, and False otherwise.
-    """
-    # Guess by looking at the AGENT_OS variable, that all Azure hosted agents define.
-    return bool(os.environ.get("AGENT_OS", None))

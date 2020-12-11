@@ -5,23 +5,22 @@
 import logging
 import shutil
 import time
-from pathlib import Path
-
 import pytest
 
 from InnerEye.Common import common_util
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
 from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from Tests.ML.util import get_default_checkpoint_handler
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("perform_cross_validation", [True, False])
 @pytest.mark.parametrize("perform_training_set_inference", [True, False])
-def test_model_inference_train_and_test(test_output_dirs: TestOutputDirectories,
+def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                         perform_cross_validation: bool,
                                         perform_training_set_inference: bool) -> None:
     config = DummyModel()
@@ -33,10 +32,14 @@ def test_model_inference_train_and_test(test_output_dirs: TestOutputDirectories,
     config.set_output_to(test_output_dirs.root_dir)
     config.local_dataset = full_ml_test_data_path()
 
-    # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
+    # To make it seem like there was a training run before this, copy checkpoints into the checkpoints folder.
     stored_checkpoints = full_ml_test_data_path("checkpoints")
     shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
-    result, _, _ = MLRunner(config).model_inference_train_and_test()
+
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
+    checkpoint_handler.additional_training_done()
+    result, _, _ = MLRunner(config).model_inference_train_and_test(checkpoint_handler=checkpoint_handler)
     if result is None:
         raise ValueError("Error result cannot be None")
     assert isinstance(result, InferenceMetricsForSegmentation)
@@ -52,9 +55,9 @@ def test_model_inference_train_and_test(test_output_dirs: TestOutputDirectories,
                 assert folder_exists
 
 
-def test_logging_to_file(test_output_dirs: TestOutputDirectories) -> None:
+def test_logging_to_file(test_output_dirs: OutputFolderForTests) -> None:
     # Log file should go to a new, non-existent folder, 2 levels deep
-    file_path = Path(test_output_dirs.root_dir) / "subdir1" / "subdir2" / "logfile.txt"
+    file_path = test_output_dirs.root_dir / "subdir1" / "subdir2" / "logfile.txt"
     assert common_util.logging_to_file_handler is None
     common_util.logging_to_file(file_path)
     assert common_util.logging_to_file_handler is not None

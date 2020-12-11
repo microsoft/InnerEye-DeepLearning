@@ -7,6 +7,9 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Generic, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+
+import h5py
+from numpy.lib.npyio import NpzFile
 from skimage.transform import resize
 
 import SimpleITK as sitk
@@ -21,12 +24,14 @@ from InnerEye.ML.config import DEFAULT_POSTERIOR_VALUE_RANGE, PhotometricNormali
     SegmentationModelBase
 from InnerEye.ML.dataset.sample import PatientDatasetSource, Sample
 from InnerEye.ML.utils.hdf5_util import HDF5Object
-from InnerEye.ML.utils.image_util import ImageDataType, ImageHeader, check_array_range, get_center_crop, is_binary_array
+from InnerEye.ML.utils.image_util import ImageDataType, ImageHeader, check_array_range, get_center_crop, \
+    get_unit_image_header, is_binary_array
 from InnerEye.ML.utils.transforms import LinearTransform, get_range_for_window_level
 
 RESULTS_POSTERIOR_FILE_NAME_PREFIX = "posterior_"
 RESULTS_SEGMENTATION_FILE_NAME_PREFIX = "segmentation"
 TensorOrNumpyArray = TypeVar('TensorOrNumpyArray', torch.Tensor, np.ndarray)
+
 
 class PhotometricInterpretation(Enum):
     MONOCHROME1 = "MONOCHROME1"
@@ -66,7 +71,8 @@ class NumpyFile(Enum):
     """
     Supported file extensions that indicate Numpy data.
     """
-    Numpy = ".npy"
+    NUMPY = ".npy"
+    NUMPY_COMPRESSED = ".npz"
 
 
 class HDF5FileType(Enum):
@@ -157,7 +163,7 @@ def read_image_as_array_with_header(file_path: Path) -> Tuple[np.ndarray, ImageH
     :return: Tuple of ndarray with image in Z Y X and Spacing in Z X Y
     """
     image: sitk.Image = sitk.ReadImage(str(file_path))
-    img = sitk.GetArrayFromImage(image)
+    img = sitk.GetArrayFromImage(image)  # This call changes the shape to ZYX
     spacing = reverse_tuple_float3(image.GetSpacing())
     # We keep origin and direction on the original shape since it is not used in this library
     # only for saving images correctly
@@ -204,12 +210,20 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
     return ImageWithHeader(image=img, header=header)
 
 
-def load_numpy_image(path: PathOrString) -> np.ndarray:
+def load_numpy_image(path: PathOrString, image_type: Optional[Type] = None) -> np.ndarray:
     """
-    Loads an array from a numpy file.
+    Loads an array from a numpy file (npz or npy). The array is converted to image_type or untouched if None
     :param path: The path to the numpy file.
+    :param image_type: The dtype to cast the array
+    :return: ndarray
     """
     image = np.load(path)
+    if type(image) is NpzFile:
+        keys = list(image.keys())
+        assert len(keys) == 1
+        image = image[keys[0]]
+    if image_type is not None:
+        image = image.astype(dtype=image_type)
     return image
 
 
@@ -230,7 +244,7 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
         bits_stored = int(reader.GetMetaData(DicomTags.BitsStored.value))
         pixel_repr = int(reader.GetMetaData(DicomTags.PixelRepresentation.value))
         if pixel_repr == 0:  # unsigned
-            pixels = 2**bits_stored - 1 - pixels
+            pixels = 2 ** bits_stored - 1 - pixels
         elif pixel_repr == 1:  # signed
             pixels = -1 * (pixels + 1)
         else:
@@ -240,13 +254,27 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
     return pixels.astype(np.float)
 
 
+def load_hdf5_dataset_from_file(path_str: Path, dataset_name: str) -> np.ndarray:
+    """
+    Loads a hdf5 dataset from a file as an ndarray
+    :param path_str: The path to the HDF5 file
+    :param dataset_name: The dataset name in the HDF5 file that we want to load
+    :return: ndarray
+    """
+    with h5py.File(str(path_str), 'r') as hdf5_file:
+        if dataset_name in hdf5_file:
+            img = np.array(hdf5_file.get(dataset_name))
+            return img
+    raise ValueError(f"File '{path_str}' does not contain dataset '{dataset_name}'")
+
+
 def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) -> HDF5Object:
     """
     Loads a single HDF5 file.
     :param path_str: The path of the HDF5 file that should be loaded.
     :param load_segmentation: If True, the `segmentation` field of the result object will be populated. If
     False, the field will be set to None.
-    :return: numpy array
+    :return: HDF5Object
     """
 
     def _is_valid_hdf5_path(_path: Path) -> bool:
@@ -272,9 +300,9 @@ class ImageAndSegmentations(Generic[TensorOrNumpyArray]):
 
 
 def load_images_and_stack(files: Iterable[Path],
-                             load_segmentation: bool,
-                             center_crop_size: Optional[TupleInt3] = None,
-                             image_size: Optional[TupleInt3] = None) -> ImageAndSegmentations[torch.Tensor]:
+                          load_segmentation: bool,
+                          center_crop_size: Optional[TupleInt3] = None,
+                          image_size: Optional[TupleInt3] = None) -> ImageAndSegmentations[torch.Tensor]:
     """
     Attempts to load a set of files, all of which are expected to contain 3D images of the same size (Z, X, Y)
     They are all stacked along dimension 0 and returned as a torch tensor of size (B, Z, X, Y)
@@ -363,7 +391,7 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource) -> np.
     :return A label sample object containing ground-truth information.
     """
     labels = np.stack(
-        [load_nifti_image(gt, ImageDataType.SEGMENTATION.value).image for gt in dataset_source.ground_truth_channels])
+        [load_image(gt, ImageDataType.SEGMENTATION.value).image for gt in dataset_source.ground_truth_channels])
 
     # Add the background binary map
     background = np.ones_like(labels[0])
@@ -371,6 +399,45 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource) -> np.
         background[labels[c] == 1] = 0
     background = background[None, ...]
     return np.vstack((background, labels))
+
+
+def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageWithHeader:
+    """
+    Loads an image with extension numpy or nifti
+    For HDF5 path suffix
+        For images |<dataset_name>|<channel index>
+        For segmentation binary |<dataset_name>|<channel index>
+        For segmentation multimap |<dataset_name>|<channel index>|<multimap value>
+        The expected dimensions to be (channel, Z, Y, X)
+    :param path: The path to the file
+    :param image_type: The type of the image
+    """
+    SEPARATOR = '|'
+    if is_nifti_file_path(path):
+        return load_nifti_image(path, image_type)
+    elif is_numpy_file_path(path):
+        image = load_numpy_image(path, image_type)
+        header = get_unit_image_header()
+        return ImageWithHeader(image, header)
+    elif SEPARATOR in str(path):
+        hdf5_path_split_by_colon = str(path).split(SEPARATOR)
+        if len(hdf5_path_split_by_colon) == 4:
+            # segmentation multimap
+            h5_path = hdf5_path_split_by_colon[0]
+            dataset = hdf5_path_split_by_colon[1]
+            channel = int(hdf5_path_split_by_colon[2])
+            segmentation_id = int(hdf5_path_split_by_colon[3])
+            image = load_hdf5_dataset_from_file(Path(h5_path), dataset)[channel] == segmentation_id  # create mask
+            header = get_unit_image_header()
+            return ImageWithHeader(image, header)
+        elif len(hdf5_path_split_by_colon) == 3:
+            h5_path = hdf5_path_split_by_colon[0]
+            dataset = hdf5_path_split_by_colon[1]
+            channel = int(hdf5_path_split_by_colon[2])
+            image = load_hdf5_dataset_from_file(Path(h5_path), dataset)[channel]
+            header = get_unit_image_header()
+            return ImageWithHeader(image, header)
+    raise ValueError(f"Invalid file type {path}")
 
 
 def load_images_from_dataset_source(dataset_source: PatientDatasetSource) -> Sample:
@@ -381,26 +448,26 @@ def load_images_from_dataset_source(dataset_source: PatientDatasetSource) -> Sam
     :param dataset_source: The dataset source for which channels are to be loaded into memory.
     :return: a Sample object with the loaded volume (image), labels, mask and metadata.
     """
-    images = [load_nifti_image(channel, ImageDataType.IMAGE.value) for channel in dataset_source.image_channels]
+    images = [load_image(channel, ImageDataType.IMAGE.value) for channel in dataset_source.image_channels]
     image = np.stack([image.image for image in images])
 
     mask = np.ones_like(image[0], ImageDataType.MASK.value) if dataset_source.mask_channel is None \
-        else load_nifti_image(dataset_source.mask_channel, ImageDataType.MASK.value).image
+        else load_image(dataset_source.mask_channel, ImageDataType.MASK.value).image
 
     # create raw sample to return
     metadata = copy(dataset_source.metadata)
-    # noinspection PyTypeHints
     metadata.image_header = images[0].header
+    labels = load_labels_from_dataset_source(dataset_source)
     return Sample(image=image,
-                  labels=load_labels_from_dataset_source(dataset_source),
+                  labels=labels,
                   mask=mask,
                   metadata=metadata)
 
 
 def store_image_as_short_nifti(image: np.ndarray,
                                header: ImageHeader,
-                               file_name: str,
-                               args: Optional[SegmentationModelBase]) -> str:
+                               file_name: PathOrString,
+                               args: Optional[SegmentationModelBase]) -> Path:
     """
     Saves an image in nifti format as ubyte, and performs the following operations:
     1) transpose the image back into X,Y,Z from Z,Y,X
@@ -423,7 +490,7 @@ def store_image_as_short_nifti(image: np.ndarray,
     return store_as_nifti(image=image * 1000, header=header, file_name=file_name, image_type=np.short)
 
 
-def store_posteriors_as_nifti(image: np.ndarray, header: ImageHeader, file_name: str) -> str:
+def store_posteriors_as_nifti(image: np.ndarray, header: ImageHeader, file_name: PathOrString) -> Path:
     """
     Saves an array of posteriors in nifti format as ubyte, and performs the following operations:
     1) transpose the image back into X,Y,Z from Z,Y,X
@@ -444,8 +511,8 @@ def store_posteriors_as_nifti(image: np.ndarray, header: ImageHeader, file_name:
 
 def store_as_scaled_ubyte_nifti(image: np.ndarray,
                                 header: ImageHeader,
-                                file_name: str,
-                                input_range: Union[Iterable[int], Iterable[float]]) -> str:
+                                file_name: PathOrString,
+                                input_range: Union[Iterable[int], Iterable[float]]) -> Path:
     """
     Saves an image in nifti format as ubyte, and performs the following operations:
     1) transpose the image back into X,Y,Z from Z,Y,X
@@ -468,7 +535,7 @@ def store_as_scaled_ubyte_nifti(image: np.ndarray,
 
 def store_as_ubyte_nifti(image: np.ndarray,
                          header: ImageHeader,
-                         file_name: str) -> str:
+                         file_name: PathOrString) -> Path:
     """
     Saves an image in nifti format as ubyte, and performs the following operations:
     1) transpose the image back into X,Y,Z from Z,Y,X
@@ -482,7 +549,7 @@ def store_as_ubyte_nifti(image: np.ndarray,
     return store_as_nifti(image, header, file_name, np.ubyte)
 
 
-def store_binary_mask_as_nifti(image: np.ndarray, header: ImageHeader, file_name: str) -> str:
+def store_binary_mask_as_nifti(image: np.ndarray, header: ImageHeader, file_name: PathOrString) -> Path:
     """
     Saves a binary mask to nifti format, and performs the following operations:
     1) Check that the image really only contains binary values (0 and 1)
@@ -503,11 +570,11 @@ def store_binary_mask_as_nifti(image: np.ndarray, header: ImageHeader, file_name
 
 def store_as_nifti(image: np.ndarray,
                    header: ImageHeader,
-                   file_name: str,
+                   file_name: PathOrString,
                    image_type: Union[str, type, np.dtype],
                    scale: bool = False,
                    input_range: Optional[Iterable[Union[int, float]]] = None,
-                   output_range: Optional[Iterable[Union[int, float]]] = None) -> str:
+                   output_range: Optional[Iterable[Union[int, float]]] = None) -> Path:
     """
     Saves an image in nifti format (uploading to Azure also if an online Run), and performs the following operations:
     1) transpose the image back into X,Y,Z from Z,Y,X
@@ -550,8 +617,8 @@ def store_as_nifti(image: np.ndarray,
     image.SetSpacing(sitk.VectorDouble(reverse_tuple_float3(header.spacing)))  # Spacing needs to be X Y Z
     image.SetOrigin(header.origin)
     image.SetDirection(header.direction)
-    sitk.WriteImage(image, file_name)
-    return file_name
+    sitk.WriteImage(image, str(file_name))
+    return Path(file_name)
 
 
 def save_lines_to_file(file: Path, values: List[str]) -> None:

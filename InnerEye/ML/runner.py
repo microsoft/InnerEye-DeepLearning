@@ -19,7 +19,8 @@ from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables, \
     parse_arguments, submit_to_azureml
-from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME
+from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, \
+    is_run_and_child_runs_completed
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
@@ -27,13 +28,12 @@ from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WI
     METRICS_FILE_NAME, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, disable_logging_to_file, \
     get_epoch_results_path, is_linux, logging_section, logging_to_file, logging_to_stdout, \
     print_exception, remove_file_or_directory
-from InnerEye.Common.fixed_paths import get_environment_yaml_file
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.reports.notebook_report import generate_segmentation_notebook, generate_classification_notebook
+from InnerEye.ML.reports.notebook_report import generate_classification_notebook, generate_segmentation_notebook
+from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 
 REPORT_IPYNB = "report.ipynb"
@@ -42,8 +42,7 @@ REPORT_HTML = "report.html"
 LOG_FILE_NAME = "stdout.txt"
 
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
-ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, ModelProcessing],
-                                        Tuple[Optional[Path], Optional[Any]]]
+ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, ModelProcessing], Any]
 
 
 def may_initialize_rpdb() -> None:
@@ -73,6 +72,7 @@ def suppress_logging_noise() -> None:
     logging.getLogger('matplotlib').setLevel(logging.INFO)
     # Urllib3 prints out connection information for each call to write metrics, etc
     logging.getLogger('urllib3').setLevel(logging.INFO)
+    logging.getLogger('msrest').setLevel(logging.INFO)
     # AzureML prints too many details about logging metrics
     logging.getLogger('azureml').setLevel(logging.INFO)
     # Jupyter notebook report generation
@@ -81,6 +81,21 @@ def suppress_logging_noise() -> None:
     # This is working around a spurious error message thrown by MKL, see
     # https://github.com/pytorch/pytorch/issues/37377
     os.environ['MKL_THREADING_LAYER'] = 'GNU'
+
+
+def get_all_environment_files(project_root: Path) -> List[Path]:
+    """
+    Returns a list of all Conda environment files that should be used. This is firstly the InnerEye conda file,
+    and possibly a second environment.yml file that lives at the project root folder.
+    :param project_root: The root folder of the code that starts the present training run.
+    :return: A list with 1 or 2 entries that are conda environment files.
+    """
+    innereye_yaml = fixed_paths.get_environment_yaml_file()
+    project_yaml = project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
+    files = [innereye_yaml]
+    if innereye_yaml != project_yaml:
+        files.append(project_yaml)
+    return files
 
 
 class Runner:
@@ -92,8 +107,6 @@ class Runner:
     :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
     If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
     Model as arguments, and return an optional Path and a further object of any type.
-    :param innereye_submodule_name: name of the InnerEye submodule if any; should be at top level.
-    Suggested value is "innereye-deeplearning".
     :param command_line_args: command-line arguments to use; if None, use sys.argv.
     """
 
@@ -102,13 +115,11 @@ class Runner:
                  yaml_config_file: Path,
                  post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
                  model_deployment_hook: Optional[ModelDeploymentHookSignature] = None,
-                 innereye_submodule_name: Optional[str] = None,
                  command_line_args: Optional[List[str]] = None):
         self.project_root = project_root
         self.yaml_config_file = yaml_config_file
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
-        self.innereye_submodule_name = innereye_submodule_name
         self.command_line_args = command_line_args
         # model_config and azure_config are placeholders for now, and are set properly when command line args are
         # parsed.
@@ -178,7 +189,7 @@ class Runner:
                                                      val_metrics=path_to_best_epoch_val,
                                                      test_metrics=path_to_best_epoch_test,
                                                      dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
-                                                                        if config.local_dataset else None,
+                                                     if config.local_dataset else None,
                                                      dataset_subject_column=config.subject_column,
                                                      dataset_file_column=config.image_file_column)
                 else:
@@ -192,7 +203,7 @@ class Runner:
         # perform aggregation as cross val splits are now ready
         plot_crossval_config = crossval_config_from_model_config(self.model_config)
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
-        plot_crossval_config.outputs_directory = str(self.model_config.outputs_folder)
+        plot_crossval_config.outputs_directory = self.model_config.outputs_folder
         plot_crossval_config.settings_yaml_file = self.yaml_config_file
         cross_val_results_root = plot_cross_validation(plot_crossval_config)
         if self.post_cross_validation_hook:
@@ -215,19 +226,18 @@ class Runner:
         Call MLRunner again after training cross-validation models, to create an ensemble model from them.
         """
         # Import only here in case of dependency issues in reduced environment
-        from InnerEye.ML.utils.run_recovery import RunRecovery
-        with logging_section("Downloading checkpoints from sibling runs"):
-            run_recovery = RunRecovery.download_checkpoints_from_run(
-                self.azure_config, self.model_config, PARENT_RUN_CONTEXT, output_subdir_name=OTHER_RUNS_SUBDIR_NAME)
-            # Check paths are good, just in case
-            for path in run_recovery.checkpoints_roots:
-                if not path.is_dir():
-                    raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
+        from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
         # Adjust parameters
         self.azure_config.hyperdrive = False
         self.model_config.number_of_cross_validation_splits = 0
         self.model_config.is_train = False
-        best_epoch = self.create_ml_runner().run_inference_and_register_model(run_recovery,
+
+        with logging_section("Downloading checkpoints from sibling runs"):
+            checkpoint_handler = CheckpointHandler(model_config=self.model_config, azure_config=self.azure_config,
+                                                   project_root=self.project_root, run_context=PARENT_RUN_CONTEXT)
+            checkpoint_handler.discover_and_download_checkpoint_from_sibling_runs()
+
+        best_epoch = self.create_ml_runner().run_inference_and_register_model(checkpoint_handler=checkpoint_handler,
                                                                               model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
         crossval_dir = self.plot_cross_validation_and_upload_results()
@@ -328,11 +338,9 @@ class Runner:
             raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
         model_config_overrides = str(self.model_config.overrides)
         source_config = SourceConfig(
-            root_folder=str(self.project_root),
-            entry_script=os.path.abspath(sys.argv[0]),
-
-            conda_dependencies_files=[get_environment_yaml_file(),
-                                      self.project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME],
+            root_folder=self.project_root,
+            entry_script=Path(sys.argv[0]).resolve(),
+            conda_dependencies_files=get_all_environment_files(self.project_root),
             hyperdrive_config_func=lambda estimator: self.model_config.get_hyperdrive_config(estimator),
             # For large jobs, upload of results times out frequently because of large checkpoint files. Default is 600
             upload_timeout_seconds=86400,
@@ -350,12 +358,10 @@ class Runner:
             download_pytest_result(azure_run)
         else:
             logging.info("No pytest_mark present, hence not downloading the pytest result file.")
-        status = azure_run.get_status()
         # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
-        # If a pytest failed, the runner has exited with code -1 (see below)
-        if self.azure_config.wait_for_completion and status != RunStatus.COMPLETED:
-            logging.error(f"Job completed with status {status}. Exiting.")
-            exit(-1)
+        if self.azure_config.wait_for_completion and not is_run_and_child_runs_completed(azure_run):
+            raise ValueError(f"Run {azure_run.id} in experiment {azure_run.experiment.name} or one of its child "
+                             "runs failed.")
         return azure_run
 
     def run_in_situ(self) -> None:
@@ -393,10 +399,17 @@ class Runner:
             if not training_failed and self.model_config.should_wait_for_other_cross_val_child_runs():
                 self.wait_for_cross_val_runs_to_finish_and_aggregate()
             disable_logging_to_file()
-        if training_failed or pytest_failed or not pytest_passed:
-            # Terminate if pytest or model training has failed. This makes the smoke test in
-            # PR builds fail if pytest fails.
-            exit(-1)
+        message = []
+        if training_failed:
+            message.append("Training failed")
+        if pytest_failed:
+            message.append("Unable to run Pytest")
+        if not pytest_passed:
+            message.append("At least 1 test in Pytest failed")
+        # Terminate if pytest or model training has failed. This makes the smoke test in
+        # PR builds fail if pytest fails.
+        if message:
+            raise ValueError(f"One component of the training pipeline failed: {'. '.join(message)}")
 
     def create_ml_runner(self) -> Any:
         """
@@ -408,7 +421,7 @@ class Runner:
         from InnerEye.ML.run_ml import MLRunner
         return MLRunner(
             self.model_config, self.azure_config, self.project_root,
-            self.model_deployment_hook, self.innereye_submodule_name)
+            self.model_deployment_hook)
 
 
 def default_post_cross_validation_hook(config: ModelConfigBase, root_folder: Path) -> None:
@@ -432,7 +445,6 @@ def run(project_root: Path,
         yaml_config_file: Path,
         post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
         model_deployment_hook: Optional[ModelDeploymentHookSignature] = None,
-        innereye_submodule_name: Optional[str] = None,
         command_line_args: Optional[List[str]] = None) -> \
         Tuple[ModelConfigBase, Optional[Run]]:
     """
@@ -442,7 +454,7 @@ def run(project_root: Path,
     including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
     runner = Runner(project_root, yaml_config_file, post_cross_validation_hook,
-                    model_deployment_hook, innereye_submodule_name, command_line_args)
+                    model_deployment_hook, command_line_args)
     return runner.run()
 
 

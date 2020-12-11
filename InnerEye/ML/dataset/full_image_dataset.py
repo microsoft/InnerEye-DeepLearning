@@ -6,7 +6,7 @@ import logging
 from abc import ABC
 from collections import Counter
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
 
 import pandas as pd
 import torch.utils.data
@@ -14,7 +14,6 @@ from torch._six import container_abcs
 from torch.utils.data import BatchSampler, DataLoader, Dataset, RandomSampler, Sampler, SequentialSampler
 from torch.utils.data.dataloader import default_collate  # type: ignore
 
-from InnerEye.Common.type_annotations import IntOrString, TupleFloat3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata, PatientDatasetSource, \
     PatientMetadata, Sample
@@ -22,7 +21,6 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import io_util, ml_util
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_PATH_HEADER, \
     CSV_SUBJECT_HEADER
-from InnerEye.ML.utils.io_util import is_nifti_file_path
 from InnerEye.ML.utils.transforms import Compose3D
 
 COMPRESSION_EXTENSIONS = ['sz', 'gz']
@@ -237,13 +235,10 @@ class FullImageDataset(GeneralDataset):
                              format(self.args.local_dataset))
 
         # cache all of the available dataset sources
-        self._get_file_extension()
-        if self._is_nifti_dataset():
-            dataloader: Callable[[], Any] = self._load_dataset_sources
-        else:
-            raise Exception("Files should be Nifti, but found {0}".format(self.file_extension))
-        self.dataset_sources: Union[Dict[IntOrString, PatientDatasetSource]] = dataloader()
-        self.dataset_indices = sorted(self.dataset_sources.keys())
+        dataloader: Callable[[], Any] = self._load_dataset_sources
+
+        self.dataset_sources: Dict[str, PatientDatasetSource] = dataloader()
+        self.dataset_indices: List[str] = sorted(self.dataset_sources.keys())
 
     def __len__(self) -> int:
         return len(self.dataset_indices)
@@ -263,33 +258,13 @@ class FullImageDataset(GeneralDataset):
             raise Exception("More than one file type was found. This is not supported.")
         return "." + unique_file_extensions[0]
 
-    def _is_nifti_dataset(self) -> bool:
-        return is_nifti_file_path(self.file_extension)
-
-    def _get_file_extension(self) -> None:
-        file_extension = self._extension_from_df_file_paths(self.data_frame[CSV_PATH_HEADER].values)  # type: ignore
-        self.file_extension = file_extension
-        if not (self._is_nifti_dataset()):
-            raise Exception("Wrong file type provided. Must be Nifti.")
-
-    def extract_spacing(self, patient_id: IntOrString) -> TupleFloat3:
-        """
-        extract spacing for that particular image using the first image channel
-        :param patient_id:
-        :return:
-        """
-        return io_util.load_nifti_image(self.dataset_sources[patient_id].image_channels[0]).header.spacing
-
     def get_samples_at_index(self, index: int) -> List[Sample]:
         # load the channels into memory
-        if not self._is_nifti_dataset():
-            raise ValueError("Unknown file extension. Files should be Nifti or HDF5 format but found "
-                             + self.file_extension)
         ds = self.dataset_sources[self.dataset_indices[index]]
         samples = [io_util.load_images_from_dataset_source(dataset_source=ds)]  # type: ignore
         return [Compose3D.apply(self.full_image_sample_transforms, x) for x in samples]
 
-    def _load_dataset_sources(self) -> Dict[int, PatientDatasetSource]:
+    def _load_dataset_sources(self) -> Dict[str, PatientDatasetSource]:
         assert self.args.local_dataset is not None
         return load_dataset_sources(dataframe=self.data_frame,
                                     local_dataset_root_folder=self.args.local_dataset,
@@ -303,7 +278,7 @@ def load_dataset_sources(dataframe: pd.DataFrame,
                          local_dataset_root_folder: Path,
                          image_channels: List[str],
                          ground_truth_channels: List[str],
-                         mask_channel: Optional[str]) -> Dict[int, PatientDatasetSource]:
+                         mask_channel: Optional[str]) -> Dict[str, PatientDatasetSource]:
     """
     Prepares a patient-to-images mapping from a dataframe read directly from a dataset CSV file.
     The dataframe contains per-patient per-channel image information, relative to a root directory.
@@ -324,7 +299,7 @@ def load_dataset_sources(dataframe: pd.DataFrame,
                          .format(expected_headers, actual_headers))
 
     # Calculate unique data points, first, and last data point
-    unique_ids = sorted(pd.unique(dataframe[CSV_SUBJECT_HEADER]))
+    unique_ids: List[str] = sorted(pd.unique(dataframe[CSV_SUBJECT_HEADER]))
     if not local_dataset_root_folder.is_dir():
         raise ValueError("The dataset root folder does not exist: {}".format(local_dataset_root_folder))
 
@@ -347,8 +322,6 @@ def load_dataset_sources(dataframe: pd.DataFrame,
             elif len(row) > 1:
                 raise ValueError(f"Patient {patient_id} has more than one entry for channel '{channel_id}'")
             image_path = local_dataset_root_folder / row[CSV_PATH_HEADER].values[0]
-            if not image_path.is_file():
-                raise ValueError(f"The dataset references a file that does not exist: {image_path}")
             paths.append(image_path)
         return paths
 

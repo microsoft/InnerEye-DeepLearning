@@ -23,7 +23,7 @@ from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARE
 from InnerEye.Common.common_util import DataframeLogger
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict, get_column_name_for_logging, \
     get_metric_name_with_hue_prefix
-from InnerEye.Common.type_annotations import IntOrString, TupleFloat3
+from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -540,7 +540,7 @@ def store_epoch_metrics(azure_and_tensorboard_logger: AzureAndTensorboardLogger,
 
 
 def compute_scalar_metrics(metrics_dict: ScalarMetricsDict,
-                           subject_ids: Sequence[IntOrString],
+                           subject_ids: Sequence[str],
                            model_output: torch.Tensor,
                            labels: torch.Tensor,
                            loss_type: ScalarLoss = ScalarLoss.BinaryCrossEntropyWithLogits) -> None:

@@ -59,14 +59,9 @@ class AzureConfig(GenericConfig):
     subscription_id: str = param.String(doc="The ID of your Azure subscription.")
     tenant_id: str = param.String(doc="The Azure tenant ID.")
     application_id: str = param.String(doc="Optional: The ID of the Service Principal for authentication to Azure.")
-    datasets_storage_account: str = \
-        param.String(doc="Optional: The blob storage account to use when downloading datasets for use outside of "
-                         "AzureML. This storage account must be the same as the one configured as a 'datastore' "
-                         "in AzureML.")
-    datasets_storage_account_key: str = \
-        param.String(doc="Optional: The access key for the storage account that holds the datasets. "
-                         "This is only used for downloading datasets outside of AzureML.")
-    datasets_container: str = param.String(doc="Optional: The blob storage container with the datasets.")
+    azureml_datastore: str = param.String(doc="The name of the AzureML datastore that holds the input training data. "
+                                              "This must be created manually, and point to a folder inside the "
+                                              "datasets storage account.")
     workspace_name: str = param.String(doc="The name of the AzureML workspace that should be used.")
     resource_group: str = param.String(doc="The Azure resource group that contains the AzureML workspace.")
     docker_shm_size: str = param.String("440g", doc="The shared memory in the docker image for the AzureML VMs.")
@@ -132,6 +127,10 @@ class AzureConfig(GenericConfig):
         super().__init__(**params)
         self.git_information: Optional[GitInformation] = None
 
+    def validate(self) -> None:
+        if self.register_model_only_for_epoch and not self.run_recovery_id:
+            raise ValueError("If register_model_only_for_epoch is set, must also provide a valid run_recovery_id")
+
     def get_git_information(self) -> GitInformation:
         """
         Gets all version control information about the present source code in the project_root_directory.
@@ -189,13 +188,6 @@ class AzureConfig(GenericConfig):
             config.project_root = project_root
         return config
 
-    def get_dataset_storage_account_key(self) -> Optional[str]:
-        """
-        Gets the storage account key for the storage account that holds the dataset.
-        """
-        secrets_handler = SecretsHandling(project_root=self.project_root)
-        return secrets_handler.get_secret_from_environment(fixed_paths.DATASETS_ACCOUNT_KEY, allow_missing=True)
-
     def get_workspace(self) -> Workspace:
         """
         Return a workspace object for an existing Azure Machine Learning Workspace (or default from YAML).
@@ -211,12 +203,16 @@ class AzureConfig(GenericConfig):
             return self._workspace
         run_context = Run.get_context()
         if is_offline_run_context(run_context):
-            service_principal_auth = self.get_service_principal_auth()
-            self._workspace = Workspace.get(
-                name=self.workspace_name,
-                auth=service_principal_auth,
-                subscription_id=self.subscription_id,
-                resource_group=self.resource_group)
+            if self.subscription_id and self.resource_group:
+                service_principal_auth = self.get_service_principal_auth()
+                self._workspace = Workspace.get(
+                    name=self.workspace_name,
+                    auth=service_principal_auth,
+                    subscription_id=self.subscription_id,
+                    resource_group=self.resource_group)
+            else:
+                raise ValueError("The values for 'subscription_id' and 'resource_group' were not found. "
+                                 "Was the Azure setup completed?")
         else:
             self._workspace = run_context.experiment.workspace
         return self._workspace
@@ -249,8 +245,8 @@ class SourceConfig:
     Contains all information that is required to submit a script to AzureML: Entry script, arguments,
     and information to set up the Python environment inside of the AzureML virtual machine.
     """
-    root_folder: str
-    entry_script: str
+    root_folder: Path
+    entry_script: Path
     conda_dependencies_files: List[Path]
     script_params: Optional[Dict[str, str]] = None
     hyperdrive_config_func: Optional[Callable[[MMLBaseEstimator], HyperDriveConfig]] = None

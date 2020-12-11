@@ -72,10 +72,13 @@ def test_cross_entropy_loss_forward_smoothing(is_segmentation: bool) -> None:
     assert torch.isclose(loss1, loss2)
 
 
-@pytest.mark.parametrize(["focal_loss_gamma", "loss_upper_bound"],
-                         [(None, 1e-4),
-                          (2.0, 1e-7)])
-def test_cross_entropy_loss_integration(focal_loss_gamma: float, loss_upper_bound: float) -> None:
+@pytest.mark.parametrize(["focal_loss_gamma", "loss_upper_bound", "class_weight_power"],
+                         [(None, 1e-4, 1.0),
+                          (2.0, 1e-7, 0.0),
+                          (2.0, 1e-7, 1.0)])
+def test_cross_entropy_loss_integration(focal_loss_gamma: float,
+                                        loss_upper_bound: float,
+                                        class_weight_power: float) -> None:
     """
     Solves a simple linear classification problem by training a multi-layer perceptron.
     Here the training objectives (cross-entropy and focal loss) are tested to see they function
@@ -104,7 +107,7 @@ def test_cross_entropy_loss_integration(focal_loss_gamma: float, loss_upper_boun
     # Define a basic model (We actually don't even a non-linear unit to solve it)
     net = ToyNet()
     opt = optim.Adam(net.parameters(), lr=0.001, betas=(0.9, 0.999))
-    loss_fn = CrossEntropyLoss(class_weight_power=1.0, focal_loss_gamma=focal_loss_gamma)
+    loss_fn = CrossEntropyLoss(class_weight_power=class_weight_power, focal_loss_gamma=focal_loss_gamma)
 
     # Perform forward and backward passes
     net.train()

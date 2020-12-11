@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -10,7 +9,7 @@ import pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
 from InnerEye.ML.runner import Runner
 
@@ -18,14 +17,14 @@ from InnerEye.ML.runner import Runner
 @pytest.mark.parametrize("is_default_namespace", [True, False])
 @pytest.mark.parametrize("is_offline_run", [True, False])
 def test_create_ml_runner_args(is_default_namespace: bool,
-                               test_output_dirs: TestOutputDirectories,
+                               test_output_dirs: OutputFolderForTests,
                                is_offline_run: bool) -> None:
     """Test round trip parsing of commandline arguments:
     From arguments to the Azure runner to the arguments of the ML runner, checking that
     whatever is passed on can be correctly parsed."""
     logging_to_stdout()
     model_name = "Lung"
-    outputs_folder = Path(test_output_dirs.root_dir)
+    outputs_folder = test_output_dirs.root_dir
     project_root = fixed_paths.repository_root_directory()
     if is_default_namespace:
         model_configs_namespace = None
@@ -35,7 +34,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
 
     args_list = [f"--model={model_name}", "--train=True", "--l_rate=100.0",
                  "--norm_method=Simple Norm", "--subscription_id", "Test1", "--tenant_id=Test2",
-                 "--application_id", "Test3", "--datasets_storage_account=Test4", "--datasets_container", "Test5",
+                 "--application_id", "Test3", "--azureml_datastore", "Test5",
                  "--pytest_mark", "gpu", f"--output_to={outputs_folder}"]
     if not is_default_namespace:
         args_list.append(f"--model_configs_namespace={model_configs_namespace}")
@@ -46,7 +45,6 @@ def test_create_ml_runner_args(is_default_namespace: bool,
             runner.parse_and_load_model()
             azure_config = runner.azure_config
             model_config = runner.model_config
-    assert azure_config.datasets_storage_account == "Test4"
     assert azure_config.model == model_name
     assert model_config.l_rate == 100.0
     assert model_config.norm_method == PhotometricNormalizationMethod.SimpleNorm
@@ -61,7 +59,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
         assert model_config.outputs_folder == (project_root / DEFAULT_AML_UPLOAD_DIR)
         assert model_config.logs_folder == (project_root / DEFAULT_LOGS_DIR_NAME)
 
-    assert not hasattr(model_config, "datasets_storage_account")
+    assert not hasattr(model_config, "azureml_datastore")
     assert azure_config.pytest_mark == "gpu"
 
 
@@ -97,15 +95,15 @@ def test_non_overridable_properties() -> None:
     assert all([x in unknown for x in non_overridable])
 
 
-def test_read_yaml_file_into_args(test_output_dirs: TestOutputDirectories) -> None:
+def test_read_yaml_file_into_args(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if the arguments for specifying the YAML config file with storage account, etc
     are correctly wired up.
     """
-    empty_yaml = Path(test_output_dirs.root_dir) / "nothing.yaml"
+    empty_yaml = test_output_dirs.root_dir / "nothing.yaml"
     empty_yaml.write_text("variables:\n")
     with mock.patch("sys.argv", ["", "--model=Lung"]):
-        # Default behaviour: Application ID (service principal) should be picked up from YAML
+        # Default behaviour: tenant_id should be picked up from YAML
         runner1 = Runner(project_root=fixed_paths.repository_root_directory(),
                          yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
         runner1.parse_and_load_model()
@@ -120,14 +118,13 @@ def test_read_yaml_file_into_args(test_output_dirs: TestOutputDirectories) -> No
         assert runner2.azure_config.resource_group == ""
 
 
-def test_parsing_with_custom_yaml(test_output_dirs: TestOutputDirectories) -> None:
+def test_parsing_with_custom_yaml(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if additional model or Azure config settings can be read correctly from YAML files.
     """
-    yaml_file = Path(test_output_dirs.root_dir) / "custom.yml"
+    yaml_file = test_output_dirs.root_dir / "custom.yml"
     yaml_file.write_text("""variables:
   tenant_id: 'foo'
-  datasets_storage_account: 'account'
   start_epoch: 7
   random_seed: 1
 """)
@@ -139,12 +136,11 @@ def test_parsing_with_custom_yaml(test_output_dirs: TestOutputDirectories) -> No
             "--random_seed", "2"]
     with mock.patch("sys.argv", args):
         runner = Runner(project_root=fixed_paths.repository_root_directory(),
-                                             yaml_config_file=yaml_file)
+                        yaml_config_file=yaml_file)
         loader_result = runner.parse_and_load_model()
     assert loader_result is not None
     assert runner.azure_config is not None
     # This is only present in yaml
-    assert runner.azure_config.datasets_storage_account == "account"
     # This is present in yaml and command line, and the latter should be used.
     assert runner.azure_config.tenant_id == "bar"
     # Settings in model config: start_epoch is only in yaml

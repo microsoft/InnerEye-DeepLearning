@@ -136,11 +136,21 @@ of the AzureML UI. The easiest way to get it is to go to any of the child runs a
 run recovery ID without the final underscore and digit.
 
 ### Testing an existing model
+To evaluate an existing model on a test set, you can use models from previous runs in AzureML or from local checkpoints.
 
-As for continuing training, but set `--train` to `False`. Thus your command should look like this:
+##### From a previus run in AzureML:
+This is similar to continuing training using a run_recovery object, but you will need to set `--train` to `False`. 
+Thus your command should look like this:
+
 ```shell script
 python Inner/ML/runner.py --azureml=True --model=Prostate --train=False --cluster=my_cluster_name \
    --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
+```
+##### From a local checkpoint:
+To evaluate a model using a local checkpoint, use the local_weights_path to specify the path to the model checkpoint 
+and set train to `False`.
+```shell script
+python Inner/ML/runner.py --model=Prostate --train=False --local_weights_path=path_to_your_checkpoint
 ```
 
 Alternatively, to submit an AzureML run to apply a model to a single image on your local disc, 
@@ -153,15 +163,16 @@ python InnerEye/Scripts/submit_for_inference.py --image_file ~/somewhere/ct.nii.
 ### Model Ensembles
 
 An ensemble model will be created automatically and registered in the AzureML model registry whenever cross-validation
-models are trained. The ensemble model
-creation is done by the child whose `cross_validation_split_index` is 0; you can identify this child by looking
-at the "Child Runs" tab in the parent run page in AzureML. To find the ID of the ensemble model, look in the
-driver log for the child run and search for the string "Registered model". There should be exactly two occurrences of
-this string. The first is for the child model itself (each child run in fact registers one of these) and the
-second is for the ensemble. 
+models are trained. The ensemble model creation is done by the child whose `cross_validation_split_index` is 0; 
+you can identify this child by looking at the "Child Runs" tab in the parent run page in AzureML. 
 
-As well as registering the model, the child run runs it on the validation and test sets. The results are aggregated 
-based on the `ensemble_aggregation_type` value in the model config,
+To find the registered ensemble model, find the Hyperdrive parent run in AzureML. In the "Details" tab, there is an
+entry for "Registered models", that links to the ensemble model that was just created. Note that each of the child runs
+also registers a model, namely the one that was built off its specific subset of data, without taking into account
+the other crossvalidation folds.
+
+As well as registering the model, child run 0 runs the ensemble model on the validation and test sets. The results are
+aggregated based on the `ensemble_aggregation_type` value in the model config,
 and the generated posteriors are passed to the usual model testing downstream pipelines, e.g. metrics computation.
 
 

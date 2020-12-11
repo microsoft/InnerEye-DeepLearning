@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from enum import Enum, unique
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -19,11 +20,18 @@ from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import ModelExecutionMode, create_unique_timestamp_id, create_checkpoint_path
+from InnerEye.ML.common import ModelExecutionMode, create_checkpoint_path, create_unique_timestamp_id
 
 VISUALIZATION_FOLDER = "Visualizations"
+# A folder inside of the outputs folder that will contain all information for running the model in inference mode
+FINAL_MODEL_FOLDER = "final_model"
+FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
+
+# The checkpoints must be stored inside of the final model folder, if we want to avoid copying
+# them before registration.
 CHECKPOINT_FOLDER = "checkpoints"
 ARGS_TXT = "args.txt"
+WEIGHTS_FILE = "weights.pth"
 
 
 @unique
@@ -106,9 +114,8 @@ class DeepLearningFileSystemConfig(Parameterized):
                                             doc="The folder for all log files and Tensorboard event files")
     project_root: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
                                              doc="The root folder for the codebase that triggers the training run.")
-    run_folder: Optional[Path] = param.ClassSelector(class_=Path, default=None, instantiate=False,
-                                                     doc="For runs outside AzureML, this is the folder that contains "
-                                                         "outputs and the logs subfolder.")
+    run_folder: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
+                                           doc="The folder that contains outputs and the logs subfolder.")
 
     @staticmethod
     def create(project_root: Path,
@@ -131,7 +138,6 @@ class DeepLearningFileSystemConfig(Parameterized):
         if not project_root.is_absolute():
             raise ValueError(f"The project root is required to be an absolute path, but got {project_root}")
 
-        run_folder: Optional[Path]
         if is_offline_run:
             logging.info("Running outside of AzureML.")
             if output_to:
@@ -147,7 +153,7 @@ class DeepLearningFileSystemConfig(Parameterized):
         else:
             logging.info("Running inside AzureML.")
             logging.info("All results will be written to a subfolder of the project root folder.")
-            run_folder = None
+            run_folder = project_root
             outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
             logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
         logging.info(f"Run outputs folder: {outputs_folder}")
@@ -191,8 +197,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     azure_dataset_id: str = param.String(doc="If provided, the ID of the dataset to use. This dataset must exist as a "
-                                                       "folder of the same name in the 'datasets' "
-                                                       "container in the datasets storage account.")
+                                             "folder of the same name in the 'datasets' "
+                                             "container in the datasets storage account.")
     local_dataset: Optional[Path] = param.ClassSelector(class_=Path,
                                                         default=None,
                                                         allow_None=True,
@@ -263,11 +269,24 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     use_model_parallel: bool = param.Boolean(False, doc="If true, neural network model is partitioned across all "
                                                         "available GPUs to fit in a large model. It shall not be used "
                                                         "together with data parallel.")
-    test_diff_epochs: Optional[int] = param.Integer(None, doc="Number of different epochs of the same model to test",
-                                                    allow_None=True)
-    test_step_epochs: Optional[int] = param.Integer(None, doc="How many epochs to move for each test", allow_None=True)
-    test_start_epoch: Optional[int] = param.Integer(None, doc="The first epoch on which testing should run.",
-                                                    allow_None=True)
+    epochs_to_test: Optional[List[int]] = param.List(None, bounds=(1, None), allow_None=True, class_=int,
+                                                     doc="Epochs to test on. This should be a list of integers > 1."
+                                                         "Note that this option takes precedence over the config "
+                                                         "option "
+                                                         "set `test_diff_epochs`, `test_step_epochs` and "
+                                                         "`test_start_epoch`")
+    test_diff_epochs: Optional[int] = param.Integer(None, allow_None=True,
+                                                    doc="Deprecated: "
+                                                        "Number of different epochs of the same model to test. "
+                                                        "This option will be ignored if `epochs_to_test` is set")
+    test_step_epochs: Optional[int] = param.Integer(None, allow_None=True,
+                                                    doc="Deprecated: "
+                                                        "How many epochs to move for each test "
+                                                        "This option will be ignored if `epochs_to_test` is set")
+    test_start_epoch: Optional[int] = param.Integer(None, allow_None=True,
+                                                    doc="Deprecated: "
+                                                        "The first epoch on which testing should run."
+                                                        "This option will be ignored if `epochs_to_test` is set")
     monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
                                                             "statistics. If 0 or less, do not log any resource "
                                                             "statistics.")
@@ -362,6 +381,14 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "weights are updated using mean_teacher_"
                                                  "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
+    weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
+                                        "initialization.")
+    local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
+                                                             default=None,
+                                                             allow_None=True,
+                                                             doc="The path to the weights to use for model "
+                                                                 "initialization, "
+                                                                 "when training is running outside Azure.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
@@ -383,6 +410,16 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
         if self.azure_dataset_id is None and self.local_dataset is None:
             raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
+
+        if self.weights_url and self.local_weights_path:
+            raise ValueError("Cannot specify both local_weights_path and weights_url.")
+
+        if self.test_start_epoch or self.test_step_epochs or self.test_diff_epochs:
+            warnings.warn("DEPRECATED: The combination of (test_diff_epochs, test_step_epochs "
+                          "and test_start_epoch) is deprecated, use epochs_to_start instead.", DeprecationWarning)
+            if self.epochs_to_test:
+                logging.warning("self.epochs_to_test will take precedence over the config parameter set "
+                                "(test_diff_epochs, test_step_epochs, test_start_epoch)")
 
         if self.number_of_cross_validation_splits == 1:
             raise ValueError(f"At least two splits required to perform cross validation found "
@@ -458,9 +495,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         return self.file_system_config.logs_folder
 
     @property
-    def checkpoint_folder(self) -> str:
+    def checkpoint_folder(self) -> Path:
         """Gets the full path in which the model checkpoints should be stored during training."""
-        return str(self.outputs_folder / CHECKPOINT_FOLDER)
+        return self.outputs_folder / CHECKPOINT_FOLDER
 
     @property
     def visualization_folder(self) -> Path:
@@ -533,10 +570,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         self._metrics_data_frame_loggers = MetricsDataframeLoggers(outputs_folder=self.outputs_folder)
 
-    def should_load_checkpoint_for_training(self) -> bool:
-        """Returns true if start epoch > 0, that is, if an existing checkpoint is used to continue training."""
-        return self.start_epoch > 0
-
     def should_save_epoch(self, epoch: int) -> bool:
         """Returns True if the present epoch should be saved, as per the save_start_epoch and save_step_epochs
         settings. Epoch writing starts with the first epoch that is >= save_start_epoch, and that
@@ -586,7 +619,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         :return:
         """
         test_epochs = {self.num_epochs}
-        if self.test_diff_epochs is not None and self.test_start_epoch is not None and \
+        if self.epochs_to_test:
+            return sorted(test_epochs | set(self.epochs_to_test))
+        elif self.test_diff_epochs is not None and self.test_start_epoch is not None and \
                 self.test_step_epochs is not None:
             for j in range(self.test_diff_epochs):
                 epoch = self.test_start_epoch + self.test_step_epochs * j
@@ -599,12 +634,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         Returns full path to a checkpoint given an epoch
         :param epoch: the epoch number
-        :param for_mean_teacher_model: if True looking returns path to the mean teacher checkpoint. Else returns the
-        path to the (main / student) model checkpoint.
         :return: path to a checkpoint given an epoch
         """
-        return create_checkpoint_path(path=fixed_paths.repository_root_directory() / self.checkpoint_folder,
-                                      epoch=epoch)
+        return create_checkpoint_path(self.checkpoint_folder, epoch=epoch)
 
     def get_effective_random_seed(self) -> int:
         """
@@ -692,3 +724,33 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         for key in keys:
             arguments_str += "\t{:18}: {}\n".format(key, property_dict[key])
         return arguments_str
+
+    def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:
+        """
+        By default, uses torch.load to read and return the state dict from the checkpoint file, and does no modification
+        of the checkpoint file.
+
+        Overloading this function:
+        When weights_url or local_weights_path is set, the file downloaded may not be in the exact
+        format expected by the model's load_state_dict() - for example, pretrained Imagenet weights for networks
+        may have mismatched layer names in different implementations.
+        In such cases, you can overload this function to extract the state dict from the checkpoint.
+
+        NOTE: The model checkpoint will be loaded using the torch function load_state_dict() with argument strict=False,
+        so extra care needs to be taken to check that the state dict is valid.
+        Check the logs for warnings related to missing and unexpected keys.
+        See https://pytorch.org/tutorials/beginner/saving_loading_models.html#warmstarting-model-using-parameters
+        -from-a-different-model
+        for an explanation on why strict=False is useful when loading parameters from other models.
+
+        :param path_to_checkpoint: Path to the checkpoint file.
+        :return: Dictionary with model and optimizer state dicts. The dict should have at least the following keys:
+        1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set to the model state dict.
+        2. Key ModelAndInfo.EPOCH_KEY and value set to the checkpoint epoch.
+        Other (optional) entries corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
+        ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported.
+        """
+        import torch
+        map_location = None if self.use_gpu else 'cpu'
+        checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
+        return checkpoint

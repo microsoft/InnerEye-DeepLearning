@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from io import StringIO
-from pathlib import Path
 from typing import Any, List, Optional, Tuple
 from unittest import mock
 
@@ -13,9 +12,9 @@ import pytest
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import METRICS_FILE_NAME, logging_to_stdout, ModelExecutionMode
+from InnerEye.Common.common_util import METRICS_FILE_NAME, ModelExecutionMode, logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, SequenceMetricsDict
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
@@ -35,7 +34,7 @@ from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
-from Tests.ML.util import get_default_azure_config
+from Tests.ML.util import get_default_checkpoint_handler, get_default_azure_config
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 SCAN_SIZE = (6, 64, 60)
@@ -195,7 +194,7 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
                                      combine_hidden_state: bool,
                                      use_encoder_layer_norm: bool,
                                      use_mean_teacher_model: bool,
-                                     test_output_dirs: TestOutputDirectories) -> None:
+                                     test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if we can build a simple RNN model that only feeds off non-image features.
     This just tests the mechanics of training, but not if the model learned.
@@ -213,7 +212,8 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, SCAN_SIZE),
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
-        results = model_train(config)
+        results = model_train(config, get_default_checkpoint_handler(model_config=config,
+                                                                     project_root=test_output_dirs.root_dir))
         assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
                == config.get_total_number_of_save_epochs()
 
@@ -226,7 +226,7 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
                           (True, ImagingFeatureType.ImageAndSegmentation)])
 def test_run_ml_with_sequence_model(use_combined_model: bool,
                                     imaging_feature_type: ImagingFeatureType,
-                                    test_output_dirs: TestOutputDirectories) -> None:
+                                    test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and testing of sequence models, when it is started together via run_ml.
     """
@@ -259,7 +259,7 @@ def test_run_ml_with_sequence_model(use_combined_model: bool,
                           (True, ImagingFeatureType.ImageAndSegmentation)])
 def test_visualization_with_sequence_model(use_combined_model: bool,
                                            imaging_feature_type: ImagingFeatureType,
-                                           test_output_dirs: TestOutputDirectories) -> None:
+                                           test_output_dirs: OutputFolderForTests) -> None:
     config = ToySequenceModel(use_combined_model, imaging_feature_type, should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
@@ -356,7 +356,7 @@ class ToySequenceModel2(SequenceModelBase):
 # Only test the non-combined model because otherwise the build takes too much time.
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.gpu
-def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) -> None:
+def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if we can build an RNN classifier that learns sequences, of the same kind as in
     test_rnn_classifier_toy_problem, but built via the config.
@@ -379,7 +379,8 @@ def test_rnn_classifier_via_config_2(test_output_dirs: TestOutputDirectories) ->
     config.num_epochs = 2
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset(dataset_contents)
-    results = model_train(config)
+    results = model_train(config, get_default_checkpoint_handler(model_config=config,
+                                                                 project_root=test_output_dirs.root_dir))
 
     actual_train_loss = results.train_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
     actual_val_loss = results.val_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
@@ -430,7 +431,7 @@ class ToyMultiLabelSequenceModel(SequenceModelBase):
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
-def test_run_ml_with_multi_label_sequence_model(test_output_dirs: TestOutputDirectories) -> None:
+def test_run_ml_with_multi_label_sequence_model(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and testing of sequence models that predicts at multiple time points,
     when it is started via run_ml.
@@ -447,7 +448,7 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: TestOutputDire
     assert metrics_dict.get_hue_names(include_default=False) == expected_prediction_targets
     config.set_output_to(test_output_dirs.root_dir)
     # Create a fake dataset directory to make config validation pass
-    config.local_dataset = Path(test_output_dirs.root_dir)
+    config.local_dataset = test_output_dirs.root_dir
     config.dataset_data_frame = _get_multi_label_sequence_dataframe()
     config.pre_process_dataset_dataframe()
     config.num_epochs = 1
@@ -498,7 +499,7 @@ def test_pad_gru_output(combine_hidden_states: bool) -> None:
     assert torch.allclose(expected, padded)
 
 
-def test_visualization_for_different_target_weeks(test_output_dirs: TestOutputDirectories) -> None:
+def test_visualization_for_different_target_weeks(test_output_dirs: OutputFolderForTests) -> None:
     """
     Tests that the visualizations are differentiated depending on the target week
     for which we visualize it.
@@ -564,7 +565,7 @@ def _get_multi_label_sequence_dataframe() -> pd.DataFrame:
     return pd.read_csv(StringIO(dataset_contents), dtype=str)
 
 
-def test_sequence_dataset_stats_hook(test_output_dirs: TestOutputDirectories) -> None:
+def test_sequence_dataset_stats_hook(test_output_dirs: OutputFolderForTests) -> None:
     model = ToySequenceModel()
     model.set_output_to(test_output_dirs.root_dir)
     model.dataset_data_frame = _get_mock_sequence_dataset()

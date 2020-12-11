@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, unique
 from math import isclose
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -445,7 +446,7 @@ class SegmentationModelBase(ModelConfigBase):
     is_plotting_enabled: bool = param.Boolean(True, doc="If true, various overview plots with results are generated "
                                                         "during model evaluation. Set to False if you see "
                                                         "non-deterministic pull request build failures.")
-    show_patch_sampling: int = param.Integer(5, bounds=(0, None),
+    show_patch_sampling: int = param.Integer(1, bounds=(0, None),
                                              doc="Number of patients from the training set for which the effect of"
                                                  "patch sampling will be shown. Nifti images and thumbnails for each"
                                                  "of the first N subjects in the training set will be "
@@ -591,11 +592,11 @@ class SegmentationModelBase(ModelConfigBase):
                                             output_size=self.get_output_size(ModelExecutionMode.TEST))
 
     @property
-    def example_images_folder(self) -> str:
+    def example_images_folder(self) -> Path:
         """
         Gets the full path in which the example images should be stored during training.
         """
-        return str(self.outputs_folder / EXAMPLE_IMAGES_FOLDER)
+        return self.outputs_folder / EXAMPLE_IMAGES_FOLDER
 
     @property
     def largest_connected_component_foreground_classes(self) -> LARGEST_CC_TYPE:
@@ -634,7 +635,9 @@ class SegmentationModelBase(ModelConfigBase):
         """
         assert self.local_dataset is not None  # for mypy
         self.dataset_data_frame = pd.read_csv(self.local_dataset / DATASET_CSV_FILE_NAME,
-                                              converters=self.col_type_converters, low_memory=False)
+                                              dtype=str,
+                                              converters=self.col_type_converters,
+                                              low_memory=False)
         self.pre_process_dataset_dataframe()
 
     def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:

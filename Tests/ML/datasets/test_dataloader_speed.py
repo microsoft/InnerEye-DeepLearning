@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from InnerEye.Common.common_util import is_windows
-from InnerEye.Common.output_directories import TestOutputDirectories
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.scalar_config import ScalarModelBase
@@ -20,7 +20,7 @@ from InnerEye.ML.utils import ml_util
 @pytest.mark.parametrize("shuffle", [False, True])
 @pytest.mark.skipif(is_windows(),
                     reason="This test runs fine on local Windows boxes, but leads to odd timeouts in Azure")
-def test_dataloader_speed(test_output_dirs: TestOutputDirectories,
+def test_dataloader_speed(test_output_dirs: OutputFolderForTests,
                           num_dataload_workers: int,
                           shuffle: bool) -> None:
     """

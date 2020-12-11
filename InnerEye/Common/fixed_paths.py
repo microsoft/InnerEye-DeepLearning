@@ -15,8 +15,8 @@ def repository_root_directory(path: Optional[PathOrString] = None) -> Path:
     :param path: if provided, a relative path to append to the absolute path to the repository root.
     :return: The full path to the repository's root directory, with symlinks resolved if any.
     """
-    current = os.path.dirname(os.path.realpath(__file__))
-    root = Path(os.path.realpath(os.path.join(current, "..", "..")))
+    current = Path(__file__)
+    root = current.parent.parent.parent
     if path:
         return root / path
     else:
@@ -35,9 +35,9 @@ DEFAULT_LOGS_DIR_NAME = "logs"
 DEFAULT_MODEL_SUMMARIES_DIR_PATH = Path(DEFAULT_LOGS_DIR_NAME) / "model_summaries"
 # The folder at the project root directory that holds datasets for local execution.
 DATASETS_DIR_NAME = "datasets"
-# Inside of the AzureML workspace, a Datastore has to be created manually. That Datastore
-# points to a container inside of a storage account.
-AZUREML_DATASTORE_NAME = "innereyedatasets"
+
+# Points to a folder at the project root directory that holds model weights downloaded from URLs.
+MODEL_WEIGHTS_DIR_NAME = "modelweights"
 
 ML_RELATIVE_SOURCE_PATH = os.path.join("ML")
 ML_RELATIVE_RUNNER_PATH = os.path.join(ML_RELATIVE_SOURCE_PATH, "runner.py")
@@ -54,8 +54,6 @@ PRIVATE_SETTINGS_FILE = "InnerEyePrivateSettings.yml"
 # Names of secrets stored as environment variables or in the PROJECT_SECRETS_FILE:
 # Secret for the Service Principal
 SERVICE_PRINCIPAL_KEY = "APPLICATION_KEY"
-# The access key for the Azure storage account that holds the datasets.
-DATASETS_ACCOUNT_KEY = "DATASETS_ACCOUNT_KEY"
 
 INNEREYE_PACKAGE_ROOT = repository_root_directory(INNEREYE_PACKAGE_NAME)
 SETTINGS_YAML_FILE_NAME = "settings.yml"
@@ -64,6 +62,15 @@ SETTINGS_YAML_FILE = INNEREYE_PACKAGE_ROOT / SETTINGS_YAML_FILE_NAME
 MODEL_INFERENCE_JSON_FILE_NAME = 'model_inference_config.json'
 AZURE_RUNNER_ENVIRONMENT_YAML_FILE_NAME = "azure_runner.yml"
 AZURE_RUNNER_ENVIRONMENT_YAML = repository_root_directory(AZURE_RUNNER_ENVIRONMENT_YAML_FILE_NAME)
+
+# The names of files at the repository root that are required for running the inference pipeline.
+SCORE_SCRIPT = "score.py"
+SCRIPTS_AT_ROOT = [SCORE_SCRIPT]
+RUN_SCORING_SCRIPT = f"{INNEREYE_PACKAGE_NAME}/Scripts/download_model_and_run_scoring.py"
+
+# Constants needed for the score.py script
+DEFAULT_DATA_FOLDER = "data"
+DEFAULT_TEST_IMAGE_NAME = "test.nii.gz"
 
 
 def get_environment_yaml_file() -> Path:

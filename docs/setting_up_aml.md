@@ -164,16 +164,8 @@ create a container called "datasets".
 "Account Key" field.
 - Done!
 
-If you want to make use of super fast download of datasets for local debugging, you can also store the account key
-on your local machine:
-- Create a file called `InnerEyeTestVariables.txt` in the root directory of your git repository, and add a line
-`DATASETS_ACCOUNT_KEY=TheKeyThatYouJustCopied`.
-- Copy the name of the datasets storage account into the field `datasets_storage_account` of your settings file
-`settings.yml`.
-
-
 ### Step 6: Update the variables in `settings.yml`
-The [settings.yml](/InnerEye/settings.yml) file is used to store your Azure setup. In order to be able to
+The [settings.yml](../InnerEye/settings.yml) file is used to store your Azure setup. In order to be able to
 train your model you will need to update this file using the settings for your Azure subscription.
 1. You will first need to retrieve your `tenant_id`. You can find your tenant id by navigating to
 `Azure Active Directory > Properties > Tenant ID` (use the search bar above to access the `Azure Active Directory` 
@@ -181,7 +173,7 @@ resource. Copy and paste the GUID to the `tenant_id` field of the `.yml` file. M
 [here](https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-create-new-tenant).
 2. You then need to retrieve your subscription id. In the search bar look for `Subscriptions`. Then in the subscriptions list,
 look for the subscription you are using for your workspace. Copy the value of the `Subscription ID` in the corresponding 
-field of [settings.yml](/InnerEye/settings.yml).
+field of [settings.yml](../InnerEye/settings.yml).
 3. Copy the application ID of your Service Principal that you retrieved earlier (cf. Step 3) to the `application_id` field.
 If you did not set up a Service Principal, fill that with an empty string or leave out altogether.
 6. Update the `resource_group:` field with your resource group name (created in Step 1).
@@ -190,6 +182,21 @@ If you did not set up a Service Principal, fill that with an empty string or lea
 deployment, this cluster will be called "NC24-LowPrio"
 
 Leave all other fields as they are for now.
+
+Summarizing, here is how the file should look like:
+```
+variables:
+  tenant_id: '<Azure tenant ID of your company>'
+  subscription_id: '<Azure subscription ID that your project is using'
+  application_id: '<Optional: Service Principal ID for job submission.'
+  azureml_datastore: '<The AzureML datastore that you created inside of your AzureML workspace>'
+  resource_group: '<The Azure resource group that holds your AzureML workspace>'
+  docker_shm_size: '440g'
+  workspace_name: '<The name of your AzureML workspace>'
+  cluster: '<The AzureML compute cluster that you are using by default.>'
+  model_configs_namespace: '<When using as submodule: Python namespace where model configurations live.>'
+  extra_code_directory: '<When using as submodule: Folder with extra Python code to run your models>'
+```
 
 ## Done!
 You should be all set now.

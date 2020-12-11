@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import argparse
 import copy
 import logging
 from functools import partial
@@ -15,9 +14,8 @@ import numpy as np
 import os
 
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
-from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, ModelProcessing, \
-    empty_string_to_none, DataframeLogger, \
-    get_epoch_results_path, is_linux, logging_section, string_to_path
+from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, ModelProcessing, DataframeLogger, \
+    get_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config, ScalarMetricsDict
 from InnerEye.ML import metrics, plotting
@@ -35,13 +33,12 @@ from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, Scala
 from InnerEye.ML.reports.segmentation_report import boxplot_per_structure
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import io_util, ml_util
-from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
 from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, \
     save_lines_to_file
 from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
-from InnerEye.ML.utils.run_recovery import RunRecovery, get_recovery_path_test
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
@@ -49,7 +46,7 @@ THUMBNAILS_FOLDER = "thumbnails"
 
 def model_test(config: ModelConfigBase,
                data_split: ModelExecutionMode,
-               run_recovery: Optional[RunRecovery] = None,
+               checkpoint_handler: CheckpointHandler,
                model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Optional[InferenceMetrics]:
     """
     Runs model inference on segmentation or classification models, using a given dataset (that could be training,
@@ -57,7 +54,7 @@ def model_test(config: ModelConfigBase,
     differ for model categories (classification, segmentation).
     :param config: The configuration of the model
     :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-    :param run_recovery: Run recovery data if applicable.
+    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     :param model_proc: whether we are testing an ensemble or single model; this affects where results are written.
     :return: The metrics that the model achieved on the given data set, or None if the data set is empty.
     """
@@ -70,37 +67,42 @@ def model_test(config: ModelConfigBase,
         return None
     with logging_section(f"Running {model_proc.value} model on {data_split.name.lower()} set"):
         if isinstance(config, SegmentationModelBase):
-            return segmentation_model_test(config, data_split, run_recovery, model_proc)
+            return segmentation_model_test(config, data_split, checkpoint_handler, model_proc)
         if isinstance(config, ScalarModelBase):
-            return classification_model_test(config, data_split, run_recovery, model_proc)
+            return classification_model_test(config, data_split, checkpoint_handler, model_proc)
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 
 def segmentation_model_test(config: SegmentationModelBase,
                             data_split: ModelExecutionMode,
-                            run_recovery: Optional[RunRecovery] = None,
+                            checkpoint_handler: CheckpointHandler,
                             model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> InferenceMetricsForSegmentation:
     """
     The main testing loop for segmentation models.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
     :param config: The arguments object which has a valid random seed attribute.
     :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-    :param run_recovery: Run recovery data if applicable.
+    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetric object that contains metrics related for all of the checkpoint epochs.
     """
     results: Dict[int, float] = {}
-    for epoch in config.get_test_epochs():
+    checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
+
+    if not checkpoints_to_test:
+        raise ValueError("There were no checkpoints available for model testing.")
+
+    for checkpoint_paths_and_epoch in checkpoints_to_test:
+        epoch = checkpoint_paths_and_epoch.epoch
         epoch_results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc)
         # save the datasets.csv used
         config.write_dataset_files(root=epoch_results_folder)
         epoch_and_split = "epoch {} {} set".format(epoch, data_split.value)
         epoch_dice_per_image = segmentation_model_test_epoch(config=copy.deepcopy(config),
                                                              data_split=data_split,
-                                                             test_epoch=epoch,
+                                                             checkpoint_paths=checkpoint_paths_and_epoch.checkpoint_paths,
                                                              results_folder=epoch_results_folder,
-                                                             epoch_and_split=epoch_and_split,
-                                                             run_recovery=run_recovery)
+                                                             epoch_and_split=epoch_and_split)
         if epoch_dice_per_image is None:
             logging.warning("There is no checkpoint file for epoch {}".format(epoch))
         else:
@@ -118,26 +120,23 @@ def segmentation_model_test(config: SegmentationModelBase,
 
 def segmentation_model_test_epoch(config: SegmentationModelBase,
                                   data_split: ModelExecutionMode,
-                                  test_epoch: int,
+                                  checkpoint_paths: List[Path],
                                   results_folder: Path,
-                                  epoch_and_split: str,
-                                  run_recovery: Optional[RunRecovery] = None) -> Optional[List[float]]:
+                                  epoch_and_split: str) -> Optional[List[float]]:
     """
     The main testing loop for a given epoch. It loads the model and datasets, then proceeds to test the model.
     Returns a list with an entry for each image in the dataset. The entry is the average Dice score,
     where the average is taken across all non-background structures in the image.
-    :param test_epoch: The last trained epoch of the model.
+    :param checkpoint_paths: Checkpoint paths to run inference on.
     :param config: The arguments which specify all required information.
     :param data_split: Is the model evaluated on train, test, or validation set?
     :param results_folder: The folder where to store the results
     :param epoch_and_split: A string that should uniquely identify the epoch and the data split (train/val/test).
-    :param run_recovery: Run recovery data if applicable.
     :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading the model.
     :return A list with the mean dice score (across all structures apart from background) for each image.
     """
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model testing")
-    results_folder = Path(results_folder)
     results_folder.mkdir(exist_ok=True)
 
     test_dataframe = config.get_dataset_splits()[data_split]
@@ -151,7 +150,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
 
     ds = config.get_torch_dataset_for_inference(data_split)
 
-    inference_pipeline = create_inference_pipeline(config=config, epoch=test_epoch, run_recovery=run_recovery)
+    inference_pipeline = create_inference_pipeline(config=config, checkpoint_paths=checkpoint_paths)
 
     if inference_pipeline is None:
         # This will happen if there is no checkpoint for the given epoch, in either the recovered run (if any) or
@@ -260,13 +259,13 @@ def get_patient_results_folder(results_folder: Path, patient_id: int) -> Path:
     :param patient_id: The numeric ID of the patient.
     :return: A path like "root/017"
     """
-    return results_folder / Path("{0:03d}".format(int(patient_id)))
+    return results_folder / f"{int(patient_id):03d}"
 
 
 def store_inference_results(inference_result: InferencePipeline.Result,
                             config: SegmentationModelBase,
                             results_folder: Path,
-                            image_header: ImageHeader) -> List[str]:
+                            image_header: ImageHeader) -> List[Path]:
     """
     Store the segmentation, posteriors, and binary predictions into Nifti files.
     :param inference_result: The inference result for a given patient_id and epoch. Posteriors must be in
@@ -284,7 +283,7 @@ def store_inference_results(inference_result: InferencePipeline.Result,
         :return: A full path to the results folder for the file
         """
         file_path = _file_name + MedicalImageFileType.NIFTI_COMPRESSED_GZ.value
-        return _results_folder / Path(file_path)
+        return _results_folder / file_path
 
     # create the directory for the given patient inside the results dir
     patient_results_folder = get_patient_results_folder(results_folder, inference_result.patient_id)
@@ -294,7 +293,7 @@ def store_inference_results(inference_result: InferencePipeline.Result,
     image_paths = [io_util.store_as_ubyte_nifti(
         image=inference_result.segmentation,
         header=image_header,
-        file_name=str(create_file_path(patient_results_folder, "segmentation")))]
+        file_name=create_file_path(patient_results_folder, "segmentation"))]
 
     class_names_and_indices = config.class_and_index_with_background().items()
     binaries = binaries_from_multi_label_array(inference_result.segmentation, config.number_of_classes)
@@ -348,8 +347,7 @@ def store_run_information(results_folder: Path,
 
 
 def create_inference_pipeline(config: ModelConfigBase,
-                              epoch: int,
-                              run_recovery: Optional[RunRecovery] = None) -> Optional[InferencePipelineBase]:
+                              checkpoint_paths: List[Path]) -> Optional[InferencePipelineBase]:
     """
     If multiple checkpoints are found in run_recovery then create EnsemblePipeline otherwise InferencePipeline.
     If no checkpoint files exist in the run recovery or current run checkpoint folder, None will be returned.
@@ -358,8 +356,6 @@ def create_inference_pipeline(config: ModelConfigBase,
     :param run_recovery: RunRecovery data if applicable
     :return: FullImageInferencePipelineBase or ScalarInferencePipelineBase
     """
-    checkpoint_paths = get_recovery_path_test(config=config, run_recovery=run_recovery,
-                                              epoch=epoch)
     if not checkpoint_paths:
         return None
 
@@ -388,7 +384,7 @@ def create_inference_pipeline(config: ModelConfigBase,
 
 def classification_model_test(config: ScalarModelBase,
                               data_split: ModelExecutionMode,
-                              run_recovery: Optional[RunRecovery],
+                              checkpoint_handler: CheckpointHandler,
                               model_proc: ModelProcessing) -> InferenceMetricsForClassification:
     """
     The main testing loop for classification models. It runs a loop over all epochs for which testing should be done.
@@ -396,13 +392,14 @@ def classification_model_test(config: ScalarModelBase,
     :param config: The model configuration.
     :param data_split: The name of the folder to store the results inside each epoch folder in the outputs_dir,
                        used mainly in model evaluation using different dataset splits.
-    :param run_recovery: RunRecovery data if applicable
+    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
 
-    def test_epoch(test_epoch: int, run_recovery: Optional[RunRecovery]) -> Optional[MetricsDict]:
-        pipeline = create_inference_pipeline(config, test_epoch, run_recovery)
+    def test_epoch(checkpoint_paths: List[Path]) -> Optional[MetricsDict]:
+        pipeline = create_inference_pipeline(config=config,
+                                             checkpoint_paths=checkpoint_paths)
 
         if pipeline is None:
             return None
@@ -433,8 +430,15 @@ def classification_model_test(config: ScalarModelBase,
         return metrics_dict
 
     results: Dict[int, MetricsDict] = {}
-    for epoch in config.get_test_epochs():
-        epoch_result = test_epoch(test_epoch=epoch, run_recovery=run_recovery)
+    checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
+
+    if not checkpoints_to_test:
+        raise ValueError("There were no checkpoints available for model testing.")
+
+    for checkpoint_paths_and_epoch in checkpoints_to_test:
+        epoch = checkpoint_paths_and_epoch.epoch
+
+        epoch_result = test_epoch(checkpoint_paths=checkpoint_paths_and_epoch.checkpoint_paths)
         if epoch_result is None:
             logging.warning("There is no checkpoint file for epoch {}".format(epoch))
         else:
@@ -464,30 +468,3 @@ def classification_model_test(config: ScalarModelBase,
         raise ValueError("There was no single checkpoint file available for model testing.")
 
     return InferenceMetricsForClassification(epochs=results)
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model",
-                        help="The name of the model to test.",
-                        type=empty_string_to_none,
-                        required=True)
-    parser.add_argument("--local_dataset",
-                        help="Path to local dataset for testing",
-                        type=string_to_path)
-    parser.add_argument("--outputs_folder",
-                        help="Path to outputs folder where checkpoints are stored",
-                        type=empty_string_to_none)
-    parser.add_argument("--test_series_ids",
-                        help="Subset of test cases for which the model testing is applied",
-                        nargs="+",
-                        type=int,
-                        required=False)
-    parser.add_argument("--run_recovery_id",
-                        help="Id of a run to recover from",
-                        type=str,
-                        required=False)
-
-    args = parser.parse_args()
-    test_config: ModelConfigBase = ModelConfigLoader().create_model_config_from_name(args.model, overrides=vars(args))
-    model_test(config=test_config, data_split=ModelExecutionMode.TEST)
