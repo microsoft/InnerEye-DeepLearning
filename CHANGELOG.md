@@ -11,7 +11,7 @@ created.
 ## Upcoming
 
 ### Added
-- New extensions of SegmentationModelBases `HeadAndNeckBase` and `ProstateBase`.
+- New extensions of SegmentationModelBases `HeadAndNeckBase` and `ProstateBase`. Use these classes to build your own Head&Neck or Prostate models, by just providing a list of foreground classes.
 
 ### Changed
 - The arguments of the `score.py` script changed: `data_root` -> `data_folder`, it no longer assumes a fixed
