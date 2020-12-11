@@ -137,6 +137,15 @@ class SliceExclusionRule:
     lower_class: str
     higher_dominates: bool
 
+    def validate(self, ground_truth_ids: List[str]) -> None:
+        """
+        Check this rule is valid for the given set of ground_truth_ids.
+        """
+        if self.higher_class not in ground_truth_ids:
+            raise Exception(f"slice_exclusion_rules: {self.higher_class} not in ground truth IDs")
+        if self.lower_class not in ground_truth_ids:
+            raise Exception(f"slice_exclusion_rules: {self.lower_class} not in ground truth IDs")
+
 
 @dataclass
 class SummedProbabilityRule:
@@ -152,6 +161,9 @@ class SummedProbabilityRule:
     external_class: str
 
     def validate(self, ground_truth_ids: List[str]) -> None:
+        """
+        Check this rule is valid for the given set of ground_truth_ids.
+        """
         if self.first_class not in ground_truth_ids:
             raise ValueError(f"SummedProbabilityRule.validate: {self.first_class} not in ground truth IDs")
         if self.second_class not in ground_truth_ids:
@@ -518,6 +530,13 @@ class SegmentationModelBase(ModelConfigBase):
         if self.mean_teacher_alpha is not None:
             raise ValueError("Mean teacher model is currently only supported for ScalarModels."
                              "Please reset mean_teacher_alpha to None.")
+        if not self.disable_extra_postprocessing:
+            if self.slice_exclusion_rules is not None:
+                for rule in self.slice_exclusion_rules:
+                    rule.validate(self.ground_truth_ids)
+            if self.summed_probability_rules is not None:
+                for rule in self.summed_probability_rules:
+                    rule.validate(self.ground_truth_ids)
 
     @staticmethod
     def validate_class_weights(class_weights: List[float]) -> None:

@@ -627,10 +627,7 @@ def apply_slice_exclusion_rules(model_config: SegmentationModelBase,
         return segmentation
 
     for rule in model_config.slice_exclusion_rules:
-        if rule.higher_class not in model_config.ground_truth_ids:
-            raise Exception(f"slice_exclusion_rules: {rule.higher_class} not in ground truth IDs")
-        if rule.lower_class not in model_config.ground_truth_ids:
-            raise Exception(f"slice_exclusion_rules: {rule.lower_class} not in ground truth IDs")
+        rule.validate(model_config.ground_truth_ids)
 
         # assume label indices start from 1, 0 is the background
         higher_class_label = model_config.ground_truth_ids.index(rule.higher_class) + 1
