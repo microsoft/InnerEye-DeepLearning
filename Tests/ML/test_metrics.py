@@ -8,14 +8,14 @@ from typing import List, Optional
 import numpy as np
 import pytest
 import torch
-from sklearn.metrics import auc, precision_recall_curve, roc_curve
+from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_curve
 
 from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, MetricsDict, \
     get_column_name_for_logging
 from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import metrics
 from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPRCurve, AreaUnderRocCurve, \
-    ExplainedVariance, FalseNegativeRateOptimalThreshold, \
+    BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
     FalsePositiveRateOptimalThreshold, \
     MeanAbsoluteError, MeanSquaredError, OptimalThreshold
 
@@ -165,7 +165,7 @@ def test_get_column_name_for_logging() -> None:
 def test_accuracy05():
     metrics = Accuracy05()
     output = [torch.tensor([0.9, 0.8, 0.6]), torch.tensor([0.3, 0.9, 0.4])]
-    label = [torch.tensor([1, 1, 0]), torch.tensor([0, 0, 0])]
+    label = [torch.tensor([1., 1., 0.]), torch.tensor([0., 0., 0.])]
     n_batches = len(output)
     for i in range(n_batches):
         metrics.update(output[i], label[i])
@@ -175,17 +175,18 @@ def test_accuracy05():
 def test_classification_metrics():
     metrics = [AccuracyAtOptimalThreshold(), OptimalThreshold(),
                FalsePositiveRateOptimalThreshold(), FalseNegativeRateOptimalThreshold(),
-               AreaUnderRocCurve(), AreaUnderPRCurve()]
+               AreaUnderRocCurve(), AreaUnderPRCurve(), BinaryCrossEntropy()]
     output = [torch.tensor([0.9, 0.8, 0.6]), torch.tensor([0.3, 0.9, 0.4])]
-    label = [torch.tensor([1, 1, 0]), torch.tensor([0, 0, 0])]
+    label = [torch.tensor([1., 1., 0.]), torch.tensor([0., 0., 0.])]
     n_batches = len(output)
     for i in range(n_batches):
         for metric in metrics:
             metric.update(output[i], label[i])
-    accuracy, threshold, fpr, fnr, roc_auc, pr_auc = [metric.compute() for metric in metrics]
+    accuracy, threshold, fpr, fnr, roc_auc, pr_auc, cross_entropy = [metric.compute() for metric in metrics]
 
     all_labels = torch.cat(label).numpy()
     all_outputs = torch.cat(output).numpy()
+    expected_binary_cross_entropy = log_loss(y_true=all_labels, y_pred=all_outputs)
     expected_fpr, expected_tpr, expected_thresholds = roc_curve(y_true=all_labels, y_score=all_outputs)
     expected_roc_auc = auc(expected_fpr, expected_tpr)
     expected_optimal_idx = np.argmax(expected_tpr - expected_fpr)
@@ -201,6 +202,7 @@ def test_classification_metrics():
     assert fnr == expected_optimal_fnr
     assert roc_auc == expected_roc_auc
     assert pr_auc == expected_pr_auc
+    assert cross_entropy == expected_binary_cross_entropy
 
 
 def test_regression_metrics():

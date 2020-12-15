@@ -48,7 +48,7 @@ class LoggingColumns(Enum):
     MeanAbsoluteError = "mean_absolute_error"
     MeanSquaredError = "mean_squared_error"
     LearningRate = "learning_rate"
-    R2Score = "r2_score"
+    ExplainedVariance = "explained_variance"
     NumTrainableParameters = "num_trainable_parameters"
     AccuracyAtOptimalThreshold = "accuracy_at_optimal_threshold"
     OptimalThreshold = "optimal_threshold"
