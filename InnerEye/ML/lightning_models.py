@@ -4,12 +4,14 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import time
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.metrics import Accuracy, Metric
 
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME
 from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, create_metrics_dict_for_scalar_models
@@ -18,7 +20,12 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.metrics import add_average_dice, compute_dice_across_patches, compute_scalar_metrics, \
+from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPRCurve, AreaUnderRocCurve, \
+    ExplainedVariance, FalseNegativeRateOptimalThreshold, \
+    FalsePositiveRateOptimalThreshold, \
+    MeanAbsoluteError, MeanSquaredError, OptimalThreshold, add_average_dice, \
+    compute_dice_across_patches, \
+    compute_scalar_metrics, \
     nanmean, store_epoch_metrics
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
@@ -27,7 +34,7 @@ from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
-from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss
+from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss, get_masked_model_outputs_and_labels
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -141,7 +148,7 @@ class InnerEyeLightning(LightningModule):
         self.val_diagnostics = []
         self.use_sync_dist = self.use_ddp
 
-    def log_on_epoch(self, name: Union[MetricType, str], value: float, is_training: bool,
+    def log_on_epoch(self, name: Union[MetricType, str], value: Union[float, Metric], is_training: bool,
                      reduce_fx: Callable = torch.mean) -> None:
         """
         Logs a metrics to Pytorch Lightning with the on_epoch flag set. The metric will get a prefix indicating
@@ -412,17 +419,36 @@ class ScalarLightning(InnerEyeLightning):
         else:
             self.loss_fn = raw_loss
             self.target_indices = []
-            self.sequence_target_positions = []
+            self.sequence_target_positions = [MetricsDict.DEFAULT_HUE_KEY]
         self.is_classification_model = config.is_classification_model
         self.use_mean_teacher_model = config.compute_mean_teacher_model
         self.logits_to_posterior_fn = config.get_post_loss_logits_normalization_function()
         self.loss_type = config.loss_type
+        self.create_metrics()
+
+
         # TODO antonsc: Work out how we handle mean teacher model
         # if config.compute_grad_cam:
         #     model_to_evaluate = self.train_val_params.mean_teacher_model if \
         #         config.compute_mean_teacher_model else self.train_val_params.model
         #     self.guided_grad_cam = VisualizationMaps(model_to_evaluate, config)
         #     config.visualization_folder.mkdir(exist_ok=True)
+
+    def get_metrics(self) -> List[Metric]:
+        if self.is_classification_model:
+            return [Accuracy05(),
+                    AccuracyAtOptimalThreshold(),
+                    OptimalThreshold(),
+                    FalsePositiveRateOptimalThreshold(),
+                    FalseNegativeRateOptimalThreshold(),
+                    AreaUnderRocCurve(),
+                    AreaUnderPRCurve()]
+        else:
+            return [MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()]
+
+    def create_metrics(self):
+        self.train_metrics_dict = OrderedDict([(p, self.get_metrics()) for p in self.sequence_target_positions])
+        self.val_metrics_dict = OrderedDict([(p, self.get_metrics()) for p in self.sequence_target_positions])
 
     def forward(self, *model_inputs: torch.Tensor) -> torch.Tensor:
         return self.logits_to_posterior(self.model(*model_inputs))
@@ -442,21 +468,31 @@ class ScalarLightning(InnerEyeLightning):
         logits = self.model(*model_inputs_and_labels.model_inputs)
         loss = self.loss_fn(logits, labels)
         self.write_loss(is_training, loss)
-        metrics = create_metrics_dict_for_scalar_models(is_classification_model=self.is_classification_model,
-                                                        sequence_target_positions=self.sequence_target_positions)
-        compute_scalar_metrics(metrics,
-                               subject_ids=model_inputs_and_labels.subject_ids,
-                               model_output=self.logits_to_posterior(logits),
-                               labels=labels,
-                               loss_type=self.loss_type)
-        for hue, name, value in metrics.enumerate_single_values():
-            hue_suffix = "" if hue == MetricsDict.DEFAULT_HUE_KEY else "/" + hue
-            self.log_on_epoch(name=name + hue_suffix, value=value, is_training=is_training)
+        self.compute_and_log_metrics(logits, labels, is_training)
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=len(model_inputs_and_labels.subject_ids),
                           is_training=is_training,
                           reduce_fx=sum)
         return loss
+
+    def compute_and_log_metrics(self, logits: torch.Tensor, targets: torch.Tensor, is_training: bool):
+        metrics = self.train_metrics_dict if is_training else self.val_metrics_dict
+        for i, (hue, metric_list) in enumerate(metrics.items()):
+            hue_suffix = "" if hue == MetricsDict.DEFAULT_HUE_KEY else f"/{hue}"
+            # mask the model outputs and labels if required
+            masked_model_outputs_and_labels = get_masked_model_outputs_and_labels(
+                logits[:, i, ...], targets[:, i, ...])
+            # compute metrics on valid masked tensors only
+            if masked_model_outputs_and_labels is not None:
+                _model_output, _labels = \
+                    masked_model_outputs_and_labels.model_outputs.data, \
+                    masked_model_outputs_and_labels.labels.data
+                # Convert labels to the same datatype as the model outputs, necessary when running with AMP
+                _labels = _labels.to(dtype=_model_output.dtype)
+                _posteriors = self.logits_to_posterior(_model_output)
+                for metric in metric_list:
+                    metric(_posteriors, _labels)
+                    self.log_on_epoch(name=metric.name + hue_suffix, value=metric, is_training=is_training)
 
     def epoch_end(self, is_training: bool) -> None:
         super().epoch_end(is_training)

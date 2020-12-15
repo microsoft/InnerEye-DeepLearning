@@ -8,11 +8,16 @@ from typing import List, Optional
 import numpy as np
 import pytest
 import torch
+from sklearn.metrics import auc, precision_recall_curve, roc_curve
 
 from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, MetricsDict, \
     get_column_name_for_logging
 from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import metrics
+from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPRCurve, AreaUnderRocCurve, \
+    ExplainedVariance, FalseNegativeRateOptimalThreshold, \
+    FalsePositiveRateOptimalThreshold, \
+    MeanAbsoluteError, MeanSquaredError, OptimalThreshold
 
 
 def test_calculate_dice1() -> None:
@@ -154,3 +159,66 @@ def test_get_column_name_for_logging() -> None:
     hue_name = "foo"
     assert f"{hue_name}/{expected_metric_name}" == \
            get_column_name_for_logging(metric_name=metric_name, hue_name=hue_name)
+
+
+
+def test_accuracy05():
+    metrics = Accuracy05()
+    output = [torch.tensor([0.9, 0.8, 0.6]), torch.tensor([0.3, 0.9, 0.4])]
+    label = [torch.tensor([1, 1, 0]), torch.tensor([0, 0, 0])]
+    n_batches = len(output)
+    for i in range(n_batches):
+        metrics.update(output[i], label[i])
+    result = metrics.compute()
+    assert result == 4.0 / 6
+
+def test_classification_metrics():
+    metrics = [AccuracyAtOptimalThreshold(), OptimalThreshold(),
+               FalsePositiveRateOptimalThreshold(), FalseNegativeRateOptimalThreshold(),
+               AreaUnderRocCurve(), AreaUnderPRCurve()]
+    output = [torch.tensor([0.9, 0.8, 0.6]), torch.tensor([0.3, 0.9, 0.4])]
+    label = [torch.tensor([1, 1, 0]), torch.tensor([0, 0, 0])]
+    n_batches = len(output)
+    for i in range(n_batches):
+        for metric in metrics:
+            metric.update(output[i], label[i])
+    accuracy, threshold, fpr, fnr, roc_auc, pr_auc = [metric.compute() for metric in metrics]
+
+    all_labels = torch.cat(label).numpy()
+    all_outputs = torch.cat(output).numpy()
+    expected_fpr, expected_tpr, expected_thresholds = roc_curve(y_true=all_labels, y_score=all_outputs)
+    expected_roc_auc = auc(expected_fpr, expected_tpr)
+    expected_optimal_idx = np.argmax(expected_tpr - expected_fpr)
+    expected_optimal_threshold = expected_thresholds[expected_optimal_idx]
+    expected_accuracy = np.mean((all_outputs > expected_optimal_threshold) == all_labels)
+    expected_optimal_fpr = expected_fpr[expected_optimal_idx]
+    expected_optimal_fnr = 1 - expected_tpr[expected_optimal_idx]
+    prec, recall, _ = precision_recall_curve(y_true=all_labels, probas_pred=all_outputs)
+    expected_pr_auc = auc(recall, prec)
+    assert accuracy == expected_accuracy
+    assert threshold == expected_optimal_threshold
+    assert fpr == expected_optimal_fpr
+    assert fnr == expected_optimal_fnr
+    assert roc_auc == expected_roc_auc
+    assert pr_auc == expected_pr_auc
+
+
+def test_regression_metrics():
+    metrics = [MeanAbsoluteError(), MeanSquaredError(),
+               ExplainedVariance()]
+    output = [torch.tensor([1., 2., 1.]), torch.tensor([4., 0., 2.])]
+    label = [torch.tensor([1., 1., 0.]), torch.tensor([2., 0., 2.])]
+    n_batches = len(output)
+    for i in range(n_batches):
+        for metric in metrics:
+            metric.update(output[i], label[i])
+    MAE, MSE, ExpVar = [metric.compute() for metric in metrics]
+    all_labels = torch.cat(label)
+    all_outputs = torch.cat(output)
+    expected_mae = torch.mean(torch.abs(all_labels  - all_outputs))
+    expected_mse = torch.mean(torch.square(all_labels  - all_outputs))
+    # ExpVar 1 - Var(y_pred - y_true) / Var(y_true)
+    expected_expVar = 1 - torch.var(all_outputs - all_labels) / torch.var(all_labels)
+    assert expected_mae == MAE
+    assert expected_mse == MSE
+    assert torch.isclose(expected_expVar, ExpVar, atol=1e-5)
