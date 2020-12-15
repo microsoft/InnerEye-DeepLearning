@@ -512,7 +512,10 @@ def store_epoch_metrics(metrics: DictStrFloat,
     """
     logger_row = {}
     for key, value in metrics.items():
-        logger_row[INTERNAL_TO_LOGGING_COLUMN_NAMES[key].value] = value
+        if key in INTERNAL_TO_LOGGING_COLUMN_NAMES.keys():
+            logger_row[INTERNAL_TO_LOGGING_COLUMN_NAMES[key].value] = value
+        else:
+            logger_row[key] = value
     logger_row[LoggingColumns.Epoch.value] = epoch
     logger_row[LoggingColumns.CrossValidationSplitIndex.value] = cross_validation_split_index
     file_logger.add_record(logger_row)
