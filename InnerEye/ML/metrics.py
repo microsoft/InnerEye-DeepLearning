@@ -20,7 +20,8 @@ from pytorch_lightning.metrics.functional import roc
 from pytorch_lightning.metrics.functional.classification import accuracy, auc, auroc, precision_recall_curve
 
 from InnerEye.Azure.azure_util import get_run_context_or_default
-from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, ScalarMetricsDict, \
+from InnerEye.Common.metrics_dict import DataframeLogger, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, MetricsDict, \
+    ScalarMetricsDict, \
     get_metric_name_with_hue_prefix
 from InnerEye.Common.type_annotations import DictStrFloat, TupleFloat3
 from InnerEye.ML.common import ModelExecutionMode
@@ -51,6 +52,7 @@ class ExplainedVariance(metrics.ExplainedVariance):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = MetricType.EXPLAINED_VAR.value
+
 
 class Accuracy05(metrics.Accuracy):
     def __init__(self, *args, **kwargs):
@@ -100,7 +102,6 @@ class AccuracyAtOptimalThreshold(ScalarMetricsBase):
         preds = torch.cat(self.preds)
         target = torch.cat(self.targets)
         return self._get_metrics_at_optimal_cutoff(preds=preds, targets=target)[3]
-
 
 class OptimalThreshold(ScalarMetricsBase):
     def __init__(self, dist_sync_on_step=False):
@@ -161,6 +162,14 @@ class AreaUnderPRCurve(ScalarMetricsBase):
         prec, recall, _ = precision_recall_curve(preds, targets)
         return auc(recall, prec)
 
+class BinaryCrossEntropy(ScalarMetricsBase):
+    def __init__(self, dist_sync_on_step=False):
+        super().__init__(dist_sync_on_step=dist_sync_on_step, name=MetricType.CROSS_ENTROPY.value)
+
+    def compute(self):
+        preds = torch.cat(self.preds)
+        targets = torch.cat(self.targets)
+        return F.binary_cross_entropy(input=preds, target=targets)
 
 @dataclass(frozen=True)
 class InferenceMetrics:
@@ -502,7 +511,8 @@ def store_epoch_metrics(metrics: DictStrFloat,
     :param cross_validation_split_index: The current split if running inside cross validation.
     """
     logger_row = {}
-    logger_row.update(**metrics)
+    for key, value in metrics.items():
+        logger_row[INTERNAL_TO_LOGGING_COLUMN_NAMES[key].value] = value
     logger_row[LoggingColumns.Epoch.value] = epoch
     logger_row[LoggingColumns.CrossValidationSplitIndex.value] = cross_validation_split_index
     file_logger.add_record(logger_row)

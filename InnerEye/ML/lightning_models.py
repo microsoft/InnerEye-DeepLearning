@@ -21,7 +21,7 @@ from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPRCurve, AreaUnderRocCurve, \
-    ExplainedVariance, FalseNegativeRateOptimalThreshold, \
+    BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
     FalsePositiveRateOptimalThreshold, \
     MeanAbsoluteError, MeanSquaredError, OptimalThreshold, add_average_dice, \
     compute_dice_across_patches, \
@@ -285,6 +285,9 @@ class InnerEyeLightning(LightningModule):
         self.batch_start_time = time.time()
 
     def batch_end(self, is_training: bool) -> None:
+        pass
+
+    def log_time_per_batch(self, is_training: bool):
         self.log_on_epoch(MetricType.SECONDS_PER_BATCH, time.time() - self.batch_start_time, is_training=is_training)
         self.item_start_time = time.time()
         self.num_batches += 1
@@ -310,7 +313,7 @@ class InnerEyeLightning(LightningModule):
         Writes the given loss value to Lightning, labelled either "val/loss" or "train/loss".
         If this comes from a training step, then also log the learning rate.
         :param is_training: If True, the logged metric will be called "train_loss". If False, "val_loss"
-=        """
+    =        """
         self.log_on_epoch(MetricType.LOSS, loss, is_training)
         learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
         if is_training:
@@ -398,6 +401,7 @@ class SegmentationLightning(InnerEyeLightning):
                           is_training=is_training,
                           reduce_fx=sum)
         self.write_loss(is_training, loss)
+        self.log_time_per_batch(is_training)
         return loss
 
     def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool):
@@ -426,7 +430,6 @@ class ScalarLightning(InnerEyeLightning):
         self.loss_type = config.loss_type
         self.create_metrics()
 
-
         # TODO antonsc: Work out how we handle mean teacher model
         # if config.compute_grad_cam:
         #     model_to_evaluate = self.train_val_params.mean_teacher_model if \
@@ -434,7 +437,7 @@ class ScalarLightning(InnerEyeLightning):
         #     self.guided_grad_cam = VisualizationMaps(model_to_evaluate, config)
         #     config.visualization_folder.mkdir(exist_ok=True)
 
-    def get_metrics(self) -> List[Metric]:
+    def _get_metrics_classes(self) -> List[Metric]:
         if self.is_classification_model:
             return [Accuracy05(),
                     AccuracyAtOptimalThreshold(),
@@ -442,13 +445,15 @@ class ScalarLightning(InnerEyeLightning):
                     FalsePositiveRateOptimalThreshold(),
                     FalseNegativeRateOptimalThreshold(),
                     AreaUnderRocCurve(),
-                    AreaUnderPRCurve()]
+                    AreaUnderPRCurve(),
+                    BinaryCrossEntropy()]
         else:
             return [MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()]
 
     def create_metrics(self):
-        self.train_metrics_dict = OrderedDict([(p, self.get_metrics()) for p in self.sequence_target_positions])
-        self.val_metrics_dict = OrderedDict([(p, self.get_metrics()) for p in self.sequence_target_positions])
+        self.train_metrics_dict = OrderedDict(
+            [(p, self._get_metrics_classes()) for p in self.sequence_target_positions])
+        self.val_metrics_dict = OrderedDict([(p, self._get_metrics_classes()) for p in self.sequence_target_positions])
 
     def forward(self, *model_inputs: torch.Tensor) -> torch.Tensor:
         return self.logits_to_posterior(self.model(*model_inputs))
@@ -458,6 +463,14 @@ class ScalarLightning(InnerEyeLightning):
         Apply the model-specific normalization to go from logits (model outputs) to posteriors.
         """
         return self.logits_to_posterior_fn(logits)
+
+    def on_train_epoch_start(self) -> None:
+        self.reset_timers()
+        # Necessary to explicitely reset
+        # otherwise the metrics keep accumulating over all epochs
+        for metrics in self.train_metrics_dict.values():
+            for m in metrics:
+                m.reset()
 
     def training_or_validation_step(self,
                                     sample: Dict[str, Any],
@@ -473,6 +486,7 @@ class ScalarLightning(InnerEyeLightning):
                           value=len(model_inputs_and_labels.subject_ids),
                           is_training=is_training,
                           reduce_fx=sum)
+        self.log_time_per_batch(is_training)
         return loss
 
     def compute_and_log_metrics(self, logits: torch.Tensor, targets: torch.Tensor, is_training: bool):
