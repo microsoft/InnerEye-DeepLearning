@@ -80,6 +80,7 @@ def extract_activation_maps(args: ModelConfigBase) -> None:
         model = torch.nn.DataParallel(model, device_ids=list(range(torch.cuda.device_count())))
         model = model.cuda()
 
+    # TODO antonsc: What's the intended behaviour here? We now probably want to load a fixed checkpoint file
     if args.test_start_epoch:
         checkpoint_path = args.get_path_to_checkpoint(args.test_start_epoch)
         if checkpoint_path.exists():

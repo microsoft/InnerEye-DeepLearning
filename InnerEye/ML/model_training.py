@@ -60,6 +60,7 @@ def model_train(config: ModelConfigBase,
     best_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
                                                filename=BEST_CHECKPOINT_FILE_NAME,
                                                monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
+                                               save_top_k=1,
                                                save_last=False)
 
     recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),

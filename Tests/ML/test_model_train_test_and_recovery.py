@@ -32,7 +32,6 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
         config.mean_teacher_alpha = 0.999
     config.set_output_to(test_output_dirs.root_dir / "original")
     os.makedirs(str(config.outputs_folder))
-    config.save_start_epoch = 2
     config.save_step_epochs = 2
 
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
@@ -43,7 +42,6 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     # Run inference on this
     test_results = model_test(config=config, data_split=ModelExecutionMode.TEST, checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
-    assert list(test_results.epochs.keys()) == [config.num_epochs]
 
     # Mimic using a run recovery and see if it is the same
     config_run_recovery = DummyClassification()

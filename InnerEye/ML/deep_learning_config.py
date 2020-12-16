@@ -255,7 +255,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  doc="The betas parameter of Adam, default is (0.9, 0.999)")
     momentum: float = param.Number(0.6, doc="The momentum parameter of the optimizers")
     weight_decay: float = param.Number(1e-4, doc="The weight decay used to control L2 regularization")
-    save_step_epochs: int = param.Integer(50, bounds=(0, None), doc="Save epoch checkpoints when epoch number is a "
+    save_step_epochs: int = param.Integer(10, bounds=(0, None), doc="Save epoch checkpoints when epoch number is a "
                                                                     "multiple of save_step_epochs")
     train_batch_size: int = param.Integer(4, bounds=(0, None),
                                           doc="The number of crops that make up one minibatch during training.")
@@ -524,17 +524,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
             output_to=self.output_to
         )
 
-    def should_save_epoch(self, epoch: int) -> bool:
-        """Returns True if the present epoch should be saved, as per the save_start_epoch and save_step_epochs
-        settings. Epoch writing starts with the first epoch that is >= save_start_epoch, and that
-        is evenly divisible by save_step_epochs. A checkpoint is always written for the last epoch (num_epochs),
-        such that it is easy to overwrite num_epochs on the commandline without having to change the test parameters
-        at the same time.
-        :param epoch: The current epoch. The first epoch is assumed to be 1."""
-        should_save_epoch = epoch % self.save_step_epochs == 0
-        is_last_epoch = epoch == self.num_epochs
-        return should_save_epoch or is_last_epoch
-
     def get_train_epochs(self) -> List[int]:
         """
         Returns the epochs for which training will be performed.
@@ -548,13 +537,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         :return:
         """
         return len(self.get_train_epochs())
-
-    def get_total_number_of_save_epochs(self) -> int:
-        """
-        Returns the number of epochs for which a model checkpoint will be saved.
-        :return:
-        """
-        return len(list(filter(self.should_save_epoch, self.get_train_epochs())))
 
     def get_total_number_of_validation_epochs(self) -> int:
         """
