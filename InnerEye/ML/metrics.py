@@ -64,7 +64,7 @@ class Accuracy05(metrics.Accuracy):
 
 
 class ScalarMetricsBase(Metric):
-    def __init__(self, dist_sync_on_step: bool = False, name: str = "metric"):
+    def __init__(self, dist_sync_on_step: bool = False, name: str = ""):
         super().__init__(dist_sync_on_step=dist_sync_on_step)
         self.add_state("preds", default=[], dist_reduce_fx=None)
         self.add_state("target", default=[], dist_reduce_fx=None)
@@ -83,7 +83,6 @@ class ScalarMetricsBase(Metric):
         difference between true positive rate and false positive rate is smallest. Then, computes
         the false positive rate, false negative rate and accuracy at this threshold (i.e. when the
         predicted probability is higher than the threshold the predicted label is 1 otherwise 0).
-        :param hue: The hue to restrict the values used for computation, otherwise all values will be used.
         :returns: Tuple(optimal_threshold, false positive rate, false negative rate, accuracy)
         """
         if torch.unique(target).numel() == 1:
