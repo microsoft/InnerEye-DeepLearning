@@ -15,7 +15,7 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import RUN_CONTEXT, download_outputs_from_run, fetch_child_runs, fetch_run, \
     get_cross_validation_split_index, is_cross_validation_child_run, tag_values_all_distinct
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, check_properties_are_not_none
-from InnerEye.ML.common import create_checkpoint_path
+from InnerEye.ML.common import create_checkpoint_path, get_best_checkpoint_path
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig
 
 
@@ -105,6 +105,9 @@ class RunRecovery:
 
     def get_checkpoint_paths(self, epoch: int) -> List[Path]:
         return [create_checkpoint_path(x, epoch) for x in self.checkpoints_roots]
+
+    def get_best_checkpoint_paths(self, epoch: int) -> List[Path]:
+        return [get_best_checkpoint_path(x) for x in self.checkpoints_roots]
 
     def _validate(self) -> None:
         check_properties_are_not_none(self)

@@ -12,6 +12,7 @@ DATASET_CSV_FILE_NAME = "dataset.csv"
 CHECKPOINT_FILENAME = "_checkpoint"
 CHECKPOINT_FILE_SUFFIX = CHECKPOINT_FILENAME + ".pth.tar"
 
+BEST_CHECKPOINT_FILE_NAME = "best_val_loss_checkpoint"
 
 @unique
 class ModelExecutionMode(Enum):
@@ -66,6 +67,16 @@ def create_checkpoint_path(path: Path, epoch: int) -> Path:
     :param epoch
     """
     return path / f"epoch={epoch-1}_checkpoint.ckpt"
+
+
+def get_best_checkpoint_path(path: Path) -> Path:
+    """
+    Given a path and checkpoint, formats a path based on the checkpoint file name format.
+
+    :param path to checkpoint folder
+    :param epoch
+    """
+    return path / f"{BEST_CHECKPOINT_FILE_NAME}.ckpt"
 
 
 def create_unique_timestamp_id() -> str:

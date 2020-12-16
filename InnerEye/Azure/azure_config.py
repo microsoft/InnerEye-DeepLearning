@@ -78,8 +78,8 @@ class AzureConfig(GenericConfig):
                                 doc="If True, train a new model. If False, run inference on an existing model. For "
                                     "inference, you need to specify a --run_recovery_id=... as well.")
     model: str = param.String(doc="The name of the model to train/test.")
-    register_model_only_for_epoch: Optional[int] = param.Integer(None,
-                                                                 doc="If set, and run_recovery_id is also set, "
+    only_register_model: Optional[int] = param.Integer(None,
+                                                       doc="If set, and run_recovery_id is also set, "
                                                                      "register the model for this epoch and do no "
                                                                      "training or testing")
     pytest_mark: str = param.String(doc="If provided, run pytest after model training. pytest will only "
@@ -129,8 +129,8 @@ class AzureConfig(GenericConfig):
         self.git_information: Optional[GitInformation] = None
 
     def validate(self) -> None:
-        if self.register_model_only_for_epoch and not self.run_recovery_id:
-            raise ValueError("If register_model_only_for_epoch is set, must also provide a valid run_recovery_id")
+        if self.only_register_model and not self.run_recovery_id:
+            raise ValueError("If only_register_model is set, must also provide a valid run_recovery_id")
 
     def get_git_information(self) -> GitInformation:
         """

@@ -15,7 +15,7 @@ from InnerEye.ML.deep_learning_config import WEIGHTS_FILE
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.fixed_paths import MODEL_WEIGHTS_DIR_NAME
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.common import create_checkpoint_path
+from InnerEye.ML.common import create_checkpoint_path, get_best_checkpoint_path
 
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_checkpoint_handler
@@ -77,6 +77,7 @@ def test_discover_and_download_checkpoints_from_previous_runs_single_run(test_ou
     expected_checkpoint_root = config.checkpoint_folder / run_recovery_id.split(":")[1]
     expected_paths = [create_checkpoint_path(path=expected_checkpoint_root,
                                              epoch=epoch) for epoch in [1, 2]]
+    expected_paths += [get_best_checkpoint_path(path=expected_checkpoint_root)]
     assert checkpoint_handler.run_recovery
     assert checkpoint_handler.run_recovery.checkpoints_roots == [expected_checkpoint_root]
     for path in expected_paths:
@@ -101,8 +102,9 @@ def test_discover_and_download_checkpoints_from_previous_runs_ensemble_run(test_
 
     expected_checkpoint_roots = [config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / str(i) for i in range(2)]
     expected_path_lists = [[create_checkpoint_path(path=expected_checkpoint_root,
-                                                   epoch=epoch) for epoch in [1, 2]]
-                                                   for expected_checkpoint_root in expected_checkpoint_roots]
+                                                   epoch=epoch) for epoch in [1, 2]] +
+                           [get_best_checkpoint_path(path=expected_checkpoint_root)]
+                           for expected_checkpoint_root in expected_checkpoint_roots]
     assert set(checkpoint_handler.run_recovery.checkpoints_roots) == set(expected_checkpoint_roots)
     for path_list in expected_path_lists:
         for path in path_list:
