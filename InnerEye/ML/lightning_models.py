@@ -20,7 +20,8 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve, \
+from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
+    AreaUnderRocCurve, \
     BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
     FalsePositiveRateOptimalThreshold, \
     MeanAbsoluteError, MeanSquaredError, OptimalThreshold, add_average_dice, \
@@ -428,7 +429,8 @@ class ScalarLightning(InnerEyeLightning):
         self.use_mean_teacher_model = config.compute_mean_teacher_model
         self.logits_to_posterior_fn = config.get_post_loss_logits_normalization_function()
         self.loss_type = config.loss_type
-        self.create_metrics()
+        self.train_metrics_dict = self.create_metrics()
+        self.val_metrics_dict = self.create_metrics()
 
         # TODO antonsc: Work out how we handle mean teacher model
         # if config.compute_grad_cam:
@@ -436,6 +438,9 @@ class ScalarLightning(InnerEyeLightning):
         #         config.compute_mean_teacher_model else self.train_val_params.model
         #     self.guided_grad_cam = VisualizationMaps(model_to_evaluate, config)
         #     config.visualization_folder.mkdir(exist_ok=True)
+
+    def create_metrics(self) -> OrderedDict:
+        return OrderedDict([(p, self._get_metrics_classes()) for p in self.target_names])
 
     def _get_metrics_classes(self) -> List[Metric]:
         if self.is_classification_model:
@@ -449,11 +454,6 @@ class ScalarLightning(InnerEyeLightning):
                     BinaryCrossEntropy()]
         else:
             return [MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()]
-
-    def create_metrics(self):
-        self.train_metrics_dict = OrderedDict(
-            [(p, self._get_metrics_classes()) for p in self.target_names])
-        self.val_metrics_dict = OrderedDict([(p, self._get_metrics_classes()) for p in self.target_names])
 
     def forward(self, *model_inputs: torch.Tensor) -> torch.Tensor:
         return self.logits_to_posterior(self.model(*model_inputs))
