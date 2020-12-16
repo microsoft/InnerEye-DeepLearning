@@ -76,7 +76,13 @@ def get_best_checkpoint_path(path: Path) -> Path:
     :param path to checkpoint folder
     :param epoch
     """
-    return path / f"{BEST_CHECKPOINT_FILE_NAME}.ckpt"
+    # TODO FIX: How does PL name checkpoints? This does not give the best version
+    filename = path / f"{BEST_CHECKPOINT_FILE_NAME}.ckpt"
+    v = 0
+    while not filename.exists():
+        filename = path / f"{BEST_CHECKPOINT_FILE_NAME}-v{v}.ckpt"
+        v += 1
+    return filename
 
 
 def create_unique_timestamp_id() -> str:
