@@ -363,19 +363,16 @@ def add_average_dice(metrics: DictStrFloat) -> DictStrFloat:
 
 def store_epoch_metrics(metrics: DictStrFloat,
                         epoch: int,
-                        file_logger: DataframeLogger,
-                        cross_validation_split_index: int) -> None:
+                        file_logger: DataframeLogger) -> None:
     """
-    Writes all metrics into a CSV file, with additional columns for epoch and cross validation split.
+    Writes all metrics into a CSV file, with an additional columns for epoch number.
     :param file_logger: An instance of DataframeLogger, for logging results to csv.
     :param epoch: The epoch corresponding to the results.
     :param metrics: The metrics of the specified epoch, averaged along its batches.
-    :param cross_validation_split_index: The current split if running inside cross validation.
     """
     logger_row = {}
     logger_row.update(**metrics)
     logger_row[LoggingColumns.Epoch.value] = epoch
-    logger_row[LoggingColumns.CrossValidationSplitIndex.value] = cross_validation_split_index
     file_logger.add_record(logger_row)
     file_logger.flush()
 

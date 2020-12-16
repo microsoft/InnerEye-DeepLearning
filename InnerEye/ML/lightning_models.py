@@ -25,6 +25,7 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
+from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss
@@ -134,8 +135,11 @@ class InnerEyeLightning(LightningModule):
         # training loggers
         self.train_metrics_folder = self.outputs_folder / ModelExecutionMode.TRAIN.value
         self.val_metrics_folder = self.outputs_folder / ModelExecutionMode.VAL.value
-        self.train_epoch_metrics_logger = DataframeLogger(self.train_metrics_folder / EPOCH_METRICS_FILE_NAME)
-        self.val_epoch_metrics_logger = DataframeLogger(self.val_metrics_folder / EPOCH_METRICS_FILE_NAME)
+        fixed_logger_columns = {LoggingColumns.CrossValidationSplitIndex.value: config.cross_validation_split_index}
+        self.train_epoch_metrics_logger = DataframeLogger(self.train_metrics_folder / EPOCH_METRICS_FILE_NAME,
+                                                          fixed_columns=fixed_logger_columns)
+        self.val_epoch_metrics_logger = DataframeLogger(self.val_metrics_folder / EPOCH_METRICS_FILE_NAME,
+                                                        fixed_columns=fixed_logger_columns)
         # Fields to store diagnostics for testing
         self.train_diagnostics = []
         self.val_diagnostics = []
@@ -221,8 +225,7 @@ class InnerEyeLightning(LightningModule):
         file_logger = self.train_epoch_metrics_logger if is_training else self.val_epoch_metrics_logger
         store_epoch_metrics(metrics,
                             epoch,
-                            file_logger=file_logger,
-                            cross_validation_split_index=self.cross_validation_split_index)
+                            file_logger=file_logger)
         pass
 
     def on_train_batch_start(self, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
