@@ -93,7 +93,7 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
         }
     for epoch in expected_epochs:
         assert test_results.epochs[epoch].values()[MetricType.CROSS_ENTROPY.value] == \
-               pytest.approx(expected_metrics[epoch], abs=2e-4), f"Cross entropy epoch {epoch}"
+               pytest.approx(expected_metrics[epoch], abs=1e-3), f"Cross entropy epoch {epoch}"
     # Run detailed logs file check only on CPU, it will contain slightly different metrics on GPU, but here
     # we want to mostly assert that the files look reasonable
     if not machine_has_gpu:
@@ -105,10 +105,10 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
             "area_under_roc_curve,area_under_pr_curve,accuracy_at_optimal_threshold," \
             "false_positive_rate_at_optimal_threshold,false_negative_rate_at_optimal_threshold," \
             "optimal_threshold,subject_count,epoch,cross_validation_split_index\n" + \
-            """0.6866141557693481,0.6866141557693481,0.5,0,0,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,1,-1
-            0.6864652633666992,0.6864652633666992,0.5,0,0,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,2,-1
-            0.6863163113594055,0.6863162517547607,0.5,0,0,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,3,-1
-            0.6861673593521118,0.6861673593521118,0.5,0,0,9.998613801725043e-05,1.0,1.0,0.5,0.0,0.0,0.529399,2.0,4,-1
+            """0.6866141557693481,0.6866141557693481,0.5,0,0,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,0,-1
+            0.6864652633666992,0.6864652633666992,0.5,0,0,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,1,-1
+            0.6863163113594055,0.6863162517547607,0.5,0,0,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,2,-1
+            0.6861673593521118,0.6861673593521118,0.5,0,0,9.998613801725043e-05,1.0,1.0,0.5,0.0,0.0,0.529399,2.0,3,-1
             """
         check_log_file(epoch_metrics_path, expected_epoch_metrics,
                        ignore_columns=[LoggingColumns.SecondsPerBatch.value, LoggingColumns.SecondsPerEpoch.value])
@@ -149,7 +149,7 @@ def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> 
         del df_epoch_metrics_actual[ignore_column]
         if ignore_column in df_expected:
             del df_expected[ignore_column]
-    pd.testing.assert_frame_equal(df_expected, df_epoch_metrics_actual, check_less_precise=True)
+    pd.testing.assert_frame_equal(df_expected, df_epoch_metrics_actual, check_less_precise=True, check_like=True)
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -416,7 +416,7 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         else:
             expected_metrics = {LoggingColumns.MeanAbsoluteError.value,
                                 LoggingColumns.MeanSquaredError.value,
-                                LoggingColumns.R2Score.value}
+                                LoggingColumns.ExplainedVariance.value}
         expected_metrics = expected_metrics.union({LoggingColumns.SubjectCount.value})
         assert len(unrolled) == train_config.num_epochs * len(expected_metrics)
         actual_metrics = set(m.metric_name for m in unrolled)

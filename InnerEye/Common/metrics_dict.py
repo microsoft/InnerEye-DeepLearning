@@ -100,7 +100,7 @@ class MetricType(Enum):
     # Regression metrics
     MEAN_ABSOLUTE_ERROR = "MeanAbsoluteError"
     MEAN_SQUARED_ERROR = "MeanSquaredError"
-    R2_SCORE = "r2Score"
+    EXPLAINED_VAR = "ExplainedVariance"
 
     # Common metrics
     SECONDS_PER_BATCH = "SecondsPerBatch"
@@ -124,7 +124,7 @@ INTERNAL_TO_LOGGING_COLUMN_NAMES = {
     MetricType.SUBJECT_COUNT.value: LoggingColumns.SubjectCount,
     MetricType.MEAN_SQUARED_ERROR.value: LoggingColumns.MeanSquaredError,
     MetricType.MEAN_ABSOLUTE_ERROR.value: LoggingColumns.MeanAbsoluteError,
-    MetricType.R2_SCORE.value: LoggingColumns.R2Score,
+    MetricType.EXPLAINED_VAR.value: LoggingColumns.ExplainedVariance,
     MetricType.LEARNING_RATE.value: LoggingColumns.LearningRate,
     MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD.value: LoggingColumns.AccuracyAtOptimalThreshold,
     MetricType.OPTIMAL_THRESHOLD.value: LoggingColumns.OptimalThreshold,

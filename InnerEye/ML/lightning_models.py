@@ -4,12 +4,14 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import time
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.metrics import Accuracy, Metric
 
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME
 from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, create_metrics_dict_for_scalar_models
@@ -18,7 +20,13 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.metrics import add_average_dice, compute_dice_across_patches, compute_scalar_metrics, \
+from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
+    AreaUnderRocCurve, \
+    BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
+    FalsePositiveRateOptimalThreshold, \
+    MeanAbsoluteError, MeanSquaredError, OptimalThreshold, add_average_dice, \
+    compute_dice_across_patches, \
+    compute_scalar_metrics, \
     nanmean, store_epoch_metrics
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
@@ -28,7 +36,7 @@ from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
-from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss
+from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss, get_masked_model_outputs_and_labels
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -145,7 +153,7 @@ class InnerEyeLightning(LightningModule):
         self.val_diagnostics = []
         self.use_sync_dist = self.use_ddp
 
-    def log_on_epoch(self, name: Union[MetricType, str], value: float, is_training: bool,
+    def log_on_epoch(self, name: Union[MetricType, str], value: Union[float, Metric], is_training: bool,
                      reduce_fx: Callable = torch.mean) -> None:
         """
         Logs a metrics to Pytorch Lightning with the on_epoch flag set. The metric will get a prefix indicating
@@ -281,6 +289,9 @@ class InnerEyeLightning(LightningModule):
         self.batch_start_time = time.time()
 
     def batch_end(self, is_training: bool) -> None:
+        pass
+
+    def log_time_per_batch(self, is_training: bool):
         self.log_on_epoch(MetricType.SECONDS_PER_BATCH, time.time() - self.batch_start_time, is_training=is_training)
         self.item_start_time = time.time()
         self.num_batches += 1
@@ -306,7 +317,7 @@ class InnerEyeLightning(LightningModule):
         Writes the given loss value to Lightning, labelled either "val/loss" or "train/loss".
         If this comes from a training step, then also log the learning rate.
         :param is_training: If True, the logged metric will be called "train_loss". If False, "val_loss"
-=        """
+    =        """
         self.log_on_epoch(MetricType.LOSS, loss, is_training)
         learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
         if is_training:
@@ -394,6 +405,7 @@ class SegmentationLightning(InnerEyeLightning):
                           is_training=is_training,
                           reduce_fx=sum)
         self.write_loss(is_training, loss)
+        self.log_time_per_batch(is_training)
         return loss
 
     def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool):
@@ -411,21 +423,40 @@ class ScalarLightning(InnerEyeLightning):
         if isinstance(config, SequenceModelBase):
             self.loss_fn = lambda model_output, loss: apply_sequence_model_loss(raw_loss, model_output, loss)
             self.target_indices = config.get_target_indices()
-            self.sequence_target_positions = config.sequence_target_positions
+            self.target_names = config.sequence_target_positions
         else:
             self.loss_fn = raw_loss
             self.target_indices = []
-            self.sequence_target_positions = []
+            self.target_names = [MetricsDict.DEFAULT_HUE_KEY]
         self.is_classification_model = config.is_classification_model
         self.use_mean_teacher_model = config.compute_mean_teacher_model
         self.logits_to_posterior_fn = config.get_post_loss_logits_normalization_function()
         self.loss_type = config.loss_type
+        self.train_metrics_dict = self.create_metrics()
+        self.val_metrics_dict = self.create_metrics()
+
         # TODO antonsc: Work out how we handle mean teacher model
         # if config.compute_grad_cam:
         #     model_to_evaluate = self.train_val_params.mean_teacher_model if \
         #         config.compute_mean_teacher_model else self.train_val_params.model
         #     self.guided_grad_cam = VisualizationMaps(model_to_evaluate, config)
         #     config.visualization_folder.mkdir(exist_ok=True)
+
+    def create_metrics(self) -> OrderedDict:
+        return OrderedDict([(p, self._get_metrics_classes()) for p in self.target_names])
+
+    def _get_metrics_classes(self) -> List[Metric]:
+        if self.is_classification_model:
+            return [Accuracy05(),
+                    AccuracyAtOptimalThreshold(),
+                    OptimalThreshold(),
+                    FalsePositiveRateOptimalThreshold(),
+                    FalseNegativeRateOptimalThreshold(),
+                    AreaUnderRocCurve(),
+                    AreaUnderPrecisionRecallCurve(),
+                    BinaryCrossEntropy()]
+        else:
+            return [MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()]
 
     def forward(self, *model_inputs: torch.Tensor) -> torch.Tensor:
         return self.logits_to_posterior(self.model(*model_inputs))
@@ -436,6 +467,14 @@ class ScalarLightning(InnerEyeLightning):
         """
         return self.logits_to_posterior_fn(logits)
 
+    def on_train_epoch_start(self) -> None:
+        self.reset_timers()
+        # Necessary to explicitely reset
+        # otherwise the metrics keep accumulating over all epochs
+        for metrics in self.train_metrics_dict.values():
+            for m in metrics:
+                m.reset()
+
     def training_or_validation_step(self,
                                     sample: Dict[str, Any],
                                     batch_index: int,
@@ -443,23 +482,39 @@ class ScalarLightning(InnerEyeLightning):
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model, self.target_indices, sample)
         labels = model_inputs_and_labels.labels
         logits = self.model(*model_inputs_and_labels.model_inputs)
+        subject_ids = model_inputs_and_labels.subject_ids
         loss = self.loss_fn(logits, labels)
         self.write_loss(is_training, loss)
-        metrics = create_metrics_dict_for_scalar_models(is_classification_model=self.is_classification_model,
-                                                        sequence_target_positions=self.sequence_target_positions)
-        compute_scalar_metrics(metrics,
-                               subject_ids=model_inputs_and_labels.subject_ids,
-                               model_output=self.logits_to_posterior(logits),
-                               labels=labels,
-                               loss_type=self.loss_type)
-        for hue, name, value in metrics.enumerate_single_values():
-            hue_suffix = "" if hue == MetricsDict.DEFAULT_HUE_KEY else "/" + hue
-            self.log_on_epoch(name=name + hue_suffix, value=value, is_training=is_training)
+        per_subject_outputs = self.compute_and_log_metrics(logits, labels, subject_ids, is_training)
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=len(model_inputs_and_labels.subject_ids),
                           is_training=is_training,
                           reduce_fx=sum)
+        self.log_time_per_batch(is_training)
         return loss
+
+    def compute_and_log_metrics(self, logits: torch.Tensor, targets: torch.Tensor, subject_ids: List[str], is_training: bool) \
+            -> List[Tuple[str, str, float, float]]:
+        metrics = self.train_metrics_dict if is_training else self.val_metrics_dict
+        per_subject_outputs = list()
+        for i, (hue, metric_list) in enumerate(metrics.items()):
+            hue_suffix = "" if hue == MetricsDict.DEFAULT_HUE_KEY else f"/{hue}"
+            # mask the model outputs and labels if required
+            masked_model_outputs_and_labels = get_masked_model_outputs_and_labels(
+                logits[:, i, ...], targets[:, i, ...], subject_ids)
+            # compute metrics on valid masked tensors only
+            if masked_model_outputs_and_labels is not None:
+                _model_output, _labels, _subject_ids = \
+                    masked_model_outputs_and_labels.model_outputs.data, \
+                    masked_model_outputs_and_labels.labels.data, \
+                    masked_model_outputs_and_labels.subject_ids
+                _posteriors = self.logits_to_posterior(_model_output)
+                for metric in metric_list:
+                    metric(_posteriors, _labels)
+                    self.log_on_epoch(name=metric.name + hue_suffix, value=metric, is_training=is_training)
+                per_subject_outputs.extend(
+                    zip(_subject_ids, [hue] * len(_subject_ids), _posteriors.tolist(), _labels.tolist()))
+        return per_subject_outputs
 
     def epoch_end(self, is_training: bool) -> None:
         super().epoch_end(is_training)
