@@ -501,8 +501,6 @@ class ScalarLightning(InnerEyeLightning):
                 _model_output, _labels = \
                     masked_model_outputs_and_labels.model_outputs.data, \
                     masked_model_outputs_and_labels.labels.data
-                # Convert labels to the same datatype as the model outputs, necessary when running with AMP
-                _labels = _labels.to(dtype=_model_output.dtype)
                 _posteriors = self.logits_to_posterior(_model_output)
                 for metric in metric_list:
                     metric(_posteriors, _labels)
