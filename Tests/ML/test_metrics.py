@@ -14,10 +14,9 @@ from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, Metri
     get_column_name_for_logging
 from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import metrics
-from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPRCurve, AreaUnderRocCurve, \
-    BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
-    FalsePositiveRateOptimalThreshold, \
-    MeanAbsoluteError, MeanSquaredError, OptimalThreshold
+from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
+from InnerEye.ML.configs.regression.DummyRegression import DummyRegression
+from InnerEye.ML.lightning_models import ScalarLightning
 
 
 def test_calculate_dice1() -> None:
@@ -161,31 +160,19 @@ def test_get_column_name_for_logging() -> None:
            get_column_name_for_logging(metric_name=metric_name, hue_name=hue_name)
 
 
-
-def test_accuracy05():
-    metrics = Accuracy05()
-    output = [torch.tensor([0.9, 0.8, 0.6]), torch.tensor([0.3, 0.9, 0.4])]
-    label = [torch.tensor([1., 1., 0.]), torch.tensor([0., 0., 0.])]
-    n_batches = len(output)
-    for i in range(n_batches):
-        metrics.update(output[i], label[i])
-    result = metrics.compute()
-    assert result == 4.0 / 6
-
 def test_classification_metrics():
-    metrics = [AccuracyAtOptimalThreshold(), OptimalThreshold(),
-               FalsePositiveRateOptimalThreshold(), FalseNegativeRateOptimalThreshold(),
-               AreaUnderRocCurve(), AreaUnderPRCurve(), BinaryCrossEntropy()]
-    output = [torch.tensor([0.9, 0.8, 0.6]), torch.tensor([0.3, 0.9, 0.4])]
-    label = [torch.tensor([1., 1., 0.]), torch.tensor([0., 0., 0.])]
-    n_batches = len(output)
-    for i in range(n_batches):
+    classification_module = ScalarLightning(DummyClassification())
+    metrics = classification_module._get_metrics_classes()
+    outputs = [torch.tensor([0.9, 0.8, 0.6]), torch.tensor([0.3, 0.9, 0.4])]
+    labels = [torch.tensor([1., 1., 0.]), torch.tensor([0., 0., 0.])]
+    for output, label in zip(outputs, labels):
         for metric in metrics:
-            metric.update(output[i], label[i])
-    accuracy, threshold, fpr, fnr, roc_auc, pr_auc, cross_entropy = [metric.compute() for metric in metrics]
-
-    all_labels = torch.cat(label).numpy()
-    all_outputs = torch.cat(output).numpy()
+            metric.update(output, label)
+    accuracy_05, accuracy_opt, threshold, fpr, fnr, roc_auc, pr_auc, cross_entropy = [metric.compute() for metric in
+                                                                                      metrics]
+    all_labels = torch.cat(labels).numpy()
+    all_outputs = torch.cat(outputs).numpy()
+    expected_accuracy_at_05 = np.mean((all_outputs > 0.5) == all_labels)
     expected_binary_cross_entropy = log_loss(y_true=all_labels, y_pred=all_outputs)
     expected_fpr, expected_tpr, expected_thresholds = roc_curve(y_true=all_labels, y_score=all_outputs)
     expected_roc_auc = auc(expected_fpr, expected_tpr)
@@ -196,29 +183,28 @@ def test_classification_metrics():
     expected_optimal_fnr = 1 - expected_tpr[expected_optimal_idx]
     prec, recall, _ = precision_recall_curve(y_true=all_labels, probas_pred=all_outputs)
     expected_pr_auc = auc(recall, prec)
-    assert accuracy == expected_accuracy
+    assert accuracy_opt == expected_accuracy
     assert threshold == expected_optimal_threshold
     assert fpr == expected_optimal_fpr
     assert fnr == expected_optimal_fnr
     assert roc_auc == expected_roc_auc
     assert pr_auc == expected_pr_auc
     assert cross_entropy == expected_binary_cross_entropy
-
+    assert accuracy_05 == expected_accuracy_at_05
 
 def test_regression_metrics():
-    metrics = [MeanAbsoluteError(), MeanSquaredError(),
-               ExplainedVariance()]
-    output = [torch.tensor([1., 2., 1.]), torch.tensor([4., 0., 2.])]
-    label = [torch.tensor([1., 1., 0.]), torch.tensor([2., 0., 2.])]
-    n_batches = len(output)
-    for i in range(n_batches):
+    regression_module = ScalarLightning(DummyRegression())
+    metrics = regression_module._get_metrics_classes()
+    outputs = [torch.tensor([1., 2., 1.]), torch.tensor([4., 0., 2.])]
+    labels = [torch.tensor([1., 1., 0.]), torch.tensor([2., 0., 2.])]
+    for output, label in zip(outputs, labels):
         for metric in metrics:
-            metric.update(output[i], label[i])
+            metric.update(output, label)
     MAE, MSE, ExpVar = [metric.compute() for metric in metrics]
-    all_labels = torch.cat(label)
-    all_outputs = torch.cat(output)
-    expected_mae = torch.mean(torch.abs(all_labels  - all_outputs))
-    expected_mse = torch.mean(torch.square(all_labels  - all_outputs))
+    all_labels = torch.cat(labels)
+    all_outputs = torch.cat(outputs)
+    expected_mae = torch.mean(torch.abs(all_labels - all_outputs))
+    expected_mse = torch.mean(torch.square(all_labels - all_outputs))
     # ExpVar 1 - Var(y_pred - y_true) / Var(y_true)
     expected_expVar = 1 - torch.var(all_outputs - all_labels) / torch.var(all_labels)
     assert expected_mae == MAE
