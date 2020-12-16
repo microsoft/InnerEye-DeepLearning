@@ -510,8 +510,7 @@ class ScalarLightning(InnerEyeLightning):
                     metric(_posteriors, _labels)
                     self.log_on_epoch(name=metric.name + hue_suffix, value=metric, is_training=is_training)
                 per_subject_outputs.extend(
-                    [(subj, hue, output, label) for (subj, output, label) in
-                     zip(_subject_ids, _posteriors.tolist(), _labels.tolist())])
+                    zip(_subject_ids, [hue] * len(_subject_ids), _posteriors.tolist(), _labels.tolist()))
         return per_subject_outputs
 
     def epoch_end(self, is_training: bool) -> None:
