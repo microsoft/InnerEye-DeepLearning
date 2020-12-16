@@ -571,7 +571,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         return create_checkpoint_path(self.checkpoint_folder, epoch=epoch)
 
-    def get_path_to_best_checkpoint(self, epoch: int) -> Path:
+    def get_path_to_best_checkpoint(self) -> Path:
         """
         Returns full path to a checkpoint given an epoch
         :param epoch: the epoch number

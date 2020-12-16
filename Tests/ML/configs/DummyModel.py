@@ -57,14 +57,10 @@ class DummyModel(SegmentationModelBase):
             adam_betas=(0.9, 0.999),
             momentum=0.6,
             weight_decay=1e-4,
-            save_start_epoch=1,
             save_step_epochs=100,
             class_weights=[0.5, 0.5],
             detect_anomaly=False,
             use_mixed_precision=False,
-            test_start_epoch=1,
-            test_diff_epochs=1,
-            test_step_epochs=1,
         )
         self.add_and_validate(kwargs)
 
