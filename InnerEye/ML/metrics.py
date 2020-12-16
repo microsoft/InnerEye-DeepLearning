@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import SimpleITK as sitk
 import numpy as np
@@ -15,9 +15,13 @@ import tensorboardX
 import torch
 import torch.nn.functional as F
 from azureml.core import Run
+from pytorch_lightning.metrics import Metric
+from pytorch_lightning.metrics.functional import roc
+from pytorch_lightning.metrics.functional.classification import accuracy, auc, auroc, precision_recall_curve
 
 from InnerEye.Azure.azure_util import get_run_context_or_default
-from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, ScalarMetricsDict, \
+from InnerEye.Common.metrics_dict import DataframeLogger, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, MetricsDict, \
+    ScalarMetricsDict, \
     get_metric_name_with_hue_prefix
 from InnerEye.Common.type_annotations import DictStrFloat, TupleFloat3
 from InnerEye.ML.common import ModelExecutionMode
@@ -31,6 +35,145 @@ from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, \
     mean_absolute_error, r2_score
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
+
+from pytorch_lightning import metrics
+
+
+class MeanAbsoluteError(metrics.MeanAbsoluteError):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = MetricType.MEAN_ABSOLUTE_ERROR.value
+
+
+class MeanSquaredError(metrics.MeanSquaredError):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = MetricType.MEAN_SQUARED_ERROR.value
+
+
+class ExplainedVariance(metrics.ExplainedVariance):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = MetricType.EXPLAINED_VAR.value
+
+
+class Accuracy05(metrics.Accuracy):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = MetricType.ACCURACY_AT_THRESHOLD_05.value
+
+
+class ScalarMetricsBase(Metric):
+    def __init__(self, dist_sync_on_step: bool = False, name: str = ""):
+        super().__init__(dist_sync_on_step=dist_sync_on_step)
+        self.add_state("preds", default=[], dist_reduce_fx=None)
+        self.add_state("target", default=[], dist_reduce_fx=None)
+        self.name = name
+
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        self.preds.append(preds)
+        self.target.append(target)
+
+    def compute(self):
+        raise NotImplementedError("Should be implemented in the child classes")
+
+    def _get_metrics_at_optimal_cutoff(self, preds, target) -> Tuple:
+        """
+        Computes the ROC to find the optimal cut-off i.e. the probability threshold for which the
+        difference between true positive rate and false positive rate is smallest. Then, computes
+        the false positive rate, false negative rate and accuracy at this threshold (i.e. when the
+        predicted probability is higher than the threshold the predicted label is 1 otherwise 0).
+        :returns: Tuple(optimal_threshold, false positive rate, false negative rate, accuracy)
+        """
+        if torch.unique(target).numel() == 1:
+            return torch.tensor(np.nan), torch.tensor(np.nan), torch.tensor(np.nan), torch.tensor(np.nan)
+        fpr, tpr, thresholds = roc(preds, target)
+        optimal_idx = torch.argmax(tpr - fpr)
+        optimal_threshold = thresholds[optimal_idx]
+        acc = accuracy(preds > optimal_threshold, target)
+        false_negative_optimal = 1 - tpr[optimal_idx]
+        false_positive_optimal = fpr[optimal_idx]
+        return optimal_threshold, false_positive_optimal, false_negative_optimal, acc
+
+
+class AccuracyAtOptimalThreshold(ScalarMetricsBase):
+    def __init__(self, dist_sync_on_step=False):
+        super().__init__(dist_sync_on_step=dist_sync_on_step,
+                         name=MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD.value)
+
+    def compute(self):
+        preds = torch.cat(self.preds)
+        target = torch.cat(self.target)
+        return self._get_metrics_at_optimal_cutoff(preds=preds, target=target)[3]
+
+
+class OptimalThreshold(ScalarMetricsBase):
+    def __init__(self, dist_sync_on_step=False):
+        super().__init__(dist_sync_on_step=dist_sync_on_step, name=MetricType.OPTIMAL_THRESHOLD.value)
+
+    def compute(self):
+        preds = torch.cat(self.preds)
+        target = torch.cat(self.target)
+        return self._get_metrics_at_optimal_cutoff(preds=preds, target=target)[0]
+
+
+class FalsePositiveRateOptimalThreshold(ScalarMetricsBase):
+    def __init__(self, dist_sync_on_step=False):
+        super().__init__(dist_sync_on_step=dist_sync_on_step,
+                         name=MetricType.FALSE_POSITIVE_RATE_AT_OPTIMAL_THRESHOLD.value)
+
+    def compute(self):
+        preds = torch.cat(self.preds)
+        target = torch.cat(self.target)
+        return self._get_metrics_at_optimal_cutoff(preds=preds, target=target)[1]
+
+
+class FalseNegativeRateOptimalThreshold(ScalarMetricsBase):
+    def __init__(self, dist_sync_on_step=False):
+        super().__init__(dist_sync_on_step=dist_sync_on_step,
+                         name=MetricType.FALSE_NEGATIVE_RATE_AT_OPTIMAL_THRESHOLD.value)
+
+    def compute(self):
+        preds = torch.cat(self.preds)
+        target = torch.cat(self.target)
+        return self._get_metrics_at_optimal_cutoff(preds=preds, target=target)[2]
+
+
+class AreaUnderRocCurve(ScalarMetricsBase):
+    def __init__(self, dist_sync_on_step=False):
+        super().__init__(dist_sync_on_step=dist_sync_on_step,
+                         name=MetricType.AREA_UNDER_ROC_CURVE.value)
+
+    def compute(self):
+        preds = torch.cat(self.preds)
+        targets = torch.cat(self.target)
+        if torch.unique(targets).numel() == 1:
+            return torch.tensor(np.nan)
+        return auroc(preds, targets)
+
+
+class AreaUnderPrecisionRecallCurve(ScalarMetricsBase):
+    def __init__(self, dist_sync_on_step=False):
+        super().__init__(dist_sync_on_step=dist_sync_on_step,
+                         name=MetricType.AREA_UNDER_PR_CURVE.value)
+
+    def compute(self):
+        preds = torch.cat(self.preds)
+        targets = torch.cat(self.target)
+        if torch.unique(targets).numel() == 1:
+            return torch.tensor(np.nan)
+        prec, recall, _ = precision_recall_curve(preds, targets)
+        return auc(recall, prec)
+
+
+class BinaryCrossEntropy(ScalarMetricsBase):
+    def __init__(self, dist_sync_on_step=False):
+        super().__init__(dist_sync_on_step=dist_sync_on_step, name=MetricType.CROSS_ENTROPY.value)
+
+    def compute(self):
+        preds = torch.cat(self.preds)
+        targets = torch.cat(self.target)
+        return F.binary_cross_entropy(input=preds, target=targets)
 
 
 @dataclass(frozen=True)
@@ -373,7 +516,11 @@ def store_epoch_metrics(metrics: DictStrFloat,
     :param cross_validation_split_index: The current split if running inside cross validation.
     """
     logger_row = {}
-    logger_row.update(**metrics)
+    for key, value in metrics.items():
+        if key in INTERNAL_TO_LOGGING_COLUMN_NAMES.keys():
+            logger_row[INTERNAL_TO_LOGGING_COLUMN_NAMES[key].value] = value
+        else:
+            logger_row[key] = value
     logger_row[LoggingColumns.Epoch.value] = epoch
     logger_row[LoggingColumns.CrossValidationSplitIndex.value] = cross_validation_split_index
     file_logger.add_record(logger_row)
@@ -431,7 +578,7 @@ def compute_scalar_metrics(metrics_dict: ScalarMetricsDict,
                     MetricType.ACCURACY_AT_THRESHOLD_05: binary_classification_accuracy(_model_output, _labels)
                 }
             for key, value in metrics.items():
-                if key == MetricType.R2_SCORE:
+                if key == MetricType.EXPLAINED_VAR:
                     # For a batch size 1, R2 score can be nan. We need to ignore nans
                     # when average in case the last batch is of size 1.
                     metrics_dict.add_metric(key, value, skip_nan_when_averaging=True, hue=hue)
