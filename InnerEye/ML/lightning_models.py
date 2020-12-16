@@ -479,9 +479,10 @@ class ScalarLightning(InnerEyeLightning):
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model, self.target_indices, sample)
         labels = model_inputs_and_labels.labels
         logits = self.model(*model_inputs_and_labels.model_inputs)
+        subject_ids = model_inputs_and_labels.subject_ids
         loss = self.loss_fn(logits, labels)
         self.write_loss(is_training, loss)
-        self.compute_and_log_metrics(logits, labels, is_training)
+        per_subject_outputs = self.compute_and_log_metrics(logits, labels, subject_ids, is_training)
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=len(model_inputs_and_labels.subject_ids),
                           is_training=is_training,
@@ -489,22 +490,29 @@ class ScalarLightning(InnerEyeLightning):
         self.log_time_per_batch(is_training)
         return loss
 
-    def compute_and_log_metrics(self, logits: torch.Tensor, targets: torch.Tensor, is_training: bool):
+    def compute_and_log_metrics(self, logits: torch.Tensor, targets: torch.Tensor, subject_ids: List[str], is_training: bool) \
+            -> List[Tuple[str, str, float, float]]:
         metrics = self.train_metrics_dict if is_training else self.val_metrics_dict
+        per_subject_outputs = list()
         for i, (hue, metric_list) in enumerate(metrics.items()):
             hue_suffix = "" if hue == MetricsDict.DEFAULT_HUE_KEY else f"/{hue}"
             # mask the model outputs and labels if required
             masked_model_outputs_and_labels = get_masked_model_outputs_and_labels(
-                logits[:, i, ...], targets[:, i, ...])
+                logits[:, i, ...], targets[:, i, ...], subject_ids)
             # compute metrics on valid masked tensors only
             if masked_model_outputs_and_labels is not None:
-                _model_output, _labels = \
+                _model_output, _labels, _subject_ids = \
                     masked_model_outputs_and_labels.model_outputs.data, \
-                    masked_model_outputs_and_labels.labels.data
+                    masked_model_outputs_and_labels.labels.data, \
+                    masked_model_outputs_and_labels.subject_ids
                 _posteriors = self.logits_to_posterior(_model_output)
                 for metric in metric_list:
                     metric(_posteriors, _labels)
                     self.log_on_epoch(name=metric.name + hue_suffix, value=metric, is_training=is_training)
+                per_subject_outputs.extend(
+                    [(subj, hue, output, label) for (subj, output, label) in
+                     zip(_subject_ids, _posteriors.tolist(), _labels.tolist())])
+        return per_subject_outputs
 
     def epoch_end(self, is_training: bool) -> None:
         super().epoch_end(is_training)
