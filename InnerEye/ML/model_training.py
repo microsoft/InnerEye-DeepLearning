@@ -78,9 +78,6 @@ def model_train(config: ModelConfigBase,
         mlflow_logger._run_id = RUN_CONTEXT.id
         loggers.append(mlflow_logger)
 
-    # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
-    # those environment variables will mislead the training runs in the test suite, and make them crash.
-    # Hence, restore the original environment after training.
     old_environ = dict(os.environ)
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
                       accelerator=accelerator,
@@ -147,7 +144,9 @@ def model_train(config: ModelConfigBase,
         logging.info(f"Terminating training thread with rank {lightning_model.global_rank}.")
         sys.exit()
 
-    # Restore the environment to what it was before training.
+    # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
+    # those environment variables will mislead the training runs in the test suite, and make them crash.
+    # Hence, restore the original environment after training.
     os.environ.clear()
     os.environ.update(old_environ)
 
