@@ -20,7 +20,7 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPRCurve, AreaUnderRocCurve, \
+from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve, \
     BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
     FalsePositiveRateOptimalThreshold, \
     MeanAbsoluteError, MeanSquaredError, OptimalThreshold, add_average_dice, \
@@ -419,11 +419,11 @@ class ScalarLightning(InnerEyeLightning):
         if isinstance(config, SequenceModelBase):
             self.loss_fn = lambda model_output, loss: apply_sequence_model_loss(raw_loss, model_output, loss)
             self.target_indices = config.get_target_indices()
-            self.sequence_target_positions = config.sequence_target_positions
+            self.target_names = config.sequence_target_positions
         else:
             self.loss_fn = raw_loss
             self.target_indices = []
-            self.sequence_target_positions = [MetricsDict.DEFAULT_HUE_KEY]
+            self.target_names = [MetricsDict.DEFAULT_HUE_KEY]
         self.is_classification_model = config.is_classification_model
         self.use_mean_teacher_model = config.compute_mean_teacher_model
         self.logits_to_posterior_fn = config.get_post_loss_logits_normalization_function()
@@ -445,15 +445,15 @@ class ScalarLightning(InnerEyeLightning):
                     FalsePositiveRateOptimalThreshold(),
                     FalseNegativeRateOptimalThreshold(),
                     AreaUnderRocCurve(),
-                    AreaUnderPRCurve(),
+                    AreaUnderPrecisionRecallCurve(),
                     BinaryCrossEntropy()]
         else:
             return [MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()]
 
     def create_metrics(self):
         self.train_metrics_dict = OrderedDict(
-            [(p, self._get_metrics_classes()) for p in self.sequence_target_positions])
-        self.val_metrics_dict = OrderedDict([(p, self._get_metrics_classes()) for p in self.sequence_target_positions])
+            [(p, self._get_metrics_classes()) for p in self.target_names])
+        self.val_metrics_dict = OrderedDict([(p, self._get_metrics_classes()) for p in self.target_names])
 
     def forward(self, *model_inputs: torch.Tensor) -> torch.Tensor:
         return self.logits_to_posterior(self.model(*model_inputs))
