@@ -453,48 +453,6 @@ class ModelAndInfo:
             raise ValueError("Model checkpoint must be created before optimizer checkpoint can be loaded.")
         self._optimizer = create_optimizer(self.config, self._model.parameters())
 
-    def try_load_checkpoint_for_optimizer(self) -> bool:
-        """
-        Loads a checkpoint of an optimizer.
-        :return True if the checkpoint exists and optimizer state loaded, False otherwise
-        """
-
-        if self._optimizer is None:
-            raise ValueError("Optimizer must be created before optimizer checkpoint can be loaded.")
-
-        if not self.checkpoint_path:
-            logging.warning("No checkpoint path provided.")
-            return False
-
-        if not self.checkpoint_path.is_file():
-            logging.warning(f'No checkpoint found at {self.checkpoint_path} current working dir {os.getcwd()}')
-            return False
-
-        logging.info(f"Loading checkpoint {self.checkpoint_path}")
-        checkpoint = ModelAndInfo.read_checkpoint(self.checkpoint_path, self.config.use_gpu)
-
-        try:
-            state_dict = checkpoint[ModelAndInfo.OPTIMIZER_STATE_DICT_KEY]
-        except KeyError:
-            logging.error(f"Key {ModelAndInfo.OPTIMIZER_STATE_DICT_KEY} not found in checkpoint")
-            return False
-
-        self._optimizer.load_state_dict(state_dict)
-
-        logging.info(f"Loaded optimizer from checkpoint (epoch: {checkpoint[ModelAndInfo.EPOCH_KEY]})")
-        self.checkpoint_epoch = checkpoint[ModelAndInfo.EPOCH_KEY]
-        return True
-
-    def try_create_optimizer_and_load_from_checkpoint(self) -> bool:
-        """
-        Creates an optimizer and loads its state from a checkpoint.
-        :return True if the checkpoint exists and optimizer state loaded, False otherwise
-        """
-        self.create_optimizer()
-        if self.checkpoint_path:
-            return self.try_load_checkpoint_for_optimizer()
-        return True
-
     def save_checkpoint(self, epoch: int) -> Path:
         """
         Saves a checkpoint of the current model and optimizer_type parameters in the specified folder
