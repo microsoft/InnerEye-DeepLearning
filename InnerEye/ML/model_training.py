@@ -160,8 +160,6 @@ def model_train(config: ModelConfigBase,
     os.environ.clear()
     os.environ.update(old_environ)
 
-    logging.info(f"Best checkpoint at {best_checkpoint_callback.best_model_path}")
-
     model_training_results = ModelTrainingResults(
         train_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values()),
         val_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=VALIDATION_PREFIX).values()),
