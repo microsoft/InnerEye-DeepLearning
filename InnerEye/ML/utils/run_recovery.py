@@ -106,7 +106,7 @@ class RunRecovery:
     def get_checkpoint_paths(self, epoch: int) -> List[Path]:
         return [create_checkpoint_path(x, epoch) for x in self.checkpoints_roots]
 
-    def get_best_checkpoint_paths(self, epoch: int) -> List[Path]:
+    def get_best_checkpoint_paths(self) -> List[Path]:
         return [get_best_checkpoint_path(x) for x in self.checkpoints_roots]
 
     def _validate(self) -> None:

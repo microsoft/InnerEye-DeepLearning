@@ -76,13 +76,16 @@ def get_best_checkpoint_path(path: Path) -> Path:
     :param path to checkpoint folder
     :param epoch
     """
-    # TODO FIX: How does PL name checkpoints? This does not give the best version
-    filename = path / f"{BEST_CHECKPOINT_FILE_NAME}.ckpt"
-    v = 0
-    while not filename.exists():
-        filename = path / f"{BEST_CHECKPOINT_FILE_NAME}-v{v}.ckpt"
-        v += 1
-    return filename
+    # TODO for now we have two separate behaviors. If the folder is empty, generate the expected checkpoint path,
+    # and if it is not, return the (single) checkpoint with the correct prefix.
+
+    best_checkpoints = list(path.glob(f"{BEST_CHECKPOINT_FILE_NAME}*.ckpt"))
+    if len(best_checkpoints) > 1:
+        raise ValueError(f"Found more than one checkpoint with the name {BEST_CHECKPOINT_FILE_NAME}")
+    elif len(best_checkpoints) == 1:
+        return best_checkpoints[0]
+    else:
+        return path / f"{BEST_CHECKPOINT_FILE_NAME}.ckpt"
 
 
 def create_unique_timestamp_id() -> str:
