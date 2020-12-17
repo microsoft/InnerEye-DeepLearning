@@ -20,7 +20,7 @@ from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import ModelExecutionMode, create_checkpoint_path, create_unique_timestamp_id
+from InnerEye.ML.common import ModelExecutionMode, create_checkpoint_path, create_unique_timestamp_id, get_best_checkpoint_path
 
 VISUALIZATION_FOLDER = "Visualizations"
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
@@ -255,9 +255,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  doc="The betas parameter of Adam, default is (0.9, 0.999)")
     momentum: float = param.Number(0.6, doc="The momentum parameter of the optimizers")
     weight_decay: float = param.Number(1e-4, doc="The weight decay used to control L2 regularization")
-    save_start_epoch: int = param.Integer(100, bounds=(0, None), doc="Save epoch checkpoints only when epoch is "
-                                                                     "larger or equal to this value.")
-    save_step_epochs: int = param.Integer(50, bounds=(0, None), doc="Save epoch checkpoints when epoch number is a "
+    save_step_epochs: int = param.Integer(10, bounds=(0, None), doc="Save epoch checkpoints when epoch number is a "
                                                                     "multiple of save_step_epochs")
     train_batch_size: int = param.Integer(4, bounds=(0, None),
                                           doc="The number of crops that make up one minibatch during training.")
@@ -268,24 +266,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     use_model_parallel: bool = param.Boolean(False, doc="If true, neural network model is partitioned across all "
                                                         "available GPUs to fit in a large model. It shall not be used "
                                                         "together with data parallel.")
-    epochs_to_test: Optional[List[int]] = param.List(None, bounds=(1, None), allow_None=True, class_=int,
-                                                     doc="Epochs to test on. This should be a list of integers > 1."
-                                                         "Note that this option takes precedence over the config "
-                                                         "option "
-                                                         "set `test_diff_epochs`, `test_step_epochs` and "
-                                                         "`test_start_epoch`")
-    test_diff_epochs: Optional[int] = param.Integer(None, allow_None=True,
-                                                    doc="Deprecated: "
-                                                        "Number of different epochs of the same model to test. "
-                                                        "This option will be ignored if `epochs_to_test` is set")
-    test_step_epochs: Optional[int] = param.Integer(None, allow_None=True,
-                                                    doc="Deprecated: "
-                                                        "How many epochs to move for each test "
-                                                        "This option will be ignored if `epochs_to_test` is set")
-    test_start_epoch: Optional[int] = param.Integer(None, allow_None=True,
-                                                    doc="Deprecated: "
-                                                        "The first epoch on which testing should run."
-                                                        "This option will be ignored if `epochs_to_test` is set")
     monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
                                                             "statistics. If 0 or less, do not log any resource "
                                                             "statistics.")
@@ -409,13 +389,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
         if self.weights_url and self.local_weights_path:
             raise ValueError("Cannot specify both local_weights_path and weights_url.")
-
-        if self.test_start_epoch or self.test_step_epochs or self.test_diff_epochs:
-            warnings.warn("DEPRECATED: The combination of (test_diff_epochs, test_step_epochs "
-                          "and test_start_epoch) is deprecated, use epochs_to_start instead.", DeprecationWarning)
-            if self.epochs_to_test:
-                logging.warning("self.epochs_to_test will take precedence over the config parameter set "
-                                "(test_diff_epochs, test_step_epochs, test_start_epoch)")
 
         if self.number_of_cross_validation_splits == 1:
             raise ValueError(f"At least two splits required to perform cross validation found "
@@ -551,18 +524,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
             output_to=self.output_to
         )
 
-    def should_save_epoch(self, epoch: int) -> bool:
-        """Returns True if the present epoch should be saved, as per the save_start_epoch and save_step_epochs
-        settings. Epoch writing starts with the first epoch that is >= save_start_epoch, and that
-        is evenly divisible by save_step_epochs. A checkpoint is always written for the last epoch (num_epochs),
-        such that it is easy to overwrite num_epochs on the commandline without having to change the test parameters
-        at the same time.
-        :param epoch: The current epoch. The first epoch is assumed to be 1."""
-        should_save_epoch = epoch >= self.save_start_epoch \
-                            and epoch % self.save_step_epochs == 0
-        is_last_epoch = epoch == self.num_epochs
-        return should_save_epoch or is_last_epoch
-
     def get_train_epochs(self) -> List[int]:
         """
         Returns the epochs for which training will be performed.
@@ -577,39 +538,12 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         return len(self.get_train_epochs())
 
-    def get_total_number_of_save_epochs(self) -> int:
-        """
-        Returns the number of epochs for which a model checkpoint will be saved.
-        :return:
-        """
-        return len(list(filter(self.should_save_epoch, self.get_train_epochs())))
-
     def get_total_number_of_validation_epochs(self) -> int:
         """
         Returns the number of epochs for which a model will be validated.
         :return:
         """
         return self.get_total_number_of_training_epochs()
-
-    def get_test_epochs(self) -> List[int]:
-        """
-        Returns the list of epochs for which the model should be evaluated on full images in the test set.
-        These are all epochs starting at self.test_start_epoch, in intervals of self.n_steps_epoch.
-        The last training epoch is always included. If either of the self.test_* fields is missing (set to None),
-        only the last training epoch is returned.
-        :return:
-        """
-        test_epochs = {self.num_epochs}
-        if self.epochs_to_test:
-            return sorted(test_epochs | set(self.epochs_to_test))
-        elif self.test_diff_epochs is not None and self.test_start_epoch is not None and \
-                self.test_step_epochs is not None:
-            for j in range(self.test_diff_epochs):
-                epoch = self.test_start_epoch + self.test_step_epochs * j
-                if epoch > self.num_epochs:
-                    break
-                test_epochs.add(epoch)
-        return sorted(test_epochs)
 
     def get_path_to_checkpoint(self, epoch: int) -> Path:
         """
@@ -618,6 +552,14 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         :return: path to a checkpoint given an epoch
         """
         return create_checkpoint_path(self.checkpoint_folder, epoch=epoch)
+
+    def get_path_to_best_checkpoint(self) -> Path:
+        """
+        Returns full path to a checkpoint given an epoch
+        :param epoch: the epoch number
+        :return: path to a checkpoint given an epoch
+        """
+        return get_best_checkpoint_path(self.checkpoint_folder)
 
     def get_effective_random_seed(self) -> int:
         """

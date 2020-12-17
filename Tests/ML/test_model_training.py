@@ -37,62 +37,6 @@ config_path = full_ml_test_data_path()
 base_path = full_ml_test_data_path()
 
 
-# Test for the logic that decides on which epochs to save.
-# The legacy behaviour is: Epoch counting starts at 1, last epoch is num_epochs.
-# Once the epoch number is >= save_start_epoch, all epochs with number even divisible by save_step_epochs
-# will have a checkpoint written.
-# New behaviour: In addition to that, also the very last training epoch has its checkpoint written.
-@pytest.mark.parametrize(["save_start_epoch", "save_step_epochs", "num_epochs", "expected_true", "verify_up_to_epoch"],
-                         [(5, 20, 10, [10, 20, 40], 50),
-                          (1, 1, 10, list(range(1, 21)), 20),
-                          (5, 20, 50, [20, 40, 50], 55),
-                          (5, 20, 100, [20, 40, 60, 80, 100], 110)])
-def test_should_save_epoch(save_start_epoch: int,
-                           save_step_epochs: int,
-                           num_epochs: int,
-                           expected_true: List[int],
-                           verify_up_to_epoch: int) -> None:
-    train_config = DeepLearningConfig(save_start_epoch=save_start_epoch,
-                                      save_step_epochs=save_step_epochs,
-                                      num_epochs=num_epochs,
-                                      should_validate=False)
-    for epoch in expected_true:
-        assert train_config.should_save_epoch(epoch), "Epoch {} should be saved".format(epoch)
-    expected_false = set(range(1, verify_up_to_epoch + 1)) - set(expected_true)
-    for epoch in expected_false:
-        assert not train_config.should_save_epoch(epoch), "Epoch {} should not be saved".format(epoch)
-
-
-def test_get_test_epochs() -> None:
-    """
-    Test if the creation of the list of epochs for model testing will always contain at least the last training epoch.
-    """
-    c = DeepLearningConfig(num_epochs=2, test_start_epoch=100, test_diff_epochs=2, test_step_epochs=10,
-                           should_validate=False)
-    assert c.get_test_epochs() == [2]
-    c = DeepLearningConfig(num_epochs=100, test_start_epoch=100, test_diff_epochs=2, test_step_epochs=10,
-                           should_validate=False)
-    assert c.get_test_epochs() == [100]
-    c = DeepLearningConfig(num_epochs=150, test_start_epoch=100, test_diff_epochs=2, test_step_epochs=10,
-                           should_validate=False)
-    assert c.get_test_epochs() == [100, 110, 150]
-    c = DeepLearningConfig(num_epochs=100, test_start_epoch=100, test_diff_epochs=0, test_step_epochs=10,
-                           should_validate=False)
-    assert c.get_test_epochs() == [100]
-    c = DeepLearningConfig(num_epochs=100, test_start_epoch=200, test_diff_epochs=None, test_step_epochs=10,
-                           should_validate=False)
-    assert c.get_test_epochs() == [100]
-    c = DeepLearningConfig(num_epochs=100, epochs_to_test=[1, 3, 5],
-                           should_validate=False)
-    assert c.get_test_epochs() == [1, 3, 5, 100]
-
-    # epochs_to_test should have precedence over (test_start_epoch, test_diff_epochs and test_step_epochs)
-    c = DeepLearningConfig(num_epochs=150, epochs_to_test=[1, 3, 5],
-                           test_start_epoch=100, test_diff_epochs=2, test_step_epochs=10,
-                           should_validate=False)
-    assert c.get_test_epochs() == [1, 3, 5, 150]
-
-
 def test_get_total_number_of_validation_epochs() -> None:
     """
     Since an extra validation epoch is performed when temperature scaling for each checkpoint, make sure
@@ -188,14 +132,11 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert (train_config.logs_folder / "Lightning").is_dir()
     assert len([(train_config.logs_folder / "Lightning").glob("events*")]) == 1
 
-    # Checkpoint folder
-    # With these settings, we should see a checkpoint only at epoch 2:
-    # That's the last epoch, and there should always be checkpoint at the last epoch)
-    assert train_config.save_start_epoch == 1
-    assert train_config.save_step_epochs == 100
     assert train_config.num_epochs == 2
+    # Checkpoint folder
     assert train_config.checkpoint_folder.is_dir()
-    assert len(list(train_config.checkpoint_folder.rglob("*.ckpt"))) == 2
+    actual_checkpoints =list(train_config.checkpoint_folder.rglob("*.ckpt"))
+    assert len(actual_checkpoints) == 2, f"Actual checkpoints: {actual_checkpoints}"
     assert (train_config.checkpoint_folder / "last.ckpt").is_file()
     assert (train_config.checkpoint_folder / "best_val_loss_checkpoint-v0.ckpt").is_file()
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()

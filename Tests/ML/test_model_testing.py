@@ -36,7 +36,6 @@ def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
     config.set_output_to(test_output_dirs.root_dir)
     epoch = 1
     config.num_epochs = epoch
-    assert config.get_test_epochs() == [epoch]
     placeholder_dataset_id = "place_holder_dataset_id"
     config.azure_dataset_id = placeholder_dataset_id
     transform = config.get_full_image_sample_transforms().test

@@ -59,7 +59,7 @@ def get_most_recent_model() -> Model:
     return Model(workspace=workspace, id=model_id)
 
 
-@pytest.mark.after_training
+@pytest.mark.after_training_single_run
 def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
     """
     Downloads the model that was built in the most recent run, and checks if its file structure is as expected.

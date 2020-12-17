@@ -48,19 +48,14 @@ class ProstateBase(SegmentationModelBase):
             num_epochs=120,
             opt_eps=1e-4,
             optimizer_type=OptimizerType.Adam,
-            save_step_epochs=20,
             start_epoch=0,
             test_crop_size=(128, 512, 512),
-            test_diff_epochs=1,
-            test_start_epoch=120,
-            test_step_epochs=1,
             train_batch_size=8,
             use_mixed_precision=True,
             use_model_parallel=True,
             weight_decay=1e-4,
             window=600,
             posterior_smoothing_mm=(2.0, 2.0, 3.0),
-            save_start_epoch=100,
         )
         self.add_and_validate(kwargs)
 

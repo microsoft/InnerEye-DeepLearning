@@ -55,7 +55,6 @@ class ImageEncoder(ScalarModelBase):
             loss_type=ScalarLoss.WeightedCrossEntropyWithLogits,
             num_epochs=num_epochs,
             num_dataload_workers=0,
-            test_start_epoch=num_epochs,
             train_batch_size=16,
             l_rate=1e-1,
             use_mixed_precision=True,

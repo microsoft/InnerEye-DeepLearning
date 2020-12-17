@@ -27,7 +27,6 @@ class DummyClassification(ScalarModelBase):
             loss_type=ScalarLoss.BinaryCrossEntropyWithLogits,
             num_epochs=num_epochs,
             num_dataload_workers=0,
-            test_start_epoch=num_epochs,
             use_mixed_precision=True,
             subject_column="subjectID"
         )
