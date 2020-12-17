@@ -17,7 +17,7 @@ from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, SUBJECT_METRICS
 from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.config import BACKGROUND_CLASS_NAME, SegmentationModelBase
+from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
@@ -307,8 +307,9 @@ class InnerEyeLightning(LightningModule):
         """
         Writes the given loss value to Lightning, labelled either "val/loss" or "train/loss".
         If this comes from a training step, then also log the learning rate.
-        :param is_training: If True, the logged metric will be called "train_loss". If False, "val_loss"
-    =        """
+        :param is_training: If True, the logged metric will be called "train/Loss". If False, the metric will
+        be called "val/Loss"
+        """
         self.log_on_epoch(MetricType.LOSS, loss, is_training)
         learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
         if is_training:

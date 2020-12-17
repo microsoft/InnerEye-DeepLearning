@@ -97,6 +97,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.random_seed = 42
     train_config.class_weights = [0.5, 0.25, 0.25]
     train_config.store_dataset_sample = True
+    train_config.save_step_epochs = 2
     # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
     train_config.max_num_gpus = 1
 
@@ -137,8 +138,8 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert train_config.checkpoint_folder.is_dir()
     actual_checkpoints =list(train_config.checkpoint_folder.rglob("*.ckpt"))
     assert len(actual_checkpoints) == 2, f"Actual checkpoints: {actual_checkpoints}"
-    assert (train_config.checkpoint_folder / "last.ckpt").is_file()
-    assert (train_config.checkpoint_folder / "best_val_loss_checkpoint-v0.ckpt").is_file()
+    assert (train_config.checkpoint_folder / "epoch=1.ckpt").is_file()
+    assert (train_config.checkpoint_folder / "best_val_loss-v0.ckpt").is_file()
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.VAL]).is_file()

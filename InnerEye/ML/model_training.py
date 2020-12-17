@@ -77,9 +77,9 @@ def model_train(config: ModelConfigBase,
                                                monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
                                                save_top_k=1,
                                                save_last=False)
-
+    # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
     recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
-                                                   filename='{epoch}_checkpoint',
+                                                   filename='{epoch}',
                                                    save_top_k=-1,
                                                    period=config.save_step_epochs
                                                    )
