@@ -179,12 +179,12 @@ class InnerEyeLightning(LightningModule):
         self.val_epoch_metrics_logger.flush()
 
     def on_train_epoch_end(self, outputs) -> None:
-        self.train_or_validation_epoch_end(is_training=True)
+        self.on_train_or_validation_epoch_end(is_training=True)
 
     def on_validation_epoch_end(self) -> None:
         # reset the random state for training, so that we get continue from where we were before the validation step.
         self.random_state.restore_random_state()
-        self.train_or_validation_epoch_end(is_training=False)
+        self.on_train_or_validation_epoch_end(is_training=False)
 
     def on_train_epoch_start(self) -> None:
         self.reset_timers()
@@ -198,7 +198,7 @@ class InnerEyeLightning(LightningModule):
         seed = self.effective_random_seed
         set_random_seed(seed, "Validation")
 
-    def train_or_validation_epoch_end(self, is_training: bool) -> None:
+    def on_train_or_validation_epoch_end(self, is_training: bool) -> None:
         if self.global_rank != 0:
             return
         epoch_time_seconds = time.time() - self.epoch_start_time
@@ -557,15 +557,24 @@ class ScalarLightning(InnerEyeLightning):
         #     logger = self.config.azure_loggers_train if is_training else self.config.azure_loggers_val
         #     logger.log_image(error_plot_name, path)
 
+    def training_epoch_end(self, outputs: List[Any]) -> None:
+        self.train_or_validation_epoch_end(is_training=True)
+
+    def validation_epoch_end(self, outputs: List[Any]) -> None:
+        self.train_or_validation_epoch_end(is_training=False)
+
     def train_or_validation_epoch_end(self, is_training: bool) -> None:
         metric_computers = self.train_metric_computers if is_training else self.val_metric_computers
+        prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         for prediction_target, metric_list in metric_computers.items():
             target_suffix = "" if prediction_target == MetricsDict.DEFAULT_HUE_KEY else f"/{prediction_target}"
             for metric in metric_list:
-                self.log_on_epoch(name=metric.name + target_suffix, value=metric.compute(), is_training=is_training)
+                self.log(name=prefix + metric.name + target_suffix, value=metric.compute())
+
+    def on_train_or_validation_epoch_end(self, is_training: bool) -> None:
         logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger
         logger.flush()
-        super().train_or_validation_epoch_end(is_training)
+        super().on_train_or_validation_epoch_end(is_training)
 
 
 def create_lightning_model(config: ModelConfigBase) -> InnerEyeLightning:

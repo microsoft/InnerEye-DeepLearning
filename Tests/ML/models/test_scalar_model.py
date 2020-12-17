@@ -64,6 +64,19 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
         expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
         expected_val_loss = [0.737061, 0.736690, 0.736321, 0.735952]
 
+    # Ensure that all metrics are computed on both training and validation set
+    assert len(model_training_result.train_results_per_epoch) == config.num_epochs
+    assert len(model_training_result.val_results_per_epoch) == config.num_epochs
+    assert len(model_training_result.train_results_per_epoch[0]) >= 11
+    assert len(model_training_result.val_results_per_epoch[0]) >= 11
+    for metric in [MetricType.ACCURACY_AT_THRESHOLD_05.value,
+                   MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD.value,
+                   MetricType.AREA_UNDER_PR_CURVE.value,
+                   MetricType.AREA_UNDER_ROC_CURVE.value,
+                   MetricType.CROSS_ENTROPY.value]:
+        assert metric in model_training_result.train_results_per_epoch[0]
+        assert metric in model_training_result.val_results_per_epoch[0]
+
     actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS)
     actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS)
     actual_learning_rates = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE)
@@ -73,20 +86,13 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
                                             checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
-    assert list(test_results.epochs.keys()) == expected_epochs
+    assert list(test_results.epochs.keys()) == [-1]
     if use_mixed_precision_and_gpu:
-        expected_metrics = {
-            2: [0.635942, 0.736691],
-            4: [0.636085, 0.735952],
-        }
+        expected_metrics = [0.636085, 0.735952]
     else:
-        expected_metrics = {
-            2: [0.635941, 0.736690],
-            4: [0.636084, 0.735952],
-        }
-    for epoch in expected_epochs:
-        assert test_results.epochs[epoch].values()[MetricType.CROSS_ENTROPY.value] == \
-               pytest.approx(expected_metrics[epoch], abs=1e-3), f"Cross entropy epoch {epoch}"
+        expected_metrics = [0.636084, 0.735952]
+    assert test_results.epochs[-1].values()[MetricType.CROSS_ENTROPY.value] == \
+           pytest.approx(expected_metrics, abs=1e-5)
     # Run detailed logs file check only on CPU, it will contain slightly different metrics on GPU, but here
     # we want to mostly assert that the files look reasonable
     if not machine_has_gpu:
