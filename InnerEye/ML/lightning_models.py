@@ -558,22 +558,14 @@ class ScalarLightning(InnerEyeLightning):
         #     logger.log_image(error_plot_name, path)
 
     def train_or_validation_epoch_end(self, is_training: bool) -> None:
-        logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger
-        logger.flush()
-        super().train_or_validation_epoch_end(is_training)
-
-    def training_step_end(self, *args, **kwargs) -> None:
-        self.training_or_validation_step_end(is_training=True)
-
-    def validation_step_end(self, *args, **kwargs) -> None:
-        self.training_or_validation_step_end(is_training=False)
-
-    def training_or_validation_step_end(self, is_training: bool) -> None:
         metric_computers = self.train_metric_computers if is_training else self.val_metric_computers
         for prediction_target, metric_list in metric_computers.items():
             target_suffix = "" if prediction_target == MetricsDict.DEFAULT_HUE_KEY else f"/{prediction_target}"
             for metric in metric_list:
-                self.log_on_epoch(name=metric.name + target_suffix, value=metric, is_training=is_training)
+                self.log_on_epoch(name=metric.name + target_suffix, value=metric.compute(), is_training=is_training)
+        logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger
+        logger.flush()
+        super().train_or_validation_epoch_end(is_training)
 
 
 def create_lightning_model(config: ModelConfigBase) -> InnerEyeLightning:
