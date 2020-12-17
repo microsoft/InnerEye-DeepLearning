@@ -444,6 +444,87 @@ class ModelAndInfo:
         self.create_summary_and_adjust_mean_teacher_model_for_gpus()
         return success
 
+    def create_optimizer(self) -> None:
+        """
+        Creates a torch optimizer for the given model, and stores it as an instance variable in the current object.
+        """
+        # Make sure model is created before we create optimizer
+        if self._model is None:
+            raise ValueError("Model checkpoint must be created before optimizer checkpoint can be loaded.")
+        self._optimizer = create_optimizer(self.config, self._model.parameters())
+
+    def try_load_checkpoint_for_optimizer(self) -> bool:
+        """
+        Loads a checkpoint of an optimizer.
+        :return True if the checkpoint exists and optimizer state loaded, False otherwise
+        """
+
+        if self._optimizer is None:
+            raise ValueError("Optimizer must be created before optimizer checkpoint can be loaded.")
+
+        if not self.checkpoint_path:
+            logging.warning("No checkpoint path provided.")
+            return False
+
+        if not self.checkpoint_path.is_file():
+            logging.warning(f'No checkpoint found at {self.checkpoint_path} current working dir {os.getcwd()}')
+            return False
+
+        logging.info(f"Loading checkpoint {self.checkpoint_path}")
+        checkpoint = ModelAndInfo.read_checkpoint(self.checkpoint_path, self.config.use_gpu)
+
+        try:
+            state_dict = checkpoint[ModelAndInfo.OPTIMIZER_STATE_DICT_KEY]
+        except KeyError:
+            logging.error(f"Key {ModelAndInfo.OPTIMIZER_STATE_DICT_KEY} not found in checkpoint")
+            return False
+
+        self._optimizer.load_state_dict(state_dict)
+
+        logging.info(f"Loaded optimizer from checkpoint (epoch: {checkpoint[ModelAndInfo.EPOCH_KEY]})")
+        self.checkpoint_epoch = checkpoint[ModelAndInfo.EPOCH_KEY]
+        return True
+
+    def try_create_optimizer_and_load_from_checkpoint(self) -> bool:
+        """
+        Creates an optimizer and loads its state from a checkpoint.
+        :return True if the checkpoint exists and optimizer state loaded, False otherwise
+        """
+        self.create_optimizer()
+        if self.checkpoint_path:
+            return self.try_load_checkpoint_for_optimizer()
+        return True
+
+    def save_checkpoint(self, epoch: int) -> Path:
+        """
+        Saves a checkpoint of the current model and optimizer_type parameters in the specified folder
+        and uploads it to the output blob storage of the current run context.
+        The checkpoint's name for epoch 123 would be 123_checkpoint.pth.tar.
+        :param epoch: The last epoch used to train the model.
+        :return: The full path of the checkpoint file.
+        """
+        logging.getLogger().disabled = True
+        model_state_dict = self.model.module.state_dict() \
+            if isinstance(self.model, torch.nn.DataParallel) else self.model.state_dict()
+        checkpoint_file_path = self.config.get_path_to_checkpoint(epoch)
+        checkpoint_file_path.parent.mkdir(exist_ok=True, parents=True)
+        info_to_store = {
+            ModelAndInfo.EPOCH_KEY: epoch,
+            ModelAndInfo.MODEL_STATE_DICT_KEY: model_state_dict,
+            ModelAndInfo.OPTIMIZER_STATE_DICT_KEY: self.optimizer.state_dict()
+        }
+        if self.config.compute_mean_teacher_model:
+            assert self.mean_teacher_model is not None  # for mypy, getter has this built in
+            mean_teacher_model_state_dict = self.mean_teacher_model.module.state_dict() \
+                if isinstance(self.mean_teacher_model, torch.nn.DataParallel) \
+                else self.mean_teacher_model.state_dict()
+            info_to_store[ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY] = mean_teacher_model_state_dict
+
+        torch.save(info_to_store, checkpoint_file_path)
+        logging.getLogger().disabled = False
+        logging.info(f"Saved model checkpoint for epoch {epoch} to {checkpoint_file_path}")
+        return checkpoint_file_path
+
 
 def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:
     """
