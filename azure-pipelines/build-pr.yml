@@ -47,8 +47,8 @@ jobs:
         displayName: Publish test results
       - template: tests_after_training.yml
         parameters:
-          pytest_mark: after_training
-          test_run_title: tests_after_training
+          pytest_mark: after_training_single_run
+          test_run_title: tests_after_training_single_run
 
   # Now train a module, using the Github code as a submodule. Here, a simpler 1 channel model
   # is trained, because we use this build to also check the "submit_for_inference" code, that
@@ -88,3 +88,7 @@ jobs:
           pytest_mark: ''
           max_run_duration: '1h'
           more_switches: '--use_dataset_mount=True'
+      - template: tests_after_training.yml
+        parameters:
+          pytest_mark: after_training_ensemble_run
+          test_run_title: tests_after_training_ensemble_run

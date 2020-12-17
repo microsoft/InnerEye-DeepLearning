@@ -53,13 +53,6 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
     config.use_mixed_precision = use_mixed_precision
-    config.save_start_epoch = 2
-    config.save_step_epochs = 2
-    config.test_start_epoch = 2
-    config.test_step_epochs = 2
-    config.test_diff_epochs = 2
-    expected_epochs = [2, 4]
-    assert config.get_test_epochs() == expected_epochs
     model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]

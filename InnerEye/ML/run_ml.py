@@ -39,7 +39,7 @@ from InnerEye.ML.model_training import model_train
 from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner, get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
-from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler, CheckpointPathsAndEpoch
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
@@ -242,7 +242,7 @@ class MLRunner:
         checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
-        if not self.azure_config.register_model_only_for_epoch:
+        if not self.azure_config.only_register_model:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
             self.model_config.local_dataset = self.mount_or_download_dataset()
@@ -275,9 +275,9 @@ class MLRunner:
         # Generate report
         if best_epoch:
             Runner.generate_report(self.model_config, best_epoch, ModelProcessing.DEFAULT)
-        elif self.model_config.is_scalar_model and len(self.model_config.get_test_epochs()) == 1:
+        elif self.model_config.is_scalar_model:
             # We don't register scalar models but still want to create a report if we have run inference.
-            Runner.generate_report(self.model_config, self.model_config.get_test_epochs()[0], ModelProcessing.DEFAULT)
+            Runner.generate_report(self.model_config, checkpoint_handler.get_checkpoints_to_test().epoch, ModelProcessing.DEFAULT)
 
     def run_inference_and_register_model(self, checkpoint_handler: CheckpointHandler,
                                          model_proc: ModelProcessing) -> Optional[int]:
@@ -288,34 +288,26 @@ class MLRunner:
         :param model_proc: whether we are running an ensemble model from within a child run with index 0. If we are,
         then outputs will be written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
         """
-        registration_epoch = self.decide_registration_epoch_without_evaluating()
-        if registration_epoch is not None:
-            model_description = f"Registering model for epoch {registration_epoch} without considering metrics."
-            checkpoint_paths = checkpoint_handler.get_checkpoint_paths_from_epoch_or_fail(registration_epoch)
-            # TODO antonsc: hack
-            # self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
-            if self.azure_config.register_model_only_for_epoch is not None:
-                return self.azure_config.register_model_only_for_epoch
+        validation_epoch = None
 
-        # run full image inference on existing or newly trained model on the training, and testing set
-        test_metrics, val_metrics, _ = self.model_inference_train_and_test(checkpoint_handler=checkpoint_handler,
-                                                                           model_proc=model_proc)
+        if self.should_register_model():
+            checkpoint_paths = self.decide_registration_epoch_without_evaluating(checkpoint_handler=checkpoint_handler)
 
-        # register the generated model from the run if we haven't already done so
-        if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
-            if registration_epoch is None:
-                if self.should_register_model():
-                    assert test_metrics is None or isinstance(test_metrics, InferenceMetricsForSegmentation)
-                    assert val_metrics is None or isinstance(val_metrics, InferenceMetricsForSegmentation)
-                    registration_epoch = self.register_model_for_best_epoch(checkpoint_handler,
-                                                                            test_metrics,
-                                                                            val_metrics,
-                                                                            model_proc)
+            if not checkpoint_paths:
+                raise ValueError(f"Model registration failed: No checkpoints found")
+
+            model_description = f"Registering model."
+            checkpoint_paths = checkpoint_paths
+            self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
+
+        if not self.azure_config.only_register_model:
+            # run full image inference on existing or newly trained model on the training, and testing set
+            test_metrics, val_metrics, _ = self.model_inference_train_and_test(checkpoint_handler=checkpoint_handler,
+                                                                               model_proc=model_proc)
+
             self.try_compare_scores_against_baselines(model_proc)
-        else:
-            logging.warning("Couldn't register model in offline mode")
 
-        return registration_epoch
+        return validation_epoch
 
     def should_register_model(self) -> bool:
         """
@@ -323,23 +315,20 @@ class MLRunner:
         model (from the run we recovered) should already have been registered, so we should only
         do so if this run is specifically for that purpose.
         """
-        return self.azure_config.train or self.azure_config.register_model_only_for_epoch is not None
+        return self.azure_config.train or self.azure_config.only_register_model is not None
 
-    def decide_registration_epoch_without_evaluating(self) -> Optional[int]:
+    def decide_registration_epoch_without_evaluating(self,
+                                                     checkpoint_handler: CheckpointHandler) -> List[Path]:
         """
         In general we need to do evaluations to discover the best test epoch to register the model
         for. But there are two exceptions, which allow us to register first: (1) the switch
-        register_model_only_for_epoch is set; (2) there is only one test epoch.
+        only_register_model is set; (2) there is only one test epoch.
         :return: the epoch to register, or None if it cannot be decided or if registration is not needed.
         """
         if not self.should_register_model():
             return None
-        if self.azure_config.register_model_only_for_epoch is not None:
-            return self.azure_config.register_model_only_for_epoch
-        candidate_best_epochs = self.model_config.get_test_epochs()
-        if len(candidate_best_epochs) == 1:
-            return candidate_best_epochs[0]
-        return None
+        candidate_best_epochs = checkpoint_handler.get_checkpoints_to_test()
+        return candidate_best_epochs
 
     def create_activation_maps(self) -> None:
         if self.model_config.is_segmentation_model and self.model_config.activation_map_layers is not None:
@@ -382,34 +371,6 @@ class MLRunner:
         if not mounted:
             raise ValueError("Unable to mount or download input dataset.")
         return mounted
-
-    def register_model_for_best_epoch(self,
-                                      checkpoint_handler: CheckpointHandler,
-                                      test_metrics: Optional[InferenceMetricsForSegmentation],
-                                      val_metrics: Optional[InferenceMetricsForSegmentation],
-                                      model_proc: ModelProcessing) -> int:
-        if val_metrics is not None:
-            best_epoch = val_metrics.get_best_epoch()
-            num_epochs = len(val_metrics.epochs)
-            model_description = f"Epoch {best_epoch} has best validation set metrics (out of {num_epochs} epochs " \
-                                f"available). Validation set Dice: {val_metrics.epochs[best_epoch]}. "
-            if test_metrics:
-                model_description += f"Test set Dice: {test_metrics.epochs[best_epoch]}."
-            else:
-                model_description += "Test set metrics not available."
-        elif test_metrics is not None:
-            # We should normally not get here. We presently always run inference on both validation and test set
-            # together.
-            best_epoch = test_metrics.get_best_epoch()
-            num_epochs = len(test_metrics.epochs)
-            model_description = f"Epoch {best_epoch} has best test set metrics (out of {num_epochs} epochs " \
-                                f"available). Test set Dice: {test_metrics.epochs[best_epoch]}"
-        else:
-            best_epoch = self.model_config.get_test_epochs()[-1]
-            model_description = f"Model for epoch {best_epoch}. No validation or test set metrics were available."
-        checkpoint_paths = checkpoint_handler.get_checkpoint_paths_from_epoch_or_fail(best_epoch)
-        self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
-        return best_epoch
 
     def save_build_info_for_dotnet_consumers(self) -> None:
         results_container = get_results_blob_path(RUN_CONTEXT.id)

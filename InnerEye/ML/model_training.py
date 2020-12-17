@@ -26,6 +26,7 @@ from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -53,11 +54,21 @@ def model_train(config: ModelConfigBase,
     :param config: The arguments which specify all required information.
     :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     """
-    checkpoint_callback = ModelCheckpoint(
-        dirpath=str(config.checkpoint_folder),
-        filename='best_val_loss_checkpoint',
-        monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
-        save_last=True)
+    # Get the path to the checkpoint to recover from
+    checkpoint_path = checkpoint_handler.get_recovery_path_train()
+
+    best_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
+                                               filename=BEST_CHECKPOINT_FILE_NAME,
+                                               monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
+                                               save_top_k=1,
+                                               save_last=False)
+
+    recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
+                                                   filename='{epoch}_checkpoint',
+                                                   save_top_k=-1,
+                                                   period=config.save_step_epochs
+                                                   )
+
     num_gpus = torch.cuda.device_count() if config.use_gpu else 0
     logging.info(f"Number of available GPUs: {num_gpus}")
     if config.max_num_gpus >= 0 and config.max_num_gpus < num_gpus:
@@ -86,12 +97,13 @@ def model_train(config: ModelConfigBase,
                       accelerator=accelerator,
                       max_epochs=config.num_epochs,
                       num_sanity_val_steps=0,  # Otherwise a small number of validation steps is run before first train
-                      callbacks=[checkpoint_callback],
+                      callbacks=[best_checkpoint_callback, recovery_checkpoint_callback],
                       logger=loggers,
                       progress_bar_refresh_rate=0,  # Disable the progress bar,
                       # TODO antonsc: review. Some tests fail without this option
                       gpus=num_gpus,
                       terminate_on_nan=config.detect_anomaly,
+                      resume_from_checkpoint=str(checkpoint_path) if checkpoint_path else None
                       )
 
     logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
@@ -127,9 +139,6 @@ def model_train(config: ModelConfigBase,
             resource_monitor = ResourceMonitor(interval_seconds=config.monitoring_interval_seconds,
                                                tensorboard_folder=diagnostics_events)
             resource_monitor.start()
-
-    # TODO antonsc: Enable initializing the trainer from a checkpoint
-    checkpoint_path = checkpoint_handler.get_recovery_path_train()
 
     # Training loop
     logging.info("Starting training")

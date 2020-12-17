@@ -33,7 +33,6 @@ class GlaucomaPublic(ScalarModelBase):
             loss_type=ScalarLoss.BinaryCrossEntropyWithLogits,
             num_epochs=num_epochs,
             num_dataload_workers=0,
-            test_start_epoch=num_epochs,
             use_mixed_precision=True,
             train_batch_size=64,  # Batch size of 64 uses about 7GB of GPU memory
         )

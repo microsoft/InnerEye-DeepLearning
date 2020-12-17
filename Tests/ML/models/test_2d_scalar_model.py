@@ -32,13 +32,6 @@ def test_train_2d_classification_model(test_output_dirs: OutputFolderForTests,
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
     config.use_mixed_precision = use_mixed_precision
-    config.save_start_epoch = 2
-    config.save_step_epochs = 2
-    config.test_start_epoch = 2
-    config.test_step_epochs = 2
-    config.test_diff_epochs = 2
-    expected_epochs = [2, 4]
-    assert config.get_test_epochs() == expected_epochs
 
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=Path(test_output_dirs.root_dir))
@@ -61,4 +54,3 @@ def test_train_2d_classification_model(test_output_dirs: OutputFolderForTests,
     assert actual_learning_rates == pytest.approx(expected_learning_rates, rel=1e-5)
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN, checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
-    assert list(test_results.epochs.keys()) == expected_epochs
