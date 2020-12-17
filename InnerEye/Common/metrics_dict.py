@@ -885,8 +885,8 @@ class DataframeLogger:
         :param log_info: If true, write the final dataframe also to logging.info.
         """
         import pandas as pd
-        if isinstance(self.csv_path, Path) and self.csv_path.parent.is_dir():
-            self.csv_path.parent.mkdir(parents=True)
+        if isinstance(self.csv_path, Path):
+            self.csv_path.parent.mkdir(parents=True, exist_ok=True)
         # Specifying columns such that the order in which columns appear matches the order in which
         # columns were added in the code.
         columns = self.records[0].keys() if len(self.records) > 0 else None
