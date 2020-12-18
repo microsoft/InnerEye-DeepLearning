@@ -16,11 +16,11 @@ import pytest
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import common_util, fixed_paths
-from InnerEye.Common.common_util import ModelProcessing
+from InnerEye.Common.common_util import ModelProcessing, OTHER_RUNS_SUBDIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
-from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.common import ModelExecutionMode, get_best_checkpoint_path, create_checkpoint_path
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -98,12 +98,17 @@ def test_register_and_score_model(is_ensemble: bool,
     config.dataset_expected_spacing_xyz = dataset_expected_spacing_xyz
     config.set_output_to(test_output_dirs.root_dir)
     checkpoints_absolute = []
-    model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TRAIN)
-    model_and_info.create_model()
-    model_and_info.create_optimizer()
-    checkpoints_absolute.append(model_and_info.save_checkpoint(epoch=10))
+
+    # copy checkpoints from tests directory
+    checkpoint_path = config.get_path_to_best_checkpoint()
+    stored_checkpoint = create_checkpoint_path(path=full_ml_test_data_path("checkpoints"), epoch=1)
+    shutil.copyfile(str(stored_checkpoint), str(checkpoint_path))
+    checkpoints_absolute.append(checkpoint_path)
     if is_ensemble:
-        checkpoints_absolute.append(model_and_info.save_checkpoint(epoch=20))
+        checkpoint_path = get_best_checkpoint_path(config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / "1")
+        stored_checkpoint = create_checkpoint_path(path=full_ml_test_data_path("checkpoints"), epoch=1)
+        shutil.copyfile(str(stored_checkpoint), str(checkpoint_path))
+        checkpoints_absolute.append(checkpoint_path)
     checkpoints_relative = [f.relative_to(config.checkpoint_folder) for f in checkpoints_absolute]
     azureml_model = None
     # Simulate a project root: We can't derive that from the repository root because that might point
