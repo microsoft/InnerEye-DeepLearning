@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -28,7 +27,6 @@ from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.ml_util import set_random_seed
-from InnerEye.ML.utils.model_util import ModelAndInfo
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 

@@ -66,7 +66,7 @@ def create_checkpoint_path(path: Path, epoch: int) -> Path:
     :param path to checkpoint folder
     :param epoch
     """
-    return path / f"epoch={epoch-1}_checkpoint.ckpt"
+    return path / f"epoch={epoch-1}.ckpt"
 
 
 def get_best_checkpoint_path(path: Path) -> Path:
