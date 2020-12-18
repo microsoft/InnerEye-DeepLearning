@@ -69,13 +69,18 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
     assert len(model_training_result.val_results_per_epoch) == config.num_epochs
     assert len(model_training_result.train_results_per_epoch[0]) >= 11
     assert len(model_training_result.val_results_per_epoch[0]) >= 11
-    for metric in [MetricType.ACCURACY_AT_THRESHOLD_05.value,
-                   MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD.value,
-                   MetricType.AREA_UNDER_PR_CURVE.value,
-                   MetricType.AREA_UNDER_ROC_CURVE.value,
-                   MetricType.CROSS_ENTROPY.value]:
-        assert metric in model_training_result.train_results_per_epoch[0]
-        assert metric in model_training_result.val_results_per_epoch[0]
+    for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
+                   MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
+                   MetricType.AREA_UNDER_PR_CURVE,
+                   MetricType.AREA_UNDER_ROC_CURVE,
+                   MetricType.CROSS_ENTROPY,
+                   MetricType.LOSS,
+                   MetricType.SECONDS_PER_BATCH,
+                   MetricType.SECONDS_PER_EPOCH,
+                   MetricType.SUBJECT_COUNT,
+                   ]:
+        assert metric.value in model_training_result.train_results_per_epoch[0], f"{metric.value} not in training"
+        assert metric.value in model_training_result.val_results_per_epoch[0], f"{metric.value} not in validation"
 
     actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS)
     actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS)
@@ -98,24 +103,24 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
     if not machine_has_gpu:
         # Check log EPOCH_METRICS_FILE_NAME
         epoch_metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME
-        # Auto-format will break the long header line, hence the strange way of writing it!
-        expected_epoch_metrics = \
-            "loss,cross_entropy,accuracy_at_threshold_05,seconds_per_batch,seconds_per_epoch,learning_rate," + \
-            "area_under_roc_curve,area_under_pr_curve,accuracy_at_optimal_threshold," \
-            "false_positive_rate_at_optimal_threshold,false_negative_rate_at_optimal_threshold," \
-            "optimal_threshold,subject_count,epoch,cross_validation_split_index\n" + \
-            """0.6866141557693481,0.6866141557693481,0.5,0,0,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,0,-1
-            0.6864652633666992,0.6864652633666992,0.5,0,0,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,1,-1
-            0.6863163113594055,0.6863162517547607,0.5,0,0,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,2,-1
-            0.6861673593521118,0.6861673593521118,0.5,0,0,9.998613801725043e-05,1.0,1.0,0.5,0.0,0.0,0.529399,2.0,3,-1
-            """
-        check_log_file(epoch_metrics_path, expected_epoch_metrics,
-                       ignore_columns=[LoggingColumns.SecondsPerBatch.value, LoggingColumns.SecondsPerEpoch.value])
+    # Auto-format will break the long header line, hence the strange way of writing it!
+    expected_epoch_metrics = \
+        "loss,cross_entropy,accuracy_at_threshold_05,seconds_per_batch,seconds_per_epoch,learning_rate," + \
+        "area_under_roc_curve,area_under_pr_curve,accuracy_at_optimal_threshold," \
+        "false_positive_rate_at_optimal_threshold,false_negative_rate_at_optimal_threshold," \
+        "optimal_threshold,subject_count,epoch,cross_validation_split_index\n" + \
+        """0.6866141557693481,0.6866141557693481,0.5,0,0,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,0,-1
+        0.6864652633666992,0.6864652633666992,0.5,0,0,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,1,-1
+        0.6863163113594055,0.6863162517547607,0.5,0,0,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,2,-1
+        0.6861673593521118,0.6861673593521118,0.5,0,0,9.998613801725043e-05,1.0,1.0,0.5,0.0,0.0,0.529399,2.0,3,-1
+        """
+    check_log_file(epoch_metrics_path, expected_epoch_metrics,
+                   ignore_columns=[LoggingColumns.SecondsPerBatch.value, LoggingColumns.SecondsPerEpoch.value])
 
-        # Check log METRICS_FILE_NAME
-        metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
-        metrics_expected = \
-            """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
+    # Check log METRICS_FILE_NAME
+    metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
+    metrics_expected = \
+        """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
 Default,1,S4,0.5216594338417053,0.0,-1,Train
 Default,1,S2,0.5295137763023376,1.0,-1,Train
 Default,2,S4,0.5214819312095642,0.0,-1,Train
@@ -125,18 +130,18 @@ Default,3,S2,0.5294366478919983,1.0,-1,Train
 Default,4,S4,0.5211275815963745,0.0,-1,Train
 Default,4,S2,0.5293986201286316,1.0,-1,Train
 """
-        check_log_file(metrics_path, metrics_expected, ignore_columns=[])
+    check_log_file(metrics_path, metrics_expected, ignore_columns=[])
 
-        # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
-        # Normally, we would run it on the Test and Val splits, but for convenience we test on the train split here.
-        inference_metrics_path = config.outputs_folder / Path(epoch_folder_name(config.num_epochs)) / \
-                                 ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
-        inference_metrics_expected = \
-            """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
+    # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
+    # Normally, we would run it on the Test and Val splits, but for convenience we test on the train split here.
+    inference_metrics_path = config.outputs_folder / Path(epoch_folder_name(config.num_epochs)) / \
+                             ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
+    inference_metrics_expected = \
+        """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
 Default,4,S2,0.5293986201286316,1.0,-1,Train
 Default,4,S4,0.5211275815963745,0.0,-1,Train
 """
-        check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
+    check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
 
 
 def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> None:

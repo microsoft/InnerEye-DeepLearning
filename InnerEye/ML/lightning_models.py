@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import time
-from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -12,6 +11,7 @@ import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.metrics import Metric
+from torch.nn import ModuleDict, ModuleList
 
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, SUBJECT_METRICS_FILE_NAME
 from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict
@@ -152,6 +152,82 @@ class InnerEyeLightning(LightningModule):
         self.val_diagnostics = []
         self.use_sync_dist = self.use_ddp
 
+    def set_optimizer_and_scheduler(self, config: DeepLearningConfig) -> None:
+        self.optimizer = model_util.create_optimizer(config, self.model.parameters())
+        self.l_rate_scheduler = SchedulerWithWarmUp(config, self.optimizer)
+
+    def configure_optimizers(self):
+        return [self.optimizer], [self.l_rate_scheduler]
+
+    def close_all_loggers(self) -> None:
+        self.train_epoch_metrics_logger.flush()
+        self.val_epoch_metrics_logger.flush()
+
+    def training_epoch_end(self, outputs: List[Any]) -> None:
+        self.training_or_validation_epoch_end(is_training=True)
+
+    def validation_epoch_end(self, outputs: List[Any]) -> None:
+        # reset the random state for training, so that we get continue from where we were before the validation step.
+        self.random_state.restore_random_state()
+        self.training_or_validation_epoch_end(is_training=False)
+
+    def on_train_epoch_start(self) -> None:
+        self.reset_timers()
+
+    def on_validation_epoch_start(self) -> None:
+        self.reset_timers()
+        # Store the random number generator state, so that the next training epoch starts from here.
+        self.random_state = RandomStateSnapshot.snapshot_random_state()
+        # reset the random state for validation, so that we get consistent behaviour when drawing random patches
+        # when validating segmentation models.
+        seed = self.effective_random_seed
+        set_random_seed(seed, "Validation")
+
+    def on_train_epoch_end(self, outputs) -> None:
+        self.on_train_or_validation_epoch_end(is_training=True)
+
+    def on_validation_epoch_end(self) -> None:
+        self.on_train_or_validation_epoch_end(is_training=False)
+
+    def on_train_or_validation_epoch_end(self, is_training: bool) -> None:
+        """
+        This is a hook called once all per-epoch computation is finished, and all metrics are written.
+        It extracts the final set of metrics for the epoch from the `storing_logger` field, and writes them to a file.
+        :param is_training: Set to True to read out the training set metrics, or False to read out the
+        validation set metrics.
+        """
+        prefix_filter = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
+        # Get the last set of metrics that the logger stores. That set belongs to the current train/validation
+        # epoch because it was written just before this hook is called.
+        # TODO antonsc: Verify that this works as expected for distributed training. When we reach this point,
+        # did all the loggers from the other ranks already send their metrics? training_loop.py line 630 seems to
+        # indicate that it happens after connecting all loggers.
+        epoch, metrics = self.storing_logger.extract_by_prefix(self.storing_logger.results[-1], prefix_filter)
+        # Sanity check: We should see metrics for the current epoch.
+        assert epoch == self.current_epoch, f"Epochs don't match: logger has {epoch}, module has {self.current_epoch}"
+        self.store_epoch_results(metrics, epoch, is_training)
+
+    def training_or_validation_epoch_end(self, is_training: bool) -> None:
+        """
+        This is a hook called at the end of a training or validation epoch. In here, we can still write
+        metrics to a logger.
+        :param is_training: If True, this is called at the end of a training epoch. If False, this is at the
+        end of a validation epoch.
+        """
+        if self.global_rank != 0:
+            return
+        epoch_time_seconds = time.time() - self.epoch_start_time
+        status = "training" if is_training else "validation"
+        logging.info(f"Epoch {self.current_epoch} {status} took {epoch_time_seconds:0.2f}sec, from which waiting for "
+                     f"data took {self.total_load_time:0.2f} sec total. {self.num_batches} minibatches in total.")
+        if self.num_load_time_exceeded > 0:
+            logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
+                            f"{MAX_ITEM_LOAD_TIME_SEC}sec.")
+            logging.warning(
+                f"In this epoch, {self.num_load_time_exceeded} out of {self.num_batches} batches exceeded the load "
+                f"time threshold. Total loading time for the slow batches was {self.total_extra_load_time:0.2f}sec.")
+        self.log_on_epoch(MetricType.SECONDS_PER_EPOCH, epoch_time_seconds, is_training=is_training)
+
     def log_on_epoch(self, name: Union[MetricType, str], value: Union[float, Metric], is_training: bool,
                      reduce_fx: Callable = torch.mean) -> None:
         """
@@ -166,62 +242,6 @@ class InnerEyeLightning(LightningModule):
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         self.log(prefix + metric_name, value,
                  sync_dist=self.use_sync_dist, on_step=False, on_epoch=True, reduce_fx=reduce_fx)
-
-    def set_optimizer_and_scheduler(self, config: DeepLearningConfig) -> None:
-        self.optimizer = model_util.create_optimizer(config, self.model.parameters())
-        self.l_rate_scheduler = SchedulerWithWarmUp(config, self.optimizer)
-
-    def configure_optimizers(self):
-        return [self.optimizer], [self.l_rate_scheduler]
-
-    def close_all_loggers(self) -> None:
-        self.train_epoch_metrics_logger.flush()
-        self.val_epoch_metrics_logger.flush()
-
-    def on_train_epoch_end(self, outputs) -> None:
-        self.on_train_or_validation_epoch_end(is_training=True)
-
-    def on_validation_epoch_end(self) -> None:
-        # reset the random state for training, so that we get continue from where we were before the validation step.
-        self.random_state.restore_random_state()
-        self.on_train_or_validation_epoch_end(is_training=False)
-
-    def on_train_epoch_start(self) -> None:
-        self.reset_timers()
-
-    def on_validation_epoch_start(self) -> None:
-        self.reset_timers()
-        # Store the random number generator state, so that the next training epoch starts from here.
-        self.random_state = RandomStateSnapshot.snapshot_random_state()
-        # reset the random state for validation, so that we get consistent behaviour when drawing random patches
-        # when validating segmentation models.
-        seed = self.effective_random_seed
-        set_random_seed(seed, "Validation")
-
-    def on_train_or_validation_epoch_end(self, is_training: bool) -> None:
-        if self.global_rank != 0:
-            return
-        epoch_time_seconds = time.time() - self.epoch_start_time
-        status = "training" if is_training else "validation"
-        logging.info(f"Epoch {self.current_epoch} {status} took {epoch_time_seconds:0.2f}sec, from which waiting for "
-                     f"data took {self.total_load_time:0.2f} sec total. {self.num_batches} minibatches in total.")
-        if self.num_load_time_exceeded > 0:
-            logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
-                            f"{MAX_ITEM_LOAD_TIME_SEC}sec.")
-            logging.warning(
-                f"In this epoch, {self.num_load_time_exceeded} out of {self.num_batches} batches exceeded the load "
-                f"time threshold. Total loading time for the slow batches was {self.total_extra_load_time:0.2f}sec.")
-        prefix_filter = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
-        # Get the last set of metrics that the logger stores. That set belongs to the current train/validation
-        # epoch because it was written just before this hook is called.
-        # TODO antonsc: Verify that this works as expected for distributed training. When we reach this point,
-        # did all the loggers from the other ranks already send their metrics? training_loop.py line 630 seems to
-        # indicate that it happens after connecting all loggers.
-        epoch, metrics = self.storing_logger.extract_by_prefix(self.storing_logger.results[-1], prefix_filter)
-        # Sanity check: We should see metrics for the current epoch.
-        assert epoch == self.current_epoch, f"Epochs don't match: logger has {epoch}, module has {self.current_epoch}"
-        metrics[MetricType.SECONDS_PER_EPOCH.value] = epoch_time_seconds
-        self.store_epoch_results(metrics, epoch, is_training)
 
     def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool) -> None:
         """
@@ -444,21 +464,23 @@ class ScalarLightning(InnerEyeLightning):
         #     self.guided_grad_cam = VisualizationMaps(model_to_evaluate, config)
         #     config.visualization_folder.mkdir(exist_ok=True)
 
-    def create_metric_computers(self) -> OrderedDict:
-        return OrderedDict([(p, self._get_metrics_classes()) for p in self.target_names])
+    def create_metric_computers(self) -> ModuleDict:
+        # The metric computers should be stored in an object that derives from torch.Module,
+        # so that they are picked up when moving the whole LightningModule to GPU
+        return ModuleDict([(p, self._get_metrics_classes()) for p in self.target_names])
 
-    def _get_metrics_classes(self) -> List[Metric]:
+    def _get_metrics_classes(self) -> ModuleList:
         if self.is_classification_model:
-            return [Accuracy05(),
-                    AccuracyAtOptimalThreshold(),
-                    OptimalThreshold(),
-                    FalsePositiveRateOptimalThreshold(),
-                    FalseNegativeRateOptimalThreshold(),
-                    AreaUnderRocCurve(),
-                    AreaUnderPrecisionRecallCurve(),
-                    BinaryCrossEntropy()]
+            return ModuleList([Accuracy05(),
+                               AccuracyAtOptimalThreshold(),
+                               OptimalThreshold(),
+                               FalsePositiveRateOptimalThreshold(),
+                               FalseNegativeRateOptimalThreshold(),
+                               AreaUnderRocCurve(),
+                               AreaUnderPrecisionRecallCurve(),
+                               BinaryCrossEntropy()])
         else:
-            return [MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()]
+            return ModuleList([MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()])
 
     def forward(self, *model_inputs: torch.Tensor) -> torch.Tensor:
         return self.logits_to_posterior(self.model(*model_inputs))
@@ -557,24 +579,16 @@ class ScalarLightning(InnerEyeLightning):
         #     logger = self.config.azure_loggers_train if is_training else self.config.azure_loggers_val
         #     logger.log_image(error_plot_name, path)
 
-    def training_epoch_end(self, outputs: List[Any]) -> None:
-        self.train_or_validation_epoch_end(is_training=True)
-
-    def validation_epoch_end(self, outputs: List[Any]) -> None:
-        self.train_or_validation_epoch_end(is_training=False)
-
-    def train_or_validation_epoch_end(self, is_training: bool) -> None:
+    def training_or_validation_epoch_end(self, is_training: bool) -> None:
         metric_computers = self.train_metric_computers if is_training else self.val_metric_computers
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         for prediction_target, metric_list in metric_computers.items():
             target_suffix = "" if prediction_target == MetricsDict.DEFAULT_HUE_KEY else f"/{prediction_target}"
             for metric in metric_list:
                 self.log(name=prefix + metric.name + target_suffix, value=metric.compute())
-
-    def on_train_or_validation_epoch_end(self, is_training: bool) -> None:
         logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger
         logger.flush()
-        super().on_train_or_validation_epoch_end(is_training)
+        super().training_or_validation_epoch_end(is_training)
 
 
 def create_lightning_model(config: ModelConfigBase) -> InnerEyeLightning:
