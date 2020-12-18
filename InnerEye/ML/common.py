@@ -9,9 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 DATASET_CSV_FILE_NAME = "dataset.csv"
-CHECKPOINT_FILENAME = "_checkpoint"
 CHECKPOINT_SUFFIX = ".ckpt"
-CHECKPOINT_FILE_SUFFIX = CHECKPOINT_FILENAME + ".pth.tar"
 
 BEST_CHECKPOINT_FILE_NAME = "best_val_loss"
 
