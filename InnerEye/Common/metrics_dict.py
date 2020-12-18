@@ -14,6 +14,7 @@ from typing import Any, Dict, Generic, Iterable, List, Optional, Sequence, Tuple
 import numpy as np
 import pandas as pd
 from more_itertools import flatten
+from pandas._typing import FilePathOrBuffer
 from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_auc_score, roc_curve
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
@@ -870,21 +871,22 @@ class DataframeLogger:
     Single DataFrame logger for logging to CSV file
     """
 
-    def __init__(self, csv_path: Path):
-        self.records: List[Dict[str, Any]] = []
+    def __init__(self, csv_path: FilePathOrBuffer, fixed_columns: Optional[Dict[str, Any]] = None):
         self.csv_path = csv_path
+        self.fixed_columns = fixed_columns or {}
+        self.records: List[Dict[str, Any]] = []
 
     def add_record(self, record: Dict[str, Any]) -> None:
-        self.records.append(record)
+        self.records.append({**record, **self.fixed_columns})
 
     def flush(self, log_info: bool = False) -> None:
         """
         Save the internal records to a csv file.
-        :param log_info: Log INFO if log_info is True.
+        :param log_info: If true, write the final dataframe also to logging.info.
         """
         import pandas as pd
-        if not self.csv_path.parent.is_dir():
-            self.csv_path.parent.mkdir(parents=True)
+        if isinstance(self.csv_path, Path):
+            self.csv_path.parent.mkdir(parents=True, exist_ok=True)
         # Specifying columns such that the order in which columns appear matches the order in which
         # columns were added in the code.
         columns = self.records[0].keys() if len(self.records) > 0 else None
@@ -900,4 +902,5 @@ class DataframeLogger:
                 df[column] = df[column].map(lambda x: column_format.format(x))
         df.to_csv(self.csv_path, sep=',', mode='w', index=False, float_format="%.6f")
         if log_info:
-            logging.info(f"\n {df.to_string(index=False)}")
+            s = df.to_string(index=False, float_format="%.6f")
+            logging.info(f"\n{s}")

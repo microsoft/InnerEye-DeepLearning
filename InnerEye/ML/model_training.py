@@ -5,6 +5,7 @@
 import logging
 import os
 import sys
+from pathlib import Path
 from typing import Tuple, TypeVar
 
 import torch
@@ -14,12 +15,14 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.loggers.mlflow import MLFlowLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
-from InnerEye.Common.common_util import logging_section
+from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
 from InnerEye.Common.metrics_dict import MetricType
 from InnerEye.Common.resource_monitor import ResourceMonitor
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_models import StoringLogger, TRAIN_PREFIX, TrainingAndValidationDataLightning, \
-    VALIDATION_PREFIX, create_lightning_model
+from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, StoringLogger, TRAIN_PREFIX, \
+    TrainingAndValidationDataLightning, \
+    VALIDATION_PREFIX, create_lightning_model, get_subject_output_file_per_rank
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
@@ -30,6 +33,7 @@ from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
+TEMP_PREFIX = "temp/"
 
 T = TypeVar('T')
 
@@ -43,6 +47,17 @@ def is_rank_zero() -> bool:
     global_rank = os.getenv('GLOBAL_RANK')
     local_rank = os.getenv('LOCAL_RANK')
     return global_rank is None and local_rank is None
+
+
+def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
+    """
+    Uploads a file to the AzureML run. It will get a name that is composed of a "temp/" prefix, plus the path
+    of the file relative to the outputs folder that is used for training.
+    :param file_path: The path of the file to upload.
+    :param outputs_folder: The root folder that contains all training outputs.
+    """
+    upload_name = TEMP_PREFIX + str(file_path.relative_to(outputs_folder))
+    RUN_CONTEXT.upload_file(upload_name, path_or_stream=file_path)
 
 
 def model_train(config: ModelConfigBase,
@@ -62,9 +77,9 @@ def model_train(config: ModelConfigBase,
                                                monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
                                                save_top_k=1,
                                                save_last=False)
-
+    # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
     recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
-                                                   filename='{epoch}_checkpoint',
+                                                   filename='{epoch}',
                                                    save_top_k=-1,
                                                    period=config.save_step_epochs
                                                    )
@@ -81,7 +96,8 @@ def model_train(config: ModelConfigBase,
     storing_logger = StoringLogger()
     loggers = [storing_logger,
                TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")]
-    if not is_offline_run_context(RUN_CONTEXT):
+    is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
+    if is_azureml_run:
         mlflow_logger = MLFlowLogger(experiment_name=RUN_CONTEXT.experiment.name,
                                      tracking_uri=RUN_CONTEXT.experiment.workspace.get_mlflow_tracking_uri())
         # The MLFlow logger needs to get its ID from the AzureML run context, otherwise there will be two sets of
@@ -89,9 +105,6 @@ def model_train(config: ModelConfigBase,
         mlflow_logger._run_id = RUN_CONTEXT.id
         loggers.append(mlflow_logger)
 
-    # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
-    # those environment variables will mislead the training runs in the test suite, and make them crash.
-    # Hence, restore the original environment after training.
     old_environ = dict(os.environ)
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
                       accelerator=accelerator,
@@ -149,6 +162,11 @@ def model_train(config: ModelConfigBase,
     trainer.fit(lightning_model,
                 datamodule=lightning_data,
                 )
+    # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
+    # Each thread per rank will come here, and upload its files to the run outputs. Rank 0 will later download them.
+    if is_azureml_run and isinstance(lightning_model, ScalarLightning):
+        upload_output_file_as_temp(lightning_model.train_subject_outputs_logger.csv_path, config.outputs_folder)
+        upload_output_file_as_temp(lightning_model.val_subject_outputs_logger.csv_path, config.outputs_folder)
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
     # We can now use the global_rank of the Lightining model, rather than environment variables, because DDP has set
     # all necessary properties.
@@ -156,9 +174,34 @@ def model_train(config: ModelConfigBase,
         logging.info(f"Terminating training thread with rank {lightning_model.global_rank}.")
         sys.exit()
 
-    # Restore the environment to what it was before training.
+    # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
+    # those environment variables will mislead the training runs in the test suite, and make them crash.
+    # Hence, restore the original environment after training.
     os.environ.clear()
     os.environ.update(old_environ)
+
+    world_size = getattr(trainer, "world_size", 0)
+    if world_size and isinstance(lightning_model, ScalarLightning):
+        if is_azureml_run:
+            # In a DDP run on the local box, all ranks will write to local disk, hence no download needed.
+            # In a multi-node DDP, each rank would upload to AzureML, and rank 0 will now download all results and
+            # concatenate
+            for rank in range(world_size):
+                for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
+                    file = mode.value + "/" + get_subject_output_file_per_rank(rank)
+                    RUN_CONTEXT.download_file(name=TEMP_PREFIX + file, output_file_path=config.outputs_folder / file)
+        # Concatenate all temporary file per execution mode
+        for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
+            temp_files = (config.outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
+            result_file = config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
+            for i, file in enumerate(temp_files):
+                temp_file_contents = file.read_text()
+                if i == 0:
+                    # Copy the first file as-is, including the first line with the column headers
+                    result_file.write_text(temp_file_contents)
+                else:
+                    # For all files but the first one, cut off the header line.
+                    result_file.write_text(os.linesep.join(temp_file_contents.splitlines()[1:]))
 
     model_training_results = ModelTrainingResults(
         train_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values()),

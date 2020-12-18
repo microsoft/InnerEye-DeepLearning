@@ -12,7 +12,7 @@ DATASET_CSV_FILE_NAME = "dataset.csv"
 CHECKPOINT_FILENAME = "_checkpoint"
 CHECKPOINT_FILE_SUFFIX = CHECKPOINT_FILENAME + ".pth.tar"
 
-BEST_CHECKPOINT_FILE_NAME = "best_val_loss_checkpoint"
+BEST_CHECKPOINT_FILE_NAME = "best_val_loss"
 
 @unique
 class ModelExecutionMode(Enum):
