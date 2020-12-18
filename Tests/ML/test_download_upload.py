@@ -12,7 +12,7 @@ from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run, get_results_b
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.run_recovery import RunRecovery
@@ -47,7 +47,7 @@ def test_download_checkpoints(test_output_dirs: OutputFolderForTests, is_ensembl
     runner_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID if is_ensemble else DEFAULT_RUN_RECOVERY_ID
     run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config)
     run_to_recover = fetch_run(workspace=runner_config.get_workspace(), run_recovery_id=runner_config.run_recovery_id)
-    expected_checkpoint_file = "1" + CHECKPOINT_FILE_SUFFIX
+    expected_checkpoint_file = "1_checkpoint.pth.tar"
     if is_ensemble:
         child_runs = fetch_child_runs(run_to_recover)
         expected_files = [config.checkpoint_folder
@@ -79,7 +79,7 @@ def test_download_checkpoints_hyperdrive_run(test_output_dirs: OutputFolderForTe
     runner_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
     child_runs = fetch_child_runs(run=fetch_run(runner_config.get_workspace(), DEFAULT_ENSEMBLE_RUN_RECOVERY_ID))
     # recover child runs separately also to test hyperdrive child run recovery functionality
-    expected_checkpoint_file = "1" + CHECKPOINT_FILE_SUFFIX
+    expected_checkpoint_file = "1_checkpoint.pth.tar"
     for child in child_runs:
         expected_files = [config.checkpoint_folder / child.id / expected_checkpoint_file]
         run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config, child)

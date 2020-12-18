@@ -22,7 +22,7 @@ from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.io_util import ImageDataType
-from InnerEye.ML.utils.model_util import ModelAndInfo
+from InnerEye.ML.utils.model_util import ModelAndInfo, create_optimizer
 from Tests.ML.util import get_default_checkpoint_handler, machine_has_gpu, no_gpu_available
 
 
@@ -86,10 +86,8 @@ def test_amp_activated(use_model_parallel: bool,
         else:
             raise ValueError(f"Expected this call to succeed, but got: {ex}")
 
-    model_and_info.try_create_optimizer_and_load_from_checkpoint()
-
     model = model_and_info.model
-    optimizer = model_and_info.optimizer
+    optimizer = create_optimizer(config=model_config, parameters=model.parameters())
 
     # This is the same logic spelt out in adjust_model_for_gpus
     use_data_parallel = (execution_mode == ModelExecutionMode.TRAIN) or (not use_model_parallel)

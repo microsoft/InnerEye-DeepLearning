@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -16,11 +15,11 @@ import pytest
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import common_util, fixed_paths
-from InnerEye.Common.common_util import ModelProcessing
+from InnerEye.Common.common_util import ModelProcessing, OTHER_RUNS_SUBDIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
-from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.common import CHECKPOINT_SUFFIX, get_best_checkpoint_path, create_checkpoint_path
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -28,7 +27,6 @@ from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.ml_util import set_random_seed
-from InnerEye.ML.utils.model_util import ModelAndInfo
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -56,7 +54,8 @@ def create_checkpoints(model_config: SegmentationModelBase, is_ensemble: bool) -
     """
     # To simulate ensemble models, there are two checkpoints, one in the root dir and one in a folder
     stored_checkpoints = full_ml_test_data_path('checkpoints')
-    checkpoints = list(stored_checkpoints.rglob("*.tar")) if is_ensemble else list(stored_checkpoints.glob("*.tar"))
+    checkpoints = list(stored_checkpoints.rglob(f"*{CHECKPOINT_SUFFIX}")) if is_ensemble \
+                                                    else list(stored_checkpoints.glob(f"*{CHECKPOINT_SUFFIX}"))
     assert len(checkpoints) == (2 if is_ensemble else 1)
     checkpoints_relative = [checkpoint.relative_to(stored_checkpoints) for checkpoint in checkpoints]
     checkpoints_absolute = []
@@ -98,12 +97,17 @@ def test_register_and_score_model(is_ensemble: bool,
     config.dataset_expected_spacing_xyz = dataset_expected_spacing_xyz
     config.set_output_to(test_output_dirs.root_dir)
     checkpoints_absolute = []
-    model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TRAIN)
-    model_and_info.create_model()
-    model_and_info.create_optimizer()
-    checkpoints_absolute.append(model_and_info.save_checkpoint(epoch=10))
+
+    # copy checkpoints from tests directory
+    checkpoint_path = config.get_path_to_best_checkpoint()
+    stored_checkpoint = create_checkpoint_path(path=full_ml_test_data_path("checkpoints"), epoch=1)
+    shutil.copyfile(str(stored_checkpoint), str(checkpoint_path))
+    checkpoints_absolute.append(checkpoint_path)
     if is_ensemble:
-        checkpoints_absolute.append(model_and_info.save_checkpoint(epoch=20))
+        checkpoint_path = get_best_checkpoint_path(config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / "1")
+        stored_checkpoint = create_checkpoint_path(path=full_ml_test_data_path("checkpoints"), epoch=1)
+        shutil.copyfile(str(stored_checkpoint), str(checkpoint_path))
+        checkpoints_absolute.append(checkpoint_path)
     checkpoints_relative = [f.relative_to(config.checkpoint_folder) for f in checkpoints_absolute]
     azureml_model = None
     # Simulate a project root: We can't derive that from the repository root because that might point
@@ -186,7 +190,7 @@ def test_register_model_skip() -> None:
     """
     If the AzureML workspace can't be read, model registration should be skipped and return None.
     """
-    checkpoint_paths = [full_ml_test_data_path('checkpoints') / '1_checkpoint.pth.tar']
+    checkpoint_paths = [create_checkpoint_path(full_ml_test_data_path('checkpoints'), epoch=0)]
     config = get_model_loader().create_model_config_from_name("Lung")
     ml_runner = MLRunner(config, None)
     raises = mock.Mock()
