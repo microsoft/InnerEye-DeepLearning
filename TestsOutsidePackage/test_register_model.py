@@ -19,7 +19,7 @@ from InnerEye.Common.common_util import ModelProcessing, OTHER_RUNS_SUBDIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
-from InnerEye.ML.common import ModelExecutionMode, get_best_checkpoint_path, create_checkpoint_path
+from InnerEye.ML.common import CHECKPOINT_SUFFIX, get_best_checkpoint_path, create_checkpoint_path
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -54,7 +54,8 @@ def create_checkpoints(model_config: SegmentationModelBase, is_ensemble: bool) -
     """
     # To simulate ensemble models, there are two checkpoints, one in the root dir and one in a folder
     stored_checkpoints = full_ml_test_data_path('checkpoints')
-    checkpoints = list(stored_checkpoints.rglob("*.tar")) if is_ensemble else list(stored_checkpoints.glob("*.tar"))
+    checkpoints = list(stored_checkpoints.rglob(f"*{CHECKPOINT_SUFFIX}")) if is_ensemble \
+                                                    else list(stored_checkpoints.glob(f"*{CHECKPOINT_SUFFIX}"))
     assert len(checkpoints) == (2 if is_ensemble else 1)
     checkpoints_relative = [checkpoint.relative_to(stored_checkpoints) for checkpoint in checkpoints]
     checkpoints_absolute = []
@@ -189,7 +190,7 @@ def test_register_model_skip() -> None:
     """
     If the AzureML workspace can't be read, model registration should be skipped and return None.
     """
-    checkpoint_paths = [full_ml_test_data_path('checkpoints') / '1_checkpoint.pth.tar']
+    checkpoint_paths = [create_checkpoint_path(full_ml_test_data_path('checkpoints'), epoch=0)]
     config = get_model_loader().create_model_config_from_name("Lung")
     ml_runner = MLRunner(config, None)
     raises = mock.Mock()

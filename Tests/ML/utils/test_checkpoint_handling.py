@@ -15,7 +15,7 @@ from InnerEye.ML.deep_learning_config import WEIGHTS_FILE
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.fixed_paths import MODEL_WEIGHTS_DIR_NAME
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.common import create_checkpoint_path, get_best_checkpoint_path, BEST_CHECKPOINT_FILE_NAME
+from InnerEye.ML.common import create_checkpoint_path, CHECKPOINT_SUFFIX, BEST_CHECKPOINT_FILE_NAME
 
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_checkpoint_handler
@@ -77,7 +77,7 @@ def test_discover_and_download_checkpoints_from_previous_runs_single_run(test_ou
     expected_checkpoint_root = config.checkpoint_folder / run_recovery_id.split(":")[1]
     expected_paths = [create_checkpoint_path(path=expected_checkpoint_root,
                                              epoch=epoch) for epoch in [1, 2]]
-    expected_paths += [expected_checkpoint_root / f"{BEST_CHECKPOINT_FILE_NAME}-v0.ckpt"]
+    expected_paths += [expected_checkpoint_root / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"]
     assert checkpoint_handler.run_recovery
     assert checkpoint_handler.run_recovery.checkpoints_roots == [expected_checkpoint_root]
     for path in expected_paths:
@@ -103,7 +103,7 @@ def test_discover_and_download_checkpoints_from_previous_runs_ensemble_run(test_
     expected_checkpoint_roots = [config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / str(i) for i in range(2)]
     expected_path_lists = [[create_checkpoint_path(path=expected_checkpoint_root,
                                                    epoch=epoch) for epoch in [1, 2]] +
-                           [expected_checkpoint_root / f"{BEST_CHECKPOINT_FILE_NAME}-v0.ckpt"]
+                           [expected_checkpoint_root / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"]
                            for expected_checkpoint_root in expected_checkpoint_roots]
     assert set(checkpoint_handler.run_recovery.checkpoints_roots) == set(expected_checkpoint_roots)
     for path_list in expected_path_lists:
@@ -223,7 +223,7 @@ def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) 
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
     expected_checkpoint = config.checkpoint_folder / run_recovery_id.split(":")[1] \
-                          / f"{BEST_CHECKPOINT_FILE_NAME}-v0.ckpt"
+                          / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
     checkpoint_paths = checkpoint_handler.get_best_checkpoint()
     assert checkpoint_paths
     assert len(checkpoint_paths) == 1
@@ -241,14 +241,14 @@ def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) 
     # There is no checkpoint in the current run - use the one from run_recovery
     checkpoint_paths = checkpoint_handler.get_best_checkpoint()
     expected_checkpoint = config.checkpoint_folder / run_recovery_id.split(":")[1] \
-                          / f"{BEST_CHECKPOINT_FILE_NAME}-v0.ckpt"
+                          / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
     assert checkpoint_paths
     assert len(checkpoint_paths) == 1
     assert checkpoint_paths[0] == expected_checkpoint
 
     # Copy over checkpoints to make it look like training has happened and a better checkpoint written
     stored_checkpoint = create_checkpoint_path(path=full_ml_test_data_path("checkpoints"), epoch=1)
-    expected_checkpoint = config.checkpoint_folder / f"{BEST_CHECKPOINT_FILE_NAME}.ckpt"
+    expected_checkpoint = config.checkpoint_folder / f"{BEST_CHECKPOINT_FILE_NAME}{CHECKPOINT_SUFFIX}"
     shutil.copyfile(str(stored_checkpoint), str(expected_checkpoint))
 
     checkpoint_paths = checkpoint_handler.get_best_checkpoint()
@@ -276,7 +276,7 @@ def test_get_checkpoint_from_epoch_ensemble_run(test_output_dirs: OutputFolderFo
     manage_recovery.azure_config.run_recovery_id = run_recovery_id
     manage_recovery.discover_and_download_checkpoints_from_previous_runs()
     expected_checkpoints = [config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / str(i)
-                            / f"{BEST_CHECKPOINT_FILE_NAME}-v0.ckpt"
+                            / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
                             for i in range(2)]
     checkpoint_paths = manage_recovery.get_best_checkpoint()
     assert checkpoint_paths
@@ -309,7 +309,7 @@ def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None
 
     # Copy checkpoint to make it seem like training has happened
     stored_checkpoint = create_checkpoint_path(path=full_ml_test_data_path("checkpoints"), epoch=1)
-    expected_checkpoint = config.checkpoint_folder / f"{BEST_CHECKPOINT_FILE_NAME}.ckpt"
+    expected_checkpoint = config.checkpoint_folder / f"{BEST_CHECKPOINT_FILE_NAME}{CHECKPOINT_SUFFIX}"
     shutil.copyfile(str(stored_checkpoint), str(expected_checkpoint))
 
     checkpoint_and_paths = manage_recovery.get_checkpoints_to_test()
@@ -341,11 +341,11 @@ def test_get_checkpoints_to_test_single_run(test_output_dirs: OutputFolderForTes
     assert checkpoint_and_paths
     assert len(checkpoint_and_paths) == 1
     assert checkpoint_and_paths[0] == config.checkpoint_folder / run_recovery_id.split(":")[1] / \
-           f"{BEST_CHECKPOINT_FILE_NAME}-v0.ckpt"
+           f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
 
     # Copy checkpoint to make it seem like training has happened
     stored_checkpoint = create_checkpoint_path(path=full_ml_test_data_path("checkpoints"), epoch=1)
-    expected_checkpoint = config.checkpoint_folder / f"{BEST_CHECKPOINT_FILE_NAME}.ckpt"
+    expected_checkpoint = config.checkpoint_folder / f"{BEST_CHECKPOINT_FILE_NAME}{CHECKPOINT_SUFFIX}"
     shutil.copyfile(str(stored_checkpoint), str(expected_checkpoint))
 
     checkpoint_and_paths = manage_recovery.get_checkpoints_to_test()
