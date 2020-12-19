@@ -80,8 +80,8 @@ class AzureConfig(GenericConfig):
     model: str = param.String(doc="The name of the model to train/test.")
     only_register_model: Optional[int] = param.Integer(None,
                                                        doc="If set, and run_recovery_id is also set, "
-                                                                     "register the model for this epoch and do no "
-                                                                     "training or testing")
+                                                           "register the model for this epoch and do no "
+                                                           "training or testing")
     pytest_mark: str = param.String(doc="If provided, run pytest after model training. pytest will only "
                                         "run the tests that have the mark given in this argument "
                                         "('--pytest_mark gpu' will run all tests marked with "
@@ -227,7 +227,8 @@ class AzureConfig(GenericConfig):
          is not present
         """
         secrets_handler = SecretsHandling(project_root=self.project_root)
-        application_key = secrets_handler.get_secret_from_environment(fixed_paths.SERVICE_PRINCIPAL_KEY, allow_missing=True)
+        application_key = secrets_handler.get_secret_from_environment(fixed_paths.SERVICE_PRINCIPAL_KEY,
+                                                                      allow_missing=True)
         if not application_key:
             logging.warning("Unable to retrieve the key for the Service Principal authentication "
                             f"(expected in environment variable '{fixed_paths.SERVICE_PRINCIPAL_KEY}' or YAML). "
