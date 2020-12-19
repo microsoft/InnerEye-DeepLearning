@@ -9,8 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 DATASET_CSV_FILE_NAME = "dataset.csv"
-CHECKPOINT_FILENAME = "_checkpoint"
-CHECKPOINT_FILE_SUFFIX = CHECKPOINT_FILENAME + ".pth.tar"
+CHECKPOINT_SUFFIX = ".ckpt"
 
 BEST_CHECKPOINT_FILE_NAME = "best_val_loss"
 
@@ -66,7 +65,7 @@ def create_checkpoint_path(path: Path, epoch: int) -> Path:
     :param path to checkpoint folder
     :param epoch
     """
-    return path / f"epoch={epoch-1}_checkpoint.ckpt"
+    return path / f"epoch={epoch-1}{CHECKPOINT_SUFFIX}"
 
 
 def get_best_checkpoint_path(path: Path) -> Path:
@@ -79,13 +78,13 @@ def get_best_checkpoint_path(path: Path) -> Path:
     # TODO for now we have two separate behaviors. If the folder is empty, generate the expected checkpoint path,
     # and if it is not, return the (single) checkpoint with the correct prefix.
 
-    best_checkpoints = list(path.glob(f"{BEST_CHECKPOINT_FILE_NAME}*.ckpt"))
+    best_checkpoints = list(path.glob(f"{BEST_CHECKPOINT_FILE_NAME}*{CHECKPOINT_SUFFIX}"))
     if len(best_checkpoints) > 1:
         raise ValueError(f"Found more than one checkpoint with the name {BEST_CHECKPOINT_FILE_NAME}")
     elif len(best_checkpoints) == 1:
         return best_checkpoints[0]
     else:
-        return path / f"{BEST_CHECKPOINT_FILE_NAME}.ckpt"
+        return path / f"{BEST_CHECKPOINT_FILE_NAME}{CHECKPOINT_SUFFIX}"
 
 
 def create_unique_timestamp_id() -> str:
