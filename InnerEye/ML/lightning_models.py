@@ -566,7 +566,7 @@ class ScalarLightning(InnerEyeLightning):
                 LoggingColumns.Epoch.value: self.current_epoch,
                 LoggingColumns.Patient.value: subject,
                 LoggingColumns.Hue.value: prediction_target,
-                LoggingColumns.PredictedValue.value: model_output,
+                LoggingColumns.ModelOutput.value: model_output,
                 LoggingColumns.Label.value: label,
                 LoggingColumns.DataSplit.value: data_split.value
             })

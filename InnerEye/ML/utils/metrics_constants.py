@@ -44,7 +44,6 @@ class LoggingColumns(Enum):
     Label = "label"
     SubjectCount = "subject_count"
     ModelExecutionMode = "model_execution_mode"
-    PredictedValue = "predicted_value"
     MeanAbsoluteError = "mean_absolute_error"
     MeanSquaredError = "mean_squared_error"
     LearningRate = "learning_rate"

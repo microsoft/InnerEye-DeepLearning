@@ -567,7 +567,7 @@ def compute_scalar_metrics(metrics_dict: ScalarMetricsDict,
                 metrics = {
                     MetricType.MEAN_SQUARED_ERROR: F.mse_loss(_model_output, _labels, reduction='mean').item(),
                     MetricType.MEAN_ABSOLUTE_ERROR: mean_absolute_error(_model_output, _labels),
-                    MetricType.R2_SCORE: r2_score(_model_output, _labels)
+                    MetricType.EXPLAINED_VAR: r2_score(_model_output, _labels)
                 }
             else:
                 metrics = {
