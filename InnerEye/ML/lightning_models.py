@@ -11,6 +11,7 @@ import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.metrics import Metric
+from pytorch_lightning.utilities import rank_zero_only
 from torch.nn import ModuleDict, ModuleList
 
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, SUBJECT_METRICS_FILE_NAME
@@ -189,6 +190,7 @@ class InnerEyeLightning(LightningModule):
     def on_validation_epoch_end(self) -> None:
         self.on_train_or_validation_epoch_end(is_training=False)
 
+    @rank_zero_only
     def on_train_or_validation_epoch_end(self, is_training: bool) -> None:
         """
         This is a hook called once all per-epoch computation is finished, and all metrics are written.
@@ -199,14 +201,12 @@ class InnerEyeLightning(LightningModule):
         prefix_filter = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         # Get the last set of metrics that the logger stores. That set belongs to the current train/validation
         # epoch because it was written just before this hook is called.
-        # TODO antonsc: Verify that this works as expected for distributed training. When we reach this point,
-        # did all the loggers from the other ranks already send their metrics? training_loop.py line 630 seems to
-        # indicate that it happens after connecting all loggers.
         epoch, metrics = self.storing_logger.extract_by_prefix(self.storing_logger.results[-1], prefix_filter)
         # Sanity check: We should see metrics for the current epoch.
         assert epoch == self.current_epoch, f"Epochs don't match: logger has {epoch}, module has {self.current_epoch}"
         self.store_epoch_results(metrics, epoch, is_training)
 
+    @rank_zero_only
     def training_or_validation_epoch_end(self, is_training: bool) -> None:
         """
         This is a hook called at the end of a training or validation epoch. In here, we can still write
@@ -214,8 +214,6 @@ class InnerEyeLightning(LightningModule):
         :param is_training: If True, this is called at the end of a training epoch. If False, this is at the
         end of a validation epoch.
         """
-        if self.global_rank != 0:
-            return
         epoch_time_seconds = time.time() - self.epoch_start_time
         status = "training" if is_training else "validation"
         logging.info(f"Epoch {self.current_epoch} {status} took {epoch_time_seconds:0.2f}sec, from which waiting for "
@@ -228,7 +226,10 @@ class InnerEyeLightning(LightningModule):
                 f"time threshold. Total loading time for the slow batches was {self.total_extra_load_time:0.2f}sec.")
         self.log_on_epoch(MetricType.SECONDS_PER_EPOCH, epoch_time_seconds, is_training=is_training)
 
-    def log_on_epoch(self, name: Union[MetricType, str], value: Union[float, Metric], is_training: bool,
+    def log_on_epoch(self,
+                     name: Union[MetricType, str],
+                     value: Union[float, Metric],
+                     is_training: bool,
                      reduce_fx: Callable = torch.mean) -> None:
         """
         Logs a metrics to Pytorch Lightning with the on_epoch flag set. The metric will get a prefix indicating
@@ -237,6 +238,7 @@ class InnerEyeLightning(LightningModule):
         :param name: The name of the metric to log
         :param value: The value of the metric
         :param is_training: If true, give the metric a "train/" prefix, otherwise a "val/" prefix.
+        :param reduce_fx: The function that should be used to aggregate multiple logged values.
         """
         metric_name = name if isinstance(name, str) else name.value
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
