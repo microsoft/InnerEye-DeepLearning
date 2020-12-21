@@ -90,6 +90,21 @@ class ScalarItem(ScalarItemBase):
         _dim = 0 if self.numerical_non_image_features.ndimension() == 1 else 1
         return torch.cat([self.numerical_non_image_features, self.categorical_non_image_features], dim=_dim)
 
+    def to_device(self, device: Any) -> ScalarItem:
+        """
+        Creates a copy of the present object where all tensors live on the given CUDA device.
+        :param device: The
+        :return:
+        """
+        return ScalarItem(
+            metadata=self.metadata,
+            label=self.label.to(device),
+            categorical_non_image_features=self.categorical_non_image_features.to(device),
+            numerical_non_image_features=self.numerical_non_image_features.to(device),
+            images=self.images.to(device),
+            segmentations=None if self.segmentations is None else self.segmentations.to(device)
+        )
+
 
 @dataclass(frozen=True)
 class ScalarDataSource(ScalarItemBase):

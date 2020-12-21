@@ -92,6 +92,8 @@ class ToySequenceModel(SequenceModelBase):
             label_smoothing_eps=0.05,
             drop_last_batch_in_training=True,
             mean_teacher_alpha=mean_teacher_alpha,
+            # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+            max_num_gpus=1,
             **kwargs
         )
         self.use_combined_model = use_combined_model
@@ -205,18 +207,14 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
                               use_encoder_layer_norm=use_encoder_layer_norm,
                               use_mean_teacher_model=use_mean_teacher_model,
                               should_validate=False)
-    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
-    config.max_num_gpus = 1
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     # Patch the load_images function that will be called once we access a dataset item
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, SCAN_SIZE),
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
-        results = model_train(config, get_default_checkpoint_handler(model_config=config,
-                                                                     project_root=test_output_dirs.root_dir))
-        assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
-               == config.get_total_number_of_save_epochs()
+        model_train(config, get_default_checkpoint_handler(model_config=config,
+                                                           project_root=test_output_dirs.root_dir))
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
@@ -335,6 +333,8 @@ class ToySequenceModel2(SequenceModelBase):
             train_batch_size=40,
             l_rate=1e-2,
             drop_last_batch_in_training=True,
+            # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+            max_num_gpus=1,
             **kwargs
         )
 
@@ -380,8 +380,6 @@ def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> 
     logging_to_stdout()
     config = ToySequenceModel2(should_validate=False)
     config.num_epochs = 2
-    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
-    config.max_num_gpus = 1
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset(dataset_contents)
     results = model_train(config, get_default_checkpoint_handler(model_config=config,

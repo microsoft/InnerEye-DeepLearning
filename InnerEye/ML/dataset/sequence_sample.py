@@ -63,9 +63,10 @@ class ClassificationItemSequence(Generic[T]):
         otherwise fill with NaN.
         """
         target_indices = sorted(target_indices)
+        nan = torch.tensor([np.nan], device=self.items[0].label.device)
 
         def _get_label_or_nan(idx: int) -> torch.Tensor:
-            return self.items[idx].label if idx < len(self.items) else torch.tensor([np.nan])
+            return self.items[idx].label if idx < len(self.items) else nan
 
         if any(p < 0 for p in target_indices):
             raise ValueError("Argument target_indices cannot contain negative values")

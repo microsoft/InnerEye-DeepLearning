@@ -20,6 +20,7 @@ from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
+from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
     AreaUnderRocCurve, \
@@ -589,10 +590,29 @@ class ScalarLightning(InnerEyeLightning):
         for prediction_target, metric_list in metric_computers.items():
             target_suffix = "" if prediction_target == MetricsDict.DEFAULT_HUE_KEY else f"/{prediction_target}"
             for metric in metric_list:
-                self.log(name=prefix + metric.name + target_suffix, value=metric.compute())
+                if metric.has_predictions:
+                    # Sequence models can have no predictions at all for particular positions, depending on the data.
+                    # Hence, only log if anything really has been accumula
+                    self.log(name=prefix + metric.name + target_suffix, value=metric.compute())
         logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger
         logger.flush()
         super().training_or_validation_epoch_end(is_training)
+
+    def transfer_batch_to_device(self, batch: Any, device: torch.device) -> Any:
+        """
+        For sequence models, transfer the nested lists of items to the given GPU device.
+        For all other models, this relies on the superclass to move the batch of data to the GPU.
+        :param batch: A batch of data coming from the dataloader.
+        :param device: The target CUDA device.
+        :return: A modified batch of data, where all tensor now live on the given CUDA device.
+        """
+        # For sequence models, this method receives a List[List[ScalarItem]]
+        items = batch["items"]
+        if isinstance(items, List) and isinstance(items[0], List) and isinstance(items[0][0], ScalarItem):
+            batch["items"] = [[j.to_device(device) for j in i] for i in items]
+            return batch
+        else:
+            return super().transfer_batch_to_device(batch, device)
 
 
 def create_lightning_model(config: ModelConfigBase) -> InnerEyeLightning:

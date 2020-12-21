@@ -15,6 +15,7 @@ import tensorboardX
 import torch
 import torch.nn.functional as F
 from azureml.core import Run
+from pytorch_lightning import metrics
 from pytorch_lightning.metrics import Metric
 from pytorch_lightning.metrics.functional import roc
 from pytorch_lightning.metrics.functional.classification import accuracy, auc, auroc, precision_recall_curve
@@ -36,13 +37,19 @@ from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, \
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
 
-from pytorch_lightning import metrics
-
 
 class MeanAbsoluteError(metrics.MeanAbsoluteError):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = MetricType.MEAN_ABSOLUTE_ERROR.value
+
+    @property
+    def has_predictions(self) -> bool:
+        """
+        Returns True if the present object stores at least 1 prediction (self.update has been called at least once),
+        or False if no predictions are stored.
+        """
+        return self.total > 0
 
 
 class MeanSquaredError(metrics.MeanSquaredError):
@@ -50,17 +57,41 @@ class MeanSquaredError(metrics.MeanSquaredError):
         super().__init__(*args, **kwargs)
         self.name = MetricType.MEAN_SQUARED_ERROR.value
 
+    @property
+    def has_predictions(self) -> bool:
+        """
+        Returns True if the present object stores at least 1 prediction (self.update has been called at least once),
+        or False if no predictions are stored.
+        """
+        return self.total > 0
+
 
 class ExplainedVariance(metrics.ExplainedVariance):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = MetricType.EXPLAINED_VAR.value
 
+    @property
+    def has_predictions(self) -> bool:
+        """
+        Returns True if the present object stores at least 1 prediction (self.update has been called at least once),
+        or False if no predictions are stored.
+        """
+        return len(self.y_pred) > 0
+
 
 class Accuracy05(metrics.Accuracy):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = MetricType.ACCURACY_AT_THRESHOLD_05.value
+
+    @property
+    def has_predictions(self) -> bool:
+        """
+        Returns True if the present object stores at least 1 prediction (self.update has been called at least once),
+        or False if no predictions are stored.
+        """
+        return self.total > 0
 
 
 class ScalarMetricsBase(Metric):
@@ -76,6 +107,14 @@ class ScalarMetricsBase(Metric):
 
     def compute(self):
         raise NotImplementedError("Should be implemented in the child classes")
+
+    @property
+    def has_predictions(self) -> bool:
+        """
+        Returns True if the present object stores at least 1 prediction (self.update has been called at least once),
+        or False if no predictions are stored.
+        """
+        return len(self.preds) > 0
 
     def _get_metrics_at_optimal_cutoff(self, preds, target) -> Tuple:
         """

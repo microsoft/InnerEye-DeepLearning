@@ -480,8 +480,8 @@ class MLRunner:
         # right in the final model folder - however, then that would also contain any other checkpoints that the model
         # produced or downloaded for recovery, bloating the final model file.
         self.copy_child_paths_to_folder(final_model_folder, checkpoint_paths)
-        logging.info("Registering the model on the workspace.")
         if is_offline_run:
+            logging.info("Registering the model on the workspace.")
             model_description = model_description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
             model = Model.register(
                 workspace=workspace,
