@@ -7,12 +7,12 @@ from typing import Any, List, Optional
 import torch
 
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.models.blocks.residual import ResidualBlock
 from InnerEye.ML.models.layers.basic import BasicLayer
 
 
-class ComplexModel(BaseModel):
+class ComplexModel(BaseSegmentationModel):
     """
     A general class of feed-forward convolutional neural networks that is characterised by a network definition
     (list of lists of modules). It supports residual blocks, auto-focus and atrous spatial pyramid pooling layers.

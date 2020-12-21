@@ -14,7 +14,7 @@ from typing import Callable
 from InnerEye.ML.utils.model_util import ModelAndInfo
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.Common.common_util import ModelExecutionMode
-from InnerEye.ML.models.architectures.base_model import BaseModel
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
@@ -40,7 +40,7 @@ def test_try_create_model_and_load_from_checkpoint(config: ModelConfigBase, chec
     model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
     assert model_loaded
     if isinstance(config, SegmentationModelBase):
-        assert isinstance(model_and_info.model, BaseModel)
+        assert isinstance(model_and_info.model, BaseSegmentationModel)
     else:
         assert isinstance(model_and_info.model, DeviceAwareModule)
 
@@ -53,7 +53,7 @@ def test_try_create_model_and_load_from_checkpoint(config: ModelConfigBase, chec
     # Current code assumes that even if this function returns False, the model itself was created, only the checkpoint
     # loading failed.
     if isinstance(config, SegmentationModelBase):
-        assert isinstance(model_and_info.model, BaseModel)
+        assert isinstance(model_and_info.model, BaseSegmentationModel)
     else:
         assert isinstance(model_and_info.model, DeviceAwareModule)
 
@@ -64,7 +64,7 @@ def test_try_create_model_and_load_from_checkpoint(config: ModelConfigBase, chec
     model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
     assert model_loaded
     if isinstance(config, SegmentationModelBase):
-        assert isinstance(model_and_info.model, BaseModel)
+        assert isinstance(model_and_info.model, BaseSegmentationModel)
     else:
         assert isinstance(model_and_info.model, DeviceAwareModule)
     assert model_and_info.checkpoint_epoch == 1
@@ -130,7 +130,7 @@ def test_try_create_mean_teacher_model_and_load_from_checkpoint(config: ModelCon
     model_loaded = model_and_info.try_create_mean_teacher_model_and_load_from_checkpoint()
     assert model_loaded
     if isinstance(config, SegmentationModelBase):
-        assert isinstance(model_and_info.mean_teacher_model, BaseModel)
+        assert isinstance(model_and_info.mean_teacher_model, BaseSegmentationModel)
     else:
         assert isinstance(model_and_info.mean_teacher_model, DeviceAwareModule)
 
@@ -143,7 +143,7 @@ def test_try_create_mean_teacher_model_and_load_from_checkpoint(config: ModelCon
     # Current code assumes that even if this function returns False, the model itself was created, only the checkpoint
     # loading failed.
     if isinstance(config, SegmentationModelBase):
-        assert isinstance(model_and_info.mean_teacher_model, BaseModel)
+        assert isinstance(model_and_info.mean_teacher_model, BaseSegmentationModel)
     else:
         assert isinstance(model_and_info.mean_teacher_model, DeviceAwareModule)
 
@@ -154,7 +154,7 @@ def test_try_create_mean_teacher_model_and_load_from_checkpoint(config: ModelCon
     model_loaded = model_and_info.try_create_mean_teacher_model_and_load_from_checkpoint()
     assert model_loaded
     if isinstance(config, SegmentationModelBase):
-        assert isinstance(model_and_info.mean_teacher_model, BaseModel)
+        assert isinstance(model_and_info.mean_teacher_model, BaseSegmentationModel)
     else:
         assert isinstance(model_and_info.mean_teacher_model, DeviceAwareModule)
     assert model_and_info.checkpoint_epoch == 1

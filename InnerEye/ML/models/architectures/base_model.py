@@ -108,7 +108,7 @@ class CropSizeConstraints:
         return to_tuple(crop_new), to_tuple(stride_new)
 
 
-class BaseModel(DeviceAwareModule, ABC):
+class BaseSegmentationModel(DeviceAwareModule, ABC):
     """
     Base neural network segmentation model.
     """

@@ -11,7 +11,7 @@ import torch
 from InnerEye.Common import common_util
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.models.architectures.base_model import BaseModel
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.utils import image_util
@@ -133,7 +133,7 @@ def test_check_inference_result(segmentation: Any, posteriors: Any, voxel_spacin
         )
 
 
-class PyTorchMockModel(BaseModel):
+class PyTorchMockModel(BaseSegmentationModel):
     """
     Defines a model that returns a center crop of its input tensor. The center crop is defined by
     shrinking the image dimensions by a given amount, on either size of each axis.

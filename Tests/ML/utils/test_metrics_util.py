@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 import pytest
+import torch
 
 from InnerEye.ML.utils.metrics_util import get_label_overlap_stats, get_label_volume, get_number_of_voxels_per_class
 
@@ -17,14 +18,14 @@ def test_get_number_of_voxels_per_class_invalid(labels: Any) -> None:
 
 
 def test_get_number_of_voxels_per_class() -> None:
-    non_batched_labels = np.zeros(shape=[3] * 4)
+    non_batched_labels = torch.zeros(size=[3] * 4)
     non_batched_labels[0, 0, 0, 0] = 1
     non_batched_labels[0, 0, 0, 1] = 1
     non_batched_labels[1, 0, 0, 2] = 1
     non_batched_labels[2, 0, 1, 0] = 1
 
     number_batches = 5
-    batched_labels = np.zeros(shape=[number_batches] + [3] * 4)
+    batched_labels = torch.zeros(size=[number_batches] + [3] * 4)
     for i in range(len(batched_labels)):
         batched_labels[i] = non_batched_labels
     count_non_batched = get_number_of_voxels_per_class(non_batched_labels)

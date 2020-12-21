@@ -9,7 +9,7 @@ import torch
 from torch import Tensor
 
 from InnerEye.Common import common_util
-from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.models.parallel.data_parallel import DataParallelCriterion
 from InnerEye.ML.models.parallel.model_parallel import group_layers_with_balanced_memory, \
@@ -20,7 +20,7 @@ no_gpu = not is_gpu_available()
 no_or_single_gpu = not torch.cuda.is_available() or torch.cuda.device_count() <= 1
 
 
-class SimpleModel(BaseModel):
+class SimpleModel(BaseSegmentationModel):
     """
     A simple neural network model to test model parallelisation functions. 
     """

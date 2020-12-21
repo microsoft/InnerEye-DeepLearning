@@ -213,14 +213,12 @@ class AzureAndTensorboardLogger:
         writer.add_image(name, img, self.epoch)
 
 
-def get_number_of_voxels_per_class(labels: Union[np.ndarray, torch.Tensor]) -> List[int]:
+def get_number_of_voxels_per_class(labels: torch.Tensor) -> List[int]:
     """
     Computes the number of voxels for each class in a one-hot label map.
 
     :param labels: one-hot label map in shape Batches x Classes x Z x Y x X or Classes x Z x Y x X
     """
-    if labels is None:
-        raise Exception("labels cannot be None")
     if not len(labels.shape) in [5, 4]:
         raise Exception("labels must have either 4 (Classes x Z x Y x X) "
                         "or 5 dimensions (Batches x Classes x Z x Y x X), found:{}"

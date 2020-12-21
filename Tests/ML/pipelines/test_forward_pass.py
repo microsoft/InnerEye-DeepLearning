@@ -16,7 +16,7 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util
@@ -26,7 +26,7 @@ from InnerEye.ML.utils.model_util import ModelAndInfo, create_optimizer
 from Tests.ML.util import get_default_checkpoint_handler, machine_has_gpu, no_gpu_available
 
 
-class SimpleModel(BaseModel):
+class SimpleModel(BaseSegmentationModel):
     def __init__(self, input_channels: int, channels: list, n_classes: int, kernel_size: int,
                  crop_size_constraints: CropSizeConstraints = None):
         super().__init__(input_channels=input_channels, name="SimpleModel", crop_size_constraints=crop_size_constraints)

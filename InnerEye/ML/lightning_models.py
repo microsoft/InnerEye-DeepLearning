@@ -364,6 +364,8 @@ class SegmentationLightning(InnerEyeLightning):
         :param batch_index: The index of the present batch (supplied only for diagnostics).
         """
         cropped_sample: CroppedSample = CroppedSample.from_dict(sample=sample)
+        # Forward propagation can lead to a model output that is smaller than the input image (crop).
+        # labels_center_crop is the relevant part of the labels tensor that the model will actually produce.
         labels = cropped_sample.labels_center_crop
 
         mask = cropped_sample.mask_center_crop if is_training else None
@@ -387,7 +389,6 @@ class SegmentationLightning(InnerEyeLightning):
         foreground_voxels = metrics_util.get_number_of_voxels_per_class(cropped_sample.labels)
         # loss is a scalar, also when running the forward pass over multiple crops.
         # dice_for_all_structures has one row per crop.
-
         # store metrics per batch
         for i, ground_truth_id in enumerate(self.ground_truth_ids):
             dice_name = f"{MetricType.DICE.value}/{ground_truth_id}"

@@ -9,7 +9,7 @@ import torch
 
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase, equally_weighted_classes
-from InnerEye.ML.models.architectures.base_model import BaseModel
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from Tests.ML.configs.DummyModel import DummyModel
 
 
@@ -80,7 +80,7 @@ def test_get_output_size() -> None:
     assert model_config.get_output_size(execution_mode=ModelExecutionMode.TEST) == test_output_size
 
 
-class IdentityModel(BaseModel):
+class IdentityModel(BaseSegmentationModel):
     def __init__(self) -> None:
         super().__init__(input_channels=1, name='IdentityModel')
 

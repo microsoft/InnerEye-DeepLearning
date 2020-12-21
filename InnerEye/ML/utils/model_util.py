@@ -25,7 +25,7 @@ from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, OptimizerType
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.models.architectures.complex import ComplexModel
 from InnerEye.ML.models.architectures.unet_2d import UNet2D
 from InnerEye.ML.models.architectures.unet_3d import UNet3D
@@ -460,7 +460,7 @@ def init_weights(m: Union[torch.nn.Conv3d, torch.nn.BatchNorm3d]) -> None:
 
 
 # noinspection PyTypeChecker
-def build_net(args: SegmentationModelBase) -> BaseModel:
+def build_net(args: SegmentationModelBase) -> BaseSegmentationModel:
     """
     Build network architectures
 
@@ -476,7 +476,7 @@ def build_net(args: SegmentationModelBase) -> BaseModel:
     crop_size_constraints = CropSizeConstraints(minimum_size=basic_size_shrinkage + 1)
     run_weight_initialization = True
 
-    network: BaseModel
+    network: BaseSegmentationModel
     if args.architecture == ModelArchitectureConfig.Basic:
         network_definition = basic_network_definition
         network = ComplexModel(args, full_channels_list,
@@ -514,7 +514,7 @@ def summary_for_segmentation_models(config: ModelConfigBase, model: DeviceAwareM
     :param config: The configuration for the model.
     :param model: The instantiated Pytorch model.
     """
-    assert isinstance(model, BaseModel)
+    assert isinstance(model, BaseSegmentationModel)
     crop_size = config.crop_size
     if isinstance(crop_size, int):
         crop_size = (crop_size, crop_size, crop_size)
