@@ -164,14 +164,6 @@ create a container called "datasets".
 "Account Key" field.
 - Done!
 
-If you want to make use of super fast download of datasets for local debugging, you can also store the account key
-on your local machine:
-- Create a file called `InnerEyeTestVariables.txt` in the root directory of your git repository, and add a line
-`DATASETS_ACCOUNT_KEY=TheKeyThatYouJustCopied`.
-- Copy the name of the datasets storage account into the field `datasets_storage_account` of your settings file
-`settings.yml`.
-
-
 ### Step 6: Update the variables in `settings.yml`
 The [settings.yml](../InnerEye/settings.yml) file is used to store your Azure setup. In order to be able to
 train your model you will need to update this file using the settings for your Azure subscription.
@@ -197,8 +189,6 @@ variables:
   tenant_id: '<Azure tenant ID of your company>'
   subscription_id: '<Azure subscription ID that your project is using'
   application_id: '<Optional: Service Principal ID for job submission.'
-  datasets_storage_account: '<Optional: Name of the Azure storage account that holds your datasets.>'
-  datasets_container: '<Optional: Name of the Azure container that holds your datasets, inside the datasets_storage_account'
   azureml_datastore: '<The AzureML datastore that you created inside of your AzureML workspace>'
   resource_group: '<The Azure resource group that holds your AzureML workspace>'
   docker_shm_size: '440g'

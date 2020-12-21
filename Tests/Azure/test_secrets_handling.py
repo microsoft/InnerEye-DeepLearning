@@ -125,7 +125,7 @@ def test_parse_yaml() -> None:
     assert os.path.isfile(fixed_paths.SETTINGS_YAML_FILE)
     variables = secrets_handling.read_settings_yaml_file(fixed_paths.SETTINGS_YAML_FILE)
     # Check that there are at least two of the variables that we know of
-    tenant_id = "tenant_id"
-    assert tenant_id in variables
-    assert variables[tenant_id] == "72f988bf-86f1-41af-91ab-2d7cd011db47"
-    assert "datasets_container" in variables
+    azureml_datastore = "azureml_datastore"
+    assert azureml_datastore in variables
+    assert variables[azureml_datastore] == "innereyedatasets"
+    assert "tenant_id" in variables
