@@ -67,15 +67,6 @@ class SequenceModelBase(ScalarModelBase):
             logging.info(f"Temperature scaling will be performed on the "
                          f"validation set using the config: {self.temperature_scaling_config}")
 
-    def get_total_number_of_validation_epochs(self) -> int:
-        num_val_epochs = super().get_total_number_of_validation_epochs()
-        if self.temperature_scaling_config:
-            # as temperature scaling will be performed for each checkpoint epoch
-            # make sure this is accounted for in the allowed repeats of the validation data loader
-            raise ValueError("TODO antonsc: This needs fixing. Saving is now beyond our control, and handled by PL.")
-            # num_val_epochs += self.get_total_number_of_save_epochs()
-        return num_val_epochs
-
     def get_target_indices(self) -> List[int]:
         """
         Computes the zero based array indices inside of a sequence of items

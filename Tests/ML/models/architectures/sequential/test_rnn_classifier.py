@@ -13,7 +13,7 @@ import torch
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import ModelExecutionMode, SUBJECT_METRICS_FILE_NAME, logging_to_stdout
-from InnerEye.Common.metrics_dict import MetricType, SequenceMetricsDict
+from InnerEye.Common.metrics_dict import MetricType, create_metrics_dict_for_scalar_models
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
@@ -448,7 +448,7 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: OutputFolderFo
     _target_indices = config.get_target_indices()
     assert _target_indices is not None
     assert len(_target_indices) == len(expected_prediction_targets)
-    metrics_dict = SequenceMetricsDict.create_from_config(config)
+    metrics_dict = create_metrics_dict_for_scalar_models(config)
     assert metrics_dict.get_hue_names(include_default=False) == expected_prediction_targets
     config.set_output_to(test_output_dirs.root_dir)
     # Create a fake dataset directory to make config validation pass

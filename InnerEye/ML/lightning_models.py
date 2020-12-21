@@ -15,7 +15,7 @@ from pytorch_lightning.utilities import rank_zero_only
 from torch.nn import ModuleDict, ModuleList
 
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, SUBJECT_METRICS_FILE_NAME
-from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict
+from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, SequenceMetricsDict
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -446,7 +446,8 @@ class ScalarLightning(InnerEyeLightning):
         if isinstance(config, SequenceModelBase):
             self.loss_fn = lambda model_output, loss: apply_sequence_model_loss(raw_loss, model_output, loss)
             self.target_indices = config.get_target_indices()
-            self.target_names = config.sequence_target_positions
+            self.target_names = [SequenceMetricsDict.get_hue_name_from_target_index(p)
+                                 for p in config.sequence_target_positions]
         else:
             self.loss_fn = raw_loss
             self.target_indices = []

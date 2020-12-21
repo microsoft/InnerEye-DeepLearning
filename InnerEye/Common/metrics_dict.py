@@ -20,7 +20,8 @@ from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_auc_score
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX
+from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
 from InnerEye.ML.utils.io_util import tabulate_dataframe
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, \
@@ -30,18 +31,17 @@ FloatOrInt = Union[float, int]
 T = TypeVar('T', np.ndarray, float)
 
 
-def create_metrics_dict_for_scalar_models(is_classification_model: bool,
-                                          sequence_target_positions: Optional[List[int]] = None) -> \
+def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> \
         Union[ScalarMetricsDict, SequenceMetricsDict]:
     """
-    Create an instance of either a ScalarMetricsDict or SequenceMetricsDict. If sequence_target_positions are provided,
-    a SequenceMetricsDict will be created, otherwise a ScalarMetricsDict.
+    Create an instance of either a ScalarMetricsDict or SequenceMetricsDict, depending on whether the given
+     configuration is a sequence model configuration or not.
     """
-    if sequence_target_positions:
-        return SequenceMetricsDict.create(is_classification_metrics=is_classification_model,
-                                          sequence_target_positions=sequence_target_positions)
+    if isinstance(config, SequenceModelBase):
+        return SequenceMetricsDict.create(is_classification_model=config.is_classification_model,
+                                          sequence_target_positions=config.sequence_target_positions)
     else:
-        return ScalarMetricsDict(is_classification_metrics=is_classification_model)
+        return ScalarMetricsDict(is_classification_metrics=config.is_classification_model)
 
 
 def average_metric_values(values: List[float], skip_nan_when_averaging: bool) -> float:
@@ -462,7 +462,7 @@ class MetricsDict:
                         if add_metrics_from_entries:
                             _values[MetricType.MEAN_ABSOLUTE_ERROR.value] = [self.get_mean_absolute_error(_hue)]
                             _values[MetricType.MEAN_SQUARED_ERROR.value] = [self.get_mean_squared_error(_hue)]
-                            _values[MetricType.R2_SCORE.value] = [self.get_r2_score(_hue)]
+                            _values[MetricType.EXPLAINED_VAR.value] = [self.get_r2_score(_hue)]
 
                     _values[MetricType.SUBJECT_COUNT.value] = [len(self.get_predictions(_hue))]
                 _all_values[_hue] = _values

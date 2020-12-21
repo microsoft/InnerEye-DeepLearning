@@ -196,6 +196,5 @@ class BaseSegmentationModel(DeviceAwareModule, ABC):
     def forward(self, input: Any) -> Any:  # type: ignore
         raise NotImplementedError("forward must be implemented by subclasses")
 
-    @abc.abstractmethod
     def get_all_child_layers(self) -> List[torch.nn.Module]:
         raise NotImplementedError("get_all_child_layers must be implemented by subclasses")
