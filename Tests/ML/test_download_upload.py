@@ -12,12 +12,12 @@ from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run, get_results_b
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, create_checkpoint_path, BEST_CHECKPOINT_FILE_NAME, CHECKPOINT_SUFFIX
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.run_recovery import RunRecovery
-from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
 from Tests.ML.util import get_default_azure_config
+from Tests.AfterTraining.test_after_training import get_most_recent_run
 
 logging_to_stdout(logging.DEBUG)
 
@@ -35,56 +35,88 @@ def runner_config() -> AzureConfig:
     return config
 
 
-@pytest.mark.parametrize("is_ensemble", [True, False])
-def test_download_checkpoints(test_output_dirs: OutputFolderForTests, is_ensemble: bool,
+def test_download_checkpoints_invalid_run(test_output_dirs: OutputFolderForTests,
                               runner_config: AzureConfig) -> None:
-    output_dir = test_output_dirs.root_dir
     assert get_results_blob_path("some_run_id") == "azureml/ExperimentRun/dcid.some_run_id"
-    # Any recent run ID from a PR build will do. Use a PR build because the checkpoint files are small there.
+
+
+@pytest.mark.after_training_single_run
+def test_download_checkpoints_single_run(test_output_dirs: OutputFolderForTests,
+                                         runner_config: AzureConfig) -> None:
+    output_dir = test_output_dirs.root_dir
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(output_dir)
 
-    runner_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID if is_ensemble else DEFAULT_RUN_RECOVERY_ID
+    runner_config.run_recovery_id = get_most_recent_run()
     run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config)
     run_to_recover = fetch_run(workspace=runner_config.get_workspace(), run_recovery_id=runner_config.run_recovery_id)
-    expected_checkpoint_file = "1_checkpoint.pth.tar"
-    if is_ensemble:
-        child_runs = fetch_child_runs(run_to_recover)
-        expected_files = [config.checkpoint_folder
-                          / OTHER_RUNS_SUBDIR_NAME
-                          / str(x.get_tags()['cross_validation_split_index']) / expected_checkpoint_file
-                          for x in child_runs]
-    else:
-        expected_files = [config.checkpoint_folder / run_to_recover.id / expected_checkpoint_file]
+    checkpoint_root = config.checkpoint_folder / run_to_recover.id
+    expected_checkpoint_epoch_1 = create_checkpoint_path(path=checkpoint_root, epoch=1)
+    downloaded_checkpoint_path_epoch_1 = run_recovery.get_checkpoint_paths(1)
+    assert len(downloaded_checkpoint_path_epoch_1) == 1
+    assert downloaded_checkpoint_path_epoch_1[0] == expected_checkpoint_epoch_1
+    assert expected_checkpoint_epoch_1.exists()
 
-    checkpoint_paths = run_recovery.get_checkpoint_paths(1)
-    if is_ensemble:
-        assert len(run_recovery.checkpoints_roots) == len(expected_files)
-        assert all([(x in [y.parent for y in expected_files]) for x in run_recovery.checkpoints_roots])
-        assert len(checkpoint_paths) == len(expected_files)
-        assert all([x in expected_files for x in checkpoint_paths])
-    else:
-        assert len(checkpoint_paths) == 1
-        assert checkpoint_paths[0] == expected_files[0]
-
-    assert all([expected_file.exists() for expected_file in expected_files])
+    expected_checkpoint_best_epoch = checkpoint_root / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
+    downloaded_checkpoint_path_best_epoch = run_recovery.get_best_checkpoint_paths()
+    assert len(downloaded_checkpoint_path_best_epoch) == 1
+    assert downloaded_checkpoint_path_best_epoch == expected_checkpoint_best_epoch
+    assert expected_checkpoint_best_epoch.exists()
 
 
+@pytest.mark.after_training_ensemble_run
+def test_download_checkpoints_ensemble_run(test_output_dirs: OutputFolderForTests,
+                                           runner_config: AzureConfig) -> None:
+    output_dir = test_output_dirs.root_dir
+    config = ModelConfigBase(should_validate=False)
+    config.set_output_to(output_dir)
+
+    runner_config.run_recovery_id = get_most_recent_run()
+    run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config)
+    run_to_recover = fetch_run(workspace=runner_config.get_workspace(), run_recovery_id=runner_config.run_recovery_id)
+    child_runs = fetch_child_runs(run_to_recover)
+    checkpoint_root_other_runs = config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME
+    expected_checkpoint_roots = [checkpoint_root_other_runs / str(x.get_tags()['cross_validation_split_index'])
+                                 for x in child_runs]
+
+    expected_checkpoints_epoch_1 = [create_checkpoint_path(path=root, epoch=1)
+                                    for root in expected_checkpoint_roots]
+
+    checkpoint_paths_epoch_1 = run_recovery.get_checkpoint_paths(1)
+    assert len(run_recovery.checkpoints_roots) == len(expected_checkpoints_epoch_1)
+    assert all([x in expected_checkpoint_roots for x in run_recovery.checkpoints_roots])
+    assert len(checkpoint_paths_epoch_1) == len(expected_checkpoints_epoch_1)
+    assert all([x in expected_checkpoints_epoch_1 for x in checkpoint_paths_epoch_1])
+    assert all([expected_file.exists() for expected_file in expected_checkpoints_epoch_1])
+
+    expected_checkpoint_best_epoch = [root / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
+                                      for root in expected_checkpoint_roots]
+    checkpoint_paths_best_epoch = run_recovery.get_best_checkpoint_paths()
+    assert len(run_recovery.checkpoints_roots) == len(expected_checkpoint_roots)
+    assert all([x in expected_checkpoint_roots for x in run_recovery.checkpoints_roots])
+    assert len(checkpoint_paths_best_epoch) == len(expected_checkpoint_best_epoch)
+    assert all([x in expected_checkpoint_best_epoch for x in checkpoint_paths_best_epoch])
+    assert all([expected_file.exists() for expected_file in expected_checkpoint_best_epoch])
+
+
+@pytest_mark.after_training_ensemble_run
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on the windows build")
 def test_download_checkpoints_hyperdrive_run(test_output_dirs: OutputFolderForTests,
                                              runner_config: AzureConfig) -> None:
     output_dir = test_output_dirs.root_dir
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(output_dir)
-    runner_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
-    child_runs = fetch_child_runs(run=fetch_run(runner_config.get_workspace(), DEFAULT_ENSEMBLE_RUN_RECOVERY_ID))
+    run_recovery_id = get_most_recent_run()
+    runner_config.run_recovery_id = run_recovery_id
+    child_runs = fetch_child_runs(run=fetch_run(runner_config.get_workspace(), run_recovery_id))
     # recover child runs separately also to test hyperdrive child run recovery functionality
-    expected_checkpoint_file = "1_checkpoint.pth.tar"
     for child in child_runs:
-        expected_files = [config.checkpoint_folder / child.id / expected_checkpoint_file]
+        expected_file = create_checkpoint_path(path=config.checkpoint_folder / child.id, epoch=1)
         run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config, child)
-        assert all([x in expected_files for x in run_recovery.get_checkpoint_paths(epoch=1)])
-        assert all([expected_file.exists() for expected_file in expected_files])
+        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch=1)
+        assert len(checkpoint_paths) == 1
+        assert checkpoint_paths[0] == expected_file
+        assert expected_file.exists()
 
 
 def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> None:

@@ -125,10 +125,9 @@ def create_scalar_loss_function(config: ScalarModelBase) -> torch.nn.Module:
 class ModelAndInfo:
     """
     This class contains the model and optional associated information, as well as methods to create
-    models and optimizers, move these to GPU and load state from checkpoints. Attributes are:
+    models, move these to GPU and load state from checkpoints. Attributes are:
       config: the model configuration information
       model: the model created based on the config
-      optimizer: the optimizer created based on the config and associated with the model
       checkpoint_path: the path load load checkpoint from, can be None
       mean_teacher_model: the mean teacher model, if and as specified by the config
       is_model_adjusted: whether model adjustments (which cannot be done twice) have been applied to model
@@ -139,7 +138,6 @@ class ModelAndInfo:
     """
 
     MODEL_STATE_DICT_KEY = 'state_dict'
-    OPTIMIZER_STATE_DICT_KEY = 'opt_dict'
     MEAN_TEACHER_STATE_DICT_KEY = 'mean_teacher_state_dict'
     EPOCH_KEY = 'epoch'
 
@@ -158,7 +156,6 @@ class ModelAndInfo:
 
         self._model = None
         self._mean_teacher_model = None
-        self._optimizer = None
         self.checkpoint_epoch = None
         self.is_model_adjusted = False
         self.is_mean_teacher_model_adjusted = False
@@ -168,12 +165,6 @@ class ModelAndInfo:
         if not self._model:
             raise ValueError("Model has not been created.")
         return self._model
-
-    @property
-    def optimizer(self) -> Optimizer:
-        if not self._optimizer:
-            raise ValueError("Optimizer has not been created.")
-        return self._optimizer
 
     @property
     def mean_teacher_model(self) -> Optional[DeviceAwareModule]:
@@ -200,7 +191,7 @@ class ModelAndInfo:
         :param model: model to load weights
         :param checkpoint_path: Path to checkpoint
         :param key_in_state_dict: the key for the model weights in the checkpoint state dict
-        :param reader: Function which takes the path and returns a dict with model and optimizer states
+        :param reader: Function which takes the path and returns a dict with model states
         :return checkpoint epoch from the state dict
         """
         logging.info(f"Loading checkpoint {checkpoint_path}")
@@ -307,9 +298,6 @@ class ModelAndInfo:
         # Adjusting twice causes an error.
         if self.is_model_adjusted:
             logging.debug("model_and_info.is_model_adjusted is already True")
-
-        if self._optimizer:
-            raise ValueError("Create an optimizer only after creating and adjusting the model.")
 
         self._model = ModelAndInfo._adjust_for_gpus(model=self._model,
                                                     config=self.config,
