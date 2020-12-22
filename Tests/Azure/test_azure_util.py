@@ -87,10 +87,10 @@ def test_is_cross_validation_child_run_ensemble_run() -> None:
     """
     Test that cross validation child runs are identified correctly.
     """
-    rid = get_most_recent_run()
+    run_recovery_id = get_most_recent_run()
     run = fetch_run(
         workspace=get_default_workspace(),
-        run_recovery_id=rid
+        run_recovery_id=run_recovery_id
     )
     # check for offline run
     assert not is_cross_validation_child_run(Run.get_context())
