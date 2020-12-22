@@ -226,8 +226,7 @@ class Runner:
         cross_val_results_root = plot_cross_validation(plot_crossval_config)
         if self.post_cross_validation_hook:
             self.post_cross_validation_hook(self.model_config, cross_val_results_root)
-        # upload results to the parent run's outputs. Normally, we use blobxfer for that, but here we want
-        # to ensure that the files are visible inside the AzureML UI.
+        # upload results to the parent run's outputs so that the files are visible inside the AzureML UI.
         PARENT_RUN_CONTEXT.upload_folder(name=CROSSVAL_RESULTS_FOLDER, path=str(cross_val_results_root))
         if self.model_config.is_scalar_model:
             try:
@@ -428,7 +427,7 @@ class Runner:
         Create and return an ML runner using the attributes of this Runner object.
         """
         # This import statement cannot be at the beginning of the file because it will cause import
-        # of packages that are not available inside the azure_runner.yml environment: torch, blobxfer.
+        # of packages that are not available inside the azure_runner.yml environment, in particular pytorch.
         # That is also why we specify the return type as Any rather than MLRunner.
         from InnerEye.ML.run_ml import MLRunner
         return MLRunner(

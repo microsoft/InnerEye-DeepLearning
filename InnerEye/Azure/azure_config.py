@@ -109,7 +109,7 @@ class AzureConfig(GenericConfig):
     use_dataset_mount: bool = param.Boolean(False, doc="If true, consume an AzureML Dataset via mounting it "
                                                        "at job start. If false, consume it by downloading it at job "
                                                        "start. When running outside AzureML, datasets will always be "
-                                                       "downloaded via blobxfer.")
+                                                       "downloaded.")
     extra_code_directory: str = param.String(doc="Directory (relative to project root) containing code "
                                                  "(e.g. model config) to be included in the model for "
                                                  "inference. Ignored by default.")
