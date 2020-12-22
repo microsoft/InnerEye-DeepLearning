@@ -11,7 +11,7 @@ import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.metrics import Metric
-from pytorch_lightning.utilities import rank_zero_only
+from pytorch_lightning.utilities import move_data_to_device, rank_zero_only
 from torch.nn import ModuleDict, ModuleList
 
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, SUBJECT_METRICS_FILE_NAME
@@ -606,13 +606,27 @@ class ScalarLightning(InnerEyeLightning):
         :param device: The target CUDA device.
         :return: A modified batch of data, where all tensor now live on the given CUDA device.
         """
-        # For sequence models, this method receives a List[List[ScalarItem]]
-        items = batch["items"]
-        if isinstance(items, List) and isinstance(items[0], List) and isinstance(items[0][0], ScalarItem):
-            batch["items"] = [[j.to_device(device) for j in i] for i in items]
-            return batch
-        else:
-            return super().transfer_batch_to_device(batch, device)
+        return transfer_batch_to_device(batch, device)
+
+
+def transfer_batch_to_device(batch: Any, device: torch.device) -> Any:
+    """
+    For sequence models, transfer the nested lists of items to the given GPU device.
+    For all other models, this relies on Lightning's default code to move the batch of data to the GPU.
+    :param batch: A batch of data coming from the dataloader.
+    :param device: The target CUDA device.
+    :return: A modified batch of data, where all tensor now live on the given CUDA device.
+    """
+    if not isinstance(batch, dict):
+        raise ValueError(f"This function expects a dictionary input, but got: {type(batch)}")
+    # For sequence models, this method receives a dictionary with "item": List[List[ScalarItem]]
+    items = batch.get("items", None)
+    if items is not None and isinstance(items, List) and isinstance(items[0], List) and \
+            isinstance(items[0][0], ScalarItem):
+        batch["items"] = [[j.to_device(device) for j in i] for i in items]
+        return batch
+    else:
+        return move_data_to_device(batch, device)
 
 
 def create_lightning_model(config: ModelConfigBase) -> InnerEyeLightning:

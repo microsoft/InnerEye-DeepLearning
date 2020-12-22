@@ -17,6 +17,7 @@ from InnerEye.Common.metrics_dict import MetricType, create_metrics_dict_for_sca
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
+from InnerEye.ML.lightning_models import transfer_batch_to_device
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoder, ImagingFeatureType
@@ -521,6 +522,10 @@ def test_visualization_for_different_target_weeks(test_output_dirs: OutputFolder
                                                                  sample=batch)
 
     visualizer = VisualizationMaps(model, config)
+    if config.use_gpu:
+        device = visualizer.grad_cam.device
+        batch = transfer_batch_to_device(batch, device)
+        model = model.to(device)
     # Pseudo-grad cam explaining the prediction at target sequence 2
     _, _, pseudo_cam_non_img_3, probas_3 = visualizer.generate(model_inputs_and_labels.model_inputs,
                                                                target_position=2,
