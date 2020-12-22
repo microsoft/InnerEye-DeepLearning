@@ -39,6 +39,7 @@ def test_perform_score_comparisons() -> None:
     assert list(result.plots.keys()) == [f"{comparison_name}_vs_CURRENT"]
 
 
+# TODO: remove reference to epoch
 def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
     azure_config = get_default_azure_config()
     comparison_name = "DefaultName"

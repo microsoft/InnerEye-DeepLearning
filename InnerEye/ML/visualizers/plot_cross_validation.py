@@ -84,6 +84,7 @@ metric_types: Dict[str, Dict[str, Any]] = {
 }
 
 
+# TODO remove reference to epochs for comparisons
 class PlotCrossValidationConfig(GenericConfig):
     """
     Configurations required to download results from the children of a HyperDrive runs.
