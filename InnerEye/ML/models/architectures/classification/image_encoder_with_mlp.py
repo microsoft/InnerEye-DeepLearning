@@ -61,7 +61,6 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
                  encoder_dimensionality_reduction_factor: float = 0.8,
                  aggregation_type: AggregationType = AggregationType.Average,
                  scan_size: Optional[TupleInt3] = None,
-                 use_mixed_precision: bool = True,
                  ) -> None:
         """
         Creates an image classifier that has UNet encoders sections for each image channel. The encoder output
@@ -83,13 +82,10 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
         combined model to balance with non imaging features.
         :param scan_size: should be a tuple representing 3D tensor shape and if specified it's usedd in initializing
         gated pooling or z-adaptive. The first element should be representing the z-direction for classification images
-        :param use_mixed_precision: If True, assume that training happens with mixed precision. Segmentations will
-        be converted to float16 tensors right away. If False, segmentations will be converted to float32 tensors.
         """
         super().__init__()
         self.num_non_image_features = num_non_image_features
         self.imaging_feature_type = imaging_feature_type
-        self.use_mixed_precision = use_mixed_precision
         if isinstance(kernel_size_per_encoding_block, list):
             if len(kernel_size_per_encoding_block) != num_encoder_blocks:
                 raise ValueError(f"expected kernel_size_per_encoding_block to be of "
@@ -200,7 +196,6 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
         :return: Tensor
         """
         use_gpu = self.is_model_on_gpu()
-        result_dtype = torch.float16 if self.use_mixed_precision and use_gpu else torch.float32
         if self.imaging_feature_type == ImagingFeatureType.Segmentation \
                 or self.imaging_feature_type == ImagingFeatureType.ImageAndSegmentation:
             if item.segmentations is None:
@@ -213,32 +208,29 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
                 segmentation_multilabel = segmentation_multilabel.unsqueeze(dim=0)
             segmentation_one_hot = segmentation_to_one_hot(segmentation_multilabel,
                                                            use_gpu=use_gpu,
-                                                           result_dtype=result_dtype)
+                                                           result_dtype=torch.float32)
             if is_4dim:
                 segmentation_one_hot = segmentation_one_hot.squeeze(dim=0)
             input_tensors = [segmentation_one_hot]
 
             if self.imaging_feature_type == ImagingFeatureType.ImageAndSegmentation:
-                input_tensors.append(item.images.to(dtype=result_dtype, copy=True))
+                input_tensors.append(item.images)
                 _dim = 0 if item.images.ndimension() == 4 else 1
                 input_tensors = [torch.cat(input_tensors, dim=_dim)]
         else:
-            input_tensors = [item.images.to(dtype=result_dtype, copy=True)]
+            input_tensors = [item.images]
 
         if self.image_and_non_image_features_aggregator:
             input_tensors.append(item.get_all_non_imaging_features())
         return input_tensors
 
     def forward(self, *item: torch.Tensor, **kwargs: Any) -> torch.Tensor:
-        def _forward() -> torch.Tensor:
-            x = item[0]
-            x = self.encode_and_aggregate(x)
-            # combine non image features if required
-            if self.image_and_non_image_features_aggregator:
-                x = self.image_and_non_image_features_aggregator(x, item[1].float())
-            return x
-
-        return execute_within_autocast_if_needed(func=_forward, use_autocast=self.use_mixed_precision)
+        x = item[0]
+        x = self.encode_and_aggregate(x)
+        # combine non image features if required
+        if self.image_and_non_image_features_aggregator:
+            x = self.image_and_non_image_features_aggregator(x, item[1].float())
+        return x
 
     def encode_and_aggregate(self, x: torch.Tensor) -> torch.Tensor:
         return encode_and_aggregate(encoder=self.encoder,
@@ -294,7 +286,6 @@ class ImageEncoderWithMlp(ImageEncoder):
                  encoder_dimensionality_reduction_factor: float = 0.8,
                  aggregation_type: AggregationType = AggregationType.Average,
                  scan_size: Optional[TupleInt3] = None,
-                 use_mixed_precision: bool = True,
                  ) -> None:
         """
         Creates an image classifier that has UNet encoders sections for each image channel. The encoder output
@@ -319,8 +310,6 @@ class ImageEncoderWithMlp(ImageEncoder):
         combined model to balance with non imaging features.
         :param scan_size: should be a tuple representing 3D tensor shape and if specified it's usedd in initializing
         gated pooling or z-adaptive. The first element should be representing the z-direction for classification images
-        :param use_mixed_precision: If True, assume that training happens with mixed precision. Segmentations will
-        be converted to float16 tensors right away. If False, segmentations will be converted to float32 tensors.
         """
         super().__init__(imaging_feature_type=imaging_feature_type,
                          encode_channels_jointly=encode_channels_jointly,
@@ -333,19 +322,15 @@ class ImageEncoderWithMlp(ImageEncoder):
                          stride_size_per_encoding_block=stride_size_per_encoding_block,
                          encoder_dimensionality_reduction_factor=encoder_dimensionality_reduction_factor,
                          aggregation_type=aggregation_type,
-                         scan_size=scan_size,
-                         use_mixed_precision=use_mixed_precision)
+                         scan_size=scan_size)
         self.classification_layer = create_mlp(self.final_num_feature_channels, mlp_dropout)
         self.final_activation = final_activation
 
     def forward(self, *item: torch.Tensor, **kwargs: Any) -> torch.Tensor:
-        def _forward() -> torch.Tensor:
-            x = super(ImageEncoderWithMlp, self).forward(*item)
-            # pass all the features to the MLP
-            x = self.classification_layer(x.view(-1, x.shape[1]))
-            return self.final_activation(x)
-
-        return execute_within_autocast_if_needed(func=_forward, use_autocast=self.use_mixed_precision)
+        x = super(ImageEncoderWithMlp, self).forward(*item)
+        # pass all the features to the MLP
+        x = self.classification_layer(x.view(-1, x.shape[1]))
+        return self.final_activation(x)
 
 
 def encode_and_aggregate(input_tensor: torch.Tensor,

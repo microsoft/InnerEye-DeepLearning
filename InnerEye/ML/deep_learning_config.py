@@ -365,6 +365,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                                  "when training is running outside Azure.")
     max_num_gpus: int = param.Integer(default=-1, doc="The maximum number of GPUS to use. If set to a value < 0, use"
                                                       "all available GPUs.")
+    generate_report: bool = param.Boolean(default=True,
+                                          doc="If True (default), write a modelling report in HTML format. If False,"
+                                              "do not write that report.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__

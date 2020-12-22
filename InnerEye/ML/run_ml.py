@@ -273,11 +273,12 @@ class MLRunner:
         best_epoch = self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
 
         # Generate report
-        if best_epoch:
-            Runner.generate_report(self.model_config, best_epoch, ModelProcessing.DEFAULT)
-        elif self.model_config.is_scalar_model:
-            # We don't register scalar models but still want to create a report if we have run inference.
-            Runner.generate_report(self.model_config, best_epoch=-1, model_proc=ModelProcessing.DEFAULT)
+        if self.model_config.generate_report:
+            if best_epoch:
+                Runner.generate_report(self.model_config, best_epoch, ModelProcessing.DEFAULT)
+            elif self.model_config.is_scalar_model:
+                # We don't register scalar models but still want to create a report if we have run inference.
+                Runner.generate_report(self.model_config, best_epoch=-1, model_proc=ModelProcessing.DEFAULT)
 
     def run_inference_and_register_model(self, checkpoint_handler: CheckpointHandler,
                                          model_proc: ModelProcessing) -> Optional[int]:
