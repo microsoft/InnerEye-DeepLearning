@@ -385,15 +385,14 @@ def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> 
     results = model_train(config, get_default_checkpoint_handler(model_config=config,
                                                                  project_root=test_output_dirs.root_dir))
 
-    actual_train_loss = results.train_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
-    actual_val_loss = results.val_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
+    actual_train_loss = results.get_metric(is_training=True, metric_type=MetricType.LOSS)[-1]
+    actual_val_loss = results.get_metric(is_training=False, metric_type=MetricType.LOSS)[-1]
     print(f"Training loss after {config.num_epochs} epochs: {actual_train_loss}")
     print(f"Validation loss after {config.num_epochs} epochs: {actual_val_loss}")
     assert actual_train_loss <= expected_max_train_loss, "Training loss too high"
     assert actual_val_loss <= expected_max_val_loss, "Validation loss too high"
-    assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
-           == config.get_total_number_of_save_epochs()
-    assert np.allclose(results.optimal_temperature_scale_values_per_checkpoint_epoch, [0.97], rtol=0.1)
+    # TODO antonsc: put back in when temperature scaling is enabled again
+    # assert np.allclose(results.optimal_temperature_scale_values_per_checkpoint_epoch, [0.97], rtol=0.1)
 
 
 class ToyMultiLabelSequenceModel(SequenceModelBase):
@@ -412,6 +411,8 @@ class ToyMultiLabelSequenceModel(SequenceModelBase):
             l_rate=1e-1,
             label_smoothing_eps=0.05,
             categorical_columns=["CAT1"],
+            # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+            max_num_gpus=1,
             **kwargs
         )
 
