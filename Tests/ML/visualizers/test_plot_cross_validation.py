@@ -26,26 +26,18 @@ from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
     RunResultFiles, add_comparison_data, check_result_file_counts, create_portal_query_for_outliers, \
     create_results_breakdown, download_crossval_result_files, get_split_id, load_dataframes, \
     plot_cross_validation_from_files, save_outliers
-from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
+from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
 from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToyMultiLabelSequenceModel, \
     _get_multi_label_sequence_dataframe
 from Tests.ML.util import assert_text_files_match, get_default_azure_config
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
-
-
-@pytest.fixture
-def test_config_ensemble() -> PlotCrossValidationConfig:
-    return PlotCrossValidationConfig(
-        run_recovery_id=DEFAULT_ENSEMBLE_RUN_RECOVERY_ID,
-        epoch=1,
-        model_category=ModelCategory.Segmentation
-    )
+from Tests.AfterTraining.test_after_training import get_most_recent_run
 
 
 @pytest.fixture
 def test_config() -> PlotCrossValidationConfig:
     return PlotCrossValidationConfig(
-        run_recovery_id=DEFAULT_RUN_RECOVERY_ID,
+        run_recovery_id=get_most_recent_run(),
         epoch=1,
         model_category=ModelCategory.Segmentation
     )
@@ -114,14 +106,15 @@ def create_file_list_for_segmentation_recovery_run(test_config_ensemble: PlotCro
                                        folder="master_1570466706163110")
 
 
-def test_metrics_preparation_for_segmentation(test_config_ensemble: PlotCrossValidationConfig) -> None:
+@pytest.mark.after_training_ensemble_run
+def test_metrics_preparation_for_segmentation(test_config: PlotCrossValidationConfig) -> None:
     """
     Test if metrics dataframes can be loaded and prepared. The files in question are checked in, but
     were downloaded from a run, ID given in DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.
     """
-    files = create_file_list_for_segmentation_recovery_run(test_config_ensemble)
-    downloaded_metrics = load_dataframes(files, test_config_ensemble)
-    for mode in test_config_ensemble.execution_modes_to_download():
+    files = create_file_list_for_segmentation_recovery_run(test_config)
+    downloaded_metrics = load_dataframes(files, test_config)
+    for mode in test_config.execution_modes_to_download():
         expected_df = _get_metrics_df(mode)
         # Drop the "mode" column, because that was added after creating the test data
         metrics = downloaded_metrics[mode]
@@ -281,15 +274,16 @@ def test_add_comparison_data(test_config_comparison: PlotCrossValidationConfig) 
     assert set(all_metrics.split) == {focus_split, comparison_split}
 
 
-def test_save_outliers(test_config_ensemble: PlotCrossValidationConfig,
+@pytest.mark.after_training_ensemble_run
+def test_save_outliers(test_config: PlotCrossValidationConfig,
                        test_output_dirs: OutputFolderForTests) -> None:
     """Test to make sure the outlier file for a split is as expected"""
-    test_config_ensemble.outputs_directory = test_output_dirs.root_dir
-    test_config_ensemble.outlier_range = 0
+    test_config.outputs_directory = test_output_dirs.root_dir
+    test_config.outlier_range = 0
     dataset_split_metrics = {x: _get_metrics_df(x) for x in [ModelExecutionMode.VAL]}
-    save_outliers(test_config_ensemble, dataset_split_metrics, test_config_ensemble.outputs_directory)
+    save_outliers(test_config, dataset_split_metrics, test_config.outputs_directory)
     f = f"{ModelExecutionMode.VAL.value}_outliers.txt"
-    assert_text_files_match(full_file=test_config_ensemble.outputs_directory / f,
+    assert_text_files_match(full_file=test_config.outputs_directory / f,
                             expected_file=full_ml_test_data_path(f))
 
 
@@ -346,6 +340,7 @@ def test_get_split_index() -> None:
     assert get_split_id(tags) == "42"
 
 
+@pytest.mark.after_training_single_run
 @pytest.mark.parametrize("is_current_run", [True, False])
 def test_download_or_get_local_blobs(is_current_run: bool,
                                      test_config: PlotCrossValidationConfig,
