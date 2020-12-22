@@ -240,7 +240,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
                                       "found image_channels shape: {}".format(image_channels.shape))
         if mask is not None:
             ml_util.check_size_matches(image_channels, mask, 4, 3, [-1, -2, -3])
-
+        self.model.eval()
         # create the dataset for the batch
         batch_dataset = Dataset(index=[patient_id], batch_class=InferenceBatch)
         # setup the pipeline

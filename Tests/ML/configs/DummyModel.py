@@ -62,6 +62,8 @@ class DummyModel(SegmentationModelBase):
             use_mixed_precision=False,
         )
         self.add_and_validate(kwargs)
+        # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+        self.max_num_gpus = 1
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits(train=dataset_df[dataset_df.subject.isin(['1', '2'])],

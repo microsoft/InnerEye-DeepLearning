@@ -84,8 +84,6 @@ def disabled_test_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> 
             return model.parameters()
 
     config = DummyClassification()
-    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
-    config.max_num_gpus = 1
     config.set_output_to(test_output_dirs.root_dir)
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)

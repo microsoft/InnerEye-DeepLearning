@@ -37,26 +37,6 @@ config_path = full_ml_test_data_path()
 base_path = full_ml_test_data_path()
 
 
-def test_get_total_number_of_validation_epochs() -> None:
-    """
-    Since an extra validation epoch is performed when temperature scaling for each checkpoint, make sure
-    the expected count is correct, as it is used to restrict the iterations on the validation data loader.
-    """
-    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1],
-                          temperature_scaling_config=None, should_validate=False)
-    assert c.get_total_number_of_validation_epochs() == 2
-    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1], should_validate=False,
-                          temperature_scaling_config=TemperatureScalingConfig())
-    assert c.get_total_number_of_validation_epochs() == 3
-    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1], temperature_scaling_config=None,
-                          save_start_epoch=1, save_step_epochs=1, should_validate=False)
-    assert c.get_total_number_of_validation_epochs() == 2
-    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1],
-                          save_start_epoch=1, save_step_epochs=1, should_validate=False,
-                          temperature_scaling_config=TemperatureScalingConfig())
-    assert c.get_total_number_of_validation_epochs() == 4
-
-
 def test_get_total_number_of_training_epochs() -> None:
     c = DeepLearningConfig(num_epochs=2, should_validate=False)
     assert c.get_total_number_of_training_epochs() == 2
@@ -98,8 +78,6 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.class_weights = [0.5, 0.25, 0.25]
     train_config.store_dataset_sample = True
     train_config.save_step_epochs = 2
-    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
-    train_config.max_num_gpus = 1
 
     expected_train_losses = [0.455572, 0.455031]
     expected_val_losses = [0.455479, 0.455430]

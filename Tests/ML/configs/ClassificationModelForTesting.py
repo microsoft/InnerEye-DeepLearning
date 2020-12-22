@@ -33,6 +33,8 @@ class ClassificationModelForTesting(ScalarModelBase):
         )
         self.expected_image_size_zyx = (4, 5, 7)
         self.conv_in_3d = conv_in_3d
+        # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+        self.max_num_gpus = 1
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits.from_proportions(

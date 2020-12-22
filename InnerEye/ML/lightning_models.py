@@ -441,8 +441,6 @@ class ScalarLightning(InnerEyeLightning):
     def __init__(self, config: ScalarModelBase, *args, **kwargs) -> None:
         super().__init__(config, *args, **kwargs)
         self.model = config.create_model()
-        # TODO antonsc: The old code also changed the datatype for the loss tensor, depending on the
-        # loss function
         raw_loss = model_util.create_scalar_loss_function(config)
         if isinstance(config, SequenceModelBase):
             self.loss_fn = lambda model_output, loss: apply_sequence_model_loss(raw_loss, model_output, loss)
