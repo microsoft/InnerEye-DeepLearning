@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from pathlib import Path
+from typing import List
 
 import pytest
 
@@ -43,6 +44,12 @@ def test_download_checkpoints_invalid_run(test_output_dirs: OutputFolderForTests
 @pytest.mark.after_training_single_run
 def test_download_checkpoints_single_run(test_output_dirs: OutputFolderForTests,
                                          runner_config: AzureConfig) -> None:
+
+    def check_single_checkpoint(downloaded_checkpoints: List[Path], expected_checkpoint: Path):
+        assert len(downloaded_checkpoints) == 1
+        assert downloaded_checkpoints[0] == expected_checkpoint
+        assert expected_checkpoint.exists()
+
     output_dir = test_output_dirs.root_dir
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(output_dir)
@@ -51,22 +58,25 @@ def test_download_checkpoints_single_run(test_output_dirs: OutputFolderForTests,
     run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config)
     run_to_recover = fetch_run(workspace=runner_config.get_workspace(), run_recovery_id=runner_config.run_recovery_id)
     checkpoint_root = config.checkpoint_folder / run_to_recover.id
+
     expected_checkpoint_epoch_1 = create_checkpoint_path(path=checkpoint_root, epoch=1)
     downloaded_checkpoint_path_epoch_1 = run_recovery.get_checkpoint_paths(1)
-    assert len(downloaded_checkpoint_path_epoch_1) == 1
-    assert downloaded_checkpoint_path_epoch_1[0] == expected_checkpoint_epoch_1
-    assert expected_checkpoint_epoch_1.exists()
+    check_single_checkpoint(downloaded_checkpoint_path_epoch_1, expected_checkpoint_epoch_1)
 
     expected_checkpoint_best_epoch = checkpoint_root / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
     downloaded_checkpoint_path_best_epoch = run_recovery.get_best_checkpoint_paths()
-    assert len(downloaded_checkpoint_path_best_epoch) == 1
-    assert downloaded_checkpoint_path_best_epoch == expected_checkpoint_best_epoch
-    assert expected_checkpoint_best_epoch.exists()
+    check_single_checkpoint(downloaded_checkpoint_path_best_epoch, expected_checkpoint_best_epoch)
 
 
 @pytest.mark.after_training_ensemble_run
 def test_download_checkpoints_ensemble_run(test_output_dirs: OutputFolderForTests,
                                            runner_config: AzureConfig) -> None:
+
+    def check_multiple_checkpoints(downloaded_checkpoints: List[Path], expected_checkpoints: List[Path]):
+        assert len(downloaded_checkpoints) == len(expected_checkpoints)
+        assert all([x in expected_checkpoints for x in downloaded_checkpoints])
+        assert all([expected_file.exists() for expected_file in expected_checkpoints])
+
     output_dir = test_output_dirs.root_dir
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(output_dir)
@@ -79,24 +89,18 @@ def test_download_checkpoints_ensemble_run(test_output_dirs: OutputFolderForTest
     expected_checkpoint_roots = [checkpoint_root_other_runs / str(x.get_tags()['cross_validation_split_index'])
                                  for x in child_runs]
 
+    assert len(run_recovery.checkpoints_roots) == len(expected_checkpoint_roots)
+    assert all([x in expected_checkpoint_roots for x in run_recovery.checkpoints_roots])
+
     expected_checkpoints_epoch_1 = [create_checkpoint_path(path=root, epoch=1)
                                     for root in expected_checkpoint_roots]
-
     checkpoint_paths_epoch_1 = run_recovery.get_checkpoint_paths(1)
-    assert len(run_recovery.checkpoints_roots) == len(expected_checkpoints_epoch_1)
-    assert all([x in expected_checkpoint_roots for x in run_recovery.checkpoints_roots])
-    assert len(checkpoint_paths_epoch_1) == len(expected_checkpoints_epoch_1)
-    assert all([x in expected_checkpoints_epoch_1 for x in checkpoint_paths_epoch_1])
-    assert all([expected_file.exists() for expected_file in expected_checkpoints_epoch_1])
+    check_multiple_checkpoints(checkpoint_paths_epoch_1, expected_checkpoints_epoch_1)
 
     expected_checkpoint_best_epoch = [root / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
                                       for root in expected_checkpoint_roots]
     checkpoint_paths_best_epoch = run_recovery.get_best_checkpoint_paths()
-    assert len(run_recovery.checkpoints_roots) == len(expected_checkpoint_roots)
-    assert all([x in expected_checkpoint_roots for x in run_recovery.checkpoints_roots])
-    assert len(checkpoint_paths_best_epoch) == len(expected_checkpoint_best_epoch)
-    assert all([x in expected_checkpoint_best_epoch for x in checkpoint_paths_best_epoch])
-    assert all([expected_file.exists() for expected_file in expected_checkpoint_best_epoch])
+    check_multiple_checkpoints(checkpoint_paths_best_epoch, expected_checkpoint_best_epoch)
 
 
 @pytest.mark.after_training_ensemble_run
