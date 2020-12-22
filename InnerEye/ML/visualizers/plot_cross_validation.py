@@ -427,7 +427,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         for mode in config.execution_modes_to_download():
             # download metrics.csv file for each split. metrics_file can be None if the file does not exist
             # (for example, if no output was written for execution mode Test)
-            metrics_file = download_metrics_file(config, run, folder_for_run, epoch, mode)
+            metrics_file = download_metrics_file(config, run, folder_for_run, -1, mode)
             if metrics_file:
                 result.append(RunResultFiles(execution_mode=mode,
                                              dataset_csv_file=dataset_file,
