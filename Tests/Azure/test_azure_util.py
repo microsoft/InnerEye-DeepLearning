@@ -71,10 +71,10 @@ def test_is_cross_validation_child_run_single_run() -> None:
     Test that cross validation child runs are identified correctly. A single run should not be identified as a
     cross validation run.
     """
-    rid = get_most_recent_run()
+    run_recovery_id = get_most_recent_run()
     run = fetch_run(
         workspace=get_default_workspace(),
-        run_recovery_id=rid
+        run_recovery_id=run_recovery_id
     )
     # check for offline run
     assert not is_cross_validation_child_run(Run.get_context())
@@ -202,15 +202,3 @@ def test_is_completed_ensemble_run() -> None:
     logging_to_stdout()
     workspace = get_default_workspace()
     get_run_and_check(get_most_recent_run(), True, workspace)
-
-
-# TODO remove reference to hardcoded run ID
-def test_is_completed_failed_run() -> None:
-    """
-    Test if we can correctly check run status and status of child runs for a failed ensemble run.
-    :return:
-    """
-    logging_to_stdout()
-    workspace = get_default_workspace()
-    # This Hyperdrive run has 1 failing child run, the parent run completed successfully.
-    get_run_and_check("refs_pull_326_merge:HD_d123f042-ca58-4e35-9a64-48d71c5f63a7", False, workspace)

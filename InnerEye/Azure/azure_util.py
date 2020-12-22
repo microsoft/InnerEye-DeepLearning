@@ -114,10 +114,10 @@ def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> 
     :param run_id: a string representing the Run ID of one of the runs of the experiment
     :return: the run matching run_id_or_number; raises an exception if not found
     """
-    available_runs = experiment_to_recover.get_runs()
     try:
         return get_run(experiment=experiment_to_recover, run_id=run_id, rehydrate=True)
     except Exception:
+        available_runs = experiment_to_recover.get_runs()
         available_ids = ", ".join([run.id for run in available_runs])
         raise (Exception(
             "Run {} not found for experiment: {}. Available runs are: {}".format(

@@ -26,7 +26,6 @@ from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
     RunResultFiles, add_comparison_data, check_result_file_counts, create_portal_query_for_outliers, \
     create_results_breakdown, download_crossval_result_files, get_split_id, load_dataframes, \
     plot_cross_validation_from_files, save_outliers
-from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
 from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToyMultiLabelSequenceModel, \
     _get_multi_label_sequence_dataframe
 from Tests.ML.util import assert_text_files_match, get_default_azure_config
@@ -46,18 +45,18 @@ def test_config() -> PlotCrossValidationConfig:
 @pytest.fixture
 def test_config_comparison() -> PlotCrossValidationConfig:
     return PlotCrossValidationConfig(
-        run_recovery_id=DEFAULT_ENSEMBLE_RUN_RECOVERY_ID + "_0",
+        run_recovery_id=get_most_recent_run() + "_0",
         epoch=1,
-        comparison_run_recovery_ids=[DEFAULT_ENSEMBLE_RUN_RECOVERY_ID + "_1"],
+        comparison_run_recovery_ids=[get_most_recent_run() + "_1"],
         comparison_epochs=[1],
         model_category=ModelCategory.Segmentation
     )
 
 
-def _get_metrics_df(mode: ModelExecutionMode) -> pd.DataFrame:
+def _get_metrics_df(run_recovery_id: str, mode: ModelExecutionMode) -> pd.DataFrame:
     metrics_df = pd.read_csv(full_ml_test_data_path("{}_agg_splits.csv".format(mode.value)))
     # noinspection PyUnresolvedReferences
-    metrics_df.split = [DEFAULT_ENSEMBLE_RUN_RECOVERY_ID + "_" + index for index in metrics_df.split.astype(str)]
+    metrics_df.split = [run_recovery_id + "_" + index for index in metrics_df.split.astype(str)]
     return metrics_df.sort_values(list(metrics_df.columns), ascending=True).reset_index(drop=True)
 
 
@@ -115,7 +114,7 @@ def test_metrics_preparation_for_segmentation(test_config: PlotCrossValidationCo
     files = create_file_list_for_segmentation_recovery_run(test_config)
     downloaded_metrics = load_dataframes(files, test_config)
     for mode in test_config.execution_modes_to_download():
-        expected_df = _get_metrics_df(mode)
+        expected_df = _get_metrics_df(test_config.run_recovery_id, mode)
         # Drop the "mode" column, because that was added after creating the test data
         metrics = downloaded_metrics[mode]
         assert metrics is not None
@@ -262,6 +261,7 @@ def test_result_aggregation_for_classification_all_epochs(test_output_dirs: Outp
                                                 expected_epochs={1, 2, 3})
 
 
+@pytest.mark.after_training_ensemble_run
 def test_add_comparison_data(test_config_comparison: PlotCrossValidationConfig) -> None:
     test_config_comparison.epoch = 2
     test_config_comparison.comparison_epochs = [2]
@@ -280,7 +280,7 @@ def test_save_outliers(test_config: PlotCrossValidationConfig,
     """Test to make sure the outlier file for a split is as expected"""
     test_config.outputs_directory = test_output_dirs.root_dir
     test_config.outlier_range = 0
-    dataset_split_metrics = {x: _get_metrics_df(x) for x in [ModelExecutionMode.VAL]}
+    dataset_split_metrics = {x: _get_metrics_df(test_config.run_recovery_id, x) for x in [ModelExecutionMode.VAL]}
     save_outliers(test_config, dataset_split_metrics, test_config.outputs_directory)
     f = f"{ModelExecutionMode.VAL.value}_outliers.txt"
     assert_text_files_match(full_file=test_config.outputs_directory / f,
