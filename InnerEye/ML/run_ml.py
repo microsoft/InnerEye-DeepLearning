@@ -270,17 +270,15 @@ class MLRunner:
 
         # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
         # the current run is a single one. See the documentation of ModelProcessing for more details.
-        best_epoch = self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
+        self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
 
-        # Generate report
-        if best_epoch:
-            Runner.generate_report(self.model_config, best_epoch, ModelProcessing.DEFAULT)
-        elif self.model_config.is_scalar_model:
-            # We don't register scalar models but still want to create a report if we have run inference.
-            Runner.generate_report(self.model_config, best_epoch=-1, model_proc=ModelProcessing.DEFAULT)
+        if self.model_config.is_scalar_model or self.model_config.is_segmentation_model:
+            # Generate report
+            Runner.generate_report(self.model_config, ModelProcessing.DEFAULT)
+            Runner.generate_report(self.model_config, model_proc=ModelProcessing.DEFAULT)
 
     def run_inference_and_register_model(self, checkpoint_handler: CheckpointHandler,
-                                         model_proc: ModelProcessing) -> Optional[int]:
+                                         model_proc: ModelProcessing) -> None:
         """
         Run inference as required, and register the model, but not necessarily in that order:
         if we can identify the epoch to register at without running inference, we register first.
@@ -288,7 +286,6 @@ class MLRunner:
         :param model_proc: whether we are running an ensemble model from within a child run with index 0. If we are,
         then outputs will be written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
         """
-        validation_epoch = None
 
         if self.should_register_model():
             checkpoint_paths = self.decide_registration_epoch_without_evaluating(checkpoint_handler=checkpoint_handler)
@@ -306,8 +303,6 @@ class MLRunner:
                                                                                model_proc=model_proc)
 
             self.try_compare_scores_against_baselines(model_proc)
-
-        return validation_epoch
 
     def should_register_model(self) -> bool:
         """

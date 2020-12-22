@@ -34,19 +34,13 @@ METRICS_AGGREGATES_FILE = "metrics_aggregates.csv"
 CROSSVAL_RESULTS_FOLDER = "CrossValResults"
 BASELINE_COMPARISONS_FOLDER = "BaselineComparisons"
 FULL_METRICS_DATAFRAME_FILE = "MetricsAcrossAllRuns.csv"
+BEST_EPOCH_FOLDER_NAME = "best_validation_epoch"
 
 OTHER_RUNS_SUBDIR_NAME = "OTHER_RUNS"
 ENSEMBLE_SPLIT_NAME = "ENSEMBLE"
 
 SCATTERPLOTS_SUBDIR_NAME = "scatterplots"
 BASELINE_WILCOXON_RESULTS_FILE = "BaselineComparisonWilcoxonSignedRankTestResults.txt"
-
-
-def epoch_folder_name(epoch: int) -> str:
-    """
-    Returns a formatted name for the a given epoch number, padded with zeros to 3 digits.
-    """
-    return "epoch_{0:03d}".format(epoch)
 
 
 class ModelProcessing(Enum):
@@ -79,7 +73,7 @@ class ModelProcessing(Enum):
     ENSEMBLE_CREATION = 'ensemble_creation'
 
 
-def get_epoch_results_path(epoch: int, mode: ModelExecutionMode,
+def get_epoch_results_path(mode: ModelExecutionMode,
                            model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Path:
     """
     For a given model execution mode, and an epoch index, creates the relative results path
@@ -89,7 +83,7 @@ def get_epoch_results_path(epoch: int, mode: ModelExecutionMode,
     :param model_proc: whether this is for an ensemble or single model. If ensemble, we return a different path
     to avoid colliding with the results from the single model that may have been created earlier in the same run.
     """
-    subpath = Path(epoch_folder_name(epoch)) / mode.value
+    subpath = Path(BEST_EPOCH_FOLDER_NAME) / mode.value
     if model_proc == ModelProcessing.ENSEMBLE_CREATION:
         return Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME / subpath
     else:

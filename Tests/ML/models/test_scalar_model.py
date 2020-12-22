@@ -15,7 +15,7 @@ import torch
 
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, METRICS_AGGREGATES_FILE, \
-    SUBJECT_METRICS_FILE_NAME, epoch_folder_name, logging_to_stdout
+    SUBJECT_METRICS_FILE_NAME, BEST_EPOCH_FOLDER_NAME, logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, model_training, runner
@@ -92,12 +92,11 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
                                             checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
-    assert list(test_results.epochs.keys()) == [-1]
     if use_mixed_precision_and_gpu:
         expected_metrics = [0.636085, 0.735952]
     else:
         expected_metrics = [0.636084, 0.735952]
-    assert test_results.epochs[-1].values()[MetricType.CROSS_ENTROPY.value] == \
+    assert test_results.metrics.values()[MetricType.CROSS_ENTROPY.value] == \
            pytest.approx(expected_metrics, abs=1e-5)
     # Run detailed logs file check only on CPU, it will contain slightly different metrics on GPU, but here
     # we want to mostly assert that the files look reasonable
@@ -138,7 +137,7 @@ Default,3,S2,0.5293986201286316,1.0,-1,Train
 
     # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
     # Normally, we would run it on the Test and Val splits, but for convenience we test on the train split here.
-    inference_metrics_path = config.outputs_folder / Path(epoch_folder_name(-1)) / \
+    inference_metrics_path = config.outputs_folder / Path(BEST_EPOCH_FOLDER_NAME) / \
                              ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
     inference_metrics_expected = \
         """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split

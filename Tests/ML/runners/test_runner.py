@@ -43,16 +43,15 @@ def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
     if result is None:
         raise ValueError("Error result cannot be None")
     assert isinstance(result, InferenceMetricsForSegmentation)
-    for key, _ in result.epochs.items():
-        epoch_folder_name = common_util.epoch_folder_name(key)
-        for folder in [ModelExecutionMode.TRAIN.value, ModelExecutionMode.VAL.value, ModelExecutionMode.TEST.value]:
-            results_folder = config.outputs_folder / epoch_folder_name / folder
-            folder_exists = results_folder.is_dir()
-            if folder in [ModelExecutionMode.TRAIN.value, ModelExecutionMode.VAL.value]:
-                if perform_training_set_inference:
-                    assert folder_exists
-            else:
+    epoch_folder_name = common_util.BEST_EPOCH_FOLDER_NAME
+    for folder in [ModelExecutionMode.TRAIN.value, ModelExecutionMode.VAL.value, ModelExecutionMode.TEST.value]:
+        results_folder = config.outputs_folder / epoch_folder_name / folder
+        folder_exists = results_folder.is_dir()
+        if folder in [ModelExecutionMode.TRAIN.value, ModelExecutionMode.VAL.value]:
+            if perform_training_set_inference:
                 assert folder_exists
+        else:
+            assert folder_exists
 
 
 def test_logging_to_file(test_output_dirs: OutputFolderForTests) -> None:

@@ -96,13 +96,10 @@ def segmentation_model_test(config: SegmentationModelBase,
     if not checkpoints_to_test:
         raise ValueError("There were no checkpoints available for model testing.")
 
-    # TODO
-    epoch = -1
-
-    epoch_results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc)
+    epoch_results_folder = config.outputs_folder / get_epoch_results_path(data_split, model_proc)
     # save the datasets.csv used
     config.write_dataset_files(root=epoch_results_folder)
-    epoch_and_split = "epoch {} {} set".format(epoch, data_split.value)
+    epoch_and_split = f"{data_split.value} set"
     epoch_dice_per_image = segmentation_model_test_epoch(config=copy.deepcopy(config),
                                                          data_split=data_split,
                                                          checkpoint_paths=checkpoints_to_test,
@@ -113,12 +110,12 @@ def segmentation_model_test(config: SegmentationModelBase,
     else:
         epoch_average_dice: float = np.mean(epoch_dice_per_image) if len(epoch_dice_per_image) > 0 else 0
         result = epoch_average_dice
-        logging.info("Epoch: {:3} | Mean Dice: {:4f}".format(epoch, epoch_average_dice))
+        logging.info(f"Mean Dice: {epoch_average_dice:4f}")
         if model_proc == ModelProcessing.ENSEMBLE_CREATION:
             # For the upload, we want the path without the "OTHER_RUNS/ENSEMBLE" prefix.
-            name = str(get_epoch_results_path(epoch, data_split, ModelProcessing.DEFAULT))
+            name = str(get_epoch_results_path(data_split, ModelProcessing.DEFAULT))
             PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
-    return InferenceMetricsForSegmentation(data_split=data_split, epochs={epoch: result})
+    return InferenceMetricsForSegmentation(data_split=data_split, metrics=result)
 
 
 def segmentation_model_test_epoch(config: SegmentationModelBase,
@@ -434,9 +431,6 @@ def classification_model_test(config: ScalarModelBase,
 
     checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
 
-    # TODO
-    epoch = -1
-
     if not checkpoints_to_test:
         raise ValueError("There were no checkpoints available for model testing.")
 
@@ -445,7 +439,7 @@ def classification_model_test(config: ScalarModelBase,
         raise ValueError("There was no single checkpoint file available for model testing.")
     else:
         if isinstance(result, ScalarMetricsDict):
-            results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc)
+            results_folder = config.outputs_folder / get_epoch_results_path(data_split, model_proc)
             csv_file = results_folder / SUBJECT_METRICS_FILE_NAME
 
             logging.info(f"Writing {data_split.value} metrics to file {str(csv_file)}")
@@ -458,10 +452,9 @@ def classification_model_test(config: ScalarModelBase,
                 df_logger = DataframeLogger(csv_file)
 
                 # cross validation split index not relevant during test time
-                result.store_metrics_per_subject(epoch=epoch,
-                                                 df_logger=df_logger,
+                result.store_metrics_per_subject(df_logger=df_logger,
                                                  mode=data_split)
                 # write to disk
                 df_logger.flush()
 
-    return InferenceMetricsForClassification(epochs={epoch: result})
+    return InferenceMetricsForClassification(metrics=result)

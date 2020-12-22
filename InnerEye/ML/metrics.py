@@ -228,7 +228,7 @@ class InferenceMetricsForClassification(InferenceMetrics):
     """
     Stores a dictionary mapping from epoch number to the metrics that were achieved in that epoch.
     """
-    epochs: Dict[int, MetricsDict]
+    metrics: MetricsDict
 
 
 @dataclass(frozen=True)
@@ -237,20 +237,7 @@ class InferenceMetricsForSegmentation(InferenceMetrics):
     Stores metrics for segmentation models, per execution mode and epoch.
     """
     data_split: ModelExecutionMode
-    epochs: Dict[int, float]
-
-    def get_best_epoch_dice(self) -> float:
-        """
-        Gets the Dice score that the model achieves in the best epoch.
-        """
-        return self.epochs[self.get_best_epoch()]
-
-    def get_best_epoch(self) -> int:
-        """
-        Gets the epoch that achieves the best (highest) Dice score.
-        """
-        epoch = max(self.epochs, key=self.epochs.get)
-        return epoch
+    metrics: float
 
     def get_metrics_log_key(self) -> str:
         """
@@ -266,11 +253,9 @@ class InferenceMetricsForSegmentation(InferenceMetrics):
         :return:
         """
         run_context = get_run_context_or_default(run_context)
-        keys = sorted(self.epochs.keys())
 
         run_context.log_table(name=self.get_metrics_log_key(), value={
-            "Checkpoint": keys,
-            "Dice": [self.epochs[x] for x in keys]
+            "Dice": self.metrics
         })
 
 
