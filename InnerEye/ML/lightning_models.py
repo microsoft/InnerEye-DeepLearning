@@ -14,6 +14,7 @@ from pytorch_lightning.metrics import Metric
 from pytorch_lightning.utilities import move_data_to_device, rank_zero_only
 from torch.nn import ModuleDict, ModuleList
 
+from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, SUBJECT_METRICS_FILE_NAME
 from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, SequenceMetricsDict
 from InnerEye.Common.type_annotations import DictStrFloat
@@ -57,9 +58,11 @@ class StoringLogger(LightningLoggerBase):
         self.results: List[Dict[str, float]] = []
         self.hyperparams = {}
 
+    @rank_zero_only
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
         self.results.append(metrics)
 
+    @rank_zero_only
     def log_hyperparams(self, params: Any) -> None:
         self.hyperparams = params
 
@@ -94,6 +97,35 @@ class StoringLogger(LightningLoggerBase):
             if len(metrics_dict) != 0:
                 result[epoch] = metrics_dict
         return result
+
+
+class AzureMLLogger(LightningLoggerBase):
+    """
+    A Pytorch Lightning logger that stores metrics in the current AzureML run.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
+
+    @rank_zero_only
+    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
+        if self.is_azureml_run:
+            for key, value in metrics.items():
+                RUN_CONTEXT.log(key, value)
+
+    @rank_zero_only
+    def log_hyperparams(self, params: Any) -> None:
+        pass
+
+    def experiment(self) -> Any:
+        return ""
+
+    def name(self) -> Any:
+        return ""
+
+    def version(self) -> int:
+        return 0
 
 
 class TrainingAndValidationDataLightning(LightningDataModule):

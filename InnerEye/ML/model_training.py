@@ -18,9 +18,10 @@ from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
 from InnerEye.Common.metrics_dict import MetricType
 from InnerEye.Common.resource_monitor import ResourceMonitor
-from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, StoringLogger, TRAIN_PREFIX, \
+from InnerEye.ML.lightning_models import AzureMLLogger, SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, StoringLogger, \
+    TRAIN_PREFIX, \
     TrainingAndValidationDataLightning, \
     VALIDATION_PREFIX, create_lightning_model, get_subject_output_file_per_rank
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -29,7 +30,6 @@ from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary
 from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
@@ -93,14 +93,16 @@ def create_lightning_trainer(config: ModelConfigBase,
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
     storing_logger = StoringLogger()
     loggers = [storing_logger,
-               TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")]
-    if not is_offline_run_context(RUN_CONTEXT):
-        mlflow_logger = MLFlowLogger(experiment_name=RUN_CONTEXT.experiment.name,
-                                     tracking_uri=RUN_CONTEXT.experiment.workspace.get_mlflow_tracking_uri())
-        # The MLFlow logger needs to get its ID from the AzureML run context, otherwise there will be two sets of
-        # results for each run, one from native AzureML and one from the MLFlow logger.
-        mlflow_logger._run_id = RUN_CONTEXT.id
-        loggers.append(mlflow_logger)
+               TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version=""),
+               AzureMLLogger()]
+    # This leads to problems with run termination.
+    # if not is_offline_run_context(RUN_CONTEXT):
+    #     mlflow_logger = MLFlowLogger(experiment_name=RUN_CONTEXT.experiment.name,
+    #                                  tracking_uri=RUN_CONTEXT.experiment.workspace.get_mlflow_tracking_uri())
+    #     # The MLFlow logger needs to get its ID from the AzureML run context, otherwise there will be two sets of
+    #     # results for each run, one from native AzureML and one from the MLFlow logger.
+    #     mlflow_logger._run_id = RUN_CONTEXT.id
+    #     loggers.append(mlflow_logger)
 
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
                       accelerator=accelerator,
@@ -114,6 +116,7 @@ def create_lightning_trainer(config: ModelConfigBase,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None
                       )
     return trainer, storing_logger
+
 
 def model_train(config: ModelConfigBase,
                 checkpoint_handler: CheckpointHandler) -> ModelTrainingResults:
