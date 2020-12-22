@@ -43,7 +43,7 @@ def test_perform_score_comparisons() -> None:
 def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
     azure_config = get_default_azure_config()
     comparison_name = "DefaultName"
-    comparison_path = get_most_recent_run() + "/outputs/epoch_002/Test"
+    comparison_path = get_most_recent_run() + "/outputs/epoch_-01/Test"
     baselines = get_comparison_baselines(test_output_dirs.root_dir,
                                          azure_config, [(comparison_name, comparison_path)])
     assert len(baselines) == 1

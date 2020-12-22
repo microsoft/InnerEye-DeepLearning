@@ -41,14 +41,21 @@ def test_download_checkpoints_invalid_run(test_output_dirs: OutputFolderForTests
     assert get_results_blob_path("some_run_id") == "azureml/ExperimentRun/dcid.some_run_id"
 
 
+def check_single_checkpoint(downloaded_checkpoints: List[Path], expected_checkpoint: Path):
+    assert len(downloaded_checkpoints) == 1
+    assert downloaded_checkpoints[0] == expected_checkpoint
+    assert expected_checkpoint.exists()
+
+
+def check_multiple_checkpoints(downloaded_checkpoints: List[Path], expected_checkpoints: List[Path]):
+    assert len(downloaded_checkpoints) == len(expected_checkpoints)
+    assert all([x in expected_checkpoints for x in downloaded_checkpoints])
+    assert all([expected_file.exists() for expected_file in expected_checkpoints])
+
+
 @pytest.mark.after_training_single_run
 def test_download_checkpoints_single_run(test_output_dirs: OutputFolderForTests,
                                          runner_config: AzureConfig) -> None:
-
-    def check_single_checkpoint(downloaded_checkpoints: List[Path], expected_checkpoint: Path):
-        assert len(downloaded_checkpoints) == 1
-        assert downloaded_checkpoints[0] == expected_checkpoint
-        assert expected_checkpoint.exists()
 
     output_dir = test_output_dirs.root_dir
     config = ModelConfigBase(should_validate=False)
@@ -71,11 +78,6 @@ def test_download_checkpoints_single_run(test_output_dirs: OutputFolderForTests,
 @pytest.mark.after_training_ensemble_run
 def test_download_checkpoints_ensemble_run(test_output_dirs: OutputFolderForTests,
                                            runner_config: AzureConfig) -> None:
-
-    def check_multiple_checkpoints(downloaded_checkpoints: List[Path], expected_checkpoints: List[Path]):
-        assert len(downloaded_checkpoints) == len(expected_checkpoints)
-        assert all([x in expected_checkpoints for x in downloaded_checkpoints])
-        assert all([expected_file.exists() for expected_file in expected_checkpoints])
 
     output_dir = test_output_dirs.root_dir
     config = ModelConfigBase(should_validate=False)
@@ -118,9 +120,7 @@ def test_download_checkpoints_hyperdrive_run(test_output_dirs: OutputFolderForTe
         expected_file = create_checkpoint_path(path=config.checkpoint_folder / child.id, epoch=1)
         run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config, child)
         checkpoint_paths = run_recovery.get_checkpoint_paths(epoch=1)
-        assert len(checkpoint_paths) == 1
-        assert checkpoint_paths[0] == expected_file
-        assert expected_file.exists()
+        check_single_checkpoint(checkpoint_paths, expected_file)
 
 
 def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> None:
