@@ -646,9 +646,11 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """Returns a string describing the present object, as a list of key: value strings."""
         arguments_str = "\nArguments:\n"
         # Avoid callable params, the bindings that are printed out can be humongous.
-        callable_params = {name for name, value in self.param.params().items() if isinstance(value, param.Callable)}
+        # Avoid dataframes
+        skip_params = {name for name, value in self.param.params().items()
+                       if isinstance(value, (param.Callable, DataFrame))}
         for key, value in self.param.get_param_values():
-            if key not in callable_params:
+            if key not in skip_params:
                 arguments_str += f"\t{key:40}: {value}\n"
         return arguments_str
 
