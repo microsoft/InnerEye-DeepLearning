@@ -25,6 +25,8 @@ from InnerEye.ML.common import ModelExecutionMode, create_checkpoint_path, creat
 VISUALIZATION_FOLDER = "Visualizations"
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
 FINAL_MODEL_FOLDER = "final_model"
+FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
+
 # The checkpoints must be stored inside of the final model folder, if we want to avoid copying
 # them before registration.
 CHECKPOINT_FOLDER = "checkpoints"
@@ -110,13 +112,10 @@ class DeepLearningFileSystemConfig(Parameterized):
                                                doc="The folder where all training and test outputs should go.")
     logs_folder: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
                                             doc="The folder for all log files and Tensorboard event files")
-    model_folder: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
-                                             doc="The folder with all files for the registered model")
     project_root: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
                                              doc="The root folder for the codebase that triggers the training run.")
-    run_folder: Optional[Path] = param.ClassSelector(class_=Path, default=None, instantiate=False,
-                                                     doc="For runs outside AzureML, this is the folder that contains "
-                                                         "outputs and the logs subfolder.")
+    run_folder: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
+                                           doc="The folder that contains outputs and the logs subfolder.")
 
     @staticmethod
     def create(project_root: Path,
@@ -139,7 +138,6 @@ class DeepLearningFileSystemConfig(Parameterized):
         if not project_root.is_absolute():
             raise ValueError(f"The project root is required to be an absolute path, but got {project_root}")
 
-        run_folder: Optional[Path]
         if is_offline_run:
             logging.info("Running outside of AzureML.")
             if output_to:
@@ -152,23 +150,17 @@ class DeepLearningFileSystemConfig(Parameterized):
             run_folder = root / f"{timestamp}_{model_name}"
             outputs_folder = run_folder
             logs_folder = run_folder / DEFAULT_LOGS_DIR_NAME
-            model_folder = run_folder / FINAL_MODEL_FOLDER
         else:
             logging.info("Running inside AzureML.")
             logging.info("All results will be written to a subfolder of the project root folder.")
-            run_folder = None
+            run_folder = project_root
             outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
             logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
-            # Inside of AzureML, the model folder should NOT live inside of the outputs folder, because
-            # files will be uploaded explicitly from this folder to the run. Automatic uploads later might
-            # cause name conflicts.
-            model_folder = project_root / FINAL_MODEL_FOLDER
         logging.info(f"Run outputs folder: {outputs_folder}")
         logging.info(f"Logs folder: {logs_folder}")
         return DeepLearningFileSystemConfig(
             outputs_folder=outputs_folder,
             logs_folder=logs_folder,
-            model_folder=model_folder,
             project_root=project_root,
             run_folder=run_folder
         )
@@ -506,13 +498,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     def checkpoint_folder(self) -> Path:
         """Gets the full path in which the model checkpoints should be stored during training."""
         return self.outputs_folder / CHECKPOINT_FOLDER
-
-    @property
-    def final_model_folder(self) -> Path:
-        """
-        Gets the full path for all files that will be part of the final registered model.
-        """
-        return self.file_system_config.model_folder
 
     @property
     def visualization_folder(self) -> Path:

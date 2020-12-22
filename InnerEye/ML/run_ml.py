@@ -5,6 +5,7 @@
 import copy
 import logging
 import shutil
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -25,10 +26,11 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section, print_exception
-from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PROJECT_SECRETS_FILE
+from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, FINAL_MODEL_FOLDER, MultiprocessingStartMethod
+from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER, \
+    MultiprocessingStartMethod
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -37,7 +39,6 @@ from InnerEye.ML.model_training import model_train
 from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner, get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
-from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
 from InnerEye.ML.visualizers import activation_maps
@@ -60,45 +61,6 @@ def try_to_mount_input_dataset(run_context: Any) -> Optional[Path]:
     return None
 
 
-def download_dataset_via_blobxfer(dataset_id: str,
-                                  azure_config: AzureConfig,
-                                  target_folder: Path) -> Optional[Path]:
-    """
-    Attempts to downloads a dataset from the Azure storage account for datasets, with download happening via
-    blobxfer. This is only possible if the datasets storage account and keyword are present in the `azure_config`.
-    The function returns None if the required settings were not present.
-    :param dataset_id: The folder of the dataset, expected in the container given by azure_config.datasets_container.
-    :param azure_config: The object with all Azure-related settings.
-    :param target_folder: The local folder into which the dataset should be downloaded.
-    :return: The folder that contains the downloaded dataset. Returns None if the datasets account name or password
-    were not present.
-    """
-    datasets_account_key = azure_config.get_dataset_storage_account_key()
-    if not datasets_account_key:
-        logging.info("No account key for the dataset storage account was found.")
-        logging.info(f"We checked in environment variables and in the file {PROJECT_SECRETS_FILE}")
-        return None
-    if (not azure_config.datasets_container) or (not azure_config.datasets_storage_account):
-        logging.info("Datasets storage account or container missing.")
-        return None
-    target_folder.mkdir(exist_ok=True)
-    result_folder = target_folder / dataset_id
-    # only download if hasn't already been downloaded
-    if result_folder.is_dir():
-        logging.info(f"Folder already exists, skipping download: {result_folder}")
-        return result_folder
-    with logging_section(f"Downloading dataset {dataset_id}"):
-        download_blobs(
-            account=azure_config.datasets_storage_account,
-            account_key=datasets_account_key,
-            # When specifying the blobs root path, ensure that there is a slash at the end, otherwise
-            # all datasets with that dataset_id as a prefix get downloaded.
-            blobs_root_path=f"{azure_config.datasets_container}/{dataset_id}/",
-            destination=result_folder
-        )
-    return result_folder
-
-
 def download_dataset(azure_dataset_id: str,
                      target_folder: Path,
                      azure_config: AzureConfig) -> Path:
@@ -108,20 +70,11 @@ def download_dataset(azure_dataset_id: str,
     AzureML dataset attached to the given AzureML workspace. The dataset is downloaded into the `target_folder`,
     in a subfolder that has the same name as the dataset. If there already appears to be such a folder, and the folder
     contains a dataset.csv file, no download is started.
-    :param local_dataset: The path to an existing local dataset.
     :param azure_dataset_id: The name of a dataset that is registered in the AzureML workspace.
     :param target_folder: The folder in which to download the dataset from Azure.
     :param azure_config: All Azure-related configuration options.
     :return: A path on the local machine that contains the dataset.
     """
-    try:
-        downloaded_via_blobxfer = download_dataset_via_blobxfer(dataset_id=azure_dataset_id,
-                                                                azure_config=azure_config,
-                                                                target_folder=target_folder)
-        if downloaded_via_blobxfer:
-            return downloaded_via_blobxfer
-    except Exception as ex:
-        print_exception(ex, message="Unable to download dataset via blobxfer.")
     logging.info("Trying to download dataset via AzureML datastore now.")
     azure_dataset = get_or_create_dataset(azure_config, azure_dataset_id)
     if not isinstance(azure_dataset, FileDataset):
@@ -135,7 +88,10 @@ def download_dataset(azure_dataset_id: str,
         return expected_dataset_path
     logging.info("Starting to download the dataset - WARNING, this could take very long!")
     with logging_section("Downloading dataset"):
+        t0 = time.perf_counter()
         azure_dataset.download(target_path=str(expected_dataset_path), overwrite=False)
+        t1 = time.perf_counter() - t0
+        logging.info(f"Azure dataset '{azure_dataset_id}' downloaded in {t1} seconds")
     logging.info(f"Azure dataset '{azure_dataset_id}' is now available in {expected_dataset_path}")
     return expected_dataset_path
 
@@ -552,8 +508,11 @@ class MLRunner:
                 logging.warning("Unable to retrieve AzureML workspace. Was the Azure setup completed?")
                 logging.info("No model was registered in AzureML.")
                 return None, None
-
-        final_model_folder = self.model_config.final_model_folder
+        # The files for the final model can't live in the outputs folder. If they do: when registering the model,
+        # the files may not yet uploaded by hosttools, and that may (or not) cause errors. Hence, place the folder
+        # for the final models outside of "outputs", and upload manually.
+        model_subfolder = FINAL_MODEL_FOLDER if model_proc == ModelProcessing.DEFAULT else FINAL_ENSEMBLE_MODEL_FOLDER
+        final_model_folder = self.model_config.file_system_config.run_folder / model_subfolder
         # Copy all code from project and InnerEye into the model folder, and copy over checkpoints.
         # This increases the size of the data stored for the run. The other option would be to store all checkpoints
         # right in the final model folder - however, then that would also contain any other checkpoints that the model
@@ -569,17 +528,22 @@ class MLRunner:
                 description=model_description
             )
         else:
-            # The files for the final model can't live in the outputs folder. If they do: when registering the model,
-            # the files are not yet uploaded by hosttools, and may (or not) cause errors. Hence, place the folder
-            # for the final models outside of "outputs", and upload manually.
-            artifacts_path = FINAL_MODEL_FOLDER
-            logging.info(f"Uploading files in {final_model_folder} to the run with prefix '{artifacts_path}'")
+            # This is the path under which AzureML will know the files: Either "final_model" or "final_ensemble_model"
+            artifacts_path = model_subfolder
+            # If the present run is a child run of a Hyperdrive parent run, and we are building an ensemble model,
+            # register it the model on the parent run.
+            if PARENT_RUN_CONTEXT and model_proc == ModelProcessing.ENSEMBLE_CREATION:
+                run_to_register_on = PARENT_RUN_CONTEXT
+                logging.info(f"Registering the model on the parent run {run_to_register_on.id}")
+            else:
+                run_to_register_on = RUN_CONTEXT
+                logging.info(f"Registering the model on the current run {run_to_register_on.id}")
+            logging.info(f"Uploading files in {final_model_folder} with prefix '{artifacts_path}'")
             final_model_folder_relative = final_model_folder.relative_to(Path.cwd())
-            RUN_CONTEXT.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
-            logging.info(f"Registering the model on run {RUN_CONTEXT.id}")
+            run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
-            model = RUN_CONTEXT.register_model(
+            model = run_to_register_on.register_model(
                 model_name=self.model_config.model_name,
                 model_path=artifacts_path,
                 tags=RUN_CONTEXT.get_tags(),
@@ -712,9 +676,11 @@ class MLRunner:
             # perform inference on training set if required
             train_metrics = run_model_test(ModelExecutionMode.TRAIN)
 
-        # log the metrics to AzureML experiment if possible
+        # log the metrics to AzureML experiment if possible. When doing ensemble runs, log to the Hyperdrive parent run,
+        # so that we get the metrics of child run 0 and the ensemble separated.
         if config.is_segmentation_model and not is_offline_run_context(RUN_CONTEXT):
+            run_for_logging = PARENT_RUN_CONTEXT if model_proc.ENSEMBLE_CREATION else RUN_CONTEXT
             log_metrics(val_metrics=val_metrics, test_metrics=test_metrics,  # type: ignore
-                        train_metrics=train_metrics, run_context=RUN_CONTEXT)  # type: ignore
+                        train_metrics=train_metrics, run_context=run_for_logging)  # type: ignore
 
         return test_metrics, val_metrics, train_metrics

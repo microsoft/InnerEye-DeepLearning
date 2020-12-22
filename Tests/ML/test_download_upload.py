@@ -10,13 +10,11 @@ from pathlib import Path
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run, get_results_blob_path
 from InnerEye.Common import common_util, fixed_paths
-from InnerEye.Common.common_util import logging_section, logging_to_stdout
+from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML import run_ml
 from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
-from InnerEye.ML.utils.blobxfer_util import download_blobs
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
 from Tests.ML.util import get_default_azure_config
@@ -32,7 +30,6 @@ def runner_config() -> AzureConfig:
     config = get_default_azure_config()
     config.model = ""
     config.train = False
-    config.datasets_container = ""
     return config
 
 
@@ -51,7 +48,8 @@ def test_download_checkpoints(test_output_dirs: OutputFolderForTests, is_ensembl
     expected_checkpoint_file = "1" + CHECKPOINT_FILE_SUFFIX
     if is_ensemble:
         child_runs = fetch_child_runs(run_to_recover)
-        expected_files = [config.checkpoint_folder / run_to_recover.id
+        expected_files = [config.checkpoint_folder
+                          / OTHER_RUNS_SUBDIR_NAME
                           / str(x.get_tags()['cross_validation_split_index']) / expected_checkpoint_file
                           for x in child_runs]
     else:
@@ -127,44 +125,3 @@ def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> Non
         for file in ["ct", "esophagus", "heart", "lung_l", "lung_r", "spinalcord"]:
             f = (sub_folder / file).with_suffix(".nii.gz")
             assert f.is_file()
-
-
-def test_download_dataset_via_blobxfer(test_output_dirs: OutputFolderForTests) -> None:
-    azure_config = get_default_azure_config()
-    result_path = run_ml.download_dataset_via_blobxfer(dataset_id="test-dataset",
-                                                       azure_config=azure_config,
-                                                       target_folder=test_output_dirs.root_dir)
-    assert result_path
-    assert result_path.is_dir()
-    dataset_csv = Path(result_path) / DATASET_CSV_FILE_NAME
-    assert dataset_csv.exists()
-
-
-@pytest.mark.parametrize("is_file", [True, False])
-def test_download_blobxfer(test_output_dirs: OutputFolderForTests, is_file: bool, runner_config: AzureConfig) -> None:
-    """
-    Test for a bug in early versions of download_blobs: download is happening via prefixes, but because of
-    stripping leading directory names, blobs got overwritten.
-    """
-    root = test_output_dirs.root_dir
-    account_key = runner_config.get_dataset_storage_account_key()
-    assert account_key is not None
-    # Expected test data in Azure blobs:
-    # folder1/folder1.txt with content "folder1.txt"
-    # folder1_with_suffix/folder2.txt with content "folder2.txt"
-    # folder1_with_suffix/folder1.txt with content "this comes from folder2"
-    # with bug present, folder1_with_suffix/folder1.txt will overwrite folder1/folder1.txt
-    blobs_root_path = "data-for-testsuite/folder1"
-    if is_file:
-        blobs_root_path += "/folder1.txt"
-    download_blobs(runner_config.datasets_storage_account, account_key, blobs_root_path, root, is_file)
-
-    folder1 = root / "folder1.txt"
-    assert folder1.exists()
-    if not is_file:
-        otherfile = root / "otherfile.txt"
-        folder2 = root / "folder2.txt"
-        assert folder1.read_text().strip() == "folder1.txt"
-        assert otherfile.exists()
-        assert otherfile.read_text().strip() == "folder1.txt"
-        assert not folder2.exists()

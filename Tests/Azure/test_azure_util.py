@@ -11,9 +11,11 @@ from azureml.core.conda_dependencies import CondaDependencies
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import create_experiment_name, pytorch_version_from_conda_dependencies
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, fetch_child_runs, fetch_run, \
-    get_cross_validation_split_index, is_cross_validation_child_run, merge_conda_dependencies, \
+    get_cross_validation_split_index, is_cross_validation_child_run, is_run_and_child_runs_completed, \
+    merge_conda_dependencies, \
     merge_conda_files, to_azure_friendly_container_path
 from InnerEye.Common import fixed_paths
+from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
 from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_ENSEMBLE_RUN_RECOVERY_ID_NUMERIC, \
@@ -146,3 +148,22 @@ def test_framework_version(test_output_dirs: OutputFolderForTests) -> None:
     # If this fails, it is quite likely that the AzureML SDK is behind pytorch, and does not yet know about a
     # new version of pytorch that we are using here.
     assert framework is not None
+
+
+def test_is_completed() -> None:
+    """
+    Test if we can correctly check run status and status of child runs.
+    :return:
+    """
+    logging_to_stdout()
+    workspace = get_default_workspace()
+
+    def get_run_and_check(run_id: str, expected: bool) -> None:
+        run = fetch_run(workspace, run_id)
+        status = is_run_and_child_runs_completed(run)
+        assert status == expected
+
+    get_run_and_check(DEFAULT_RUN_RECOVERY_ID, True)
+    get_run_and_check(DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, True)
+    # This Hyperdrive run has 1 failing child run, the parent run completed successfully.
+    get_run_and_check("refs_pull_326_merge:HD_d123f042-ca58-4e35-9a64-48d71c5f63a7", False)
