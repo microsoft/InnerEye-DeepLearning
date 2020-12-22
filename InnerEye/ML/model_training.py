@@ -6,7 +6,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Tuple, TypeVar
+from typing import Optional, Tuple, TypeVar
 
 import torch
 from pytorch_lightning import Trainer
@@ -60,21 +60,16 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
     RUN_CONTEXT.upload_file(upload_name, path_or_stream=file_path)
 
 
-def model_train(config: ModelConfigBase,
-                checkpoint_handler: CheckpointHandler) -> ModelTrainingResults:
+def create_lightning_trainer(config: ModelConfigBase,
+                             resume_from_checkpoint: Optional[Path] = None) -> Tuple[Trainer, StoringLogger]:
     """
-    The main training loop. It creates the Pytorch model based on the configuration options passed in,
-    creates a Pytorch Lightning trainer, and trains the model.
-    If a checkpoint was specified, then it loads the checkpoint before resuming training.
-    :param config: The arguments which specify all required information.
-    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
+    Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
+    and loggers. That includes a diagnostic logger for use in unit tests, that is also returned as the second
+    return value.
+    :param config: The model configuration.
+    :param resume_from_checkpoint: If provided, training resumes from this checkpoint point.
+    :return: A tuple [Trainer object, diagnostic logger]
     """
-    # This reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
-    # for categorical features, that need to be available before creating the model.
-    config.read_dataset_if_needed()
-    # Get the path to the checkpoint to recover from
-    checkpoint_path = checkpoint_handler.get_recovery_path_train()
-
     best_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
                                                filename=BEST_CHECKPOINT_FILE_NAME,
                                                monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
@@ -99,8 +94,7 @@ def model_train(config: ModelConfigBase,
     storing_logger = StoringLogger()
     loggers = [storing_logger,
                TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")]
-    is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
-    if is_azureml_run:
+    if not is_offline_run_context(RUN_CONTEXT):
         mlflow_logger = MLFlowLogger(experiment_name=RUN_CONTEXT.experiment.name,
                                      tracking_uri=RUN_CONTEXT.experiment.workspace.get_mlflow_tracking_uri())
         # The MLFlow logger needs to get its ID from the AzureML run context, otherwise there will be two sets of
@@ -108,7 +102,6 @@ def model_train(config: ModelConfigBase,
         mlflow_logger._run_id = RUN_CONTEXT.id
         loggers.append(mlflow_logger)
 
-    old_environ = dict(os.environ)
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
                       accelerator=accelerator,
                       max_epochs=config.num_epochs,
@@ -116,11 +109,32 @@ def model_train(config: ModelConfigBase,
                       callbacks=[best_checkpoint_callback, recovery_checkpoint_callback],
                       logger=loggers,
                       progress_bar_refresh_rate=0,  # Disable the progress bar,
-                      # TODO antonsc: review. Some tests fail without this option
                       gpus=num_gpus,
                       terminate_on_nan=config.detect_anomaly,
-                      resume_from_checkpoint=str(checkpoint_path) if checkpoint_path else None
+                      resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None
                       )
+    return trainer, storing_logger
+
+def model_train(config: ModelConfigBase,
+                checkpoint_handler: CheckpointHandler) -> ModelTrainingResults:
+    """
+    The main training loop. It creates the Pytorch model based on the configuration options passed in,
+    creates a Pytorch Lightning trainer, and trains the model.
+    If a checkpoint was specified, then it loads the checkpoint before resuming training.
+    :param config: The arguments which specify all required information.
+    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
+    """
+    # Get the path to the checkpoint to recover from
+    checkpoint_path = checkpoint_handler.get_recovery_path_train()
+    # This reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
+    # for categorical features, that need to be available before creating the model.
+    config.read_dataset_if_needed()
+
+    # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
+    # training in the unit tests.
+    # TODO antonsc: Can we do in-situ cross validation with multiple GPUs still?
+    old_environ = dict(os.environ)
+    trainer, storing_logger = create_lightning_trainer(config, checkpoint_path)
 
     logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
                  f"trainer.global_rank: {trainer.global_rank}")
@@ -163,8 +177,8 @@ def model_train(config: ModelConfigBase,
     # TODO: Why can't we do that in the constructor?
     lightning_data.config = config
     trainer.fit(lightning_model,
-                datamodule=lightning_data,
-                )
+                datamodule=lightning_data)
+    is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
     # Each thread per rank will come here, and upload its files to the run outputs. Rank 0 will later download them.
     if is_azureml_run and isinstance(lightning_model, ScalarLightning):
