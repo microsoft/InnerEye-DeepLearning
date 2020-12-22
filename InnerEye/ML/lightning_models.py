@@ -469,7 +469,8 @@ class ScalarLightning(InnerEyeLightning):
 
     def create_metric_computers(self) -> ModuleDict:
         # The metric computers should be stored in an object that derives from torch.Module,
-        # so that they are picked up when moving the whole LightningModule to GPU
+        # so that they are picked up when moving the whole LightningModule to GPU.
+        # https://github.com/PyTorchLightning/pytorch-lightning/issues/4713
         return ModuleDict([(p, self._get_metrics_classes()) for p in self.target_names])
 
     def _get_metrics_classes(self) -> ModuleList:
@@ -545,19 +546,16 @@ class ScalarLightning(InnerEyeLightning):
         per_subject_outputs = list()
         for i, (prediction_target, metric_list) in enumerate(metrics.items()):
             # mask the model outputs and labels if required
-            masked_model_outputs_and_labels = get_masked_model_outputs_and_labels(
+            masked = get_masked_model_outputs_and_labels(
                 logits[:, i, ...], targets[:, i, ...], subject_ids)
             # compute metrics on valid masked tensors only
-            if masked_model_outputs_and_labels is not None:
-                _model_output, _labels, _subject_ids = \
-                    masked_model_outputs_and_labels.model_outputs.data, \
-                    masked_model_outputs_and_labels.labels.data, \
-                    masked_model_outputs_and_labels.subject_ids
-                _posteriors = self.logits_to_posterior(_model_output)
+            if masked is not None:
+                _posteriors = self.logits_to_posterior(masked.model_outputs.data)
+                # Image encoders already prepare images in float16, but the labels are not yet in that dtype
+                _labels = masked.labels.data.to(dtype=_posteriors.dtype)
+                _subject_ids = masked.subject_ids
                 for metric in metric_list:
-                    # Convert both tensors to CPU as a workaround for a bug in PyTorch,
-                    # https://github.com/PyTorchLightning/pytorch-lightning/issues/4713
-                    metric(_posteriors.cpu(), _labels.cpu())
+                    metric(_posteriors, _labels)
                 per_subject_outputs.extend(
                     zip(_subject_ids, [prediction_target] * len(_subject_ids), _posteriors.tolist(), _labels.tolist()))
         # Write a full breakdown of per-subject predictions and labels to a file. These files are local to the current

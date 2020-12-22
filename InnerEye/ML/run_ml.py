@@ -272,10 +272,10 @@ class MLRunner:
         # the current run is a single one. See the documentation of ModelProcessing for more details.
         self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
 
-        if self.model_config.is_scalar_model or self.model_config.is_segmentation_model:
-            # Generate report
-            Runner.generate_report(self.model_config, ModelProcessing.DEFAULT)
-            Runner.generate_report(self.model_config, model_proc=ModelProcessing.DEFAULT)
+        if self.model_config.generate_report:
+            if self.model_config.is_scalar_model or self.model_config.is_segmentation_model:
+                # Generate report
+                Runner.generate_report(self.model_config, ModelProcessing.DEFAULT)
 
     def run_inference_and_register_model(self, checkpoint_handler: CheckpointHandler,
                                          model_proc: ModelProcessing) -> None:
