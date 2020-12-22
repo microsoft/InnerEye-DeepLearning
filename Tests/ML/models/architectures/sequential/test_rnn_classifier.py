@@ -17,6 +17,7 @@ from InnerEye.Common.metrics_dict import MetricType, create_metrics_dict_for_sca
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
+from InnerEye.ML.lightning_models import transfer_batch_to_device
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoder, ImagingFeatureType
@@ -385,15 +386,14 @@ def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> 
     results = model_train(config, get_default_checkpoint_handler(model_config=config,
                                                                  project_root=test_output_dirs.root_dir))
 
-    actual_train_loss = results.train_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
-    actual_val_loss = results.val_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
+    actual_train_loss = results.get_metric(is_training=True, metric_type=MetricType.LOSS)[-1]
+    actual_val_loss = results.get_metric(is_training=False, metric_type=MetricType.LOSS)[-1]
     print(f"Training loss after {config.num_epochs} epochs: {actual_train_loss}")
     print(f"Validation loss after {config.num_epochs} epochs: {actual_val_loss}")
     assert actual_train_loss <= expected_max_train_loss, "Training loss too high"
     assert actual_val_loss <= expected_max_val_loss, "Validation loss too high"
-    assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
-           == config.get_total_number_of_save_epochs()
-    assert np.allclose(results.optimal_temperature_scale_values_per_checkpoint_epoch, [0.97], rtol=0.1)
+    # TODO antonsc: put back in when temperature scaling is enabled again
+    # assert np.allclose(results.optimal_temperature_scale_values_per_checkpoint_epoch, [0.97], rtol=0.1)
 
 
 class ToyMultiLabelSequenceModel(SequenceModelBase):
@@ -412,6 +412,8 @@ class ToyMultiLabelSequenceModel(SequenceModelBase):
             l_rate=1e-1,
             label_smoothing_eps=0.05,
             categorical_columns=["CAT1"],
+            # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+            max_num_gpus=1,
             **kwargs
         )
 
@@ -520,6 +522,10 @@ def test_visualization_for_different_target_weeks(test_output_dirs: OutputFolder
                                                                  sample=batch)
 
     visualizer = VisualizationMaps(model, config)
+    if config.use_gpu:
+        device = visualizer.grad_cam.device
+        batch = transfer_batch_to_device(batch, device)
+        model = model.to(device)
     # Pseudo-grad cam explaining the prediction at target sequence 2
     _, _, pseudo_cam_non_img_3, probas_3 = visualizer.generate(model_inputs_and_labels.model_inputs,
                                                                target_position=2,

@@ -69,6 +69,9 @@ def model_train(config: ModelConfigBase,
     :param config: The arguments which specify all required information.
     :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     """
+    # This reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
+    # for categorical features, that need to be available before creating the model.
+    config.read_dataset_if_needed()
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
 

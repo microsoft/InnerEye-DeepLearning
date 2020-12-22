@@ -139,7 +139,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
 
     def create_model(self) -> Any:
         """
-        Creates a torch model from the provided arguments and returns a LightningModule.
+        Creates a PyTorch model from the settings stored in the present object.
         This is an abstract method that each model class (segmentation, regression) should override.
         Return type is LightningModule, not Any - but we want to avoid importing torch at this point.
         """

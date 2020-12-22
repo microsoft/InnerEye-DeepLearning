@@ -43,79 +43,6 @@ class SimpleModel(BaseSegmentationModel):
         return x
 
 
-@pytest.mark.gpu
-@pytest.mark.skipif(no_gpu_available, reason="Testing AMP requires a GPU")
-@pytest.mark.parametrize("use_model_parallel", [False, True])
-@pytest.mark.parametrize("use_mixed_precision", [False, True])
-@pytest.mark.parametrize("execution_mode", [ModelExecutionMode.TRAIN, ModelExecutionMode.TEST])
-def test_amp_activated(use_model_parallel: bool,
-                       execution_mode: ModelExecutionMode,
-                       use_mixed_precision: bool) -> None:
-    """
-    Tests the mix precision flag and the model parallel flag.
-    """
-    assert machine_has_gpu, "This test must be executed on a GPU machine."
-    assert torch.cuda.device_count() > 1, "This test must be executed on a multi-GPU machine"
-    # image, labels, and mask to run forward and backward passes
-    image = torch.from_numpy(np.random.uniform(size=[1, 1, 4, 4, 4]).astype(ImageDataType.IMAGE.value))
-    labels = torch.from_numpy(np.random.uniform(size=[1, 2, 4, 4, 4]).astype(ImageDataType.SEGMENTATION.value))
-    mask = torch.from_numpy((np.round(np.random.uniform(size=[1, 4, 4, 4])).astype(dtype=ImageDataType.MASK.value)))
-
-    crop_size = (4, 4, 4)
-
-    model_config = SegmentationModelBase(crop_size=crop_size,
-                                         image_channels=["ct"],
-                                         ground_truth_ids=["Lung"],
-                                         use_mixed_precision=use_mixed_precision,
-                                         use_model_parallel=use_model_parallel,
-                                         should_validate=False)
-    assert model_config.use_gpu
-    model_and_info = ModelAndInfo(config=model_config, model_execution_mode=execution_mode,
-                                  checkpoint_path=None)
-    model_and_info._model = SimpleModel(1, [1], 2, 2)  # type: ignore
-
-    # Move the model to the GPU. This is mostly to avoid issues with AMP, which has trouble
-    # with first using a GPU model and later using a CPU-based one.
-    try:
-        model_and_info.create_summary_and_adjust_model_for_gpus()
-    except NotImplementedError as ex:
-        if use_model_parallel:
-            # The SimpleModel does not implement model partitioning, and should hence fail at this step.
-            assert "Model partitioning is not implemented" in str(ex)
-            return
-        else:
-            raise ValueError(f"Expected this call to succeed, but got: {ex}")
-
-    model = model_and_info.model
-    optimizer = create_optimizer(config=model_config, parameters=model.parameters())
-
-    # This is the same logic spelt out in adjust_model_for_gpus
-    use_data_parallel = (execution_mode == ModelExecutionMode.TRAIN) or (not use_model_parallel)
-    if use_data_parallel:
-        assert isinstance(model, DataParallelModel)
-    gradient_scaler = GradScaler() if use_mixed_precision else None
-    criterion = lambda x, y: torch.tensor([0.0], requires_grad=True).cuda()
-    pipeline = SegmentationForwardPass(model,
-                                       model_config,
-                                       batch_size=1,
-                                       optimizer=optimizer,
-                                       gradient_scaler=gradient_scaler,
-                                       criterion=criterion)
-    logits, _ = pipeline._compute_loss(image, labels)
-    # When using DataParallel, we expect to get a list of tensors back, one per GPU.
-    if use_data_parallel:
-        assert isinstance(logits, list)
-        first_logit = logits[0]
-    else:
-        first_logit = logits
-    if use_mixed_precision:
-        assert first_logit.dtype == torch.float16
-    else:
-        assert first_logit.dtype == torch.float32
-    # Verify that forward and backward passes do not throw an exception
-    pipeline._forward_pass(patches=image, mask=mask, labels=labels)
-
-
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.cpu_and_gpu
 @pytest.mark.parametrize("use_gpu_override", [False, True])
@@ -140,8 +67,9 @@ def test_use_gpu_flag(use_gpu_override: bool) -> None:
             assert config.use_gpu == use_gpu_override
 
 
-@pytest.mark.azureml
-def test_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> None:
+# @pytest.mark.azureml
+# TODO antonsc: re-enable once we have mean teacher in place again
+def disabled_test_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and weight updates of the mean teacher model computation.
     """
@@ -156,8 +84,6 @@ def test_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> None:
             return model.parameters()
 
     config = DummyClassification()
-    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
-    config.max_num_gpus = 1
     config.set_output_to(test_output_dirs.root_dir)
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
@@ -212,6 +138,3 @@ def test_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> None:
 
     # Check the update of the parameters
     assert torch.all(alpha * initial_weight_mean_teacher_model + (1 - alpha) * student_model_weight == result_weight)
-
-
-# TODO antonsc: Test switching on/off mixed precision

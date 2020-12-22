@@ -11,11 +11,6 @@ from InnerEye.Common.common_util import check_is_any_of, get_namespace_root, is_
 from InnerEye.Common.output_directories import OutputFolderForTests
 from Tests.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
 
-DEFAULT_ENSEMBLE_RUN_RECOVERY_ID = "dacart_local_branch_202008:HD_99938f3c-b25f-4604-bfcc-bb7c9ed3516f"
-DEFAULT_RUN_RECOVERY_ID = "melanibe_setup_branch_mock:melanibe_setup_branch_mock_1592327919_0a161296"
-DEFAULT_ENSEMBLE_RUN_RECOVERY_ID_NUMERIC = "dacart_local_branch_202008:1"
-DEFAULT_RUN_RECOVERY_ID_NUMERIC = "melanibe_setup_branch_mock:1"
-
 
 def test_get_items_from_string() -> None:
     """

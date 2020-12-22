@@ -36,33 +36,23 @@ from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.cpu_and_gpu
-@pytest.mark.parametrize("use_mixed_precision", [False, True])
-def test_train_classification_model(test_output_dirs: OutputFolderForTests,
-                                    use_mixed_precision: bool) -> None:
+def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and testing of classification models, asserting on the individual results from training and testing.
     Expected test results are stored for GPU with and without mixed precision.
     """
     logging_to_stdout(logging.DEBUG)
     config = ClassificationModelForTesting()
-    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
-    config.max_num_gpus = 1
     config.set_output_to(test_output_dirs.root_dir)
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=Path(test_output_dirs.root_dir))
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
-    config.use_mixed_precision = use_mixed_precision
     model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
-    use_mixed_precision_and_gpu = use_mixed_precision and machine_has_gpu
-    if use_mixed_precision_and_gpu:
-        expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
-        expected_val_loss = [0.737061, 0.736691, 0.736321, 0.735952]
-    else:
-        expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
-        expected_val_loss = [0.737061, 0.736690, 0.736321, 0.735952]
+    expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
+    expected_val_loss = [0.737061, 0.736691, 0.736321, 0.735952]
 
     # Ensure that all metrics are computed on both training and validation set
     assert len(model_training_result.train_results_per_epoch) == config.num_epochs
@@ -92,10 +82,7 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
                                             checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
-    if use_mixed_precision_and_gpu:
-        expected_metrics = [0.636085, 0.735952]
-    else:
-        expected_metrics = [0.636084, 0.735952]
+    expected_metrics = [0.636085, 0.735952]
     assert test_results.metrics.values()[MetricType.CROSS_ENTROPY.value] == \
            pytest.approx(expected_metrics, abs=1e-5)
     # Run detailed logs file check only on CPU, it will contain slightly different metrics on GPU, but here
@@ -185,9 +172,6 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
     MLRunner(config, azure_config).run()
     _check_offline_cross_validation_output_files(config)
 
-    if config.is_regression_model:
-        assert (config.outputs_folder / "0" / "error_plot_4.png").is_file()
-
     if config.perform_cross_validation:
         # Test that the result files can be correctly picked up by the cross validation routine.
         # For that, we point the downloader to the local results folder. The core download method
@@ -219,8 +203,6 @@ def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) 
     config.perform_training_set_inference = False
     config.perform_validation_and_test_set_inference = True
     config.set_output_to(test_output_dirs.root_dir)
-    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
-    config.max_num_gpus = 1
     azure_config = get_default_azure_config()
     azure_config.train = True
     MLRunner(config, azure_config).run()

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from azureml.core import Run
+from azureml.core.workspace import Workspace
 from azureml.core.conda_dependencies import CondaDependencies
 
 from InnerEye.Azure.azure_config import AzureConfig
@@ -18,9 +19,8 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
-from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_ENSEMBLE_RUN_RECOVERY_ID_NUMERIC, \
-    DEFAULT_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID_NUMERIC
 from Tests.ML.util import get_default_workspace
+from Tests.AfterTraining.test_after_training import get_most_recent_run
 
 
 def test_os_path_to_azure_friendly_container_path() -> None:
@@ -33,44 +33,70 @@ def test_os_path_to_azure_friendly_container_path() -> None:
     assert "a/b/c" == to_azure_friendly_container_path(Path("a\\b/c/"))
 
 
-@pytest.mark.parametrize("is_ensemble", [True, False])
-def test_get_cross_validation_split_index(is_ensemble: bool) -> None:
+@pytest.mark.after_training_single_run
+def test_get_cross_validation_split_index_single_run() -> None:
     """
-    Test that retrieved cross validation split index is as expected, for single runs and ensembles.
+    Test that retrieved cross validation split index is as expected, for single runs.
     """
     run = fetch_run(
         workspace=get_default_workspace(),
-        run_recovery_id=DEFAULT_ENSEMBLE_RUN_RECOVERY_ID if is_ensemble else DEFAULT_RUN_RECOVERY_ID
+        run_recovery_id=get_most_recent_run()
     )
     # check for offline run
     assert get_cross_validation_split_index(Run.get_context()) == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
     # check for online runs
     assert get_cross_validation_split_index(run) == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
-    if is_ensemble:
-        assert all([get_cross_validation_split_index(x) > DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
-                    for x in fetch_child_runs(run)])
 
 
-@pytest.mark.parametrize("is_ensemble", [True, False])
-@pytest.mark.parametrize("is_numeric", [True, False])
-def test_is_cross_validation_child_run(is_ensemble: bool, is_numeric: bool) -> None:
+@pytest.mark.after_training_ensemble_run
+def test_get_cross_validation_split_index_ensemble_run() -> None:
     """
-    Test that cross validation child runs are identified correctly.
+    Test that retrieved cross validation split index is as expected, for ensembles.
     """
-    if is_ensemble:
-        rid = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID_NUMERIC if is_numeric else DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
-    else:
-        rid = DEFAULT_RUN_RECOVERY_ID_NUMERIC if is_numeric else DEFAULT_RUN_RECOVERY_ID
     run = fetch_run(
         workspace=get_default_workspace(),
-        run_recovery_id=rid
+        run_recovery_id=get_most_recent_run()
+    )
+    # check for offline run
+    assert get_cross_validation_split_index(Run.get_context()) == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
+    # check for online runs
+    assert get_cross_validation_split_index(run) == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
+    assert all([get_cross_validation_split_index(x) > DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
+                for x in fetch_child_runs(run)])
+
+
+@pytest.mark.after_training_single_run
+def test_is_cross_validation_child_run_single_run() -> None:
+    """
+    Test that cross validation child runs are identified correctly. A single run should not be identified as a
+    cross validation run.
+    """
+    run_recovery_id = get_most_recent_run()
+    run = fetch_run(
+        workspace=get_default_workspace(),
+        run_recovery_id=run_recovery_id
     )
     # check for offline run
     assert not is_cross_validation_child_run(Run.get_context())
     # check for online runs
     assert not is_cross_validation_child_run(run)
-    if is_ensemble:
-        assert all([is_cross_validation_child_run(x) for x in fetch_child_runs(run)])
+
+
+@pytest.mark.after_training_ensemble_run
+def test_is_cross_validation_child_run_ensemble_run() -> None:
+    """
+    Test that cross validation child runs are identified correctly.
+    """
+    run_recovery_id = get_most_recent_run()
+    run = fetch_run(
+        workspace=get_default_workspace(),
+        run_recovery_id=run_recovery_id
+    )
+    # check for offline run
+    assert not is_cross_validation_child_run(Run.get_context())
+    # check for online runs
+    assert not is_cross_validation_child_run(run)
+    assert all([is_cross_validation_child_run(x) for x in fetch_child_runs(run)])
 
 
 def test_merge_conda(test_output_dirs: OutputFolderForTests) -> None:
@@ -150,20 +176,29 @@ def test_framework_version(test_output_dirs: OutputFolderForTests) -> None:
     assert framework is not None
 
 
-def test_is_completed() -> None:
+def get_run_and_check(run_id: str, expected: bool, workspace: Workspace) -> None:
+    run = fetch_run(workspace, run_id)
+    status = is_run_and_child_runs_completed(run)
+    assert status == expected
+
+
+@pytest.mark.after_training_single_run
+def test_is_completed_single_run() -> None:
     """
-    Test if we can correctly check run status and status of child runs.
+    Test if we can correctly check run status for a single run.
     :return:
     """
     logging_to_stdout()
     workspace = get_default_workspace()
+    get_run_and_check(get_most_recent_run(), True, workspace)
 
-    def get_run_and_check(run_id: str, expected: bool) -> None:
-        run = fetch_run(workspace, run_id)
-        status = is_run_and_child_runs_completed(run)
-        assert status == expected
 
-    get_run_and_check(DEFAULT_RUN_RECOVERY_ID, True)
-    get_run_and_check(DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, True)
-    # This Hyperdrive run has 1 failing child run, the parent run completed successfully.
-    get_run_and_check("refs_pull_326_merge:HD_d123f042-ca58-4e35-9a64-48d71c5f63a7", False)
+@pytest.mark.after_training_ensemble_run
+def test_is_completed_ensemble_run() -> None:
+    """
+    Test if we can correctly check run status and status of child runs for an ensemble run.
+    :return:
+    """
+    logging_to_stdout()
+    workspace = get_default_workspace()
+    get_run_and_check(get_most_recent_run(), True, workspace)

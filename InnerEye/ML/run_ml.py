@@ -463,6 +463,7 @@ class MLRunner:
                 workspace = self.azure_config.get_workspace()
             except Exception:
                 logging.warning("Unable to retrieve AzureML workspace. Was the Azure setup completed?")
+            if workspace is None:
                 logging.info("No model was registered in AzureML.")
                 return None, None
         # The files for the final model can't live in the outputs folder. If they do: when registering the model,
