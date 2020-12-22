@@ -99,7 +99,7 @@ def test_download_checkpoints_ensemble_run(test_output_dirs: OutputFolderForTest
     assert all([expected_file.exists() for expected_file in expected_checkpoint_best_epoch])
 
 
-@pytest_mark.after_training_ensemble_run
+@pytest.mark.after_training_ensemble_run
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on the windows build")
 def test_download_checkpoints_hyperdrive_run(test_output_dirs: OutputFolderForTests,
                                              runner_config: AzureConfig) -> None:

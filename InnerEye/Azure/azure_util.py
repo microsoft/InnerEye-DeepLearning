@@ -108,28 +108,20 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     return run_to_recover
 
 
-def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id_or_number: str) -> Run:
+def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> Run:
     """
     :param experiment_to_recover: an experiment
-    :param run_id_or_number: a string representing the Run ID or Run Number of one of the runs of the experiment
+    :param run_id: a string representing the Run ID of one of the runs of the experiment
     :return: the run matching run_id_or_number; raises an exception if not found
     """
     available_runs = experiment_to_recover.get_runs()
     try:
-        run_number = int(run_id_or_number)
-        for run in available_runs:
-            if run.number == run_number:
-                return run
-    except ValueError:
-        # will be raised in run_id_or_number does not represent a number
-        pass
-    try:
-        return get_run(experiment=experiment_to_recover, run_id=run_id_or_number, rehydrate=True)
+        return get_run(experiment=experiment_to_recover, run_id=run_id, rehydrate=True)
     except Exception:
         available_ids = ", ".join([run.id for run in available_runs])
         raise (Exception(
             "Run {} not found for experiment: {}. Available runs are: {}".format(
-                run_id_or_number, experiment_to_recover.name, available_ids)))
+                run_id, experiment_to_recover.name, available_ids)))
 
 
 def fetch_runs(experiment: Experiment, filters: List[str]) -> List[Run]:
