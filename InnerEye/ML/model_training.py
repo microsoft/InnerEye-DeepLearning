@@ -181,10 +181,11 @@ def model_train(config: ModelConfigBase,
     lightning_data.config = config
     trainer.fit(lightning_model,
                 datamodule=lightning_data)
+    world_size = getattr(trainer, "world_size", 0)
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
     # Each thread per rank will come here, and upload its files to the run outputs. Rank 0 will later download them.
-    if is_azureml_run and isinstance(lightning_model, ScalarLightning):
+    if is_azureml_run and world_size > 1 and isinstance(lightning_model, ScalarLightning):
         upload_output_file_as_temp(lightning_model.train_subject_outputs_logger.csv_path, config.outputs_folder)
         upload_output_file_as_temp(lightning_model.val_subject_outputs_logger.csv_path, config.outputs_folder)
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
@@ -200,9 +201,8 @@ def model_train(config: ModelConfigBase,
     os.environ.clear()
     os.environ.update(old_environ)
 
-    world_size = getattr(trainer, "world_size", 0)
     if world_size and isinstance(lightning_model, ScalarLightning):
-        if is_azureml_run:
+        if is_azureml_run and world_size > 1:
             # In a DDP run on the local box, all ranks will write to local disk, hence no download needed.
             # In a multi-node DDP, each rank would upload to AzureML, and rank 0 will now download all results and
             # concatenate
