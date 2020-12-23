@@ -25,6 +25,7 @@ from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelFo
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contains_string, assert_text_files_match, assert_nifti_content, \
     get_image_shape, get_default_checkpoint_handler
+from Tests.ML.utils.test_model_util import create_model_and_store
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
@@ -111,11 +112,8 @@ def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
         assert file.metrics_file.exists()
 
 
-@pytest.mark.parametrize(("config", "checkpoint_folder"),
-                         [(DummyModel(), "checkpoints"),
-                          (ClassificationModelForTesting(), "classification_data_generated_random/checkpoints")])
+@pytest.mark.parametrize("config", [DummyModel(), ClassificationModelForTesting()])
 def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
-                                                 checkpoint_folder: str,
                                                  test_output_dirs: OutputFolderForTests) -> None:
     # no pipeline created when checkpoint for epoch is None
     assert create_inference_pipeline(config, []) is None
@@ -123,26 +121,19 @@ def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
     assert create_inference_pipeline(config, [test_output_dirs.root_dir / "nonexist.pth"]) is None
 
 
-@pytest.mark.parametrize(("config", "checkpoint_folder", "inference_type", "ensemble_type"),
-                         [(DummyModel(), "checkpoints", InferencePipeline, EnsemblePipeline),
+@pytest.mark.parametrize(("config", "expected_inference_type", "expected_ensemble_type"),
+                         [(DummyModel(), InferencePipeline, EnsemblePipeline),
                           (ClassificationModelForTesting(mean_teacher_model=False),
-                           "classification_data_generated_random/checkpoints",
                            ScalarInferencePipeline, ScalarEnsemblePipeline),
                           (ClassificationModelForTesting(mean_teacher_model=True),
-                           "classification_data_generated_random/checkpoints",
                            ScalarInferencePipeline, ScalarEnsemblePipeline)
                           ])
 def test_create_inference_pipeline(config: ModelConfigBase,
-                                   checkpoint_folder: str,
-                                   inference_type: type,
-                                   ensemble_type: type,
+                                   expected_inference_type: type,
+                                   expected_ensemble_type: type,
                                    test_output_dirs: OutputFolderForTests) -> None:
     config.set_output_to(test_output_dirs.root_dir)
-    # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
-    stored_checkpoints = full_ml_test_data_path(checkpoint_folder)
-    shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
-
-    checkpoint_path = create_checkpoint_path(stored_checkpoints, epoch=1)
-
-    assert isinstance(create_inference_pipeline(config, [checkpoint_path]), inference_type)
-    assert isinstance(create_inference_pipeline(config, [checkpoint_path] * 2), ensemble_type)
+    checkpoint_path = test_output_dirs.root_dir / "checkpoint.ckpt"
+    create_model_and_store(config, checkpoint_path)
+    assert isinstance(create_inference_pipeline(config, [checkpoint_path]), expected_inference_type)
+    assert isinstance(create_inference_pipeline(config, [checkpoint_path] * 2), expected_ensemble_type)

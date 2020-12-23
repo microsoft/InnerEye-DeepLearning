@@ -213,6 +213,8 @@ class InferencePipeline(FullImageInferencePipelineBase):
         :return InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint
         file for this epoch.
         """
+        if not path_to_checkpoint.is_file():
+            return None
         model = create_model_from_lightning_checkpoint(model_config, path_to_checkpoint).model
         for name, param in model.named_parameters():
             param_numpy = param.clone().cpu().data.numpy()
