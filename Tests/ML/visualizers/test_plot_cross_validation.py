@@ -263,8 +263,6 @@ def test_result_aggregation_for_classification_all_epochs(test_output_dirs: Outp
 
 @pytest.mark.after_training_ensemble_run
 def test_add_comparison_data(test_config_comparison: PlotCrossValidationConfig) -> None:
-    test_config_comparison.epoch = 2
-    test_config_comparison.comparison_epochs = [2]
     metrics_df, root_folder = download_metrics(test_config_comparison)
     initial_metrics = pd.concat(list(metrics_df.values()))
     all_metrics, focus_splits = add_comparison_data(test_config_comparison, initial_metrics)

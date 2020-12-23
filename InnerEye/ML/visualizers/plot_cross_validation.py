@@ -84,7 +84,6 @@ metric_types: Dict[str, Dict[str, Any]] = {
 }
 
 
-# TODO remove reference to epochs for comparisons
 class PlotCrossValidationConfig(GenericConfig):
     """
     Configurations required to download results from the children of a HyperDrive runs.
@@ -96,16 +95,11 @@ class PlotCrossValidationConfig(GenericConfig):
                                                   doc="The run recovery id of the run to collect results from."
                                                       "If the run is an ensemble, then the results for each"
                                                       "model will also be collected. This can be None in unit testing.")
-    epoch: Optional[int] = param.Integer(default=None, allow_None=True, bounds=(1, None),
-                                         doc="The epoch for which to fetch results")
     comparison_run_recovery_ids: List[str] = param.List(default=None, class_=str,
                                                         doc="The run recovery ids of any additional runs to include in "
                                                             "statistical comparisons")
     comparison_labels: List[str] = param.List(default=None, class_=str,
                                               doc="Short labels to use in plots for comparison runs")
-    comparison_epochs: List[int] = param.List(default=None, class_=int,
-                                              doc="The epochs of any additional runs to include in "
-                                                  "statistical comparisons")
     compare_all_against_all: bool = param.Boolean(default=False,
                                                   doc="If set, include comparisons of comparison runs against "
                                                       "each other")
@@ -149,17 +143,7 @@ class PlotCrossValidationConfig(GenericConfig):
     def validate(self) -> None:
         if not self.run_recovery_id:
             raise ValueError("--run_recovery_id is a mandatory parameter.")
-        if self.model_category == ModelCategory.Segmentation and self.epoch is None:
-            raise ValueError("When working on segmentation models, --epoch is a mandatory parameter.")
-        if self.comparison_run_recovery_ids is not None:
-            # Extend comparison_epochs to be the same length as comparison_run_recovery_ids, using
-            # the value of --epoch as the default if no value at all is given
-            if self.comparison_epochs is None:
-                self.comparison_epochs = [self.epoch]
-            n_needed = len(self.comparison_run_recovery_ids) - len(self.comparison_epochs)
-            if n_needed > 0:
-                self.comparison_epochs.extend([self.comparison_epochs[-1]] * n_needed)
-        else:
+        if self.comparison_run_recovery_ids is None:
             self.comparison_run_recovery_ids = []
         if self.comparison_labels is None:
             self.comparison_labels = []
@@ -316,7 +300,6 @@ def run_recovery_id_suffix(tags: Dict[str, Any]) -> str:
 def download_metrics_file(config: PlotCrossValidationConfig,
                           run: Run,
                           destination: Path,
-                          epoch: Optional[int],
                           mode: ModelExecutionMode) -> Optional[Path]:
     """
     Downloads a metrics.csv file from an Azure run (or local results), and stores it in a local folder.
@@ -324,17 +307,14 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     :param config: The cross validation configuration.
     :param run: The AzureML run to download from.
     :param destination: The folder to download into.
-    :param epoch: The epoch that plot_cross_validation is running for. This is mandatory for segmentation models,
     and ignored for classification models.
     :param mode: The dataset split to read from.
     :return: The path to the local file, or None if no metrics.csv file was found.
     """
+    # TODO why are these paths different?
     # setup the appropriate paths and readers for the metrics
     if config.model_category == ModelCategory.Segmentation:
-        if epoch is None:
-            raise ValueError("Epoch must be provided in segmentation runs")
-        # TODO remove epoch arg here
-        src = get_epoch_results_path(epoch, mode) / SUBJECT_METRICS_FILE_NAME
+        src = get_epoch_results_path(mode) / SUBJECT_METRICS_FILE_NAME
     else:
         src = Path(mode.value) / SUBJECT_METRICS_FILE_NAME
 
@@ -349,7 +329,6 @@ def download_metrics_file(config: PlotCrossValidationConfig,
 
 def download_crossval_result_files(config: PlotCrossValidationConfig,
                                    run_recovery_id: Optional[str] = None,
-                                   epoch: Optional[int] = None,
                                    download_to_folder: Optional[Path] = None,
                                    splits_to_evaluate: Optional[List[str]] = None) -> Tuple[List[RunResultFiles], Path]:
     """
@@ -359,7 +338,6 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
     information for each subject found in the metrics files.
     :param config: PlotCrossValidationConfig
     :param run_recovery_id: run recovery ID, if different from the one in config
-    :param epoch: epoch, if different from the one in config
     :param download_to_folder: The root folder in which all downloaded files should be stored. Point to an existing
     folder with downloaded files for use in unit tests. If not provided, the files will be downloaded to a new folder
     inside the config.outputs_directory, with the name taken from the run ID.
@@ -371,8 +349,6 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
     splits_to_evaluate = splits_to_evaluate or []
     if run_recovery_id is None:
         run_recovery_id = config.run_recovery_id
-    if epoch is None:
-        epoch = config.epoch
     if run_recovery_id:
         workspace = config.azure_config.get_workspace()
         parent = fetch_run(workspace, run_recovery_id)
@@ -429,7 +405,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         for mode in config.execution_modes_to_download():
             # download metrics.csv file for each split. metrics_file can be None if the file does not exist
             # (for example, if no output was written for execution mode Test)
-            metrics_file = download_metrics_file(config, run, folder_for_run, -1, mode)
+            metrics_file = download_metrics_file(config, run, folder_for_run, mode)
             if metrics_file:
                 result.append(RunResultFiles(execution_mode=mode,
                                              dataset_csv_file=dataset_file,
@@ -448,14 +424,10 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
     :param train_config:
     :return:
     """
-    # Default to the last epoch for segmentation models. For classification models, the epoch does not need to be
-    # specified because datafiles contain results for all epochs.
-    epoch = train_config.num_epochs if train_config.is_segmentation_model else None
 
     return PlotCrossValidationConfig(
         run_recovery_id=None,
         model_category=train_config.model_category,
-        epoch=epoch,
         should_validate=False,
         number_of_cross_validation_splits=train_config.get_total_number_of_cross_validation_runs())
 
@@ -502,7 +474,7 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
     for result in result_files:
         mode = result.execution_mode
         is_segmentation = config.model_category == ModelCategory.Segmentation
-        df = load_metrics_df(result.metrics_file, is_segmentation, config.epoch, result.execution_mode)
+        df = load_metrics_df(result.metrics_file, is_segmentation, result.execution_mode)
         if df is not None:
             # for segmentation models dataset.csv also needs to be downloaded and joined with the metrics.csv
             if config.model_category == ModelCategory.Segmentation:
@@ -527,7 +499,6 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
 
 def load_metrics_df(metrics_file: Path,
                     is_segmentation: bool,
-                    epoch: Optional[int],
                     mode: ModelExecutionMode) -> pd.DataFrame:
     """
     Reads the given metrics.csv file, and returns the results for the provided epoch,
@@ -545,8 +516,6 @@ def load_metrics_df(metrics_file: Path,
     else:
         # Metrics files for classification store results for all modes and epochs, restrict to the desired ones.
         csv = csv[csv[LoggingColumns.DataSplit.value] == mode.value]
-        if epoch:
-            csv = csv[csv[LoggingColumns.Epoch.value] == epoch]
     return csv
 
 
@@ -647,8 +616,8 @@ def plot_metrics(config: PlotCrossValidationConfig,
                 ax.set_xlabel('Cross-Validation Splits', fontsize=16)
                 ax.tick_params(axis='both', which='major', labelsize=12)
                 ax.tick_params(axis='both', which='minor', labelsize=10)
-                ax.set_title("Segmentation Results on {} Dataset (Epoch {})".format(
-                    mode.value, config.epoch), fontsize=16)
+                ax.set_title("Segmentation Results on {} Dataset".format(
+                    mode.value), fontsize=16)
                 ax.set_axisbelow(True)
                 ax.grid()
                 # Shrink current axis by 20%
@@ -922,8 +891,8 @@ def add_comparison_data(config: PlotCrossValidationConfig, metrics: pd.DataFrame
     if config.comparison_run_recovery_ids is None:
         return metrics, None
     focus_splits = list(metrics[COL_SPLIT].unique())
-    for comparison_id, comparison_epoch in zip(config.comparison_run_recovery_ids, config.comparison_epochs):
-        files, _ = download_crossval_result_files(config, comparison_id, comparison_epoch)
+    for comparison_id in config.comparison_run_recovery_ids:
+        files, _ = download_crossval_result_files(config, comparison_id)
         aux_metrics_df = load_dataframes(files, config)
         metrics = metrics.append(pd.concat(list(aux_metrics_df.values())))
     return metrics, focus_splits

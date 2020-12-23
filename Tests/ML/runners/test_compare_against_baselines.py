@@ -9,6 +9,7 @@ import pytest
 from InnerEye.Common import common_util
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.baselines_util import ComparisonBaseline, get_comparison_baselines, perform_score_comparisons
+from InnerEye.ML.common import ModelExecutionMode
 from Tests.ML.util import get_default_azure_config
 from Tests.AfterTraining.test_after_training import get_most_recent_run
 
@@ -39,12 +40,12 @@ def test_perform_score_comparisons() -> None:
     assert list(result.plots.keys()) == [f"{comparison_name}_vs_CURRENT"]
 
 
-# TODO: remove reference to epoch
 @pytest.mark.after_training_single_run
 def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
     azure_config = get_default_azure_config()
     comparison_name = "DefaultName"
-    comparison_path = get_most_recent_run() + "/outputs/epoch_-01/Test"
+    comparison_path = get_most_recent_run() + "/outputs/" + \
+                      str(common_util.get_epoch_results_path(ModelExecutionMode.TEST))
     baselines = get_comparison_baselines(test_output_dirs.root_dir,
                                          azure_config, [(comparison_name, comparison_path)])
     assert len(baselines) == 1
