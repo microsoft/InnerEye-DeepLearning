@@ -55,8 +55,8 @@ def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
     inference_results = model_testing.segmentation_model_test(config,
                                                               data_split=execution_mode,
                                                               checkpoint_handler=checkpoint_handler)
-    epoch_dir = config.outputs_folder / get_epoch_results_path(epoch, execution_mode)
-    assert inference_results.epochs[epoch] == pytest.approx(0.66606902, abs=1e-6)
+    epoch_dir = config.outputs_folder / get_epoch_results_path(execution_mode)
+    assert inference_results.metrics == pytest.approx(0.66606902, abs=1e-6)
 
     assert config.outputs_folder.is_dir()
     assert epoch_dir.is_dir()

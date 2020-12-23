@@ -59,9 +59,8 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     test_results_run_recovery = model_test(config_run_recovery, data_split=ModelExecutionMode.TEST,
                                            checkpoint_handler=checkpoint_handler_run_recovery)
     assert isinstance(test_results_run_recovery, InferenceMetricsForClassification)
-    assert list(test_results_run_recovery.epochs.keys()) == [config.num_epochs]
-    assert test_results.epochs[config.num_epochs].values()[MetricType.CROSS_ENTROPY.value] == \
-           test_results_run_recovery.epochs[config.num_epochs].values()[MetricType.CROSS_ENTROPY.value]
+    assert test_results.metrics.values()[MetricType.CROSS_ENTROPY.value] == \
+           test_results_run_recovery.metrics.values()[MetricType.CROSS_ENTROPY.value]
 
     # Run inference with the local checkpoints
     config_local_weights = DummyClassification()
@@ -81,6 +80,5 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     test_results_local_weights = model_test(config_local_weights, data_split=ModelExecutionMode.TEST,
                                             checkpoint_handler=checkpoint_handler_local_weights)
     assert isinstance(test_results_local_weights, InferenceMetricsForClassification)
-    assert list(test_results_local_weights.epochs.keys()) == [0]
-    assert test_results.epochs[config.num_epochs].values()[MetricType.CROSS_ENTROPY.value] == \
-           test_results_local_weights.epochs[0].values()[MetricType.CROSS_ENTROPY.value]
+    assert test_results.metrics.values()[MetricType.CROSS_ENTROPY.value] == \
+           test_results_local_weights.metrics.values()[MetricType.CROSS_ENTROPY.value]
