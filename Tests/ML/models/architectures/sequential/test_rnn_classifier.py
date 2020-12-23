@@ -264,14 +264,9 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     config.num_epochs = 1
-
-    model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
-                                  checkpoint_path=None)
-    model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
-    assert model_loaded
-
-    model = model_and_info.model
-
+    model = config.create_model()
+    if config.use_gpu:
+        model = model.cuda()
     dataloader = SequenceDataset(config,
                                  data_frame=config.dataset_data_frame).as_data_loader(shuffle=False,
                                                                                       batch_size=2)
@@ -280,6 +275,8 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         batch = next(iter(dataloader))
+        if config.use_gpu:
+            batch = transfer_batch_to_device(batch, torch.device(0))
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(model,
                                                                      target_indices=config.get_target_indices(),
                                                                      sample=batch)  # type: ignore

@@ -66,7 +66,6 @@ def test_store_inference_results(test_output_dirs: OutputFolderForTests) -> None
     spacing = (2.0, 2.0, 2.0)
     header = get_unit_image_header(spacing=spacing)
     inference_result = InferencePipeline.Result(
-        epoch=1,
         patient_id=12,
         posteriors=posterior,
         segmentation=segmentation,
