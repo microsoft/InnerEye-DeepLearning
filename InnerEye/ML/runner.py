@@ -6,14 +6,9 @@ import os
 import sys
 from pathlib import Path
 
-# Diagnostics showing how PYTHONPATH is set: This can be helpful to figure out issues with multiple processes spawning
-# but they don't pick up the paths correctly
-print(f"Working directory: {os.getcwd()}")
-print("The following directories are in sys.path:")
-for p in sys.path:
-    print(f"  {p}")
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
+print("Starting InnerEye runner.")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
     innereye_root_str = str(innereye_root)

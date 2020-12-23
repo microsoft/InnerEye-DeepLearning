@@ -73,22 +73,18 @@ def create_checkpoint_path(path: Path, epoch: int) -> Path:
 def get_best_checkpoint_path(path: Path) -> Path:
     """
     Given a path and checkpoint, formats a path based on the checkpoint file name format.
-
     :param path to checkpoint folder
     """
-    # TODO for now we have two separate behaviors. If the folder is empty, generate the expected checkpoint path,
-    # and if it is not, return the (single) checkpoint with the correct prefix.
     # TODO antonsc: This is to work around Lightning's inconsistent treatment of checkpoint filenames.
     # Maybe do that once and for all after training?
 
-    best_checkpoints = list(path.glob(f"{BEST_CHECKPOINT_FILE_NAME}*{CHECKPOINT_SUFFIX}"))
-    if len(best_checkpoints) > 1:
-        raise ValueError(f"Found more than one checkpoint with name {BEST_CHECKPOINT_FILE_NAME} in folder "
-                         f"{path}: {' '.join(p.name for p in best_checkpoints)}")
-    elif len(best_checkpoints) == 1:
-        return best_checkpoints[0]
-    else:
-        return path / f"{BEST_CHECKPOINT_FILE_NAME}{CHECKPOINT_SUFFIX}"
+    best_checkpoint1 = path / f"{BEST_CHECKPOINT_FILE_NAME}{CHECKPOINT_SUFFIX}"
+    best_checkpoint2 = path / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
+    for p in [best_checkpoint1, best_checkpoint2]:
+        if p.is_file():
+            return best_checkpoint1
+    files = list(path.glob("*"))
+    raise FileNotFoundError(f"No checkpoint files found in {path}. Existing files: {' '.join(p.name for p in files)}")
 
 
 def create_unique_timestamp_id() -> str:
