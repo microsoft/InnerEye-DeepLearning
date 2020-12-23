@@ -83,7 +83,8 @@ def get_best_checkpoint_path(path: Path) -> Path:
 
     best_checkpoints = list(path.glob(f"{BEST_CHECKPOINT_FILE_NAME}*{CHECKPOINT_SUFFIX}"))
     if len(best_checkpoints) > 1:
-        raise ValueError(f"Found more than one checkpoint with the name {BEST_CHECKPOINT_FILE_NAME}")
+        raise ValueError(f"Found more than one checkpoint with name {BEST_CHECKPOINT_FILE_NAME} in folder "
+                         f"{path}: {' '.join(p.name for p in best_checkpoints)}")
     elif len(best_checkpoints) == 1:
         return best_checkpoints[0]
     else:
