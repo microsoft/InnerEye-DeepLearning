@@ -179,14 +179,14 @@ class Runner:
         self.create_ensemble_model()
 
     @staticmethod
-    def generate_report(config: DeepLearningConfig, best_epoch: int, model_proc: ModelProcessing) -> None:
+    def generate_report(config: DeepLearningConfig,model_proc: ModelProcessing) -> None:
         logging.info("Saving report in html")
         if config.model_category not in [ModelCategory.Segmentation, ModelCategory.Classification]:
             return
 
         try:
             def get_epoch_path(mode: ModelExecutionMode) -> Path:
-                p = get_epoch_results_path(best_epoch, mode=mode, model_proc=model_proc)
+                p = get_epoch_results_path(mode=mode, model_proc=model_proc)
                 return config.outputs_folder / p / SUBJECT_METRICS_FILE_NAME
 
             path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
@@ -254,11 +254,11 @@ class Runner:
                                                    project_root=self.project_root, run_context=PARENT_RUN_CONTEXT)
             checkpoint_handler.discover_and_download_checkpoint_from_sibling_runs()
 
-        best_epoch = self.create_ml_runner().run_inference_and_register_model(checkpoint_handler=checkpoint_handler,
+        self.create_ml_runner().run_inference_and_register_model(checkpoint_handler=checkpoint_handler,
                                                                               model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
         crossval_dir = self.plot_cross_validation_and_upload_results()
-        Runner.generate_report(self.model_config, best_epoch, ModelProcessing.ENSEMBLE_CREATION)
+        Runner.generate_report(self.model_config, ModelProcessing.ENSEMBLE_CREATION)
         # CrossValResults should have been uploaded to the parent run, so we don't need it here.
         remove_file_or_directory(crossval_dir)
         # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files

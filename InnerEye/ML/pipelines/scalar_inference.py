@@ -58,18 +58,15 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
     def __init__(self,
                  model: DeviceAwareModule,
                  model_config: ScalarModelBase,
-                 epoch: int,
                  pipeline_id: int) -> None:
         """
         :param model: Model recovered from the checkpoint.
         :param model_config: Model configuration information.
-        :param epoch: Epoch of the checkpoint which was recovered.
         :param pipeline_id: ID for this pipeline (useful for ensembles).
         :return:
         """
         super().__init__(model_config)
         self.model = model
-        self.epoch = epoch
         self.pipeline_id = pipeline_id
         self.logits_to_posterior_fn = self.model_config.get_post_loss_logits_normalization_function()
         # Switch model to evaluation mode (if not, results will be different from what we got during training,
@@ -102,9 +99,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         else:
             model = create_model_from_lightning_checkpoint(config, path_to_checkpoint).model
 
-        # TODO antonsc: Can we retire the epoch argument?
-        epoch = -1
-        return ScalarInferencePipeline(model, config, epoch=epoch, pipeline_id=pipeline_id)
+        return ScalarInferencePipeline(model, config, pipeline_id=pipeline_id)
 
     def predict(self, sample: Dict[str, Any]) -> ScalarInferencePipelineBase.Result:
         """

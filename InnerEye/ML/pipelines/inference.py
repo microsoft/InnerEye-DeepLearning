@@ -70,7 +70,6 @@ class FullImageInferencePipelineBase(InferencePipelineBase):
             )
 
             results = InferencePipeline.Result(
-                epoch=results.epoch,
                 patient_id=results.patient_id,
                 posteriors=posteriors,
                 segmentation=posteriors_to_segmentation(posteriors),
@@ -137,19 +136,17 @@ class InferencePipeline(FullImageInferencePipelineBase):
         Contains the inference results from a single pass of the inference pipeline
         """
 
-        def __init__(self, epoch: int,
+        def __init__(self,
                      patient_id: int,
                      segmentation: np.ndarray,
                      posteriors: np.ndarray,
                      voxel_spacing_mm: TupleFloat3):
             """
-            :param epoch: The epoch for which inference in being performed on.
             :param patient_id: The id of the patient instance for with inference is being performed on.
             :param segmentation: Z x Y x X (argmaxed over the posteriors in the class dimension)
             :param voxel_spacing_mm: Voxel spacing to use for each dimension in (Z x Y x X) order
             :param posteriors: Class x Z x Y x X
             """
-            self.epoch = epoch
             self.patient_id = patient_id
             self.segmentation = segmentation
             self.posteriors = posteriors
@@ -185,17 +182,15 @@ class InferencePipeline(FullImageInferencePipelineBase):
                 raise ValueError(f"Attempt to replace segmentation of shape {self.segmentation.shape} "
                                  f"with one of shape {segmentation.shape}")
             return InferencePipeline.Result(
-                epoch=self.epoch,
                 patient_id=self.patient_id,
                 segmentation=segmentation,
                 posteriors=self.posteriors,
                 voxel_spacing_mm=self.voxel_spacing_mm)
 
-    def __init__(self, model: DeviceAwareModule, model_config: config.SegmentationModelBase, epoch: int = 0,
+    def __init__(self, model: DeviceAwareModule, model_config: config.SegmentationModelBase,
                  pipeline_id: int = 0):
         super().__init__(model_config)
         self.model = model
-        self.epoch = epoch
         self.pipeline_id = pipeline_id
 
     @staticmethod
@@ -213,13 +208,16 @@ class InferencePipeline(FullImageInferencePipelineBase):
         :return InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint
         file for this epoch.
         """
+        if not path_to_checkpoint.is_file():
+            # not raising a value error here: This is used to create individual pipelines for ensembles,
+            #                                   possible one model cannot be created but others can
+            logging.warning(f"Could not recover model from checkpoint path {path_to_checkpoint}")
+            return None
         model = create_model_from_lightning_checkpoint(model_config, path_to_checkpoint).model
         for name, param in model.named_parameters():
             param_numpy = param.clone().cpu().data.numpy()
             image_util.check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
-        # TODO antonsc: Do we really need epoch?
-        epoch = -1
-        return InferencePipeline(model=model, model_config=model_config, epoch=epoch, pipeline_id=pipeline_id)
+        return InferencePipeline(model=model, model_config=model_config, pipeline_id=pipeline_id)
 
     def predict_whole_image(self, image_channels: np.ndarray,
                             voxel_spacing_mm: TupleFloat3,
@@ -268,7 +266,6 @@ class InferencePipeline(FullImageInferencePipelineBase):
         image_util.check_array_range(posteriors, error_prefix="Whole image posteriors")
         # prepare pipeline results from the processed batch
         return InferencePipeline.Result(
-            epoch=self.epoch,
             patient_id=patient_id,
             segmentation=processed_batch.get_component(InferenceBatch.Components.Segmentation),
             posteriors=posteriors,

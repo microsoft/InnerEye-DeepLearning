@@ -722,13 +722,11 @@ class ScalarMetricsDict(MetricsDict):
                                               label=self.get_labels(hue=hue))
 
     def store_metrics_per_subject(self,
-                                  epoch: int,
                                   df_logger: DataframeLogger,
                                   mode: ModelExecutionMode,
                                   cross_validation_split_index: int = DEFAULT_CROSS_VALIDATION_SPLIT_INDEX) -> None:
         """
         Store metrics using the provided df_logger at subject level for classification models.
-        :param epoch: Epoch these metrics are computed for.
         :param df_logger: A data frame logger to use to write the metrics to disk.
         :param mode: Model execution mode these metrics belong to.
         :param cross_validation_split_index: cross validation split index for the epoch if performing cross val
@@ -738,7 +736,6 @@ class ScalarMetricsDict(MetricsDict):
             for prediction_entry in self.get_predictions_and_labels_per_subject(hue=hue):
                 df_logger.add_record({
                     LoggingColumns.Hue.value: hue,
-                    LoggingColumns.Epoch.value: epoch,
                     LoggingColumns.Patient.value: prediction_entry.subject_id,
                     LoggingColumns.ModelOutput.value: prediction_entry.predictions,
                     LoggingColumns.Label.value: prediction_entry.labels,

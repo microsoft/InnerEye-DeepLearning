@@ -15,7 +15,7 @@ from scipy.ndimage.morphology import binary_erosion, distance_transform_edt, gen
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run
-from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, epoch_folder_name
+from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, BEST_EPOCH_FOLDER_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -129,8 +129,7 @@ def get_metrics_path(azure_config: AzureConfig, model_config: SegmentationModelB
     :return:
     """
     src = get_run_output_dir(azure_config, model_config)
-    num_epochs_dir = epoch_folder_name(model_config.num_epochs)
-    root = src / num_epochs_dir
+    root = src / BEST_EPOCH_FOLDER_NAME
     if not root.is_dir():
         raise NotADirectoryError(f"Dir doesnt exist: {root}")
 
@@ -148,8 +147,7 @@ def get_subject_prefix(model_config: SegmentationModelBase, train_mode: ModelExe
     :param subject_id: ID of the subject
     :return prefix: the filepath prefix within the container from which to download all artifacts
     """
-    num_epochs_dir = epoch_folder_name(model_config.num_epochs)
-    prefix = model_config.outputs_folder / num_epochs_dir / train_mode.value / "{0:03d}".format(subject_id)
+    prefix = model_config.outputs_folder / BEST_EPOCH_FOLDER_NAME / train_mode.value / "{0:03d}".format(subject_id)
     return prefix
 
 
