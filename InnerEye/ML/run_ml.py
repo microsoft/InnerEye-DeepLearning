@@ -445,8 +445,8 @@ class MLRunner:
                                     model_proc: ModelProcessing) -> Tuple[Optional[Model], Optional[Any]]:
         """
         Registers a new model in the workspace's model registry to be deployed further,
-        and creates a model zip for portal deployment (if required). This model is the
-        model checkpoint with the highest test accuracy.
+        and creates a model zip for portal deployment (if required). This is only done if the present process
+        is running in AzureML, and skipped in runs outside AzureML.
         :param model_description: A string description that is added to the deployed model. It would usually contain
         the test set performance and information at which epoch the result was achieved.
         :param checkpoint_paths: Checkpoint paths to use to upload model checkpoints to AML.
@@ -454,59 +454,40 @@ class MLRunner:
         :returns Tuple element 1: AML model object, or None if no model could be registered.
         Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
         """
-        is_offline_run = is_offline_run_context(RUN_CONTEXT)
-        workspace = None
-        # Terminate early if this is running outside AzureML, and we can't access the AzureML workspace. This
-        # saves time copying around files.
-        if is_offline_run:
-            try:
-                workspace = self.azure_config.get_workspace()
-            except Exception:
-                logging.warning("Unable to retrieve AzureML workspace. Was the Azure setup completed?")
-            if workspace is None:
-                logging.info("No model was registered in AzureML.")
-                return None, None
+        if is_offline_run_context(RUN_CONTEXT):
+            logging.info("Skipping model registration because the process is not running in AzureML.")
+            return None, None
         # The files for the final model can't live in the outputs folder. If they do: when registering the model,
         # the files may not yet uploaded by hosttools, and that may (or not) cause errors. Hence, place the folder
         # for the final models outside of "outputs", and upload manually.
         model_subfolder = FINAL_MODEL_FOLDER if model_proc == ModelProcessing.DEFAULT else FINAL_ENSEMBLE_MODEL_FOLDER
+        # This is the path under which AzureML will know the files: Either "final_model" or "final_ensemble_model"
+        artifacts_path = model_subfolder
         final_model_folder = self.model_config.file_system_config.run_folder / model_subfolder
         # Copy all code from project and InnerEye into the model folder, and copy over checkpoints.
         # This increases the size of the data stored for the run. The other option would be to store all checkpoints
         # right in the final model folder - however, then that would also contain any other checkpoints that the model
         # produced or downloaded for recovery, bloating the final model file.
         self.copy_child_paths_to_folder(final_model_folder, checkpoint_paths)
-        if is_offline_run:
-            logging.info("Registering the model on the workspace.")
-            model_description = model_description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
-            model = Model.register(
-                workspace=workspace,
-                model_name=self.model_config.model_name,
-                model_path=str(final_model_folder),
-                description=model_description
-            )
+        # If the present run is a child run of a Hyperdrive parent run, and we are building an ensemble model,
+        # register it the model on the parent run.
+        if PARENT_RUN_CONTEXT and model_proc == ModelProcessing.ENSEMBLE_CREATION:
+            run_to_register_on = PARENT_RUN_CONTEXT
+            logging.info(f"Registering the model on the parent run {run_to_register_on.id}")
         else:
-            # This is the path under which AzureML will know the files: Either "final_model" or "final_ensemble_model"
-            artifacts_path = model_subfolder
-            # If the present run is a child run of a Hyperdrive parent run, and we are building an ensemble model,
-            # register it the model on the parent run.
-            if PARENT_RUN_CONTEXT and model_proc == ModelProcessing.ENSEMBLE_CREATION:
-                run_to_register_on = PARENT_RUN_CONTEXT
-                logging.info(f"Registering the model on the parent run {run_to_register_on.id}")
-            else:
-                run_to_register_on = RUN_CONTEXT
-                logging.info(f"Registering the model on the current run {run_to_register_on.id}")
-            logging.info(f"Uploading files in {final_model_folder} with prefix '{artifacts_path}'")
-            final_model_folder_relative = final_model_folder.relative_to(Path.cwd())
-            run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
-            # When registering the model on the run, we need to provide a relative path inside of the run's output
-            # folder in `model_path`
-            model = run_to_register_on.register_model(
-                model_name=self.model_config.model_name,
-                model_path=artifacts_path,
-                tags=RUN_CONTEXT.get_tags(),
-                description=model_description
-            )
+            run_to_register_on = RUN_CONTEXT
+            logging.info(f"Registering the model on the current run {run_to_register_on.id}")
+        logging.info(f"Uploading files in {final_model_folder} with prefix '{artifacts_path}'")
+        final_model_folder_relative = final_model_folder.relative_to(Path.cwd())
+        run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
+        # When registering the model on the run, we need to provide a relative path inside of the run's output
+        # folder in `model_path`
+        model = run_to_register_on.register_model(
+            model_name=self.model_config.model_name,
+            model_path=artifacts_path,
+            tags=RUN_CONTEXT.get_tags(),
+            description=model_description
+        )
 
         deployment_result = None
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")

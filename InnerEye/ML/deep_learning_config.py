@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from enum import Enum, unique
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -20,7 +19,28 @@ from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import ModelExecutionMode, create_checkpoint_path, create_unique_timestamp_id, get_best_checkpoint_path
+from InnerEye.ML.common import ModelExecutionMode, create_checkpoint_path, create_unique_timestamp_id, \
+    get_best_checkpoint_path
+
+from __future__ import annotations
+
+import logging
+from enum import Enum, unique
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import param
+from pandas import DataFrame
+from param import Parameterized
+
+from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context
+from InnerEye.Common import fixed_paths
+from InnerEye.Common.common_util import is_windows
+from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
+from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
+from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
+from InnerEye.ML.common import ModelExecutionMode, create_checkpoint_path, create_unique_timestamp_id, \
+    get_best_checkpoint_path
 
 VISUALIZATION_FOLDER = "Visualizations"
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
@@ -138,8 +158,7 @@ class DeepLearningFileSystemConfig(Parameterized):
         if not project_root.is_absolute():
             raise ValueError(f"The project root is required to be an absolute path, but got {project_root}")
 
-        if is_offline_run:
-            logging.info("Running outside of AzureML.")
+        if is_offline_run or output_to:
             if output_to:
                 logging.info(f"All results will be written to the specified output folder {output_to}")
                 root = Path(output_to).absolute()
@@ -321,10 +340,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                             doc="Method to be used to start child processes in pytorch. Should be one of forkserver, "
                                 "fork or spawn. If not specified, fork is used on Linux and spawn on Windows. "
                                 "Set to forkserver as a possible remedy for stuck jobs.")
-    output_to: Optional[str] = \
-        param.String(default=None,
-                     doc="If provided, the run outputs will be written to the given folder. If not provided, outputs "
-                         "will go into a subfolder of the project root folder.")
+    output_to: str = param.String(default="",
+                                  doc="If provided, the run outputs will be written to the given folder. If not "
+                                      "provided, outputs will go into a subfolder of the project root folder.")
     max_batch_grad_cam: int = param.Integer(default=0, doc="Max number of validation batches for which "
                                                            "to save gradCam images. By default "
                                                            "visualizations are saved for all images "
