@@ -22,26 +22,6 @@ from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import ModelExecutionMode, create_checkpoint_path, create_unique_timestamp_id, \
     get_best_checkpoint_path
 
-from __future__ import annotations
-
-import logging
-from enum import Enum, unique
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-
-import param
-from pandas import DataFrame
-from param import Parameterized
-
-from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context
-from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import is_windows
-from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
-from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
-from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import ModelExecutionMode, create_checkpoint_path, create_unique_timestamp_id, \
-    get_best_checkpoint_path
-
 VISUALIZATION_FOLDER = "Visualizations"
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
 FINAL_MODEL_FOLDER = "final_model"
