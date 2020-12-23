@@ -45,7 +45,7 @@ def run_inference_on_unet(size: TupleInt3) -> None:
         use_mixed_precision=True
     )
     model = create_model_with_temperature_scaling(config)
-    pipeline = InferencePipeline(model=model, model_config=config, epoch=1)
+    pipeline = InferencePipeline(model=model, model_config=config)
     image = np.random.uniform(-1, 1, (1,) + size)
     result = pipeline.predict_and_post_process_whole_image(image, mask=np.ones(size), voxel_spacing_mm=(1, 1, 1))
     # All posteriors and segmentations must have the size of the input image

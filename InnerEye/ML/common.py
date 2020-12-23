@@ -12,6 +12,8 @@ DATASET_CSV_FILE_NAME = "dataset.csv"
 CHECKPOINT_SUFFIX = ".ckpt"
 
 BEST_CHECKPOINT_FILE_NAME = "best_val_loss"
+BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX = BEST_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX
+
 
 @unique
 class ModelExecutionMode(Enum):
@@ -65,7 +67,7 @@ def create_checkpoint_path(path: Path, epoch: int) -> Path:
     :param path to checkpoint folder
     :param epoch
     """
-    return path / f"epoch={epoch-1}{CHECKPOINT_SUFFIX}"
+    return path / f"epoch={epoch - 1}{CHECKPOINT_SUFFIX}"
 
 
 def get_best_checkpoint_path(path: Path) -> Path:
@@ -73,10 +75,11 @@ def get_best_checkpoint_path(path: Path) -> Path:
     Given a path and checkpoint, formats a path based on the checkpoint file name format.
 
     :param path to checkpoint folder
-    :param epoch
     """
     # TODO for now we have two separate behaviors. If the folder is empty, generate the expected checkpoint path,
     # and if it is not, return the (single) checkpoint with the correct prefix.
+    # TODO antonsc: This is to work around Lightning's inconsistent treatment of checkpoint filenames.
+    # Maybe do that once and for all after training?
 
     best_checkpoints = list(path.glob(f"{BEST_CHECKPOINT_FILE_NAME}*{CHECKPOINT_SUFFIX}"))
     if len(best_checkpoints) > 1:
