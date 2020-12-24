@@ -254,8 +254,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  doc="The betas parameter of Adam, default is (0.9, 0.999)")
     momentum: float = param.Number(0.6, doc="The momentum parameter of the optimizers")
     weight_decay: float = param.Number(1e-4, doc="The weight decay used to control L2 regularization")
-    save_step_epochs: int = param.Integer(10, bounds=(0, None), doc="Save epoch checkpoints when epoch number is a "
-                                                                    "multiple of save_step_epochs")
+    recovery_checkpoint_save_interval: int = param.Integer(10, bounds=(0, None),
+                                                           doc="Save epoch checkpoints when epoch number is a multiple "
+                                                               "of recovery_checkpoint_save_interval. The intended use "
+                                                               "is to allow restore training from failed runs.")
     train_batch_size: int = param.Integer(4, bounds=(0, None),
                                           doc="The number of crops that make up one minibatch during training.")
     detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "

@@ -32,7 +32,7 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
         config.mean_teacher_alpha = 0.999
     config.set_output_to(test_output_dirs.root_dir / "original")
     os.makedirs(str(config.outputs_folder))
-    config.save_step_epochs = 2
+    config.recovery_checkpoint_save_interval = 2
 
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)

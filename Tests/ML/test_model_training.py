@@ -5,6 +5,7 @@
 import shutil
 from pathlib import Path
 from typing import Any, List
+import os
 
 import h5py
 import numpy as np
@@ -77,7 +78,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.random_seed = 42
     train_config.class_weights = [0.5, 0.25, 0.25]
     train_config.store_dataset_sample = True
-    train_config.save_step_epochs = 2
+    train_config.recovery_checkpoint_save_interval = 2
 
     expected_train_losses = [0.455572, 0.455031]
     expected_val_losses = [0.455479, 0.455430]
@@ -258,26 +259,33 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
     """
     config = DummyClassification()
     config.mean_teacher_alpha = 0.999
+    config.recovery_checkpoint_save_interval = 1
+    config.set_output_to(test_output_dirs.root_dir / "original")
+    os.makedirs(str(config.outputs_folder))
+
+    original_checkpoint_folder = config.checkpoint_folder
 
     # First round of training
     config.num_epochs = 2
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
     model_train(config, checkpoint_handler=checkpoint_handler)
-    assert len(list(config.checkpoint_folder.rglob("*.*"))) == 1
+    assert len(list(config.checkpoint_folder.glob("*.*"))) == 3
 
     # Restart training from previous run
     config.start_epoch = 2
     config.num_epochs = 3
+    config.set_output_to(test_output_dirs.root_dir / "recovered")
+    os.makedirs(str(config.outputs_folder))
     # make if seem like run recovery objects have been downloaded
-    checkpoint_root = config.checkpoint_folder / "recovered"
-    shutil.copytree(config.checkpoint_folder, checkpoint_root)
+    checkpoint_root = config.checkpoint_folder / "old_run"
+    shutil.copytree(str(original_checkpoint_folder), str(checkpoint_root))
     checkpoint_handler.run_recovery = RunRecovery([checkpoint_root])
 
     model_train(config, checkpoint_handler=checkpoint_handler)
     # remove recovery checkpoints
     shutil.rmtree(checkpoint_root)
-    assert len(list(config.checkpoint_folder.rglob("*.*"))) == 2
+    assert len(list(config.checkpoint_folder.glob("*.*"))) == 2
 
 
 def test_script_names_correct() -> None:

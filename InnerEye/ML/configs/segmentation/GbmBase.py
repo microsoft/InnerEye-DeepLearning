@@ -50,7 +50,7 @@ class GbmBase(SegmentationModelBase):
             adam_betas=(0.9, 0.999),
             momentum=0.9,
             weight_decay=1e-4,
-            save_step_epochs=10,
+            recovery_checkpoint_save_interval=10,
             use_mixed_precision=True,
             use_model_parallel=True,
         )
