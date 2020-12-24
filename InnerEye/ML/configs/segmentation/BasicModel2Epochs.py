@@ -36,7 +36,7 @@ class BasicModel2Epochs(SegmentationModelBase):
             train_batch_size=8,
             start_epoch=0,
             num_epochs=2,
-            save_step_epochs=1,
+            recovery_checkpoint_save_interval=1,
             use_mixed_precision=True,
             azure_dataset_id=AZURE_DATASET_ID,
             # Use an LR scheduler with a pronounced and clearly visible decay, to be able to easily see if that

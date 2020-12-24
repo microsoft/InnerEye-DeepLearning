@@ -82,7 +82,7 @@ def get_best_checkpoint_path(path: Path) -> Path:
     best_checkpoint2 = path / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
     for p in [best_checkpoint1, best_checkpoint2]:
         if p.is_file():
-            return best_checkpoint1
+            return p
     files = list(path.glob("*"))
     raise FileNotFoundError(f"No checkpoint files found in {path}. Existing files: {' '.join(p.name for p in files)}")
 

@@ -79,7 +79,7 @@ def create_lightning_trainer(config: ModelConfigBase,
     recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
                                                    filename='{epoch}',
                                                    save_top_k=-1,
-                                                   period=config.save_step_epochs
+                                                   period=config.recovery_checkpoint_save_interval
                                                    )
 
     num_gpus = torch.cuda.device_count() if config.use_gpu else 0
