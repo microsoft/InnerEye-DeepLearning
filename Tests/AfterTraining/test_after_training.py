@@ -20,11 +20,12 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
 from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run, is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import fixed_paths
+from InnerEye.Common.common_util import METRICS_FILE_NAME
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.Scripts import submit_for_inference
 from Tests import fixed_paths_for_tests
-
 
 def get_most_recent_run() -> str:
     """
@@ -88,6 +89,26 @@ def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
         for m in missing:
             print(m)
         pytest.fail(f"{len(missing)} files in the registered model are missing: {missing[:5]}")
+
+
+@pytest.mark.after_training
+def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
+    most_recent_run = get_most_recent_run()
+    azure_config = AzureConfig.from_yaml(fixed_paths.SETTINGS_YAML_FILE,
+                                         project_root=fixed_paths.repository_root_directory())
+    workspace = azure_config.get_workspace()
+    run = fetch_run(workspace, most_recent_run)
+
+    epoch_path = Path(fixed_paths.DEFAULT_AML_UPLOAD_DIR) / "epoch_002" / "Test"
+    dataset_path = epoch_path / DATASET_CSV_FILE_NAME
+    download_dataset_path = test_output_dirs.root_dir / DATASET_CSV_FILE_NAME
+
+    run.download_file(str(dataset_path), str(download_dataset_path), _validate_checksum=True)
+
+    metrics_path = epoch_path / METRICS_FILE_NAME
+    download_metrics_path = test_output_dirs.root_dir / METRICS_FILE_NAME
+
+    run.download_file(str(metrics_path), str(download_metrics_path), _validate_checksum=True)
 
 
 @pytest.mark.inference
