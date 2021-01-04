@@ -475,12 +475,9 @@ class MLRunner:
         """
         if not isinstance(self.model_config, SegmentationModelBase):  # keep type checker happy
             return
-        try:
-            from InnerEye.ML.baselines_util import compare_scores_against_baselines
-            with logging_section("Comparing scores against baselines"):
-                compare_scores_against_baselines(self.model_config, self.azure_config, model_proc)
-        except Exception as ex:
-            print_exception(ex, "Model baseline comparison failed.")
+        from InnerEye.ML.baselines_util import compare_scores_against_baselines
+        with logging_section("Comparing scores against baselines"):
+            compare_scores_against_baselines(self.model_config, self.azure_config, model_proc)
 
     def register_segmentation_model(self,
                                     checkpoint_paths: List[Path],

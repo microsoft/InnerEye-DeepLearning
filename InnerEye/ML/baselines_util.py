@@ -10,6 +10,8 @@ from typing import Dict, Generator, List, Optional, Tuple
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from azureml.exceptions import UserErrorException
+
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, download_outputs_from_run, fetch_run, strip_prefix
 from InnerEye.Common import common_util
@@ -173,7 +175,7 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
                 comparison_dataset_path = download_outputs_from_run(
                     blob_path_parent / DATASET_CSV_FILE_NAME, destination_folder, run, True)
                 break
-            except ValueError:
+            except (ValueError, UserErrorException):
                 logging.warning(f"cannot find {DATASET_CSV_FILE_NAME} at {blob_path_parent} in {run_rec_id}")
                 pass
             except NotADirectoryError:
@@ -185,7 +187,7 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
         try:
             comparison_metrics_path = download_outputs_from_run(
                 blob_path / METRICS_FILE_NAME, destination_folder, run, True)
-        except ValueError:
+        except (ValueError, UserErrorException):
             logging.warning(f"cannot find {METRICS_FILE_NAME} at {blob_path} in {run_rec_id}")
         # If both dataset.csv and metrics.csv were downloaded successfully, read their contents and
         # add a tuple to the comparison data.
@@ -203,6 +205,7 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
                 # noinspection PyUnresolvedReferences
                 if path is not None and not path.exists():
                     logging.warning("    ... but it does not exist")
+            raise ValueError(f"could not find comparison data for run {run_rec_id}")
     return comparison_baselines
 
 
