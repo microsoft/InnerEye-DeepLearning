@@ -5,16 +5,13 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Generator, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from azureml.core import Run
-from azureml.exceptions import UserErrorException
-
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, download_outputs_from_run, fetch_run, strip_prefix
+from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, get_comparison_baseline_paths, fetch_run, strip_prefix
 from InnerEye.Common import common_util
 from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig
@@ -153,38 +150,6 @@ def perform_score_comparisons(model_dataset_df: pd.DataFrame, model_metrics_df: 
     return DiceScoreComparisonResult(all_runs_df, True, wilcoxon_lines, plots)
 
 
-def get_comparison_baseline_paths(outputs_folder: Path,
-                                  blob_path: Path, run: Run) -> \
-        Tuple[Optional[Path], Optional[Path]]:
-    run_rec_id = run.id
-    # We usually find dataset.csv in the same directory as metrics.csv, but we sometimes
-    # have to look higher up.
-    comparison_dataset_path: Optional[Path] = None
-    comparison_metrics_path: Optional[Path] = None
-    destination_folder = outputs_folder / run_rec_id / blob_path
-    # Look for dataset.csv inside epoch_NNN/Test, epoch_NNN/ and at top level
-    for blob_path_parent in step_up_directories(blob_path):
-        try:
-            comparison_dataset_path = download_outputs_from_run(
-                blob_path_parent / DATASET_CSV_FILE_NAME, destination_folder, run, True)
-            break
-        except (ValueError, UserErrorException):
-            logging.warning(f"cannot find {DATASET_CSV_FILE_NAME} at {blob_path_parent} in {run_rec_id}")
-            pass
-        except NotADirectoryError:
-            logging.warning(f"{blob_path_parent} is not a directory")
-            break
-        if comparison_dataset_path is None:
-            logging.warning(f"cannot find {DATASET_CSV_FILE_NAME} at or above {blob_path} in {run_rec_id}")
-    # Look for epoch_NNN/Test/metrics.csv
-    try:
-        comparison_metrics_path = download_outputs_from_run(
-            blob_path / METRICS_FILE_NAME, destination_folder, run, True)
-    except (ValueError, UserErrorException):
-        logging.warning(f"cannot find {METRICS_FILE_NAME} at {blob_path} in {run_rec_id}")
-    return (comparison_dataset_path, comparison_metrics_path)
-
-
 def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
                              comparison_blob_storage_paths: List[Tuple[str, str]]) -> \
         List[ComparisonBaseline]:
@@ -197,7 +162,8 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
         run_rec_id = strip_prefix(run_rec_id, AZUREML_RUN_FOLDER_PREFIX)
         blob_path = Path(strip_prefix(blob_path_str, DEFAULT_AML_UPLOAD_DIR + "/"))
         run = fetch_run(workspace, run_rec_id)
-        (comparison_dataset_path, comparison_metrics_path) = get_comparison_baseline_paths(outputs_folder, blob_path, run)
+        (comparison_dataset_path, comparison_metrics_path) = get_comparison_baseline_paths(outputs_folder, blob_path,
+                                                                                           run, DATASET_CSV_FILE_NAME)
         # If both dataset.csv and metrics.csv were downloaded successfully, read their contents and
         # add a tuple to the comparison data.
         if comparison_dataset_path is not None and comparison_metrics_path is not None and \
@@ -210,16 +176,3 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
         else:
             raise ValueError(f"could not find comparison data for run {run_rec_id}")
     return comparison_baselines
-
-
-def step_up_directories(path: Path) -> Generator[Path, None, None]:
-    """
-    Generates the provided directory and all its parents. Needed because dataset.csv
-    files are sometimes not where we expect them to be, but higher up.
-    """
-    while True:
-        yield path
-        parent = path.parent
-        if parent == path:
-            break
-        path = parent

@@ -18,11 +18,12 @@ from azureml.core import Model
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
-from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run, is_running_on_azure_agent, to_azure_friendly_string
+from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run, is_running_on_azure_agent, to_azure_friendly_string, \
+                                      get_comparison_baseline_paths
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.baselines_util import get_comparison_baseline_paths
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.Scripts import submit_for_inference
 from Tests import fixed_paths_for_tests
 
@@ -100,7 +101,8 @@ def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
     run = fetch_run(workspace, most_recent_run)
     blob_path: Path = Path("epoch_002") / "Test"
     (comparison_dataset_path, comparison_metrics_path) = get_comparison_baseline_paths(test_output_dirs.root_dir,
-                                                                                       blob_path, run)
+                                                                                       blob_path, run,
+                                                                                       DATASET_CSV_FILE_NAME)
     assert comparison_dataset_path is not None
     assert comparison_metrics_path is not None
 
