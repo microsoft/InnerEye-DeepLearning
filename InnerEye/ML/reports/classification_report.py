@@ -332,6 +332,7 @@ def plot_image_for_subject(subject_id: str,
     :param dataset_dir: Path to the dataset
     :param im_size: Display size for image
     :param model_output: The predicted value for this image
+    :param header: Optional header printed along with the subject ID and score for the image.
     """
     print_header("", level=4)
     if header:
