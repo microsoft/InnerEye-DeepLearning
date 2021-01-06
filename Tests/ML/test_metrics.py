@@ -160,7 +160,7 @@ def test_get_column_name_for_logging() -> None:
            get_column_name_for_logging(metric_name=metric_name, hue_name=hue_name)
 
 
-def test_classification_metrics():
+def test_classification_metrics() -> None:
     classification_module = ScalarLightning(DummyClassification())
     metrics = classification_module._get_metrics_classes()
     outputs = [torch.tensor([0.9, 0.8, 0.6]), torch.tensor([0.3, 0.9, 0.4])]
@@ -192,7 +192,7 @@ def test_classification_metrics():
     assert cross_entropy == expected_binary_cross_entropy
     assert accuracy_05 == expected_accuracy_at_05
 
-def test_regression_metrics():
+def test_regression_metrics() -> None:
     regression_module = ScalarLightning(DummyRegression())
     metrics = regression_module._get_metrics_classes()
     outputs = [torch.tensor([1., 2., 1.]), torch.tensor([4., 0., 2.])]

@@ -102,8 +102,8 @@ def test_discover_and_download_checkpoints_from_previous_runs_ensemble_run(test_
 
     expected_checkpoint_roots = [config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / str(i) for i in range(2)]
     expected_path_lists = [[create_checkpoint_path(path=expected_checkpoint_root,
-                                                   epoch=epoch) for epoch in [1, 2]] +
-                           [expected_checkpoint_root / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"]
+                                                   epoch=epoch) for epoch in [1, 2]]
+                           + [expected_checkpoint_root / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"]
                            for expected_checkpoint_root in expected_checkpoint_roots]
     assert set(checkpoint_handler.run_recovery.checkpoints_roots) == set(expected_checkpoint_roots)
     for path_list in expected_path_lists:

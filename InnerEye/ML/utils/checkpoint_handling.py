@@ -118,8 +118,8 @@ class CheckpointHandler:
         and drops any that do not.
         """
         if not self.run_recovery and not self.has_continued_training:
-            raise ValueError(f"Cannot recover checkpoint, no run recovery object provided and"
-                             f"no training has been done in this run.")
+            raise ValueError("Cannot recover checkpoint, no run recovery object provided and"
+                             "no training has been done in this run.")
 
         checkpoint_paths = []
 
@@ -143,9 +143,9 @@ class CheckpointHandler:
             path = self.model_config.get_path_to_best_checkpoint()
             if path.exists():
                 checkpoint_paths = [self.model_config.get_path_to_best_checkpoint()]
-                logging.info(f"Using checkpoints from current run.")
+                logging.info("Using checkpoints from current run.")
         else:
-            logging.info(f"Using checkpoints from run recovery")
+            logging.info("Using checkpoints from run recovery")
 
         return checkpoint_paths
 

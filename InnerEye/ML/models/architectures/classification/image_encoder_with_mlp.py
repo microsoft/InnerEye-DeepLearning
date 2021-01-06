@@ -19,7 +19,6 @@ from InnerEye.ML.models.layers.basic import BasicLayer
 from InnerEye.ML.models.layers.identity import Identity
 from InnerEye.ML.models.layers.pooling_layers import AveragePooling, Gated3dPoolingLayer, \
     MaxPooling, MixPooling, ZAdaptive3dAvgLayer
-from InnerEye.ML.models.parallel.data_parallel import execute_within_autocast_if_needed
 from InnerEye.ML.scalar_config import AggregationType
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES, segmentation_to_one_hot
 

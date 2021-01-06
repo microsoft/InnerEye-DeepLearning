@@ -12,7 +12,7 @@ import pytest
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import ModelExecutionMode, SUBJECT_METRICS_FILE_NAME, logging_to_stdout
+from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, create_metrics_dict_for_scalar_models
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset

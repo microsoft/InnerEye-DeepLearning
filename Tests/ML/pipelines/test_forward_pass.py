@@ -4,26 +4,21 @@
 #  ------------------------------------------------------------------------------------------
 from typing import Any
 
-import numpy as np
 import pytest
 import torch
-from torch.cuda.amp import GradScaler
 
 from InnerEye.Common import common_util
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
-from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
-from InnerEye.ML.utils.io_util import ImageDataType
-from InnerEye.ML.utils.model_util import ModelAndInfo, create_optimizer
-from Tests.ML.util import get_default_checkpoint_handler, machine_has_gpu, no_gpu_available
+from InnerEye.ML.utils.model_util import ModelAndInfo
+from Tests.ML.util import get_default_checkpoint_handler, machine_has_gpu
 
 
 class SimpleModel(BaseSegmentationModel):
