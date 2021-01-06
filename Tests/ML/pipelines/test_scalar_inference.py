@@ -17,7 +17,6 @@ from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline, \
     ScalarInferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType
-from InnerEye.ML.utils.model_util import ModelAndInfo
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.utils.test_model_util import create_model_and_store
 from Tests.fixed_paths_for_tests import full_ml_test_data_path

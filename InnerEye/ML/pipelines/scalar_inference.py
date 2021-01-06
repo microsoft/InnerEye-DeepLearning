@@ -91,11 +91,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
             return None
         if config.compute_mean_teacher_model:
             # TODO antonsc: Need to adjust that
-            model_and_info = model_util.ModelAndInfo(config=config,
-                                                     model_execution_mode=ModelExecutionMode.TEST,
-                                                     checkpoint_path=path_to_checkpoint)
-            model_loaded = model_and_info.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
-            model = model_and_info.mean_teacher_model
+            raise NotImplementedError("Mean teacher models not supported yet.")
         else:
             model = create_model_from_lightning_checkpoint(config, path_to_checkpoint).model
 
