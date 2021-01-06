@@ -14,24 +14,23 @@ import pytest
 from torch.utils.data import DataLoader
 
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict
+from InnerEye.Common.metrics_dict import MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics, model_training
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, TemperatureScalingConfig
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.losses.mixture import MixtureLoss
-from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.utils.model_util import create_segmentation_loss_function
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import assert_file_contains_string, get_default_checkpoint_handler
+from Tests.ML.util import get_default_checkpoint_handler
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 config_path = full_ml_test_data_path()
@@ -115,7 +114,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert train_config.num_epochs == 2
     # Checkpoint folder
     assert train_config.checkpoint_folder.is_dir()
-    actual_checkpoints =list(train_config.checkpoint_folder.rglob("*.ckpt"))
+    actual_checkpoints = list(train_config.checkpoint_folder.rglob("*.ckpt"))
     assert len(actual_checkpoints) == 2, f"Actual checkpoints: {actual_checkpoints}"
     assert (train_config.checkpoint_folder / "epoch=1.ckpt").is_file()
     assert (train_config.checkpoint_folder / "best_val_loss-v0.ckpt").is_file()
@@ -134,7 +133,6 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # assert train_config.example_images_folder.is_dir()
     # example_files = list(train_config.example_images_folder.rglob("*.*"))
     # assert len(example_files) == 3 * 2
-
 
 
 @pytest.mark.parametrize(["rates", "expected"],

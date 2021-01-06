@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Tuple
 
 import torch
 from torch.optim import LBFGS  # type: ignore

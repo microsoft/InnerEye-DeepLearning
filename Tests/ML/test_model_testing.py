@@ -11,8 +11,7 @@ from InnerEye.Common import common_util
 from InnerEye.Common.common_util import get_epoch_results_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode, \
-    create_checkpoint_path
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.model_config_base import ModelConfigBase
