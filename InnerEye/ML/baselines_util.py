@@ -9,9 +9,8 @@ from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 import pandas as pd
-
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, get_comparison_baseline_paths, fetch_run, strip_prefix
+from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, fetch_run, get_comparison_baseline_paths, strip_prefix
 from InnerEye.Common import common_util
 from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig

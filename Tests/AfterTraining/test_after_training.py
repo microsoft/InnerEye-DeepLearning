@@ -18,9 +18,10 @@ from azureml.core import Model
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
-from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run, is_running_on_azure_agent, to_azure_friendly_string, \
-                                      get_comparison_baseline_paths
+from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run, get_comparison_baseline_paths, \
+    is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import fixed_paths
+from InnerEye.Common.common_util import epoch_folder_name
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
@@ -94,17 +95,21 @@ def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
 
 @pytest.mark.after_training
 def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Check that metrics.csv and dataset.csv are created after the second epoch, if running on Azure.
+    """
     most_recent_run = get_most_recent_run()
     azure_config = AzureConfig.from_yaml(fixed_paths.SETTINGS_YAML_FILE,
                                          project_root=fixed_paths.repository_root_directory())
     workspace = azure_config.get_workspace()
     run = fetch_run(workspace, most_recent_run)
-    blob_path: Path = Path("epoch_002") / "Test"
+    blob_path: Path = Path(epoch_folder_name(2)) / "Test"
     (comparison_dataset_path, comparison_metrics_path) = get_comparison_baseline_paths(test_output_dirs.root_dir,
                                                                                        blob_path, run,
                                                                                        DATASET_CSV_FILE_NAME)
-    assert comparison_dataset_path is not None
-    assert comparison_metrics_path is not None
+    if is_running_on_azure_agent(): 
+        assert comparison_dataset_path is not None
+        assert comparison_metrics_path is not None
 
 
 @pytest.mark.inference
