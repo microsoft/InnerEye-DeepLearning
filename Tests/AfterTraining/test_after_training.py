@@ -19,7 +19,7 @@ from azureml.core import Model
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
 from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run, get_comparison_baseline_paths, \
-    is_offline_run_context, is_running_on_azure_agent, to_azure_friendly_string
+    is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import get_epoch_results_path
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
