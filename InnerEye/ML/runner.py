@@ -12,7 +12,7 @@ print("Starting InnerEye runner.")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
     innereye_root_str = str(innereye_root)
-    if not innereye_root_str in sys.path:
+    if innereye_root_str not in sys.path:
         print(f"Adding to sys.path: {innereye_root_str}")
         sys.path.insert(0, innereye_root_str)
 
@@ -174,7 +174,7 @@ class Runner:
         self.create_ensemble_model()
 
     @staticmethod
-    def generate_report(config: DeepLearningConfig,model_proc: ModelProcessing) -> None:
+    def generate_report(config: DeepLearningConfig, model_proc: ModelProcessing) -> None:
         logging.info("Saving report in html")
         if config.model_category not in [ModelCategory.Segmentation, ModelCategory.Classification]:
             return

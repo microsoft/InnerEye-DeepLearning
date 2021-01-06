@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR, LambdaLR, MultiStepLR, StepLR, _LRScheduler
 from torch.optim.optimizer import Optimizer

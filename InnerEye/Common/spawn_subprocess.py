@@ -28,6 +28,10 @@ def spawn_and_monitor_subprocess(process: str, args: List[str], env: Optional[Di
         env=env,
         universal_newlines=True
     )
+
+    # for mypy, we have just set stdout
+    assert p.stdout
+
     # Read and print all the lines that are printed by the subprocess
     stdout_lines = []
     for line in iter(p.stdout.readline, ""):

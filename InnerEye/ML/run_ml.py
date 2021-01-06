@@ -39,7 +39,7 @@ from InnerEye.ML.model_training import model_train
 from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner, get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
-from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler, CheckpointPathsAndEpoch
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
@@ -291,9 +291,9 @@ class MLRunner:
             checkpoint_paths = self.decide_registration_epoch_without_evaluating(checkpoint_handler=checkpoint_handler)
 
             if not checkpoint_paths:
-                raise ValueError(f"Model registration failed: No checkpoints found")
+                raise ValueError("Model registration failed: No checkpoints found")
 
-            model_description = f"Registering model."
+            model_description = "Registering model."
             checkpoint_paths = checkpoint_paths
             self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
 

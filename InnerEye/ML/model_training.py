@@ -12,7 +12,6 @@ import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.loggers.mlflow import MLFlowLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section

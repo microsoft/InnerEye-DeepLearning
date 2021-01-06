@@ -10,17 +10,14 @@ import torch
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline, \
     ScalarInferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType
-from InnerEye.ML.utils.model_util import ModelAndInfo
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.utils.test_model_util import create_model_and_store
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 def test_create_from_checkpoint_non_ensemble(test_output_dirs: OutputFolderForTests) -> None:

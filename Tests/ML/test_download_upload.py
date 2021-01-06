@@ -40,13 +40,13 @@ def test_download_checkpoints_invalid_run(test_output_dirs: OutputFolderForTests
     assert get_results_blob_path("some_run_id") == "azureml/ExperimentRun/dcid.some_run_id"
 
 
-def check_single_checkpoint(downloaded_checkpoints: List[Path], expected_checkpoint: Path):
+def check_single_checkpoint(downloaded_checkpoints: List[Path], expected_checkpoint: Path) -> None:
     assert len(downloaded_checkpoints) == 1
     assert downloaded_checkpoints[0] == expected_checkpoint
     assert expected_checkpoint.exists()
 
 
-def check_multiple_checkpoints(downloaded_checkpoints: List[Path], expected_checkpoints: List[Path]):
+def check_multiple_checkpoints(downloaded_checkpoints: List[Path], expected_checkpoints: List[Path]) -> None:
     assert len(downloaded_checkpoints) == len(expected_checkpoints)
     assert all([x in expected_checkpoints for x in downloaded_checkpoints])
     assert all([expected_file.exists() for expected_file in expected_checkpoints])

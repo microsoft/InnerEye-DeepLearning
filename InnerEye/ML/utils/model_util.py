@@ -12,7 +12,6 @@ import torch
 from pytorch_lightning import LightningModule
 from torch.nn import MSELoss
 from torch.nn.parameter import Parameter
-from torch.optim.optimizer import Optimizer
 from torch.optim.rmsprop import RMSprop
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT

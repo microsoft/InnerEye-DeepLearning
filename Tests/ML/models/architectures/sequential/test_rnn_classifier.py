@@ -12,7 +12,7 @@ import pytest
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import ModelExecutionMode, SUBJECT_METRICS_FILE_NAME, logging_to_stdout
+from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.metrics_dict import MetricType, create_metrics_dict_for_scalar_models
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
@@ -31,7 +31,7 @@ from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentat
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.io_util import ImageAndSegmentations
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling, \
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, \
     get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
