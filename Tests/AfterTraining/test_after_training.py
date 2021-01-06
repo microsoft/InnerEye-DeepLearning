@@ -107,11 +107,8 @@ def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
     (comparison_dataset_path, comparison_metrics_path) = get_comparison_baseline_paths(test_output_dirs.root_dir,
                                                                                        blob_path, run,
                                                                                        DATASET_CSV_FILE_NAME)
-    if not is_offline_run_context(run):
-        assert comparison_dataset_path is not None
-        assert comparison_metrics_path is not None
-    else:
-        print("Skipping test, offline")
+    assert comparison_dataset_path is not None
+    assert comparison_metrics_path is not None
 
 
 @pytest.mark.inference
