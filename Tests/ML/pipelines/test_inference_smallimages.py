@@ -7,12 +7,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from InnerEye.Common.common_util import ModelExecutionMode, is_windows
+from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.utils import image_util
-from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from InnerEye.ML.lightning_models import create_model_from_lightning_checkpoint
 from InnerEye.Common.output_directories import OutputFolderForTests
 from Tests.ML.utils.test_model_util import create_model_and_store

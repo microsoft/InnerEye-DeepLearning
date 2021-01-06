@@ -3,13 +3,10 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-import os
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Dict, Generic, Iterator, List, Optional, TypeVar, Union
 
 import torch
-from pytorch_lightning import LightningModule
 from torch.nn import MSELoss
 from torch.nn.parameter import Parameter
 from torch.optim.rmsprop import RMSprop
@@ -32,7 +29,6 @@ from InnerEye.ML.models.layers.basic import BasicLayer
 from InnerEye.ML.models.losses.cross_entropy import CrossEntropyLoss
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
-from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule

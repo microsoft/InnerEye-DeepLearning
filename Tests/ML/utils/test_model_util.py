@@ -7,18 +7,13 @@ from pathlib import Path
 import pytest
 import torch
 
-from InnerEye.Common.common_util import ModelExecutionMode
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.lightning_models import create_lightning_model, create_model_from_lightning_checkpoint
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training import create_lightning_trainer
-from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
-from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import machine_has_gpu
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 def create_model_and_store(config: ModelConfigBase, checkpoint_path: Path) -> None:
