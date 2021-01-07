@@ -123,8 +123,9 @@ def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
                          [(DummyModel(), InferencePipeline, EnsemblePipeline),
                           (ClassificationModelForTesting(mean_teacher_model=False),
                            ScalarInferencePipeline, ScalarEnsemblePipeline),
-                          (ClassificationModelForTesting(mean_teacher_model=True),
-                           ScalarInferencePipeline, ScalarEnsemblePipeline)
+                          # TODO: re-enable once we have mean teacher in place again
+                          # (ClassificationModelForTesting(mean_teacher_model=True),
+                          #  ScalarInferencePipeline, ScalarEnsemblePipeline)
                           ])
 def test_create_inference_pipeline(config: ModelConfigBase,
                                    expected_inference_type: type,

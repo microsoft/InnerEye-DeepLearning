@@ -140,10 +140,13 @@ class CheckpointHandler:
         if self.has_continued_training:
             # Checkpoint is from the current run, whether a new run or a run recovery which has been doing more
             # training, so we look for it there.
-            path = self.model_config.get_path_to_best_checkpoint()
-            if path.exists():
+            # TODO refactor get_path_to_checkpoint so it does not check if the path exists
+            #      Check if the path exists here instead.
+            try:
                 checkpoint_paths = [self.model_config.get_path_to_best_checkpoint()]
                 logging.info("Using checkpoints from current run.")
+            except FileNotFoundError:
+                logging.info("Using checkpoints from run recovery")
         else:
             logging.info("Using checkpoints from run recovery")
 
