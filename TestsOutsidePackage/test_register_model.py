@@ -19,7 +19,7 @@ from InnerEye.Common.common_util import ModelProcessing, OTHER_RUNS_SUBDIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
-from InnerEye.ML.common import CHECKPOINT_SUFFIX, get_best_checkpoint_path, create_checkpoint_path
+from InnerEye.ML.common import CHECKPOINT_SUFFIX, create_checkpoint_path, BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -29,6 +29,7 @@ from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.ml_util import set_random_seed
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from Tests.ML.utils.test_model_util import create_model_and_store
 
 
 class SubprocessConfig(GenericConfig):
@@ -99,14 +100,13 @@ def test_register_and_score_model(is_ensemble: bool,
     checkpoints_absolute = []
 
     # copy checkpoints from tests directory
-    checkpoint_path = config.get_path_to_best_checkpoint()
-    stored_checkpoint = create_checkpoint_path(path=full_ml_test_data_path("checkpoints"), epoch=1)
-    shutil.copyfile(str(stored_checkpoint), str(checkpoint_path))
+    checkpoint_path = config.checkpoint_folder / f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}"
+    create_model_and_store(config=config, checkpoint_path=checkpoint_path)
     checkpoints_absolute.append(checkpoint_path)
     if is_ensemble:
-        checkpoint_path = get_best_checkpoint_path(config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / "1")
-        stored_checkpoint = create_checkpoint_path(path=full_ml_test_data_path("checkpoints"), epoch=1)
-        shutil.copyfile(str(stored_checkpoint), str(checkpoint_path))
+        checkpoint_path = config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / "1" \
+                          / f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}"
+        create_model_and_store(config=config, checkpoint_path=checkpoint_path)
         checkpoints_absolute.append(checkpoint_path)
     checkpoints_relative = [f.relative_to(config.checkpoint_folder) for f in checkpoints_absolute]
     azureml_model = None

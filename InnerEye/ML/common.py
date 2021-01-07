@@ -78,7 +78,7 @@ def get_best_checkpoint_path(path: Path) -> Path:
     # TODO antonsc: This is to work around Lightning's inconsistent treatment of checkpoint filenames.
     # Maybe do that once and for all after training?
 
-    best_checkpoint1 = path / f"{BEST_CHECKPOINT_FILE_NAME}{CHECKPOINT_SUFFIX}"
+    best_checkpoint1 = path / f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}"
     best_checkpoint2 = path / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
     for p in [best_checkpoint1, best_checkpoint2]:
         if p.is_file():
