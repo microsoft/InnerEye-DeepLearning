@@ -17,7 +17,6 @@ from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, C
 from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
-from InnerEye.ML.utils.model_util import ModelAndInfo
 from Tests.ML.util import get_default_checkpoint_handler, machine_has_gpu
 
 

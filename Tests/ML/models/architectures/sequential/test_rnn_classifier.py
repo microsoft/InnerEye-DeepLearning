@@ -31,8 +31,7 @@ from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentat
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.io_util import ImageAndSegmentations
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, \
-    get_scalar_model_inputs_and_labels
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler

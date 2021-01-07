@@ -69,6 +69,7 @@ def test_non_image_encoder(test_output_dirs: OutputFolderForTests,
     (dataset_folder / DATASET_CSV_FILE_NAME).write_text(dataset_contents)
     config = NonImageEncoder(should_validate=False, hidden_layer_num_feature_channels=hidden_layer_num_feature_channels)
     config.local_dataset = dataset_folder
+    config.set_output_to(test_output_dirs.root_dir)
     config.max_batch_grad_cam = 1
     config.validate()
     # run model training

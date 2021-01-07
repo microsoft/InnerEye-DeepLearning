@@ -9,7 +9,7 @@ import os
 
 from InnerEye.Common.metrics_dict import MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import ModelExecutionMode, create_checkpoint_path
+from InnerEye.ML.common import ModelExecutionMode, BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.model_testing import model_test
@@ -19,7 +19,9 @@ from InnerEye.ML.metrics import InferenceMetricsForClassification
 from Tests.ML.util import get_default_checkpoint_handler
 
 
-@pytest.mark.parametrize("mean_teacher_model", [True, False])
+# TODO: re-enable once we have mean teacher in place again
+# @pytest.mark.parametrize("mean_teacher_model", [True, False])
+@pytest.mark.parametrize("mean_teacher_model", [False])
 def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
                                             test_output_dirs: OutputFolderForTests) -> None:
     """
@@ -70,7 +72,7 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     os.makedirs(str(config_local_weights.outputs_folder))
 
     local_weights_path = test_output_dirs.root_dir / "local_weights_file.pth"
-    shutil.copyfile(str(create_checkpoint_path(config.checkpoint_folder, epoch=config.num_epochs)),
+    shutil.copyfile(str(config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX),
                     local_weights_path)
     config_local_weights.local_weights_path = local_weights_path
 

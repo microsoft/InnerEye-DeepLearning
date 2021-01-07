@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import shutil
 import numpy as np
 import pandas as pd
 import pytest
@@ -11,7 +10,7 @@ from InnerEye.Common import common_util
 from InnerEye.Common.common_util import get_epoch_results_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -49,8 +48,7 @@ def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
-    stored_checkpoints = full_ml_test_data_path("checkpoints")
-    shutil.copytree(str(stored_checkpoints), str(config.checkpoint_folder))
+    create_model_and_store(config, config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX)
     checkpoint_handler.additional_training_done()
     inference_results = model_testing.segmentation_model_test(config,
                                                               data_split=execution_mode,
@@ -125,8 +123,9 @@ def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
                          [(DummyModel(), InferencePipeline, EnsemblePipeline),
                           (ClassificationModelForTesting(mean_teacher_model=False),
                            ScalarInferencePipeline, ScalarEnsemblePipeline),
-                          (ClassificationModelForTesting(mean_teacher_model=True),
-                           ScalarInferencePipeline, ScalarEnsemblePipeline)
+                          # TODO: re-enable once we have mean teacher in place again
+                          # (ClassificationModelForTesting(mean_teacher_model=True),
+                          #  ScalarInferencePipeline, ScalarEnsemblePipeline)
                           ])
 def test_create_inference_pipeline(config: ModelConfigBase,
                                    expected_inference_type: type,

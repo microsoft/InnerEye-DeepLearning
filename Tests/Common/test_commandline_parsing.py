@@ -16,9 +16,11 @@ from InnerEye.ML.runner import Runner
 
 @pytest.mark.parametrize("is_default_namespace", [True, False])
 @pytest.mark.parametrize("is_offline_run", [True, False])
+@pytest.mark.parametrize("set_output_to", [True, False])
 def test_create_ml_runner_args(is_default_namespace: bool,
                                test_output_dirs: OutputFolderForTests,
-                               is_offline_run: bool) -> None:
+                               is_offline_run: bool,
+                               set_output_to: bool) -> None:
     """Test round trip parsing of commandline arguments:
     From arguments to the Azure runner to the arguments of the ML runner, checking that
     whatever is passed on can be correctly parsed."""
@@ -35,7 +37,12 @@ def test_create_ml_runner_args(is_default_namespace: bool,
     args_list = [f"--model={model_name}", "--train=True", "--l_rate=100.0",
                  "--norm_method=Simple Norm", "--subscription_id", "Test1", "--tenant_id=Test2",
                  "--application_id", "Test3", "--azureml_datastore", "Test5",
-                 "--pytest_mark", "gpu", f"--output_to={outputs_folder}"]
+                 "--pytest_mark", "gpu"]
+
+    # toggle the output_to flag off only for online runs
+    if set_output_to or is_offline_run:
+        args_list.append(f"--output_to={outputs_folder}")
+
     if not is_default_namespace:
         args_list.append(f"--model_configs_namespace={model_configs_namespace}")
 
@@ -48,7 +55,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
     assert azure_config.model == model_name
     assert model_config.l_rate == 100.0
     assert model_config.norm_method == PhotometricNormalizationMethod.SimpleNorm
-    if is_offline_run:
+    if set_output_to or is_offline_run:
         # The actual output folder must be a subfolder of the folder given on the commandline. The folder will contain
         # a timestamp, that will start with the year number, hence will start with 20...
         assert str(model_config.outputs_folder).startswith(str(outputs_folder / "20"))

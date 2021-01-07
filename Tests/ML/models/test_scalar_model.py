@@ -15,7 +15,7 @@ import torch
 
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, \
-    METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, logging_to_stdout
+    METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, logging_to_stdout, get_epoch_results_path
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, model_training, runner
@@ -108,25 +108,25 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
     # Check metrics.csv: This contains the per-subject per-epoch model outputs
     metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
     metrics_expected = \
-        """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split	
-Default,0,S2,0.5295137763023376,1.0,-1,Train	
-Default,0,S4,0.5216594338417053,0.0,-1,Train	
-Default,1,S2,0.5294750332832336,1.0,-1,Train	
-Default,1,S4,0.5214819312095642,0.0,-1,Train	
-Default,2,S2,0.5294366478919983,1.0,-1,Train	
-Default,2,S4,0.5213046073913574,0.0,-1,Train	
-Default,3,S4,0.5211275815963745,0.0,-1,Train	
-Default,3,S2,0.5293986201286316,1.0,-1,Train	
+        """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
+Default,0,S2,0.5295137763023376,1.0,-1,Train
+Default,0,S4,0.5216594338417053,0.0,-1,Train
+Default,1,S2,0.5294750332832336,1.0,-1,Train
+Default,1,S4,0.5214819312095642,0.0,-1,Train
+Default,2,S2,0.5294366478919983,1.0,-1,Train
+Default,2,S4,0.5213046073913574,0.0,-1,Train
+Default,3,S4,0.5211275815963745,0.0,-1,Train
+Default,3,S2,0.5293986201286316,1.0,-1,Train
 """
     check_log_file(metrics_path, metrics_expected, ignore_columns=[])
     # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
     # Normally, we would run it on the Test and Val splits, but for convenience we test on the train split here.
-    inference_metrics_path = config.outputs_folder / "epoch_-01" / \
-                             ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
+    inference_metrics_path = config.outputs_folder / get_epoch_results_path(ModelExecutionMode.TRAIN) / \
+                             SUBJECT_METRICS_FILE_NAME
     inference_metrics_expected = \
-        """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split	
-Default,-1,S2,0.5293986201286316,1.0,-1,Train	
-Default,-1,S4,0.5211275815963745,0.0,-1,Train	
+        """prediction_target,subject,model_output,label,cross_validation_split_index,data_split
+Default,S2,0.5293986201286316,1.0,-1,Train
+Default,S4,0.5211275815963745,0.0,-1,Train
 """
     check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
 
