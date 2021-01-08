@@ -88,7 +88,7 @@ def create_lightning_trainer(config: ModelConfigBase,
         logging.info(f"Restricting the number of GPUs to {num_gpus}")
     # Alternative: use 'ddp_spawn'. However, when running inside AzureML, hits an issue with pickling a SimpleQueue
     # object (it works fine on a GPU VM)
-    accelerator = "ddp_spawn" if num_gpus > 1 else None
+    accelerator = "ddp" if num_gpus > 1 else None
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
     storing_logger = StoringLogger()
     loggers = [storing_logger,
