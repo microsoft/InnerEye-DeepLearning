@@ -184,16 +184,16 @@ def test_get_image_filepath_from_subject_id_invalid_id() -> None:
 
 
 def test_plot_image_from_filepath(test_output_dirs: OutputFolderForTests) -> None:
-    im_size = (200, 300)
+    im_width = 200
 
     array = np.ones([10, 10])
     valid_file = Path(test_output_dirs.root_dir) / "valid.npy"
     np.save(valid_file, array)
-    res = plot_image_from_filepath(valid_file, im_size)
+    res = plot_image_from_filepath(valid_file, im_width)
     assert res
 
     array = np.ones([3, 10, 10])
     invalid_file = Path(test_output_dirs.root_dir) / "invalid.npy"
     np.save(invalid_file, array)
-    res = plot_image_from_filepath(invalid_file, im_size)
+    res = plot_image_from_filepath(invalid_file, im_width)
     assert not res
