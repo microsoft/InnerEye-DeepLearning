@@ -93,7 +93,7 @@ def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
         pytest.fail(f"{len(missing)} files in the registered model are missing: {missing[:5]}")
 
 
-@pytest.mark.after_training
+@pytest.mark.after_training_single_run
 def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
     """
     Check that metrics.csv and dataset.csv are created after the second epoch, if running on Azure.
