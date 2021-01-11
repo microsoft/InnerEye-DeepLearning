@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional, Tuple, TypeVar
 
 import torch
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
@@ -104,6 +104,7 @@ def create_lightning_trainer(config: ModelConfigBase,
     #     loggers.append(mlflow_logger)
 
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
+                      deterministic=True,
                       accelerator=accelerator,
                       max_epochs=config.num_epochs,
                       num_sanity_val_steps=0,  # Otherwise a small number of validation steps is run before first train
@@ -140,7 +141,7 @@ def model_train(config: ModelConfigBase,
 
     logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
                  f"trainer.global_rank: {trainer.global_rank}")
-    ml_util.set_random_seed(config.get_effective_random_seed(), "Model training")
+    seed_everything(config.get_effective_random_seed())
     logging.debug("Creating the PyTorch model.")
     lightning_model = create_lightning_model(config)
     lightning_model.storing_logger = storing_logger

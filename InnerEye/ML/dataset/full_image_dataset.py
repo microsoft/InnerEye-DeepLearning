@@ -49,6 +49,7 @@ def collate_with_metadata(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
     raise TypeError(f"Unexpected batch data: Expected a dictionary, but got: {type(elem)}")
 
 
+# TODO antonsc: Remove?
 def set_random_seed_for_dataloader_worker(worker_id: int) -> None:
     """
     Set the seed for the random number generators of python, numpy.
@@ -188,7 +189,6 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
                 shuffle=shuffle,
                 num_workers=num_dataload_workers,
                 pin_memory=self.args.pin_memory,
-                worker_init_fn=set_random_seed_for_dataloader_worker,
                 collate_fn=collate_with_metadata,
                 use_imbalanced_sampler=use_imbalanced_sampler,
                 drop_last=drop_last_batch
@@ -205,7 +205,6 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
                 shuffle=shuffle,
                 num_workers=num_dataload_workers,
                 pin_memory=self.args.pin_memory,
-                worker_init_fn=set_random_seed_for_dataloader_worker,
                 collate_fn=collate_with_metadata,
                 sampler=sampler,  # type: ignore
                 drop_last=drop_last_batch
