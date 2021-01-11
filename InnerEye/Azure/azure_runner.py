@@ -219,26 +219,22 @@ def create_pytorch_environment(azure_config: AzureConfig,
                                azure_dataset_id: str) -> PyTorch:
     """
     Creates an Estimator environment required for model execution
-
     :param workspace: The AzureML workspace
     :param azure_config: azure related configurations to use for model scaleout behaviour
     :param source_config: configurations for model execution, such as name and execution mode
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
     :return: The configured PyTorch environment to be used for experimentation
     """
-    if azure_dataset_id:
-        azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
-        if azureml_dataset:
-            if azure_config.use_dataset_mount:
-                logging.info("Inside AzureML, the dataset will be provided as a mounted folder.")
-                estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_mount()]
-            else:
-                logging.info("Inside AzureML, the dataset will be downloaded before training starts.")
-                estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_download()]
+    azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
+    if azureml_dataset:
+        if azure_config.use_dataset_mount:
+            logging.info("Inside AzureML, the dataset will be provided as a mounted folder.")
+            estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_mount()]
         else:
-            raise ValueError("No AzureML dataset was found.")
+            logging.info("Inside AzureML, the dataset will be downloaded before training starts.")
+            estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_download()]
     else:
-        estimator_inputs = []
+        raise ValueError("No AzureML dataset was found.")
 
     return create_estimator_from_configs(azure_config, source_config, estimator_inputs)
 

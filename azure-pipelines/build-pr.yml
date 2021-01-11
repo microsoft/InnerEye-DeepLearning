@@ -46,8 +46,6 @@ jobs:
   - job: RunGpuTestsInAzureML
     variables:
       - template: ../InnerEye/settings.yml
-      - name: model
-        value: ''
       - name: tag
         value: 'RunGpuTests'
     pool:
