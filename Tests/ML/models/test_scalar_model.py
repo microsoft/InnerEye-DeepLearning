@@ -482,9 +482,9 @@ def test_get_dataset_splits() -> None:
     Test if dataset splits are created as expected for scalar models.
     """
     model = ClassificationModelForTesting()
-    model.local_dataset = full_ml_test_data_path("classification_data_sub_fold_cv")
+    model.local_dataset = full_ml_test_data_path("classification_data_generated_random")
     model.number_of_cross_validation_splits = 2
     dataset_splits = model.get_dataset_splits()
-    assert list(dataset_splits[ModelExecutionMode.TRAIN].subjectID.unique()) == ['S4', 'S5', 'S2', 'S10']
-    assert list(dataset_splits[ModelExecutionMode.VAL].subjectID.unique()) == ['S1', 'S6', 'S7', 'S8']
-    assert list(dataset_splits[ModelExecutionMode.TEST].subjectID.unique()) == ['S3', 'S9']
+    assert list(dataset_splits[ModelExecutionMode.TRAIN].subjectID.unique()) == ['4', '5', '2', '10']
+    assert list(dataset_splits[ModelExecutionMode.VAL].subjectID.unique()) == ['1', '6', '7', '8']
+    assert list(dataset_splits[ModelExecutionMode.TEST].subjectID.unique()) == ['3', '9']

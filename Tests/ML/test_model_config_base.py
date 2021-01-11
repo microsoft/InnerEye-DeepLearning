@@ -4,19 +4,18 @@
 #  ------------------------------------------------------------------------------------------
 
 import pytest
+from typing import Any
+from pathlib import Path
+
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, \
     choice, uniform
 
-from InnerEye.Azure.azure_config import AzureConfig, SourceConfig
+from InnerEye.Azure.azure_config import SourceConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
-from InnerEye.Common.build_config import BUILDINFORMATION_JSON, ExperimentResultLocation, \
-    build_information_to_dot_net_json, build_information_to_dot_net_json_file
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import TrackedMetrics
-from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.scalar_config import ScalarModelBase
 
 HYPERDRIVE_TOTAL_RUNS = 64
 

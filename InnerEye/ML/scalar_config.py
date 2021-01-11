@@ -9,9 +9,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import pandas as pd
 import param
 from azureml.train.estimator import Estimator
-from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, choice
+from azureml.train.hyperdrive import HyperDriveConfig
 
-from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
