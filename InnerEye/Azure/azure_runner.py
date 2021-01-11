@@ -226,16 +226,19 @@ def create_pytorch_environment(azure_config: AzureConfig,
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
     :return: The configured PyTorch environment to be used for experimentation
     """
-    azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
-    if azureml_dataset:
-        if azure_config.use_dataset_mount:
-            logging.info("Inside AzureML, the dataset will be provided as a mounted folder.")
-            estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_mount()]
+    if azure_dataset_id:
+        azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
+        if azureml_dataset:
+            if azure_config.use_dataset_mount:
+                logging.info("Inside AzureML, the dataset will be provided as a mounted folder.")
+                estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_mount()]
+            else:
+                logging.info("Inside AzureML, the dataset will be downloaded before training starts.")
+                estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_download()]
         else:
-            logging.info("Inside AzureML, the dataset will be downloaded before training starts.")
-            estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_download()]
+            raise ValueError("No AzureML dataset was found.")
     else:
-        raise ValueError("No AzureML dataset was found.")
+        estimator_inputs = []
 
     return create_estimator_from_configs(azure_config, source_config, estimator_inputs)
 

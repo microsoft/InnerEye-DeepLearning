@@ -8,6 +8,8 @@ from pathlib import Path
 
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
+from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
+
 print("Starting InnerEye runner.")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
@@ -272,10 +274,13 @@ class Runner:
                 logging.warning(f"Directory not found for upload: {other_runs_ensemble_dir}")
         remove_file_or_directory(other_runs_dir)
 
-    def parse_and_load_model(self) -> ParserResult:
+    def parse_and_load_model(self) -> Optional[ParserResult]:
         """
         Parses the command line arguments, and creates configuration objects for the model itself, and for the
-        Azure-related parameters. Sets self.azure_config and self.model_config to their proper values.
+        Azure-related parameters. Sets self.azure_config and self.model_config to their proper values. Returns the
+        parser output from parsing the model commandline arguments.
+        If no "model" argument is provided on the commandline, self.model_config will be set to None, and the return
+        value is None.
         """
         # Create a parser that will understand only the args we need for an AzureConfig
         parser1 = create_runner_parser()
@@ -286,6 +291,10 @@ class Runner:
                                                            fail_on_unknown_args=False)
         azure_config = AzureConfig(**parser1_result.args)
         azure_config.project_root = self.project_root
+        self.azure_config = azure_config
+        self.model_config = None
+        if not azure_config.model:
+            return None
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser1_result.args)
         # Create the model as per the "model" commandline option
         model_config = model_config_loader.create_model_config_from_name(
@@ -312,7 +321,6 @@ class Runner:
             logging.info(f"extra_code_directory is {azure_config.extra_code_directory}, which {exist}")
         else:
             logging.info("extra_code_directory is unset")
-        self.azure_config = azure_config
         self.model_config = model_config
         return parser2_result
 
@@ -329,7 +337,7 @@ class Runner:
         may_initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
-        if self.model_config.perform_cross_validation:
+        if self.model_config is not None and self.model_config.perform_cross_validation:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None
@@ -346,21 +354,26 @@ class Runner:
         """
         # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
         logging.getLogger('adal-python').setLevel(logging.WARNING)
-        if not self.model_config.azure_dataset_id:
-            raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
-        model_config_overrides = str(self.model_config.overrides)
+        if self.model_config:
+            if not self.model_config.azure_dataset_id:
+                raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
+            azure_dataset_id = self.model_config.azure_dataset_id
+            model_config_overrides = str(self.model_config.overrides)
+            hyperdrive_config_func = lambda estimator: self.model_config.get_hyperdrive_config(estimator)
+        else:
+            azure_dataset_id = ""
+            model_config_overrides = ""
+            hyperdrive_config_func = None
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
             conda_dependencies_files=get_all_environment_files(self.project_root),
-            hyperdrive_config_func=lambda estimator: self.model_config.get_hyperdrive_config(estimator),
+            hyperdrive_config_func=hyperdrive_config_func,
             # For large jobs, upload of results times out frequently because of large checkpoint files. Default is 600
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
-        assert self.model_config.azure_dataset_id is not None  # to stop mypy complaining about next line
-        azure_run = submit_to_azureml(self.azure_config, source_config, model_config_overrides,
-                                      self.model_config.azure_dataset_id)
+        azure_run = submit_to_azureml(self.azure_config, source_config, model_config_overrides, azure_dataset_id)
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
@@ -384,38 +397,38 @@ class Runner:
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(self.azure_config.log_level)
         suppress_logging_noise()
-        pytest_error_message = ""
-        training_errror_message = ""
-        pytest_failures = ""
-        # Ensure that both model training and pytest both get executed in all cases, so that we see a full set of
-        # test results in each PR
-        outputs_folder = self.model_config.outputs_folder
-        try:
-            logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
+        error_messages = []
+        # For the PR build in AzureML, we can either pytest, or the training of the simple PR model. Running both
+        # only works when using DDP_spawn, but that has as a side-effect that it messes up memory consumption of the
+        # large models.
+        if self.azure_config.pytest_mark:
             try:
-                self.create_ml_runner().run()
+                outputs_folder = Path.cwd() / DEFAULT_AML_UPLOAD_DIR
+                pytest_passed, results_file_path = run_pytest(self.azure_config.pytest_mark, outputs_folder)
+                if not pytest_passed:
+                    pytest_failures = f"Not all PyTest tests passed. See {results_file_path}"
+                    logging.error(pytest_failures)
+                    error_messages.append(pytest_failures)
             except Exception as ex:
-                print_exception(ex, "Model training/testing failed.")
-                training_errror_message = f"Training failed: {ex}"
-            if self.azure_config.pytest_mark:
+                print_exception(ex, "Unable to run PyTest.")
+                error_messages.append(f"Unable to run PyTest: {ex}")
+        else:
+            try:
+                logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
                 try:
-                    pytest_passed, results_file_path = run_pytest(self.azure_config.pytest_mark, outputs_folder)
-                    if not pytest_passed:
-                        pytest_failures = f"Not all PyTest tests passed. See {results_file_path}"
-                        logging.error(pytest_failures)
+                    self.create_ml_runner().run()
                 except Exception as ex:
-                    print_exception(ex, "Unable to run PyTest.")
-                    pytest_error_message = f"Unable to run PyTest: {ex}"
-        finally:
-            # wait for aggregation if required, and only if the training actually succeeded.
-            if not training_errror_message and self.model_config.should_wait_for_other_cross_val_child_runs():
-                self.wait_for_cross_val_runs_to_finish_and_aggregate()
-            disable_logging_to_file()
-        message = [m for m in [training_errror_message, pytest_error_message, pytest_failures] if m]
+                    print_exception(ex, "Model training/testing failed.")
+                    error_messages.append(f"Training failed: {ex}")
+            finally:
+                # wait for aggregation if required, and only if the training actually succeeded.
+                if not error_messages and self.model_config.should_wait_for_other_cross_val_child_runs():
+                    self.wait_for_cross_val_runs_to_finish_and_aggregate()
+                disable_logging_to_file()
         # Terminate if pytest or model training has failed. This makes the smoke test in
         # PR builds fail if pytest fails.
-        if message:
-            raise ValueError(f"At least one component of the runner failed: {os.linesep} {os.linesep.join(message)}")
+        if error_messages:
+            raise ValueError(f"At least one component of the runner failed: {os.linesep} {os.linesep.join(error_messages)}")
 
     def create_ml_runner(self) -> Any:
         """

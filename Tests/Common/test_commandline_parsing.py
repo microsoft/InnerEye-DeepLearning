@@ -70,6 +70,17 @@ def test_create_ml_runner_args(is_default_namespace: bool,
     assert azure_config.pytest_mark == "gpu"
 
 
+def test_parse_pytest_only() -> None:
+    args_list = ["--pytest_mark=foo"]
+    project_root = fixed_paths.repository_root_directory()
+    runner = Runner(project_root=project_root, yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
+    with mock.patch("sys.argv", [""] + args_list):
+        parser2_result = runner.parse_and_load_model()
+    assert runner.model_config is None
+    assert parser2_result is None
+    assert runner.azure_config.pytest_mark == "foo"
+
+
 def test_overridable_properties() -> None:
     """
     Test to make sure all valid types can be parsed by the config parser
