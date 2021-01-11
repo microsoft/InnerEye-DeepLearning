@@ -8,8 +8,6 @@ from pathlib import Path
 
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
-from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
-
 print("Starting InnerEye runner.")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
@@ -252,7 +250,7 @@ class Runner:
             checkpoint_handler.discover_and_download_checkpoint_from_sibling_runs()
 
         self.create_ml_runner().run_inference_and_register_model(checkpoint_handler=checkpoint_handler,
-                                                                              model_proc=ModelProcessing.ENSEMBLE_CREATION)
+                                                                 model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
         crossval_dir = self.plot_cross_validation_and_upload_results()
         Runner.generate_report(self.model_config, ModelProcessing.ENSEMBLE_CREATION)
@@ -403,7 +401,7 @@ class Runner:
         # large models.
         if self.azure_config.pytest_mark:
             try:
-                outputs_folder = Path.cwd() / DEFAULT_AML_UPLOAD_DIR
+                outputs_folder = Path.cwd() / fixed_paths.DEFAULT_AML_UPLOAD_DIR
                 pytest_passed, results_file_path = run_pytest(self.azure_config.pytest_mark, outputs_folder)
                 if not pytest_passed:
                     pytest_failures = f"Not all PyTest tests passed. See {results_file_path}"
@@ -428,7 +426,8 @@ class Runner:
         # Terminate if pytest or model training has failed. This makes the smoke test in
         # PR builds fail if pytest fails.
         if error_messages:
-            raise ValueError(f"At least one component of the runner failed: {os.linesep} {os.linesep.join(error_messages)}")
+            raise ValueError(
+                f"At least one component of the runner failed: {os.linesep} {os.linesep.join(error_messages)}")
 
     def create_ml_runner(self) -> Any:
         """
