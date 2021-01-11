@@ -7,7 +7,7 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import conda_merge
 import ruamel.yaml
@@ -15,9 +15,11 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Experiment, Run, Workspace, get_run
 from azureml.core._serialization_utils import _serialize_to_dict
 from azureml.core.conda_dependencies import CondaDependencies
+from azureml.exceptions import UserErrorException
 from azureml.train.estimator import Estimator
 
 from InnerEye.Common import fixed_paths
+from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
 
 DEFAULT_CROSS_VALIDATION_SPLIT_INDEX = -1
 EXPERIMENT_RUN_SEPARATOR = ":"
@@ -419,3 +421,48 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
     runs = list(run.get_children())
     runs.append(run)
     return all(is_completed(run) for run in runs)
+
+
+def get_comparison_baseline_paths(outputs_folder: Path,
+                                  blob_path: Path, run: Run,
+                                  dataset_csv_file_name: str) -> \
+        Tuple[Optional[Path], Optional[Path]]:
+    run_rec_id = run.id
+    # We usually find dataset.csv in the same directory as metrics.csv, but we sometimes
+    # have to look higher up.
+    comparison_dataset_path: Optional[Path] = None
+    comparison_metrics_path: Optional[Path] = None
+    destination_folder = outputs_folder / run_rec_id / blob_path
+    # Look for dataset.csv inside epoch_NNN/Test, epoch_NNN/ and at top level
+    for blob_path_parent in step_up_directories(blob_path):
+        try:
+            comparison_dataset_path = download_outputs_from_run(
+                blob_path_parent / dataset_csv_file_name, destination_folder, run, True)
+            break
+        except (ValueError, UserErrorException):
+            logging.warning(f"cannot find {dataset_csv_file_name} at {blob_path_parent} in {run_rec_id}")
+        except NotADirectoryError:
+            logging.warning(f"{blob_path_parent} is not a directory")
+            break
+        if comparison_dataset_path is None:
+            logging.warning(f"cannot find {dataset_csv_file_name} at or above {blob_path} in {run_rec_id}")
+    # Look for epoch_NNN/Test/metrics.csv
+    try:
+        comparison_metrics_path = download_outputs_from_run(
+            blob_path / SUBJECT_METRICS_FILE_NAME, destination_folder, run, True)
+    except (ValueError, UserErrorException):
+        logging.warning(f"cannot find {SUBJECT_METRICS_FILE_NAME} at {blob_path} in {run_rec_id}")
+    return (comparison_dataset_path, comparison_metrics_path)
+
+
+def step_up_directories(path: Path) -> Generator[Path, None, None]:
+    """
+    Generates the provided directory and all its parents. Needed because dataset.csv
+    files are sometimes not where we expect them to be, but higher up.
+    """
+    while True:
+        yield path
+        parent = path.parent
+        if parent == path:
+            break
+        path = parent

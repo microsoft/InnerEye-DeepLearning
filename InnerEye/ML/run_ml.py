@@ -25,7 +25,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     update_run_tags
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
-from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section, print_exception
+from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -432,12 +432,9 @@ class MLRunner:
         """
         if not isinstance(self.model_config, SegmentationModelBase):  # keep type checker happy
             return
-        try:
-            from InnerEye.ML.baselines_util import compare_scores_against_baselines
-            with logging_section("Comparing scores against baselines"):
-                compare_scores_against_baselines(self.model_config, self.azure_config, model_proc)
-        except Exception as ex:
-            print_exception(ex, "Model baseline comparison failed.")
+        from InnerEye.ML.baselines_util import compare_scores_against_baselines
+        with logging_section("Comparing scores against baselines"):
+            compare_scores_against_baselines(self.model_config, self.azure_config, model_proc)
 
     def register_segmentation_model(self,
                                     checkpoint_paths: List[Path],
