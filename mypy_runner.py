@@ -38,7 +38,11 @@ def run_mypy(files: List[str], mypy_executable_path: str) -> int:
             return_code = max(return_code, process.returncode)
             for line in process.stdout.split("\n"):
                 if line and not line.startswith("Success: "):
-                    print(line if line.startswith("Found") else Path.cwd() / line)
+                    tokens = line.split(":")
+                    if line.startswith("Found") or len(tokens) < 2:
+                        print(line)
+                    else:
+                        print(f"{Path.cwd() / tokens[0]}:{':'.join(tokens[1:])}")
 
             # Remove from files_to_do every Python file that's reported as processed in the log.
             for line in process.stderr.split("\n"):
