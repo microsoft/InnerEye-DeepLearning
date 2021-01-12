@@ -10,6 +10,7 @@ from typing import List
 from shutil import which
 from argparse import ArgumentParser
 
+
 def run_mypy(files: List[str], mypy_executable_path: str) -> int:
     """
     Runs mypy on the specified files, printing whatever is sent to stdout (i.e. mypy errors).
@@ -77,7 +78,7 @@ def main() -> int:
     args = parser.parse_args()
     current_dir = Path(".")
     if args.files:
-        file_list = [Path(arg) for arg in sys.argv[1:] if arg.endswith(".py")]
+        file_list = [Path(arg) for arg in args.files if arg.endswith(".py")]
     else:
         # We don't want to check the files in the submodule if any, partly because they should already have
         # been checked in the original repo, and partly because we don't want the module name clashes mypy would
