@@ -7,3 +7,15 @@ subjectID,channel,path,value,date
 3,label,,True,
 4,image,im4.npy,,1970-01-01
 4,label,,True,
+5,image,im1.npy,,1970-01-01
+5,label,,False,
+6,image,im2.npy,,1970-01-01
+6,label,,False,
+7,image,im3.npy,,1970-01-01
+7,label,,True,
+8,image,im4.npy,,1970-01-01
+8,label,,True,
+9,image,im1.npy,,1970-01-01
+9,label,,False,
+10,image,im2.npy,,1970-01-01
+10,label,,False,

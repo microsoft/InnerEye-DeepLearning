@@ -158,10 +158,8 @@ def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("model_name", ["DummyClassification", "DummyRegression"])
 @pytest.mark.parametrize("number_of_offline_cross_validation_splits", [2])
-@pytest.mark.parametrize("number_of_cross_validation_splits_per_fold", [2])
 def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests,
                                           number_of_offline_cross_validation_splits: int,
-                                          number_of_cross_validation_splits_per_fold: int,
                                           model_name: str) -> None:
     """
     Test training and testing of classification models, when it is started together via run_ml.
@@ -172,10 +170,7 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
     train_config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
         .create_model_config_from_name(model_name)
     train_config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
-    train_config.number_of_cross_validation_splits_per_fold = number_of_cross_validation_splits_per_fold
     train_config.set_output_to(test_output_dirs.root_dir)
-    if train_config.perform_sub_fold_cross_validation:
-        train_config.local_dataset = full_ml_test_data_path("classification_data_sub_fold_cv")
     MLRunner(train_config, azure_config).run()
     _check_offline_cross_validation_output_files(train_config)
 
@@ -383,11 +378,7 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         assert aggregate_metrics_path.is_file()
         # since we aggregate the outputs of each of the child folds
         # we need to compare the outputs w.r.t to the parent folds
-        child_folds = train_config.number_of_cross_validation_splits_per_fold
-        if train_config.perform_sub_fold_cross_validation:
-            train_config.number_of_cross_validation_splits_per_fold = 0
         _dataset_splits = train_config.get_dataset_splits()
-        train_config.number_of_cross_validation_splits_per_fold = child_folds
 
         _val_dataset_split_count = len(_dataset_splits.val[train_config.subject_column].unique()) + len(
             _dataset_splits.train[train_config.subject_column].unique())
@@ -491,20 +482,9 @@ def test_get_dataset_splits() -> None:
     Test if dataset splits are created as expected for scalar models.
     """
     model = ClassificationModelForTesting()
-    model.local_dataset = full_ml_test_data_path("classification_data_sub_fold_cv")
+    model.local_dataset = full_ml_test_data_path("classification_data_generated_random")
     model.number_of_cross_validation_splits = 2
     dataset_splits = model.get_dataset_splits()
-    assert list(dataset_splits[ModelExecutionMode.TRAIN].subjectID.unique()) == ['S4', 'S5', 'S2', 'S10']
-    assert list(dataset_splits[ModelExecutionMode.VAL].subjectID.unique()) == ['S1', 'S6', 'S7', 'S8']
-    assert list(dataset_splits[ModelExecutionMode.TEST].subjectID.unique()) == ['S3', 'S9']
-    # check if sub-folds are created as expected
-    model.number_of_cross_validation_splits_per_fold = 2
-    sub_fold_dataset_splits = model.get_dataset_splits()
-    # the validation and the test set must be the same for parent and sub fold
-    pd.testing.assert_frame_equal(dataset_splits.val, sub_fold_dataset_splits.val,
-                                         check_like=True, check_dtype=False)
-    pd.testing.assert_frame_equal(dataset_splits.test,
-                                         sub_fold_dataset_splits.test, check_like=True,
-                                         check_dtype=False)
-    # make sure the training set is the expected subset of the parent
-    assert list(sub_fold_dataset_splits[ModelExecutionMode.TRAIN].subjectID.unique()) == ['S2', 'S10']
+    assert list(dataset_splits[ModelExecutionMode.TRAIN].subjectID.unique()) == ['4', '5', '2', '10']
+    assert list(dataset_splits[ModelExecutionMode.VAL].subjectID.unique()) == ['1', '6', '7', '8']
+    assert list(dataset_splits[ModelExecutionMode.TEST].subjectID.unique()) == ['3', '9']
