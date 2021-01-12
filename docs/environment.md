@@ -160,11 +160,13 @@ Run Flake8 by right-clicking on a source file, External Tools / Flake8
 
 ## How to manually set up mypy as a PyCharm external tool
 
-  * Name: mypy
-  * Program: $PyInterpreterDirectory$/python
-  * Arguments: $ProjectFileDir$/mypy_runner.py -m $PyInterpreterDirectory$/Scripts/mypy.exe
-  * Working directory: $ProjectFileDir$
-  * Advanced Options / Output Filters: $FILE_PATH$\:$LINE$\:.*
+Go to File / Settings / Tools / External Tools / Add.
+
+    * Name: mypy
+    * Program: $PyInterpreterDirectory$/python
+    * Arguments: $ProjectFileDir$/mypy_runner.py -m $PyInterpreterDirectory$/Scripts/mypy.exe
+    * Working directory: $ProjectFileDir$
+    * Advanced Options / Output Filters: $FILE_PATH$\:$LINE$\:.*
 
 Run mypy by right-clicking on a source file, External Tools / mypy
 
