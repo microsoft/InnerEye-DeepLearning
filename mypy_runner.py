@@ -7,9 +7,10 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import List
+from shutil import which
+from argparse import ArgumentParser
 
-
-def run_mypy(files: List[str]) -> int:
+def run_mypy(files: List[str], mypy_executable_path: str) -> int:
     """
     Runs mypy on the specified files, printing whatever is sent to stdout (i.e. mypy errors).
     Because of an apparent bug in mypy, we run mypy in --verbose mode, so that log lines are printed to
@@ -29,14 +30,15 @@ def run_mypy(files: List[str]) -> int:
         for index, dir in enumerate(dirs, 1):
             # Adding "--no-site-packages" might be necessary if there are errors in site packages,
             # but it may stop inconsistencies with site packages being spotted.
-            command = ["mypy", "--config=mypy.ini", "--verbose", dir]
-            print(f"Processing directory {index:2d} of {len(dirs)}: {dir}")
+            command = [mypy_executable_path, "--config=mypy.ini", "--verbose", dir]
+            print(f"Processing directory {index:2d} of {len(dirs)}: {Path(dir).absolute()}")
             # We pipe stdout and then print it, otherwise lines can appear in the wrong order in builds.
             process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             return_code = max(return_code, process.returncode)
             for line in process.stdout.split("\n"):
                 if line and not line.startswith("Success: "):
-                    print(line)
+                    print(line if line.startswith("Found") else Path.cwd() / line)
+
             # Remove from files_to_do every Python file that's reported as processed in the log.
             for line in process.stderr.split("\n"):
                 tokens = line.split()
@@ -67,8 +69,14 @@ def main() -> int:
     """
     Runs mypy on the files in the argument list, or every *.py file under the current directory if there are none.
     """
+    parser = ArgumentParser()
+    parser.add_argument("-f", "--files", type=str, nargs='+', required=False, default=None,
+                        help="List of files to run mypy on.")
+    parser.add_argument("-m", "--mypy", type=str, required=False, default=None,
+                        help="Path to mypy executable.")
+    args = parser.parse_args()
     current_dir = Path(".")
-    if sys.argv[1:]:
+    if args.files:
         file_list = [Path(arg) for arg in sys.argv[1:] if arg.endswith(".py")]
     else:
         # We don't want to check the files in the submodule if any, partly because they should already have
@@ -80,7 +88,12 @@ def main() -> int:
             if path.name != submodule_name:
                 files.update(path.rglob('*.py'))
         file_list = list(files)
-    return run_mypy(sorted(str(file) for file in file_list))
+
+    mypy = args.mypy or which("mypy")
+    if not mypy:
+        raise ValueError("Mypy executable not found.")
+
+    return run_mypy(sorted(str(file) for file in file_list), mypy_executable_path=mypy)
 
 
 if __name__ == "__main__":
