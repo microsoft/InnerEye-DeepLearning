@@ -164,7 +164,10 @@ Go to File / Settings / Tools / External Tools / Add.
 
     * Name: mypy
     * Program: $PyInterpreterDirectory$/python
-    * Arguments: $ProjectFileDir$/mypy_runner.py -m $PyInterpreterDirectory$/Scripts/mypy.exe
+    * Arguments: $ProjectFileDir$/mypy_runner.py -m <path to mypy executable>
+      You can find the path to the mypy executable by typing `where mypy` on Windows or `which mypy` on Linux.
+      If you have configured a virtual environment in PyCharm, the path will usually be 
+      `$PyInterpreterDirectory$/Scripts/mypy.exe` on Windows and `$PyInterpreterDirectory$/mypy` on Linux.
     * Working directory: $ProjectFileDir$
     * Advanced Options / Output Filters: $FILE_PATH$\:$LINE$\:.*
 
