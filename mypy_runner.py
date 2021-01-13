@@ -19,6 +19,7 @@ def run_mypy(files: List[str], mypy_executable_path: str) -> int:
     We run mypy repeatedly on the files that were not mentioned until there are none remaining, or until
     no further files are mentioned in the logs.
     :param files: list of .py files to check
+    :param mypy_executable_path: path to mypy executable
     :return: maximum return code from any of the mypy runs
     """
     return_code = 0
@@ -76,9 +77,9 @@ def main() -> int:
     """
     parser = ArgumentParser()
     parser.add_argument("-f", "--files", type=str, nargs='+', required=False, default=None,
-                        help="List of files to run mypy on.")
+                        help="List of files to run mypy on. If not provided, run on current directory")
     parser.add_argument("-m", "--mypy", type=str, required=False, default=None,
-                        help="Path to mypy executable.")
+                        help="Path to mypy executable. If not provided, autodetect mypy executable.")
     args = parser.parse_args()
     current_dir = Path(".")
     if args.files:
