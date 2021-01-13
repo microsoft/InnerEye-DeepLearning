@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import shutil
 from pathlib import Path
-from typing import Any, List
+from typing import Any, Dict, List
 import os
 
 import h5py
@@ -68,6 +68,15 @@ def _test_model_train(output_dirs: OutputFolderForTests,
         for diagnostic in diagnostics_per_epoch[1:]:
             assert np.array_equal(patch_centers_epoch1, diagnostic) == should_equal
 
+    def _check_voxel_count(results_per_epoch: List[Dict[str, float]],
+                           expected_voxel_count_per_epoch: List[float]) -> None:
+        assert len(results_per_epoch) == len(expected_voxel_count_per_epoch)
+        for (results, voxel_count) in zip(results_per_epoch, expected_voxel_count_per_epoch):
+            # In the test data, both structures "region" and "region_1" are read from the same nifti file, hence
+            # their voxel counts must be identical.
+            for structure in ["region", "region_1"]:
+                assert results[f"{MetricType.VOXEL_COUNT.value}/{structure}"] == voxel_count, \
+                    f"Voxel count mismatch for '{structure}'"
     train_config = DummyModel()
     train_config.local_dataset = base_path
     train_config.set_output_to(output_dirs.root_dir)
@@ -92,6 +101,8 @@ def _test_model_train(output_dirs: OutputFolderForTests,
 
     # check to make sure training batches are NOT all the same across epochs
     _check_patch_centers(model_training_result.train_diagnostics, should_equal=False)
+    _check_voxel_count(model_training_result.train_results_per_epoch, [166304.0, 165826.0])
+    _check_voxel_count(model_training_result.val_results_per_epoch, [165977.0, 165977.0])
     # check to make sure validation batches are all the same across epochs
     _check_patch_centers(model_training_result.val_diagnostics, should_equal=True)
     actual_train_losses = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS)

@@ -397,6 +397,9 @@ class SegmentationLightning(InnerEyeLightning):
         :param batch_index: The index of the present batch (supplied only for diagnostics).
         """
         cropped_sample: CroppedSample = CroppedSample.from_dict(sample=sample)
+        # TODO antonsc: Remove diagnostics
+        prefix = f"{'Train' if is_training else 'Val'} epoch {self.current_epoch} device {self.device}"
+        print(f"{prefix}: Patients {' '.join(m.patient_id for m in cropped_sample.metadata)}")
         # Forward propagation can lead to a model output that is smaller than the input image (crop).
         # labels_center_crop is the relevant part of the labels tensor that the model will actually produce.
         labels = cropped_sample.labels_center_crop
@@ -422,14 +425,15 @@ class SegmentationLightning(InnerEyeLightning):
         foreground_voxels = metrics_util.get_number_of_voxels_per_class(cropped_sample.labels)
         # loss is a scalar, also when running the forward pass over multiple crops.
         # dice_for_all_structures has one row per crop.
-        # store metrics per batch
+        # Store metrics broken down by batch, so that averaging works correctly when batch sizes are not equal.
         for i, ground_truth_id in enumerate(self.ground_truth_ids):
             dice_name = f"{MetricType.DICE.value}/{ground_truth_id}"
+            # Index 0 for all metrics is background, we don't want to store that.
             for b in range(dice_for_all_classes.shape[0]):
-                self.log_on_epoch(name=dice_name, value=dice_for_all_classes[b, i].item(),
+                self.log_on_epoch(name=dice_name, value=dice_for_all_classes[b, i+1].item(),
                                   is_training=is_training, reduce_fx=nanmean)
             self.log_on_epoch(name=f"{MetricType.VOXEL_COUNT.value}/{ground_truth_id}",
-                              value=foreground_voxels[i],
+                              value=foreground_voxels[i+1],
                               is_training=is_training)
         # store diagnostics per batch
         center_indices = cropped_sample.center_indices
