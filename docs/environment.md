@@ -158,15 +158,20 @@ Go to File / Settings / Tools / External Tools / Add.
 
 Run Flake8 by right-clicking on a source file, External Tools / Flake8
 
-## Mypy
+## How to manually set up mypy as a PyCharm external tool
 
-* From the command line: `mypy --config-file=mypy.ini`
-* Install the mypy plugin: https://github.com/leinardi/mypy-pycharm
-* Configure the plugin:
-  * Mypy executable path: find it with `where mypy`
-  * Arguments `--config-file=mypy.ini`
-* This plugin is good to run on individual files using the play button.
+Go to File / Settings / Tools / External Tools / Add.
 
+    * Name: mypy
+    * Program: $PyInterpreterDirectory$/python
+    * Arguments: $ProjectFileDir$/mypy_runner.py -m <path to mypy executable>
+      You can find the path to the mypy executable by typing `where mypy` on Windows or `which mypy` on Linux.
+      If you have configured a virtual environment in PyCharm, the path will usually be 
+      `$PyInterpreterDirectory$/Scripts/mypy.exe` on Windows and `$PyInterpreterDirectory$/mypy` on Linux.
+    * Working directory: $ProjectFileDir$
+    * Advanced Options / Output Filters: $FILE_PATH$\:$LINE$\:.*
+
+Run mypy by right-clicking on a source file, External Tools / mypy
 
 ## Deleting and creating a Conda environment
 
