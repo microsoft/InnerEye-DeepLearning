@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import numbers
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -182,7 +183,6 @@ class InnerEyeLightning(LightningModule):
         # Fields to store diagnostics for testing
         self.train_diagnostics = []
         self.val_diagnostics = []
-        self.use_sync_dist = self.use_ddp
 
     def set_optimizer_and_scheduler(self, config: DeepLearningConfig) -> None:
         self.optimizer = model_util.create_optimizer(config, self.model.parameters())
@@ -265,17 +265,20 @@ class InnerEyeLightning(LightningModule):
         """
         Logs a metrics to Pytorch Lightning with the on_epoch flag set. The metric will get a prefix indicating
         if it is a training or a validation metric. A custom reducer function can be provided.
-        The method also ensures that the correct synchronization across nodes is used.
+        The method also ensures that the correct synchronization across nodes is used. If the value to log is a
+        floating point, it is converted to a Tensor on the current device to enable synchronization.
         :param name: The name of the metric to log
-        :param value: The value of the metric
+        :param value: The value of the metric. This can be a tensor, floating point value, or a Metric class.
         :param is_training: If true, give the metric a "train/" prefix, otherwise a "val/" prefix.
         """
         metric_name = name if isinstance(name, str) else name.value
+        if isinstance(value, numbers.Number):
+            value = torch.tensor(value, dtype=torch.float, device=self.device)
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         # TODO antonsc: remove diagnostics
-        print(f"Logging: {prefix + metric_name} = {value}")
+        print(f"Logging on {self.device}: {prefix + metric_name} = {value}")
         self.log(prefix + metric_name, value,
-                 sync_dist=self.use_sync_dist,
+                 sync_dist=self.use_ddp,
                  on_step=False, on_epoch=True,
                  reduce_fx=reduce_fx)
 
@@ -367,8 +370,8 @@ class InnerEyeLightning(LightningModule):
         be called "val/Loss"
         """
         self.log_on_epoch(MetricType.LOSS, loss, is_training)
-        learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
         if is_training:
+            learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
             self.log_on_epoch(MetricType.LEARNING_RATE, learning_rate, is_training)
 
 
@@ -440,7 +443,7 @@ class SegmentationLightning(InnerEyeLightning):
             dice_value = dice_per_crop_and_class[:, i].mean()
             self.log_on_epoch(name=dice_name, value=dice_value, is_training=is_training)
             self.log_on_epoch(name=f"{MetricType.VOXEL_COUNT.value}/{ground_truth_id}",
-                              value=foreground_voxels[:, i].to(dtype=torch.float).mean(),
+                              value=foreground_voxels[:, i].type_as(logits).mean(),
                               is_training=is_training)
         # store diagnostics per batch
         center_indices = cropped_sample.center_indices
