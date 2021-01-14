@@ -261,7 +261,8 @@ class InnerEyeLightning(LightningModule):
                      name: Union[MetricType, str],
                      value: Any,
                      is_training: bool,
-                     reduce_fx: Callable = torch.mean) -> None:
+                     reduce_fx: Callable = torch.mean,
+                     sync_dist_op: Any = "mean") -> None:
         """
         Logs a metrics to Pytorch Lightning with the on_epoch flag set. The metric will get a prefix indicating
         if it is a training or a validation metric. A custom reducer function can be provided.
@@ -270,6 +271,9 @@ class InnerEyeLightning(LightningModule):
         :param name: The name of the metric to log
         :param value: The value of the metric. This can be a tensor, floating point value, or a Metric class.
         :param is_training: If true, give the metric a "train/" prefix, otherwise a "val/" prefix.
+        :param reduce_fx: The reduce function to apply after synchronizing the tensors across GPUs.
+        :param sync_dist_op: The reduce operation to use when synchronizing the tensors across GPUs. This must be
+        a value recognized by sync_ddp: Either 'None' to use 'sum' as aggregate, or 'mean' or 'avg'
         """
         metric_name = name if isinstance(name, str) else name.value
         if isinstance(value, numbers.Number):
@@ -280,7 +284,8 @@ class InnerEyeLightning(LightningModule):
         self.log(prefix + metric_name, value,
                  sync_dist=self.use_ddp,
                  on_step=False, on_epoch=True,
-                 reduce_fx=reduce_fx)
+                 reduce_fx=reduce_fx,
+                 sync_dist_op=sync_dist_op)
 
     def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool) -> None:
         """
@@ -462,7 +467,8 @@ class SegmentationLightning(InnerEyeLightning):
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=num_subjects,
                           is_training=is_training,
-                          reduce_fx=sum)
+                          reduce_fx=sum,
+                          sync_dist_op=None)
         self.write_loss(is_training, loss)
         return loss
 
