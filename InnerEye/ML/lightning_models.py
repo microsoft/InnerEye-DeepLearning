@@ -10,7 +10,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
-from pytorch_lightning.metrics import Metric
 from pytorch_lightning.utilities import move_data_to_device, rank_zero_only
 from torch.nn import ModuleDict, ModuleList
 
@@ -24,12 +23,9 @@ from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
-    AreaUnderRocCurve, \
-    BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
-    FalsePositiveRateOptimalThreshold, \
-    MeanAbsoluteError, MeanSquaredError, OptimalThreshold, add_average_dice, \
-    compute_dice_across_patches, \
-    nanmean, store_epoch_metrics
+    AreaUnderRocCurve, BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
+    FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, OptimalThreshold, \
+    compute_dice_across_patches, store_epoch_metrics
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
@@ -45,6 +41,8 @@ MAX_LOAD_TIME_WARNINGS = 3
 
 TRAIN_PREFIX = "train/"
 VALIDATION_PREFIX = "val/"
+
+AVERAGE_DICE_SUFFIX = "AverageAcrossStructures"
 
 
 class StoringLogger(LightningLoggerBase):
@@ -261,7 +259,7 @@ class InnerEyeLightning(LightningModule):
 
     def log_on_epoch(self,
                      name: Union[MetricType, str],
-                     value: Union[float, Metric],
+                     value: Any,
                      is_training: bool,
                      reduce_fx: Callable = torch.mean) -> None:
         """
@@ -271,12 +269,15 @@ class InnerEyeLightning(LightningModule):
         :param name: The name of the metric to log
         :param value: The value of the metric
         :param is_training: If true, give the metric a "train/" prefix, otherwise a "val/" prefix.
-        :param reduce_fx: The function that should be used to aggregate multiple logged values.
         """
         metric_name = name if isinstance(name, str) else name.value
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
+        # TODO antonsc: remove diagnostics
+        print(f"Logging: {prefix + metric_name} = {value}")
         self.log(prefix + metric_name, value,
-                 sync_dist=self.use_sync_dist, on_step=False, on_epoch=True, reduce_fx=reduce_fx)
+                 sync_dist=self.use_sync_dist,
+                 on_step=False, on_epoch=True,
+                 reduce_fx=reduce_fx)
 
     def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool) -> None:
         """
@@ -418,22 +419,28 @@ class SegmentationLightning(InnerEyeLightning):
         # post process posteriors to compute result
         segmentations = image_util.posteriors_to_segmentation(posteriors=posteriors)
 
-        dice_for_all_classes = compute_dice_across_patches(
+        # dice_per_crop_and_class has one row per crop, with background class removed
+        dice_per_crop_and_class = compute_dice_across_patches(
             segmentation=segmentations,
             ground_truth=labels,
-            allow_multiple_classes_for_each_pixel=True).cpu().numpy()
-        foreground_voxels = metrics_util.get_number_of_voxels_per_class(cropped_sample.labels)
-        # loss is a scalar, also when running the forward pass over multiple crops.
-        # dice_for_all_structures has one row per crop.
-        # Store metrics broken down by batch, so that averaging works correctly when batch sizes are not equal.
+            allow_multiple_classes_for_each_pixel=True)[:, 1:]
+        # Dice NaN means that both ground truth and prediction are empty. Keeping the NaNs is troublesome, we lose
+        # the batch-size weighted averaging if we switch to custom reduce_fn.
+        dice_per_crop_and_class[torch.isnan(dice_per_crop_and_class)] = 1
+        # Number of foreground voxels per class, across all crops
+        foreground_voxels = metrics_util.get_number_of_voxels_per_class(cropped_sample.labels)[:, 1:]
+        # Average Dice across all classes, apart from background
+        average_dice_name = f"{MetricType.DICE.value}/{AVERAGE_DICE_SUFFIX}"
+        average_dice_value = dice_per_crop_and_class.mean()
+        self.log_on_epoch(name=average_dice_name, value=average_dice_value, is_training=is_training)
         for i, ground_truth_id in enumerate(self.ground_truth_ids):
             dice_name = f"{MetricType.DICE.value}/{ground_truth_id}"
-            # Index 0 for all metrics is background, we don't want to store that.
-            for b in range(dice_for_all_classes.shape[0]):
-                self.log_on_epoch(name=dice_name, value=dice_for_all_classes[b, i+1].item(),
-                                  is_training=is_training, reduce_fx=nanmean)
+            # Compute the Dice score averaged across all batches. Lightning will later compute a weighted average
+            # to get an overall Dice, weighted by batch size.
+            dice_value = dice_per_crop_and_class[:, i].mean()
+            self.log_on_epoch(name=dice_name, value=dice_value, is_training=is_training)
             self.log_on_epoch(name=f"{MetricType.VOXEL_COUNT.value}/{ground_truth_id}",
-                              value=foreground_voxels[i+1],
+                              value=foreground_voxels[:, i].to(dtype=torch.float).mean(),
                               is_training=is_training)
         # store diagnostics per batch
         center_indices = cropped_sample.center_indices
@@ -455,10 +462,6 @@ class SegmentationLightning(InnerEyeLightning):
                           reduce_fx=sum)
         self.write_loss(is_training, loss)
         return loss
-
-    def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool):
-        metrics = add_average_dice(metrics)
-        super().store_epoch_results(metrics, epoch, is_training)
 
 
 SUBJECT_OUTPUT_PER_RANK_PREFIX = f"{SUBJECT_METRICS_FILE_NAME}.rank"

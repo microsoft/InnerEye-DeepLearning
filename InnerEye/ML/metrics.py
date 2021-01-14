@@ -504,30 +504,6 @@ def log_classification_epoch_metrics(logging_fn: Callable[[str, float], None],
         logging_fn(get_metric_name_with_hue_prefix(label, hue_name), metric)
 
 
-def nanmean(values: Iterable[float]) -> float:
-    valid = [v for v in values if not math.isnan(v)]
-    if len(valid) == 0:
-        # This should only handle the case when all entries in a minibatch have no Dice score.
-        return 0.0
-    return sum(valid) / len(valid)
-
-
-def add_average_dice(metrics: DictStrFloat) -> DictStrFloat:
-    """
-    Takes a dictionary containing metrics, searches for all metrics that have the "Dice/" prefix,
-    and adds their average value as a new metric called "dice". If the argument already contains "dice",
-    the result is equal to the argument.
-    :param metrics: Dictionary with metrics, key is the metric name, value is the value of the metric.
-    :return: A new metrics dictionary with a metric "dice" that is the average Dice score.
-    """
-    result = {}
-    if LoggingColumns.Dice.value not in metrics:
-        dice_dict = {name: value for name, value in metrics.items() if name.startswith(MetricType.DICE.value)}
-        result[LoggingColumns.Dice.value] = nanmean(dice_dict.values())
-    result.update(**metrics)
-    return result
-
-
 def store_epoch_metrics(metrics: DictStrFloat,
                         epoch: int,
                         file_logger: DataframeLogger) -> None:

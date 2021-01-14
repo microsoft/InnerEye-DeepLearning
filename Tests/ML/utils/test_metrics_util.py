@@ -29,11 +29,12 @@ def test_get_number_of_voxels_per_class() -> None:
     for i in range(len(batched_labels)):
         batched_labels[i] = non_batched_labels
     count_non_batched = get_number_of_voxels_per_class(non_batched_labels)
-    assert isinstance(count_non_batched, list)
-    assert isinstance(count_non_batched[0], int)
-    assert count_non_batched == [2, 1, 1]
+    assert torch.is_tensor(count_non_batched)
+    assert count_non_batched.shape == (1, 3)
+    assert count_non_batched.tolist() == [[2, 1, 1]]
     count_batched = get_number_of_voxels_per_class(batched_labels)
-    assert count_batched == np.sum([[2, 1, 1]] * number_batches, axis=0).tolist()
+    assert count_batched.shape == (number_batches, 3)
+    assert count_batched.tolist() == [[2, 1, 1]] * number_batches
 
 
 def test_get_label_overlap_stats() -> None:

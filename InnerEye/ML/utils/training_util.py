@@ -60,7 +60,7 @@ class ModelTrainingResults:
     val_diagnostics: Any
     optimal_temperature_scale_values_per_checkpoint_epoch: List[float] = field(default_factory=list)
 
-    def get_metric(self, is_training: bool, metric_type: MetricType) -> List[float]:
+    def get_metric(self, is_training: bool, metric_type: str) -> List[float]:
         """
         Gets a scalar metric out of either the list of training or the list of validation results. This returns
         that value that a specific metric attains in all of the epochs.
@@ -70,7 +70,25 @@ class ModelTrainingResults:
         :return: A list of floating point numbers, with one entry per entry in the the training or validation results.
         """
         metrics = self.train_results_per_epoch if is_training else self.val_results_per_epoch
-        return [m[metric_type.value] for m in metrics]
+        return [m[metric_type] for m in metrics]
+
+    def get_training_metric(self, metric_type: str) -> List[float]:
+        """
+        Gets a scalar metric from the list of training results. This returns
+        the value that a specific metric attains in all of the epochs.
+        :param metric_type: The metric to extract.
+        :return: A list of floating point numbers, with one entry per entry in the the training results.
+        """
+        return self.get_metric(is_training=True, metric_type=metric_type)
+
+    def get_validation_metric(self, metric_type: str) -> List[float]:
+        """
+        Gets a scalar metric from the list of validation results. This returns
+        the value that a specific metric attains in all of the epochs.
+        :param metric_type: The metric to extract.
+        :return: A list of floating point numbers, with one entry per entry in the the validation results.
+        """
+        return self.get_metric(is_training=False, metric_type=metric_type)
 
 
 def gather_tensor(tensor: Union[torch.Tensor, List[torch.Tensor]],
