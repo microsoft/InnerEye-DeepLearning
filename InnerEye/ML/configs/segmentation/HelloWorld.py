@@ -26,11 +26,13 @@ class HelloWorld(SegmentationModelBase):
     2) Configure the UNet3D implemented in this package
     3) Configure Azure HyperDrive based parameter search
 
-    - This model can be trained from the commandline: python InnerEye/runner.py --model=HelloWorld
-    - Upload to datasets storage account for your AzureML workspace: Test/ML/test_data/dataset.csv and
-    Test/ML/test_data/train_and_test_data and name the folder "hello_world"
-    - If you have set up AzureML then parameter search can be performed for this model by running:
-    python InnerEye/ML/ runner.py --model=HelloWorld --azureml=True --hyperdrive=True
+    * This model can be trained from the commandline: python InnerEye/runner.py --model=HelloWorld
+
+    * If you want to test that your AzureML workspace is working:
+        - Upload to datasets storage account for your AzureML workspace: Test/ML/test_data/dataset.csv and
+        Test/ML/test_data/train_and_test_data and name the folder "hello_world"
+        - If you have set up AzureML then parameter search can be performed for this model by running:
+        python InnerEye/ML/ runner.py --model=HelloWorld --azureml=True --hyperdrive=True
 
     In this example, the model is trained on 2 input image channels channel1 and channel2, and
     predicts 2 foreground classes region, region_1.
