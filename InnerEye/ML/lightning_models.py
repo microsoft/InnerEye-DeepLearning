@@ -286,8 +286,6 @@ class InnerEyeLightning(LightningModule):
         if isinstance(value, numbers.Number):
             value = torch.tensor(value, dtype=torch.float, device=self.device)
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
-        # TODO antonsc: remove diagnostics
-        print(f"Logging on {self.device}: {prefix + metric_name} = {value}")
         sync_dist = self.use_ddp if sync_dist_override is None else sync_dist_override
         self.log(prefix + metric_name, value,
                  sync_dist=sync_dist,
