@@ -17,7 +17,7 @@ def tests_root_directory(path: Optional[PathOrString] = None) -> Path:
 
     :return: The full path to the repository's root directory, with symlinks resolved if any.
     """
-    root = Path(os.path.realpath(__file__)).parent.parent / "Tests"
+    root = Path(os.path.realpath(__file__)).parent.parent.parent / "Tests"
     return root / path if path else root
 
 
