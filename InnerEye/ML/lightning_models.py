@@ -232,10 +232,11 @@ class InnerEyeLightning(LightningModule):
         prefix_filter = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         # Get the last set of metrics that the logger stores. That set belongs to the current train/validation
         # epoch because it was written just before this hook is called.
-        epoch, metrics = self.storing_logger.extract_by_prefix(self.storing_logger.results[-1], prefix_filter)
-        # Sanity check: We should see metrics for the current epoch.
-        assert epoch == self.current_epoch, f"Epochs don't match: logger has {epoch}, module has {self.current_epoch}"
-        self.store_epoch_results(metrics, epoch, is_training)
+        if len(self.storing_logger.results) > 0:
+            epoch, metrics = self.storing_logger.extract_by_prefix(self.storing_logger.results[-1], prefix_filter)
+            # Sanity check: We should see metrics for the current epoch.
+            assert epoch == self.current_epoch, f"Epochs don't match: logger has {epoch}, module has {self.current_epoch}"
+            self.store_epoch_results(metrics, epoch, is_training)
 
     @rank_zero_only
     def training_or_validation_epoch_end(self, is_training: bool) -> None:
@@ -255,19 +256,25 @@ class InnerEyeLightning(LightningModule):
             logging.warning(
                 f"In this epoch, {self.num_load_time_exceeded} out of {self.num_batches} batches exceeded the load "
                 f"time threshold. Total loading time for the slow batches was {self.total_extra_load_time:0.2f}sec.")
-        self.log_on_epoch(MetricType.SECONDS_PER_EPOCH, epoch_time_seconds, is_training=is_training)
+        # This metric is only written at rank zero, and hence must no be synchronized across workers. If attempted,
+        # training will get stuck.
+        self.log_on_epoch(MetricType.SECONDS_PER_EPOCH, epoch_time_seconds, is_training=is_training,
+                          sync_dist_override=False)
 
     def log_on_epoch(self,
                      name: Union[MetricType, str],
                      value: Any,
                      is_training: bool,
                      reduce_fx: Callable = torch.mean,
+                     sync_dist_override: Optional[bool] = None,
                      sync_dist_op: Any = "mean") -> None:
         """
         Logs a metrics to Pytorch Lightning with the on_epoch flag set. The metric will get a prefix indicating
         if it is a training or a validation metric. A custom reducer function can be provided.
         The method also ensures that the correct synchronization across nodes is used. If the value to log is a
         floating point, it is converted to a Tensor on the current device to enable synchronization.
+        :param sync_dist_override: If not None, use this value for the sync_dist argument to self.log. If None,
+        set it automatically depending on the use of DDP.
         :param name: The name of the metric to log
         :param value: The value of the metric. This can be a tensor, floating point value, or a Metric class.
         :param is_training: If true, give the metric a "train/" prefix, otherwise a "val/" prefix.
@@ -281,8 +288,9 @@ class InnerEyeLightning(LightningModule):
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         # TODO antonsc: remove diagnostics
         print(f"Logging on {self.device}: {prefix + metric_name} = {value}")
+        sync_dist = self.use_ddp if sync_dist_override is None else sync_dist_override
         self.log(prefix + metric_name, value,
-                 sync_dist=self.use_ddp,
+                 sync_dist=sync_dist,
                  on_step=False, on_epoch=True,
                  reduce_fx=reduce_fx,
                  sync_dist_op=sync_dist_op)
@@ -329,11 +337,9 @@ class InnerEyeLightning(LightningModule):
                                     is_training: bool) -> Any:
         raise NotImplementedError("This method must be overwritten in a derived class.")
 
+    @rank_zero_only
     def batch_start(self, batch_idx: int, is_training: bool) -> None:
-        # Print out data loading statistics only on local rank 0. This will print out stats about data loading
-        # once on each individual machine in DDP
-        if self.local_rank != 0:
-            return
+        # Print out data loading statistics only on global rank 0.
         item_finish_time = time.time()
         item_load_time = item_finish_time - self.item_start_time
         self.total_load_time += item_load_time
@@ -353,8 +359,11 @@ class InnerEyeLightning(LightningModule):
                 self.num_load_time_warnings += 1
         self.batch_start_time = time.time()
 
+    @rank_zero_only
     def batch_end(self, is_training: bool) -> None:
-        self.log_on_epoch(MetricType.SECONDS_PER_BATCH, time.time() - self.batch_start_time, is_training=is_training)
+        # This metric is only written at rank 0, and hence must not be synchronized.
+        self.log_on_epoch(MetricType.SECONDS_PER_BATCH, time.time() - self.batch_start_time, is_training=is_training,
+                          sync_dist_override=False)
         self.item_start_time = time.time()
         self.num_batches += 1
 
