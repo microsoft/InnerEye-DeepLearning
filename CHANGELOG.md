@@ -29,6 +29,8 @@ environment will be contained in the model.
 - Removed blobxfer completely. When downloading a dataset from Azure, we now use AzureML dataset downloading tools.
 Please remove the following fields from your settings.yml file: 'datasets_storage_account' and 'datasets_container'. 
 - Removed `ProstatePaperBase`.
+- Removed ability to perform sub-fold cross validation. The parameters `number_of_cross_validation_splits_per_fold` 
+and `cross_validation_sub_fold_split_index` have been removed from ScalarModelBase.
 
 ### Deprecated
 
