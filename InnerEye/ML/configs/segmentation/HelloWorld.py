@@ -28,7 +28,7 @@ class HelloWorld(SegmentationModelBase):
 
     - This model can be trained from the commandline: python InnerEye/runner.py --model=HelloWorld
     - Upload to datasets storage account for your AzureML workspace: Test/ML/test_data/dataset.csv and
-    Test/ML/test_data/train_and_test_data and call the folder "hello_world"
+    Test/ML/test_data/train_and_test_data and name the folder "hello_world"
     - If you have set up AzureML then parameter search can be performed for this model by running:
     python InnerEye/ML/ runner.py --model=HelloWorld --azureml=True --hyperdrive=True
 
