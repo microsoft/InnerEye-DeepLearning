@@ -6,11 +6,12 @@ import logging
 import numbers
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.metrics import Metric
 from pytorch_lightning.utilities import move_data_to_device, rank_zero_only
 from torch.nn import ModuleDict, ModuleList
 
@@ -24,9 +25,9 @@ from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
-    AreaUnderRocCurve, BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
+    AreaUnderRocCurve, AverageWithoutNan, BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
     FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, OptimalThreshold, \
-    compute_dice_across_patches, store_epoch_metrics
+    compute_dice_across_patches, nanmean, store_epoch_metrics
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
@@ -146,6 +147,67 @@ class TrainingAndValidationDataLightning(LightningDataModule):
         raise NotImplementedError("For segmentation models, the test dataset should not be evaluated patch-wise.")
 
 
+class MetricForMultipleStructures(torch.nn.Module):
+    """
+    Stores a metric for multiple structures, and an average Dice score across all structures.
+    The class consumes pre-computed metric values, and only keeps an aggregate for later computing the
+    averages. When averaging, metric values that are NaN are skipped.
+    """
+
+    def __init__(self, ground_truth_ids: List[str], is_training: bool,
+                 metric_name: str = MetricType.DICE.value,
+                 use_average_across_structures=True) -> None:
+        """
+        Creates a new MetricForMultipleStructures object.
+        :param ground_truth_ids: The list of anatomical structures that should be stored.
+        :param metric_name: The name of the metric that should be stored. This is used in the names of the individual
+        metrics.
+        :param is_training: If true, use "train/" as the prefix for all metric names, otherwise "val/"
+        :param use_average_across_structures: If True, keep track of the average metric value across structures,
+        while skipping NaNs. If false, only store the per-structure metric values.
+        """
+        super().__init__()
+        prefix = (TRAIN_PREFIX if is_training else VALIDATION_PREFIX) + metric_name + "/"
+        # All Metric classes must be
+        self.average_per_structure = ModuleList([AverageWithoutNan(name=prefix + g) for g in ground_truth_ids])
+        self.use_average_across_structures = use_average_across_structures
+        if use_average_across_structures:
+            self.average_all = AverageWithoutNan(name=prefix + AVERAGE_DICE_SUFFIX)
+        self.count = len(ground_truth_ids)
+
+    def update(self, values_per_structure: torch.Tensor) -> None:
+        """
+        Stores a vector of per-structure Dice scores in the present object. It updates the per-structure values,
+        and the aggregate value across all structures.
+        :param values_per_structure: A row tensor that has as many entries as there are ground truth IDs.
+        """
+        if values_per_structure.dim() != 1 or values_per_structure.numel() != self.count:
+            raise ValueError(f"Expected a tensor with {self.count} elements, but "
+                             f"got shape {values_per_structure.shape}")
+        for i, v in enumerate(values_per_structure.view((-1,))):
+            self.average_per_structure[i].update(v)
+        if self.use_average_across_structures:
+            self.average_all.update(nanmean(values_per_structure))
+
+    def __iter__(self) -> Iterator[Metric]:
+        """
+        Enumerates all the metrics that the present object holds: First the average across all structures,
+        then the per-structure Dice scores.
+        """
+        if self.use_average_across_structures:
+            yield self.average_all
+        yield from self.average_per_structure
+
+    def compute_all(self) -> Iterator[Tuple[str, torch.Tensor]]:
+        """
+        Calls the .compute() method on all the metrics that the present object holds, and returns a sequence
+        of (metric name, metric value) tuples. This will automatically also call .reset() on the metrics.
+        The first returned metric is the average across all structures, then come the per-structure values.
+        """
+        for d in iter(self):
+            yield d.name, d.compute()
+
+
 class InnerEyeLightning(LightningModule):
     def __init__(self, config: DeepLearningConfig, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -235,7 +297,8 @@ class InnerEyeLightning(LightningModule):
         if len(self.storing_logger.results) > 0:
             epoch, metrics = self.storing_logger.extract_by_prefix(self.storing_logger.results[-1], prefix_filter)
             # Sanity check: We should see metrics for the current epoch.
-            assert epoch == self.current_epoch, f"Epochs don't match: logger has {epoch}, module has {self.current_epoch}"
+            assert epoch == self.current_epoch, f"Epochs don't match: logger has {epoch}, module has " \
+                                                f"{self.current_epoch}"
             self.store_epoch_results(metrics, epoch, is_training)
 
     @rank_zero_only
@@ -393,6 +456,14 @@ class SegmentationLightning(InnerEyeLightning):
         self.model = config.create_model()
         self.loss_fn = model_util.create_segmentation_loss_function(config)
         self.ground_truth_ids = config.ground_truth_ids
+        self.train_dice = MetricForMultipleStructures(ground_truth_ids=self.ground_truth_ids, is_training=True)
+        self.val_dice = MetricForMultipleStructures(ground_truth_ids=self.ground_truth_ids, is_training=False)
+        self.train_voxels = MetricForMultipleStructures(ground_truth_ids=self.ground_truth_ids, is_training=True,
+                                                        metric_name=MetricType.VOXEL_COUNT.value,
+                                                        use_average_across_structures=False)
+        self.val_voxels = MetricForMultipleStructures(ground_truth_ids=self.ground_truth_ids, is_training=False,
+                                                      metric_name=MetricType.VOXEL_COUNT.value,
+                                                      use_average_across_structures=False)
 
     def forward(self, patches) -> torch.Tensor:
         return self.logits_to_posterior(self.model(patches))
@@ -413,9 +484,6 @@ class SegmentationLightning(InnerEyeLightning):
         :param batch_index: The index of the present batch (supplied only for diagnostics).
         """
         cropped_sample: CroppedSample = CroppedSample.from_dict(sample=sample)
-        # TODO antonsc: Remove diagnostics
-        prefix = f"{'Train' if is_training else 'Val'} epoch {self.current_epoch} device {self.device}"
-        print(f"{prefix}: Patients {' '.join(m.patient_id for m in cropped_sample.metadata)}")
         # Forward propagation can lead to a model output that is smaller than the input image (crop).
         # labels_center_crop is the relevant part of the labels tensor that the model will actually produce.
         labels = cropped_sample.labels_center_crop
@@ -432,31 +500,35 @@ class SegmentationLightning(InnerEyeLightning):
             posteriors = image_util.apply_mask_to_posteriors(posteriors=posteriors, mask=mask)
 
         # post process posteriors to compute result
-        segmentations = image_util.posteriors_to_segmentation(posteriors=posteriors)
+        segmentation = image_util.posteriors_to_segmentation(posteriors=posteriors)
+        self.compute_metrics(cropped_sample, segmentation, is_training)
 
+        self.write_loss(is_training, loss)
+        return loss
+
+    def compute_metrics(self, cropped_sample: CroppedSample, segmentation: torch.Tensor,
+                        is_training: bool) -> None:
+        """
+        Computes and stores all metrics coming out of a single training step.
+        :param cropped_sample: The batched image crops used for training or validation.
+        :param segmentation: The segmentation that was produced by the model.
+        """
         # dice_per_crop_and_class has one row per crop, with background class removed
+        # Dice NaN means that both ground truth and prediction are empty.
         dice_per_crop_and_class = compute_dice_across_patches(
-            segmentation=segmentations,
-            ground_truth=labels,
+            segmentation=segmentation,
+            ground_truth=cropped_sample.labels_center_crop,
             allow_multiple_classes_for_each_pixel=True)[:, 1:]
-        # Dice NaN means that both ground truth and prediction are empty. Keeping the NaNs is troublesome, we lose
-        # the batch-size weighted averaging if we switch to custom reduce_fn.
-        dice_per_crop_and_class[torch.isnan(dice_per_crop_and_class)] = 1
         # Number of foreground voxels per class, across all crops
         foreground_voxels = metrics_util.get_number_of_voxels_per_class(cropped_sample.labels)[:, 1:]
-        # Average Dice across all classes, apart from background
-        average_dice_name = f"{MetricType.DICE.value}/{AVERAGE_DICE_SUFFIX}"
-        average_dice_value = dice_per_crop_and_class.mean()
-        self.log_on_epoch(name=average_dice_name, value=average_dice_value, is_training=is_training)
-        for i, ground_truth_id in enumerate(self.ground_truth_ids):
-            dice_name = f"{MetricType.DICE.value}/{ground_truth_id}"
-            # Compute the Dice score averaged across all batches. Lightning will later compute a weighted average
-            # to get an overall Dice, weighted by batch size.
-            dice_value = dice_per_crop_and_class[:, i].mean()
-            self.log_on_epoch(name=dice_name, value=dice_value, is_training=is_training)
-            self.log_on_epoch(name=f"{MetricType.VOXEL_COUNT.value}/{ground_truth_id}",
-                              value=foreground_voxels[:, i].type_as(logits).mean(),
-                              is_training=is_training)
+        # Store Dice and voxel count per sample in the minibatch. We need a custom aggregation logic for Dice
+        # because it can be NaN. Also use custom logging for voxel count because Lightning's batch-size weighted
+        # average has a bug.
+        for i in range(dice_per_crop_and_class.shape[0]):
+            dice = self.train_dice if is_training else self.val_dice
+            dice.update(dice_per_crop_and_class[i, :])
+            voxel_count = self.train_voxels if is_training else self.val_voxels
+            voxel_count.update(foreground_voxels[i, :])
         # store diagnostics per batch
         center_indices = cropped_sample.center_indices
         if isinstance(center_indices, torch.Tensor):
@@ -476,8 +548,14 @@ class SegmentationLightning(InnerEyeLightning):
                           is_training=is_training,
                           reduce_fx=sum,
                           sync_dist_op=None)
-        self.write_loss(is_training, loss)
-        return loss
+
+    def training_or_validation_epoch_end(self, is_training: bool) -> None:
+        dice = list((self.train_dice if is_training else self.val_dice).compute_all())
+        for name, value in dice:
+            self.log(name, value)
+        voxel_count = list((self.train_voxels if is_training else self.val_voxels).compute_all())
+        for name, value in voxel_count:
+            self.log(name, value)
 
 
 SUBJECT_OUTPUT_PER_RANK_PREFIX = f"{SUBJECT_METRICS_FILE_NAME}.rank"

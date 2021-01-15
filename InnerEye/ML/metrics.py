@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import SimpleITK as sitk
 import numpy as np
@@ -92,6 +92,45 @@ class Accuracy05(metrics.Accuracy):
         or False if no predictions are stored.
         """
         return self.total > 0
+
+
+def nanmean(values: torch.Tensor) -> torch.Tensor:
+    """
+    Computes the average of all values in the tensor, skipping those entries that are NaN (not a number).
+    If all values are NaN, the result is also NaN.
+    :param values: The values to average.
+    :return: A scalar tensor containing the average.
+    """
+    valid = values[~torch.isnan(values.view((-1,)))]
+    if valid.numel() == 0:
+        return torch.tensor([math.nan]).type_as(values)
+    return valid.mean()
+
+
+class AverageWithoutNan(Metric):
+    """
+    A generic metric computer that keep track of the average of all values excluding those that are NaN.
+    """
+
+    def __init__(self, dist_sync_on_step: bool = False, name: str = ""):
+        super().__init__(dist_sync_on_step=dist_sync_on_step)
+        self.add_state("sum", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("count", default=torch.tensor(0), dist_reduce_fx="sum")
+        self.name = name
+
+    def update(self, value: torch.Tensor) -> None:
+        """
+        Stores all the given individual elements of the given tensor in the present object.
+        """
+        for v in value.view((-1,)):
+            if not torch.isnan(v):
+                self.sum = self.sum + v
+                self.count = self.count + 1
+
+    def compute(self) -> torch.Tensor:
+        if self.count == 0.0:
+            raise ValueError("No values stored (no or only NaN values have so far been fed into this object).")
+        return self.sum / self.count
 
 
 class ScalarMetricsBase(Metric):

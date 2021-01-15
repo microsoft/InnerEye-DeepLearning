@@ -87,6 +87,7 @@ def create_lightning_trainer(config: ModelConfigBase,
         num_gpus = config.max_num_gpus
         logging.info(f"Restricting the number of GPUs to {num_gpus}")
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
+    # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if num_gpus > 1 else None
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
     storing_logger = StoringLogger()
@@ -111,6 +112,7 @@ def create_lightning_trainer(config: ModelConfigBase,
                       logger=loggers,
                       progress_bar_refresh_rate=0,  # Disable the progress bar,
                       gpus=num_gpus,
+                      sync_batchnorm=True,
                       terminate_on_nan=config.detect_anomaly,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None
                       )

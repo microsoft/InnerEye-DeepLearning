@@ -75,7 +75,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
             # In the test data, both structures "region" and "region_1" are read from the same nifti file, hence
             # their voxel counts must be identical.
             for structure in ["region", "region_1"]:
-                assert results[f"{MetricType.VOXEL_COUNT.value}/{structure}"] == voxel_count, \
+                assert results[f"{MetricType.VOXEL_COUNT.value}/{structure}"] == pytest.approx(voxel_count, abs=1e-2), \
                     f"Voxel count mismatch for '{structure}'"
 
     def _mean(a: List[float]) -> float:
@@ -112,8 +112,11 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     _check_patch_centers(model_training_result.val_diagnostics, should_equal=True)
     # Simple regression test: Voxel counts should be the same in both epochs on the validation set,
     # and be the same across 'region' and 'region_1' because they derive from the same Nifti files.
-    _check_voxel_count(model_training_result.train_results_per_epoch, [83040.25, 83124.75])
-    _check_voxel_count(model_training_result.val_results_per_epoch, [82988.5, 82988.5])
+    # The following values are read off directly from the results of compute_dice_across_patches in the training loop
+    train_voxels = [[83014, 83255, 82946], [83000, 82881, 83309]]
+    val_voxels = [[82765, 83212], [82765, 83212]]
+    _check_voxel_count(model_training_result.train_results_per_epoch, _mean_list(train_voxels))
+    _check_voxel_count(model_training_result.val_results_per_epoch, _mean_list(val_voxels))
 
     def assert_all_close(metric: str, expected: List[float], **kwargs: Any) -> None:
         actual = model_training_result.get_training_metric(metric)
@@ -131,11 +134,11 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # The following values are read off directly from the results of compute_dice_across_patches in the training loop
     train_dice_region = [[0, 0, 0], [0.01922884, 0.01918082, 0.07752819]]
     train_dice_region1 = [[0.48280242, 0.48337635, 0.4974504], [0.5024475, 0.5007884, 0.48952717]]
-    assert_all_close("Dice/region", _mean_list(train_dice_region), atol=1e-6)
-    assert_all_close("Dice/region_1", _mean_list(train_dice_region1), atol=1e-6)
+    assert_all_close("Dice/region", _mean_list(train_dice_region), atol=1e-4)
+    assert_all_close("Dice/region_1", _mean_list(train_dice_region1), atol=1e-4)
     expected_average_dice = [_mean(train_dice_region[i] + train_dice_region1[i])
                              for i in range(len(train_dice_region))]
-    assert_all_close("Dice/AverageAcrossStructures", expected_average_dice, atol=1e-8)
+    assert_all_close("Dice/AverageAcrossStructures", expected_average_dice, atol=1e-4)
 
     # check output files/directories
     assert train_config.outputs_folder.is_dir()
