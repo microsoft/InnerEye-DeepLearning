@@ -11,7 +11,7 @@ import pytest
 
 from InnerEye.ML.utils.hdf5_util import HDF5Object
 from InnerEye.ML.utils.io_util import is_hdf5_file_path
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 n_classes = 11
 root = full_ml_test_data_path()

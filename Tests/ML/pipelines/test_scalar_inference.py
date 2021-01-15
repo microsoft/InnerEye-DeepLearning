@@ -18,7 +18,7 @@ from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, Scala
 from InnerEye.ML.scalar_config import EnsembleAggregationType
 from InnerEye.ML.utils.model_util import ModelAndInfo
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 def test_create_from_checkpoint_non_ensemble() -> None:
