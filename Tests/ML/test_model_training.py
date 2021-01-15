@@ -32,7 +32,7 @@ from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contains_string, get_default_checkpoint_handler
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 config_path = full_ml_test_data_path()
 base_path = full_ml_test_data_path()

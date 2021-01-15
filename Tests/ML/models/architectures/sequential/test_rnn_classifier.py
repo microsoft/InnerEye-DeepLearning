@@ -35,7 +35,7 @@ from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_tempera
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from Tests.ML.util import get_default_checkpoint_handler, get_default_azure_config
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 SCAN_SIZE = (6, 64, 60)
 

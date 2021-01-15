@@ -34,7 +34,7 @@ from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_azure_config, machine_has_gpu, get_default_checkpoint_handler
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.cpu_and_gpu

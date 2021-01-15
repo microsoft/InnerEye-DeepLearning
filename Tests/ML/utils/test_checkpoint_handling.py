@@ -20,7 +20,7 @@ from InnerEye.ML.common import create_checkpoint_path
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_checkpoint_handler
 from Tests.Common.test_util import DEFAULT_RUN_RECOVERY_ID, DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 EXTERNAL_WEIGHTS_URL_EXAMPLE = "https://download.pytorch.org/models/resnet18-5c106cde.pth"

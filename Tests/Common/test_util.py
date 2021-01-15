@@ -9,7 +9,7 @@ from InnerEye.Common import common_util
 from InnerEye.Common.common_util import check_is_any_of, get_namespace_root, is_private_field_name, namespace_to_path, \
     path_to_namespace, print_exception
 from InnerEye.Common.output_directories import OutputFolderForTests
-from Tests.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
 
 DEFAULT_ENSEMBLE_RUN_RECOVERY_ID = "dacart_local_branch_202008:HD_99938f3c-b25f-4604-bfcc-bb7c9ed3516f"
 DEFAULT_RUN_RECOVERY_ID = "melanibe_setup_branch_mock:melanibe_setup_branch_mock_1592327919_0a161296"
@@ -106,7 +106,7 @@ def test_path_to_namespace(is_external: bool, test_output_dirs: OutputFolderForT
         ) == folder_name
     else:
         from Tests.ML import test_data
-        from Tests.fixed_paths_for_tests import full_ml_test_data_path
+        from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
         assert path_to_namespace(
             path=full_ml_test_data_path(),
             root=tests_root_directory().parent

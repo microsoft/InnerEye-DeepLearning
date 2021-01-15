@@ -29,7 +29,7 @@ from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.ml_util import set_random_seed
 from InnerEye.ML.utils.model_util import ModelAndInfo
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, str]) -> Tuple[int, List[str]]:

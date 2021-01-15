@@ -25,7 +25,7 @@ from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelFo
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contains_string, assert_text_files_match, assert_nifti_content, \
     get_image_shape, get_default_checkpoint_handler
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
