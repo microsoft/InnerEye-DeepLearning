@@ -128,7 +128,7 @@ def test_split_by_subject_ids_invalid(splits: List[List[str]]) -> None:
 
 def test_get_subject_ranges_for_splits() -> None:
     def _check_at_least_one(x: Dict[ModelExecutionMode, Set[str]]) -> None:
-        assert all([len(x[mode]) >= 1] for mode in x.keys())
+        assert all(len(x[mode]) >= 1 for mode in x.keys())
 
     proportions = [0.5, 0.4, 0.1]
 
