@@ -16,6 +16,8 @@ from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SUBJECT_HEADE
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
+CSV_GROUP_HEADER = 'group'
+
 
 def test_split_by_institution() -> None:
     """
@@ -158,6 +160,47 @@ def test_get_k_fold_cross_validation_splits() -> None:
                  .difference(set(test_df.subject.unique()))) == 0 for x in folds])
 
 
+def _check_is_partition(total, parts, column):
+    """Asserts that `total` is the union of `parts`, and that the latter are pairwise disjoint"""
+    if column is None:
+        return
+    from itertools import combinations
+    total = set(total[column].unique())
+    parts = [set(part[column].unique()) for part in parts]
+    assert total == set.union(*parts)
+    for part1, part2 in combinations(parts, 2):
+        assert part1.isdisjoint(part2)
+
+
+@pytest.mark.parametrize("group_column", [None, CSV_GROUP_HEADER, CSV_SUBJECT_HEADER])
+def test_grouped_splits(group_column: str) -> None:
+    test_df = _get_test_df()[0]
+    proportions = [0.5, 0.4, 0.1]
+    splits = DatasetSplits.from_proportions(test_df, *proportions, group_column=group_column)
+    _check_is_partition(test_df, [splits.train, splits.test, splits.val], CSV_SUBJECT_HEADER)
+    _check_is_partition(test_df, [splits.train, splits.test, splits.val], group_column)
+
+
+@pytest.mark.parametrize("group_column", [None, CSV_GROUP_HEADER, CSV_SUBJECT_HEADER])
+def test_grouped_k_fold_cross_validation_splits(group_column: str) -> None:
+    test_df = _get_test_df()[0]
+    proportions = [0.5, 0.4, 0.1]
+    splits = DatasetSplits.from_proportions(test_df, *proportions, group_column=group_column)
+
+    n_splits = 7  # mutually prime with numbers of subjects and groups
+    val_folds = []
+    for fold in splits.get_k_fold_cross_validation_splits(n_splits):
+        _check_is_partition(test_df, [fold.train, fold.test, fold.val], CSV_SUBJECT_HEADER)
+        _check_is_partition(test_df, [fold.train, fold.test, fold.val], group_column)
+        assert fold.test.equals(splits.test)
+        val_folds.append(fold.val)
+
+    # ensure validation folds partition the original train+val set
+    train_val = pd.concat([splits.train, splits.val])
+    _check_is_partition(train_val, val_folds, CSV_SUBJECT_HEADER)
+    _check_is_partition(train_val, val_folds, group_column)
+
+
 def test_restrict_subjects1() -> None:
     test_df, test_ids, train_ids, val_ids = _get_test_df()
     splits = DatasetSplits.from_subject_ids(test_df, train_ids, test_ids, val_ids).restrict_subjects("2")
@@ -194,6 +237,7 @@ def _get_test_df() -> Tuple[DataFrame, List[str], List[str], List[str]]:
     test_data = {
         CSV_SUBJECT_HEADER: list(range(0, 100)),
         CSV_INSTITUTION_HEADER: ([0] * 10) + ([1] * 90),
+        CSV_GROUP_HEADER: [i // 5 for i in range(0, 100)],
         "other": list(range(0, 100))
     }
     train_ids, test_ids, val_ids = list(range(0, 50)), list(range(50, 75)), list(range(75, 100))
