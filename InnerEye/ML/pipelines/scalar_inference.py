@@ -11,11 +11,10 @@ from typing import Any, Dict, List, Optional
 
 import torch
 
-from InnerEye.ML.lightning_models import load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_models import ScalarLightning, load_from_checkpoint_and_adjust_for_inference
 from InnerEye.ML.pipelines.inference import InferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
-from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 
 
@@ -54,7 +53,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
     """
 
     def __init__(self,
-                 model: DeviceAwareModule,
+                 model: ScalarLightning,
                  model_config: ScalarModelBase,
                  pipeline_id: int) -> None:
         """
@@ -91,8 +90,8 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
             # TODO antonsc: Need to adjust that
             raise NotImplementedError("Mean teacher models not supported yet.")
         else:
-            model = load_from_checkpoint_and_adjust_for_inference(config, path_to_checkpoint).model
-
+            model = load_from_checkpoint_and_adjust_for_inference(config, path_to_checkpoint)
+        assert isinstance(model, ScalarLightning)
         return ScalarInferencePipeline(model, config, pipeline_id=pipeline_id)
 
     def predict(self, sample: Dict[str, Any]) -> ScalarInferencePipelineBase.Result:
@@ -107,7 +106,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         assert isinstance(self.model_config, ScalarModelBase)
         target_indices = self.model_config.get_target_indices() \
             if isinstance(self.model_config, SequenceModelBase) else []
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model,
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model.model,
                                                                      target_indices=target_indices,
                                                                      sample=sample)
         subject_ids = model_inputs_and_labels.subject_ids

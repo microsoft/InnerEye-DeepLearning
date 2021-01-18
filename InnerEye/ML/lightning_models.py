@@ -819,6 +819,7 @@ def adjust_model_for_inference(config: ModelConfigBase, lightning_model: InnerEy
     logging.info(f"Model is using these devices: {used_gpus}")
     logging.info(f"Re-computing model-dependent properties (e.g., output patch sizes)")
     config.set_derived_model_properties(lightning_model.model)
+    torch.cuda.empty_cache()
 
 
 def load_from_checkpoint_and_adjust_for_inference(config: ModelConfigBase, checkpoint_path: Path) -> InnerEyeLightning:
