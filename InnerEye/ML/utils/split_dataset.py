@@ -26,6 +26,7 @@ class DatasetSplits:
     val: pd.DataFrame
     test: pd.DataFrame
     subject_column: str = CSV_SUBJECT_HEADER
+    group_column: Optional[str] = None
     allow_empty: bool = False
 
     def __post_init__(self) -> None:
@@ -45,6 +46,15 @@ class DatasetSplits:
 
         if len(intersection) != 0:
             raise ValueError("Train, Test, and Val splits must have no intersection, found: {}".format(intersection))
+
+        if self.group_column is not None:
+            groups_train = self.train[self.group_column].unique()
+            groups_test = self.test[self.group_column].unique()
+            groups_val = self.val[self.group_column].unique()
+            group_intersection = pairwise_intersection(groups_train, groups_test, groups_val)
+            if len(group_intersection) != 0:
+                raise ValueError("Train, Test, and Val splits must have no intersecting groups, found: {}"
+                                 .format(group_intersection))
 
         if (not self.allow_empty) and any([len(x) == 0 for x in [unique_train, unique_val]]):
             raise ValueError("train_ids({}), val_ids({}) must have at least one value"
