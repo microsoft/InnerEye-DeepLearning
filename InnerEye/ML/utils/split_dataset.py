@@ -30,9 +30,18 @@ class DatasetSplits:
 
     def __post_init__(self) -> None:
         common_util.check_properties_are_not_none(self)
+
+        def pairwise_intersection(*collections):
+            """Returns any element that appears in more than one collection."""
+            from itertools import combinations
+            intersection = set()
+            for col1, col2 in combinations(map(set, collections), 2):
+                intersection |= col1 & col2
+            return intersection
+
         # perform dataset split validity assertions
         unique_train, unique_test, unique_val = self.unique_subjects()
-        intersection = set.intersection(set(unique_train), set(unique_test), set(unique_val))
+        intersection = pairwise_intersection(unique_train, unique_test, unique_val)
 
         if len(intersection) != 0:
             raise ValueError("Train, Test, and Val splits must have no intersection, found: {}".format(intersection))
