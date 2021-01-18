@@ -291,6 +291,29 @@ class DatasetSplits:
                                               subject_column=subject_column, group_column=group_column)
 
     @staticmethod
+    def from_groups(df: pd.DataFrame,
+                    train_groups: Sequence[str],
+                    test_groups: Sequence[str],
+                    val_groups: Sequence[str],
+                    subject_column: str = CSV_SUBJECT_HEADER,
+                    group_column: str = None) -> DatasetSplits:
+        """
+        Assuming a DataFrame with columns subject
+        Takes a slice of values from each data split train/test/val for the provided groups.
+
+        :param df: the input DataFrame
+        :param train_groups: groups for training.
+        :param test_groups: groups for testing.
+        :param val_groups: groups for validation.
+        :param subject_column: subject id column name
+        :param group_column: grouping column name; if given, samples from each group will always be
+            in the same subset (train, val, or test) and cross-validation fold.
+        :return: Data splits with respected dataset split ids.
+        """
+        return DatasetSplits._from_split_keys(df, train_groups, test_groups, val_groups, key_column=group_column,
+                                              subject_column=subject_column, group_column=group_column)
+
+    @staticmethod
     def from_institutions(df: pd.DataFrame,
                           proportion_train: float,
                           proportion_test: float,
