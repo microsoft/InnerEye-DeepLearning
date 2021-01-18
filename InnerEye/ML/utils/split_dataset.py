@@ -203,6 +203,35 @@ class DatasetSplits:
         return result
 
     @staticmethod
+    def _from_split_keys(df: pd.DataFrame,
+                         train_keys: Sequence[str],
+                         test_keys: Sequence[str],
+                         val_keys: Sequence[str],
+                         key_column: str,
+                         subject_column: str,
+                         group_column: str
+                         ) -> DatasetSplits:
+        """
+        Takes a slice of values from each data split train/test/val for the provided keys.
+
+        :param df: the input DataFrame
+        :param train_keys: keys for training.
+        :param test_keys: keys for testing.
+        :param val_keys: keys for validation.
+        :param key_column: name of the column the provided keys belong to
+        :param subject_column: subject id column name
+        :param group_column: grouping column name; if given, samples from each group will always be
+            in the same subset (train, val, or test) and cross-validation fold.
+        :return: Data splits with respected dataset split ids.
+        """
+        train_df = DatasetSplits.get_df_from_ids(df, train_keys, key_column)
+        test_df = DatasetSplits.get_df_from_ids(df, test_keys, key_column)
+        val_df = DatasetSplits.get_df_from_ids(df, val_keys, key_column)
+
+        return DatasetSplits(train=train_df, test=test_df, val=val_df,
+                             subject_column=subject_column, group_column=group_column)
+
+    @staticmethod
     def from_proportions(df: pd.DataFrame,
                          proportion_train: float,
                          proportion_test: float,
