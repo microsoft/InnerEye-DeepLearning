@@ -52,14 +52,6 @@ class OneHotEncoderBase(abc.ABC):
         raise NotImplementedError("get_feature_length must be implemented by sub classes")
 
 
-class TrackedMetrics(Enum):
-    """
-    Known metrics that are tracked as part of training/testing/validation.
-    """
-    Loss = "Loss"
-    Val_Loss = "Val_Loss"
-
-
 def create_checkpoint_path(path: Path, epoch: int) -> Path:
     """
     Given a path and checkpoint, formats a path based on the checkpoint file name format.

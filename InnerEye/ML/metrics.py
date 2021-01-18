@@ -7,6 +7,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import SimpleITK as sitk
@@ -22,8 +23,7 @@ from pytorch_lightning.metrics.functional.classification import accuracy, auc, a
 
 from InnerEye.Azure.azure_util import get_run_context_or_default
 from InnerEye.Common.metrics_dict import DataframeLogger, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, MetricsDict, \
-    ScalarMetricsDict, \
-    get_metric_name_with_hue_prefix
+    ScalarMetricsDict, get_metric_name_with_hue_prefix
 from InnerEye.Common.type_annotations import DictStrFloat, TupleFloat3
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
@@ -36,6 +36,17 @@ from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, \
     mean_absolute_error, r2_score
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
+
+# String prefixes when writing training or validation set metrics to a logger
+TRAIN_PREFIX = "train/"
+VALIDATION_PREFIX = "val/"
+
+
+class TrackedMetrics(Enum):
+    """
+    Known metrics that are tracked as part of Hyperdrive runs.
+    """
+    Val_Loss = VALIDATION_PREFIX + MetricType.LOSS.value
 
 
 class MeanAbsoluteError(metrics.MeanAbsoluteError):

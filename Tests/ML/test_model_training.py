@@ -22,6 +22,7 @@ from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.metrics import TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.utils.io_util import load_nifti_image
@@ -131,6 +132,11 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert np.allclose(actual_train_losses, expected_train_losses, atol=loss_absolute_tolerance), "Train losses"
     assert np.allclose(actual_val_losses, expected_val_losses, atol=loss_absolute_tolerance), "Val losses"
     assert_all_close(MetricType.LEARNING_RATE.value, expected_learning_rates, rtol=1e-6)
+    # Check that the metric we track for Hyperdrive runs is actually written.
+    assert TrackedMetrics.Val_Loss.value.startswith(VALIDATION_PREFIX)
+    tracked_metric = TrackedMetrics.Val_Loss.value[len(VALIDATION_PREFIX):]
+    for val_result in model_training_result.val_results_per_epoch:
+        assert tracked_metric in val_result
     # The following values are read off directly from the results of compute_dice_across_patches in the training loop
     train_dice_region = [[0, 0, 0], [0.01922884, 0.01918082, 0.07752819]]
     train_dice_region1 = [[0.48280242, 0.48337635, 0.4974504], [0.5024475, 0.5007884, 0.48952717]]

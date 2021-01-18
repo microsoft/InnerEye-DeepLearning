@@ -27,7 +27,7 @@ from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
     AreaUnderRocCurve, AverageWithoutNan, BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
     FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, OptimalThreshold, \
-    compute_dice_across_patches, nanmean, store_epoch_metrics
+    TRAIN_PREFIX, VALIDATION_PREFIX, compute_dice_across_patches, nanmean, store_epoch_metrics
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
@@ -40,9 +40,6 @@ from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss, get_mask
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
-
-TRAIN_PREFIX = "train/"
-VALIDATION_PREFIX = "val/"
 
 AVERAGE_DICE_SUFFIX = "AverageAcrossStructures"
 
