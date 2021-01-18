@@ -19,10 +19,9 @@ from InnerEye.Common.metrics_dict import MetricType
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_models import AzureMLLogger, SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, StoringLogger, \
-    TRAIN_PREFIX, \
-    TrainingAndValidationDataLightning, \
-    VALIDATION_PREFIX, create_lightning_model, get_subject_output_file_per_rank
+from InnerEye.ML.lightning_models import AzureMLLogger, SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
+    StoringLogger, TrainingAndValidationDataLightning, create_lightning_model, get_subject_output_file_per_rank
+from InnerEye.ML.metrics import TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
@@ -91,9 +90,8 @@ def create_lightning_trainer(config: ModelConfigBase,
     accelerator = "ddp" if num_gpus > 1 else None
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
     storing_logger = StoringLogger()
-    loggers = [storing_logger,
-               TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version=""),
-               AzureMLLogger()]
+    tensorboard_logger = TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")
+    loggers = [storing_logger, tensorboard_logger, AzureMLLogger()]
     # This leads to problems with run termination.
     # if not is_offline_run_context(RUN_CONTEXT):
     #     mlflow_logger = MLFlowLogger(experiment_name=RUN_CONTEXT.experiment.name,
@@ -182,6 +180,7 @@ def model_train(config: ModelConfigBase,
     lightning_data.config = config
     trainer.fit(lightning_model,
                 datamodule=lightning_data)
+    trainer.logger.close()
     world_size = getattr(trainer, "world_size", 0)
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.

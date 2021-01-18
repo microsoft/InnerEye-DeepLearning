@@ -12,7 +12,7 @@ from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecu
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
 from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.utils.test_model_util import create_model_and_store
+from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 from Tests.ML.util import get_default_checkpoint_handler
 
@@ -33,7 +33,7 @@ def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
     config.local_dataset = full_ml_test_data_path()
 
     checkpoint_path = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    create_model_and_store(config, checkpoint_path)
+    create_model_and_store_checkpoint(config, checkpoint_path)
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
     checkpoint_handler.additional_training_done()

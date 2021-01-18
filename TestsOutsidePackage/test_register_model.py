@@ -29,7 +29,7 @@ from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.ml_util import set_random_seed
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
-from Tests.ML.utils.test_model_util import create_model_and_store
+from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
 class SubprocessConfig(GenericConfig):
@@ -101,12 +101,12 @@ def test_register_and_score_model(is_ensemble: bool,
 
     # copy checkpoints from tests directory
     checkpoint_path = config.checkpoint_folder / f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}"
-    create_model_and_store(config=config, checkpoint_path=checkpoint_path)
+    create_model_and_store_checkpoint(config=config, checkpoint_path=checkpoint_path)
     checkpoints_absolute.append(checkpoint_path)
     if is_ensemble:
         checkpoint_path = config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / "1" \
                           / f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}"
-        create_model_and_store(config=config, checkpoint_path=checkpoint_path)
+        create_model_and_store_checkpoint(config=config, checkpoint_path=checkpoint_path)
         checkpoints_absolute.append(checkpoint_path)
     checkpoints_relative = [f.relative_to(config.checkpoint_folder) for f in checkpoints_absolute]
     azureml_model = None

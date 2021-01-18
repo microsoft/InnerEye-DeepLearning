@@ -29,6 +29,7 @@ from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnde
     FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, OptimalThreshold, \
     TRAIN_PREFIX, VALIDATION_PREFIX, compute_dice_across_patches, nanmean, store_epoch_metrics
 from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
@@ -772,7 +773,7 @@ def create_lightning_model(config: ModelConfigBase) -> InnerEyeLightning:
     return model
 
 
-def create_model_from_lightning_checkpoint(config: ModelConfigBase, checkpoint_path: Path) -> InnerEyeLightning:
+def load_from_lightning_checkpoint(config: ModelConfigBase, checkpoint_path: Path) -> InnerEyeLightning:
     """
     Reads a PyTorch model from a checkpoint. First, a PyTorch Lightning model is created matching the InnerEye
     model configuration, its parameter tensors are then populated from the given checkpoint.
@@ -788,5 +789,47 @@ def create_model_from_lightning_checkpoint(config: ModelConfigBase, checkpoint_p
     lightning_model = lightning_model_type.load_from_checkpoint(checkpoint_path=str(checkpoint_path),
                                                                 map_location=map_location,
                                                                 config=config)
+    return lightning_model
+
+
+def adjust_model_for_inference(config: ModelConfigBase, lightning_model: InnerEyeLightning) -> None:
+    """
+    Makes all necessary adjustments to use a given model for inference, possibly on multiple GPUs via
+    model parallelization. The method also computes parameters like output patch size for segmentation model,
+    and stores them in the model configuration.
+    :param config: The model configuration object. It may be modified in place.
+    :param lightning_model: The trained model that should be adjusted.
+    """
+    model = lightning_model.model
+    if config.use_gpu:
+        model = model.cuda()
+        # If model parallel is set to True, then partition the network across all available gpus.
+        # Model partitioning relies on the model summary. We generate that with a smaller crop (the same that is also
+        # used during training, and we assume that fits onto the GPU)
+        if config.use_model_parallel and isinstance(model, BaseSegmentationModel):
+            logging.info("Partitioning the model across all GPUs.")
+            model.generate_model_summary(crop_size=config.crop_size, log_summaries_to_files=True)
+            model.partition_model()
+    else:
+        logging.info("Skipping model partitioning because no GPU was found.")
+
+    # Update model related config attributes. This must happen after model partitioning, because we compute the
+    # model output size during inference: That will only fit onto the GPU if already partitioned.
+    used_gpus = set(p.device for p in model.parameters())
+    logging.info(f"Model is using these devices: {used_gpus}")
+    logging.info(f"Re-computing model-dependent properties (e.g., output patch sizes)")
     config.set_derived_model_properties(lightning_model.model)
+
+
+def load_from_checkpoint_and_adjust_for_inference(config: ModelConfigBase, checkpoint_path: Path) -> InnerEyeLightning:
+    """
+    Reads a PyTorch model from a checkpoint, and makes all necessary adjustments to use the model for inference,
+    possibly on multiple GPUs.
+    :param config: An InnerEye model configuration object
+    :param checkpoint_path: The location of the checkpoint file.
+    :return: A PyTorch Lightning model object.
+    """
+    lightning_model = load_from_lightning_checkpoint(config, checkpoint_path)
+    lightning_model.eval()
+    adjust_model_for_inference(config, lightning_model)
     return lightning_model

@@ -13,9 +13,9 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.utils import image_util
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
-from InnerEye.ML.lightning_models import create_model_from_lightning_checkpoint
+from InnerEye.ML.lightning_models import load_from_checkpoint_and_adjust_for_inference
 from InnerEye.Common.output_directories import OutputFolderForTests
-from Tests.ML.utils.test_model_util import create_model_and_store
+from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
 def run_inference_on_unet(size: TupleInt3) -> None:
@@ -94,11 +94,11 @@ def test_invalid_stride_size(test_output_dirs: OutputFolderForTests) -> None:
     )
     config.set_output_to(test_output_dirs.root_dir)
     checkpoint_path = test_output_dirs.root_dir / "checkpoint.ckpt"
-    create_model_and_store(config, checkpoint_path)
+    create_model_and_store_checkpoint(config, checkpoint_path)
 
     with pytest.raises(ValueError) as ex:
-        create_model_from_lightning_checkpoint(config=config, checkpoint_path=checkpoint_path)
+        load_from_checkpoint_and_adjust_for_inference(config=config, checkpoint_path=checkpoint_path)
 
-    assert "inference stride size must be smaller" in ex.value.args[0]
+    assert "The inference stride size (120, 120, 120) must be smaller" in ex.value.args[0]
     assert str(config.inference_stride_size) in ex.value.args[0]
     assert str(config.test_crop_size) in ex.value.args[0]

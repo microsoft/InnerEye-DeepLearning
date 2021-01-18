@@ -17,7 +17,7 @@ from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, Scala
     ScalarInferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
-from Tests.ML.utils.test_model_util import create_model_and_store
+from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
 def test_create_from_checkpoint_non_ensemble(test_output_dirs: OutputFolderForTests) -> None:
@@ -28,7 +28,7 @@ def test_create_from_checkpoint_non_ensemble(test_output_dirs: OutputFolderForTe
     inference_pipeline = ScalarInferencePipeline.create_from_checkpoint(path_to_checkpoint, config)
     assert inference_pipeline is None
 
-    create_model_and_store(config, path_to_checkpoint)
+    create_model_and_store_checkpoint(config, path_to_checkpoint)
     inference_pipeline = ScalarInferencePipeline.create_from_checkpoint(path_to_checkpoint, config)
     assert isinstance(inference_pipeline, ScalarInferencePipeline)
 
@@ -38,7 +38,7 @@ def test_create_from_checkpoint_ensemble(test_output_dirs: OutputFolderForTests)
 
     path_to_checkpoint_non_exist = test_output_dirs.root_dir / "does_not_exist.ckpt"
     path_to_checkpoint_exist = test_output_dirs.root_dir / "foo.ckpt"
-    create_model_and_store(config, path_to_checkpoint_exist)
+    create_model_and_store_checkpoint(config, path_to_checkpoint_exist)
 
     # when all checkpoints do not exist, raise error
     with pytest.raises(ValueError):

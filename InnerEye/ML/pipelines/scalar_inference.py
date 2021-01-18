@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import torch
 
-from InnerEye.ML.lightning_models import create_model_from_lightning_checkpoint
+from InnerEye.ML.lightning_models import load_from_checkpoint_and_adjust_for_inference
 from InnerEye.ML.pipelines.inference import InferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
@@ -91,7 +91,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
             # TODO antonsc: Need to adjust that
             raise NotImplementedError("Mean teacher models not supported yet.")
         else:
-            model = create_model_from_lightning_checkpoint(config, path_to_checkpoint).model
+            model = load_from_checkpoint_and_adjust_for_inference(config, path_to_checkpoint).model
 
         return ScalarInferencePipeline(model, config, pipeline_id=pipeline_id)
 

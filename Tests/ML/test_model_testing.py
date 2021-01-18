@@ -25,7 +25,7 @@ from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelFo
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contains_string, assert_nifti_content, assert_text_files_match, \
     get_default_checkpoint_handler, get_image_shape
-from Tests.ML.utils.test_model_util import create_model_and_store
+from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
@@ -49,7 +49,7 @@ def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
-    create_model_and_store(config, config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX)
+    create_model_and_store_checkpoint(config, config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX)
     checkpoint_handler.additional_training_done()
     inference_results = model_testing.segmentation_model_test(config,
                                                               data_split=execution_mode,
@@ -144,7 +144,7 @@ def test_create_inference_pipeline(config: ModelConfigBase,
                                    test_output_dirs: OutputFolderForTests) -> None:
     config.set_output_to(test_output_dirs.root_dir)
     checkpoint_path = test_output_dirs.root_dir / "checkpoint.ckpt"
-    create_model_and_store(config, checkpoint_path)
+    create_model_and_store_checkpoint(config, checkpoint_path)
     num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     inference = create_inference_pipeline(config, [checkpoint_path])
     assert isinstance(inference, expected_inference_type)

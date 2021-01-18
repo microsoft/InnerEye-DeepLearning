@@ -18,7 +18,7 @@ from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import config
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.lightning_models import create_model_from_lightning_checkpoint
+from InnerEye.ML.lightning_models import load_from_checkpoint_and_adjust_for_inference, adjust_model_for_inference
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.utils import image_util, ml_util
@@ -213,17 +213,8 @@ class InferencePipeline(FullImageInferencePipelineBase):
             #                                   possible one model cannot be created but others can
             logging.warning(f"Could not recover model from checkpoint path {path_to_checkpoint}")
             return None
-        model = create_model_from_lightning_checkpoint(model_config, path_to_checkpoint).model
-        assert isinstance(model, BaseSegmentationModel)
-        if model_config.use_gpu:
-            model.cuda()
-            # Build the model summary that measures memory consumption using the training crop size. We will
-            # use the model by feeding in crops with size model_config.test_crop_size, but they would only fit
-            # if the model is already partitioned.
-            model.generate_model_summary(crop_size=model_config.crop_size,
-                                         log_summaries_to_files=True)
-            model.partition_model()
-        return InferencePipeline(model=model, model_config=model_config, pipeline_id=pipeline_id)
+        lightning_model = load_from_checkpoint_and_adjust_for_inference(model_config, path_to_checkpoint)
+        return InferencePipeline(model=lightning_model.model, model_config=model_config, pipeline_id=pipeline_id)
 
     def predict_whole_image(self, image_channels: np.ndarray,
                             voxel_spacing_mm: TupleFloat3,
