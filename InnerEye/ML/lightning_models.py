@@ -756,6 +756,12 @@ def transfer_batch_to_device(batch: Any, device: torch.device) -> Any:
 
 
 def create_lightning_model(config: ModelConfigBase) -> InnerEyeLightning:
+    """
+    Creates a PyTorch Lightning model that matches the provided InnerEye model configuration object.
+    The `optimizer` and `l_rate_scheduler` object of the Lightning model will also be populated.
+    :param config: An InnerEye model configuration object
+    :return: A PyTorch Lightning model object.
+    """
     if config.is_segmentation_model:
         model = SegmentationLightning(config)
     elif config.is_scalar_model:
@@ -766,7 +772,14 @@ def create_lightning_model(config: ModelConfigBase) -> InnerEyeLightning:
     return model
 
 
-def create_model_from_lightning_checkpoint(config: ModelConfigBase, checkpoint_path: Path) -> torch.nn.Module:
+def create_model_from_lightning_checkpoint(config: ModelConfigBase, checkpoint_path: Path) -> InnerEyeLightning:
+    """
+    Reads a PyTorch model from a checkpoint. First, a PyTorch Lightning model is created matching the InnerEye
+    model configuration, its parameter tensors are then populated from the given checkpoint.
+    :param config: An InnerEye model configuration object
+    :param checkpoint_path: The location of the checkpoint file.
+    :return: A PyTorch Lightning model object.
+    """
     # Create a Lighting model that matches the configuration, but keep only the type of it
     lightning_model_type = type(create_lightning_model(config))
     # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
@@ -775,5 +788,5 @@ def create_model_from_lightning_checkpoint(config: ModelConfigBase, checkpoint_p
     lightning_model = lightning_model_type.load_from_checkpoint(checkpoint_path=str(checkpoint_path),
                                                                 map_location=map_location,
                                                                 config=config)
-    config.adjust_after_mixed_precision_and_parallel(lightning_model.model)
+    config.set_derived_model_properties(lightning_model.model)
     return lightning_model

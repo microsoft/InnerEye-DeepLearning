@@ -5,13 +5,14 @@
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import get_epoch_results_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
-from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE
+from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, ModelArchitectureConfig
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME, create_inference_pipeline
@@ -22,8 +23,8 @@ from InnerEye.ML.utils import io_util
 from InnerEye.ML.visualizers.plot_cross_validation import get_config_and_results_for_offline_runs
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import assert_file_contains_string, assert_text_files_match, assert_nifti_content, \
-    get_image_shape, get_default_checkpoint_handler
+from Tests.ML.util import assert_file_contains_string, assert_nifti_content, assert_text_files_match, \
+    get_default_checkpoint_handler, get_image_shape
 from Tests.ML.utils.test_model_util import create_model_and_store
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
@@ -119,14 +120,24 @@ def test_create_inference_pipeline_invalid_epoch(config: ModelConfigBase,
     assert create_inference_pipeline(config, [test_output_dirs.root_dir / "nonexist.pth"]) is None
 
 
+class SimpleUNet(DummyModel):
+    def __init__(self) -> None:
+        super().__init__()
+        self.architecture = ModelArchitectureConfig.UNet3D
+        self.feature_channels = [2]
+        self.crop_size = (32, 32, 32)
+        self.test_crop_size = (32, 32, 32)
+
+
 @pytest.mark.parametrize(("config", "expected_inference_type", "expected_ensemble_type"),
-                         [(DummyModel(), InferencePipeline, EnsemblePipeline),
+                         [(SimpleUNet(), InferencePipeline, EnsemblePipeline),
                           (ClassificationModelForTesting(mean_teacher_model=False),
                            ScalarInferencePipeline, ScalarEnsemblePipeline),
                           # TODO: re-enable once we have mean teacher in place again
                           # (ClassificationModelForTesting(mean_teacher_model=True),
                           #  ScalarInferencePipeline, ScalarEnsemblePipeline)
                           ])
+@pytest.mark.cpu_and_gpu
 def test_create_inference_pipeline(config: ModelConfigBase,
                                    expected_inference_type: type,
                                    expected_ensemble_type: type,
@@ -134,5 +145,15 @@ def test_create_inference_pipeline(config: ModelConfigBase,
     config.set_output_to(test_output_dirs.root_dir)
     checkpoint_path = test_output_dirs.root_dir / "checkpoint.ckpt"
     create_model_and_store(config, checkpoint_path)
-    assert isinstance(create_inference_pipeline(config, [checkpoint_path]), expected_inference_type)
-    assert isinstance(create_inference_pipeline(config, [checkpoint_path] * 2), expected_ensemble_type)
+    num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
+    inference = create_inference_pipeline(config, [checkpoint_path])
+    assert isinstance(inference, expected_inference_type)
+    ensemble = create_inference_pipeline(config, [checkpoint_path] * 2)
+    assert isinstance(ensemble, expected_ensemble_type)
+    if isinstance(inference, InferencePipeline) and num_gpus > 0:
+        # Check that a model summary for segmentation models was created, which is necessary for model partitioning.
+        assert inference.model.summary is not None
+        # Check that the model has been partitioned
+        devices = set(p.device for p in inference.model.parameters())
+        if num_gpus > 1:
+            assert len(devices) > 1

@@ -20,7 +20,7 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.lightning_models import create_model_from_lightning_checkpoint
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.models.architectures.base_model import CropSizeConstraints
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.utils import image_util, ml_util
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import compute_uncertainty_map_from_posteriors, gaussian_smooth_posteriors, \
@@ -214,9 +214,15 @@ class InferencePipeline(FullImageInferencePipelineBase):
             logging.warning(f"Could not recover model from checkpoint path {path_to_checkpoint}")
             return None
         model = create_model_from_lightning_checkpoint(model_config, path_to_checkpoint).model
-        for name, param in model.named_parameters():
-            param_numpy = param.clone().cpu().data.numpy()
-            image_util.check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
+        assert isinstance(model, BaseSegmentationModel)
+        if model_config.use_gpu:
+            model.cuda()
+            # Build the model summary that measures memory consumption using the training crop size. We will
+            # use the model by feeding in crops with size model_config.test_crop_size, but they would only fit
+            # if the model is already partitioned.
+            model.generate_model_summary(crop_size=model_config.crop_size,
+                                         log_summaries_to_files=True)
+            model.partition_model()
         return InferencePipeline(model=model, model_config=model_config, pipeline_id=pipeline_id)
 
     def predict_whole_image(self, image_channels: np.ndarray,

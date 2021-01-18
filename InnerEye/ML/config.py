@@ -689,7 +689,7 @@ class SegmentationModelBase(ModelConfigBase):
             return self._test_output_size
         raise ValueError("Unknown execution mode '{}' for function 'get_output_size'".format(execution_mode))
 
-    def adjust_after_mixed_precision_and_parallel(self, model: Any) -> None:
+    def set_derived_model_properties(self, model: Any) -> None:
         """
         Updates the model config parameters (e.g. output patch size). If testing patch stride size is unset then
         its value is set by the output patch size

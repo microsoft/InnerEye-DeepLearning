@@ -239,7 +239,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
             dst = root / STORED_CSV_FILE_NAMES[mode]
             dataframe.to_csv(dst, mode='w', index=False)
 
-    def adjust_after_mixed_precision_and_parallel(self, model: Any) -> None:
+    def set_derived_model_properties(self, model: Any) -> None:
         """
         A hook to adjust the model configuration that is stored in the present object to match
         the torch model given in the argument. This hook is called after adjusting the model for
