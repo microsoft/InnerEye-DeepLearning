@@ -237,35 +237,42 @@ class DatasetSplits:
                          proportion_test: float,
                          proportion_val: float,
                          subject_column: str = CSV_SUBJECT_HEADER,
+                         group_column: str = None,
                          shuffle: bool = True,
                          random_seed: int = 0) -> DatasetSplits:
         """
         Creates a split of a dataset into train, test, and validation set, according to fixed proportions using
-        the "subject" column in the dataframe.
+        the "subject" column in the dataframe, or the group column, if given.
+
         :param df: The dataframe containing all subjects.
         :param proportion_train: proportion for the train set.
         :param proportion_test: proportion for the test set.
         :param subject_column: Subject id column name
+        :param group_column: grouping column name; if given, samples from each group will always be
+            in the same subset (train, val, or test) and cross-validation fold.
         :param proportion_val: proportion for the validation set.
         :param shuffle: If True the subjects in the dataframe will be shuffle before performing splits.
         :param random_seed: Random seed to be used for shuffle 0 is default.
         :return:
         """
-        subjects = df[subject_column].unique()
+        key_column = subject_column if group_column is None else group_column
+        split_keys = df[key_column].unique()
         if shuffle:
             # fix the random seed so we can guarantee reproducibility when working with shuffle
-            random.Random(random_seed).shuffle(subjects)
+            random.Random(random_seed).shuffle(split_keys)
         ranges = DatasetSplits.get_subject_ranges_for_splits(
-            subjects,
+            split_keys,
             proportion_train=proportion_train,
             proportion_val=proportion_val,
             proportion_test=proportion_test
         )
-        return DatasetSplits.from_subject_ids(df,
+        return DatasetSplits._from_split_keys(df,
                                               list(ranges[ModelExecutionMode.TRAIN]),
                                               list(ranges[ModelExecutionMode.TEST]),
                                               list(ranges[ModelExecutionMode.VAL]),
-                                              subject_column)
+                                              key_column=key_column,
+                                              subject_column=subject_column,
+                                              group_column=group_column)
 
     @staticmethod
     def from_subject_ids(df: pd.DataFrame,
