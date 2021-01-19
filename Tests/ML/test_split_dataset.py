@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import random
 import sys
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import numpy as np
 import pandas as pd
@@ -160,7 +160,7 @@ def test_get_k_fold_cross_validation_splits() -> None:
                  .difference(set(test_df.subject.unique()))) == 0 for x in folds])
 
 
-def _check_is_partition(total, parts, column):
+def _check_is_partition(total: pd.DataFrame, parts: Iterable[pd.DataFrame], column: str) -> None:
     """Asserts that `total` is the union of `parts`, and that the latter are pairwise disjoint"""
     if column is None:
         return
@@ -176,7 +176,8 @@ def _check_is_partition(total, parts, column):
 def test_grouped_splits(group_column: str) -> None:
     test_df = _get_test_df()[0]
     proportions = [0.5, 0.4, 0.1]
-    splits = DatasetSplits.from_proportions(test_df, *proportions, group_column=group_column)
+    splits = DatasetSplits.from_proportions(test_df, proportions[0], proportions[1], proportions[2],
+                                            group_column=group_column)
     _check_is_partition(test_df, [splits.train, splits.test, splits.val], CSV_SUBJECT_HEADER)
     _check_is_partition(test_df, [splits.train, splits.test, splits.val], group_column)
 
@@ -185,7 +186,8 @@ def test_grouped_splits(group_column: str) -> None:
 def test_grouped_k_fold_cross_validation_splits(group_column: str) -> None:
     test_df = _get_test_df()[0]
     proportions = [0.5, 0.4, 0.1]
-    splits = DatasetSplits.from_proportions(test_df, *proportions, group_column=group_column)
+    splits = DatasetSplits.from_proportions(test_df, proportions[0], proportions[1], proportions[2],
+                                            group_column=group_column)
 
     n_splits = 7  # mutually prime with numbers of subjects and groups
     val_folds = []

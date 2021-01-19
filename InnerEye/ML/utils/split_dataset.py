@@ -32,7 +32,7 @@ class DatasetSplits:
     def __post_init__(self) -> None:
         common_util.check_properties_are_not_none(self)
 
-        def pairwise_intersection(*collections):
+        def pairwise_intersection(*collections: Iterable) -> Set:
             """Returns any element that appears in more than one collection."""
             from itertools import combinations
             intersection = set()
@@ -207,10 +207,10 @@ class DatasetSplits:
                          train_keys: Sequence[str],
                          test_keys: Sequence[str],
                          val_keys: Sequence[str],
+                         *,  # make column names keyword-only arguments to avoid mistakes when providing both
                          key_column: str,
                          subject_column: str,
-                         group_column: str
-                         ) -> DatasetSplits:
+                         group_column: Optional[str]) -> DatasetSplits:
         """
         Takes a slice of values from each data split train/test/val for the provided keys.
 
@@ -236,8 +236,9 @@ class DatasetSplits:
                          proportion_train: float,
                          proportion_test: float,
                          proportion_val: float,
+                         *,  # make column names keyword-only arguments to avoid mistakes when providing both
                          subject_column: str = CSV_SUBJECT_HEADER,
-                         group_column: str = None,
+                         group_column: Optional[str] = None,
                          shuffle: bool = True,
                          random_seed: int = 0) -> DatasetSplits:
         """
@@ -255,7 +256,7 @@ class DatasetSplits:
         :param random_seed: Random seed to be used for shuffle 0 is default.
         :return:
         """
-        key_column = subject_column if group_column is None else group_column
+        key_column: str = subject_column if group_column is None else group_column
         split_keys = df[key_column].unique()
         if shuffle:
             # fix the random seed so we can guarantee reproducibility when working with shuffle
@@ -279,8 +280,9 @@ class DatasetSplits:
                          train_ids: Sequence[str],
                          test_ids: Sequence[str],
                          val_ids: Sequence[str],
+                         *,  # make column names keyword-only arguments to avoid mistakes when providing both
                          subject_column: str = CSV_SUBJECT_HEADER,
-                         group_column: str = None) -> DatasetSplits:
+                         group_column: Optional[str] = None) -> DatasetSplits:
         """
         Assuming a DataFrame with columns subject
         Takes a slice of values from each data split train/test/val for the provided ids.
@@ -302,8 +304,9 @@ class DatasetSplits:
                     train_groups: Sequence[str],
                     test_groups: Sequence[str],
                     val_groups: Sequence[str],
-                    subject_column: str = CSV_SUBJECT_HEADER,
-                    group_column: str = None) -> DatasetSplits:
+                    *,  # make column names keyword-only arguments to avoid mistakes when providing both
+                    group_column: str,
+                    subject_column: str = CSV_SUBJECT_HEADER) -> DatasetSplits:
         """
         Assuming a DataFrame with columns subject
         Takes a slice of values from each data split train/test/val for the provided groups.
