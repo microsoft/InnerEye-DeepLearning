@@ -14,6 +14,9 @@ from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.metrics import Metric
 from pytorch_lightning.utilities import move_data_to_device, rank_zero_only
 from torch.nn import ModuleDict, ModuleList
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
+from torch.utils.data import DataLoader
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, SUBJECT_METRICS_FILE_NAME
@@ -51,7 +54,7 @@ class StoringLogger(LightningLoggerBase):
     Used for diagnostic purposes in unit tests.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.results: List[Dict[str, float]] = []
         self.hyperparams = {}
@@ -86,7 +89,7 @@ class StoringLogger(LightningLoggerBase):
             if key != epoch_name and (not prefix_filter) or key.startswith(prefix_filter):
                 stripped_key = key[len(prefix_filter):]
                 metrics_dict[stripped_key] = value
-        return epoch, metrics_dict
+        return int(epoch), metrics_dict
 
     def to_metrics_dicts(self, prefix_filter: str = "") -> Dict[int, DictStrFloat]:
         result = {}
@@ -102,7 +105,7 @@ class AzureMLLogger(LightningLoggerBase):
     A Pytorch Lightning logger that stores metrics in the current AzureML run.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
 
@@ -127,21 +130,21 @@ class AzureMLLogger(LightningLoggerBase):
 
 
 class TrainingAndValidationDataLightning(LightningDataModule):
-    def _init__(self, config: ModelConfigBase):
+    def _init__(self, config: ModelConfigBase) -> None:
         super().__init__()
         self.config = config
-        self.data_loaders = None
+        self.data_loaders = {}
 
     def setup(self, stage: Optional[str] = None) -> None:
         self.data_loaders = self.config.create_data_loaders()
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader:
         return self.data_loaders[ModelExecutionMode.TRAIN]
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader:
         return self.data_loaders[ModelExecutionMode.VAL]
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader:
         raise NotImplementedError("For segmentation models, the test dataset should not be evaluated patch-wise.")
 
 
@@ -154,7 +157,7 @@ class MetricForMultipleStructures(torch.nn.Module):
 
     def __init__(self, ground_truth_ids: List[str], is_training: bool,
                  metric_name: str = MetricType.DICE.value,
-                 use_average_across_structures=True) -> None:
+                 use_average_across_structures: bool = True) -> None:
         """
         Creates a new MetricForMultipleStructures object.
         :param ground_truth_ids: The list of anatomical structures that should be stored.
@@ -203,7 +206,7 @@ class MetricForMultipleStructures(torch.nn.Module):
         The first returned metric is the average across all structures, then come the per-structure values.
         """
         for d in iter(self):
-            yield d.name, d.compute()
+            yield d.name, d.compute()  # type: ignore
 
 
 class InnerEyeLightning(LightningModule):
@@ -215,14 +218,14 @@ class InnerEyeLightning(LightningModule):
         # The ddp_spawn accelerator only works if the model configuration object is
         # not stored in here. Hence, need to do operations that require a full config
         # in a way that does not require storing the config.
-        self.optimizer = None
-        self.l_rate_scheduler = None
+        self.optimizer: Optional[Optimizer] = None
+        self.l_rate_scheduler: Optional[_LRScheduler] = None
         self.cross_validation_split_index = config.cross_validation_split_index
         self.effective_random_seed = config.get_effective_random_seed()
         # Timers for monitoring data loading time
-        self.epoch_start_time = 0
-        self.item_start_time = 0
-        self.batch_start_time = 0
+        self.epoch_start_time = 0.0
+        self.item_start_time = 0.0
+        self.batch_start_time = 0.0
         self.num_load_time_warnings = 0
         self.num_load_time_exceeded = 0
         self.num_batches = 0
@@ -240,16 +243,16 @@ class InnerEyeLightning(LightningModule):
                                                           fixed_columns=fixed_logger_columns)
         self.val_epoch_metrics_logger = DataframeLogger(self.val_metrics_folder / EPOCH_METRICS_FILE_NAME,
                                                         fixed_columns=fixed_logger_columns)
-        # Fields to store diagnostics for testing
-        self.train_diagnostics = []
-        self.val_diagnostics = []
+        # Fields to store diagnostics for unit testing
+        self.train_diagnostics: List[Any] = []
+        self.val_diagnostics: List[Any] = []
 
     def set_optimizer_and_scheduler(self, config: DeepLearningConfig) -> None:
         self.optimizer = model_util.create_optimizer(config, self.model.parameters())
         self.l_rate_scheduler = SchedulerWithWarmUp(config, self.optimizer)
 
-    def configure_optimizers(self):
-        return [self.optimizer], [self.l_rate_scheduler]
+    def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
+        return [self.optimizer], [self.l_rate_scheduler]  # type: ignore
 
     def close_all_loggers(self) -> None:
         self.train_epoch_metrics_logger.flush()
@@ -435,10 +438,11 @@ class InnerEyeLightning(LightningModule):
         self.total_load_time = 0.0
         self.num_batches = 0
 
-    def write_loss(self, is_training: bool, loss: Any) -> None:
+    def write_loss(self, is_training: bool, loss: torch.Tensor) -> None:
         """
         Writes the given loss value to Lightning, labelled either "val/loss" or "train/loss".
         If this comes from a training step, then also log the learning rate.
+        :param loss: The loss value that should be logged.
         :param is_training: If True, the logged metric will be called "train/Loss". If False, the metric will
         be called "val/Loss"
         """

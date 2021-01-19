@@ -180,6 +180,7 @@ def model_train(config: ModelConfigBase,
     trainer.fit(lightning_model,
                 datamodule=lightning_data)
     trainer.logger.close()
+    lightning_model.close_all_loggers()
     world_size = getattr(trainer, "world_size", 0)
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
@@ -241,7 +242,6 @@ def model_train(config: ModelConfigBase,
     if config.max_batch_grad_cam > 0 and config.visualization_folder.exists():
         RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(config.visualization_folder))
 
-    lightning_model.close_all_loggers()
     if resource_monitor:
         # stop the resource monitoring process
         logging.info("Shutting down the resource monitor process. Aggregate resource utilization:")
