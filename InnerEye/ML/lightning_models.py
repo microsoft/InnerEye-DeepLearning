@@ -79,7 +79,7 @@ class StoringLogger(LightningLoggerBase):
 
     def extract_by_prefix(self, metrics: Dict[str, float], prefix_filter: str = "") -> Tuple[int, DictStrFloat]:
         epoch_name = "epoch"
-        epoch = metrics.get(epoch_name, None)
+        epoch = int(metrics.get(epoch_name, None))
         if epoch is None:
             raise ValueError("Each of the logged metrics should have an 'epoch' key.")
         metrics_dict = {}
@@ -480,7 +480,7 @@ class SegmentationLightning(InnerEyeLightning):
     def training_or_validation_step(self,
                                     sample: Dict[str, Any],
                                     batch_index: int,
-                                    is_training: bool):
+                                    is_training: bool) -> torch.Tensor:
         """
         Runs training for a single minibatch of training or validation data, and computes all metrics.
         :param sample: The batched sample on which the model should be trained.
@@ -659,7 +659,7 @@ class ScalarLightning(InnerEyeLightning):
     def training_or_validation_step(self,
                                     sample: Dict[str, Any],
                                     batch_index: int,
-                                    is_training: bool):
+                                    is_training: bool) -> torch.Tensor:
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model, self.target_indices, sample)
         labels = model_inputs_and_labels.labels
         logits = self.model(*model_inputs_and_labels.model_inputs)

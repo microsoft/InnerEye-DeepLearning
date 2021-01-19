@@ -15,8 +15,9 @@ from torch.utils.data import DataLoader
 from pl_examples.domain_templates.generative_adversarial_net import MNISTDataModule
 a = MNISTDataModule(...)
 
+
 class IdenImage(LightningModule):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.encoder = nn.Sequential(
             nn.Linear(28 * 28, 64),
