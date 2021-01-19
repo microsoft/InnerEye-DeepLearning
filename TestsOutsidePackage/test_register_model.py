@@ -266,13 +266,9 @@ def test_model_inference_config() -> None:
     # check if normal path works
     normal_path = "/".join(list(map(str, range(1, 91))))
     assert len(normal_path) == 260
-    ModelInferenceConfig(model_name="Test", checkpoint_paths=[normal_path], structure_names=["organ1", "tumour2"],
-                         colours=[(255, 0, 0), (255, 0, 0)],
-                         fill_holes=[True, False])
+    ModelInferenceConfig(model_name="Test", checkpoint_paths=[normal_path])
     # check if long path fails ie: > 260
     long_path = normal_path + "/"
     assert len(long_path) == 261
     with pytest.raises(ValueError):
-        ModelInferenceConfig(model_name="Test", checkpoint_paths=[long_path], structure_names=["organ1", "tumour2"],
-                             colours=[(255, 0, 0), (255, 0, 0)],
-                             fill_holes=[True, False])
+        ModelInferenceConfig(model_name="Test", checkpoint_paths=[long_path])
