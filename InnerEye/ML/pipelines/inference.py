@@ -190,6 +190,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
                  pipeline_id: int = 0):
         super().__init__(model_config)
         self.model = model
+        self.model.model.eval()
         self.pipeline_id = pipeline_id
 
     @staticmethod
@@ -490,4 +491,5 @@ class InferenceBatch(CTImagesMaskedBatch):
         model = self.pipeline.get_variable(InferencePipeline.Variables.Model)
         patches = torch.from_numpy(patches).float()
         # Model forward pass returns posteriors
-        return model(patches)
+        with torch.no_grad():
+            return model(patches)

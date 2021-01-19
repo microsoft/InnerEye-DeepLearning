@@ -112,12 +112,11 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         subject_ids = model_inputs_and_labels.subject_ids
         labels = model_inputs_and_labels.labels
 
-        # TODO antonsc: This should correctly run on GPUs, at the moment it is CPU only?
-        model_output: torch.Tensor = self.model.forward(*model_inputs_and_labels.model_inputs)
-        # Apply any post loss normalization to logits
-        model_output = self.logits_to_posterior_fn(model_output)
-        # Cast labels and model outputs back to float32, if the model had been run in mixed precision
-        return ScalarInferencePipelineBase.Result(subject_ids, labels.float(), model_output.float())
+        with torch.no_grad():
+            model_output: torch.Tensor = self.model.forward(*model_inputs_and_labels.model_inputs)
+            # Apply any post loss normalization to logits
+            model_output = self.logits_to_posterior_fn(model_output)
+        return ScalarInferencePipelineBase.Result(subject_ids, labels, model_output)
 
 
 class ScalarEnsemblePipeline(ScalarInferencePipelineBase):
