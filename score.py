@@ -145,6 +145,7 @@ def score_image(args: ScorePipelineConfig) -> Path:
     run_context = Run.get_context()
     logging.info(f"Run context={run_context.id}")
 
+    # TODO change this to read DICOM folders for each channel inside a zip file
     test_images = []
     data_folder = args.data_folder
     for file in args.image_files:
@@ -160,6 +161,10 @@ def score_image(args: ScorePipelineConfig) -> Path:
 
     segmentation_file_name = str(model_folder / args.result_image_name)
     result_dst = store_as_ubyte_nifti(segmentation, images[0].header, segmentation_file_name)
+    # TODO:
+    #  1 - call Nifti-to-DICOM-RT compression
+    #  2 - Upload to run_context as zip file with name model_output.zip
+
     if not is_offline_run_context(run_context):
         run_context.upload_file(args.result_image_name, segmentation_file_name)
     logging.info(f"Segmentation completed: {result_dst}")

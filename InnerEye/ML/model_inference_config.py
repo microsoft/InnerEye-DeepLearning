@@ -16,9 +16,6 @@ from InnerEye.Common.type_annotations import TupleInt3
 class ModelInferenceConfig:
     """Class for configuring a model for inference"""
     model_name: str
-    structure_names: List[str]
-    fill_holes: List[bool]
-    colours: List[TupleInt3]
     checkpoint_paths: List[str]
     model_configs_namespace: str = ''
 
