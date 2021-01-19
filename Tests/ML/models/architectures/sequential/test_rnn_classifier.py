@@ -13,6 +13,7 @@ import torch
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_to_stdout
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_dict import MetricType, create_metrics_dict_for_scalar_models
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
@@ -35,7 +36,6 @@ from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, 
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 SCAN_SIZE = (6, 64, 60)
 

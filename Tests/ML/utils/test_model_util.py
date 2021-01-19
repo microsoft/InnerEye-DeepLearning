@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import torch
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import SegmentationModelBase

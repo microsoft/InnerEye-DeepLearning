@@ -4,23 +4,22 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
-import torch
-import pytest
 import shutil
-
 from urllib.parse import urlparse
 
-from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME
-from InnerEye.ML.deep_learning_config import WEIGHTS_FILE
-from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.Common.fixed_paths import MODEL_WEIGHTS_DIR_NAME
-from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.common import create_checkpoint_path, CHECKPOINT_SUFFIX, BEST_CHECKPOINT_FILE_NAME
+import pytest
+import torch
 
+from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME
+from InnerEye.Common.fixed_paths import MODEL_WEIGHTS_DIR_NAME
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME, CHECKPOINT_SUFFIX, create_checkpoint_path
+from InnerEye.ML.deep_learning_config import WEIGHTS_FILE
+from InnerEye.ML.model_config_base import ModelConfigBase
+from Tests.AfterTraining.test_after_training import get_most_recent_run
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_checkpoint_handler
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
-from Tests.AfterTraining.test_after_training import get_most_recent_run
 
 EXTERNAL_WEIGHTS_URL_EXAMPLE = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
 
@@ -59,7 +58,8 @@ def test_discover_and_download_checkpoints_from_previous_runs(test_output_dirs: 
 
 
 @pytest.mark.after_training_single_run
-def test_discover_and_download_checkpoints_from_previous_runs_single_run(test_output_dirs: OutputFolderForTests) -> None:
+def test_discover_and_download_checkpoints_from_previous_runs_single_run(
+        test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
@@ -85,7 +85,8 @@ def test_discover_and_download_checkpoints_from_previous_runs_single_run(test_ou
 
 
 @pytest.mark.after_training_ensemble_run
-def test_discover_and_download_checkpoints_from_previous_runs_ensemble_run(test_output_dirs: OutputFolderForTests) -> None:
+def test_discover_and_download_checkpoints_from_previous_runs_ensemble_run(
+        test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
@@ -210,7 +211,7 @@ def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) 
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                     project_root=test_output_dirs.root_dir)
+                                                        project_root=test_output_dirs.root_dir)
 
     # We have not set a run_recovery, nor have we trained, so this should fail to get a checkpoint
     with pytest.raises(ValueError) as ex:
@@ -356,7 +357,6 @@ def test_get_checkpoints_to_test_single_run(test_output_dirs: OutputFolderForTes
 
 
 def test_download_model_weights(test_output_dirs: OutputFolderForTests) -> None:
-
     # Download a sample ResNet model from a URL given in the Pytorch docs
     # The downloaded model does not match the architecture, which is okay since we are only testing the download here.
 
@@ -403,7 +403,6 @@ def test_get_local_weights_path_or_download(test_output_dirs: OutputFolderForTes
 
 
 def test_get_and_modify_local_weights(test_output_dirs: OutputFolderForTests) -> None:
-
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
@@ -426,7 +425,7 @@ def test_get_and_modify_local_weights(test_output_dirs: OutputFolderForTests) ->
 
     # set a method to modify weights:
     ModelConfigBase.load_checkpoint_and_modify = lambda self, path_to_checkpoint: {"modified": "local",  # type: ignore
-                                                                          "path": path_to_checkpoint}
+                                                                                   "path": path_to_checkpoint}
     # Set the local_weights_path to an empty file, which will be passed to modify_checkpoint
     local_weights_path = manage_recovery.project_root / "exist.pth"
     local_weights_path.touch()
@@ -447,7 +446,7 @@ def test_get_and_modify_local_weights(test_output_dirs: OutputFolderForTests) ->
 
     # set a different method to modify weights, to avoid using old files from other tests:
     ModelConfigBase.load_checkpoint_and_modify = lambda self, path_to_checkpoint: {"modified": "url",  # type: ignore
-                                                                          "path": path_to_checkpoint}
+                                                                                   "path": path_to_checkpoint}
     # Set the weights_url to the sample pytorch URL, which will be passed to modify_checkpoint
     config.local_weights_path = None
     config.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
@@ -460,4 +459,4 @@ def test_get_and_modify_local_weights(test_output_dirs: OutputFolderForTests) ->
     assert read.keys() == {"modified", "path"}
     assert read["modified"] == "url"
     assert read["path"] == manage_recovery.project_root / MODEL_WEIGHTS_DIR_NAME / \
-                                                       os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)
+           os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)

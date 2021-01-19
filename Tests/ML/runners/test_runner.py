@@ -4,17 +4,18 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import time
+
 import pytest
 
 from InnerEye.Common import common_util
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecutionMode
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
 from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 from Tests.ML.util import get_default_checkpoint_handler
+from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")

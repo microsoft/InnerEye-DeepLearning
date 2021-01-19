@@ -9,7 +9,7 @@ from InnerEye.Common import common_util
 from InnerEye.Common.common_util import check_is_any_of, get_namespace_root, is_private_field_name, namespace_to_path, \
     path_to_namespace, print_exception
 from InnerEye.Common.output_directories import OutputFolderForTests
-from Tests.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
 
 
 def test_get_items_from_string() -> None:
@@ -101,7 +101,7 @@ def test_path_to_namespace(is_external: bool, test_output_dirs: OutputFolderForT
         ) == folder_name
     else:
         from Tests.ML import test_data
-        from Tests.fixed_paths_for_tests import full_ml_test_data_path
+        from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
         assert path_to_namespace(
             path=full_ml_test_data_path(),
             root=tests_root_directory().parent

@@ -14,8 +14,9 @@ import pytest
 import torch
 
 from InnerEye.Common import common_util, fixed_paths
-from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, \
-    METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, logging_to_stdout, get_epoch_results_path
+from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, METRICS_AGGREGATES_FILE, \
+    SUBJECT_METRICS_FILE_NAME, get_epoch_results_path, logging_to_stdout
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, model_training, runner
@@ -32,7 +33,6 @@ from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler, machine_has_gpu
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.cpu_and_gpu

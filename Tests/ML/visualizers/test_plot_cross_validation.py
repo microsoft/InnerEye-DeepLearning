@@ -31,6 +31,7 @@ from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToyMult
 from Tests.ML.util import assert_text_files_match, get_default_azure_config
 from Tests.fixed_paths_for_tests import full_ml_test_data_path
 from Tests.AfterTraining.test_after_training import get_most_recent_run
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.fixture

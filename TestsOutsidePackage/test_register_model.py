@@ -16,10 +16,11 @@ import pytest
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import ModelProcessing, OTHER_RUNS_SUBDIR_NAME
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
-from InnerEye.ML.common import CHECKPOINT_SUFFIX, create_checkpoint_path, BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_SUFFIX, create_checkpoint_path
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -28,8 +29,6 @@ from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.ml_util import set_random_seed
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
-from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
 class SubprocessConfig(GenericConfig):
@@ -56,7 +55,7 @@ def create_checkpoints(model_config: SegmentationModelBase, is_ensemble: bool) -
     # To simulate ensemble models, there are two checkpoints, one in the root dir and one in a folder
     stored_checkpoints = full_ml_test_data_path('checkpoints')
     checkpoints = list(stored_checkpoints.rglob(f"*{CHECKPOINT_SUFFIX}")) if is_ensemble \
-                                                    else list(stored_checkpoints.glob(f"*{CHECKPOINT_SUFFIX}"))
+        else list(stored_checkpoints.glob(f"*{CHECKPOINT_SUFFIX}"))
     assert len(checkpoints) == (2 if is_ensemble else 1)
     checkpoints_relative = [checkpoint.relative_to(stored_checkpoints) for checkpoint in checkpoints]
     checkpoints_absolute = []
