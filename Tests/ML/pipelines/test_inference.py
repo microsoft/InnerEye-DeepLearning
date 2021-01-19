@@ -125,7 +125,6 @@ def test_check_inference_result(segmentation: Any, posteriors: Any, voxel_spacin
     """
     with pytest.raises(Exception):
         InferencePipeline.Result(
-            epoch=0,
             patient_id=0,
             segmentation=segmentation,
             posteriors=posteriors,

@@ -53,7 +53,7 @@ class StoringLogger(LightningLoggerBase):
     Used for diagnostic purposes in unit tests.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.results: List[Dict[str, float]] = []
         self.hyperparams = {}
@@ -77,7 +77,7 @@ class StoringLogger(LightningLoggerBase):
 
     def extract_by_prefix(self, metrics: Dict[str, float], prefix_filter: str = "") -> Tuple[int, DictStrFloat]:
         epoch_name = "epoch"
-        epoch = metrics.get(epoch_name, None)
+        epoch = int(metrics.get(epoch_name, None))
         if epoch is None:
             raise ValueError("Each of the logged metrics should have an 'epoch' key.")
         metrics_dict = {}
@@ -390,7 +390,7 @@ class SegmentationLightning(InnerEyeLightning):
     def training_or_validation_step(self,
                                     sample: Dict[str, Any],
                                     batch_index: int,
-                                    is_training: bool):
+                                    is_training: bool) -> torch.Tensor:
         """
         Runs training for a single minibatch of training or validation data, and computes all metrics.
         :param sample: The batched sample on which the model should be trained.
@@ -452,7 +452,7 @@ class SegmentationLightning(InnerEyeLightning):
         self.write_loss(is_training, loss)
         return loss
 
-    def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool):
+    def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool) -> None:
         metrics = add_average_dice(metrics)
         super().store_epoch_results(metrics, epoch, is_training)
 
@@ -555,7 +555,7 @@ class ScalarLightning(InnerEyeLightning):
     def training_or_validation_step(self,
                                     sample: Dict[str, Any],
                                     batch_index: int,
-                                    is_training: bool):
+                                    is_training: bool) -> torch.Tensor:
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model, self.target_indices, sample)
         labels = model_inputs_and_labels.labels
         logits = self.model(*model_inputs_and_labels.model_inputs)

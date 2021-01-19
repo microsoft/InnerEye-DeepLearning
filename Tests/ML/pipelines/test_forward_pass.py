@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any
+from typing import Any, no_type_check
 
 import pytest
 import torch
@@ -62,7 +62,8 @@ def test_use_gpu_flag(use_gpu_override: bool) -> None:
 
 
 # @pytest.mark.azureml
-# TODO antonsc: re-enable once we have mean teacher in place again
+# TODO antonsc: re-enable test and type checking once we have mean teacher in place again
+@no_type_check
 def disabled_test_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and weight updates of the mean teacher model computation.

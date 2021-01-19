@@ -26,7 +26,7 @@ def create_model_and_store(config: ModelConfigBase, checkpoint_path: Path) -> No
     trainer, _ = create_lightning_trainer(config)
     model = create_lightning_model(config)
     if machine_has_gpu:
-        model = model.cuda()
+        model = model.cuda()  # type: ignore
     trainer.model = model
     # In PL, it is the Trainer's responsibility to save the model. Checkpoint handling refers back to the trainer
     # to get a save_func. Mimicking that here.

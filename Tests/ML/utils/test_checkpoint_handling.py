@@ -73,12 +73,12 @@ def test_discover_and_download_checkpoints_from_previous_runs_single_run(test_ou
     # Set a run recovery object - non ensemble
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
+    assert checkpoint_handler.run_recovery
 
     expected_checkpoint_root = config.checkpoint_folder / run_recovery_id.split(":")[1]
     expected_paths = [create_checkpoint_path(path=expected_checkpoint_root,
                                              epoch=epoch) for epoch in [1, 2]]
     expected_paths += [expected_checkpoint_root / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"]
-    assert checkpoint_handler.run_recovery
     assert checkpoint_handler.run_recovery.checkpoints_roots == [expected_checkpoint_root]
     for path in expected_paths:
         assert path.is_file()
@@ -99,6 +99,7 @@ def test_discover_and_download_checkpoints_from_previous_runs_ensemble_run(test_
     # Set a run recovery object - ensemble
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
+    assert checkpoint_handler.run_recovery
 
     expected_checkpoint_roots = [config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / str(i) for i in range(2)]
     expected_path_lists = [[create_checkpoint_path(path=expected_checkpoint_root,
