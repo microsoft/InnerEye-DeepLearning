@@ -32,7 +32,7 @@ from InnerEye.ML.utils.split_dataset import DatasetSplits
 from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToyMultiLabelSequenceModel, \
     _get_multi_label_sequence_dataframe
 from Tests.ML.util import assert_tensors_equal, create_dataset_csv_file
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 def test_load_items_seq() -> None:

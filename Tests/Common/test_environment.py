@@ -4,8 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 
-from InnerEye.Common import fixed_paths
-from Tests import fixed_paths_for_tests
+from InnerEye.Common import fixed_paths, fixed_paths_for_tests
 
 
 def test_invalid_python_packages() -> None:
@@ -41,4 +40,5 @@ def test_invalid_python_packages() -> None:
     for package in packages_to_avoid:
         print("- {}".format(package))
     check_file(fixed_paths_for_tests.tests_root_directory().parent / fixed_paths.ENVIRONMENT_YAML_FILE_NAME)
-    check_file(fixed_paths_for_tests.tests_root_directory().parent / fixed_paths.AZURE_RUNNER_ENVIRONMENT_YAML_FILE_NAME)
+    check_file(
+        fixed_paths_for_tests.tests_root_directory().parent / fixed_paths.AZURE_RUNNER_ENVIRONMENT_YAML_FILE_NAME)

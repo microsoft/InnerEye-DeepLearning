@@ -21,7 +21,7 @@ from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import no_gpu_available
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.parametrize("config, checkpoint_path",
