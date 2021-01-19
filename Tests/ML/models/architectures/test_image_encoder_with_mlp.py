@@ -230,13 +230,14 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.gpu
-@pytest.mark.parametrize("encode_channels_jointly", [True, False])
-@pytest.mark.parametrize("aggregation_type", [AggregationType.Average,
-                                              AggregationType.GatedPooling,
-                                              AggregationType.MixPooling,
-                                              AggregationType.ZAdaptive3dAvg])
-@pytest.mark.parametrize("imaging_feature_type", [ImagingFeatureType.Segmentation,
-                                                  ImagingFeatureType.ImageAndSegmentation])
+@pytest.mark.parametrize(["encode_channels_jointly", "aggregation_type", "imaging_feature_type"],
+    [(False, AggregationType.Average, ImagingFeatureType.Segmentation),
+     (True, AggregationType.Average, ImagingFeatureType.Segmentation),
+     (False, AggregationType.Average, ImagingFeatureType.ImageAndSegmentation),
+     (True, AggregationType.Average, ImagingFeatureType.ImageAndSegmentation),
+     (True, AggregationType.GatedPooling, ImagingFeatureType.ImageAndSegmentation),
+     (True, AggregationType.MixPooling, ImagingFeatureType.ImageAndSegmentation),
+     (True, AggregationType.ZAdaptive3dAvg, ImagingFeatureType.ImageAndSegmentation)])
 def test_image_encoder_with_segmentation(test_output_dirs: OutputFolderForTests,
                                          encode_channels_jointly: bool,
                                          aggregation_type: AggregationType,

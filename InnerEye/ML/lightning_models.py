@@ -750,16 +750,18 @@ def transfer_batch_to_device(batch: Any, device: torch.device) -> Any:
     items = batch.get("items", None)
     if items is not None and isinstance(items, List) and isinstance(items[0], List) and \
             isinstance(items[0][0], ScalarItem):
-        batch["items"] = [[j.to_device(device) for j in i] for i in items]
+        batch["items"] = [[j.move_to_device(device) for j in i] for i in items]
         return batch
     else:
         return move_data_to_device(batch, device)
 
 
-def create_lightning_model(config: ModelConfigBase) -> InnerEyeLightning:
+def create_lightning_model(config: ModelConfigBase, set_optimizer_and_scheduler: bool = True) -> InnerEyeLightning:
     """
     Creates a PyTorch Lightning model that matches the provided InnerEye model configuration object.
     The `optimizer` and `l_rate_scheduler` object of the Lightning model will also be populated.
+    :param set_optimizer_and_scheduler: If True (default), initialize the optimizer and LR scheduler of the model.
+    If False, skip that step (this is only meant to be used for unit tests.)
     :param config: An InnerEye model configuration object
     :return: A PyTorch Lightning model object.
     """
@@ -769,7 +771,8 @@ def create_lightning_model(config: ModelConfigBase) -> InnerEyeLightning:
         model = ScalarLightning(config)
     else:
         raise NotImplementedError(f"Don't know how to handle config of type {type(config)}")
-    model.set_optimizer_and_scheduler(config)
+    if set_optimizer_and_scheduler:
+        model.set_optimizer_and_scheduler(config)
     return model
 
 
@@ -800,22 +803,21 @@ def adjust_model_for_inference(config: ModelConfigBase, lightning_model: InnerEy
     :param config: The model configuration object. It may be modified in place.
     :param lightning_model: The trained model that should be adjusted.
     """
-    model = lightning_model.model
     if config.use_gpu:
-        model = model.cuda()
+        lightning_model = lightning_model.cuda()
         # If model parallel is set to True, then partition the network across all available gpus.
         # Model partitioning relies on the model summary. We generate that with a smaller crop (the same that is also
         # used during training, and we assume that fits onto the GPU)
-        if config.use_model_parallel and isinstance(model, BaseSegmentationModel):
+        if config.use_model_parallel and isinstance(lightning_model.model, BaseSegmentationModel):
             logging.info("Partitioning the model across all GPUs.")
-            model.generate_model_summary(crop_size=config.crop_size, log_summaries_to_files=True)
-            model.partition_model()
+            lightning_model.model.generate_model_summary(crop_size=config.crop_size, log_summaries_to_files=True)
+            lightning_model.model.partition_model()
     else:
         logging.info("Skipping model partitioning because no GPU was found.")
 
     # Update model related config attributes. This must happen after model partitioning, because we compute the
     # model output size during inference: That will only fit onto the GPU if already partitioned.
-    used_gpus = set(p.device for p in model.parameters())
+    used_gpus = set(p.device for p in lightning_model.parameters())
     logging.info(f"Model is using these devices: {used_gpus}")
     logging.info(f"Re-computing model-dependent properties (e.g., output patch sizes)")
     config.set_derived_model_properties(lightning_model.model)

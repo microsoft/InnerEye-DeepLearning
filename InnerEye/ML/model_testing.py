@@ -418,10 +418,14 @@ def classification_model_test(config: ScalarModelBase,
         metrics_dict = create_metrics_dict_for_scalar_models(config)
         for sample in ds:
             result = pipeline.predict(sample)
-            # Since batch size is 1, we only have 1 item in each of the fields in result
-            sample_id, label_gpu, model_output = result.subject_ids[0], result.labels, result.model_outputs
-
-            compute_scalar_metrics(metrics_dict, [sample_id], model_output, label_gpu, config.loss_type)
+            model_output = result.posteriors
+            label = result.labels.to(device=model_output.device)
+            sample_id = result.subject_ids[0]
+            compute_scalar_metrics(metrics_dict,
+                                   subject_ids=[sample_id],
+                                   model_output=model_output,
+                                   labels=label,
+                                   loss_type=config.loss_type)
             logging.debug(f"Example {sample_id}: {metrics_dict.to_string()}")
 
         average = metrics_dict.average(across_hues=False)
