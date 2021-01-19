@@ -165,7 +165,8 @@ def test_predict_ensemble(batch_size: int) -> None:
 
 def test_aggregation() -> None:
     aggregation_type = EnsembleAggregationType.Average
-    pipeline = ScalarEnsemblePipeline(ensemble_aggregation_type=aggregation_type, pipelines=None,
+    pipeline = ScalarEnsemblePipeline(ensemble_aggregation_type=aggregation_type,
+                                      pipelines=None,  # type: ignore
                                       model_config=None)  # type: ignore
     input_tensor = torch.tensor([[[0.5], [1.0], [0.4]],
                                  [[0.5], [1.0], [0.4]],
