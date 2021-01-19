@@ -382,8 +382,8 @@ def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> 
     results = model_train(config, get_default_checkpoint_handler(model_config=config,
                                                                  project_root=test_output_dirs.root_dir))
 
-    actual_train_loss = results.get_metric(is_training=True, metric_type=MetricType.LOSS)[-1]
-    actual_val_loss = results.get_metric(is_training=False, metric_type=MetricType.LOSS)[-1]
+    actual_train_loss = results.get_metric(is_training=True, metric_type=MetricType.LOSS.value)[-1]
+    actual_val_loss = results.get_metric(is_training=False, metric_type=MetricType.LOSS.value)[-1]
     print(f"Training loss after {config.num_epochs} epochs: {actual_train_loss}")
     print(f"Validation loss after {config.num_epochs} epochs: {actual_val_loss}")
     assert actual_train_loss <= expected_max_train_loss, "Training loss too high"

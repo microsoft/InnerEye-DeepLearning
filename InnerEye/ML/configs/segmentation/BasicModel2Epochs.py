@@ -44,7 +44,9 @@ class BasicModel2Epochs(SegmentationModelBase):
             l_rate=1e-4,
             l_rate_scheduler=LRSchedulerType.Step,
             l_rate_step_step_size=1,
-            l_rate_step_gamma=0.9
+            l_rate_step_gamma=0.9,
+            # Necessary to avoid https://github.com/pytorch/pytorch/issues/45324
+            max_num_gpus=2,
         )
         self.add_and_validate(kwargs)
 

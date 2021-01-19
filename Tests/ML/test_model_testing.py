@@ -152,7 +152,7 @@ def test_create_inference_pipeline(config: ModelConfigBase,
     assert isinstance(ensemble, expected_ensemble_type)
     if isinstance(inference, InferencePipeline) and num_gpus > 0:
         # Check that a model summary for segmentation models was created, which is necessary for model partitioning.
-        assert inference.model.summary is not None
+        assert inference.model.model.summary is not None
         # Check that the model has been partitioned
         devices = set(p.device for p in inference.model.parameters())
         if num_gpus > 1:
