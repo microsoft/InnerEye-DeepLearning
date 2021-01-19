@@ -20,7 +20,8 @@ from torch.utils.data import DataLoader
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, SUBJECT_METRICS_FILE_NAME
-from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, SequenceMetricsDict
+from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, SequenceMetricsDict, TRAIN_PREFIX, \
+    VALIDATION_PREFIX
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -30,7 +31,7 @@ from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
     AreaUnderRocCurve, AverageWithoutNan, BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
     FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, OptimalThreshold, \
-    TRAIN_PREFIX, VALIDATION_PREFIX, compute_dice_across_patches, nanmean, store_epoch_metrics
+    compute_dice_across_patches, nanmean, store_epoch_metrics
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.scalar_config import ScalarModelBase

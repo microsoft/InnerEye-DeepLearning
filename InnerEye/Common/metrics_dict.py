@@ -20,9 +20,6 @@ from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_auc_score
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.scalar_config import ScalarModelBase
-from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
-from InnerEye.ML.utils.io_util import tabulate_dataframe
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, \
     mean_squared_error, r2_score
@@ -34,18 +31,7 @@ T = TypeVar('T', np.ndarray, float)
 TRAIN_PREFIX = "train/"
 VALIDATION_PREFIX = "val/"
 
-
-def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> \
-        Union[ScalarMetricsDict, SequenceMetricsDict]:
-    """
-    Create an instance of either a ScalarMetricsDict or SequenceMetricsDict, depending on whether the given
-     configuration is a sequence model configuration or not.
-    """
-    if isinstance(config, SequenceModelBase):
-        return SequenceMetricsDict.create(is_classification_model=config.is_classification_model,
-                                          sequence_target_positions=config.sequence_target_positions)
-    else:
-        return ScalarMetricsDict(is_classification_metrics=config.is_classification_model)
+SEQUENCE_POSITION_HUE_NAME_PREFIX = "Seq_pos"
 
 
 def average_metric_values(values: List[float], skip_nan_when_averaging: bool) -> float:
@@ -680,6 +666,7 @@ class MetricsDict:
         :param tabulate: If True then create a pretty printable table string.
         :return: Formatted metrics string
         """
+        from InnerEye.ML.utils.io_util import tabulate_dataframe
         df = self.to_data_frame()
         return tabulate_dataframe(df) if tabulate else df.to_string(index=False)
 
