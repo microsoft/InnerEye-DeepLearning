@@ -5,12 +5,11 @@
 
 import logging
 from pathlib import Path
-from typing import List
 
 import pytest
 
 from InnerEye.Common.common_util import logging_to_stdout
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict
+from InnerEye.Common.metrics_dict import MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, model_training
 from InnerEye.ML.common import ModelExecutionMode
