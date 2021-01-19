@@ -11,11 +11,10 @@ from typing import Any, Dict, List, Optional
 
 import torch
 
-from InnerEye.ML.lightning_models import create_model_from_lightning_checkpoint
+from InnerEye.ML.lightning_models import ScalarLightning, load_from_checkpoint_and_adjust_for_inference
 from InnerEye.ML.pipelines.inference import InferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
-from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 
 
@@ -39,13 +38,13 @@ class ScalarInferencePipelineBase(InferencePipelineBase):
 
         subject_ids: List[str]
         labels: torch.Tensor
-        model_outputs: torch.Tensor
+        posteriors: torch.Tensor
 
         def __post_init__(self) -> None:
             if len(self.subject_ids) != self.labels.shape[0]:
                 raise ValueError(f"Got {self.labels.shape[0]} labels for {len(self.subject_ids)} samples.")
-            if len(self.subject_ids) != self.model_outputs.shape[0]:
-                raise ValueError(f"Got {self.model_outputs.shape[0]} predictions for {len(self.subject_ids)} samples.")
+            if len(self.subject_ids) != self.posteriors.shape[0]:
+                raise ValueError(f"Got {self.posteriors.shape[0]} predictions for {len(self.subject_ids)} samples.")
 
 
 class ScalarInferencePipeline(ScalarInferencePipelineBase):
@@ -54,7 +53,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
     """
 
     def __init__(self,
-                 model: DeviceAwareModule,
+                 model: ScalarLightning,
                  model_config: ScalarModelBase,
                  pipeline_id: int) -> None:
         """
@@ -66,7 +65,6 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         super().__init__(model_config)
         self.model = model
         self.pipeline_id = pipeline_id
-        self.logits_to_posterior_fn = self.model_config.get_post_loss_logits_normalization_function()
         # Switch model to evaluation mode (if not, results will be different from what we got during training,
         # because batchnorm operates differently).
         model.eval()
@@ -91,8 +89,8 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
             # TODO antonsc: Need to adjust that
             raise NotImplementedError("Mean teacher models not supported yet.")
         else:
-            model = create_model_from_lightning_checkpoint(config, path_to_checkpoint).model
-
+            model = load_from_checkpoint_and_adjust_for_inference(config, path_to_checkpoint)
+        assert isinstance(model, ScalarLightning)
         return ScalarInferencePipeline(model, config, pipeline_id=pipeline_id)
 
     def predict(self, sample: Dict[str, Any]) -> ScalarInferencePipelineBase.Result:
@@ -107,18 +105,16 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         assert isinstance(self.model_config, ScalarModelBase)
         target_indices = self.model_config.get_target_indices() \
             if isinstance(self.model_config, SequenceModelBase) else []
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model,
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model.model,
                                                                      target_indices=target_indices,
                                                                      sample=sample)
-        subject_ids = model_inputs_and_labels.subject_ids
-        labels = model_inputs_and_labels.labels
-
-        # TODO antonsc: This should correctly run on GPUs, at the moment it is CPU only?
-        model_output: torch.Tensor = self.model.forward(*model_inputs_and_labels.model_inputs)
-        # Apply any post loss normalization to logits
-        model_output = self.logits_to_posterior_fn(model_output)
-        # Cast labels and model outputs back to float32, if the model had been run in mixed precision
-        return ScalarInferencePipelineBase.Result(subject_ids, labels.float(), model_output.float())
+        model_inputs_and_labels.move_to_device(self.model.device)
+        with torch.no_grad():
+            # This already gives the model outputs converted to posteriors
+            posteriors: torch.Tensor = self.model.forward(*model_inputs_and_labels.model_inputs)
+        return ScalarInferencePipelineBase.Result(subject_ids=model_inputs_and_labels.subject_ids,
+                                                  labels=model_inputs_and_labels.labels,
+                                                  posteriors=posteriors)
 
 
 class ScalarEnsemblePipeline(ScalarInferencePipelineBase):
@@ -173,41 +169,24 @@ class ScalarEnsemblePipeline(ScalarInferencePipelineBase):
         :return: Returns ScalarInferencePipelineBase.Result with the subject ids, ground truth labels and predictions.
         """
         results = [pipeline.predict(sample) for pipeline in self.pipelines]
-
-        # subject_ids and label_gpu should be the same across all pipelines
-        # check that we have the same subject ids
-        if len(set(map(tuple, [result.subject_ids for result in results]))) > 1:  # type: ignore
-            raise ValueError("Trying to aggregate results for different subject ids.")
-        subject_ids = results[0].subject_ids
-        # check that we have the same labels
-        for result in results:
-            # Using allclose() instead of equal() because we can have NaN in the labels (in which case
-            # equal() would return False).
-            if not torch.allclose(results[0].labels, result.labels, atol=0, rtol=0, equal_nan=True):
-                raise ValueError("Trying to aggregate results but ground truth does not match across samples.")
-        labels = results[0].labels
-
-        # gather all model outputs into a single tensor
-        model_outputs = torch.stack([result.model_outputs for result in results])
-
-        model_outputs = ScalarEnsemblePipeline.aggregate_model_outputs(model_outputs, self.aggregation_type)
-        result = ScalarInferencePipelineBase.Result(subject_ids, labels, model_outputs)
-
+        # Gather all model outputs into a single tensor
+        posteriors = torch.stack([result.posteriors for result in results])
+        posteriors_aggregated = self.aggregate_model_outputs(posteriors)
+        result = ScalarInferencePipelineBase.Result(subject_ids=results[0].subject_ids,
+                                                    labels=results[0].labels,
+                                                    posteriors=posteriors_aggregated)
         return result
 
-    @staticmethod
-    def aggregate_model_outputs(model_outputs: torch.Tensor,
-                                aggregation_type: EnsembleAggregationType) -> torch.Tensor:
+    def aggregate_model_outputs(self, model_outputs: torch.Tensor) -> torch.Tensor:
         """
         Aggregates the forward pass results from the individual models in the ensemble.
         :param model_outputs: List of model outputs for every model in the ensemble.
         (Number of ensembles) x (batch_size) x 1
-        :param aggregation_type: Type of aggregation to apply on te results.
         """
         # aggregate model outputs
-        if aggregation_type == EnsembleAggregationType.Average:
+        if self.aggregation_type == EnsembleAggregationType.Average:
             aggregated_outputs = model_outputs.mean(dim=0)
         else:
-            raise NotImplementedError(f"Ensemble aggregation type {aggregation_type} not implemented.")
+            raise NotImplementedError(f"Ensemble aggregation type {self.aggregation_type} not implemented.")
 
         return aggregated_outputs

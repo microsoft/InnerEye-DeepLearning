@@ -30,6 +30,10 @@ from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_
 FloatOrInt = Union[float, int]
 T = TypeVar('T', np.ndarray, float)
 
+# String prefixes when writing training or validation set metrics to a logger
+TRAIN_PREFIX = "train/"
+VALIDATION_PREFIX = "val/"
+
 
 def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> \
         Union[ScalarMetricsDict, SequenceMetricsDict]:
@@ -252,6 +256,13 @@ class Hue:
                 raise ValueError(f"Expected that all metrics lists only hold 1 item, "
                                  f"but got this list for Hue {self.name} : metric "
                                  f"'{metric_name}': {metric_value}")
+
+
+class TrackedMetrics(Enum):
+    """
+    Known metrics that are tracked as part of Hyperdrive runs.
+    """
+    Val_Loss = VALIDATION_PREFIX + MetricType.LOSS.value
 
 
 class MetricsDict:

@@ -82,7 +82,7 @@ def test_inference_identity(image_size: Any,
 
     # instantiate the model
     model = PyTorchMockModel(shrink_by)
-    model_config.adjust_after_mixed_precision_and_parallel(model)
+    model_config.set_derived_model_properties(model)
 
     # create single or ensemble inference pipeline
     inference_pipeline = InferencePipeline(model=model, model_config=model_config)

@@ -3,9 +3,10 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import numbers
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
@@ -13,6 +14,9 @@ from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.metrics import Metric
 from pytorch_lightning.utilities import move_data_to_device, rank_zero_only
 from torch.nn import ModuleDict, ModuleList
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
+from torch.utils.data import DataLoader
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, SUBJECT_METRICS_FILE_NAME
@@ -24,13 +28,11 @@ from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
-    AreaUnderRocCurve, \
-    BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
-    FalsePositiveRateOptimalThreshold, \
-    MeanAbsoluteError, MeanSquaredError, OptimalThreshold, add_average_dice, \
-    compute_dice_across_patches, \
-    nanmean, store_epoch_metrics
+    AreaUnderRocCurve, AverageWithoutNan, BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
+    FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, OptimalThreshold, \
+    TRAIN_PREFIX, VALIDATION_PREFIX, compute_dice_across_patches, nanmean, store_epoch_metrics
 from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
@@ -43,8 +45,7 @@ from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss, get_mask
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
 
-TRAIN_PREFIX = "train/"
-VALIDATION_PREFIX = "val/"
+AVERAGE_DICE_SUFFIX = "AverageAcrossStructures"
 
 
 class StoringLogger(LightningLoggerBase):
@@ -88,7 +89,7 @@ class StoringLogger(LightningLoggerBase):
             if key != epoch_name and (not prefix_filter) or key.startswith(prefix_filter):
                 stripped_key = key[len(prefix_filter):]
                 metrics_dict[stripped_key] = value
-        return epoch, metrics_dict
+        return int(epoch), metrics_dict
 
     def to_metrics_dicts(self, prefix_filter: str = "") -> Dict[int, DictStrFloat]:
         result = {}
@@ -104,7 +105,7 @@ class AzureMLLogger(LightningLoggerBase):
     A Pytorch Lightning logger that stores metrics in the current AzureML run.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
 
@@ -129,22 +130,83 @@ class AzureMLLogger(LightningLoggerBase):
 
 
 class TrainingAndValidationDataLightning(LightningDataModule):
-    def _init__(self, config: ModelConfigBase):
+    def _init__(self, config: ModelConfigBase) -> None:
         super().__init__()
         self.config = config
-        self.data_loaders = None
+        self.data_loaders = {}
 
     def setup(self, stage: Optional[str] = None) -> None:
         self.data_loaders = self.config.create_data_loaders()
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader:
         return self.data_loaders[ModelExecutionMode.TRAIN]
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader:
         return self.data_loaders[ModelExecutionMode.VAL]
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader:
         raise NotImplementedError("For segmentation models, the test dataset should not be evaluated patch-wise.")
+
+
+class MetricForMultipleStructures(torch.nn.Module):
+    """
+    Stores a metric for multiple structures, and an average Dice score across all structures.
+    The class consumes pre-computed metric values, and only keeps an aggregate for later computing the
+    averages. When averaging, metric values that are NaN are skipped.
+    """
+
+    def __init__(self, ground_truth_ids: List[str], is_training: bool,
+                 metric_name: str = MetricType.DICE.value,
+                 use_average_across_structures: bool = True) -> None:
+        """
+        Creates a new MetricForMultipleStructures object.
+        :param ground_truth_ids: The list of anatomical structures that should be stored.
+        :param metric_name: The name of the metric that should be stored. This is used in the names of the individual
+        metrics.
+        :param is_training: If true, use "train/" as the prefix for all metric names, otherwise "val/"
+        :param use_average_across_structures: If True, keep track of the average metric value across structures,
+        while skipping NaNs. If false, only store the per-structure metric values.
+        """
+        super().__init__()
+        prefix = (TRAIN_PREFIX if is_training else VALIDATION_PREFIX) + metric_name + "/"
+        # All Metric classes must be
+        self.average_per_structure = ModuleList([AverageWithoutNan(name=prefix + g) for g in ground_truth_ids])
+        self.use_average_across_structures = use_average_across_structures
+        if use_average_across_structures:
+            self.average_all = AverageWithoutNan(name=prefix + AVERAGE_DICE_SUFFIX)
+        self.count = len(ground_truth_ids)
+
+    def update(self, values_per_structure: torch.Tensor) -> None:
+        """
+        Stores a vector of per-structure Dice scores in the present object. It updates the per-structure values,
+        and the aggregate value across all structures.
+        :param values_per_structure: A row tensor that has as many entries as there are ground truth IDs.
+        """
+        if values_per_structure.dim() != 1 or values_per_structure.numel() != self.count:
+            raise ValueError(f"Expected a tensor with {self.count} elements, but "
+                             f"got shape {values_per_structure.shape}")
+        for i, v in enumerate(values_per_structure.view((-1,))):
+            self.average_per_structure[i].update(v)
+        if self.use_average_across_structures:
+            self.average_all.update(nanmean(values_per_structure))
+
+    def __iter__(self) -> Iterator[Metric]:
+        """
+        Enumerates all the metrics that the present object holds: First the average across all structures,
+        then the per-structure Dice scores.
+        """
+        if self.use_average_across_structures:
+            yield self.average_all
+        yield from self.average_per_structure
+
+    def compute_all(self) -> Iterator[Tuple[str, torch.Tensor]]:
+        """
+        Calls the .compute() method on all the metrics that the present object holds, and returns a sequence
+        of (metric name, metric value) tuples. This will automatically also call .reset() on the metrics.
+        The first returned metric is the average across all structures, then come the per-structure values.
+        """
+        for d in iter(self):
+            yield d.name, d.compute()  # type: ignore
 
 
 class InnerEyeLightning(LightningModule):
@@ -156,14 +218,14 @@ class InnerEyeLightning(LightningModule):
         # The ddp_spawn accelerator only works if the model configuration object is
         # not stored in here. Hence, need to do operations that require a full config
         # in a way that does not require storing the config.
-        self.optimizer = None
-        self.l_rate_scheduler = None
+        self.optimizer: Optional[Optimizer] = None
+        self.l_rate_scheduler: Optional[_LRScheduler] = None
         self.cross_validation_split_index = config.cross_validation_split_index
         self.effective_random_seed = config.get_effective_random_seed()
         # Timers for monitoring data loading time
-        self.epoch_start_time = 0
-        self.item_start_time = 0
-        self.batch_start_time = 0
+        self.epoch_start_time = 0.0
+        self.item_start_time = 0.0
+        self.batch_start_time = 0.0
         self.num_load_time_warnings = 0
         self.num_load_time_exceeded = 0
         self.num_batches = 0
@@ -181,17 +243,16 @@ class InnerEyeLightning(LightningModule):
                                                           fixed_columns=fixed_logger_columns)
         self.val_epoch_metrics_logger = DataframeLogger(self.val_metrics_folder / EPOCH_METRICS_FILE_NAME,
                                                         fixed_columns=fixed_logger_columns)
-        # Fields to store diagnostics for testing
-        self.train_diagnostics = []
-        self.val_diagnostics = []
-        self.use_sync_dist = self.use_ddp
+        # Fields to store diagnostics for unit testing
+        self.train_diagnostics: List[Any] = []
+        self.val_diagnostics: List[Any] = []
 
     def set_optimizer_and_scheduler(self, config: DeepLearningConfig) -> None:
         self.optimizer = model_util.create_optimizer(config, self.model.parameters())
         self.l_rate_scheduler = SchedulerWithWarmUp(config, self.optimizer)
 
-    def configure_optimizers(self):
-        return [self.optimizer], [self.l_rate_scheduler]
+    def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
+        return [self.optimizer], [self.l_rate_scheduler]  # type: ignore
 
     def close_all_loggers(self) -> None:
         self.train_epoch_metrics_logger.flush()
@@ -234,10 +295,12 @@ class InnerEyeLightning(LightningModule):
         prefix_filter = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         # Get the last set of metrics that the logger stores. That set belongs to the current train/validation
         # epoch because it was written just before this hook is called.
-        epoch, metrics = self.storing_logger.extract_by_prefix(self.storing_logger.results[-1], prefix_filter)
-        # Sanity check: We should see metrics for the current epoch.
-        assert epoch == self.current_epoch, f"Epochs don't match: logger has {epoch}, module has {self.current_epoch}"
-        self.store_epoch_results(metrics, epoch, is_training)
+        if len(self.storing_logger.results) > 0:
+            epoch, metrics = self.storing_logger.extract_by_prefix(self.storing_logger.results[-1], prefix_filter)
+            # Sanity check: We should see metrics for the current epoch.
+            assert epoch == self.current_epoch, f"Epochs don't match: logger has {epoch}, module has " \
+                                                f"{self.current_epoch}"
+            self.store_epoch_results(metrics, epoch, is_training)
 
     @rank_zero_only
     def training_or_validation_epoch_end(self, is_training: bool) -> None:
@@ -257,26 +320,42 @@ class InnerEyeLightning(LightningModule):
             logging.warning(
                 f"In this epoch, {self.num_load_time_exceeded} out of {self.num_batches} batches exceeded the load "
                 f"time threshold. Total loading time for the slow batches was {self.total_extra_load_time:0.2f}sec.")
-        self.log_on_epoch(MetricType.SECONDS_PER_EPOCH, epoch_time_seconds, is_training=is_training)
+        # This metric is only written at rank zero, and hence must no be synchronized across workers. If attempted,
+        # training will get stuck.
+        self.log_on_epoch(MetricType.SECONDS_PER_EPOCH, epoch_time_seconds, is_training=is_training,
+                          sync_dist_override=False)
 
     def log_on_epoch(self,
                      name: Union[MetricType, str],
-                     value: Union[float, Metric],
+                     value: Any,
                      is_training: bool,
-                     reduce_fx: Callable = torch.mean) -> None:
+                     reduce_fx: Callable = torch.mean,
+                     sync_dist_override: Optional[bool] = None,
+                     sync_dist_op: Any = "mean") -> None:
         """
         Logs a metrics to Pytorch Lightning with the on_epoch flag set. The metric will get a prefix indicating
         if it is a training or a validation metric. A custom reducer function can be provided.
-        The method also ensures that the correct synchronization across nodes is used.
+        The method also ensures that the correct synchronization across nodes is used. If the value to log is a
+        floating point, it is converted to a Tensor on the current device to enable synchronization.
+        :param sync_dist_override: If not None, use this value for the sync_dist argument to self.log. If None,
+        set it automatically depending on the use of DDP.
         :param name: The name of the metric to log
-        :param value: The value of the metric
+        :param value: The value of the metric. This can be a tensor, floating point value, or a Metric class.
         :param is_training: If true, give the metric a "train/" prefix, otherwise a "val/" prefix.
-        :param reduce_fx: The function that should be used to aggregate multiple logged values.
+        :param reduce_fx: The reduce function to apply after synchronizing the tensors across GPUs.
+        :param sync_dist_op: The reduce operation to use when synchronizing the tensors across GPUs. This must be
+        a value recognized by sync_ddp: Either 'None' to use 'sum' as aggregate, or 'mean' or 'avg'
         """
         metric_name = name if isinstance(name, str) else name.value
+        if isinstance(value, numbers.Number):
+            value = torch.tensor(value, dtype=torch.float, device=self.device)
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
+        sync_dist = self.use_ddp if sync_dist_override is None else sync_dist_override
         self.log(prefix + metric_name, value,
-                 sync_dist=self.use_sync_dist, on_step=False, on_epoch=True, reduce_fx=reduce_fx)
+                 sync_dist=sync_dist,
+                 on_step=False, on_epoch=True,
+                 reduce_fx=reduce_fx,
+                 sync_dist_op=sync_dist_op)
 
     def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool) -> None:
         """
@@ -320,11 +399,9 @@ class InnerEyeLightning(LightningModule):
                                     is_training: bool) -> Any:
         raise NotImplementedError("This method must be overwritten in a derived class.")
 
+    @rank_zero_only
     def batch_start(self, batch_idx: int, is_training: bool) -> None:
-        # Print out data loading statistics only on local rank 0. This will print out stats about data loading
-        # once on each individual machine in DDP
-        if self.local_rank != 0:
-            return
+        # Print out data loading statistics only on global rank 0.
         item_finish_time = time.time()
         item_load_time = item_finish_time - self.item_start_time
         self.total_load_time += item_load_time
@@ -344,8 +421,11 @@ class InnerEyeLightning(LightningModule):
                 self.num_load_time_warnings += 1
         self.batch_start_time = time.time()
 
+    @rank_zero_only
     def batch_end(self, is_training: bool) -> None:
-        self.log_on_epoch(MetricType.SECONDS_PER_BATCH, time.time() - self.batch_start_time, is_training=is_training)
+        # This metric is only written at rank 0, and hence must not be synchronized.
+        self.log_on_epoch(MetricType.SECONDS_PER_BATCH, time.time() - self.batch_start_time, is_training=is_training,
+                          sync_dist_override=False)
         self.item_start_time = time.time()
         self.num_batches += 1
 
@@ -358,16 +438,17 @@ class InnerEyeLightning(LightningModule):
         self.total_load_time = 0.0
         self.num_batches = 0
 
-    def write_loss(self, is_training: bool, loss: Any) -> None:
+    def write_loss(self, is_training: bool, loss: torch.Tensor) -> None:
         """
         Writes the given loss value to Lightning, labelled either "val/loss" or "train/loss".
         If this comes from a training step, then also log the learning rate.
+        :param loss: The loss value that should be logged.
         :param is_training: If True, the logged metric will be called "train/Loss". If False, the metric will
         be called "val/Loss"
         """
         self.log_on_epoch(MetricType.LOSS, loss, is_training)
-        learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
         if is_training:
+            learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
             self.log_on_epoch(MetricType.LEARNING_RATE, learning_rate, is_training)
 
 
@@ -377,6 +458,14 @@ class SegmentationLightning(InnerEyeLightning):
         self.model = config.create_model()
         self.loss_fn = model_util.create_segmentation_loss_function(config)
         self.ground_truth_ids = config.ground_truth_ids
+        self.train_dice = MetricForMultipleStructures(ground_truth_ids=self.ground_truth_ids, is_training=True)
+        self.val_dice = MetricForMultipleStructures(ground_truth_ids=self.ground_truth_ids, is_training=False)
+        self.train_voxels = MetricForMultipleStructures(ground_truth_ids=self.ground_truth_ids, is_training=True,
+                                                        metric_name=MetricType.VOXEL_COUNT.value,
+                                                        use_average_across_structures=False)
+        self.val_voxels = MetricForMultipleStructures(ground_truth_ids=self.ground_truth_ids, is_training=False,
+                                                      metric_name=MetricType.VOXEL_COUNT.value,
+                                                      use_average_across_structures=False)
 
     def forward(self, patches) -> torch.Tensor:
         return self.logits_to_posterior(self.model(patches))
@@ -413,24 +502,35 @@ class SegmentationLightning(InnerEyeLightning):
             posteriors = image_util.apply_mask_to_posteriors(posteriors=posteriors, mask=mask)
 
         # post process posteriors to compute result
-        segmentations = image_util.posteriors_to_segmentation(posteriors=posteriors)
+        segmentation = image_util.posteriors_to_segmentation(posteriors=posteriors)
+        self.compute_metrics(cropped_sample, segmentation, is_training)
 
-        dice_for_all_classes = compute_dice_across_patches(
-            segmentation=segmentations,
-            ground_truth=labels,
-            allow_multiple_classes_for_each_pixel=True).cpu().numpy()
-        foreground_voxels = metrics_util.get_number_of_voxels_per_class(cropped_sample.labels)
-        # loss is a scalar, also when running the forward pass over multiple crops.
-        # dice_for_all_structures has one row per crop.
-        # store metrics per batch
-        for i, ground_truth_id in enumerate(self.ground_truth_ids):
-            dice_name = f"{MetricType.DICE.value}/{ground_truth_id}"
-            for b in range(dice_for_all_classes.shape[0]):
-                self.log_on_epoch(name=dice_name, value=dice_for_all_classes[b, i].item(),
-                                  is_training=is_training, reduce_fx=nanmean)
-            self.log_on_epoch(name=f"{MetricType.VOXEL_COUNT.value}/{ground_truth_id}",
-                              value=foreground_voxels[i],
-                              is_training=is_training)
+        self.write_loss(is_training, loss)
+        return loss
+
+    def compute_metrics(self, cropped_sample: CroppedSample, segmentation: torch.Tensor,
+                        is_training: bool) -> None:
+        """
+        Computes and stores all metrics coming out of a single training step.
+        :param cropped_sample: The batched image crops used for training or validation.
+        :param segmentation: The segmentation that was produced by the model.
+        """
+        # dice_per_crop_and_class has one row per crop, with background class removed
+        # Dice NaN means that both ground truth and prediction are empty.
+        dice_per_crop_and_class = compute_dice_across_patches(
+            segmentation=segmentation,
+            ground_truth=cropped_sample.labels_center_crop,
+            allow_multiple_classes_for_each_pixel=True)[:, 1:]
+        # Number of foreground voxels per class, across all crops
+        foreground_voxels = metrics_util.get_number_of_voxels_per_class(cropped_sample.labels)[:, 1:]
+        # Store Dice and voxel count per sample in the minibatch. We need a custom aggregation logic for Dice
+        # because it can be NaN. Also use custom logging for voxel count because Lightning's batch-size weighted
+        # average has a bug.
+        for i in range(dice_per_crop_and_class.shape[0]):
+            dice = self.train_dice if is_training else self.val_dice
+            dice.update(dice_per_crop_and_class[i, :])
+            voxel_count = self.train_voxels if is_training else self.val_voxels
+            voxel_count.update(foreground_voxels[i, :])
         # store diagnostics per batch
         center_indices = cropped_sample.center_indices
         if isinstance(center_indices, torch.Tensor):
@@ -448,13 +548,16 @@ class SegmentationLightning(InnerEyeLightning):
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=num_subjects,
                           is_training=is_training,
-                          reduce_fx=sum)
-        self.write_loss(is_training, loss)
-        return loss
+                          reduce_fx=sum,
+                          sync_dist_op=None)
 
-    def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool) -> None:
-        metrics = add_average_dice(metrics)
-        super().store_epoch_results(metrics, epoch, is_training)
+    def training_or_validation_epoch_end(self, is_training: bool) -> None:
+        dice = list((self.train_dice if is_training else self.val_dice).compute_all())
+        for name, value in dice:
+            self.log(name, value)
+        voxel_count = list((self.train_voxels if is_training else self.val_voxels).compute_all())
+        for name, value in voxel_count:
+            self.log(name, value)
 
 
 SUBJECT_OUTPUT_PER_RANK_PREFIX = f"{SUBJECT_METRICS_FILE_NAME}.rank"
@@ -651,24 +754,40 @@ def transfer_batch_to_device(batch: Any, device: torch.device) -> Any:
     items = batch.get("items", None)
     if items is not None and isinstance(items, List) and isinstance(items[0], List) and \
             isinstance(items[0][0], ScalarItem):
-        batch["items"] = [[j.to_device(device) for j in i] for i in items]
+        batch["items"] = [[j.move_to_device(device) for j in i] for i in items]
         return batch
     else:
         return move_data_to_device(batch, device)
 
 
-def create_lightning_model(config: ModelConfigBase) -> InnerEyeLightning:
+def create_lightning_model(config: ModelConfigBase, set_optimizer_and_scheduler: bool = True) -> InnerEyeLightning:
+    """
+    Creates a PyTorch Lightning model that matches the provided InnerEye model configuration object.
+    The `optimizer` and `l_rate_scheduler` object of the Lightning model will also be populated.
+    :param set_optimizer_and_scheduler: If True (default), initialize the optimizer and LR scheduler of the model.
+    If False, skip that step (this is only meant to be used for unit tests.)
+    :param config: An InnerEye model configuration object
+    :return: A PyTorch Lightning model object.
+    """
     if config.is_segmentation_model:
         model = SegmentationLightning(config)
     elif config.is_scalar_model:
         model = ScalarLightning(config)
     else:
         raise NotImplementedError(f"Don't know how to handle config of type {type(config)}")
-    model.set_optimizer_and_scheduler(config)
+    if set_optimizer_and_scheduler:
+        model.set_optimizer_and_scheduler(config)
     return model
 
 
-def create_model_from_lightning_checkpoint(config: ModelConfigBase, checkpoint_path: Path) -> torch.nn.Module:
+def load_from_lightning_checkpoint(config: ModelConfigBase, checkpoint_path: Path) -> InnerEyeLightning:
+    """
+    Reads a PyTorch model from a checkpoint. First, a PyTorch Lightning model is created matching the InnerEye
+    model configuration, its parameter tensors are then populated from the given checkpoint.
+    :param config: An InnerEye model configuration object
+    :param checkpoint_path: The location of the checkpoint file.
+    :return: A PyTorch Lightning model object.
+    """
     # Create a Lighting model that matches the configuration, but keep only the type of it
     lightning_model_type = type(create_lightning_model(config))
     # For model debugging, allow loading a GPU trained model onto the CPU. This will clearly only work
@@ -677,5 +796,47 @@ def create_model_from_lightning_checkpoint(config: ModelConfigBase, checkpoint_p
     lightning_model = lightning_model_type.load_from_checkpoint(checkpoint_path=str(checkpoint_path),
                                                                 map_location=map_location,
                                                                 config=config)
-    config.adjust_after_mixed_precision_and_parallel(lightning_model.model)
+    return lightning_model
+
+
+def adjust_model_for_inference(config: ModelConfigBase, lightning_model: InnerEyeLightning) -> None:
+    """
+    Makes all necessary adjustments to use a given model for inference, possibly on multiple GPUs via
+    model parallelization. The method also computes parameters like output patch size for segmentation model,
+    and stores them in the model configuration.
+    :param config: The model configuration object. It may be modified in place.
+    :param lightning_model: The trained model that should be adjusted.
+    """
+    if config.use_gpu:
+        lightning_model = lightning_model.cuda()
+        # If model parallel is set to True, then partition the network across all available gpus.
+        # Model partitioning relies on the model summary. We generate that with a smaller crop (the same that is also
+        # used during training, and we assume that fits onto the GPU)
+        if config.use_model_parallel and isinstance(lightning_model.model, BaseSegmentationModel):
+            logging.info("Partitioning the model across all GPUs.")
+            lightning_model.model.generate_model_summary(crop_size=config.crop_size, log_summaries_to_files=True)
+            lightning_model.model.partition_model()
+    else:
+        logging.info("Skipping model partitioning because no GPU was found.")
+
+    # Update model related config attributes. This must happen after model partitioning, because we compute the
+    # model output size during inference: That will only fit onto the GPU if already partitioned.
+    used_gpus = set(p.device for p in lightning_model.parameters())
+    logging.info(f"Model is using these devices: {used_gpus}")
+    logging.info("Re-computing model-dependent properties (e.g., output patch sizes)")
+    config.set_derived_model_properties(lightning_model.model)
+    torch.cuda.empty_cache()
+
+
+def load_from_checkpoint_and_adjust_for_inference(config: ModelConfigBase, checkpoint_path: Path) -> InnerEyeLightning:
+    """
+    Reads a PyTorch model from a checkpoint, and makes all necessary adjustments to use the model for inference,
+    possibly on multiple GPUs.
+    :param config: An InnerEye model configuration object
+    :param checkpoint_path: The location of the checkpoint file.
+    :return: A PyTorch Lightning model object.
+    """
+    lightning_model = load_from_lightning_checkpoint(config, checkpoint_path)
+    lightning_model.eval()
+    adjust_model_for_inference(config, lightning_model)
     return lightning_model

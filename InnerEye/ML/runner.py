@@ -6,6 +6,10 @@ import os
 import sys
 from pathlib import Path
 
+# Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
+# individual warnings only.
+# flake8: noqa
+
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
 print("Starting InnerEye runner.")
@@ -352,26 +356,21 @@ class Runner:
         """
         # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
         logging.getLogger('adal-python').setLevel(logging.WARNING)
-        if self.model_config:
-            if not self.model_config.azure_dataset_id:
-                raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
-            azure_dataset_id = self.model_config.azure_dataset_id
-            model_config_overrides = str(self.model_config.overrides)
-            hyperdrive_config_func = lambda estimator: self.model_config.get_hyperdrive_config(estimator)
-        else:
-            azure_dataset_id = ""
-            model_config_overrides = ""
-            hyperdrive_config_func = None
+        if not self.model_config.azure_dataset_id:
+            raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
+        model_config_overrides = str(self.model_config.overrides)
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
             conda_dependencies_files=get_all_environment_files(self.project_root),
-            hyperdrive_config_func=hyperdrive_config_func,
+            hyperdrive_config_func=lambda estimator: self.model_config.get_hyperdrive_config(estimator),
             # For large jobs, upload of results times out frequently because of large checkpoint files. Default is 600
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
-        azure_run = submit_to_azureml(self.azure_config, source_config, model_config_overrides, azure_dataset_id)
+        assert self.model_config.azure_dataset_id is not None  # to stop mypy complaining about next line
+        azure_run = submit_to_azureml(self.azure_config, source_config, model_config_overrides,
+                                      self.model_config.azure_dataset_id)
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.

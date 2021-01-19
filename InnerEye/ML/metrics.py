@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import SimpleITK as sitk
 import numpy as np
@@ -22,8 +22,7 @@ from pytorch_lightning.metrics.functional.classification import accuracy, auc, a
 
 from InnerEye.Azure.azure_util import get_run_context_or_default
 from InnerEye.Common.metrics_dict import DataframeLogger, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, MetricsDict, \
-    ScalarMetricsDict, \
-    get_metric_name_with_hue_prefix
+    ScalarMetricsDict, get_metric_name_with_hue_prefix
 from InnerEye.Common.type_annotations import DictStrFloat, TupleFloat3
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
@@ -92,6 +91,45 @@ class Accuracy05(metrics.Accuracy):
         or False if no predictions are stored.
         """
         return self.total > 0  # type: ignore
+
+
+def nanmean(values: torch.Tensor) -> torch.Tensor:
+    """
+    Computes the average of all values in the tensor, skipping those entries that are NaN (not a number).
+    If all values are NaN, the result is also NaN.
+    :param values: The values to average.
+    :return: A scalar tensor containing the average.
+    """
+    valid = values[~torch.isnan(values.view((-1,)))]
+    if valid.numel() == 0:
+        return torch.tensor([math.nan]).type_as(values)
+    return valid.mean()
+
+
+class AverageWithoutNan(Metric):
+    """
+    A generic metric computer that keep track of the average of all values excluding those that are NaN.
+    """
+
+    def __init__(self, dist_sync_on_step: bool = False, name: str = ""):
+        super().__init__(dist_sync_on_step=dist_sync_on_step)
+        self.add_state("sum", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("count", default=torch.tensor(0), dist_reduce_fx="sum")
+        self.name = name
+
+    def update(self, value: torch.Tensor) -> None:
+        """
+        Stores all the given individual elements of the given tensor in the present object.
+        """
+        for v in value.view((-1,)):
+            if not torch.isnan(v):
+                self.sum = self.sum + v
+                self.count = self.count + 1
+
+    def compute(self) -> torch.Tensor:
+        if self.count == 0.0:
+            raise ValueError("No values stored (no or only NaN values have so far been fed into this object).")
+        return self.sum / self.count
 
 
 class ScalarMetricsBase(Metric):
@@ -503,30 +541,6 @@ def log_classification_epoch_metrics(logging_fn: Callable[[str, float], None],
     """
     for hue_name, label, metric in metrics.enumerate_single_values():
         logging_fn(get_metric_name_with_hue_prefix(label, hue_name), metric)
-
-
-def nanmean(values: Iterable[float]) -> float:
-    valid = [v for v in values if not math.isnan(v)]
-    if len(valid) == 0:
-        # This should only handle the case when all entries in a minibatch have no Dice score.
-        return 0.0
-    return sum(valid) / len(valid)
-
-
-def add_average_dice(metrics: DictStrFloat) -> DictStrFloat:
-    """
-    Takes a dictionary containing metrics, searches for all metrics that have the "Dice/" prefix,
-    and adds their average value as a new metric called "dice". If the argument already contains "dice",
-    the result is equal to the argument.
-    :param metrics: Dictionary with metrics, key is the metric name, value is the value of the metric.
-    :return: A new metrics dictionary with a metric "dice" that is the average Dice score.
-    """
-    result = {}
-    if LoggingColumns.Dice.value not in metrics:
-        dice_dict = {name: value for name, value in metrics.items() if name.startswith(MetricType.DICE.value)}
-        result[LoggingColumns.Dice.value] = nanmean(dice_dict.values())
-    result.update(**metrics)
-    return result
 
 
 def store_epoch_metrics(metrics: DictStrFloat,

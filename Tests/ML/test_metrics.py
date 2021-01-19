@@ -10,13 +10,14 @@ import pytest
 import torch
 from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_curve
 
-from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, MetricsDict, \
-    get_column_name_for_logging
+from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, MetricsDict, TRAIN_PREFIX, \
+    VALIDATION_PREFIX, get_column_name_for_logging
 from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import metrics
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.configs.regression.DummyRegression import DummyRegression
-from InnerEye.ML.lightning_models import ScalarLightning
+from InnerEye.ML.lightning_models import AVERAGE_DICE_SUFFIX, MetricForMultipleStructures, ScalarLightning
+from InnerEye.ML.metrics import AverageWithoutNan
 
 
 def test_calculate_dice1() -> None:
@@ -192,6 +193,7 @@ def test_classification_metrics() -> None:
     assert cross_entropy == expected_binary_cross_entropy
     assert accuracy_05 == expected_accuracy_at_05
 
+
 def test_regression_metrics() -> None:
     regression_module = ScalarLightning(DummyRegression())
     metrics = regression_module._get_metrics_classes()
@@ -210,3 +212,71 @@ def test_regression_metrics() -> None:
     assert expected_mae == MAE
     assert expected_mse == MSE
     assert torch.isclose(expected_expVar, ExpVar, atol=1e-5)
+
+
+def test_average_without_nan() -> None:
+    """
+    Tests the class that computes an average of Dice scores while skipping NaN values.
+    """
+    # The third value should be skipped when averaging
+    values = [1.0, 2.0, math.nan]
+    expected = np.nanmean(values)
+    average = AverageWithoutNan()
+    average.update(torch.tensor(values))
+    # We have 2 values that are not NaN
+    assert average.count == 2
+    actual1 = average.compute()
+    # Return value is a scalar, but should be a tensor
+    assert torch.is_tensor(actual1)
+    assert actual1 == expected
+    # .compute() has a special wrapper that calls .reset() right after calling .compute(). Hence, now it seems
+    # that the average has not seen any values
+    assert average.count == 0
+    # Store the same set of values twice, we should still see the same mean
+    average.update(torch.tensor(values))
+    average.update(torch.tensor(values))
+    assert average.count == 4
+    assert average.compute() == expected
+    # Reset should null the counters
+    average.reset()
+    assert average.count == 0
+    assert average.sum == 0.0
+    # This is a weird side effect of Lightning's way of caching metric results. As long as we don't call
+    # .update, the last computed value will be kept and returned, even though we have called .reset() already.
+    assert average.compute() == expected
+    # Update with a tensor that does not contain any values: Can't compute the average then.
+    average.update(torch.zeros((0,)))
+    with pytest.raises(ValueError) as ex:
+        average.compute()
+        assert "No values stored" in str(ex)
+
+
+def test_dice_for_multiple_structures() -> None:
+    """
+    Test the class that stores per-structure Dice values and their across-structure mean.
+    """
+    structure = "foo"
+    m = MetricForMultipleStructures(ground_truth_ids=[structure], is_training=True)
+    name_average = f"{TRAIN_PREFIX}{MetricType.DICE.value}/{AVERAGE_DICE_SUFFIX}"
+    assert m.average_all.name == name_average
+    name_foo = f"{TRAIN_PREFIX}{MetricType.DICE.value}/{structure}"
+    assert m.average_per_structure[0].name == name_foo
+    # The value tensor must have the same number of entries as we have ground truth IDs
+    with pytest.raises(ValueError) as ex:
+        m.update(torch.zeros((2,)))
+        assert "Expected a tensor with 1 elements" in str(ex)
+    # Store a single valid value: We should get that back as the averages
+    value = 1.0
+    values = torch.tensor([value])
+    m.update(values)
+    # This call fails if DiceForMultipleStructures is derived from the Metric class.
+    result = list(m.compute_all())
+    assert result == [(name_average, values), (name_foo, values)]
+    # An object where we skip the across-structures average
+    m2 = MetricForMultipleStructures(ground_truth_ids=[structure], is_training=False,
+                                     metric_name=structure, use_average_across_structures=False)
+    m2_name = f"{VALIDATION_PREFIX}{structure}/{structure}"
+    assert m2.average_per_structure[0].name == m2_name
+    m2.update(values)
+    result = list(m2.compute_all())
+    assert result == [(m2_name, values)]

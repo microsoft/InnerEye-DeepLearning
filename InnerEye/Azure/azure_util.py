@@ -24,14 +24,12 @@ from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
 DEFAULT_CROSS_VALIDATION_SPLIT_INDEX = -1
 EXPERIMENT_RUN_SEPARATOR = ":"
 EFFECTIVE_RANDOM_SEED_KEY_NAME = "effective_random_seed"
-NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME = "number_of_cross_validation_splits_per_fold"
 RUN_RECOVERY_ID_KEY_NAME = "run_recovery_id"
 RUN_RECOVERY_FROM_ID_KEY_NAME = "recovered_from"
 IS_ENSEMBLE_KEY_NAME = "is_ensemble"
 MODEL_ID_KEY_NAME = "model_id"
 # The name of the key used to store the cross validation index of the dataset for the run
 CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY = "cross_validation_split_index"
-CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY = "cross_validation_sub_fold_split_index"
 PARENT_RUN_ID_KEY_NAME = "parent_run_id"
 
 # This is the folder structure that AzureML generates to store all results for an experiment run.

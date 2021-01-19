@@ -15,14 +15,12 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
-from InnerEye.Common.metrics_dict import MetricType
+from InnerEye.Common.metrics_dict import MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_models import AzureMLLogger, SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, StoringLogger, \
-    TRAIN_PREFIX, \
-    TrainingAndValidationDataLightning, \
-    VALIDATION_PREFIX, create_lightning_model, get_subject_output_file_per_rank
+from InnerEye.ML.lightning_models import AzureMLLogger, SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
+    StoringLogger, TrainingAndValidationDataLightning, create_lightning_model, get_subject_output_file_per_rank
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
@@ -86,14 +84,13 @@ def create_lightning_trainer(config: ModelConfigBase,
     if config.max_num_gpus >= 0 and config.max_num_gpus < num_gpus:
         num_gpus = config.max_num_gpus
         logging.info(f"Restricting the number of GPUs to {num_gpus}")
-    # Alternative: use 'ddp_spawn'. However, when running inside AzureML, hits an issue with pickling a SimpleQueue
-    # object (it works fine on a GPU VM)
+    # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
+    # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if num_gpus > 1 else None
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
     storing_logger = StoringLogger()
-    loggers = [storing_logger,
-               TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version=""),
-               AzureMLLogger()]
+    tensorboard_logger = TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")
+    loggers = [storing_logger, tensorboard_logger, AzureMLLogger()]
     # This leads to problems with run termination.
     # if not is_offline_run_context(RUN_CONTEXT):
     #     mlflow_logger = MLFlowLogger(experiment_name=RUN_CONTEXT.experiment.name,
@@ -112,6 +109,7 @@ def create_lightning_trainer(config: ModelConfigBase,
                       logger=loggers,
                       progress_bar_refresh_rate=0,  # Disable the progress bar,
                       gpus=num_gpus,
+                      sync_batchnorm=True,
                       terminate_on_nan=config.detect_anomaly,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None
                       )
@@ -181,6 +179,8 @@ def model_train(config: ModelConfigBase,
     lightning_data.config = config
     trainer.fit(lightning_model,
                 datamodule=lightning_data)
+    trainer.logger.close()
+    lightning_model.close_all_loggers()
     world_size = getattr(trainer, "world_size", 0)
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
@@ -242,7 +242,6 @@ def model_train(config: ModelConfigBase,
     if config.max_batch_grad_cam > 0 and config.visualization_folder.exists():
         RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(config.visualization_folder))
 
-    lightning_model.close_all_loggers()
     if resource_monitor:
         # stop the resource monitoring process
         logging.info("Shutting down the resource monitor process. Aggregate resource utilization:")

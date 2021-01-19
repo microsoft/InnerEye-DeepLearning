@@ -12,12 +12,13 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
+from InnerEye.ML.lightning_models import ScalarLightning, create_lightning_model
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline, \
     ScalarInferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
-from Tests.ML.utils.test_model_util import create_model_and_store
+from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
 def test_create_from_checkpoint_non_ensemble(test_output_dirs: OutputFolderForTests) -> None:
@@ -28,7 +29,7 @@ def test_create_from_checkpoint_non_ensemble(test_output_dirs: OutputFolderForTe
     inference_pipeline = ScalarInferencePipeline.create_from_checkpoint(path_to_checkpoint, config)
     assert inference_pipeline is None
 
-    create_model_and_store(config, path_to_checkpoint)
+    create_model_and_store_checkpoint(config, path_to_checkpoint)
     inference_pipeline = ScalarInferencePipeline.create_from_checkpoint(path_to_checkpoint, config)
     assert isinstance(inference_pipeline, ScalarInferencePipeline)
 
@@ -38,7 +39,7 @@ def test_create_from_checkpoint_ensemble(test_output_dirs: OutputFolderForTests)
 
     path_to_checkpoint_non_exist = test_output_dirs.root_dir / "does_not_exist.ckpt"
     path_to_checkpoint_exist = test_output_dirs.root_dir / "foo.ckpt"
-    create_model_and_store(config, path_to_checkpoint_exist)
+    create_model_and_store_checkpoint(config, path_to_checkpoint_exist)
 
     # when all checkpoints do not exist, raise error
     with pytest.raises(ValueError):
@@ -110,7 +111,8 @@ class ConstantScalarConfig(ClassificationModelForTesting):
 @pytest.mark.parametrize("empty_labels", [True, False])
 def test_predict_non_ensemble(batch_size: int, empty_labels: bool) -> None:
     config = ConstantScalarConfig(1.)
-    model = config.create_model()
+    model = create_lightning_model(config, set_optimizer_and_scheduler=False)
+    assert isinstance(model, ScalarLightning)
 
     pipeline = ScalarInferencePipeline(model, config, 0)
     actual_labels = torch.zeros((batch_size, 1)) * np.nan if empty_labels else torch.zeros((batch_size, 1))
@@ -122,7 +124,7 @@ def test_predict_non_ensemble(batch_size: int, empty_labels: bool) -> None:
             "segmentations": torch.tensor([])}
 
     results = pipeline.predict(data)
-    ids, labels, predicted = results.subject_ids, results.labels, results.model_outputs
+    ids, labels, predicted = results.subject_ids, results.labels, results.posteriors
     assert ids == ['2'] * batch_size
     assert torch.allclose(labels, actual_labels, equal_nan=True)
     # The model always returns 1, so predicted should be sigmoid(1)
@@ -132,10 +134,12 @@ def test_predict_non_ensemble(batch_size: int, empty_labels: bool) -> None:
 @pytest.mark.parametrize('batch_size', [1, 3])
 def test_predict_ensemble(batch_size: int) -> None:
     config_returns_0 = ConstantScalarConfig(0.)
-    model_returns_0 = config_returns_0.create_model()
+    model_returns_0 = create_lightning_model(config_returns_0, set_optimizer_and_scheduler=False)
+    assert isinstance(model_returns_0, ScalarLightning)
 
     config_returns_1 = ConstantScalarConfig(1.)
-    model_returns_1 = config_returns_1.create_model()
+    model_returns_1 = create_lightning_model(config_returns_1, set_optimizer_and_scheduler=False)
+    assert isinstance(model_returns_1, ScalarLightning)
 
     pipeline_0 = ScalarInferencePipeline(model_returns_0, config_returns_0, 0)
     pipeline_1 = ScalarInferencePipeline(model_returns_0, config_returns_0, 1)
@@ -152,24 +156,23 @@ def test_predict_ensemble(batch_size: int) -> None:
             "segmentations": torch.tensor([])}
 
     results = ensemble_pipeline.predict(data)
-    ids, labels, predicted = results.subject_ids, results.labels, results.model_outputs
+    ids, labels, predicted = results.subject_ids, results.labels, results.posteriors
     assert ids == ['2'] * batch_size
     assert torch.equal(labels, torch.zeros((batch_size, 1)))
     # 3 models return 0, 2 return 1, so predicted should be ((sigmoid(0)*3)+(sigmoid(1)*2))/5
     assert torch.allclose(predicted, torch.full((batch_size, 1), 0.592423431))
 
 
-input_tensor = torch.from_numpy(np.array([[[0.5], [1.0], [0.4]],
-                                          [[0.5], [1.0], [0.4]],
-                                          [[0.6], [1.0], [0.4]],
-                                          [[0.6], [1.0], [0.5]],
-                                          [[0.5], [1.0], [0.5]]]))
-
-result_average = torch.from_numpy(np.array([[0.54], [1.0], [0.44]]))
-
-
-@pytest.mark.parametrize("aggregation_type, expected_result", [(EnsembleAggregationType.Average, result_average)])
-def test_aggregation(aggregation_type: EnsembleAggregationType, expected_result: torch.Tensor) -> None:
-    output = ScalarEnsemblePipeline.aggregate_model_outputs(input_tensor, aggregation_type)
+def test_aggregation() -> None:
+    aggregation_type = EnsembleAggregationType.Average
+    pipeline = ScalarEnsemblePipeline(ensemble_aggregation_type=aggregation_type, pipelines=None,
+                                      model_config=None)  # type: ignore
+    input_tensor = torch.tensor([[[0.5], [1.0], [0.4]],
+                                 [[0.5], [1.0], [0.4]],
+                                 [[0.6], [1.0], [0.4]],
+                                 [[0.6], [1.0], [0.5]],
+                                 [[0.5], [1.0], [0.5]]])
+    result_average = input_tensor.mean(dim=0)
+    output = pipeline.aggregate_model_outputs(input_tensor)
     assert output.shape == input_tensor[0].shape
-    assert torch.allclose(output, expected_result)
+    assert torch.allclose(output, result_average)

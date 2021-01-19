@@ -2,10 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import os
 import shutil
 from pathlib import Path
-from typing import Any, List
-import os
+from typing import Any, Dict, List
 
 import h5py
 import numpy as np
@@ -14,7 +14,8 @@ import pytest
 from torch.utils.data import DataLoader
 
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.metrics_dict import MetricType
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.metrics_dict import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics, model_training
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
@@ -31,7 +32,6 @@ from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_checkpoint_handler
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 config_path = full_ml_test_data_path()
 base_path = full_ml_test_data_path()
@@ -68,6 +68,22 @@ def _test_model_train(output_dirs: OutputFolderForTests,
         for diagnostic in diagnostics_per_epoch[1:]:
             assert np.array_equal(patch_centers_epoch1, diagnostic) == should_equal
 
+    def _check_voxel_count(results_per_epoch: List[Dict[str, float]],
+                           expected_voxel_count_per_epoch: List[float]) -> None:
+        assert len(results_per_epoch) == len(expected_voxel_count_per_epoch)
+        for (results, voxel_count) in zip(results_per_epoch, expected_voxel_count_per_epoch):
+            # In the test data, both structures "region" and "region_1" are read from the same nifti file, hence
+            # their voxel counts must be identical.
+            for structure in ["region", "region_1"]:
+                assert results[f"{MetricType.VOXEL_COUNT.value}/{structure}"] == pytest.approx(voxel_count, abs=1e-2), \
+                    f"Voxel count mismatch for '{structure}'"
+
+    def _mean(a: List[float]) -> float:
+        return sum(a) / len(a)
+
+    def _mean_list(lists: List[List[float]]) -> List[float]:
+        return list(map(_mean, lists))
+
     train_config = DummyModel()
     train_config.local_dataset = base_path
     train_config.set_output_to(output_dirs.root_dir)
@@ -79,8 +95,8 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.store_dataset_sample = True
     train_config.recovery_checkpoint_save_interval = 2
 
-    expected_train_losses = [0.455572, 0.455031]
-    expected_val_losses = [0.455479, 0.455430]
+    expected_train_losses = [0.4552295, 0.4548622]
+    expected_val_losses = [0.4553889, 0.4553044]
     loss_absolute_tolerance = 1e-6
     expected_learning_rates = [train_config.l_rate, 5.3589e-4]
 
@@ -94,14 +110,40 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     _check_patch_centers(model_training_result.train_diagnostics, should_equal=False)
     # check to make sure validation batches are all the same across epochs
     _check_patch_centers(model_training_result.val_diagnostics, should_equal=True)
-    actual_train_losses = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS)
-    actual_val_losses = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS)
-    actual_learning_rates = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE)
+    # Simple regression test: Voxel counts should be the same in both epochs on the validation set,
+    # and be the same across 'region' and 'region_1' because they derive from the same Nifti files.
+    # The following values are read off directly from the results of compute_dice_across_patches in the training loop
+    train_voxels = [[83014, 83255, 82946], [83000, 82881, 83309]]
+    val_voxels = [[82765, 83212], [82765, 83212]]
+    _check_voxel_count(model_training_result.train_results_per_epoch, _mean_list(train_voxels))
+    _check_voxel_count(model_training_result.val_results_per_epoch, _mean_list(val_voxels))
+
+    def assert_all_close(metric: str, expected: List[float], **kwargs: Any) -> None:
+        actual = model_training_result.get_training_metric(metric)
+        assert np.allclose(actual, expected, **kwargs), f"Mismatch for {metric}: Got {actual}, expected {expected}"
+
+    assert_all_close(MetricType.SUBJECT_COUNT.value, [3.0, 3.0])
+    assert_all_close(MetricType.LEARNING_RATE.value, expected_learning_rates, rtol=1e-6)
+    actual_train_losses = model_training_result.get_training_metric(MetricType.LOSS.value)
+    actual_val_losses = model_training_result.get_validation_metric(MetricType.LOSS.value)
     print("actual_train_losses = {}".format(actual_train_losses))
     print("actual_val_losses = {}".format(actual_val_losses))
     assert np.allclose(actual_train_losses, expected_train_losses, atol=loss_absolute_tolerance), "Train losses"
     assert np.allclose(actual_val_losses, expected_val_losses, atol=loss_absolute_tolerance), "Val losses"
-    assert np.allclose(actual_learning_rates, expected_learning_rates, rtol=1e-6), "Learning rates"
+    assert_all_close(MetricType.LEARNING_RATE.value, expected_learning_rates, rtol=1e-6)
+    # Check that the metric we track for Hyperdrive runs is actually written.
+    assert TrackedMetrics.Val_Loss.value.startswith(VALIDATION_PREFIX)
+    tracked_metric = TrackedMetrics.Val_Loss.value[len(VALIDATION_PREFIX):]
+    for val_result in model_training_result.val_results_per_epoch:
+        assert tracked_metric in val_result
+    # The following values are read off directly from the results of compute_dice_across_patches in the training loop
+    train_dice_region = [[0, 0, 0], [0.01922884, 0.01918082, 0.07752819]]
+    train_dice_region1 = [[0.48280242, 0.48337635, 0.4974504], [0.5024475, 0.5007884, 0.48952717]]
+    assert_all_close("Dice/region", _mean_list(train_dice_region), atol=1e-4)
+    assert_all_close("Dice/region_1", _mean_list(train_dice_region1), atol=1e-4)
+    expected_average_dice = [_mean(train_dice_region[i] + train_dice_region1[i])
+                             for i in range(len(train_dice_region))]
+    assert_all_close("Dice/AverageAcrossStructures", expected_average_dice, atol=1e-4)
 
     # check output files/directories
     assert train_config.outputs_folder.is_dir()

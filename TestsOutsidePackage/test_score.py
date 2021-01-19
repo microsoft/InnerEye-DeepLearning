@@ -9,7 +9,7 @@ from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_model_loader
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from score import create_inference_pipeline, is_spacing_valid, run_inference
 
 test_image = full_ml_test_data_path("train_and_test_data") / "id1_channel1.nii.gz"

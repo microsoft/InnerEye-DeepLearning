@@ -157,9 +157,10 @@ class BaseSegmentationModel(DeviceAwareModule, ABC):
         output_shape = forward_preserve_state(module=self, inputs=input_tensors).size()
         return tuple(output_shape[2:])
 
-    def partition_model(self, devices: List[torch.device]) -> None:
-        """An abstract method to partition a neural network model and map them across multiple devices"""
-        raise NotImplementedError(f"Model partitioning is not implemented for '{self.name}'")
+    def partition_model(self, devices: Optional[List[torch.device]] = None) -> None:
+        """A method to partition a neural network model across multiple devices.
+        If no list of devices is given, use all available GPU devices."""
+        pass
 
     def validate_crop_size(self, crop_size: TupleInt3, message_prefix: Optional[str] = None) -> None:
         """

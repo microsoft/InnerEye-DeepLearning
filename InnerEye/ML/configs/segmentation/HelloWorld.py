@@ -9,11 +9,11 @@ from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import BanditPolicy, HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, uniform
 from networkx.tests.test_convert_pandas import pd
 
-from InnerEye.ML.common import TrackedMetrics
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.metrics_dict import TrackedMetrics
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 class HelloWorld(SegmentationModelBase):
@@ -26,9 +26,13 @@ class HelloWorld(SegmentationModelBase):
     2) Configure the UNet3D implemented in this package
     3) Configure Azure HyperDrive based parameter search
 
-    - This model can be trained from the commandline: ../InnerEye/runner.py --model=HelloWorld
-    - If you have set up AzureML then parameter search can be performed for this model by running:
-    ../InnerEye/runner.py --model=HelloWorld --hyperdrive=True
+    * This model can be trained from the commandline: python InnerEye/runner.py --model=HelloWorld
+
+    * If you want to test that your AzureML workspace is working:
+        - Upload to datasets storage account for your AzureML workspace: Test/ML/test_data/dataset.csv and
+        Test/ML/test_data/train_and_test_data and name the folder "hello_world"
+        - If you have set up AzureML then parameter search can be performed for this model by running:
+        python InnerEye/ML/ runner.py --model=HelloWorld --azureml=True --hyperdrive=True
 
     In this example, the model is trained on 2 input image channels channel1 and channel2, and
     predicts 2 foreground classes region, region_1.
@@ -39,7 +43,7 @@ class HelloWorld(SegmentationModelBase):
         super().__init__(
             # Data definition - in this section we define where to load the dataset from
             local_dataset=full_ml_test_data_path(),
-
+            azure_dataset_id="hello_world",
             # Model definition - in this section we define what model to use and some related configurations
             architecture="UNet3D",
             feature_channels=[4],

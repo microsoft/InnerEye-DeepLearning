@@ -26,7 +26,7 @@ from InnerEye.ML.photometric_normalization import WindowNormalizationForScalarIt
 from InnerEye.ML.scalar_config import LabelTransformation, ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from Tests.ML.util import create_dataset_csv_file
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 def test_get_single_row() -> None:

@@ -64,16 +64,16 @@ class CudaAwareConfig(param.Parameterized, Generic[T]):
     use_gpu: bool = param.Boolean(False, doc="The use_gpu flag will be "
                                              "set based upon the available GPU devices.")
 
-    def get_cuda_devices(self) -> Optional[List[Any]]:
+    def get_cuda_devices(self) -> List[Any]:
         """
-        Get the number of available CUDA devices or return None if they do not exist.
+        Get the number of available CUDA devices or return an empty list if they do not exist.
         """
         from torch.cuda import device_count
         from torch import device
         if self.use_gpu:
-            return [device('cuda:{}'.format(ii)) for ii in list(range(device_count()))]
+            return [device(type='cuda', index=ii) for ii in list(range(device_count()))]
         else:
-            return None
+            return []
 
     def get_gpu_tensor_if_possible(self, data: T) -> Any:
         """"

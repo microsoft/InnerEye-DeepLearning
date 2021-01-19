@@ -608,7 +608,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         :return:
         """
         _devices = self.get_cuda_devices()
-        return _devices is not None and len(_devices) > 1
+        return len(_devices) > 1
 
     def write_args_file(self) -> None:
         """

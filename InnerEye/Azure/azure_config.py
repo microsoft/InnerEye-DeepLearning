@@ -81,10 +81,9 @@ class AzureConfig(GenericConfig):
                                                        doc="If set, and run_recovery_id is also set, "
                                                            "register the model for this epoch and do no "
                                                            "training or testing")
-    pytest_mark: str = param.String(doc="If provided, run pytest after model training. pytest will only "
+    pytest_mark: str = param.String(doc="If provided, run pytest instead of model training. pytest will only "
                                         "run the tests that have the mark given in this argument "
-                                        "('--pytest_mark gpu' will run all tests marked with "
-                                        "'pytest.mark.gpu')")
+                                        "('--pytest_mark gpu' will run all tests marked with 'pytest.mark.gpu')")
     run_recovery_id: str = param.String(doc="A run recovery id string in the form 'experiment name:run id'"
                                             " to use for inference or recovering a model training run.")
     experiment_name: str = param.String(doc="If provided, use this string as the name of the AzureML experiment. "

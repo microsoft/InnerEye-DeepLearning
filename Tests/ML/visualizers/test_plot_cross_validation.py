@@ -14,6 +14,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetc
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
     SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ModelCategory
@@ -26,11 +27,10 @@ from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
     RunResultFiles, add_comparison_data, check_result_file_counts, create_portal_query_for_outliers, \
     create_results_breakdown, download_crossval_result_files, get_split_id, load_dataframes, \
     plot_cross_validation_from_files, save_outliers
+from Tests.AfterTraining.test_after_training import get_most_recent_run
 from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToyMultiLabelSequenceModel, \
     _get_multi_label_sequence_dataframe
 from Tests.ML.util import assert_text_files_match, get_default_azure_config
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
-from Tests.AfterTraining.test_after_training import get_most_recent_run
 
 
 @pytest.fixture
@@ -67,19 +67,17 @@ def download_metrics(config: PlotCrossValidationConfig) -> \
     return dataframes, root_folder
 
 
-def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str,
-                                perform_sub_fold_cross_validation: bool = False) -> List[RunResultFiles]:
+def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str) -> List[RunResultFiles]:
     """
     Creates a list of input files for cross validation analysis, from files stored inside of the test data folder.
     :param config: The overall cross validation config
     :param folder: The folder to read from, inside of test_data/plot_cross_validation.
-    :param perform_sub_fold_cross_validation: If True then create input files for sub fold cross validation analysis.
     :return:
     """
     full_folder = full_ml_test_data_path("plot_cross_validation") / folder
     files: List[RunResultFiles] = []
     previous_dataset_file = None
-    for split in ["0", "1", "1", "1"] if perform_sub_fold_cross_validation else ["0", "1"]:
+    for split in ["0", "1"]:
         for mode in config.execution_modes_to_download():
             metrics_file = full_folder / split / mode.value / SUBJECT_METRICS_FILE_NAME
             dataset_file: Optional[Path] = full_folder / split / DATASET_CSV_FILE_NAME
@@ -124,7 +122,7 @@ def test_metrics_preparation_for_segmentation(test_config: PlotCrossValidationCo
         pd.testing.assert_frame_equal(expected_df, actual_df, check_like=True, check_dtype=False)
 
 
-def load_result_files_for_classification(perform_sub_fold_cross_validation: bool = False) -> \
+def load_result_files_for_classification() -> \
         Tuple[List[RunResultFiles], PlotCrossValidationConfig]:
     plotting_config = PlotCrossValidationConfig(
         run_recovery_id="local_branch:HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301",
@@ -132,24 +130,21 @@ def load_result_files_for_classification(perform_sub_fold_cross_validation: bool
         model_category=ModelCategory.Classification
     )
     files = create_run_result_file_list(config=plotting_config,
-                                        folder="HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301",
-                                        perform_sub_fold_cross_validation=perform_sub_fold_cross_validation)
+                                        folder="HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301")
     return files, plotting_config
 
 
-@pytest.mark.parametrize("perform_sub_fold_cross_validation", [True, False])
-def test_metrics_preparation_for_classification(perform_sub_fold_cross_validation: bool) -> None:
+def test_metrics_preparation_for_classification() -> None:
     """
     Test if metrics from classification models can be loaded and prepared. The files in question are checked in,
     and were downloaded from a run on AzureML.
     """
-    files, plotting_config = load_result_files_for_classification(perform_sub_fold_cross_validation)
+    files, plotting_config = load_result_files_for_classification()
     downloaded_metrics = load_dataframes(files, plotting_config)
     assert ModelExecutionMode.TEST not in downloaded_metrics
     metrics = downloaded_metrics[ModelExecutionMode.VAL]
     assert metrics is not None
-    expected_metrics_file = "metrics_preparation_for_sub_fold_classification_VAL.csv" \
-        if perform_sub_fold_cross_validation else "metrics_preparation_for_classification_VAL.csv"
+    expected_metrics_file = "metrics_preparation_for_classification_VAL.csv"
     expected_df_csv = full_ml_test_data_path("plot_cross_validation") / expected_metrics_file
     metrics = metrics.sort_values(list(metrics.columns), ascending=True).reset_index(drop=True)
     # To write new test results:

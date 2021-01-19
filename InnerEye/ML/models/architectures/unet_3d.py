@@ -252,9 +252,11 @@ class UNet3D(BaseSegmentationModel):
     def get_all_child_layers(self) -> List[torch.nn.Module]:
         return list(self._layers.children()) + [self.output_layer]
 
-    def partition_model(self, devices: List[torch.device]) -> None:
+    def partition_model(self, devices: Optional[List[torch.device]] = None) -> None:
         if self.summary is None:
             raise RuntimeError(
                 "Network summary is required to partition UNet3D. Call model.generate_model_summary() first.")
-
-        partition_layers(self.get_all_child_layers(), summary=self.summary, target_devices=devices)
+        if devices is None:
+            devices = [torch.device(type='cuda', index=i) for i in range(torch.cuda.device_count())]
+        if len(devices) > 0:
+            partition_layers(self.get_all_child_layers(), summary=self.summary, target_devices=devices)

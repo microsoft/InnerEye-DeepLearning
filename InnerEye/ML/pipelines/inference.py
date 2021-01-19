@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 import numpy as np
 import torch
@@ -18,11 +18,10 @@ from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import config
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.lightning_models import create_model_from_lightning_checkpoint
+from InnerEye.ML.lightning_models import SegmentationLightning, load_from_checkpoint_and_adjust_for_inference
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.models.architectures.base_model import CropSizeConstraints
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.utils import image_util, ml_util
-from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import compute_uncertainty_map_from_posteriors, gaussian_smooth_posteriors, \
     posteriors_to_segmentation
 
@@ -187,10 +186,11 @@ class InferencePipeline(FullImageInferencePipelineBase):
                 posteriors=self.posteriors,
                 voxel_spacing_mm=self.voxel_spacing_mm)
 
-    def __init__(self, model: DeviceAwareModule, model_config: config.SegmentationModelBase,
+    def __init__(self, model: SegmentationLightning, model_config: config.SegmentationModelBase,
                  pipeline_id: int = 0):
         super().__init__(model_config)
         self.model = model
+        self.model.model.eval()
         self.pipeline_id = pipeline_id
 
     @staticmethod
@@ -213,11 +213,9 @@ class InferencePipeline(FullImageInferencePipelineBase):
             #                                   possible one model cannot be created but others can
             logging.warning(f"Could not recover model from checkpoint path {path_to_checkpoint}")
             return None
-        model = create_model_from_lightning_checkpoint(model_config, path_to_checkpoint).model
-        for name, param in model.named_parameters():
-            param_numpy = param.clone().cpu().data.numpy()
-            image_util.check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
-        return InferencePipeline(model=model, model_config=model_config, pipeline_id=pipeline_id)
+        lightning_model = load_from_checkpoint_and_adjust_for_inference(model_config, path_to_checkpoint)
+        assert isinstance(lightning_model, SegmentationLightning)
+        return InferencePipeline(model=lightning_model, model_config=model_config, pipeline_id=pipeline_id)
 
     def predict_whole_image(self, image_channels: np.ndarray,
                             voxel_spacing_mm: TupleFloat3,
@@ -322,11 +320,7 @@ class InferenceBatch(CTImagesMaskedBatch):
         # There may be cases where the test image is smaller than the test_crop_size. Adjust crop_size
         # to always fit into image. If test_crop_size is smaller than the image, crop will remain unchanged.
         image_size = image_channels.shape[1:]
-        model: Union[torch.nn.Module, torch.nn.DataParallel] = \
-            self.pipeline.get_variable(InferencePipeline.Variables.Model)
-        if isinstance(model, torch.nn.DataParallel):
-            model = model.module
-        assert isinstance(model.crop_size_constraints, CropSizeConstraints)
+        model: BaseSegmentationModel = self.pipeline.get_variable(InferencePipeline.Variables.Model).model
         effective_crop, effective_stride = \
             model.crop_size_constraints.restrict_crop_size_to_image(image_size,
                                                                     model_config.test_crop_size,
@@ -390,9 +384,11 @@ class InferenceBatch(CTImagesMaskedBatch):
 
         for batch_idx in range(0, len(patches), batch_size):
             # slice over the batches to prepare batch
-            batch = patches[batch_idx: batch_idx + batch_size, ...]
+            batch = torch.tensor(patches[batch_idx: batch_idx + batch_size, ...]).float()
+            if model_config.use_gpu:
+                batch = batch.cuda()
             # perform the forward pass
-            batch_predictions = self._model_fn(batch).detach().numpy()
+            batch_predictions = self._model_fn(batch).detach().cpu().numpy()
             # collect the predictions over each of the batches
             predictions.append(batch_predictions)
 
@@ -486,18 +482,14 @@ class InferenceBatch(CTImagesMaskedBatch):
 
         return np.stack(patches, axis=1)
 
-    def _model_fn(self, patches: np.ndarray) -> np.ndarray:
+    def _model_fn(self, patches: torch.Tensor) -> torch.Tensor:
         """
         Wrapper function to handle the model forward pass
         :param patches: Image patches to be passed to the model in format Patches x Channels x Z x Y x X
         :return posteriors: Confidence maps [0,1] for each patch per class
         in format: Patches x Channels x Class x Z x Y x X
         """
-        # get the model from the pipeline environment
         model = self.pipeline.get_variable(InferencePipeline.Variables.Model)
-
-        # convert patches to Torch tensor
-        patches = torch.from_numpy(patches).float()
-
-        # TODO antonsc: need to ensure this is in sync with what's in SegmentationModel
-        return torch.nn.functional.softmax(model(patches), dim=1)
+        # Model forward pass returns posteriors
+        with torch.no_grad():
+            return model(patches)

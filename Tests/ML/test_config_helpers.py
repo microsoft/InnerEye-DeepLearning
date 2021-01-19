@@ -32,11 +32,11 @@ def test_inference_stride_size_setter() -> None:
     model_config.inference_stride_size = test_stride_size
     assert model_config.inference_stride_size == test_stride_size
 
-    model_config.adjust_after_mixed_precision_and_parallel(model)
+    model_config.set_derived_model_properties(model)
     assert model_config.inference_stride_size == test_stride_size
 
     model_config.inference_stride_size = None
-    model_config.adjust_after_mixed_precision_and_parallel(model)
+    model_config.set_derived_model_properties(model)
     assert model_config.inference_stride_size == test_output_size
 
     with pytest.raises(ValueError):
@@ -58,7 +58,7 @@ def test_set_model_config_attributes() -> None:
                                          test_crop_size=test_output_size,
                                          should_validate=False)
 
-    model_config.adjust_after_mixed_precision_and_parallel(model)
+    model_config.set_derived_model_properties(model)
     assert model_config.inference_stride_size == test_output_size
 
 
@@ -75,7 +75,7 @@ def test_get_output_size() -> None:
     assert model_config.get_output_size(execution_mode=ModelExecutionMode.TEST) is None
 
     model = IdentityModel()
-    model_config.adjust_after_mixed_precision_and_parallel(model)
+    model_config.set_derived_model_properties(model)
     assert model_config.get_output_size(execution_mode=ModelExecutionMode.TRAIN) == train_output_size
     assert model_config.get_output_size(execution_mode=ModelExecutionMode.TEST) == test_output_size
 
