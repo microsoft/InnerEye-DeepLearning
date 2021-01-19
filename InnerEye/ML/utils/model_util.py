@@ -13,7 +13,6 @@ from torch.optim.rmsprop import RMSprop
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common import common_util
-from InnerEye.Common.type_annotations import T
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import ModelArchitectureConfig, PaddingMode, SegmentationLoss, SegmentationModelBase, \
     basic_size_shrinkage

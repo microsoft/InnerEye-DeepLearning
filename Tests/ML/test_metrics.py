@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import math
-from grp import struct_group
 from typing import List, Optional
 
 import numpy as np
@@ -11,14 +10,14 @@ import pytest
 import torch
 from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_curve
 
-from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, MetricsDict, \
-    get_column_name_for_logging
+from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, MetricsDict, TRAIN_PREFIX, \
+    VALIDATION_PREFIX, get_column_name_for_logging
 from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import metrics
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.configs.regression.DummyRegression import DummyRegression
 from InnerEye.ML.lightning_models import AVERAGE_DICE_SUFFIX, MetricForMultipleStructures, ScalarLightning
-from InnerEye.ML.metrics import AverageWithoutNan, TRAIN_PREFIX, VALIDATION_PREFIX
+from InnerEye.ML.metrics import AverageWithoutNan
 
 
 def test_calculate_dice1() -> None:

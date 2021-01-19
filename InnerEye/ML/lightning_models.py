@@ -819,7 +819,7 @@ def adjust_model_for_inference(config: ModelConfigBase, lightning_model: InnerEy
     # model output size during inference: That will only fit onto the GPU if already partitioned.
     used_gpus = set(p.device for p in lightning_model.parameters())
     logging.info(f"Model is using these devices: {used_gpus}")
-    logging.info(f"Re-computing model-dependent properties (e.g., output patch sizes)")
+    logging.info("Re-computing model-dependent properties (e.g., output patch sizes)")
     config.set_derived_model_properties(lightning_model.model)
     torch.cuda.empty_cache()
 

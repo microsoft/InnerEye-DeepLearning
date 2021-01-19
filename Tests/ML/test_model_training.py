@@ -14,7 +14,8 @@ import pytest
 from torch.utils.data import DataLoader
 
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.metrics_dict import MetricType
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.metrics_dict import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics, model_training
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
@@ -22,7 +23,6 @@ from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.metrics import TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.utils.io_util import load_nifti_image
@@ -31,8 +31,7 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import assert_file_contains_string, get_default_checkpoint_handler
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from Tests.ML.util import get_default_checkpoint_handler
 
 config_path = full_ml_test_data_path()
 base_path = full_ml_test_data_path()
@@ -82,8 +81,8 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     def _mean(a: List[float]) -> float:
         return sum(a) / len(a)
 
-    def _mean_list(l: List[List[float]]) -> List[float]:
-        return list(map(_mean, l))
+    def _mean_list(lists: List[List[float]]) -> List[float]:
+        return list(map(_mean, lists))
 
     train_config = DummyModel()
     train_config.local_dataset = base_path

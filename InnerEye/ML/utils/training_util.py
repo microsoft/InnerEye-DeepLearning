@@ -10,7 +10,7 @@ import numpy as np
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict
+from InnerEye.Common.metrics_dict import MetricsDict
 from InnerEye.Common.type_annotations import DictStrFloat
 
 

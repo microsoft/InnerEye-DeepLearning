@@ -7,7 +7,6 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import SimpleITK as sitk
@@ -36,17 +35,6 @@ from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, \
     mean_absolute_error, r2_score
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
-
-# String prefixes when writing training or validation set metrics to a logger
-TRAIN_PREFIX = "train/"
-VALIDATION_PREFIX = "val/"
-
-
-class TrackedMetrics(Enum):
-    """
-    Known metrics that are tracked as part of Hyperdrive runs.
-    """
-    Val_Loss = VALIDATION_PREFIX + MetricType.LOSS.value
 
 
 class MeanAbsoluteError(metrics.MeanAbsoluteError):
