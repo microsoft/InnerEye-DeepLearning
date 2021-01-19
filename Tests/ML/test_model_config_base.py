@@ -14,7 +14,7 @@ from azureml.train.hyperdrive import HyperDriveConfig, PrimaryMetricGoal, Random
 from InnerEye.Azure.azure_config import SourceConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.lightning_models import TrackedMetrics
+from InnerEye.ML.metrics import TrackedMetrics
 from InnerEye.ML.model_config_base import ModelConfigBase
 
 HYPERDRIVE_TOTAL_RUNS = 64
