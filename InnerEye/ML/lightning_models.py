@@ -58,7 +58,7 @@ class StoringLogger(LightningLoggerBase):
     def __init__(self) -> None:
         super().__init__()
         self.results: List[Dict[str, float]] = []
-        self.hyperparams = {}
+        self.hyperparams: Any = None
 
     @rank_zero_only
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
@@ -79,9 +79,10 @@ class StoringLogger(LightningLoggerBase):
 
     def extract_by_prefix(self, metrics: Dict[str, float], prefix_filter: str = "") -> Tuple[int, DictStrFloat]:
         epoch_name = "epoch"
-        epoch = int(metrics.get(epoch_name, None))
-        if epoch is None:
+        epoch_str = metrics.get(epoch_name, None)
+        if epoch_str is None:
             raise ValueError("Each of the logged metrics should have an 'epoch' key.")
+        epoch = int(epoch_str)
         metrics_dict = {}
         for key, value in metrics.items():
             assert isinstance(key, str), f"All dictionary keys should be strings, but got: {type(key)}"
@@ -134,18 +135,18 @@ class TrainingAndValidationDataLightning(LightningDataModule):
     def _init__(self, config: ModelConfigBase) -> None:
         super().__init__()
         self.config = config
-        self.data_loaders = {}
+        self.data_loaders: Dict[ModelExecutionMode, DataLoader] = {}
 
     def setup(self, stage: Optional[str] = None) -> None:
         self.data_loaders = self.config.create_data_loaders()
 
-    def train_dataloader(self) -> DataLoader:
+    def train_dataloader(self) -> DataLoader:   # type: ignore
         return self.data_loaders[ModelExecutionMode.TRAIN]
 
-    def val_dataloader(self) -> DataLoader:
+    def val_dataloader(self) -> DataLoader:  # type: ignore
         return self.data_loaders[ModelExecutionMode.VAL]
 
-    def test_dataloader(self) -> DataLoader:
+    def test_dataloader(self) -> DataLoader:  # type: ignore
         raise NotImplementedError("For segmentation models, the test dataset should not be evaluated patch-wise.")
 
 
@@ -264,6 +265,7 @@ class InnerEyeLightning(LightningModule):
 
     def validation_epoch_end(self, outputs: List[Any]) -> None:
         # reset the random state for training, so that we get continue from where we were before the validation step.
+        assert self.random_state is not None
         self.random_state.restore_random_state()
         self.training_or_validation_epoch_end(is_training=False)
 
@@ -386,12 +388,12 @@ class InnerEyeLightning(LightningModule):
 
     def training_step(self,
                       sample: Dict[str, Any],
-                      batch_index: int):
+                      batch_index: int) -> Any:
         return self.training_or_validation_step(sample, batch_index, is_training=True)
 
     def validation_step(self,
                         sample: Dict[str, Any],
-                        batch_index: int):
+                        batch_index: int) -> Any:
         return self.training_or_validation_step(sample, batch_index, is_training=False)
 
     def training_or_validation_step(self,

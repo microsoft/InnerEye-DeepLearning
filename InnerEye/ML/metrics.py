@@ -117,14 +117,14 @@ class AverageWithoutNan(Metric):
         self.add_state("count", default=torch.tensor(0), dist_reduce_fx="sum")
         self.name = name
 
-    def update(self, value: torch.Tensor) -> None:
+    def update(self, value: torch.Tensor) -> None:  # type: ignore
         """
         Stores all the given individual elements of the given tensor in the present object.
         """
         for v in value.view((-1,)):
             if not torch.isnan(v):
-                self.sum = self.sum + v
-                self.count = self.count + 1
+                self.sum = self.sum + v  # type: ignore
+                self.count = self.count + 1  # type: ignore
 
     def compute(self) -> torch.Tensor:
         if self.count == 0.0:
@@ -139,7 +139,7 @@ class ScalarMetricsBase(Metric):
         self.add_state("target", default=[], dist_reduce_fx=None)
         self.name = name
 
-    def update(self, preds: torch.Tensor, target: torch.Tensor) -> None:
+    def update(self, preds: torch.Tensor, target: torch.Tensor) -> None:  # type: ignore
         self.preds.append(preds)  # type: ignore
         self.target.append(target)  # type: ignore
 
@@ -180,8 +180,8 @@ class AccuracyAtOptimalThreshold(ScalarMetricsBase):
                          name=MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD.value)
 
     def compute(self) -> torch.Tensor:
-        preds = torch.cat(self.preds)
-        target = torch.cat(self.target)
+        preds = torch.cat(self.preds)  # type: ignore
+        target = torch.cat(self.target)  # type: ignore
         return self._get_metrics_at_optimal_cutoff(preds=preds, target=target)[3]
 
 
@@ -189,7 +189,7 @@ class OptimalThreshold(ScalarMetricsBase):
     def __init__(self, dist_sync_on_step: bool = False):
         super().__init__(dist_sync_on_step=dist_sync_on_step, name=MetricType.OPTIMAL_THRESHOLD.value)
 
-    def compute(self):
+    def compute(self) -> torch.Tensor:
         preds = torch.cat(self.preds)
         target = torch.cat(self.target)
         return self._get_metrics_at_optimal_cutoff(preds=preds, target=target)[0]
@@ -200,9 +200,9 @@ class FalsePositiveRateOptimalThreshold(ScalarMetricsBase):
         super().__init__(dist_sync_on_step=dist_sync_on_step,
                          name=MetricType.FALSE_POSITIVE_RATE_AT_OPTIMAL_THRESHOLD.value)
 
-    def compute(self):
-        preds = torch.cat(self.preds)
-        target = torch.cat(self.target)
+    def compute(self) -> torch.Tensor:
+        preds = torch.cat(self.preds)  # type: ignore
+        target = torch.cat(self.target)  # type: ignore
         return self._get_metrics_at_optimal_cutoff(preds=preds, target=target)[1]
 
 
@@ -212,8 +212,8 @@ class FalseNegativeRateOptimalThreshold(ScalarMetricsBase):
                          name=MetricType.FALSE_NEGATIVE_RATE_AT_OPTIMAL_THRESHOLD.value)
 
     def compute(self) -> torch.Tensor:
-        preds = torch.cat(self.preds)
-        target = torch.cat(self.target)
+        preds = torch.cat(self.preds)  # type: ignore
+        target = torch.cat(self.target)  # type: ignore
         return self._get_metrics_at_optimal_cutoff(preds=preds, target=target)[2]
 
 
@@ -223,8 +223,8 @@ class AreaUnderRocCurve(ScalarMetricsBase):
                          name=MetricType.AREA_UNDER_ROC_CURVE.value)
 
     def compute(self) -> torch.Tensor:
-        preds = torch.cat(self.preds)
-        targets = torch.cat(self.target)
+        preds = torch.cat(self.preds)  # type: ignore
+        targets = torch.cat(self.target)  # type: ignore
         if torch.unique(targets).numel() == 1:
             return torch.tensor(np.nan)
         return auroc(preds, targets)
@@ -236,8 +236,8 @@ class AreaUnderPrecisionRecallCurve(ScalarMetricsBase):
                          name=MetricType.AREA_UNDER_PR_CURVE.value)
 
     def compute(self) -> torch.Tensor:
-        preds = torch.cat(self.preds)
-        targets = torch.cat(self.target)
+        preds = torch.cat(self.preds)  # type: ignore
+        targets = torch.cat(self.target)  # type: ignore
         if torch.unique(targets).numel() == 1:
             return torch.tensor(np.nan)
         prec, recall, _ = precision_recall_curve(preds, targets)
@@ -249,8 +249,8 @@ class BinaryCrossEntropy(ScalarMetricsBase):
         super().__init__(dist_sync_on_step=dist_sync_on_step, name=MetricType.CROSS_ENTROPY.value)
 
     def compute(self) -> torch.Tensor:
-        preds = torch.cat(self.preds)
-        targets = torch.cat(self.target)
+        preds = torch.cat(self.preds)  # type: ignore
+        targets = torch.cat(self.target)  # type: ignore
         return F.binary_cross_entropy(input=preds, target=targets)
 
 
