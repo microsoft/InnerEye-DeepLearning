@@ -38,7 +38,7 @@ from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
 
 
 class MeanAbsoluteError(metrics.MeanAbsoluteError):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.name = MetricType.MEAN_ABSOLUTE_ERROR.value
 
@@ -48,11 +48,11 @@ class MeanAbsoluteError(metrics.MeanAbsoluteError):
         Returns True if the present object stores at least 1 prediction (self.update has been called at least once),
         or False if no predictions are stored.
         """
-        return self.total > 0
+        return self.total > 0  # type: ignore
 
 
 class MeanSquaredError(metrics.MeanSquaredError):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.name = MetricType.MEAN_SQUARED_ERROR.value
 
@@ -62,11 +62,11 @@ class MeanSquaredError(metrics.MeanSquaredError):
         Returns True if the present object stores at least 1 prediction (self.update has been called at least once),
         or False if no predictions are stored.
         """
-        return self.total > 0
+        return self.total > 0  # type: ignore
 
 
 class ExplainedVariance(metrics.ExplainedVariance):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.name = MetricType.EXPLAINED_VAR.value
 
@@ -76,11 +76,11 @@ class ExplainedVariance(metrics.ExplainedVariance):
         Returns True if the present object stores at least 1 prediction (self.update has been called at least once),
         or False if no predictions are stored.
         """
-        return len(self.y_pred) > 0
+        return len(self.y_pred) > 0  # type: ignore
 
 
 class Accuracy05(metrics.Accuracy):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.name = MetricType.ACCURACY_AT_THRESHOLD_05.value
 
@@ -90,7 +90,7 @@ class Accuracy05(metrics.Accuracy):
         Returns True if the present object stores at least 1 prediction (self.update has been called at least once),
         or False if no predictions are stored.
         """
-        return self.total > 0
+        return self.total > 0  # type: ignore
 
 
 def nanmean(values: torch.Tensor) -> torch.Tensor:
@@ -139,11 +139,11 @@ class ScalarMetricsBase(Metric):
         self.add_state("target", default=[], dist_reduce_fx=None)
         self.name = name
 
-    def update(self, preds: torch.Tensor, target: torch.Tensor):
-        self.preds.append(preds)
-        self.target.append(target)
+    def update(self, preds: torch.Tensor, target: torch.Tensor) -> None:
+        self.preds.append(preds)  # type: ignore
+        self.target.append(target)  # type: ignore
 
-    def compute(self):
+    def compute(self) -> torch.Tensor:
         raise NotImplementedError("Should be implemented in the child classes")
 
     @property
@@ -152,9 +152,10 @@ class ScalarMetricsBase(Metric):
         Returns True if the present object stores at least 1 prediction (self.update has been called at least once),
         or False if no predictions are stored.
         """
-        return len(self.preds) > 0
+        return len(self.preds) > 0  # type: ignore
 
-    def _get_metrics_at_optimal_cutoff(self, preds, target) -> Tuple:
+    def _get_metrics_at_optimal_cutoff(self, preds: torch.Tensor, target: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor,
+                                                                     torch.Tensor, torch.Tensor]:
         """
         Computes the ROC to find the optimal cut-off i.e. the probability threshold for which the
         difference between true positive rate and false positive rate is smallest. Then, computes
@@ -174,18 +175,18 @@ class ScalarMetricsBase(Metric):
 
 
 class AccuracyAtOptimalThreshold(ScalarMetricsBase):
-    def __init__(self, dist_sync_on_step=False):
+    def __init__(self, dist_sync_on_step: bool = False):
         super().__init__(dist_sync_on_step=dist_sync_on_step,
                          name=MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD.value)
 
-    def compute(self):
+    def compute(self) -> torch.Tensor:
         preds = torch.cat(self.preds)
         target = torch.cat(self.target)
         return self._get_metrics_at_optimal_cutoff(preds=preds, target=target)[3]
 
 
 class OptimalThreshold(ScalarMetricsBase):
-    def __init__(self, dist_sync_on_step=False):
+    def __init__(self, dist_sync_on_step: bool = False):
         super().__init__(dist_sync_on_step=dist_sync_on_step, name=MetricType.OPTIMAL_THRESHOLD.value)
 
     def compute(self):
@@ -195,7 +196,7 @@ class OptimalThreshold(ScalarMetricsBase):
 
 
 class FalsePositiveRateOptimalThreshold(ScalarMetricsBase):
-    def __init__(self, dist_sync_on_step=False):
+    def __init__(self, dist_sync_on_step: bool = False):
         super().__init__(dist_sync_on_step=dist_sync_on_step,
                          name=MetricType.FALSE_POSITIVE_RATE_AT_OPTIMAL_THRESHOLD.value)
 
@@ -206,22 +207,22 @@ class FalsePositiveRateOptimalThreshold(ScalarMetricsBase):
 
 
 class FalseNegativeRateOptimalThreshold(ScalarMetricsBase):
-    def __init__(self, dist_sync_on_step=False):
+    def __init__(self, dist_sync_on_step: bool = False):
         super().__init__(dist_sync_on_step=dist_sync_on_step,
                          name=MetricType.FALSE_NEGATIVE_RATE_AT_OPTIMAL_THRESHOLD.value)
 
-    def compute(self):
+    def compute(self) -> torch.Tensor:
         preds = torch.cat(self.preds)
         target = torch.cat(self.target)
         return self._get_metrics_at_optimal_cutoff(preds=preds, target=target)[2]
 
 
 class AreaUnderRocCurve(ScalarMetricsBase):
-    def __init__(self, dist_sync_on_step=False):
+    def __init__(self, dist_sync_on_step: bool = False):
         super().__init__(dist_sync_on_step=dist_sync_on_step,
                          name=MetricType.AREA_UNDER_ROC_CURVE.value)
 
-    def compute(self):
+    def compute(self) -> torch.Tensor:
         preds = torch.cat(self.preds)
         targets = torch.cat(self.target)
         if torch.unique(targets).numel() == 1:
@@ -230,11 +231,11 @@ class AreaUnderRocCurve(ScalarMetricsBase):
 
 
 class AreaUnderPrecisionRecallCurve(ScalarMetricsBase):
-    def __init__(self, dist_sync_on_step=False):
+    def __init__(self, dist_sync_on_step: bool = False):
         super().__init__(dist_sync_on_step=dist_sync_on_step,
                          name=MetricType.AREA_UNDER_PR_CURVE.value)
 
-    def compute(self):
+    def compute(self) -> torch.Tensor:
         preds = torch.cat(self.preds)
         targets = torch.cat(self.target)
         if torch.unique(targets).numel() == 1:
@@ -247,7 +248,7 @@ class BinaryCrossEntropy(ScalarMetricsBase):
     def __init__(self, dist_sync_on_step=False):
         super().__init__(dist_sync_on_step=dist_sync_on_step, name=MetricType.CROSS_ENTROPY.value)
 
-    def compute(self):
+    def compute(self) -> torch.Tensor:
         preds = torch.cat(self.preds)
         targets = torch.cat(self.target)
         return F.binary_cross_entropy(input=preds, target=targets)
