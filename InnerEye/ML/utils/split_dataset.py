@@ -88,12 +88,16 @@ class DatasetSplits:
         """
         Creates a new dataset split that has at most the specified numbers of subjects in train, validation and test
         sets respectively.
+
+        If `group_column` was specified, this operation may violate the grouping constraints and the resulting splits
+        object will have `group_column == None`.
+
         :param restriction_pattern: a string containing zero or two commas, and otherwise digits or "+". An empty
-        substring will result in no restriction for the corresponding dataset. Thus "20,,3" means "restrict to 20
-        training images and 3 test images, with no restriction on validation". A "+" value means "reassign all
-        images from the set(s) with a numeric count (there must be at least one) to this set". Thus ",0,+" means "leave
-        the training set alone, but move all validation images to the test set", and "0,2,+" means "move
-        all training images and all but 2 validation images to the test set".
+            substring will result in no restriction for the corresponding dataset. Thus "20,,3" means "restrict to 20
+            training images and 3 test images, with no restriction on validation". A "+" value means "reassign all
+            images from the set(s) with a numeric count (there must be at least one) to this set". Thus ",0,+" means
+            "leave the training set alone, but move all validation images to the test set", and "0,2,+" means "move
+            all training images and all but 2 validation images to the test set".
         :return: A new dataset split object with (at most) the numbers of subjects specified by restrict_pattern
         """
 
@@ -336,8 +340,11 @@ class DatasetSplits:
                           subject_ids_for_test_only: Optional[Iterable[str]] = None) -> DatasetSplits:
         """
         Assuming a DataFrame with columns subject and institutionId
+
         Takes a slice of values from each institution based on the train/test/val proportions provided,
         such that for each institution there is at least one subject in each of the train/test/val splits.
+
+        This method for creating `DatasetSplits` does not currently support grouping.
 
         :param df: the input DataFrame
         :param proportion_train: Proportion of images per institution to be used for training.
@@ -347,11 +354,11 @@ class DatasetSplits:
         :param shuffle: If True the subjects in the dataframe will be shuffle before performing splits.
         :param random_seed: Random seed to be used for shuffle 0 is default.
         :param exclude_institutions: If given, all subjects where institutionId has the given value will be
-        excluded from train, test, and validation set.
+            excluded from train, test, and validation set.
         :param institutions_for_test_only: If given, all subjects where institutionId has the given value will be
-        placed only in the test set.
+            placed only in the test set.
         :param subject_ids_for_test_only: If given, all images with the provided subject Ids will be placed in the
-        test set.
+            test set.
         :return: Data splits with respected dataset split proportions per institution.
         """
         results: Dict[ModelExecutionMode, pd.DataFrame] = {}
