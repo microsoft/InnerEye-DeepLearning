@@ -242,6 +242,8 @@ def _get_test_df() -> Tuple[DataFrame, List[str], List[str], List[str]]:
         CSV_GROUP_HEADER: [i // 5 for i in range(0, 100)],
         "other": list(range(0, 100))
     }
+    assert all(np.bincount(test_data[CSV_GROUP_HEADER]) > 1), "Found singleton groups"
+    assert len(np.unique(test_data[CSV_GROUP_HEADER])) > 1, "Found a single group"
     train_ids, test_ids, val_ids = list(range(0, 50)), list(range(50, 75)), list(range(75, 100))
     test_df = DataFrame(test_data, columns=list(test_data.keys()))
     return test_df, list(map(str, test_ids)), list(map(str, train_ids)), list(map(str, val_ids))
