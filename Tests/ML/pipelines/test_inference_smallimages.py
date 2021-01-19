@@ -13,7 +13,8 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.utils import image_util
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
-from InnerEye.ML.lightning_models import load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_models import SegmentationLightning, create_lightning_model, \
+    load_from_checkpoint_and_adjust_for_inference
 from InnerEye.Common.output_directories import OutputFolderForTests
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
@@ -47,8 +48,9 @@ def run_inference_on_unet(size: TupleInt3) -> None:
         inference_stride_size=(40, 40, 40),
         use_mixed_precision=True
     )
-    model = create_model_with_temperature_scaling(config)
-    pipeline = InferencePipeline(model=model, model_config=config)
+    lightning_model = create_lightning_model(config)
+    assert isinstance(lightning_model, SegmentationLightning)
+    pipeline = InferencePipeline(model=lightning_model, model_config=config)
     image = np.random.uniform(-1, 1, (1,) + size)
     result = pipeline.predict_and_post_process_whole_image(image, mask=np.ones(size), voxel_spacing_mm=(1, 1, 1))
     # All posteriors and segmentations must have the size of the input image
@@ -64,8 +66,9 @@ def test_inference_on_too_small_image() -> None:
     """
     Running inference on a simplified Unet model when the input image is too small along an axis.
     """
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as ex:
         run_inference_on_unet((5, 10, 64))
+    assert "input image must have at least a size of (16, 16, 16)" in str(ex)
 
 
 @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
