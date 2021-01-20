@@ -215,7 +215,7 @@ class InnerEyeLightning(LightningModule):
     def __init__(self, config: DeepLearningConfig, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.outputs_folder = config.outputs_folder
-        self.model = DeviceAwareModule()
+        self.model: DeviceAwareModule = DeviceAwareModule()
         # These two will be set later in set_optimizer_and_scheduler.
         # The ddp_spawn accelerator only works if the model configuration object is
         # not stored in here. Hence, need to do operations that require a full config
@@ -470,7 +470,7 @@ class SegmentationLightning(InnerEyeLightning):
                                                       metric_name=MetricType.VOXEL_COUNT.value,
                                                       use_average_across_structures=False)
 
-    def forward(self, patches: torch.Tensor) -> torch.Tensor:
+    def forward(self, patches: torch.Tensor) -> torch.Tensor:  # type: ignore
         return self.logits_to_posterior(self.model(patches))
 
     def logits_to_posterior(self, logits: torch.Tensor) -> torch.Tensor:
@@ -681,7 +681,7 @@ class ScalarLightning(InnerEyeLightning):
                                 subject_ids: List[str],
                                 is_training: bool) -> None:
         metrics = self.train_metric_computers if is_training else self.val_metric_computers
-        per_subject_outputs: List[str, str, torch.Tensor, torch.Tensor] = list()
+        per_subject_outputs: List[Tuple[str, str, torch.Tensor, torch.Tensor]] = []
         for i, (prediction_target, metric_list) in enumerate(metrics.items()):
             # mask the model outputs and labels if required
             masked = get_masked_model_outputs_and_labels(

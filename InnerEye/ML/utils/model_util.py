@@ -195,7 +195,7 @@ def summary_for_segmentation_models(config: ModelConfigBase, model: DeviceAwareM
         logging.warning(f"summary_for_segmentation_models failed with exception {e}")
 
 
-def generate_and_print_model_summary(config: ModelConfigBase, model: torch.nn.Module) -> None:
+def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAwareModule) -> None:
     """
     Writes a human readable summary of the present model to logging.info, and logs the number of trainable
     parameters to AzureML.

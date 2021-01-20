@@ -78,10 +78,10 @@ def _test_model_train(output_dirs: OutputFolderForTests,
                 assert results[f"{MetricType.VOXEL_COUNT.value}/{structure}"] == pytest.approx(voxel_count, abs=1e-2), \
                     f"Voxel count mismatch for '{structure}'"
 
-    def _mean(a: List[Union[float, int]]) -> float:
+    def _mean(a: List[float]) -> float:
         return sum(a) / len(a)
 
-    def _mean_list(lists: List[List[Union[float, int]]]) -> List[float]:
+    def _mean_list(lists: List[List[float]]) -> List[float]:
         return list(map(_mean, lists))
 
     train_config = DummyModel()
@@ -113,8 +113,8 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # Simple regression test: Voxel counts should be the same in both epochs on the validation set,
     # and be the same across 'region' and 'region_1' because they derive from the same Nifti files.
     # The following values are read off directly from the results of compute_dice_across_patches in the training loop
-    train_voxels = [[83014, 83255, 82946], [83000, 82881, 83309]]
-    val_voxels = [[82765, 83212], [82765, 83212]]
+    train_voxels = [[83014.0, 83255.0, 82946.0], [83000.0, 82881.0, 83309.0]]
+    val_voxels = [[82765.0, 83212.0], [82765.0, 83212.0]]
     _check_voxel_count(model_training_result.train_results_per_epoch, _mean_list(train_voxels))
     _check_voxel_count(model_training_result.val_results_per_epoch, _mean_list(val_voxels))
 

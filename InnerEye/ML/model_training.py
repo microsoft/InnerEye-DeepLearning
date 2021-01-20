@@ -174,7 +174,7 @@ def model_train(config: ModelConfigBase,
     # Training loop
     logging.info("Starting training")
 
-    lightning_data = TrainingAndValidationDataLightning(config)
+    lightning_data = TrainingAndValidationDataLightning(config)  # type: ignore
     # TODO: Why can't we do that in the constructor?
     lightning_data.config = config
     trainer.fit(lightning_model,

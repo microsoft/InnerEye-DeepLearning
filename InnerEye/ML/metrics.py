@@ -181,7 +181,7 @@ class ScalarMetricsBase(Metric):
 
 
 class AccuracyAtOptimalThreshold(ScalarMetricsBase):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name=MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD.value)
 
     def compute(self) -> torch.Tensor:
@@ -189,7 +189,7 @@ class AccuracyAtOptimalThreshold(ScalarMetricsBase):
 
 
 class OptimalThreshold(ScalarMetricsBase):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name=MetricType.OPTIMAL_THRESHOLD.value)
 
     def compute(self) -> torch.Tensor:
@@ -197,7 +197,7 @@ class OptimalThreshold(ScalarMetricsBase):
 
 
 class FalsePositiveRateOptimalThreshold(ScalarMetricsBase):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name=MetricType.FALSE_POSITIVE_RATE_AT_OPTIMAL_THRESHOLD.value)
 
     def compute(self) -> torch.Tensor:
@@ -205,7 +205,7 @@ class FalsePositiveRateOptimalThreshold(ScalarMetricsBase):
 
 
 class FalseNegativeRateOptimalThreshold(ScalarMetricsBase):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name=MetricType.FALSE_NEGATIVE_RATE_AT_OPTIMAL_THRESHOLD.value)
 
     def compute(self) -> torch.Tensor:
@@ -213,7 +213,7 @@ class FalseNegativeRateOptimalThreshold(ScalarMetricsBase):
 
 
 class AreaUnderRocCurve(ScalarMetricsBase):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name=MetricType.AREA_UNDER_ROC_CURVE.value)
 
     def compute(self) -> torch.Tensor:
@@ -224,7 +224,7 @@ class AreaUnderRocCurve(ScalarMetricsBase):
 
 
 class AreaUnderPrecisionRecallCurve(ScalarMetricsBase):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name=MetricType.AREA_UNDER_PR_CURVE.value)
 
     def compute(self) -> torch.Tensor:
@@ -236,7 +236,7 @@ class AreaUnderPrecisionRecallCurve(ScalarMetricsBase):
 
 
 class BinaryCrossEntropy(ScalarMetricsBase):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name=MetricType.CROSS_ENTROPY.value)
 
     def compute(self) -> torch.Tensor:
