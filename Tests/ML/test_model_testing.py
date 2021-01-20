@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
+from pytorch_lightning import seed_everything
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import get_epoch_results_path
@@ -32,11 +33,9 @@ from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
     train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
-
+    seed_everything(42)
     config = DummyModel()
     config.set_output_to(test_output_dirs.root_dir)
-    epoch = 1
-    config.num_epochs = epoch
     placeholder_dataset_id = "place_holder_dataset_id"
     config.azure_dataset_id = placeholder_dataset_id
     transform = config.get_full_image_sample_transforms().test
@@ -73,10 +72,10 @@ def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
 
     assert_nifti_content(epoch_dir / "001" / "posterior_region.nii.gz", get_image_shape(patient1),
                          patient1.header,
-                         [136], np.ubyte)
+                         [137], np.ubyte)
     assert_nifti_content(epoch_dir / "002" / "posterior_region.nii.gz", get_image_shape(patient2),
                          patient2.header,
-                         [136], np.ubyte)
+                         [137], np.ubyte)
     assert_nifti_content(epoch_dir / "001" / DEFAULT_RESULT_IMAGE_NAME, get_image_shape(patient1),
                          patient1.header,
                          [1], np.ubyte)
@@ -85,10 +84,10 @@ def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
                          [1], np.ubyte)
     assert_nifti_content(epoch_dir / "001" / "posterior_background.nii.gz", get_image_shape(patient1),
                          patient1.header,
-                         [118], np.ubyte)
+                         [117], np.ubyte)
     assert_nifti_content(epoch_dir / "002" / "posterior_background.nii.gz", get_image_shape(patient2),
                          patient2.header,
-                         [118], np.ubyte)
+                         [117], np.ubyte)
     thumbnails_folder = epoch_dir / model_testing.THUMBNAILS_FOLDER
     assert thumbnails_folder.is_dir()
     png_files = list(thumbnails_folder.glob("*.png"))

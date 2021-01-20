@@ -102,7 +102,7 @@ def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
                                          project_root=fixed_paths.repository_root_directory())
     workspace = azure_config.get_workspace()
     run = fetch_run(workspace, most_recent_run)
-    blob_path = get_epoch_results_path(2, ModelExecutionMode.TEST)
+    blob_path = get_epoch_results_path(ModelExecutionMode.TEST)
     (comparison_dataset_path, comparison_metrics_path) = get_comparison_baseline_paths(test_output_dirs.root_dir,
                                                                                        blob_path, run,
                                                                                        DATASET_CSV_FILE_NAME)
