@@ -14,6 +14,7 @@ import pytest
 from torch.utils.data import DataLoader
 
 from InnerEye.Common import fixed_paths
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_dict import MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics, model_training
@@ -31,8 +32,7 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import assert_file_contains_string, get_default_checkpoint_handler
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from Tests.ML.util import get_default_checkpoint_handler
 
 config_path = full_ml_test_data_path()
 base_path = full_ml_test_data_path()

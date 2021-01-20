@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 import pytest
+from Tests.fixed_paths_for_tests import full_ml_test_data_path
 from azureml.core import Run
 from pandas.core.dtypes.common import is_string_dtype
 
@@ -14,6 +15,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetc
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
     SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ModelCategory
@@ -26,12 +28,10 @@ from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
     RunResultFiles, add_comparison_data, check_result_file_counts, create_portal_query_for_outliers, \
     create_results_breakdown, download_crossval_result_files, get_split_id, load_dataframes, \
     plot_cross_validation_from_files, save_outliers
+from Tests.AfterTraining.test_after_training import get_most_recent_run
 from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToyMultiLabelSequenceModel, \
     _get_multi_label_sequence_dataframe
 from Tests.ML.util import assert_text_files_match, get_default_azure_config
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
-from Tests.AfterTraining.test_after_training import get_most_recent_run
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.fixture

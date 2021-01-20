@@ -8,8 +8,8 @@ import pytest
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import check_is_any_of, get_namespace_root, is_private_field_name, namespace_to_path, \
     path_to_namespace, print_exception
-from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
+from InnerEye.Common.output_directories import OutputFolderForTests
 
 
 def test_get_items_from_string() -> None:
