@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 import pytest
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 from azureml.core import Run
 from pandas.core.dtypes.common import is_string_dtype
 
