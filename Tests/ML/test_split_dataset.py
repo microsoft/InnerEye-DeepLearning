@@ -11,10 +11,10 @@ import pandas as pd
 import pytest
 from pandas import DataFrame
 
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 def test_split_by_institution() -> None:
@@ -132,7 +132,10 @@ def test_get_subject_ranges_for_splits() -> None:
 
     proportions = [0.5, 0.4, 0.1]
 
-    splits = DatasetSplits.get_subject_ranges_for_splits(['1', '2', '3'], proportions[0], proportions[1], proportions[2])
+    splits = DatasetSplits.get_subject_ranges_for_splits(['1', '2', '3'],
+                                                         proportions[0],
+                                                         proportions[1],
+                                                         proportions[2])
     _check_at_least_one(splits)
 
     splits = DatasetSplits.get_subject_ranges_for_splits(['1'], proportions[0], proportions[1], proportions[2])

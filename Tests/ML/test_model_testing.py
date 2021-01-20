@@ -10,6 +10,7 @@ from pytorch_lightning import seed_everything
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import get_epoch_results_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
@@ -27,7 +28,6 @@ from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contains_string, assert_nifti_content, assert_text_files_match, \
     get_default_checkpoint_handler, get_image_shape
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")

@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 import torch
 
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, \
     PhotometricNormalizationMethod, SegmentationModelBase
@@ -26,7 +27,6 @@ from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 from InnerEye.ML.utils.transforms import LinearTransform, get_range_for_window_level
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contains_string, assert_nifti_content, assert_text_files_match
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 model_name = "Basic"
 base_path = full_ml_test_data_path()
