@@ -66,8 +66,8 @@ We recommend using [low priority](https://docs.microsoft.com/en-us/azure/batch/b
 they only cost a fraction of the dedicated VMs.
 As a reference:
 * The Prostate model and the Head and Neck model require VMs with 4 GPUs with at least 16GB of memory
-per GPU, for example `Standard_ND24s`, `Standard_NC24s_v3` or `Standard_NC24s_v2`
-* The Lung model requires at least a `Standard_ND24s` (4 GPU, 24GB per GPU) instance
+per GPU, for example `Standard_ND24s` (4 GPUs, 24GB per GPU), `Standard_NC24s_v3` (4 GPUs, 16GB per GPU) or `Standard_NC24s_v2` (4 GPUs, 16GB per GPU) 
+* The Lung model requires at least a `Standard_ND24s` instance (4 GPUs, 24GB per GPU) 
 
 You need to ensure that your Azure subscription actually has a quota for accessing GPU machines. To see your quota,
 find your newly created AzureML workspace in the [Azure portal](http://portal.azure.com), using the search bar at the
