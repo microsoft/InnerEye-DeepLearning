@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 from azureml.core import Run
-from azureml.core.workspace import Workspace
 from azureml.core.conda_dependencies import CondaDependencies
+from azureml.core.workspace import Workspace
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import create_experiment_name, pytorch_version_from_conda_dependencies
@@ -19,8 +19,8 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
+from Tests.AfterTraining.test_after_training import get_most_recent_run, get_most_recent_run_id
 from Tests.ML.util import get_default_workspace
-from Tests.AfterTraining.test_after_training import get_most_recent_run
 
 
 def test_os_path_to_azure_friendly_container_path() -> None:
@@ -38,10 +38,7 @@ def test_get_cross_validation_split_index_single_run() -> None:
     """
     Test that retrieved cross validation split index is as expected, for single runs.
     """
-    run = fetch_run(
-        workspace=get_default_workspace(),
-        run_recovery_id=get_most_recent_run()
-    )
+    run = get_most_recent_run()
     # check for offline run
     assert get_cross_validation_split_index(Run.get_context()) == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
     # check for online runs
@@ -53,10 +50,7 @@ def test_get_cross_validation_split_index_ensemble_run() -> None:
     """
     Test that retrieved cross validation split index is as expected, for ensembles.
     """
-    run = fetch_run(
-        workspace=get_default_workspace(),
-        run_recovery_id=get_most_recent_run()
-    )
+    run = get_most_recent_run()
     # check for offline run
     assert get_cross_validation_split_index(Run.get_context()) == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
     # check for online runs
@@ -71,11 +65,7 @@ def test_is_cross_validation_child_run_single_run() -> None:
     Test that cross validation child runs are identified correctly. A single run should not be identified as a
     cross validation run.
     """
-    run_recovery_id = get_most_recent_run()
-    run = fetch_run(
-        workspace=get_default_workspace(),
-        run_recovery_id=run_recovery_id
-    )
+    run = get_most_recent_run()
     # check for offline run
     assert not is_cross_validation_child_run(Run.get_context())
     # check for online runs
@@ -87,11 +77,7 @@ def test_is_cross_validation_child_run_ensemble_run() -> None:
     """
     Test that cross validation child runs are identified correctly.
     """
-    run_recovery_id = get_most_recent_run()
-    run = fetch_run(
-        workspace=get_default_workspace(),
-        run_recovery_id=run_recovery_id
-    )
+    run = get_most_recent_run()
     # check for offline run
     assert not is_cross_validation_child_run(Run.get_context())
     # check for online runs
@@ -190,7 +176,7 @@ def test_is_completed_single_run() -> None:
     """
     logging_to_stdout()
     workspace = get_default_workspace()
-    get_run_and_check(get_most_recent_run(), True, workspace)
+    get_run_and_check(get_most_recent_run_id(), True, workspace)
 
 
 @pytest.mark.after_training_ensemble_run
@@ -201,4 +187,4 @@ def test_is_completed_ensemble_run() -> None:
     """
     logging_to_stdout()
     workspace = get_default_workspace()
-    get_run_and_check(get_most_recent_run(), True, workspace)
+    get_run_and_check(get_most_recent_run_id(), True, workspace)

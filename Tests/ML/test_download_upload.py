@@ -18,7 +18,7 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from Tests.ML.util import get_default_azure_config
-from Tests.AfterTraining.test_after_training import get_most_recent_run
+from Tests.AfterTraining.test_after_training import get_most_recent_run_id
 
 logging_to_stdout(logging.DEBUG)
 
@@ -60,7 +60,7 @@ def test_download_checkpoints_single_run(test_output_dirs: OutputFolderForTests,
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(output_dir)
 
-    runner_config.run_recovery_id = get_most_recent_run()
+    runner_config.run_recovery_id = get_most_recent_run_id()
     run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config)
     run_to_recover = fetch_run(workspace=runner_config.get_workspace(), run_recovery_id=runner_config.run_recovery_id)
     checkpoint_root = config.checkpoint_folder / run_to_recover.id
@@ -82,7 +82,7 @@ def test_download_checkpoints_ensemble_run(test_output_dirs: OutputFolderForTest
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(output_dir)
 
-    runner_config.run_recovery_id = get_most_recent_run()
+    runner_config.run_recovery_id = get_most_recent_run_id()
     run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config)
     run_to_recover = fetch_run(workspace=runner_config.get_workspace(), run_recovery_id=runner_config.run_recovery_id)
     child_runs = fetch_child_runs(run_to_recover)
@@ -111,7 +111,7 @@ def test_download_checkpoints_hyperdrive_run(test_output_dirs: OutputFolderForTe
     output_dir = test_output_dirs.root_dir
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(output_dir)
-    run_recovery_id = get_most_recent_run()
+    run_recovery_id = get_most_recent_run_id()
     runner_config.run_recovery_id = run_recovery_id
     child_runs = fetch_child_runs(run=fetch_run(runner_config.get_workspace(), run_recovery_id))
     # recover child runs separately also to test hyperdrive child run recovery functionality

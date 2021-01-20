@@ -27,7 +27,7 @@ from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
     RunResultFiles, add_comparison_data, check_result_file_counts, create_portal_query_for_outliers, \
     create_results_breakdown, download_crossval_result_files, get_split_id, load_dataframes, \
     plot_cross_validation_from_files, save_outliers
-from Tests.AfterTraining.test_after_training import get_most_recent_run
+from Tests.AfterTraining.test_after_training import get_most_recent_run_id
 from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToyMultiLabelSequenceModel, \
     _get_multi_label_sequence_dataframe
 from Tests.ML.util import assert_text_files_match, get_default_azure_config
@@ -36,7 +36,7 @@ from Tests.ML.util import assert_text_files_match, get_default_azure_config
 @pytest.fixture
 def test_config() -> PlotCrossValidationConfig:
     return PlotCrossValidationConfig(
-        run_recovery_id=get_most_recent_run(),
+        run_recovery_id=get_most_recent_run_id(),
         epoch=1,
         model_category=ModelCategory.Segmentation
     )
@@ -45,9 +45,9 @@ def test_config() -> PlotCrossValidationConfig:
 @pytest.fixture
 def test_config_comparison() -> PlotCrossValidationConfig:
     return PlotCrossValidationConfig(
-        run_recovery_id=get_most_recent_run() + "_0",
+        run_recovery_id=get_most_recent_run_id() + "_0",
         epoch=1,
-        comparison_run_recovery_ids=[get_most_recent_run() + "_1"],
+        comparison_run_recovery_ids=[get_most_recent_run_id() + "_1"],
         comparison_epochs=[1],
         model_category=ModelCategory.Segmentation
     )

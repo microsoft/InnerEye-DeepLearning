@@ -17,7 +17,7 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME, CHECKPOINT_SUFFIX, create_checkpoint_path
 from InnerEye.ML.deep_learning_config import WEIGHTS_FILE
 from InnerEye.ML.model_config_base import ModelConfigBase
-from Tests.AfterTraining.test_after_training import get_most_recent_run
+from Tests.AfterTraining.test_after_training import get_most_recent_run_id
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_checkpoint_handler
 
@@ -68,7 +68,7 @@ def test_discover_and_download_checkpoints_from_previous_runs_single_run(
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
 
-    run_recovery_id = get_most_recent_run()
+    run_recovery_id = get_most_recent_run_id()
 
     # Set a run recovery object - non ensemble
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
@@ -95,7 +95,7 @@ def test_discover_and_download_checkpoints_from_previous_runs_ensemble_run(
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
 
-    run_recovery_id = get_most_recent_run()
+    run_recovery_id = get_most_recent_run_id()
 
     # Set a run recovery object - ensemble
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
@@ -163,7 +163,7 @@ def test_get_recovery_path_train_single_run(test_output_dirs: OutputFolderForTes
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
 
-    run_recovery_id = get_most_recent_run()
+    run_recovery_id = get_most_recent_run_id()
 
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
@@ -188,7 +188,7 @@ def test_get_recovery_path_train_ensemble_run(test_output_dirs: OutputFolderForT
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
 
-    run_recovery_id = get_most_recent_run()
+    run_recovery_id = get_most_recent_run_id()
 
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
     checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
@@ -219,7 +219,7 @@ def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) 
         checkpoint_handler.get_best_checkpoint()
         assert "no run recovery object provided and no training has been done in this run" in ex.value.args[0]
 
-    run_recovery_id = get_most_recent_run()
+    run_recovery_id = get_most_recent_run_id()
 
     # We have set a run_recovery_id now, so this should work
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
@@ -272,7 +272,7 @@ def test_get_checkpoint_from_epoch_ensemble_run(test_output_dirs: OutputFolderFo
         manage_recovery.get_best_checkpoint()
         assert "no run recovery object provided and no training has been done in this run" in ex.value.args[0]
 
-    run_recovery_id = get_most_recent_run()
+    run_recovery_id = get_most_recent_run_id()
 
     # We have set a run_recovery_id now, so this should work
     manage_recovery.azure_config.run_recovery_id = run_recovery_id
@@ -329,7 +329,7 @@ def test_get_checkpoints_to_test_single_run(test_output_dirs: OutputFolderForTes
     manage_recovery = get_default_checkpoint_handler(model_config=config,
                                                      project_root=test_output_dirs.root_dir)
 
-    run_recovery_id = get_most_recent_run()
+    run_recovery_id = get_most_recent_run_id()
 
     # Now set a run recovery object and set the start epoch to 1, so we get one epoch from
     # run recovery and one from the training checkpoints

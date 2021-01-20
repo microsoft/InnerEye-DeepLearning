@@ -29,7 +29,7 @@ from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.image_util import get_unit_image_header
-from Tests.AfterTraining.test_after_training import get_most_recent_run
+from Tests.AfterTraining.test_after_training import get_most_recent_model, get_most_recent_run_id
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
 
 
@@ -77,13 +77,7 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
     End-to-end test which ensures the scoring pipeline is functioning as expected when used on a recently created
     model. This test is run after training an ensemble run in AzureML.
     """
-    run_id = get_most_recent_run()
-    azure_config = get_default_azure_config()
-    workspace = azure_config.get_workspace()
-    azureml_run = fetch_run(workspace, run_id)
-    model_id = azureml_run.get_tags().get(MODEL_ID_KEY_NAME, None)
-    assert model_id is not None, f"Run {run_id} does not have a tag for registered model"
-    azureml_model = Model(workspace=workspace, id=model_id)
+    azureml_model = get_most_recent_model()
     assert azureml_model is not None
     # download the registered model and test that we can run the score pipeline on it
     model_root = Path(azureml_model.download(str(test_output_dirs.root_dir)))

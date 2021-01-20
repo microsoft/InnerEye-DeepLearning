@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 
 import pytest
-from azureml.core import Model
+from azureml.core import Model, Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
@@ -26,9 +26,10 @@ from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.Scripts import submit_for_inference
+from Tests.ML.util import get_default_workspace
 
 
-def get_most_recent_run() -> str:
+def get_most_recent_run_id() -> str:
     """
     Gets the string name of the most recently executed AzureML run. This is picked up from the `most_recent_run.txt`
     file when running on the cloud. For execution on the local dev box, a fixed path is returned.
@@ -45,12 +46,25 @@ def get_most_recent_run() -> str:
         # Consequently, local execution of tests that use this run may fail, while executing in the cloud passes.
         # In this case, modify the run here to something more recent.
         print("Using hardcoded run ID.")
-        # This is Run 89 in refs_pull_276_merge
-        return "refs_pull_276_merge:refs_pull_276_merge_1605139760_18b251e1"
+        return "refs_pull_323_merge_1611174301_c9ee36d5"
+
+
+def get_most_recent_run() -> Run:
+    """
+    Gets the name of the most recently executed AzureML run, instantiates that Run object and returns it.
+    """
+    return fetch_run(
+        workspace=get_default_workspace(),
+        run_recovery_id=get_most_recent_run_id()
+    )
 
 
 def get_most_recent_model() -> Model:
-    most_recent_run = get_most_recent_run()
+    """
+    Gets the string name of the most recently executed AzureML run, extracts which model that run had registered,
+    and return the instantiated model object.
+    """
+    most_recent_run = get_most_recent_run_id()
     azure_config = AzureConfig.from_yaml(fixed_paths.SETTINGS_YAML_FILE,
                                          project_root=fixed_paths.repository_root_directory())
     workspace = azure_config.get_workspace()
@@ -97,7 +111,7 @@ def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
     """
     Check that metrics.csv and dataset.csv are created after the second epoch, if running on Azure.
     """
-    most_recent_run = get_most_recent_run()
+    most_recent_run = get_most_recent_run_id()
     azure_config = AzureConfig.from_yaml(fixed_paths.SETTINGS_YAML_FILE,
                                          project_root=fixed_paths.repository_root_directory())
     workspace = azure_config.get_workspace()
@@ -122,12 +136,10 @@ def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     assert image_file.exists(), f"Image file not found: {image_file}"
     settings_file = fixed_paths.SETTINGS_YAML_FILE
     assert settings_file.exists(), f"Settings file not found: {settings_file}"
-    azure_config = AzureConfig.from_yaml(settings_file, project_root=fixed_paths.repository_root_directory())
     # Read the name of the branch from environment, so that the inference experiment is also listed alongside
     # all other AzureML runs that belong to the current PR.
     build_branch = os.environ.get("BUILD_BRANCH", None)
     experiment_name = to_azure_friendly_string(build_branch) if build_branch else "model_inference"
-    azure_config.get_git_information()
     args = ["--image_file", str(image_file),
             "--model_id", model.id,
             "--settings", str(settings_file),

@@ -7,10 +7,13 @@ import pandas as pd
 import pytest
 
 from InnerEye.Common import common_util
+from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME
+from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.baselines_util import ComparisonBaseline, get_comparison_baselines, perform_score_comparisons
+from InnerEye.ML.common import ModelExecutionMode
 from Tests.ML.util import get_default_azure_config
-from Tests.AfterTraining.test_after_training import get_most_recent_run
+from Tests.AfterTraining.test_after_training import get_most_recent_run_id
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Loading tk sometimes fails on Windows")
@@ -44,7 +47,8 @@ def test_perform_score_comparisons() -> None:
 def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
     azure_config = get_default_azure_config()
     comparison_name = "DefaultName"
-    comparison_path = get_most_recent_run() + "/outputs/epoch_-01/Test"
+    comparison_path = get_most_recent_run_id() + \
+                      f"/{DEFAULT_AML_UPLOAD_DIR}/{BEST_EPOCH_FOLDER_NAME}/{ModelExecutionMode.TEST.value}"
     baselines = get_comparison_baselines(test_output_dirs.root_dir,
                                          azure_config, [(comparison_name, comparison_path)])
     assert len(baselines) == 1

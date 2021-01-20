@@ -143,8 +143,8 @@ def create_and_submit_experiment(
     # set metadata for the run
     set_run_tags(run, azure_config, model_config_overrides)
 
-    print("\nSuccessfully queued new run for experiment: {}".format(exp.name))
-    print("==============================================================================")
+    print("\n==============================================================================")
+    print(f"Successfully queued new run {run.id} in experiment: {exp.name}")
 
     if azure_config.run_recovery_id:
         print(f"\nRecovered from: {azure_config.run_recovery_id}")
@@ -155,7 +155,6 @@ def create_and_submit_experiment(
         recovery_file.unlink()
     recovery_file.write_text(recovery_id)
 
-    print("==============================================================================")
     print("Experiment URL: {}".format(exp.get_portal_url()))
     print("Run URL: {}".format(run.get_portal_url()))
     print("If this run fails, re-start runner.py and supply these additional arguments: "
