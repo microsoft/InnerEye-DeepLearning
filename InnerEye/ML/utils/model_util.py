@@ -13,7 +13,6 @@ from torch.optim.rmsprop import RMSprop
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common import common_util
-from InnerEye.Common.type_annotations import T
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import ModelArchitectureConfig, PaddingMode, SegmentationLoss, SegmentationModelBase, \
     basic_size_shrinkage
@@ -251,19 +250,27 @@ E = TypeVar('E', List[ClassificationItemSequence[ScalarItem]], ScalarItem)
 
 
 @dataclass
-class ScalarModelInputsAndLabels(Generic[E, T]):
+class ScalarModelInputsAndLabels(Generic[E]):
     """
     Holds the results of calling get_scalar_model_inputs_and_labels: For a given sample returned by the data loader,
     create the model inputs, the labels, the list of subjects (data loader sample can be batched),
     and the reconstructed data item.
     """
     model_inputs: List[torch.Tensor]
-    labels: T
+    labels: torch.Tensor
     subject_ids: List[str]
     data_item: E
 
     def __post_init__(self) -> None:
         common_util.check_properties_are_not_none(self)
+
+    def move_to_device(self, device: torch.device) -> None:
+        """
+        Moves the model_inputs and labels field of the present object to the given device. This is done in-place.
+        :param device: The target device.
+        """
+        self.model_inputs = [t.to(device=device) for t in self.model_inputs]
+        self.labels = self.labels.to(device=device)
 
 
 def get_scalar_model_inputs_and_labels(model: torch.nn.Module,
@@ -289,7 +296,7 @@ def get_scalar_model_inputs_and_labels(model: torch.nn.Module,
         )
         model_inputs = sequence_model.get_input_tensors(sequences)
 
-        return ScalarModelInputsAndLabels[List[ClassificationItemSequence], torch.Tensor](
+        return ScalarModelInputsAndLabels[List[ClassificationItemSequence]](
             model_inputs=model_inputs,
             labels=labels,
             subject_ids=subject_ids,
@@ -301,7 +308,7 @@ def get_scalar_model_inputs_and_labels(model: torch.nn.Module,
         subject_ids = [str(x.id) for x in scalar_item.metadata]  # type: ignore
         model_inputs = scalar_model.get_input_tensors(scalar_item)
 
-        return ScalarModelInputsAndLabels[ScalarItem, torch.Tensor](
+        return ScalarModelInputsAndLabels[ScalarItem](
             model_inputs=model_inputs,
             labels=scalar_item.label,
             subject_ids=subject_ids,

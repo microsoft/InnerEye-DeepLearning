@@ -6,6 +6,10 @@ import os
 import sys
 from pathlib import Path
 
+# Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
+# individual warnings only.
+# flake8: noqa
+
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
 print("Starting InnerEye runner.")

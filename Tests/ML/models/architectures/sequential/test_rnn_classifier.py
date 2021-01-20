@@ -14,19 +14,19 @@ import torch
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
-from InnerEye.Common.metrics_dict import MetricType, create_metrics_dict_for_scalar_models
+from InnerEye.Common.metrics_dict import MetricType, SEQUENCE_POSITION_HUE_NAME_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.lightning_models import transfer_batch_to_device
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
+from InnerEye.ML.model_testing import create_metrics_dict_for_scalar_models
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoder, ImagingFeatureType
 from InnerEye.ML.models.architectures.sequential.rnn_classifier import RNNClassifier, RNNClassifierWithEncoder
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss
-from InnerEye.ML.sequence_config import SEQUENCE_LENGTH_FILE, SEQUENCE_LENGTH_STATS_FILE, \
-    SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
+from InnerEye.ML.sequence_config import SEQUENCE_LENGTH_FILE, SEQUENCE_LENGTH_STATS_FILE, SequenceModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentation
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
@@ -382,8 +382,8 @@ def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> 
     results = model_train(config, get_default_checkpoint_handler(model_config=config,
                                                                  project_root=test_output_dirs.root_dir))
 
-    actual_train_loss = results.get_metric(is_training=True, metric_type=MetricType.LOSS)[-1]
-    actual_val_loss = results.get_metric(is_training=False, metric_type=MetricType.LOSS)[-1]
+    actual_train_loss = results.get_metric(is_training=True, metric_type=MetricType.LOSS.value)[-1]
+    actual_val_loss = results.get_metric(is_training=False, metric_type=MetricType.LOSS.value)[-1]
     print(f"Training loss after {config.num_epochs} epochs: {actual_train_loss}")
     print(f"Validation loss after {config.num_epochs} epochs: {actual_val_loss}")
     assert actual_train_loss <= expected_max_train_loss, "Training loss too high"

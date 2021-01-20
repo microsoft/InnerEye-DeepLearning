@@ -15,8 +15,6 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
-SEQUENCE_POSITION_HUE_NAME_PREFIX = "Seq_pos"
-
 SEQUENCE_LENGTH_STATS_FILE = "sequence_length_stats.txt"
 SEQUENCE_LENGTH_FILE = "sequence_length.csv"
 

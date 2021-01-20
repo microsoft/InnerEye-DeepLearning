@@ -72,12 +72,12 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
                    ]:
         assert metric.value in model_training_result.train_results_per_epoch[0], f"{metric.value} not in training"
         assert metric.value in model_training_result.val_results_per_epoch[0], f"{metric.value} not in validation"
-    actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS)
-    actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS)
-    actual_learning_rates = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE)
+    actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS.value)
+    actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS.value)
+    actual_lr = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE.value)
     assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6), "Training loss"
     assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6), "Validation loss"
-    assert actual_learning_rates == pytest.approx(expected_learning_rates, rel=1e-5), "Learning rates"
+    assert actual_lr == pytest.approx(expected_learning_rates, rel=1e-5), "Learning rates"
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
                                             checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)

@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import numbers
 import os
 import shutil
 from pathlib import Path
@@ -15,7 +16,7 @@ from torch.utils.data import DataLoader
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
-from InnerEye.Common.metrics_dict import MetricType
+from InnerEye.Common.metrics_dict import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics, model_training
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
@@ -23,7 +24,6 @@ from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.metrics import TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.utils.io_util import load_nifti_image
@@ -79,11 +79,11 @@ def _test_model_train(output_dirs: OutputFolderForTests,
                 assert results[f"{MetricType.VOXEL_COUNT.value}/{structure}"] == pytest.approx(voxel_count, abs=1e-2), \
                     f"Voxel count mismatch for '{structure}'"
 
-    def _mean(a: List[float]) -> float:
+    def _mean(a: List[numbers.Number]) -> float:
         return sum(a) / len(a)
 
-    def _mean_list(l: List[List[float]]) -> List[float]:
-        return list(map(_mean, l))
+    def _mean_list(lists: List[List[numbers.Number]]) -> List[float]:
+        return list(map(_mean, lists))
 
     train_config = DummyModel()
     train_config.local_dataset = base_path
@@ -142,7 +142,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_dice_region1 = [[0.48280242, 0.48337635, 0.4974504], [0.5024475, 0.5007884, 0.48952717]]
     assert_all_close("Dice/region", _mean_list(train_dice_region), atol=1e-4)
     assert_all_close("Dice/region_1", _mean_list(train_dice_region1), atol=1e-4)
-    expected_average_dice = [_mean(train_dice_region[i] + train_dice_region1[i])
+    expected_average_dice = [_mean(train_dice_region[i] + train_dice_region1[i])  # type: ignore
                              for i in range(len(train_dice_region))]
     assert_all_close("Dice/AverageAcrossStructures", expected_average_dice, atol=1e-4)
 

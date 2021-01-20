@@ -112,6 +112,7 @@ def test_metrics_preparation_for_segmentation(test_config: PlotCrossValidationCo
     """
     files = create_file_list_for_segmentation_recovery_run(test_config)
     downloaded_metrics = load_dataframes(files, test_config)
+    assert test_config.run_recovery_id
     for mode in test_config.execution_modes_to_download():
         expected_df = _get_metrics_df(test_config.run_recovery_id, mode)
         # Drop the "mode" column, because that was added after creating the test data
@@ -276,6 +277,7 @@ def test_save_outliers(test_config: PlotCrossValidationConfig,
     """Test to make sure the outlier file for a split is as expected"""
     test_config.outputs_directory = test_output_dirs.root_dir
     test_config.outlier_range = 0
+    assert test_config.run_recovery_id
     dataset_split_metrics = {x: _get_metrics_df(test_config.run_recovery_id, x) for x in [ModelExecutionMode.VAL]}
     save_outliers(test_config, dataset_split_metrics, test_config.outputs_directory)
     f = f"{ModelExecutionMode.VAL.value}_outliers.txt"

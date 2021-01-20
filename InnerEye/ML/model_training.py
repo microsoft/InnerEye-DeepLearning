@@ -15,13 +15,12 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
-from InnerEye.Common.metrics_dict import MetricType
+from InnerEye.Common.metrics_dict import MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_models import AzureMLLogger, SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     StoringLogger, TrainingAndValidationDataLightning, create_lightning_model, get_subject_output_file_per_rank
-from InnerEye.ML.metrics import TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
@@ -181,6 +180,7 @@ def model_train(config: ModelConfigBase,
     trainer.fit(lightning_model,
                 datamodule=lightning_data)
     trainer.logger.close()
+    lightning_model.close_all_loggers()
     world_size = getattr(trainer, "world_size", 0)
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
@@ -242,7 +242,6 @@ def model_train(config: ModelConfigBase,
     if config.max_batch_grad_cam > 0 and config.visualization_folder.exists():
         RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(config.visualization_folder))
 
-    lightning_model.close_all_loggers()
     if resource_monitor:
         # stop the resource monitoring process
         logging.info("Shutting down the resource monitor process. Aggregate resource utilization:")

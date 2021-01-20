@@ -384,7 +384,9 @@ class InferenceBatch(CTImagesMaskedBatch):
 
         for batch_idx in range(0, len(patches), batch_size):
             # slice over the batches to prepare batch
-            batch = patches[batch_idx: batch_idx + batch_size, ...]
+            batch = torch.tensor(patches[batch_idx: batch_idx + batch_size, ...]).float()
+            if model_config.use_gpu:
+                batch = batch.cuda()
             # perform the forward pass
             batch_predictions = self._model_fn(batch).detach().cpu().numpy()
             # collect the predictions over each of the batches
@@ -480,16 +482,14 @@ class InferenceBatch(CTImagesMaskedBatch):
 
         return np.stack(patches, axis=1)
 
-    def _model_fn(self, patches: np.ndarray) -> torch.Tensor:
+    def _model_fn(self, patches: torch.Tensor) -> torch.Tensor:
         """
         Wrapper function to handle the model forward pass
         :param patches: Image patches to be passed to the model in format Patches x Channels x Z x Y x X
         :return posteriors: Confidence maps [0,1] for each patch per class
         in format: Patches x Channels x Class x Z x Y x X
         """
-        # get the model from the pipeline environment
         model = self.pipeline.get_variable(InferencePipeline.Variables.Model)
-        patches = torch.from_numpy(patches).float()
         # Model forward pass returns posteriors
         with torch.no_grad():
             return model(patches)

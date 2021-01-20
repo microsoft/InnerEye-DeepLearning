@@ -42,15 +42,12 @@ def test_train_2d_classification_model(test_output_dirs: OutputFolderForTests,
     expected_train_loss = [0.705931, 0.698664, 0.694489, 0.693151]
     expected_val_loss = [1.078517, 1.140510, 1.199026, 1.248595]
 
-    def extract_loss(results: List[MetricsDict]) -> List[float]:
-        return [d.values()[MetricType.LOSS.value][0] for d in results]
-
-    actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS)
-    actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS)
-    actual_learning_rates = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE)
+    actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS.value)
+    actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS.value)
+    actual_lr = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE.value)
 
     assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6)
     assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6)
-    assert actual_learning_rates == pytest.approx(expected_learning_rates, rel=1e-5)
+    assert actual_lr == pytest.approx(expected_learning_rates, rel=1e-5)
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN, checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)

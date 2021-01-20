@@ -3,18 +3,18 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import pytest
-from typing import Any
 from pathlib import Path
+from typing import Any
 
+import pytest
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, \
     choice, uniform
 
 from InnerEye.Azure.azure_config import SourceConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
+from InnerEye.Common.metrics_dict import TrackedMetrics
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.lightning_models import TrackedMetrics
 from InnerEye.ML.model_config_base import ModelConfigBase
 
 HYPERDRIVE_TOTAL_RUNS = 64

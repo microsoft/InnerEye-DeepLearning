@@ -8,7 +8,7 @@ import os
 from functools import partial
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,7 +18,7 @@ from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, ModelProcessing
     get_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, ScalarMetricsDict, \
-    create_metrics_dict_for_scalar_models
+    SequenceMetricsDict
 from InnerEye.ML import metrics, plotting
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
@@ -33,6 +33,7 @@ from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, Scala
     ScalarInferencePipelineBase
 from InnerEye.ML.reports.segmentation_report import boxplot_per_structure
 from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import io_util, ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
@@ -382,6 +383,19 @@ def create_inference_pipeline(config: ModelConfigBase,
     return None
 
 
+def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> \
+        Union[ScalarMetricsDict, SequenceMetricsDict]:
+    """
+    Create an instance of either a ScalarMetricsDict or SequenceMetricsDict, depending on whether the given
+     configuration is a sequence model configuration or not.
+    """
+    if isinstance(config, SequenceModelBase):
+        return SequenceMetricsDict.create(is_classification_model=config.is_classification_model,
+                                          sequence_target_positions=config.sequence_target_positions)
+    else:
+        return ScalarMetricsDict(is_classification_metrics=config.is_classification_model)
+
+
 def classification_model_test(config: ScalarModelBase,
                               data_split: ModelExecutionMode,
                               checkpoint_handler: CheckpointHandler,
@@ -418,10 +432,14 @@ def classification_model_test(config: ScalarModelBase,
         metrics_dict = create_metrics_dict_for_scalar_models(config)
         for sample in ds:
             result = pipeline.predict(sample)
-            # Since batch size is 1, we only have 1 item in each of the fields in result
-            sample_id, label_gpu, model_output = result.subject_ids[0], result.labels, result.model_outputs
-
-            compute_scalar_metrics(metrics_dict, [sample_id], model_output, label_gpu, config.loss_type)
+            model_output = result.posteriors
+            label = result.labels.to(device=model_output.device)
+            sample_id = result.subject_ids[0]
+            compute_scalar_metrics(metrics_dict,
+                                   subject_ids=[sample_id],
+                                   model_output=model_output,
+                                   labels=label,
+                                   loss_type=config.loss_type)
             logging.debug(f"Example {sample_id}: {metrics_dict.to_string()}")
 
         average = metrics_dict.average(across_hues=False)

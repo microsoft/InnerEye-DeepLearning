@@ -29,6 +29,7 @@ from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.ml_util import set_random_seed
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_model_loader, get_nifti_shape
+from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
 class SubprocessConfig(GenericConfig):

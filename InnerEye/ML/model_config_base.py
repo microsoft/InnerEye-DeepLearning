@@ -168,7 +168,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         :param estimator: The AzureML estimator object that runs model training.
         :return: A hyperdrive configuration object.
         """
-        from InnerEye.ML.metrics import TrackedMetrics
+        from InnerEye.Common.metrics_dict import TrackedMetrics
         return HyperDriveConfig(
             estimator=estimator,
             hyperparameter_sampling=self.get_cross_validation_hyperdrive_sampler(),
