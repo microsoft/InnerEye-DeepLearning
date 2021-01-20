@@ -176,11 +176,6 @@ def is_ensemble_run(run: Run) -> bool:
     return run.get_tags().get(IS_ENSEMBLE_KEY_NAME) == 'True'
 
 
-def update_run_tags(run: Run, tags: Dict[str, Any]) -> None:
-    """Updates tags for the given run with the provided dictionary"""
-    run.set_tags({**run.get_tags(), **tags})
-
-
 def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
     """
     Given a string, ensure it can be used in Azure by replacing everything apart from a-zA-Z0-9_ with _,

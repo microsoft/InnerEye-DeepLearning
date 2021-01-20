@@ -395,9 +395,9 @@ class MLRunner:
         if not self.model_config.is_offline_run:
             split_index = RUN_CONTEXT.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
             if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-                update_run_tags(RUN_CONTEXT, {IS_ENSEMBLE_KEY_NAME: model_proc == ModelProcessing.ENSEMBLE_CREATION})
+                RUN_CONTEXT.tag(IS_ENSEMBLE_KEY_NAME, str(model_proc == ModelProcessing.ENSEMBLE_CREATION))
             elif PARENT_RUN_CONTEXT is not None:
-                update_run_tags(RUN_CONTEXT, {PARENT_RUN_ID_KEY_NAME: PARENT_RUN_CONTEXT.id})
+                RUN_CONTEXT.tag(PARENT_RUN_ID_KEY_NAME, str(PARENT_RUN_CONTEXT.id))
         if isinstance(self.model_config, SegmentationModelBase):
             with logging_section(f"Registering {model_proc.value} model"):
                 self.register_segmentation_model(
@@ -467,7 +467,7 @@ class MLRunner:
             description=model_description
         )
         # update the run's tags with the registered model information
-        update_run_tags(run_to_register_on, {MODEL_ID_KEY_NAME: model.id})
+        run_to_register_on.tag(MODEL_ID_KEY_NAME, model.id)
 
         deployment_result = None
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
