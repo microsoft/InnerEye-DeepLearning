@@ -20,13 +20,12 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
 from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run, get_comparison_baseline_paths, \
     is_running_on_azure_agent, to_azure_friendly_string
-from InnerEye.Common import fixed_paths
+from InnerEye.Common import fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import get_epoch_results_path
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.Scripts import submit_for_inference
-from Tests import fixed_paths_for_tests
 
 
 def get_most_recent_run() -> str:

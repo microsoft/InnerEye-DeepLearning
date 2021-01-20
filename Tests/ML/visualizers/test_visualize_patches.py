@@ -20,7 +20,7 @@ from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.utils.ml_util import set_random_seed
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops
 from Tests.ML.util import assert_binary_files_match, assert_file_exists
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.skipif(is_windows(), reason="Plotting output is not consistent across platforms.")

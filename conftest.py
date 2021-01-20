@@ -14,7 +14,7 @@ from typing import Generator
 import pytest
 
 from InnerEye.Common.output_directories import OutputFolderForTests, remove_and_create_folder
-from Tests.fixed_paths_for_tests import TEST_OUTPUTS_PATH
+from InnerEye.Common.fixed_paths_for_tests import TEST_OUTPUTS_PATH
 
 
 @pytest.fixture(autouse=True, scope='session')
