@@ -27,6 +27,7 @@ dependencies:
       - mlflow==1.11.0
       - mypy==0.770
       - mypy-extensions==0.4.3
+      - nbformat==5.0.8
       - numpy==1.19.1
       - numba==0.51.2
       - pandas==1.1.0
