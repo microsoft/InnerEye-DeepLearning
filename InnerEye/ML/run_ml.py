@@ -466,11 +466,11 @@ class MLRunner:
             tags=RUN_CONTEXT.get_tags(),
             description=model_description
         )
+        # update the run's tags with the registered model information
+        update_run_tags(run_to_register_on, {MODEL_ID_KEY_NAME: model.id})
 
         deployment_result = None
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
-        # update the run's tags with the registered model information
-        update_run_tags(RUN_CONTEXT, {MODEL_ID_KEY_NAME: model.id})
         # create a version of the model for deployment if the hook is provided
         if self.model_deployment_hook is not None:
             assert isinstance(self.model_config, SegmentationModelBase)

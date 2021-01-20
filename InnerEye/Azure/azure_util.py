@@ -101,8 +101,8 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     experiment, run = split_recovery_id(run_recovery_id)
     try:
         experiment_to_recover = Experiment(workspace, experiment)
-    except Exception:
-        raise (Exception("Unable to retrieve experiment {}".format(experiment)))
+    except Exception as ex:
+        raise Exception(f"Unable to retrieve run {run} in experiment {experiment}: {str(ex)}")
     run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
     logging.info("Fetched run #{} {} from experiment {}.".format(run, run_to_recover.number, experiment))
     return run_to_recover
