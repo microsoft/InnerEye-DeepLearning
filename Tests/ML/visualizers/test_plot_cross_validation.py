@@ -16,12 +16,12 @@ from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DA
     SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
     METRICS_BY_MODE_AND_STRUCTURE_FILE, METRICS_BY_MODE_FILE, \
     OfflineCrossvalConfigAndFiles, PORTAL_QUERY_TEMPLATE, PlotCrossValidationConfig, RUN_RECOVERY_ID_KEY, \

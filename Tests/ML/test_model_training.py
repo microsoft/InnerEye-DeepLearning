@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
-from InnerEye.Common.metrics_dict import MetricType, TrackedMetrics, VALIDATION_PREFIX
+from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics, model_training
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES

@@ -7,7 +7,6 @@ from __future__ import annotations
 import logging
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from enum import Enum, unique
 from pathlib import Path
 from typing import Any, Dict, Generic, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
 
@@ -19,19 +18,14 @@ from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_auc_score
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 from InnerEye.Common.common_util import check_properties_are_not_none
+from InnerEye.Common.metrics_constants import INTERNAL_TO_LOGGING_COLUMN_NAMES, LoggingColumns, MetricType, \
+    MetricTypeOrStr, SEQUENCE_POSITION_HUE_NAME_PREFIX
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, \
     mean_squared_error, r2_score
 
 FloatOrInt = Union[float, int]
 T = TypeVar('T', np.ndarray, float)
-
-# String prefixes when writing training or validation set metrics to a logger
-TRAIN_PREFIX = "train/"
-VALIDATION_PREFIX = "val/"
-
-SEQUENCE_POSITION_HUE_NAME_PREFIX = "Seq_pos"
 
 
 def average_metric_values(values: List[float], skip_nan_when_averaging: bool) -> float:
@@ -57,70 +51,6 @@ class PredictionEntry(Generic[T]):
 
     def __post_init__(self) -> None:
         check_properties_are_not_none(self)
-
-
-@unique
-class MetricType(Enum):
-    """
-    Contains the different metrics that are computed.
-    """
-    # Any result of loss computation, depending on what's configured in the model.
-    LOSS = "Loss"
-
-    # Classification metrics
-    CROSS_ENTROPY = "CrossEntropy"
-    # Classification accuracy assuming that posterior > 0.5 means predicted class 1
-    ACCURACY_AT_THRESHOLD_05 = "AccuracyAtThreshold05"
-    ACCURACY_AT_OPTIMAL_THRESHOLD = "AccuracyAtOptimalThreshold"
-    # Metrics for segmentation
-    DICE = "Dice"
-    HAUSDORFF_mm = "HausdorffDistance_millimeters"
-    MEAN_SURFACE_DIST_mm = "MeanSurfaceDistance_millimeters"
-    VOXEL_COUNT = "VoxelCount"
-    PROPORTION_FOREGROUND_VOXELS = "ProportionForegroundVoxels"
-
-    PATCH_CENTER = "PatchCenter"
-
-    AREA_UNDER_ROC_CURVE = "AreaUnderRocCurve"
-    AREA_UNDER_PR_CURVE = "AreaUnderPRCurve"
-    OPTIMAL_THRESHOLD = "OptimalThreshold"
-    FALSE_POSITIVE_RATE_AT_OPTIMAL_THRESHOLD = "FalsePositiveRateAtOptimalThreshold"
-    FALSE_NEGATIVE_RATE_AT_OPTIMAL_THRESHOLD = "FalseNegativeRateAtOptimalThreshold"
-
-    # Regression metrics
-    MEAN_ABSOLUTE_ERROR = "MeanAbsoluteError"
-    MEAN_SQUARED_ERROR = "MeanSquaredError"
-    EXPLAINED_VAR = "ExplainedVariance"
-
-    # Common metrics
-    SECONDS_PER_BATCH = "SecondsPerBatch"
-    SECONDS_PER_EPOCH = "SecondsPerEpoch"
-    SUBJECT_COUNT = "SubjectCount"
-    LEARNING_RATE = "LearningRate"
-
-
-MetricTypeOrStr = Union[str, MetricType]
-
-# Mapping from the internal logging column names to the ones used in the outside-facing pieces of code:
-# Output data files, logging systems.
-INTERNAL_TO_LOGGING_COLUMN_NAMES = {
-    MetricType.LOSS.value: LoggingColumns.Loss,
-    MetricType.ACCURACY_AT_THRESHOLD_05.value: LoggingColumns.AccuracyAtThreshold05,
-    MetricType.CROSS_ENTROPY.value: LoggingColumns.CrossEntropy,
-    MetricType.SECONDS_PER_BATCH.value: LoggingColumns.SecondsPerBatch,
-    MetricType.SECONDS_PER_EPOCH.value: LoggingColumns.SecondsPerEpoch,
-    MetricType.AREA_UNDER_ROC_CURVE.value: LoggingColumns.AreaUnderRocCurve,
-    MetricType.AREA_UNDER_PR_CURVE.value: LoggingColumns.AreaUnderPRCurve,
-    MetricType.SUBJECT_COUNT.value: LoggingColumns.SubjectCount,
-    MetricType.MEAN_SQUARED_ERROR.value: LoggingColumns.MeanSquaredError,
-    MetricType.MEAN_ABSOLUTE_ERROR.value: LoggingColumns.MeanAbsoluteError,
-    MetricType.EXPLAINED_VAR.value: LoggingColumns.ExplainedVariance,
-    MetricType.LEARNING_RATE.value: LoggingColumns.LearningRate,
-    MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD.value: LoggingColumns.AccuracyAtOptimalThreshold,
-    MetricType.OPTIMAL_THRESHOLD.value: LoggingColumns.OptimalThreshold,
-    MetricType.FALSE_POSITIVE_RATE_AT_OPTIMAL_THRESHOLD.value: LoggingColumns.FalsePositiveRateAtOptimalThreshold,
-    MetricType.FALSE_NEGATIVE_RATE_AT_OPTIMAL_THRESHOLD.value: LoggingColumns.FalseNegativeRateAtOptimalThreshold
-}
 
 
 def get_column_name_for_logging(metric_name: Union[str, MetricType],
@@ -242,13 +172,6 @@ class Hue:
                 raise ValueError(f"Expected that all metrics lists only hold 1 item, "
                                  f"but got this list for Hue {self.name} : metric "
                                  f"'{metric_name}': {metric_value}")
-
-
-class TrackedMetrics(Enum):
-    """
-    Known metrics that are tracked as part of Hyperdrive runs.
-    """
-    Val_Loss = VALIDATION_PREFIX + MetricType.LOSS.value
 
 
 class MetricsDict:

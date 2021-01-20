@@ -13,7 +13,7 @@ from azureml.train.hyperdrive import HyperDriveConfig, PrimaryMetricGoal, Random
 
 from InnerEye.Azure.azure_config import SourceConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
-from InnerEye.Common.metrics_dict import TrackedMetrics
+from InnerEye.Common.metrics_constants import TrackedMetrics
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.model_config_base import ModelConfigBase
 

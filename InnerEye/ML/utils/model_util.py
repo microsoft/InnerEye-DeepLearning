@@ -13,6 +13,7 @@ from torch.optim.rmsprop import RMSprop
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common import common_util
+from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import ModelArchitectureConfig, PaddingMode, SegmentationLoss, SegmentationModelBase, \
     basic_size_shrinkage
@@ -31,7 +32,6 @@ from InnerEye.ML.models.losses.soft_dice import SoftDiceLoss
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
 from InnerEye.ML.utils.supervised_criterion import BinaryCrossEntropyWithLogitsLoss, SupervisedLearningCriterion
 from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature

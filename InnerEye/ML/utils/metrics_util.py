@@ -16,8 +16,8 @@ from sklearn.metrics import r2_score as sklearn_r2_score
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARENT_RUN_CONTEXT, RUN_CONTEXT, \
     is_offline_run_context
+from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.Common.type_annotations import TupleFloat3
-from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 
 
 class MetricsPerPatientWriter:

@@ -9,10 +9,10 @@ import pandas as pd
 import param
 from pandas import DataFrame
 
+from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.scalar_config import ScalarModelBase
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 SEQUENCE_LENGTH_STATS_FILE = "sequence_length_stats.txt"

@@ -10,7 +10,7 @@ from azureml.train.hyperdrive import BanditPolicy, HyperDriveConfig, PrimaryMetr
 from networkx.tests.test_convert_pandas import pd
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
-from InnerEye.Common.metrics_dict import TrackedMetrics
+from InnerEye.Common.metrics_constants import TrackedMetrics
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
 from InnerEye.ML.utils.split_dataset import DatasetSplits

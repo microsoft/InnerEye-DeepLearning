@@ -20,8 +20,7 @@ from torch.utils.data import DataLoader
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, SUBJECT_METRICS_FILE_NAME
-from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, SequenceMetricsDict, TRAIN_PREFIX, \
-    VALIDATION_PREFIX
+from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -32,13 +31,13 @@ from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnde
     AreaUnderRocCurve, AverageWithoutNan, BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
     FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, OptimalThreshold, \
     compute_dice_across_patches, nanmean, store_epoch_metrics
+from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, SequenceMetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss, get_masked_model_outputs_and_labels
@@ -140,7 +139,7 @@ class TrainingAndValidationDataLightning(LightningDataModule):
     def setup(self, stage: Optional[str] = None) -> None:
         self.data_loaders = self.config.create_data_loaders()
 
-    def train_dataloader(self) -> DataLoader:   # type: ignore
+    def train_dataloader(self) -> DataLoader:  # type: ignore
         return self.data_loaders[ModelExecutionMode.TRAIN]
 
     def val_dataloader(self) -> DataLoader:  # type: ignore

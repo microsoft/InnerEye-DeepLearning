@@ -3,19 +3,19 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import shutil
-import pytest
 import os
+import shutil
 
-from InnerEye.Common.metrics_dict import MetricType
+import pytest
+
+from InnerEye.Common.metrics_constants import MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import ModelExecutionMode, BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecutionMode
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
-from InnerEye.ML.model_training import model_train
-from InnerEye.ML.model_testing import model_test
-from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.metrics import InferenceMetricsForClassification
-
+from InnerEye.ML.model_testing import model_test
+from InnerEye.ML.model_training import model_train
+from InnerEye.ML.utils.run_recovery import RunRecovery
 from Tests.ML.util import get_default_checkpoint_handler
 
 
@@ -23,7 +23,7 @@ from Tests.ML.util import get_default_checkpoint_handler
 # @pytest.mark.parametrize("mean_teacher_model", [True, False])
 @pytest.mark.parametrize("mean_teacher_model", [False])
 def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
-                                            test_output_dirs: OutputFolderForTests) -> None:
+                                           test_output_dirs: OutputFolderForTests) -> None:
     """
     Checks that inference results are the same whether from a checkpoint in the same run, from a run recovery or from a
     local_weights_path param.

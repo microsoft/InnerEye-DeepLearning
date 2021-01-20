@@ -13,6 +13,7 @@ from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, Pr
 from pandas import DataFrame
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
+from InnerEye.Common.metrics_constants import TrackedMetrics
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.utils.split_dataset import DatasetSplits
@@ -168,7 +169,6 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         :param estimator: The AzureML estimator object that runs model training.
         :return: A hyperdrive configuration object.
         """
-        from InnerEye.Common.metrics_dict import TrackedMetrics
         return HyperDriveConfig(
             estimator=estimator,
             hyperparameter_sampling=self.get_cross_validation_hyperdrive_sampler(),

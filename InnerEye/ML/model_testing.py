@@ -17,8 +17,7 @@ from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
 from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, ModelProcessing, SUBJECT_METRICS_FILE_NAME, \
     get_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
-from InnerEye.Common.metrics_dict import DataframeLogger, MetricType, MetricsDict, ScalarMetricsDict, \
-    SequenceMetricsDict
+from InnerEye.Common.metrics_constants import MetricType, MetricsFileColumns
 from InnerEye.ML import metrics, plotting
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
@@ -26,6 +25,8 @@ from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForClassification, InferenceMetricsForSegmentation, \
     compute_scalar_metrics
+from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, ScalarMetricsDict, \
+    SequenceMetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline, InferencePipelineBase
@@ -39,7 +40,6 @@ from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
 from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, \
     save_lines_to_file
-from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 
 BOXPLOT_FILE = "metrics_boxplot.png"

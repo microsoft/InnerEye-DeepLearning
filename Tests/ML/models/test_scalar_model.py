@@ -17,17 +17,17 @@ from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, METRICS_AGGREGATES_FILE, \
     SUBJECT_METRICS_FILE_NAME, get_epoch_results_path, logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict
+from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, model_training, runner
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
+from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get_config_and_results_for_offline_runs, \
     unroll_aggregate_metrics
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting

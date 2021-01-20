@@ -15,7 +15,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
-from InnerEye.Common.metrics_dict import MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
+from InnerEye.Common.metrics_constants import MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
@@ -25,7 +25,7 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary
-from InnerEye.ML.utils.training_util import ModelOutputsAndMetricsForEpoch, ModelTrainingResults
+from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
 MAX_ITEM_LOAD_TIME_SEC = 0.5
@@ -252,29 +252,3 @@ def model_train(config: ModelConfigBase,
         resource_monitor.kill()
 
     return model_training_results
-
-
-def temperature_scaling_steps(val_results_for_epoch: ModelOutputsAndMetricsForEpoch) -> \
-        Tuple[float, ModelOutputsAndMetricsForEpoch]:
-    """
-    Perform the steps required for temperature scaling:
-    1) Learn the temperature parameter on the logits and labels of the provided validation epoch
-    2) Re-run the validation after learning the scaling parameter.
-
-    :param config: Config for a sequence model.
-    :param train_val_params: Train/Validate parameters to use.
-    :param val_results_for_epoch: results from the validation epoch to use in order to perform temperature scaling.
-    :return: the optimal temperature value and the validation results after scaling has been performed.
-    """
-    # re-create the training steps for the repeat pass, but with metrics saving enabled
-    training_steps = None  # create_model_training_steps(config, train_val_params)
-    # make sure results for a validation epoch have been passed in
-    assert val_results_for_epoch.is_train is False
-    # perform temperature scaling
-    logits = val_results_for_epoch.get_logits()
-    labels = val_results_for_epoch.get_labels()
-    temperature_value = training_steps.learn_temperature_scale_parameter(logits, labels)
-    # recompute the validation set results for the temperature scaled model
-    val_epoch_results = None  # Should evaluate on validation set
-
-    return temperature_value, val_epoch_results

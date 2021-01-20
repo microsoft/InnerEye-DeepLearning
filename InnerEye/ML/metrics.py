@@ -21,16 +21,16 @@ from pytorch_lightning.metrics.functional import roc
 from pytorch_lightning.metrics.functional.classification import accuracy, auc, auroc, precision_recall_curve
 
 from InnerEye.Azure.azure_util import get_run_context_or_default
-from InnerEye.Common.metrics_dict import DataframeLogger, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, MetricsDict, \
-    ScalarMetricsDict, get_metric_name_with_hue_prefix
+from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.type_annotations import DictStrFloat, TupleFloat3
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
+from InnerEye.ML.metrics_dict import DataframeLogger, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricsDict, \
+    ScalarMetricsDict, get_metric_name_with_hue_prefix
 from InnerEye.ML.scalar_config import ScalarLoss
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array, check_array_range, is_binary_array
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, \
     mean_absolute_error, r2_score
 from InnerEye.ML.utils.ml_util import check_size_matches
@@ -154,8 +154,9 @@ class ScalarMetricsBase(Metric):
         """
         return len(self.preds) > 0  # type: ignore
 
-    def _get_metrics_at_optimal_cutoff(self, preds: torch.Tensor, target: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor,
-                                                                     torch.Tensor, torch.Tensor]:
+    def _get_metrics_at_optimal_cutoff(self, preds: torch.Tensor, target: torch.Tensor) -> Tuple[
+        torch.Tensor, torch.Tensor,
+        torch.Tensor, torch.Tensor]:
         """
         Computes the ROC to find the optimal cut-off i.e. the probability threshold for which the
         difference between true positive rate and false positive rate is smallest. Then, computes

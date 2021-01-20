@@ -78,6 +78,7 @@ def create_checkpoints(model_config: SegmentationModelBase, is_ensemble: bool) -
 # We currently don't support registered geonormalized models, so dataset_expected_spacing_xyz = (1.0, 1.0, 3.0)
 # is excluded.
 @pytest.mark.parametrize("dataset_expected_spacing_xyz", [None])
+@pytest.mark.after_training_ensemble_run
 def test_register_and_score_model(is_ensemble: bool,
                                   dataset_expected_spacing_xyz: Any,
                                   model_outside_package: bool,
