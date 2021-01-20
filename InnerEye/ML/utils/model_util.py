@@ -195,7 +195,7 @@ def summary_for_segmentation_models(config: ModelConfigBase, model: DeviceAwareM
         logging.warning(f"summary_for_segmentation_models failed with exception {e}")
 
 
-def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAwareModule) -> None:
+def generate_and_print_model_summary(config: ModelConfigBase, model: torch.nn.Module) -> None:
     """
     Writes a human readable summary of the present model to logging.info, and logs the number of trainable
     parameters to AzureML.
@@ -264,7 +264,7 @@ class ScalarModelInputsAndLabels(Generic[E]):
     def __post_init__(self) -> None:
         common_util.check_properties_are_not_none(self)
 
-    def move_to_device(self, device: torch.device) -> None:
+    def move_to_device(self, device: Union[str, torch.device]) -> None:
         """
         Moves the model_inputs and labels field of the present object to the given device. This is done in-place.
         :param device: The target device.

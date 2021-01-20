@@ -37,6 +37,7 @@ from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
@@ -211,10 +212,10 @@ class MetricForMultipleStructures(torch.nn.Module):
 
 
 class InnerEyeLightning(LightningModule):
-    def __init__(self, config: DeepLearningConfig, *args, **kwargs) -> None:
+    def __init__(self, config: DeepLearningConfig, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.outputs_folder = config.outputs_folder
-        self.model = torch.nn.Module()
+        self.model = DeviceAwareModule()
         # These two will be set later in set_optimizer_and_scheduler.
         # The ddp_spawn accelerator only works if the model configuration object is
         # not stored in here. Hence, need to do operations that require a full config
@@ -280,7 +281,7 @@ class InnerEyeLightning(LightningModule):
         seed = self.effective_random_seed
         set_random_seed(seed, "Validation")
 
-    def on_train_epoch_end(self, outputs) -> None:
+    def on_train_epoch_end(self, outputs: Any) -> None:
         self.on_train_or_validation_epoch_end(is_training=True)
 
     def on_validation_epoch_end(self) -> None:
@@ -385,12 +386,12 @@ class InnerEyeLightning(LightningModule):
     def on_validation_batch_end(self, outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
         self.batch_end(is_training=False)
 
-    def training_step(self,
+    def training_step(self,  # type: ignore
                       sample: Dict[str, Any],
                       batch_index: int) -> Any:
         return self.training_or_validation_step(sample, batch_index, is_training=True)
 
-    def validation_step(self,
+    def validation_step(self,  # type: ignore
                         sample: Dict[str, Any],
                         batch_index: int) -> Any:
         return self.training_or_validation_step(sample, batch_index, is_training=False)
@@ -455,7 +456,7 @@ class InnerEyeLightning(LightningModule):
 
 
 class SegmentationLightning(InnerEyeLightning):
-    def __init__(self, config: SegmentationModelBase, *args, **kwargs) -> None:
+    def __init__(self, config: SegmentationModelBase, *args: Any, **kwargs: Any) -> None:
         super().__init__(config, *args, **kwargs)
         self.model = config.create_model()
         self.loss_fn = model_util.create_segmentation_loss_function(config)
@@ -469,7 +470,7 @@ class SegmentationLightning(InnerEyeLightning):
                                                       metric_name=MetricType.VOXEL_COUNT.value,
                                                       use_average_across_structures=False)
 
-    def forward(self, patches) -> torch.Tensor:
+    def forward(self, patches: torch.Tensor) -> torch.Tensor:
         return self.logits_to_posterior(self.model(patches))
 
     def logits_to_posterior(self, logits: torch.Tensor) -> torch.Tensor:
@@ -575,7 +576,7 @@ def get_subject_output_file_per_rank(rank: int) -> str:
 
 
 class ScalarLightning(InnerEyeLightning):
-    def __init__(self, config: ScalarModelBase, *args, **kwargs) -> None:
+    def __init__(self, config: ScalarModelBase, *args: Any, **kwargs: Any) -> None:
         super().__init__(config, *args, **kwargs)
         self.model = config.create_model()
         raw_loss = model_util.create_scalar_loss_function(config)
@@ -608,7 +609,7 @@ class ScalarLightning(InnerEyeLightning):
         # The metric computers should be stored in an object that derives from torch.Module,
         # so that they are picked up when moving the whole LightningModule to GPU.
         # https://github.com/PyTorchLightning/pytorch-lightning/issues/4713
-        return ModuleDict([(p, self._get_metrics_classes()) for p in self.target_names])
+        return ModuleDict({p: self._get_metrics_classes() for p in self.target_names})
 
     def _get_metrics_classes(self) -> ModuleList:
         if self.is_classification_model:
@@ -623,7 +624,7 @@ class ScalarLightning(InnerEyeLightning):
         else:
             return ModuleList([MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()])
 
-    def forward(self, *model_inputs: torch.Tensor) -> torch.Tensor:
+    def forward(self, *model_inputs: torch.Tensor) -> torch.Tensor:  # type: ignore
         return self.logits_to_posterior(self.model(*model_inputs))
 
     def logits_to_posterior(self, logits: torch.Tensor) -> torch.Tensor:
@@ -678,9 +679,9 @@ class ScalarLightning(InnerEyeLightning):
                                 logits: torch.Tensor,
                                 targets: torch.Tensor,
                                 subject_ids: List[str],
-                                is_training: bool):
+                                is_training: bool) -> None:
         metrics = self.train_metric_computers if is_training else self.val_metric_computers
-        per_subject_outputs = list()
+        per_subject_outputs: List[str, str, torch.Tensor, torch.Tensor] = list()
         for i, (prediction_target, metric_list) in enumerate(metrics.items()):
             # mask the model outputs and labels if required
             masked = get_masked_model_outputs_and_labels(
@@ -691,6 +692,7 @@ class ScalarLightning(InnerEyeLightning):
                 # Image encoders already prepare images in float16, but the labels are not yet in that dtype
                 _labels = masked.labels.data.to(dtype=_posteriors.dtype)
                 _subject_ids = masked.subject_ids
+                assert _subject_ids is not None
                 for metric in metric_list:
                     metric(_posteriors, _labels)
                 per_subject_outputs.extend(
@@ -772,7 +774,7 @@ def create_lightning_model(config: ModelConfigBase, set_optimizer_and_scheduler:
     :return: A PyTorch Lightning model object.
     """
     if config.is_segmentation_model:
-        model = SegmentationLightning(config)
+        model: InnerEyeLightning = SegmentationLightning(config)
     elif config.is_scalar_model:
         model = ScalarLightning(config)
     else:
@@ -810,7 +812,7 @@ def adjust_model_for_inference(config: ModelConfigBase, lightning_model: InnerEy
     :param lightning_model: The trained model that should be adjusted.
     """
     if config.use_gpu:
-        lightning_model = lightning_model.cuda()
+        lightning_model: InnerEyeLightning = lightning_model.cuda()  # type: ignore
         # If model parallel is set to True, then partition the network across all available gpus.
         # Model partitioning relies on the model summary. We generate that with a smaller crop (the same that is also
         # used during training, and we assume that fits onto the GPU)

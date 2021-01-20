@@ -6,7 +6,7 @@ import numbers
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import h5py
 import numpy as np
@@ -79,10 +79,10 @@ def _test_model_train(output_dirs: OutputFolderForTests,
                 assert results[f"{MetricType.VOXEL_COUNT.value}/{structure}"] == pytest.approx(voxel_count, abs=1e-2), \
                     f"Voxel count mismatch for '{structure}'"
 
-    def _mean(a: List[numbers.Number]) -> float:
+    def _mean(a: List[Union[float, int]]) -> float:
         return sum(a) / len(a)
 
-    def _mean_list(lists: List[List[numbers.Number]]) -> List[float]:
+    def _mean_list(lists: List[List[Union[float, int]]]) -> List[float]:
         return list(map(_mean, lists))
 
     train_config = DummyModel()
@@ -138,7 +138,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     for val_result in model_training_result.val_results_per_epoch:
         assert tracked_metric in val_result
     # The following values are read off directly from the results of compute_dice_across_patches in the training loop
-    train_dice_region = [[0, 0, 0], [0.01922884, 0.01918082, 0.07752819]]
+    train_dice_region = [[0.0, 0.0, 0.0], [0.01922884, 0.01918082, 0.07752819]]
     train_dice_region1 = [[0.48280242, 0.48337635, 0.4974504], [0.5024475, 0.5007884, 0.48952717]]
     assert_all_close("Dice/region", _mean_list(train_dice_region), atol=1e-4)
     assert_all_close("Dice/region_1", _mean_list(train_dice_region1), atol=1e-4)

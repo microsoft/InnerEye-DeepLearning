@@ -150,6 +150,7 @@ def inference_identity(test_output_dirs: OutputFolderForTests,
     # create single or ensemble inference pipeline
     inference_pipeline = InferencePipeline.create_from_checkpoint(path_to_checkpoint=checkpoint,
                                                                   model_config=config)
+    assert inference_pipeline is not None
     full_image_inference_pipeline = EnsemblePipeline([inference_pipeline], config) \
         if is_ensemble else inference_pipeline
 

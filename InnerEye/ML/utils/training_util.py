@@ -6,12 +6,9 @@
 from dataclasses import dataclass, field
 from typing import Any, List, Union
 
-import numpy as np
 import torch
 
-from InnerEye.Common import common_util
 from InnerEye.Common.type_annotations import DictStrFloat
-from InnerEye.ML.metrics_dict import MetricsDict
 
 
 @dataclass(frozen=True)

@@ -302,7 +302,7 @@ class MLRunner:
         :return: the epoch to register, or None if it cannot be decided or if registration is not needed.
         """
         if not self.should_register_model():
-            return None
+            return []
         candidate_best_epochs = checkpoint_handler.get_checkpoints_to_test()
         return candidate_best_epochs
 
