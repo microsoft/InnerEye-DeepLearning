@@ -20,7 +20,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, \
     MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
     RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, get_results_blob_path, has_input_datasets, \
-    is_offline_run_context, merge_conda_files, update_run_tags
+    is_offline_run_context, merge_conda_files
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section
