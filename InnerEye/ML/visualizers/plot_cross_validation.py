@@ -766,15 +766,20 @@ def get_available_metrics(df: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
     return {k: v for k, v in metric_types.items() if k in df.columns}
 
 
-def check_result_file_counts(config_and_files: OfflineCrossvalConfigAndFiles) -> None:
+def check_result_file_counts(config_and_files: OfflineCrossvalConfigAndFiles, is_ensemble_run: bool = False) -> None:
     """
     Check that for every ModelExecutionMode appearing in config_and_files.files, the number of files of
     that mode is equal to the number of cross-validation splits. Throw a ValueError if not.
+    :param is_ensemble_run: If True, assume that this run of cross validation analysis is for an ensemble model
+    and assert that there are N+1 data files available. If false, this analysis only concerns the cross
+    validation runs, and check that the number of files is N.
     """
     result_files_by_mode = defaultdict(list)
     for result_file in config_and_files.files:
         result_files_by_mode[result_file.execution_mode].append(result_file)
     n_splits = config_and_files.config.number_of_cross_validation_splits
+    if is_ensemble_run:
+        n_splits += 1
     failing_modes = []
     for mode, files in result_files_by_mode.items():
         if len(files) != n_splits:
@@ -798,13 +803,13 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
     Runs various plots for the results of a cross validation run, and writes them to a given folder.
     :param config_and_files: The setup for plotting results and the set of data files to analyse.
     :param root_folder: The folder into which the results should be written.
-    :param is_ensemble_run: If True, assume that this run of cross validation analysis is for an ensemble model.
-    It will short-circuit a check for expected number of files. If false, this analysis only concerns the cross
-    validation runs, and check that the number of files matches the number of cross valiation splits.
+    :param is_ensemble_run: If True, assume that this run of cross validation analysis is for an ensemble model
+    and assert that there are N+1 data files available. If false, this analysis only concerns the cross
+    validation runs, and check that the number of files is N.
     """
     config = config_and_files.config
-    if config.number_of_cross_validation_splits > 1 and not is_ensemble_run:
-        check_result_file_counts(config_and_files)
+    if config.number_of_cross_validation_splits > 1:
+        check_result_file_counts(config_and_files, is_ensemble_run=is_ensemble_run)
     result_files = config_and_files.files
     metrics_dfs = load_dataframes(result_files, config)
     full_csv_file = root_folder / FULL_METRICS_DATAFRAME_FILE
@@ -892,9 +897,9 @@ def unroll_aggregate_metrics(df: pd.DataFrame) -> List[EpochMetricValues]:
 def plot_cross_validation(config: PlotCrossValidationConfig, is_ensemble_run: bool = False) -> Path:
     """
     Collects results from an AzureML cross validation run, and writes aggregate metrics files.
-    :param is_ensemble_run: If True, assume that this run of cross validation analysis is for an ensemble model.
-    It will short-circuit a check for expected number of files. If false, this analysis only concerns the cross
-    validation runs, and check that the number of files matches the number of cross valiation splits.
+    :param is_ensemble_run: If True, assume that this run of cross validation analysis is for an ensemble model
+    and assert that there are N+1 data files available. If false, this analysis only concerns the cross
+    validation runs, and check that the number of files is N.
     :param config: The settings for plotting cross validation results.
     :return: The path with all cross validation result files.
     """
