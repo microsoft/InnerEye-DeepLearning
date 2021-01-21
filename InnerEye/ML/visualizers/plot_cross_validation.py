@@ -191,12 +191,17 @@ class PlotCrossValidationConfig(GenericConfig):
     @property
     def azure_config(self) -> AzureConfig:
         """
-        Gets the AzureConfig instance that the script uses.
-        :return:
+        Gets the AzureConfig instance that the script uses. This will either read out a value that has
+        previously been set, or create a new AzureConfig object from the YAML file and project root settings that
+        the present object holds.
         """
         if self._azure_config is None:
             self._azure_config = AzureConfig.from_yaml(self.settings_yaml_file, project_root=self.project_root)
         return self._azure_config
+
+    @azure_config.setter
+    def azure_config(self, azure_config: AzureConfig) -> None:
+        self._azure_config = azure_config
 
     def download_or_get_local_file(self,
                                    run: Optional[Run],

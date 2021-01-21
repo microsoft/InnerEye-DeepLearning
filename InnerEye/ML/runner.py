@@ -21,36 +21,24 @@ if (innereye_root / "InnerEye").is_dir():
         sys.path.insert(0, innereye_root_str)
 
 import logging
-import time
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
-import pandas as pd
-import stopit
 from azureml._base_sdk_common import user_agent
-from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables, \
     parse_arguments, submit_to_azureml
-from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, \
-    is_run_and_child_runs_completed
+from InnerEye.Azure.azure_util import is_run_and_child_runs_completed
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
-    CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    SUBJECT_METRICS_FILE_NAME, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, \
-    disable_logging_to_file, \
-    get_epoch_results_path, is_linux, logging_section, logging_to_file, logging_to_stdout, \
-    print_exception, remove_file_or_directory
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
+    ModelProcessing, disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout, print_exception
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.reports.notebook_report import generate_classification_notebook, generate_segmentation_notebook
-from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 
 REPORT_IPYNB = "report.ipynb"
@@ -142,139 +130,6 @@ class Runner:
         # parsed.
         self.model_config: ModelConfigBase = ModelConfigBase(azure_dataset_id="")
         self.azure_config: AzureConfig = AzureConfig()
-
-    def wait_until_cross_val_splits_are_ready_for_aggregation(self) -> bool:
-        """
-        Checks if all child runs (except the current run) of the current run's parent are completed or failed.
-        If this is the case, then we can aggregate the results of the other runs before terminating this run.
-        :return: whether we need to wait, i.e. whether some runs are still pending.
-        """
-        if (not self.model_config.is_offline_run) \
-                and (azure_util.is_cross_validation_child_run(RUN_CONTEXT)):
-            n_splits = self.model_config.get_total_number_of_cross_validation_runs()
-            child_runs = azure_util.fetch_child_runs(PARENT_RUN_CONTEXT,
-                                                     expected_number_cross_validation_splits=n_splits)
-            pending_runs = [x.id for x in child_runs
-                            if (x.id != RUN_CONTEXT.id)
-                            and (x.get_status() not in [RunStatus.COMPLETED, RunStatus.FAILED])]
-            should_wait = len(pending_runs) > 0
-            if should_wait:
-                logging.info(f"Waiting for sibling run(s) to finish: {pending_runs}")
-            return should_wait
-        else:
-            raise NotImplementedError("cross_val_splits_are_ready_for_aggregation is implemented for online "
-                                      "cross validation runs only")
-
-    @stopit.threading_timeoutable()
-    def wait_for_cross_val_runs_to_finish_and_aggregate(self, delay: int = 60) -> None:
-        """
-        Wait for cross val runs (apart from the current one) to finish and then aggregate results of all.
-        :param delay: How long to wait between polls to AML to get status of child runs
-        """
-        with logging_section("Waiting for sibling runs"):
-            while self.wait_until_cross_val_splits_are_ready_for_aggregation():
-                time.sleep(delay)
-        assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
-        self.create_ensemble_model()
-
-    @staticmethod
-    def generate_report(config: DeepLearningConfig, model_proc: ModelProcessing) -> None:
-        logging.info("Saving report in html")
-        if config.model_category not in [ModelCategory.Segmentation, ModelCategory.Classification]:
-            return
-
-        try:
-            def get_epoch_path(mode: ModelExecutionMode) -> Path:
-                p = get_epoch_results_path(mode=mode, model_proc=model_proc)
-                return config.outputs_folder / p / SUBJECT_METRICS_FILE_NAME
-
-            path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
-            path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
-            path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
-
-            output_dir = config.outputs_folder / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME \
-                if model_proc == ModelProcessing.ENSEMBLE_CREATION else config.outputs_folder
-            if config.model_category == ModelCategory.Segmentation:
-                generate_segmentation_notebook(result_notebook=output_dir / REPORT_IPYNB,
-                                               train_metrics=path_to_best_epoch_train,
-                                               val_metrics=path_to_best_epoch_val,
-                                               test_metrics=path_to_best_epoch_test)
-            else:
-                if isinstance(config, ScalarModelBase):
-                    generate_classification_notebook(result_notebook=output_dir / REPORT_IPYNB,
-                                                     train_metrics=path_to_best_epoch_train,
-                                                     val_metrics=path_to_best_epoch_val,
-                                                     test_metrics=path_to_best_epoch_test,
-                                                     dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
-                                                     if config.local_dataset else None,
-                                                     dataset_subject_column=config.subject_column,
-                                                     dataset_file_column=config.image_file_column)
-                else:
-                    logging.info(f"Cannot create report for config of type {type(config)}.")
-        except Exception as ex:
-            print_exception(ex, "Failed to generated reporting notebook.")
-
-    def plot_cross_validation_and_upload_results(self) -> Path:
-        from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
-            plot_cross_validation, unroll_aggregate_metrics
-        # perform aggregation as cross val splits are now ready
-        plot_crossval_config = crossval_config_from_model_config(self.model_config)
-        plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
-        plot_crossval_config.outputs_directory = self.model_config.outputs_folder
-        plot_crossval_config.settings_yaml_file = self.yaml_config_file
-        cross_val_results_root = plot_cross_validation(plot_crossval_config)
-        if self.post_cross_validation_hook:
-            self.post_cross_validation_hook(self.model_config, cross_val_results_root)
-        # upload results to the parent run's outputs so that the files are visible inside the AzureML UI.
-        PARENT_RUN_CONTEXT.upload_folder(name=CROSSVAL_RESULTS_FOLDER, path=str(cross_val_results_root))
-        if self.model_config.is_scalar_model:
-            try:
-                aggregates = pd.read_csv(cross_val_results_root / METRICS_AGGREGATES_FILE)
-                unrolled_aggregate_metrics = unroll_aggregate_metrics(aggregates)
-                for m in unrolled_aggregate_metrics:
-                    PARENT_RUN_CONTEXT.log(m.metric_name, m.metric_value)
-            except Exception as ex:
-                print_exception(ex, "Unable to log metrics to Hyperdrive parent run.", logger_fn=logging.warning)
-        return cross_val_results_root
-
-    def create_ensemble_model(self) -> None:
-        """
-        Call MLRunner again after training cross-validation models, to create an ensemble model from them.
-        """
-        # Import only here in case of dependency issues in reduced environment
-        from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
-        # Adjust parameters
-        self.azure_config.hyperdrive = False
-        self.model_config.number_of_cross_validation_splits = 0
-        self.model_config.is_train = False
-
-        with logging_section("Downloading checkpoints from sibling runs"):
-            checkpoint_handler = CheckpointHandler(model_config=self.model_config, azure_config=self.azure_config,
-                                                   project_root=self.project_root, run_context=PARENT_RUN_CONTEXT)
-            checkpoint_handler.discover_and_download_checkpoint_from_sibling_runs()
-
-        self.create_ml_runner().run_inference_and_register_model(checkpoint_handler=checkpoint_handler,
-                                                                 model_proc=ModelProcessing.ENSEMBLE_CREATION)
-
-        crossval_dir = self.plot_cross_validation_and_upload_results()
-        Runner.generate_report(self.model_config, ModelProcessing.ENSEMBLE_CREATION)
-        # CrossValResults should have been uploaded to the parent run, so we don't need it here.
-        remove_file_or_directory(crossval_dir)
-        # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files
-        # available elsewhere. However, first we need to upload relevant parts of OTHER_RUNS/ENSEMBLE.
-        other_runs_dir = self.model_config.outputs_folder / OTHER_RUNS_SUBDIR_NAME
-        other_runs_ensemble_dir = other_runs_dir / ENSEMBLE_SPLIT_NAME
-        if PARENT_RUN_CONTEXT is not None:
-            if other_runs_ensemble_dir.exists():
-                # Only keep baseline Wilcoxon results and scatterplots and reports
-                for subdir in other_runs_ensemble_dir.glob("*"):
-                    if subdir.name not in [BASELINE_WILCOXON_RESULTS_FILE, SCATTERPLOTS_SUBDIR_NAME, REPORT_HTML,
-                                           REPORT_IPYNB]:
-                        remove_file_or_directory(subdir)
-                PARENT_RUN_CONTEXT.upload_folder(name=BASELINE_COMPARISONS_FOLDER, path=str(other_runs_ensemble_dir))
-            else:
-                logging.warning(f"Directory not found for upload: {other_runs_ensemble_dir}")
-        remove_file_or_directory(other_runs_dir)
 
     def parse_and_load_model(self) -> Optional[ParserResult]:
         """
@@ -418,9 +273,6 @@ class Runner:
                     print_exception(ex, "Model training/testing failed.")
                     error_messages.append(f"Training failed: {ex}")
             finally:
-                # wait for aggregation if required, and only if the training actually succeeded.
-                if not error_messages and self.model_config.should_wait_for_other_cross_val_child_runs():
-                    self.wait_for_cross_val_runs_to_finish_and_aggregate()
                 disable_logging_to_file()
         # Terminate if pytest or model training has failed. This makes the smoke test in
         # PR builds fail if pytest fails.
@@ -437,8 +289,11 @@ class Runner:
         # That is also why we specify the return type as Any rather than MLRunner.
         from InnerEye.ML.run_ml import MLRunner
         return MLRunner(
-            self.model_config, self.azure_config, self.project_root,
-            self.model_deployment_hook)
+            model_config=self.model_config,
+            azure_config=self.azure_config,
+            project_root=self.project_root,
+            post_cross_validation_hook=self.post_cross_validation_hook,
+            model_deployment_hook=self.model_deployment_hook)
 
 
 def default_post_cross_validation_hook(config: ModelConfigBase, root_folder: Path) -> None:
