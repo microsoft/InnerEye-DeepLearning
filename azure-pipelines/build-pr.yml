@@ -28,7 +28,6 @@ jobs:
 
   - job: TrainInAzureML
     variables:
-      - template: ../InnerEye/settings.yml
       - name: tag
         value: 'TrainBasicModel'
     pool:
@@ -45,7 +44,6 @@ jobs:
 
   - job: RunGpuTestsInAzureML
     variables:
-      - template: ../InnerEye/settings.yml
       - name: tag
         value: 'RunGpuTests'
     pool:
@@ -68,7 +66,6 @@ jobs:
   # presently only handles single channel models.
   - job: TrainInAzureMLViaSubmodule
     variables:
-      - template: ../InnerEye/settings.yml
       - name: model
         value: 'BasicModel2Epochs1Channel'
       - name: tag
@@ -84,9 +81,6 @@ jobs:
   # Train a 2-element ensemble model
   - job: TrainEnsemble
     variables:
-      - template: ../InnerEye/settings.yml
-      - name: cluster
-        value: 'training-nc12'
       - name: model
         value: 'BasicModel2Epochs1Channel'
       - name: number_of_cross_validation_splits
