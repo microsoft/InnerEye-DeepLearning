@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import random
 import sys
+from itertools import combinations
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import numpy as np
@@ -164,7 +165,6 @@ def _check_is_partition(total: pd.DataFrame, parts: Iterable[pd.DataFrame], colu
     """Asserts that `total` is the union of `parts`, and that the latter are pairwise disjoint"""
     if column is None:
         return
-    from itertools import combinations
     total = set(total[column].unique())
     parts = [set(part[column].unique()) for part in parts]
     assert total == set.union(*parts)
