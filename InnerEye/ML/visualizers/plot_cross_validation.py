@@ -84,7 +84,6 @@ metric_types: Dict[str, Dict[str, Any]] = {
 }
 
 
-# TODO remove reference to epochs for comparisons
 class PlotCrossValidationConfig(GenericConfig):
     """
     Configurations required to download results from the children of a HyperDrive runs.
@@ -98,14 +97,11 @@ class PlotCrossValidationConfig(GenericConfig):
                                                       "model will also be collected. This can be None in unit testing.")
     epoch: Optional[int] = param.Integer(default=None, allow_None=True, bounds=(1, None),
                                          doc="The epoch for which to fetch results")
-    comparison_run_recovery_ids: List[str] = param.List(default=None, class_=str,
+    comparison_run_recovery_ids: List[str] = param.List(default=[], class_=str,
                                                         doc="The run recovery ids of any additional runs to include in "
                                                             "statistical comparisons")
     comparison_labels: List[str] = param.List(default=None, class_=str,
                                               doc="Short labels to use in plots for comparison runs")
-    comparison_epochs: List[int] = param.List(default=None, class_=int,
-                                              doc="The epochs of any additional runs to include in "
-                                                  "statistical comparisons")
     compare_all_against_all: bool = param.Boolean(default=False,
                                                   doc="If set, include comparisons of comparison runs against "
                                                       "each other")
@@ -149,18 +145,6 @@ class PlotCrossValidationConfig(GenericConfig):
     def validate(self) -> None:
         if not self.run_recovery_id:
             raise ValueError("--run_recovery_id is a mandatory parameter.")
-        if self.model_category == ModelCategory.Segmentation and self.epoch is None:
-            raise ValueError("When working on segmentation models, --epoch is a mandatory parameter.")
-        if self.comparison_run_recovery_ids is not None:
-            # Extend comparison_epochs to be the same length as comparison_run_recovery_ids, using
-            # the value of --epoch as the default if no value at all is given
-            if self.comparison_epochs is None:
-                self.comparison_epochs = [self.epoch]
-            n_needed = len(self.comparison_run_recovery_ids) - len(self.comparison_epochs)
-            if n_needed > 0:
-                self.comparison_epochs.extend([self.comparison_epochs[-1]] * n_needed)
-        else:
-            self.comparison_run_recovery_ids = []
         if self.comparison_labels is None:
             self.comparison_labels = []
         self.run_id_labels[self.run_recovery_id] = "FOCUS"
@@ -354,7 +338,6 @@ def download_metrics_file(config: PlotCrossValidationConfig,
 
 def download_crossval_result_files(config: PlotCrossValidationConfig,
                                    run_recovery_id: Optional[str] = None,
-                                   epoch: Optional[int] = None,
                                    download_to_folder: Optional[Path] = None,
                                    splits_to_evaluate: Optional[List[str]] = None) -> Tuple[List[RunResultFiles], Path]:
     """
@@ -364,7 +347,6 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
     information for each subject found in the metrics files.
     :param config: PlotCrossValidationConfig
     :param run_recovery_id: run recovery ID, if different from the one in config
-    :param epoch: epoch, if different from the one in config
     :param download_to_folder: The root folder in which all downloaded files should be stored. Point to an existing
     folder with downloaded files for use in unit tests. If not provided, the files will be downloaded to a new folder
     inside the config.outputs_directory, with the name taken from the run ID.
@@ -376,8 +358,6 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
     splits_to_evaluate = splits_to_evaluate or []
     if run_recovery_id is None:
         run_recovery_id = config.run_recovery_id
-    if epoch is None:
-        epoch = config.epoch
     if run_recovery_id:
         workspace = config.azure_config.get_workspace()
         parent = fetch_run(workspace, run_recovery_id)
@@ -812,9 +792,18 @@ def check_result_file_counts(config_and_files: OfflineCrossvalConfigAndFiles) ->
 
 
 def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndFiles,
-                                     root_folder: Path) -> None:
+                                     root_folder: Path,
+                                     is_ensemble_run: bool = False) -> None:
+    """
+    Runs various plots for the results of a cross validation run, and writes them to a given folder.
+    :param config_and_files: The setup for plotting results and the set of data files to analyse.
+    :param root_folder: The folder into which the results should be written.
+    :param is_ensemble_run: If True, assume that this run of cross validation analysis is for an ensemble model.
+    It will short-circuit a check for expected number of files. If false, this analysis only concerns the cross
+    validation runs, and check that the number of files matches the number of cross valiation splits.
+    """
     config = config_and_files.config
-    if config.number_of_cross_validation_splits > 1:
+    if config.number_of_cross_validation_splits > 1 and not is_ensemble_run:
         check_result_file_counts(config_and_files)
     result_files = config_and_files.files
     metrics_dfs = load_dataframes(result_files, config)
@@ -900,18 +889,21 @@ def unroll_aggregate_metrics(df: pd.DataFrame) -> List[EpochMetricValues]:
     return result
 
 
-def plot_cross_validation(config: PlotCrossValidationConfig) -> Path:
+def plot_cross_validation(config: PlotCrossValidationConfig, is_ensemble_run: bool = False) -> Path:
     """
     Collects results from an AzureML cross validation run, and writes aggregate metrics files.
+    :param is_ensemble_run: If True, assume that this run of cross validation analysis is for an ensemble model.
+    It will short-circuit a check for expected number of files. If false, this analysis only concerns the cross
+    validation runs, and check that the number of files matches the number of cross valiation splits.
     :param config: The settings for plotting cross validation results.
-    :return:
+    :return: The path with all cross validation result files.
     """
     logging_to_stdout(logging.INFO)
     with logging_section("Downloading cross-validation results"):
         result_files, root_folder = download_crossval_result_files(config)
     config_and_files = OfflineCrossvalConfigAndFiles(config=config, files=result_files)
     with logging_section("Plotting cross-validation results"):
-        plot_cross_validation_from_files(config_and_files, root_folder)
+        plot_cross_validation_from_files(config_and_files, root_folder, is_ensemble_run=is_ensemble_run)
     return root_folder
 
 
@@ -927,8 +919,8 @@ def add_comparison_data(config: PlotCrossValidationConfig, metrics: pd.DataFrame
     if config.comparison_run_recovery_ids is None:
         return metrics, None
     focus_splits = list(metrics[COL_SPLIT].unique())
-    for comparison_id, comparison_epoch in zip(config.comparison_run_recovery_ids, config.comparison_epochs):
-        files, _ = download_crossval_result_files(config, comparison_id, comparison_epoch)
+    for comparison_id in config.comparison_run_recovery_ids:
+        files, _ = download_crossval_result_files(config, comparison_id)
         aux_metrics_df = load_dataframes(files, config)
         metrics = metrics.append(pd.concat(list(aux_metrics_df.values())))
     return metrics, focus_splits

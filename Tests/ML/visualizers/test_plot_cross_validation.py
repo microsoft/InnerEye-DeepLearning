@@ -48,7 +48,6 @@ def test_config_comparison() -> PlotCrossValidationConfig:
         run_recovery_id=get_most_recent_run_id() + "_0",
         epoch=1,
         comparison_run_recovery_ids=[get_most_recent_run_id() + "_1"],
-        comparison_epochs=[1],
         model_category=ModelCategory.Segmentation
     )
 
@@ -260,7 +259,6 @@ def test_result_aggregation_for_classification_all_epochs(test_output_dirs: Outp
 @pytest.mark.after_training_ensemble_run
 def test_add_comparison_data(test_config_comparison: PlotCrossValidationConfig) -> None:
     test_config_comparison.epoch = 2
-    test_config_comparison.comparison_epochs = [2]
     metrics_df, root_folder = download_metrics(test_config_comparison)
     initial_metrics = pd.concat(list(metrics_df.values()))
     all_metrics, focus_splits = add_comparison_data(test_config_comparison, initial_metrics)
@@ -317,10 +315,6 @@ def test_plot_config() -> None:
     """
     with pytest.raises(ValueError):
         PlotCrossValidationConfig()
-    with pytest.raises(ValueError):
-        PlotCrossValidationConfig(run_recovery_id="foo")
-    with pytest.raises(ValueError):
-        PlotCrossValidationConfig(epoch=1)
     PlotCrossValidationConfig(run_recovery_id="foo", epoch=1)
 
 

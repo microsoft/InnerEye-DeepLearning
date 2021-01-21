@@ -703,7 +703,7 @@ class MLRunner:
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
         plot_crossval_config.outputs_directory = self.model_config.outputs_folder
         plot_crossval_config.azure_config = self.azure_config
-        cross_val_results_root = plot_cross_validation(plot_crossval_config)
+        cross_val_results_root = plot_cross_validation(plot_crossval_config, is_ensemble_run=True)
         if self.post_cross_validation_hook:
             self.post_cross_validation_hook(self.model_config, cross_val_results_root)
         # upload results to the parent run's outputs so that the files are visible inside the AzureML UI.
