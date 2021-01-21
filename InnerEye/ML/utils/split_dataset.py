@@ -8,6 +8,7 @@ import logging
 import random
 import sys
 from dataclasses import dataclass
+from itertools import combinations
 from math import ceil
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
@@ -34,7 +35,6 @@ class DatasetSplits:
 
         def pairwise_intersection(*collections: Iterable) -> Set:
             """Returns any element that appears in more than one collection."""
-            from itertools import combinations
             intersection = set()
             for col1, col2 in combinations(map(set, collections), 2):
                 intersection |= col1 & col2
