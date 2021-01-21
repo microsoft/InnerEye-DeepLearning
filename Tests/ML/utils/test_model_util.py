@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import torch
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import SegmentationModelBase
@@ -41,6 +42,7 @@ def test_create_model_from_lightning_checkpoint(test_output_dirs: OutputFolderFo
                                                 config_cls: Any,
                                                 use_gpu: bool) -> None:
     config = config_cls()
+    config.use_model_parallel = True
     config.use_gpu = use_gpu
     # Check that loading from an invalid checkpoint raises an error
     with pytest.raises(FileNotFoundError):
@@ -59,9 +61,12 @@ def test_create_model_from_lightning_checkpoint(test_output_dirs: OutputFolderFo
     if isinstance(config, SegmentationModelBase):
         assert config._test_output_size is not None
         assert config._train_output_size is not None
-
-    first_param = next(loaded_model.parameters())
+        if use_gpu:
+            # Check that a model summary for segmentation models was created, which is necessary for model partitioning.
+            assert loaded_model.model.summary is not None
+    devices = set(p.device for p in loaded_model.parameters())
     if use_gpu:
-        assert first_param.device.type == "cuda"
+        assert torch.device("cuda", 0) in devices
     else:
-        assert first_param.device.type == "cpu", "Model should have been mapped to CPU."
+        assert len(devices) == 1
+        assert torch.device("cpu") in devices, "Model should have been mapped to CPU."

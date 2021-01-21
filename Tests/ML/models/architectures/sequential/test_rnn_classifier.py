@@ -187,7 +187,8 @@ def _get_mock_sequence_dataset(dataset_contents: Optional[str] = None) -> pd.Dat
                           (True, ImagingFeatureType.ImageAndSegmentation)])
 @pytest.mark.parametrize("combine_hidden_state", (True, False))
 @pytest.mark.parametrize("use_encoder_layer_norm", (True, False))
-@pytest.mark.parametrize("use_mean_teacher_model", (True, False))
+# TODO antonsc: re-enable when mean teacher is back in
+@pytest.mark.parametrize("use_mean_teacher_model", (False,))
 @pytest.mark.gpu
 def test_rnn_classifier_via_config_1(use_combined_model: bool,
                                      imaging_feature_type: ImagingFeatureType,

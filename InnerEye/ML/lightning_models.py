@@ -758,7 +758,7 @@ def transfer_batch_to_device(batch: Any, device: torch.device) -> Any:
     items = batch.get("items", None)
     if items is not None and isinstance(items, List) and isinstance(items[0], List) and \
             isinstance(items[0][0], ScalarItem):
-        batch["items"] = [[j.move_to_device(device) for j in i] for i in items]
+        batch["items"] = [[j.to_device(device) for j in i] for i in items]
         return batch
     else:
         return move_data_to_device(batch, device)
