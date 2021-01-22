@@ -8,9 +8,7 @@ from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import tensorboardX
 import torch
-from PIL.Image import Image
 from pandas import DataFrame
 from sklearn.metrics import r2_score as sklearn_r2_score
 
@@ -152,65 +150,6 @@ class AzureMLLogger:
                 if self.cross_validation_split_index > DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
                     PARENT_RUN_CONTEXT.log(f"{metric_name}_Split{self.cross_validation_split_index}",
                                            metric)
-
-
-class AzureAndTensorboardLogger:
-    """
-    Contains functionality to log metrics to both Azure run and TensorBoard event file
-    for both classification and segmentation models.
-    """
-
-    def __init__(self,
-                 azureml_logger: AzureMLLogger,
-                 tensorboard_logger: tensorboardX.SummaryWriter):
-        self.azureml_logger = azureml_logger
-        self.tensorboard_logger = tensorboard_logger
-        self.epoch = 0
-
-    def close(self) -> None:
-        """
-        Closes all loggers that require explicit closing.
-        """
-        self.tensorboard_logger.close()
-
-    def set_epoch(self, epoch: int) -> None:
-        """
-        Sets the given value as the epoch for all following logging calls.
-        :param epoch: The current epoch
-        """
-        self.epoch = epoch
-
-    def log_to_azure_and_tensorboard(self, label: str, metric: float) -> None:
-        """
-        Writes a metric to the Azure run and to the TensorBoard event file
-        :param label: The string name of the metric.
-        :param metric: The value of the metric.
-        """
-        self.azureml_logger.log_to_azure(label, metric)
-        self.log_to_tensorboard(label, metric)
-
-    def log_to_tensorboard(self, label: str, metric: float) -> None:
-        """
-        Writes a metric to a Tensorboard event file.
-        :param label: The string name of the metric.
-        :param metric: The value of the metric.
-        """
-        # TensorBoard does not like tags that contain spaces, and prints out a warning for each logging attempt.
-        # Replace space with underscore to reduce logging noise.
-        writer = self.tensorboard_logger
-        label_without_spaces = label.replace(" ", "_")
-        writer.add_scalar(label_without_spaces, metric, self.epoch)
-
-    def log_image(self, name: str, path: str) -> None:
-        """
-        Logs a PNG image stored in `path` to Azure and Tensorboard.
-        """
-        if not is_offline_run_context(RUN_CONTEXT):
-            RUN_CONTEXT.log_image(name=name, path=path)
-        writer = self.tensorboard_logger
-        img = Image.open(path).convert("RGB")
-        img = np.transpose(np.asarray(img), (2, 0, 1))
-        writer.add_image(name, img, self.epoch)
 
 
 def get_number_of_voxels_per_class(labels: torch.Tensor) -> torch.Tensor:

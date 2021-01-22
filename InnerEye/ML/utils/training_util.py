@@ -4,9 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 from dataclasses import dataclass, field
-from typing import Any, List, Union
-
-import torch
+from typing import Any, List
 
 from InnerEye.Common.type_annotations import DictStrFloat
 

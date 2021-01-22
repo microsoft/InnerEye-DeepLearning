@@ -8,7 +8,6 @@ import getpass
 import logging
 import sys
 from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -23,15 +22,6 @@ from InnerEye.Azure.azure_util import is_offline_run_context
 from InnerEye.Azure.secrets_handling import SecretsHandling, read_all_settings
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
-
-
-class VMPriority(Enum):
-    """
-    Configurations for VM priority to use for execution
-    """
-    LowPriority = 'lowpriority'
-    Dedicated = 'dedicated'
-
 
 # The name of the "azureml" property of AzureConfig
 AZURECONFIG_SUBMIT_TO_AZUREML = "azureml"

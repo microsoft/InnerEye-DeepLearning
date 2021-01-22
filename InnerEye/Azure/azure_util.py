@@ -13,10 +13,8 @@ import conda_merge
 import ruamel.yaml
 from azureml._restclient.constants import RunStatus
 from azureml.core import Experiment, Run, Workspace, get_run
-from azureml.core._serialization_utils import _serialize_to_dict
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.exceptions import UserErrorException
-from azureml.train.estimator import Estimator
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME

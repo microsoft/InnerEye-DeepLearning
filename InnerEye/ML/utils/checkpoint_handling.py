@@ -5,7 +5,6 @@
 import logging
 import os
 import uuid
-from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse
@@ -18,15 +17,6 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, WEIGHTS_FILE
 from InnerEye.ML.utils.run_recovery import RunRecovery
-
-
-@dataclass
-class CheckpointPathsAndEpoch:
-    """
-    Holds the path path to a checkpoint and the checkpoint epoch.
-    """
-    epoch: int
-    checkpoint_paths: List[Path]
 
 
 class CheckpointHandler:

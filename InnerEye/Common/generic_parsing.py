@@ -9,8 +9,6 @@ import logging
 from typing import Any, Callable, Dict, Generic, List, Optional, Set, Type, Union
 
 import param
-from azureml.core import Run
-from azureml.core.run import _OfflineRun
 
 from InnerEye.Common.common_util import is_gpu_tensor, is_private_field_name
 from InnerEye.Common.type_annotations import T
@@ -19,19 +17,6 @@ from InnerEye.Common.type_annotations import T
 # which makes generated documentation with sphinx messy.
 param.parameterized.docstring_signature = False
 param.parameterized.docstring_describe_params = False
-
-
-class RunContextParam(param.Parameter):
-    """
-    Wrapper class to use fields of type azureml.core.Run inside of a Parameterized object.
-    This handles both offline and online AML run contexts.
-    """
-
-    def _validate(self, val: Any) -> None:
-        if not (self.allow_None and val is None):
-            if not (isinstance(val, Run) or isinstance(val, _OfflineRun)):
-                raise ValueError(f"{val} must be an instance of Run or _OfflineRun, found {type(val)}")
-        super()._validate(val)
 
 
 class ListOrDictParam(param.Parameter):
@@ -194,6 +179,7 @@ class GenericConfig(param.Parameterized):
                         return res
                     else:
                         raise ValueError(f"Parameter of type {_p} should resolve to List or Dict")
+
                 p_type = list_or_dict
             else:
                 raise TypeError("Parameter of type: {} is not supported".format(_p))

@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 def _is_empty(item: Any) -> bool:

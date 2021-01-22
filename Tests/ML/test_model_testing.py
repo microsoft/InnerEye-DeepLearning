@@ -5,7 +5,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-import torch
 from pytorch_lightning import seed_everything
 
 from InnerEye.Common import common_util
