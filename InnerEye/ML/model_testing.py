@@ -428,7 +428,7 @@ def classification_model_test(config: ScalarModelBase,
             num_dataload_workers=0
         )
 
-        logging.info(f"Starting to evaluate model from epoch {test_epoch} on {data_split.value} set.")
+        logging.info(f"Starting to evaluate model on {data_split.value} set.")
         metrics_dict = create_metrics_dict_for_scalar_models(config)
         for sample in ds:
             result = pipeline.predict(sample)

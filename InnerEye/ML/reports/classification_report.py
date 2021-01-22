@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
+import math
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -115,10 +115,13 @@ def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMe
         return optimal_threshold
 
     results_test = get_results(test_metrics_csv)
+    only_one_class_present = len(set(results_test.labels)) < 2
 
     if metric is ReportedMetrics.AUC_ROC:
-        return roc_auc_score(results_test.labels, results_test.model_outputs)
+        return math.nan if only_one_class_present else roc_auc_score(results_test.labels, results_test.model_outputs)
     elif metric is ReportedMetrics.AUC_PR:
+        if only_one_class_present:
+            return math.nan
         precision, recall, _ = precision_recall_curve(results_test.labels, results_test.model_outputs)
         return auc(recall, precision)
     elif metric is ReportedMetrics.Accuracy:

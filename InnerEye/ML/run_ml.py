@@ -45,6 +45,7 @@ from InnerEye.ML.reports.notebook_report import generate_classification_notebook
 from InnerEye.ML.runner import ModelDeploymentHookSignature, PostCrossValidationHookSignature, REPORT_HTML, \
     REPORT_IPYNB, get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
@@ -742,7 +743,7 @@ class MLRunner:
                                                val_metrics=path_to_best_epoch_val,
                                                test_metrics=path_to_best_epoch_test)
             else:
-                if isinstance(config, ScalarModelBase):
+                if isinstance(config, ScalarModelBase) and not isinstance(config, SequenceModelBase):
                     generate_classification_notebook(result_notebook=output_dir / REPORT_IPYNB,
                                                      train_metrics=path_to_best_epoch_train,
                                                      val_metrics=path_to_best_epoch_val,
