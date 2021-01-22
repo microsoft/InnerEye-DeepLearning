@@ -12,8 +12,6 @@ import torch
 from pandas import DataFrame
 from sklearn.metrics import r2_score as sklearn_r2_score
 
-from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARENT_RUN_CONTEXT, RUN_CONTEXT, \
-    is_offline_run_context
 from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.Common.type_annotations import TupleFloat3
 
@@ -111,45 +109,6 @@ class MetricsPerPatientWriter:
         df[MetricsFileColumns.MeanDistanceMM.value] = pd.Series(
             data=df[MetricsFileColumns.MeanDistanceMM.value].apply(float))
         return df
-
-
-class AzureMLLogger:
-    """
-    Stores the information that is required to log metrics to AzureML.
-    """
-
-    def __init__(self,
-                 logging_prefix: str,
-                 cross_validation_split_index: int,
-                 log_to_parent_run: bool):
-        """
-        :param logging_prefix: A prefix string that will be added to all metrics names before logging.
-        :param cross_validation_split_index: The cross validation split index, or its default value if not running
-        inside cross validation.
-        :param log_to_parent_run: If true, all metrics will also be written to the Hyperdrive parent run when that
-        parent run is present.
-        """
-        self.logging_prefix = logging_prefix
-        self.cross_validation_split_index = cross_validation_split_index
-        self.log_to_parent_run = log_to_parent_run
-
-    def log_to_azure(self,
-                     label: str,
-                     metric: float) -> None:
-        """
-        Logs a metric as a key/value pair to AzureML.
-        :param label: The name of the metric that should be logged
-        :param metric: The value of the metric.
-        """
-        if not is_offline_run_context(RUN_CONTEXT):
-            metric_name = self.logging_prefix + label
-            RUN_CONTEXT.log(metric_name, metric)
-            # When running in a cross validation setting, log all metrics to the hyperdrive parent run too,
-            # so that we can easily overlay graphs across runs.
-            if self.log_to_parent_run and PARENT_RUN_CONTEXT:
-                if self.cross_validation_split_index > DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-                    PARENT_RUN_CONTEXT.log(f"{metric_name}_Split{self.cross_validation_split_index}",
-                                           metric)
 
 
 def get_number_of_voxels_per_class(labels: torch.Tensor) -> torch.Tensor:
