@@ -446,22 +446,6 @@ def compute_dice_across_patches(segmentation: torch.Tensor,
     return intersection / union
 
 
-def store_model_parameters(writer: tensorboardX.SummaryWriter,
-                           epoch: int,
-                           model: DeviceAwareModule) -> None:
-    """
-    Validates and writes all model weights to the given TensorBoard writer.
-    :param writer: TensorBoard summary writer
-    :param epoch: The epoch for which these model parameters correspond to.
-    :param model: The model from which to extract the parameters.
-    :return:
-    """
-    for name, param in model.named_parameters():
-        param_numpy = param.clone().cpu().data.numpy()
-        check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
-        writer.add_histogram(name, param_numpy, epoch)
-
-
 def store_epoch_metrics(metrics: DictStrFloat,
                         epoch: int,
                         file_logger: DataframeLogger) -> None:
