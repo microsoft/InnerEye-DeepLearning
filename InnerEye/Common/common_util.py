@@ -269,18 +269,6 @@ def logging_section(gerund: str) -> Generator:
     logging.info("")
 
 
-def delete_and_remake_directory(folder: Union[str, Path]) -> None:
-    """
-    Delete the folder if it exists, and remakes it.
-    """
-    folder = str(folder)
-
-    if os.path.exists(folder):
-        shutil.rmtree(folder)
-
-    os.makedirs(folder)
-
-
 def is_windows() -> bool:
     """
     Returns True if the host operating system is Windows.
@@ -388,19 +376,6 @@ def path_to_namespace(path: Path, root: PathOrString = repository_root_directory
     :return:
     """
     return ".".join([Path(x).stem for x in path.relative_to(root).parts])
-
-
-def get_namespace_root(namespace: str) -> Optional[Path]:
-    """
-    Given a namespace (in the form foo.bar.baz), returns a Path for the member of sys.path
-    that contains a directory of file for that namespace, or None if there is no such member.
-    """
-    for root in sys.path:
-        path = namespace_to_path(namespace, root)
-        path_py = path.parent / (path.name + '.py')
-        if path.exists() or path_py.exists():
-            return Path(root)
-    return None
 
 
 def remove_file_or_directory(pth: Path) -> None:

@@ -5,7 +5,7 @@
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 import h5py
 import numpy as np
@@ -17,7 +17,7 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML import metrics, model_training
+from InnerEye.ML import model_training
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
@@ -175,17 +175,6 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # assert train_config.example_images_folder.is_dir()
     # example_files = list(train_config.example_images_folder.rglob("*.*"))
     # assert len(example_files) == 3 * 2
-
-
-@pytest.mark.parametrize(["rates", "expected"],
-                         [(None, ""),
-                          ([], ""),
-                          ([0.0], "0.00e+00"),
-                          ([0.000056789], "5.68e-05"),
-                          ([0.000536], "5.36e-04"),
-                          ([1.23456], "1.23e+00")])
-def test_format_learning_rate(rates: Any, expected: str) -> None:
-    assert metrics.format_learning_rates(rates) == expected
 
 
 def test_create_data_loaders() -> None:

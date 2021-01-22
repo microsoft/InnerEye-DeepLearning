@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from dataclasses import dataclass
+from typing import Any, List, Optional, Sequence, Tuple
 
 import SimpleITK as sitk
 import numpy as np
@@ -26,7 +26,7 @@ from InnerEye.Common.type_annotations import DictStrFloat, TupleFloat3
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
 from InnerEye.ML.metrics_dict import DataframeLogger, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricsDict, \
-    ScalarMetricsDict, get_metric_name_with_hue_prefix
+    ScalarMetricsDict
 from InnerEye.ML.scalar_config import ScalarLoss
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array, check_array_range, is_binary_array
@@ -288,54 +288,6 @@ class InferenceMetricsForSegmentation(InferenceMetrics):
         })
 
 
-@dataclass(frozen=True)
-class SegmentationMetricsPerClass:
-    """
-    Stores different segmentation metrics, as a list where each list entry represents one class.
-    """
-    dice: List[float] = field(default_factory=list)
-    hausdorff_distance_mm: List[float] = field(default_factory=list)
-    mean_distance_mm: List[float] = field(default_factory=list)
-
-    def append_nan(self) -> None:
-        """
-        Adds a NaN for all metrics that are stored, indicating that the target class was not present and no
-        output was produced by the model.
-        """
-        self.dice.append(math.nan)
-        self.hausdorff_distance_mm.append(math.nan)
-        self.mean_distance_mm.append(math.nan)
-
-    def append(self,
-               dice: float,
-               hausdorff_distance_mm: float,
-               mean_distance_mm: float) -> None:
-        """
-        Stores the metrics for a class in the present object.
-        :param dice: The Dice score between ground truth and model output.
-        :param hausdorff_distance_mm: The Hausdorff distance between ground truth and model output, in millimeters.
-        :param mean_distance_mm: The mean surface distance between ground truth and model output, in millimeters.
-        :return:
-        """
-        self.dice.append(dice)
-        self.hausdorff_distance_mm.append(hausdorff_distance_mm)
-        self.mean_distance_mm.append(mean_distance_mm)
-
-
-def vars_with_scalar_fields_only(o: Any) -> Dict[str, Any]:
-    """
-    Returns a dictionary similar to vars(o), but with only those fields that either have integer
-    or floating point value.
-    :param o: The object to process.
-    :return: A dictionary mapping from field name to value.
-    """
-
-    def is_scalar(f: Any) -> bool:
-        return isinstance(f, (int, float))
-
-    return {key: value for key, value in vars(o) if is_scalar(value)}
-
-
 def surface_distance(seg: sitk.Image, reference_segmentation: sitk.Image) -> float:
     """
     Symmetric surface distances taking into account the image spacing
@@ -494,18 +446,6 @@ def compute_dice_across_patches(segmentation: torch.Tensor,
     return intersection / union
 
 
-def format_learning_rates(learning_rates: List[float]) -> str:
-    """
-    Converts a list of learning rates to a human readable string. Multiple entries are separated by semicolon.
-    :param learning_rates: An iterable of learning rate values.
-    :return: An empty string if the argument is None or empty, otherwise the string representation of the rates,
-    formatted as {:0.2e}
-    """
-    if learning_rates is None or len(learning_rates) == 0:
-        return ""
-    return "; ".join("{:0.2e}".format(lr) for lr in learning_rates)
-
-
 def store_model_parameters(writer: tensorboardX.SummaryWriter,
                            epoch: int,
                            model: DeviceAwareModule) -> None:
@@ -520,17 +460,6 @@ def store_model_parameters(writer: tensorboardX.SummaryWriter,
         param_numpy = param.clone().cpu().data.numpy()
         check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
         writer.add_histogram(name, param_numpy, epoch)
-
-
-def log_classification_epoch_metrics(logging_fn: Callable[[str, float], None],
-                                     metrics: MetricsDict) -> None:
-    """
-    Writes all values from MetricsDict object into a file for Tensorboard visualization,
-    and into the AzureML run context.
-    :param metrics: dictionary containing the metrics to be logged, averaged over minibatches.
-    """
-    for hue_name, label, metric in metrics.enumerate_single_values():
-        logging_fn(get_metric_name_with_hue_prefix(label, hue_name), metric)
 
 
 def store_epoch_metrics(metrics: DictStrFloat,
@@ -614,39 +543,6 @@ def compute_scalar_metrics(metrics_dict: ScalarMetricsDict,
             assert _subject_ids is not None
             metrics_dict.add_predictions(_subject_ids, _model_output.detach().cpu().numpy(),
                                          _labels.cpu().numpy(), hue=hue)
-
-
-def aggregate_segmentation_metrics(metrics: MetricsDict) -> MetricsDict:
-    """
-    Computes aggregate metrics for segmentation models, from a metrics dictionary that contains the results for
-    individual minibatches. Specifically, average Dice scores for only the foreground structures and proportions
-    of foreground voxels are computed. All metrics for the background class will be removed.
-    All other metrics that are already present in the input metrics will be averaged and available in the result.
-    Diagnostic values present in the input will be passed through unchanged.
-    :param metrics: A metrics dictionary that contains the per-minibatch results.
-    """
-    class_names_with_background = metrics.get_hue_names(include_default=False)
-    has_background_class = class_names_with_background[0] == BACKGROUND_CLASS_NAME
-    foreground_classes = class_names_with_background[1:] if has_background_class else class_names_with_background
-    result = metrics.average(across_hues=False)
-    result.diagnostics = metrics.diagnostics.copy()
-    if has_background_class:
-        result.delete_hue(BACKGROUND_CLASS_NAME)
-    add_average_foreground_dice(result)
-    # Total number of voxels per class, including the background class
-    total_voxels = []
-    voxel_count = MetricType.VOXEL_COUNT.value
-    for g in class_names_with_background:
-        values = metrics.values(hue=g)
-        if voxel_count in values:
-            total_voxels.append(sum(values[voxel_count]))
-    if len(total_voxels) > 0:
-        # Proportion of voxels in foreground classes only
-        proportion_foreground = np.array(total_voxels[1:], dtype=float) / sum(total_voxels)
-        for i, foreground_class in enumerate(foreground_classes):
-            result.add_metric(MetricType.PROPORTION_FOREGROUND_VOXELS, proportion_foreground[i], hue=foreground_class)
-        result.add_metric(MetricType.PROPORTION_FOREGROUND_VOXELS, np.sum(proportion_foreground).item())
-    return result
 
 
 def add_average_foreground_dice(metrics: MetricsDict) -> None:

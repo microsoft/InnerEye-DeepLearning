@@ -308,8 +308,6 @@ def create_estimator_from_configs(azure_config: AzureConfig,
         max_run_duration_seconds=max_run_duration
     )
     estimator.run_config.environment.python.conda_dependencies = conda_dependencies
-    # We'd like to log the estimator config, but conversion to string fails when the Estimator has some inputs.
-    # logging.info(azure_util.estimator_to_string(estimator))
     if azure_config.hyperdrive:
         estimator = source_config.hyperdrive_config_func(estimator)  # type: ignore
     return estimator

@@ -516,55 +516,6 @@ def test_get_single_metric() -> None:
     assert "Expected a single entry" in str(ex3)
 
 
-def test_aggregate_segmentation_metrics() -> None:
-    """
-    Test how per-epoch segmentation metrics are aggregated to computed foreground dice and voxel count proportions.
-    """
-    g1 = "Liver"
-    g2 = "Lung"
-    ground_truth_ids = [BACKGROUND_CLASS_NAME, g1, g2]
-    dice = [0.85, 0.75, 0.55]
-    voxels_proportion = [0.85, 0.10, 0.05]
-    loss = 3.14
-    other_metric = 2.71
-    m = MetricsDict(hues=ground_truth_ids)
-    voxel_count = 200
-    # Add 3 values per metric, but such that the averages are back at the value given in dice[i]
-    for i in range(3):
-        delta = (i - 1) * 0.05
-        for j, ground_truth_id in enumerate(ground_truth_ids):
-            m.add_metric(MetricType.DICE, dice[j] + delta, hue=ground_truth_id)
-            m.add_metric(MetricType.VOXEL_COUNT, int(voxels_proportion[j] * voxel_count), hue=ground_truth_id)
-        m.add_metric(MetricType.LOSS, loss + delta)
-        m.add_metric("foo", other_metric)
-    m.add_diagnostics("foo", "bar")
-    aggregate = metrics.aggregate_segmentation_metrics(m)
-    assert aggregate.diagnostics == m.diagnostics
-    enumerated = list((g, s, v) for g, s, v in aggregate.enumerate_single_values())
-    expected = [
-        # Dice and voxel count per foreground structure should be retained during averaging
-        (g1, MetricType.DICE.value, dice[1]),
-        (g1, MetricType.VOXEL_COUNT.value, voxels_proportion[1] * voxel_count),
-        # Proportion of foreground voxels is computed during averaging
-        (g1, MetricType.PROPORTION_FOREGROUND_VOXELS.value, voxels_proportion[1]),
-        (g2, MetricType.DICE.value, dice[2]),
-        (g2, MetricType.VOXEL_COUNT.value, voxels_proportion[2] * voxel_count),
-        (g2, MetricType.PROPORTION_FOREGROUND_VOXELS.value, voxels_proportion[2]),
-        # Loss is present in the default metrics group, and should be retained.
-        (MetricsDict.DEFAULT_HUE_KEY, MetricType.LOSS.value, loss),
-        (MetricsDict.DEFAULT_HUE_KEY, "foo", other_metric),
-        # Dice averaged across the foreground structures is added during the function call, as is proportion of voxels
-        (MetricsDict.DEFAULT_HUE_KEY, MetricType.DICE.value, 0.5 * (dice[1] + dice[2])),
-        (MetricsDict.DEFAULT_HUE_KEY, MetricType.PROPORTION_FOREGROUND_VOXELS.value,
-         voxels_proportion[1] + voxels_proportion[2]),
-    ]
-    assert len(enumerated) == len(expected)
-    # Numbers won't match up precisely because of rounding during averaging
-    for (actual, e) in zip(enumerated, expected):
-        assert actual[0:2] == e[0:2]
-        assert actual[2] == pytest.approx(e[2])
-
-
 def test_add_foreground_dice() -> None:
     g1 = "Liver"
     g2 = "Lung"

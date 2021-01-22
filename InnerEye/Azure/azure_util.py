@@ -187,13 +187,6 @@ def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
         return re.sub('_+', '_', re.sub(r'\W+', '_', x))
 
 
-def estimator_to_string(estimator: Estimator) -> Optional[str]:
-    """
-    Convert a given AzureML estimator object to a string with its run configurations
-    """
-    return ruamel.yaml.round_trip_dump(_serialize_to_dict(estimator.run_config))
-
-
 def to_azure_friendly_container_path(path: Path) -> str:
     """
     Converts a path an Azure friendly container path by replacing "\\", "//" with "/" so it can be in the form: a/b/c.
@@ -219,20 +212,6 @@ def get_run_context_or_default(run: Optional[Run] = None) -> Run:
     :return: Run context
     """
     return run if run else Run.get_context()
-
-
-def get_run_id(run: Optional[Run] = None) -> str:
-    """
-    Gets the id of a run handling both offline and online runs.
-    :param run: If offline run, a Run object must be provided,
-    for online runs if a run object is not provided the current run's context is used.
-    :return: id of the run
-    """
-    run_context = get_run_context_or_default(run)
-    if is_offline_run_context(run_context) and run:
-        return run.id
-    else:
-        return run_context.id
 
 
 def get_cross_validation_split_index(run: Run) -> int:

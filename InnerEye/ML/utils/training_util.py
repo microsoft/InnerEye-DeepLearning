@@ -51,18 +51,3 @@ class ModelTrainingResults:
         :return: A list of floating point numbers, with one entry per entry in the the validation results.
         """
         return self.get_metric(is_training=False, metric_type=metric_type)
-
-
-def gather_tensor(tensor: Union[torch.Tensor, List[torch.Tensor]],
-                  target_device: int = 0) -> torch.Tensor:
-    """
-    When using multiple GPUs, logits is a list of tensors. Concatenate them
-    across the first dimension, and move them to the provided target_device.
-    :param tensor: tensor to gather
-    :param target_device: device to move the tensors to
-    :return:
-    """
-    if isinstance(tensor, list):
-        return torch.nn.parallel.gather(tensor, target_device=target_device)
-    else:
-        return tensor
