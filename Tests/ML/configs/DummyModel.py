@@ -2,15 +2,16 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import pandas as pd
 from typing import Any
+
+import pandas as pd
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import HyperDriveConfig
 
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
 from InnerEye.ML.deep_learning_config import OptimizerType
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 class DummyModel(SegmentationModelBase):
@@ -67,7 +68,7 @@ class DummyModel(SegmentationModelBase):
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits(train=dataset_df[dataset_df.subject.isin(['1', '2', '3'])],
-                             test=dataset_df[dataset_df.subject.isin(['3', '4'])],
+                             test=dataset_df[dataset_df.subject.isin(['4', '7'])],
                              val=dataset_df[dataset_df.subject.isin(['5', '6'])])
 
     def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:

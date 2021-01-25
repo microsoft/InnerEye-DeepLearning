@@ -15,7 +15,8 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import RUN_CONTEXT, download_outputs_from_run, fetch_child_runs, fetch_run, \
     get_cross_validation_split_index, is_cross_validation_child_run, tag_values_all_distinct
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, check_properties_are_not_none
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME, create_recovery_checkpoint_path, get_best_checkpoint_path
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, \
+    create_recovery_checkpoint_path, get_best_checkpoint_path
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig
 
 
@@ -85,7 +86,7 @@ class RunRecovery:
                     subdir = str(child.tags[tag_to_use] if can_use_split_indices else child.number)
                     child_dst = config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / subdir
                     download_outputs_from_run(
-                        blobs_path=Path(CHECKPOINT_FOLDER) / BEST_CHECKPOINT_FILE_NAME,
+                        blobs_path=Path(CHECKPOINT_FOLDER) / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
                         destination=child_dst,
                         run=child,
                         is_file=True

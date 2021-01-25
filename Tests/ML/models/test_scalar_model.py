@@ -111,12 +111,12 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
         """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
 Default,0,S2,0.5295137763023376,1.0,-1,Train
 Default,0,S4,0.5216594338417053,0.0,-1,Train
-Default,1,S2,0.5294750332832336,1.0,-1,Train
 Default,1,S4,0.5214819312095642,0.0,-1,Train
+Default,1,S2,0.5294750332832336,1.0,-1,Train
 Default,2,S2,0.5294366478919983,1.0,-1,Train
 Default,2,S4,0.5213046073913574,0.0,-1,Train
-Default,3,S4,0.5211275815963745,0.0,-1,Train
 Default,3,S2,0.5293986201286316,1.0,-1,Train
+Default,3,S4,0.5211275815963745,0.0,-1,Train
 """
     check_log_file(metrics_path, metrics_expected, ignore_columns=[])
     # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
