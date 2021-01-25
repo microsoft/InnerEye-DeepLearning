@@ -48,7 +48,6 @@ class RandomStateSnapshot:
         """
         Restore the state for the random number generators of python, numpy, torch.random, and torch.cuda for all gpus.
         """
-        logging.debug("Restoring all random states")
         random.setstate(self.random_state)
         np.random.set_state(self.numpy_random_state)
         torch.random.set_rng_state(self.torch_random_state)

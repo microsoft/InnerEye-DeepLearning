@@ -317,8 +317,8 @@ class InnerEyeLightning(LightningModule):
         """
         epoch_time_seconds = time.time() - self.epoch_start_time
         status = "training" if is_training else "validation"
-        logging.info(f"Epoch {self.current_epoch} {status} took {epoch_time_seconds:0.2f}sec, from which waiting for "
-                     f"data took {self.total_load_time:0.2f} sec total. {self.num_batches} minibatches in total.")
+        logging.info(f"Epoch {self.current_epoch} {status} took {epoch_time_seconds:0.2f}sec, of which waiting for "
+                     f"data took {self.total_load_time:0.2f} sec total.")
         if self.num_load_time_exceeded > 0:
             logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
                             f"{MAX_ITEM_LOAD_TIME_SEC}sec.")
@@ -414,7 +414,8 @@ class InnerEyeLightning(LightningModule):
         # are spawned. Later, the load time should be zero.
         status_string = "training" if is_training else "validation"
         if batch_idx == 0:
-            logging.info(f"Loaded the first minibatch of {status_string} data in {item_load_time:0.2f} sec.")
+            logging.info(f"Epoch {self.current_epoch}: Loaded the first minibatch of {status_string} data "
+                         f"in {item_load_time:0.2f} sec.")
         elif item_load_time > MAX_ITEM_LOAD_TIME_SEC:
             self.num_load_time_exceeded += 1
             self.total_extra_load_time += item_load_time
