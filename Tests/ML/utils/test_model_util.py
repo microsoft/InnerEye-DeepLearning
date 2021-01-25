@@ -17,11 +17,15 @@ from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelFo
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import machine_has_gpu
 
+FIXED_EPOCH = 42
+FIXED_GLOBAL_STEP = 4242
+
 
 def create_model_and_store_checkpoint(config: ModelConfigBase, checkpoint_path: Path) -> None:
     """
     Creates a Lightning model for the given model configuration, and stores it as a checkpoint file.
     If a GPU is available, the model is moved to the GPU before storing.
+    The trainer properties `current_epoch` and `global_step` are set to fixed non-default values.
     :param config: The model configuration.
     :param checkpoint_path: The path and filename of the checkpoint file.
     """
@@ -30,6 +34,10 @@ def create_model_and_store_checkpoint(config: ModelConfigBase, checkpoint_path: 
     if machine_has_gpu:
         model = model.cuda()  # type: ignore
     trainer.model = model
+    # Before saving, the values for epoch and step are incremented. Save them here in such a way that we can assert
+    # easily later.
+    trainer.current_epoch = FIXED_EPOCH - 1
+    trainer.global_step = FIXED_GLOBAL_STEP - 1
     # In PL, it is the Trainer's responsibility to save the model. Checkpoint handling refers back to the trainer
     # to get a save_func. Mimicking that here.
     trainer.save_checkpoint(checkpoint_path, weights_only=True)

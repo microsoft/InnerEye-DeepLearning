@@ -454,6 +454,17 @@ class InnerEyeLightning(LightningModule):
             learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
             self.log_on_epoch(MetricType.LEARNING_RATE, learning_rate, is_training)
 
+    def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        """
+        This hook is called when loading a model from a checkpoint. It just prints out diagnostics about which epoch
+        created the present checkpoint.
+        :param checkpoint: The checkpoint dictionary loaded from disk.
+        """
+        keys = ['epoch', 'global_step']
+        present_keys = [f"{key} = {checkpoint[key]}" for key in keys if key in checkpoint]
+        if present_keys:
+            logging.info(f"Loading checkpoint that was created at ({', '.join(present_keys)})")
+
 
 class SegmentationLightning(InnerEyeLightning):
     def __init__(self, config: SegmentationModelBase, *args: Any, **kwargs: Any) -> None:
