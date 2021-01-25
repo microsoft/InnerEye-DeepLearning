@@ -14,12 +14,12 @@ from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, \
-    create_recovery_checkpoint_path, BEST_CHECKPOINT_FILE_NAME, CHECKPOINT_SUFFIX
+    create_recovery_checkpoint_path
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.run_recovery import RunRecovery
-from Tests.ML.util import get_default_azure_config
 from Tests.AfterTraining.test_after_training import get_most_recent_run_id
+from Tests.ML.util import get_default_azure_config
 
 logging_to_stdout(logging.DEBUG)
 
@@ -37,7 +37,7 @@ def runner_config() -> AzureConfig:
 
 
 def test_download_checkpoints_invalid_run(test_output_dirs: OutputFolderForTests,
-                              runner_config: AzureConfig) -> None:
+                                          runner_config: AzureConfig) -> None:
     assert get_results_blob_path("some_run_id") == "azureml/ExperimentRun/dcid.some_run_id"
 
 
@@ -56,7 +56,6 @@ def check_multiple_checkpoints(downloaded_checkpoints: List[Path], expected_chec
 @pytest.mark.after_training_single_run
 def test_download_checkpoints_single_run(test_output_dirs: OutputFolderForTests,
                                          runner_config: AzureConfig) -> None:
-
     output_dir = test_output_dirs.root_dir
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(output_dir)
@@ -78,7 +77,6 @@ def test_download_checkpoints_single_run(test_output_dirs: OutputFolderForTests,
 @pytest.mark.after_training_ensemble_run
 def test_download_checkpoints_ensemble_run(test_output_dirs: OutputFolderForTests,
                                            runner_config: AzureConfig) -> None:
-
     output_dir = test_output_dirs.root_dir
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(output_dir)

@@ -11,7 +11,6 @@ from typing import Any, List, Optional, Sequence, Tuple
 
 import SimpleITK as sitk
 import numpy as np
-import tensorboardX
 import torch
 import torch.nn.functional as F
 from azureml.core import Run
@@ -28,8 +27,7 @@ from InnerEye.ML.config import BACKGROUND_CLASS_NAME
 from InnerEye.ML.metrics_dict import DataframeLogger, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricsDict, \
     ScalarMetricsDict
 from InnerEye.ML.scalar_config import ScalarLoss
-from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
-from InnerEye.ML.utils.image_util import binaries_from_multi_label_array, check_array_range, is_binary_array
+from InnerEye.ML.utils.image_util import binaries_from_multi_label_array, is_binary_array
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, \
     mean_absolute_error, r2_score
