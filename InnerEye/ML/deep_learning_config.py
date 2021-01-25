@@ -19,7 +19,7 @@ from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import ModelExecutionMode, create_checkpoint_path, create_unique_timestamp_id, \
+from InnerEye.ML.common import ModelExecutionMode, create_recovery_checkpoint_path, create_unique_timestamp_id, \
     get_best_checkpoint_path
 
 VISUALIZATION_FOLDER = "Visualizations"
@@ -550,11 +550,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     def get_path_to_checkpoint(self, epoch: int) -> Path:
         """
-        Returns full path to a checkpoint given an epoch
-        :param epoch: the epoch number
+        Returns full path to a recovery checkpoint.
         :return: path to a checkpoint given an epoch
         """
-        return create_checkpoint_path(self.checkpoint_folder, epoch=epoch)
+        return create_recovery_checkpoint_path(self.checkpoint_folder)
 
     def get_path_to_best_checkpoint(self) -> Path:
         """

@@ -15,9 +15,9 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
-from InnerEye.Common.metrics_constants import MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
+from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.resource_monitor import ResourceMonitor
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, cleanup_checkpoint_folder
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_models import AzureMLLogger, SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     StoringLogger, TrainingAndValidationDataLightning, create_lightning_model, get_subject_output_file_per_rank
@@ -67,14 +67,18 @@ def create_lightning_trainer(config: ModelConfigBase,
     :param resume_from_checkpoint: If provided, training resumes from this checkpoint point.
     :return: A tuple [Trainer object, diagnostic logger]
     """
+    # For now, stick with the legacy behaviour of always saving only the last epoch checkpoint. For large segmentation
+    # models, this still appears to be the best way of choosing them because validation loss on the relatively small
+    # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
+    # not for the HeadAndNeck model.
     best_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
-                                               filename=BEST_CHECKPOINT_FILE_NAME,
-                                               monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
-                                               save_top_k=1,
-                                               save_last=False)
+                                               # filename=BEST_CHECKPOINT_FILE_NAME,
+                                               # monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
+                                               # save_top_k=1,
+                                               save_last=True)
     # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
     recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
-                                                   filename='{epoch}',
+                                                   filename=RECOVERY_CHECKPOINT_FILE_NAME,
                                                    save_top_k=-1,
                                                    period=config.recovery_checkpoint_save_interval
                                                    )
@@ -195,6 +199,8 @@ def model_train(config: ModelConfigBase,
         logging.info(f"Terminating training thread with rank {lightning_model.global_rank}.")
         sys.exit()
 
+    logging.info("Choosing the best checkpoint and removing redundant files.")
+    cleanup_checkpoint_folder(config.checkpoint_folder)
     # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
     # those environment variables will mislead the training runs in the test suite, and make them crash.
     # Hence, restore the original environment after training.

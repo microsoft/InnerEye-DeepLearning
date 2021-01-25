@@ -42,7 +42,6 @@ class CheckpointHandler:
         Downloads checkpoints from sibling runs in a hyperdrive run. This is used to gather results from all
         splits in a hyperdrive run.
         """
-
         self.run_recovery = RunRecovery.download_checkpoints_from_run(self.model_config, self.run_context)
         # Check paths are good, just in case
         for path in self.run_recovery.checkpoints_roots:
@@ -86,7 +85,7 @@ class CheckpointHandler:
         if self.run_recovery:
             # run_recovery takes first precedence over local_weights_path.
             # This is to allow easy recovery of runs which have either of these parameters set in the config:
-            checkpoints = self.run_recovery.get_checkpoint_paths(self.model_config.start_epoch)
+            checkpoints = self.run_recovery.get_recovery_checkpoint_paths()
             if len(checkpoints) > 1:
                 raise ValueError(f"Recovering training of ensemble runs is not supported. Found more than one "
                                  f"checkpoint for epoch {self.model_config.start_epoch}")

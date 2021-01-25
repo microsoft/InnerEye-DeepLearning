@@ -15,7 +15,7 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import RUN_CONTEXT, download_outputs_from_run, fetch_child_runs, fetch_run, \
     get_cross_validation_split_index, is_cross_validation_child_run, tag_values_all_distinct
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, check_properties_are_not_none
-from InnerEye.ML.common import create_checkpoint_path, get_best_checkpoint_path
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME, create_recovery_checkpoint_path, get_best_checkpoint_path
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig
 
 
@@ -65,12 +65,11 @@ class RunRecovery:
         When downloading from a run that does not have sibling runs, a single folder inside the checkpoints folder
         will be created that contains the downloaded checkpoints.
         When downloading from a run that has sibling runs, the checkpoints for the sibling runs will go into
-        folder 'OTHER_RUNS/<cross_validation_split>'
+        folder 'OTHER_RUNS/<cross_validation_split>'. Only the best checkpoint will be downloaded in this case.
         :param config: Model related configs.
         :param run: Run whose checkpoints should be recovered
         :return: run recovery information
         """
-        # TODO antonsc: Clarify how we handle the case of multiple checkpoint being downloaded.
         child_runs: List[Run] = fetch_child_runs(run)
         if child_runs:
             logging.info(f"Run has ID {run.id}, child runs: {', '.join(c.id for c in child_runs)}")
@@ -86,9 +85,10 @@ class RunRecovery:
                     subdir = str(child.tags[tag_to_use] if can_use_split_indices else child.number)
                     child_dst = config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / subdir
                     download_outputs_from_run(
-                        blobs_path=Path(CHECKPOINT_FOLDER),
+                        blobs_path=Path(CHECKPOINT_FOLDER) / BEST_CHECKPOINT_FILE_NAME,
                         destination=child_dst,
-                        run=child
+                        run=child,
+                        is_file=True
                     )
                 child_runs_checkpoints_roots.append(child_dst)
             return RunRecovery(checkpoints_roots=child_runs_checkpoints_roots)
@@ -103,8 +103,8 @@ class RunRecovery:
             )
             return RunRecovery(checkpoints_roots=[root_output_dir])
 
-    def get_checkpoint_paths(self, epoch: int) -> List[Path]:
-        return [create_checkpoint_path(x, epoch) for x in self.checkpoints_roots]
+    def get_recovery_checkpoint_paths(self) -> List[Path]:
+        return [create_recovery_checkpoint_path(x) for x in self.checkpoints_roots]
 
     def get_best_checkpoint_paths(self) -> List[Path]:
         return [get_best_checkpoint_path(x) for x in self.checkpoints_roots]

@@ -18,7 +18,9 @@ from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_training
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode, \
+    RECOVERY_CHECKPOINT_FILE_NAME_WITH_SUFFIX, \
+    STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
@@ -93,7 +95,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.random_seed = 42
     train_config.class_weights = [0.5, 0.25, 0.25]
     train_config.store_dataset_sample = True
-    train_config.recovery_checkpoint_save_interval = 2
+    train_config.recovery_checkpoint_save_interval = 1
 
     expected_train_losses = [0.4552295, 0.4548622]
     expected_val_losses = [0.4553889, 0.4553044]
@@ -158,8 +160,8 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert train_config.checkpoint_folder.is_dir()
     actual_checkpoints = list(train_config.checkpoint_folder.rglob("*.ckpt"))
     assert len(actual_checkpoints) == 2, f"Actual checkpoints: {actual_checkpoints}"
-    assert (train_config.checkpoint_folder / "epoch=1.ckpt").is_file()
-    assert (train_config.checkpoint_folder / "best_val_loss-v0.ckpt").is_file()
+    assert (train_config.checkpoint_folder / RECOVERY_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
+    assert (train_config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.VAL]).is_file()
@@ -299,7 +301,7 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
     model_train(config, checkpoint_handler=checkpoint_handler)
-    assert len(list(config.checkpoint_folder.glob("*.*"))) == 3
+    assert len(list(config.checkpoint_folder.glob("*.*"))) == 2
 
     # Restart training from previous run
     config.start_epoch = 2

@@ -13,7 +13,8 @@ from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run, get_results_b
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, create_checkpoint_path, BEST_CHECKPOINT_FILE_NAME, CHECKPOINT_SUFFIX
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, \
+    create_recovery_checkpoint_path, BEST_CHECKPOINT_FILE_NAME, CHECKPOINT_SUFFIX
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.run_recovery import RunRecovery
@@ -65,11 +66,11 @@ def test_download_checkpoints_single_run(test_output_dirs: OutputFolderForTests,
     run_to_recover = fetch_run(workspace=runner_config.get_workspace(), run_recovery_id=runner_config.run_recovery_id)
     checkpoint_root = config.checkpoint_folder / run_to_recover.id
 
-    expected_checkpoint_epoch_1 = create_checkpoint_path(path=checkpoint_root, epoch=1)
-    downloaded_checkpoint_path_epoch_1 = run_recovery.get_checkpoint_paths(1)
+    expected_checkpoint_epoch_1 = create_recovery_checkpoint_path(path=checkpoint_root)
+    downloaded_checkpoint_path_epoch_1 = run_recovery.get_recovery_checkpoint_paths()
     check_single_checkpoint(downloaded_checkpoint_path_epoch_1, expected_checkpoint_epoch_1)
 
-    expected_checkpoint_best_epoch = checkpoint_root / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
+    expected_checkpoint_best_epoch = checkpoint_root / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     downloaded_checkpoint_path_best_epoch = run_recovery.get_best_checkpoint_paths()
     check_single_checkpoint(downloaded_checkpoint_path_best_epoch, expected_checkpoint_best_epoch)
 
@@ -93,12 +94,7 @@ def test_download_checkpoints_ensemble_run(test_output_dirs: OutputFolderForTest
     assert len(run_recovery.checkpoints_roots) == len(expected_checkpoint_roots)
     assert all([x in expected_checkpoint_roots for x in run_recovery.checkpoints_roots])
 
-    expected_checkpoints_epoch_1 = [create_checkpoint_path(path=root, epoch=1)
-                                    for root in expected_checkpoint_roots]
-    checkpoint_paths_epoch_1 = run_recovery.get_checkpoint_paths(1)
-    check_multiple_checkpoints(checkpoint_paths_epoch_1, expected_checkpoints_epoch_1)
-
-    expected_checkpoint_best_epoch = [root / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
+    expected_checkpoint_best_epoch = [root / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
                                       for root in expected_checkpoint_roots]
     checkpoint_paths_best_epoch = run_recovery.get_best_checkpoint_paths()
     check_multiple_checkpoints(checkpoint_paths_best_epoch, expected_checkpoint_best_epoch)
@@ -116,9 +112,9 @@ def test_download_checkpoints_hyperdrive_run(test_output_dirs: OutputFolderForTe
     child_runs = fetch_child_runs(run=fetch_run(runner_config.get_workspace(), run_recovery_id))
     # recover child runs separately also to test hyperdrive child run recovery functionality
     for child in child_runs:
-        expected_file = create_checkpoint_path(path=config.checkpoint_folder / child.id, epoch=1)
+        expected_file = create_recovery_checkpoint_path(path=config.checkpoint_folder / child.id)
         run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config, child)
-        checkpoint_paths = run_recovery.get_checkpoint_paths(epoch=1)
+        checkpoint_paths = run_recovery.get_recovery_checkpoint_paths()
         check_single_checkpoint(checkpoint_paths, expected_file)
 
 

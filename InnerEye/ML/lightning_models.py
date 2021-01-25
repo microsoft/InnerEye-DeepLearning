@@ -248,6 +248,8 @@ class InnerEyeLightning(LightningModule):
         # Fields to store diagnostics for unit testing
         self.train_diagnostics: List[Any] = []
         self.val_diagnostics: List[Any] = []
+        # Stores information the checkpoint that created this model, if any.
+        self.checkpoint_loading_message = ""
 
     def set_optimizer_and_scheduler(self, config: DeepLearningConfig) -> None:
         self.optimizer = model_util.create_optimizer(config, self.model.parameters())
@@ -463,7 +465,8 @@ class InnerEyeLightning(LightningModule):
         keys = ['epoch', 'global_step']
         present_keys = [f"{key} = {checkpoint[key]}" for key in keys if key in checkpoint]
         if present_keys:
-            logging.info(f"Loading checkpoint that was created at ({', '.join(present_keys)})")
+            self.checkpoint_loading_message = f"Loading checkpoint that was created at ({', '.join(present_keys)})"
+            logging.info(self.checkpoint_loading_message)
 
 
 class SegmentationLightning(InnerEyeLightning):
