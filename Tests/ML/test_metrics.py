@@ -164,7 +164,7 @@ def test_get_column_name_for_logging() -> None:
 
 def test_classification_metrics() -> None:
     classification_module = ScalarLightning(DummyClassification())
-    metrics = classification_module._get_metrics_classes()
+    metrics = classification_module._get_metrics_computers()
     outputs = [torch.tensor([0.9, 0.8, 0.6]), torch.tensor([0.3, 0.9, 0.4])]
     labels = [torch.tensor([1., 1., 0.]), torch.tensor([0., 0., 0.])]
     for output, label in zip(outputs, labels):
@@ -197,7 +197,7 @@ def test_classification_metrics() -> None:
 
 def test_regression_metrics() -> None:
     regression_module = ScalarLightning(DummyRegression())
-    metrics = regression_module._get_metrics_classes()
+    metrics = regression_module._get_metrics_computers()
     outputs = [torch.tensor([1., 2., 1.]), torch.tensor([4., 0., 2.])]
     labels = [torch.tensor([1., 1., 0.]), torch.tensor([2., 0., 2.])]
     for output, label in zip(outputs, labels):

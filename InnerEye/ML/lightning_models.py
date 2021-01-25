@@ -48,6 +48,8 @@ MAX_LOAD_TIME_WARNINGS = 3
 
 AVERAGE_DICE_SUFFIX = "AverageAcrossStructures"
 
+SUBJECT_OUTPUT_PER_RANK_PREFIX = f"{SUBJECT_METRICS_FILE_NAME}.rank"
+
 
 class StoringLogger(LightningLoggerBase):
     """
@@ -77,7 +79,17 @@ class StoringLogger(LightningLoggerBase):
     def version(self) -> int:
         return 0
 
-    def extract_by_prefix(self, metrics: Dict[str, float], prefix_filter: str = "") -> Tuple[int, DictStrFloat]:
+    @staticmethod
+    def extract_by_prefix(metrics: Dict[str, float], prefix_filter: str = "") -> Tuple[int, DictStrFloat]:
+        """
+        Gets a set of metrics from a dictionary in the format that `StoringLogger` uses, and returns them
+        filtered for a prefix, and extracts the epoch that wrote the results. This is usually used to break a set
+        of results down into those for training data (prefix "Train/") or validation data (prefix "Val/").
+        :param metrics: The metrics that should be processed.
+        :param prefix_filter: If empty string, return all metrics. If not empty, return only those metrics that
+        have a name starting with `prefix`, and strip off the prefix.
+        :return: A tuple [epoch number, metrics dictionary]
+        """
         epoch_name = "epoch"
         epoch_str = metrics.get(epoch_name, None)
         if epoch_str is None:
@@ -94,6 +106,14 @@ class StoringLogger(LightningLoggerBase):
         return int(epoch), metrics_dict
 
     def to_metrics_dicts(self, prefix_filter: str = "") -> Dict[int, DictStrFloat]:
+        """
+        Converts the results stored in the present object into a two-level dictionary, mapping from epoch number to
+        metric name to metric value. Only metrics where the name starts with the given prefix are retained, and the
+        prefix is stripped off in the result.
+        :param prefix_filter: If empty string, return all metrics. If not empty, return only those metrics that
+        have a name starting with `prefix`, and strip off the prefix.
+        :return: A dictionary mapping from epoch number to metric name to metric value.
+        """
         result = {}
         for metrics in self.results:
             epoch, metrics_dict = self.extract_by_prefix(metrics, prefix_filter)
@@ -104,7 +124,8 @@ class StoringLogger(LightningLoggerBase):
 
 class AzureMLLogger(LightningLoggerBase):
     """
-    A Pytorch Lightning logger that stores metrics in the current AzureML run.
+    A Pytorch Lightning logger that stores metrics in the current AzureML run. If the present run is not
+    inside AzureML, nothing gets logged.
     """
 
     def __init__(self) -> None:
@@ -132,6 +153,10 @@ class AzureMLLogger(LightningLoggerBase):
 
 
 class TrainingAndValidationDataLightning(LightningDataModule):
+    """
+    A class that wraps training and validation data from an InnerEye model configuration to a Lightning data module.
+    """
+
     def _init__(self, config: ModelConfigBase) -> None:
         super().__init__()
         self.config = config
@@ -212,6 +237,12 @@ class MetricForMultipleStructures(torch.nn.Module):
 
 
 class InnerEyeLightning(LightningModule):
+    """
+    The base class for all InnerEye models for training in PyTorch Lightning. The base class handles all shared
+    operations like choosing the optimizer and learning rate schedule, keeping track of IO performance (loading times),
+    and IO to files.
+    """
+
     def __init__(self, config: DeepLearningConfig, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.outputs_folder = config.outputs_folder
@@ -259,22 +290,27 @@ class InnerEyeLightning(LightningModule):
         return [self.optimizer], [self.l_rate_scheduler]  # type: ignore
 
     def close_all_loggers(self) -> None:
+        """
+        Flushes all logger objects that the present object holds.
+        """
         self.train_epoch_metrics_logger.flush()
         self.val_epoch_metrics_logger.flush()
-
-    def training_epoch_end(self, outputs: List[Any]) -> None:
-        self.training_or_validation_epoch_end(is_training=True)
-
-    def validation_epoch_end(self, outputs: List[Any]) -> None:
-        # reset the random state for training, so that we get continue from where we were before the validation step.
-        assert self.random_state is not None
-        self.random_state.restore_random_state()
-        self.training_or_validation_epoch_end(is_training=False)
 
     def on_train_epoch_start(self) -> None:
         self.reset_timers()
 
+    def on_train_epoch_end(self, outputs: Any) -> None:
+        self.on_train_or_validation_epoch_end(is_training=True)
+
+    def training_epoch_end(self, outputs: List[Any]) -> None:
+        self.training_or_validation_epoch_end(is_training=True)
+
     def on_validation_epoch_start(self) -> None:
+        """
+        Stores the state of all random number generators, and resets them all to a fixed seed. This is done to ensure
+        that any randomization when loading validation data is consistent during training. In particular, this ensures
+        that drawing random patches for segmentation model training is giving a validation set that does not fluctuate.
+        """
         self.reset_timers()
         # Store the random number generator state, so that the next training epoch starts from here.
         self.random_state = RandomStateSnapshot.snapshot_random_state()
@@ -283,11 +319,18 @@ class InnerEyeLightning(LightningModule):
         seed = self.effective_random_seed
         set_random_seed(seed, "Validation")
 
-    def on_train_epoch_end(self, outputs: Any) -> None:
-        self.on_train_or_validation_epoch_end(is_training=True)
-
     def on_validation_epoch_end(self) -> None:
         self.on_train_or_validation_epoch_end(is_training=False)
+
+    def validation_epoch_end(self, outputs: List[Any]) -> None:
+        """
+        Resets the random number generator state to what it was before the current validation epoch started.
+        :param outputs: The list of outputs from the individual validation minibatches.
+        """
+        # reset the random state for training, so that we get continue from where we were before the validation step.
+        assert self.random_state is not None
+        self.random_state.restore_random_state()
+        self.training_or_validation_epoch_end(is_training=False)
 
     @rank_zero_only
     def on_train_or_validation_epoch_end(self, is_training: bool) -> None:
@@ -301,7 +344,7 @@ class InnerEyeLightning(LightningModule):
         # Get the last set of metrics that the logger stores. That set belongs to the current train/validation
         # epoch because it was written just before this hook is called.
         if len(self.storing_logger.results) > 0:
-            epoch, metrics = self.storing_logger.extract_by_prefix(self.storing_logger.results[-1], prefix_filter)
+            epoch, metrics = StoringLogger.extract_by_prefix(self.storing_logger.results[-1], prefix_filter)
             # Sanity check: We should see metrics for the current epoch.
             assert epoch == self.current_epoch, f"Epochs don't match: logger has {epoch}, module has " \
                                                 f"{self.current_epoch}"
@@ -376,6 +419,18 @@ class InnerEyeLightning(LightningModule):
                             epoch,
                             file_logger=file_logger)
 
+    def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        """
+        This hook is called when loading a model from a checkpoint. It just prints out diagnostics about which epoch
+        created the present checkpoint.
+        :param checkpoint: The checkpoint dictionary loaded from disk.
+        """
+        keys = ['epoch', 'global_step']
+        present_keys = [f"{key} = {checkpoint[key]}" for key in keys if key in checkpoint]
+        if present_keys:
+            self.checkpoint_loading_message = f"Loading checkpoint that was created at ({', '.join(present_keys)})"
+            logging.info(self.checkpoint_loading_message)
+
     def on_train_batch_start(self, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
         self.batch_start(batch_idx=batch_idx, is_training=True)
 
@@ -402,10 +457,25 @@ class InnerEyeLightning(LightningModule):
                                     sample: Dict[str, Any],
                                     batch_index: int,
                                     is_training: bool) -> Any:
+        """
+        This is the shared method that handles the training (when `is_training==True`) and validation steps
+        (when `is_training==False`)
+        :param sample: The minibatch of data that should be processed.
+        :param batch_index: The index of the current minibatch.
+        :param is_training: If true, this has been called from `training_step`, otherwise it has been called from
+        `validation_step`.
+        """
         raise NotImplementedError("This method must be overwritten in a derived class.")
 
     @rank_zero_only
     def batch_start(self, batch_idx: int, is_training: bool) -> None:
+        """
+        Shared code to keep track of IO-related metrics when loading a minibatch.
+        :param batch_idx: The index of the current minibatch.
+        :param is_training: If true, this has been called from `on_train_batch_start`, otherwise it has been called from
+        `on_validation_batch_start`.
+        :return:
+        """
         # Print out data loading statistics only on global rank 0.
         item_finish_time = time.time()
         item_load_time = item_finish_time - self.item_start_time
@@ -429,13 +499,22 @@ class InnerEyeLightning(LightningModule):
 
     @rank_zero_only
     def batch_end(self, is_training: bool) -> None:
-        # This metric is only written at rank 0, and hence must not be synchronized.
+        """
+        Shared code to keep track of IO-related metrics when loading a minibatch.
+        :param is_training: If true, this has been called from `on_train_batch_end`, otherwise it has been called from
+        `on_validation_batch_end`.
+        """
+        # This metric is only written at rank 0, and hence must not be synchronized. Trying to synchronize will
+        # block training.
         self.log_on_epoch(MetricType.SECONDS_PER_BATCH, time.time() - self.batch_start_time, is_training=is_training,
                           sync_dist_override=False)
         self.item_start_time = time.time()
         self.num_batches += 1
 
     def reset_timers(self) -> None:
+        """
+        Resets all timers and counters that are aggregated per epoch.
+        """
         self.epoch_start_time = time.time()
         self.item_start_time = time.time()
         self.num_load_time_warnings = 0
@@ -457,20 +536,12 @@ class InnerEyeLightning(LightningModule):
             learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
             self.log_on_epoch(MetricType.LEARNING_RATE, learning_rate, is_training)
 
-    def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
-        """
-        This hook is called when loading a model from a checkpoint. It just prints out diagnostics about which epoch
-        created the present checkpoint.
-        :param checkpoint: The checkpoint dictionary loaded from disk.
-        """
-        keys = ['epoch', 'global_step']
-        present_keys = [f"{key} = {checkpoint[key]}" for key in keys if key in checkpoint]
-        if present_keys:
-            self.checkpoint_loading_message = f"Loading checkpoint that was created at ({', '.join(present_keys)})"
-            logging.info(self.checkpoint_loading_message)
-
 
 class SegmentationLightning(InnerEyeLightning):
+    """
+    This class implements 3D segmentation models with PyTorch Lightning.
+    """
+
     def __init__(self, config: SegmentationModelBase, *args: Any, **kwargs: Any) -> None:
         super().__init__(config, *args, **kwargs)
         self.model = config.create_model()
@@ -486,6 +557,11 @@ class SegmentationLightning(InnerEyeLightning):
                                                       use_average_across_structures=False)
 
     def forward(self, patches: torch.Tensor) -> torch.Tensor:  # type: ignore
+        """
+        Runs a set of 3D crops through the segmentation model, and returns the result. This method is used
+        at inference time.
+        :param patches: A tensor of size [batches, channels, Z, Y, X]
+        """
         return self.logits_to_posterior(self.model(patches))
 
     def logits_to_posterior(self, logits: torch.Tensor) -> torch.Tensor:
@@ -500,6 +576,8 @@ class SegmentationLightning(InnerEyeLightning):
                                     is_training: bool) -> torch.Tensor:
         """
         Runs training for a single minibatch of training or validation data, and computes all metrics.
+        :param is_training: If true, the method is called from `training_step`, otherwise it is called from
+        `validation_step`.
         :param sample: The batched sample on which the model should be trained.
         :param batch_index: The index of the present batch (supplied only for diagnostics).
         """
@@ -509,7 +587,11 @@ class SegmentationLightning(InnerEyeLightning):
         labels = cropped_sample.labels_center_crop
 
         mask = cropped_sample.mask_center_crop if is_training else None
-        logits = self.model(cropped_sample.image)
+        if is_training:
+            logits = self.model(cropped_sample.image)
+        else:
+            with torch.no_grad():
+                logits = self.model(cropped_sample.image)
         loss = self.loss_fn(logits, labels)
 
         # apply Softmax on dimension 1 (Class) to map model output into a posterior probability distribution [0,1]
@@ -570,15 +652,16 @@ class SegmentationLightning(InnerEyeLightning):
                           sync_dist_op=None)
 
     def training_or_validation_epoch_end(self, is_training: bool) -> None:
+        """
+        Writes all training or validation metrics that were aggregated over the epoch to the loggers.
+        """
         dice = list((self.train_dice if is_training else self.val_dice).compute_all())
         for name, value in dice:
             self.log(name, value)
         voxel_count = list((self.train_voxels if is_training else self.val_voxels).compute_all())
         for name, value in voxel_count:
             self.log(name, value)
-
-
-SUBJECT_OUTPUT_PER_RANK_PREFIX = f"{SUBJECT_METRICS_FILE_NAME}.rank"
+        super().training_or_validation_epoch_end(is_training=is_training)
 
 
 def get_subject_output_file_per_rank(rank: int) -> str:
@@ -591,6 +674,9 @@ def get_subject_output_file_per_rank(rank: int) -> str:
 
 
 class ScalarLightning(InnerEyeLightning):
+    """
+    This class implements training of classification, regression, and sequence models with PyTorch Lightning.
+    """
     def __init__(self, config: ScalarModelBase, *args: Any, **kwargs: Any) -> None:
         super().__init__(config, *args, **kwargs)
         self.model = config.create_model()
@@ -621,12 +707,20 @@ class ScalarLightning(InnerEyeLightning):
         #     config.visualization_folder.mkdir(exist_ok=True)
 
     def create_metric_computers(self) -> ModuleDict:
+        """
+        Gets a set of objects that compute all the metrics for the type of model that is being trained,
+        across all prediction targets (sequence positions when using a sequence model).
+        :return: A dictionary mapping from names of prediction targets to a list of metric computers.
+        """
         # The metric computers should be stored in an object that derives from torch.Module,
         # so that they are picked up when moving the whole LightningModule to GPU.
         # https://github.com/PyTorchLightning/pytorch-lightning/issues/4713
-        return ModuleDict({p: self._get_metrics_classes() for p in self.target_names})
+        return ModuleDict({p: self._get_metrics_computers() for p in self.target_names})
 
-    def _get_metrics_classes(self) -> ModuleList:
+    def _get_metrics_computers(self) -> ModuleList:
+        """
+        Gets the objects that compute metrics for the present kind of models, for a single prediction target.
+        """
         if self.is_classification_model:
             return ModuleList([Accuracy05(),
                                AccuracyAtOptimalThreshold(),
@@ -640,6 +734,9 @@ class ScalarLightning(InnerEyeLightning):
             return ModuleList([MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()])
 
     def forward(self, *model_inputs: torch.Tensor) -> torch.Tensor:  # type: ignore
+        """
+        Runs a list of model input tensors through the model and returns the results.
+        """
         return self.logits_to_posterior(self.model(*model_inputs))
 
     def logits_to_posterior(self, logits: torch.Tensor) -> torch.Tensor:
@@ -649,6 +746,9 @@ class ScalarLightning(InnerEyeLightning):
         return self.logits_to_posterior_fn(logits)
 
     def on_train_start(self) -> None:
+        """
+        Initializes the per-rank logger objects that write to the file system.
+        """
         # These loggers store the per-subject model outputs. They cannot be initialized in the constructor because
         # the trainer object will not yet be set, and we need to get the rank from there.
         fixed_logger_columns = {LoggingColumns.CrossValidationSplitIndex.value: self.cross_validation_split_index}
@@ -658,28 +758,25 @@ class ScalarLightning(InnerEyeLightning):
         self.val_subject_outputs_logger = DataframeLogger(self.val_metrics_folder / subject_output_file,
                                                           fixed_columns=fixed_logger_columns)
 
-    def on_train_epoch_start(self) -> None:
-        super().on_train_epoch_start()
-        self.reset_metrics(is_training=True)
-
-    def on_validation_epoch_start(self) -> None:
-        super().on_validation_epoch_start()
-        self.reset_metrics(is_training=False)
-
-    def reset_metrics(self, is_training: bool) -> None:
-        metric_computers = self.train_metric_computers if is_training else self.val_metric_computers
-        # Necessary to explicitly reset, otherwise the metrics keep accumulating over all epochs
-        for metrics in metric_computers.values():
-            for m in metrics:
-                m.reset()
-
     def training_or_validation_step(self,
                                     sample: Dict[str, Any],
                                     batch_index: int,
                                     is_training: bool) -> torch.Tensor:
+        """
+        Runs training for a single minibatch of training or validation data, and computes all metrics.
+        :param is_training: If true, the method is called from `training_step`, otherwise it is called from
+        `validation_step`.
+        :param sample: The batched sample on which the model should be trained.
+        :param batch_index: The index of the present batch (supplied only for diagnostics).
+        Runs a minibatch of training or validation data through the model.
+        """
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model, self.target_indices, sample)
         labels = model_inputs_and_labels.labels
-        logits = self.model(*model_inputs_and_labels.model_inputs)
+        if is_training:
+            logits = self.model(*model_inputs_and_labels.model_inputs)
+        else:
+            with torch.no_grad():
+                logits = self.model(*model_inputs_and_labels.model_inputs)
         subject_ids = model_inputs_and_labels.subject_ids
         loss = self.loss_fn(logits, labels)
         self.write_loss(is_training, loss)
@@ -695,6 +792,14 @@ class ScalarLightning(InnerEyeLightning):
                                 targets: torch.Tensor,
                                 subject_ids: List[str],
                                 is_training: bool) -> None:
+        """
+        Computes all the metrics for a given (logits, labels) pair, and writes them to the loggers.
+        :param logits: The model output before normalization.
+        :param targets: The expected model outputs.
+        :param subject_ids: The subject IDs for the present minibatch.
+        :param is_training: If True, write the metrics as training metrics, otherwise as validation metrics.
+        :return:
+        """
         metrics = self.train_metric_computers if is_training else self.val_metric_computers
         per_subject_outputs: List[Tuple[str, str, torch.Tensor, torch.Tensor]] = []
         for i, (prediction_target, metric_list) in enumerate(metrics.items()):
@@ -735,6 +840,9 @@ class ScalarLightning(InnerEyeLightning):
         #     logger.log_image(error_plot_name, path)
 
     def training_or_validation_epoch_end(self, is_training: bool) -> None:
+        """
+        Writes all training or validation metrics that were aggregated over the epoch to the loggers.
+        """
         metric_computers = self.train_metric_computers if is_training else self.val_metric_computers
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         for prediction_target, metric_list in metric_computers.items():
