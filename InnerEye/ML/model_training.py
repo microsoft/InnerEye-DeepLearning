@@ -54,7 +54,7 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
     :param outputs_folder: The root folder that contains all training outputs.
     """
     upload_name = TEMP_PREFIX + str(file_path.relative_to(outputs_folder))
-    RUN_CONTEXT.upload_file(upload_name, path_or_stream=file_path)
+    RUN_CONTEXT.upload_file(upload_name, path_or_stream=str(file_path))
 
 
 def create_lightning_trainer(config: ModelConfigBase,
