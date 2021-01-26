@@ -35,8 +35,8 @@ from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_workspace, get_nifti_shape
 from TestsOutsidePackage.test_register_model import SubprocessConfig
 
-FALLBACK_ENSEMBLE_RUN = "refs_pull_323_merge:HD_92be13fd-a69f-49b2-8d84-620f35d61711"
-FALLBACK_SINGLE_RUN = "refs_pull_323_merge:refs_pull_323_merge_1611612512_ac434012"
+FALLBACK_ENSEMBLE_RUN = "refs_pull_323_merge:HD_39282253-5363-4956-a8a9-253f4f769c22"
+FALLBACK_SINGLE_RUN = "refs_pull_323_merge:refs_pull_323_merge_1611668076_723bd198"
 
 
 def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> str:

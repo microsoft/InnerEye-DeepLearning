@@ -32,7 +32,7 @@ class RunRecovery:
                                                config: DeepLearningConfig,
                                                run_context: Optional[Run] = None) -> RunRecovery:
         """
-        Downloads checkpoints of run corresponding to the run_recovery_id in azure_config, and any
+        Downloads checkpoints of run corresponding to the run_recovery_id in azure_config, or
         checkpoints of the child runs if they exist.
 
         :param azure_config: Azure related configs.
