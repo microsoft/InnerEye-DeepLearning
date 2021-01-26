@@ -41,7 +41,7 @@ dependencies:
       - pytest-cov==2.10.1
       - pytest-forked==1.3.0
       - pytest-xdist==1.34.0
-      - pytorch-lightning==1.0.6
+      - pytorch-lightning==1.1.6
       - rich==5.1.1
       - rpdb==0.1.6
       - scikit-image==0.17.2
