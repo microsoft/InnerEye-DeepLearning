@@ -13,8 +13,7 @@ import torch
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME
 from InnerEye.Common.fixed_paths import MODEL_WEIGHTS_DIR_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME, BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_SUFFIX, \
-    create_recovery_checkpoint_path
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, create_recovery_checkpoint_path
 from InnerEye.ML.deep_learning_config import WEIGHTS_FILE
 from InnerEye.ML.model_config_base import ModelConfigBase
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLBACK_SINGLE_RUN, get_most_recent_run_id
