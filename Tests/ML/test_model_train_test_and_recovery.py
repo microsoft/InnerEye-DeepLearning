@@ -78,7 +78,7 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
 
     checkpoint_handler_local_weights = get_default_checkpoint_handler(model_config=config_local_weights,
                                                                       project_root=test_output_dirs.root_dir)
-    checkpoint_handler_local_weights.discover_and_download_checkpoints_from_previous_runs()
+    checkpoint_handler_local_weights.download_recovery_checkpoints_or_weights()
     test_results_local_weights = model_test(config_local_weights, data_split=ModelExecutionMode.TEST,
                                             checkpoint_handler=checkpoint_handler_local_weights)
     assert isinstance(test_results_local_weights, InferenceMetricsForClassification)

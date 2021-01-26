@@ -31,7 +31,7 @@ import InnerEye.Common.Statistics.mann_whitney_test as mann_whitney
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, download_outputs_from_run, \
     fetch_child_runs, \
-    fetch_run, is_offline_run_context, is_parent_run
+    is_offline_run_context, is_parent_run
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
@@ -359,8 +359,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
     if run_recovery_id is None:
         run_recovery_id = config.run_recovery_id
     if run_recovery_id:
-        workspace = config.azure_config.get_workspace()
-        parent = fetch_run(workspace, run_recovery_id)
+        parent = config.fetch_run(run_recovery_id)
         runs_to_evaluate = fetch_child_runs(
             run=parent, expected_number_cross_validation_splits=config.number_of_cross_validation_splits)
         logging.info("Adding parent run to the list of runs to evaluate.")

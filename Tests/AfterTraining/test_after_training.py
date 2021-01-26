@@ -21,7 +21,7 @@ from azureml.core import Model, Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
-from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, fetch_run, get_comparison_baseline_paths, \
+from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, get_comparison_baseline_paths, \
     is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import get_epoch_results_path
@@ -32,7 +32,7 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.Scripts import submit_for_inference
-from Tests.ML.util import assert_nifti_content, get_default_workspace, get_nifti_shape
+from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape
 from TestsOutsidePackage.test_register_model import SubprocessConfig
 
 FALLBACK_ENSEMBLE_RUN = "refs_pull_323_merge:HD_39282253-5363-4956-a8a9-253f4f769c22"
@@ -68,10 +68,8 @@ def get_most_recent_run(fallback_run_id_for_local_execution: str = FALLBACK_SING
     :param fallback_run_id_for_local_execution: A hardcoded AzureML run ID that is used when executing this code
     on a local box, outside of Azure build agents.
     """
-    return fetch_run(
-        workspace=get_default_workspace(),
-        run_recovery_id=get_most_recent_run_id(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
-    )
+    run_recovery_id = get_most_recent_run_id(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
+    return get_default_azure_config().fetch_run(run_recovery_id=run_recovery_id)
 
 
 def get_most_recent_model(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> Model:
@@ -84,12 +82,11 @@ def get_most_recent_model(fallback_run_id_for_local_execution: str = FALLBACK_SI
     most_recent_run = get_most_recent_run_id(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
     azure_config = AzureConfig.from_yaml(fixed_paths.SETTINGS_YAML_FILE,
                                          project_root=fixed_paths.repository_root_directory())
-    workspace = azure_config.get_workspace()
-    run = fetch_run(workspace, most_recent_run)
+    run = azure_config.fetch_run(most_recent_run)
     tags = run.get_tags()
     model_id = tags.get(MODEL_ID_KEY_NAME, None)
     assert model_id, f"No model_id tag was found on run {most_recent_run}"
-    return Model(workspace=workspace, id=model_id)
+    return Model(workspace=azure_config.get_workspace(), id=model_id)
 
 
 @pytest.mark.after_training_single_run

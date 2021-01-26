@@ -14,8 +14,8 @@ from azureml.core import Run
 from scipy.ndimage.morphology import binary_erosion, distance_transform_edt, generate_binary_structure
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run
-from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, BEST_EPOCH_FOLDER_NAME
+from InnerEye.Azure.azure_util import fetch_child_runs
+from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, FULL_METRICS_DATAFRAME_FILE
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -65,8 +65,7 @@ def get_first_child_run(azure_config: AzureConfig) -> Run:
     """
     if not azure_config.run_recovery_id:
         raise ValueError("azure_config.run_recovery_id is not provided.")
-    workspace = azure_config.get_workspace()
-    hyperdrive_run = fetch_run(workspace, azure_config.run_recovery_id)
+    hyperdrive_run = azure_config.fetch_run(azure_config.run_recovery_id)
     child_runs = fetch_child_runs(hyperdrive_run, status=RunStatus.COMPLETED)
     return child_runs[0]
 

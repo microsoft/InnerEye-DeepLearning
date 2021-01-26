@@ -32,30 +32,30 @@ class CheckpointHandler:
         self.run_recovery: Optional[RunRecovery] = None
         self.project_root = project_root
         self.run_context = run_context
-
         self.local_weights_path: Optional[Path] = None
-
         self.has_continued_training = False
 
-    def discover_and_download_checkpoint_from_sibling_runs(self) -> None:
+    def download_checkpoints_from_hyperdrive_child_runs(self, hyperdrive_parent_run: Run) -> None:
         """
-        Downloads checkpoints from sibling runs in a hyperdrive run. This is used to gather results from all
-        splits in a hyperdrive run.
+        Downloads the best checkpoints from all child runs of a Hyperdrive parent runs. This is used to gather results
+        for ensemble creation.
         """
-        self.run_recovery = RunRecovery.download_checkpoints_from_run(self.model_config, self.run_context)
+        self.run_recovery = RunRecovery.download_best_checkpoints_from_child_runs(self.model_config,
+                                                                                  hyperdrive_parent_run)
         # Check paths are good, just in case
         for path in self.run_recovery.checkpoints_roots:
             if not path.is_dir():
                 raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
 
-    def discover_and_download_checkpoints_from_previous_runs(self) -> None:
+    def download_recovery_checkpoints_or_weights(self) -> None:
         """
         Download checkpoints from a run recovery object or from a weights url. Set the checkpoints path based on the
-        run_recovery_object, weights_url or local_weights_path
+        run_recovery_object, weights_url or local_weights_path.
+        This is called at the start of training.
         """
         if self.azure_config.run_recovery_id:
-            self.run_recovery = RunRecovery.download_checkpoints_from_recovery_run(
-                self.azure_config, self.model_config, self.run_context)
+            run_to_recover = self.azure_config.fetch_run(self.azure_config.run_recovery_id.strip())
+            self.run_recovery = RunRecovery.download_all_checkpoints_from_run(self.model_config, run_to_recover)
         else:
             self.run_recovery = None
 
@@ -129,13 +129,12 @@ class CheckpointHandler:
         if self.has_continued_training:
             # Checkpoint is from the current run, whether a new run or a run recovery which has been doing more
             # training, so we look for it there.
-            # TODO refactor get_path_to_checkpoint so it does not check if the path exists
-            #      Check if the path exists here instead.
-            try:
-                checkpoint_paths = [self.model_config.get_path_to_best_checkpoint()]
+            checkpoint_from_current_run = self.model_config.get_path_to_best_checkpoint()
+            if checkpoint_from_current_run.is_file():
                 logging.info("Using checkpoints from current run.")
-            except FileNotFoundError:
-                logging.info("Using checkpoints from run recovery")
+                checkpoint_paths = [checkpoint_from_current_run]
+            else:
+                logging.info("Training has continued, but not yet written a checkpoint. Using recovery checkpoints.")
         else:
             logging.info("Using checkpoints from run recovery")
 

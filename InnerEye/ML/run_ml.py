@@ -239,7 +239,7 @@ class MLRunner:
                                                azure_config=self.azure_config,
                                                project_root=self.project_root,
                                                run_context=RUN_CONTEXT)
-        checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
+        checkpoint_handler.download_recovery_checkpoints_or_weights()
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
         if not self.azure_config.only_register_model:
@@ -669,7 +669,7 @@ class MLRunner:
                                                    azure_config=self.azure_config,
                                                    project_root=self.project_root,
                                                    run_context=PARENT_RUN_CONTEXT)
-            checkpoint_handler.discover_and_download_checkpoint_from_sibling_runs()
+            checkpoint_handler.download_checkpoints_from_hyperdrive_child_runs(PARENT_RUN_CONTEXT)
 
         self.run_inference_and_register_model(checkpoint_handler=checkpoint_handler,
                                               model_proc=ModelProcessing.ENSEMBLE_CREATION)

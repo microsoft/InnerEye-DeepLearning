@@ -18,7 +18,7 @@ from azureml.train.estimator import MMLBaseEstimator
 from azureml.train.hyperdrive import HyperDriveConfig
 from git import Repo
 
-from InnerEye.Azure.azure_util import is_offline_run_context
+from InnerEye.Azure.azure_util import fetch_run, is_offline_run_context
 from InnerEye.Azure.secrets_handling import SecretsHandling, read_all_settings
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
@@ -227,6 +227,13 @@ class AzureConfig(GenericConfig):
             tenant_id=self.tenant_id,
             service_principal_id=self.application_id,
             service_principal_password=application_key)
+
+    def fetch_run(self, run_recovery_id: str) -> Run:
+        """
+        Gets an instantiated Run object for a given run recovery ID (format experiment_name:run_id).
+        :param run_recovery_id: A run recovery ID (format experiment_name:run_id)
+        """
+        return fetch_run(workspace=self.get_workspace(), run_recovery_id=run_recovery_id)
 
 
 @dataclass

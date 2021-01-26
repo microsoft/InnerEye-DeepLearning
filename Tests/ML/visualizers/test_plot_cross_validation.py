@@ -10,7 +10,7 @@ import pytest
 from azureml.core import Run
 from pandas.core.dtypes.common import is_string_dtype
 
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetch_run
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
     SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
@@ -339,8 +339,7 @@ def test_download_or_get_local_blobs(is_current_run: bool,
     azure_config = get_default_azure_config()
     azure_config.get_workspace()
     assert test_config.run_recovery_id is not None
-    run = Run.get_context() if is_current_run else fetch_run(azure_config.get_workspace(),
-                                                             test_config.run_recovery_id)
+    run = Run.get_context() if is_current_run else azure_config.fetch_run(test_config.run_recovery_id)
     run_outputs_dir = full_ml_test_data_path() if is_current_run else Path(DEFAULT_AML_UPLOAD_DIR)
     test_config.outputs_directory = run_outputs_dir
     dst = test_config.download_or_get_local_file(
