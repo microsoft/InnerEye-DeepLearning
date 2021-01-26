@@ -77,9 +77,12 @@ def create_lightning_trainer(config: ModelConfigBase,
                                                # save_top_k=1,
                                                save_last=True)
     # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
+    # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs. Due to a bug in Lightning, this
+    # will still write alternate files recovery.ckpt and recovery-v0.ckpt, which are cleaned up later in
+    # cleanup_checkpoint_folder
     recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
                                                    filename=RECOVERY_CHECKPOINT_FILE_NAME,
-                                                   save_top_k=-1,
+                                                   save_top_k=1,
                                                    period=config.recovery_checkpoint_save_interval
                                                    )
 
