@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 import os
 import shutil
 from pathlib import Path
@@ -14,6 +15,7 @@ import pytest
 from torch.utils.data import DataLoader
 
 from InnerEye.Common import fixed_paths
+from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -86,6 +88,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     def _mean_list(lists: List[List[float]]) -> List[float]:
         return list(map(_mean, lists))
 
+    logging_to_stdout(log_level=logging.DEBUG)
     train_config = DummyModel()
     train_config.local_dataset = base_path
     train_config.set_output_to(output_dirs.root_dir)
@@ -171,6 +174,14 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert sampling_folder.is_dir()
     assert train_config.show_patch_sampling > 0
     assert len(list(sampling_folder.rglob("*.png"))) == 3 * train_config.show_patch_sampling
+
+    # Time per epoch: Test that we have all these times logged.
+    model_training_result.get_training_metric(MetricType.SECONDS_PER_EPOCH.value)
+    model_training_result.get_validation_metric(MetricType.SECONDS_PER_EPOCH.value)
+    model_training_result.get_validation_metric(MetricType.SECONDS_PER_BATCH.value)
+    # We should have time per batch also for training, but it does not appear in the logs somehow?
+    # Logging the metric is called, but they never make it to the logger object.
+    # model_training_result.get_training_metric(MetricType.SECONDS_PER_BATCH.value)
 
     # TODO antonsc: enable
     # # Test for saving of example images

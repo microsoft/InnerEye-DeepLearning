@@ -6,8 +6,9 @@ from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass
-from typing import Any, List, Optional, Sequence, Tuple
+import time
+from dataclasses import dataclass, field
+from typing import Any, List, Optional, Sequence, Set, Tuple
 
 import SimpleITK as sitk
 import numpy as np
@@ -33,6 +34,10 @@ from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, \
     mean_absolute_error, r2_score
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
+
+MAX_ITEM_LOAD_TIME_SEC = 0.5
+MAX_LOAD_TIME_WARNINGS = 3
+MAX_LOAD_TIME_EPOCHS = 5
 
 
 class MeanAbsoluteError(metrics.MeanAbsoluteError):
@@ -108,6 +113,7 @@ class AverageWithoutNan(Metric):
     """
     A generic metric computer that keep track of the average of all values excluding those that are NaN.
     """
+
     def __init__(self, dist_sync_on_step: bool = False, name: str = ""):
         super().__init__(dist_sync_on_step=dist_sync_on_step)
         self.add_state("sum", default=torch.tensor(0.0), dist_reduce_fx="sum")
@@ -135,6 +141,7 @@ class ScalarMetricsBase(Metric):
     is available. The base class provides an `update` method, and synchronized storage for predictions (field `preds`)
     and labels (field `targets`). Derived classes need to override the `compute` method.
     """
+
     def __init__(self, name: str = ""):
         super().__init__(dist_sync_on_step=False)
         self.add_state("preds", default=[], dist_reduce_fx=None)
@@ -189,6 +196,7 @@ class AccuracyAtOptimalThreshold(ScalarMetricsBase):
     """
     Computes the binary classification accuracy at an optimal cut-off point.
     """
+
     def __init__(self) -> None:
         super().__init__(name=MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD.value)
 
@@ -200,6 +208,7 @@ class OptimalThreshold(ScalarMetricsBase):
     """
     Computes the optimal cut-off point for a binary classifier.
     """
+
     def __init__(self) -> None:
         super().__init__(name=MetricType.OPTIMAL_THRESHOLD.value)
 
@@ -211,6 +220,7 @@ class FalsePositiveRateOptimalThreshold(ScalarMetricsBase):
     """
     Computes the false positive rate when choosing the optimal cut-off point for a binary classifier.
     """
+
     def __init__(self) -> None:
         super().__init__(name=MetricType.FALSE_POSITIVE_RATE_AT_OPTIMAL_THRESHOLD.value)
 
@@ -222,6 +232,7 @@ class FalseNegativeRateOptimalThreshold(ScalarMetricsBase):
     """
     Computes the false negative rate when choosing the optimal cut-off point for a binary classifier.
     """
+
     def __init__(self) -> None:
         super().__init__(name=MetricType.FALSE_NEGATIVE_RATE_AT_OPTIMAL_THRESHOLD.value)
 
@@ -233,6 +244,7 @@ class AreaUnderRocCurve(ScalarMetricsBase):
     """
     Computes the area under the receiver operating curve (ROC).
     """
+
     def __init__(self) -> None:
         super().__init__(name=MetricType.AREA_UNDER_ROC_CURVE.value)
 
@@ -247,6 +259,7 @@ class AreaUnderPrecisionRecallCurve(ScalarMetricsBase):
     """
     Computes the area under the precision-recall-curve.
     """
+
     def __init__(self) -> None:
         super().__init__(name=MetricType.AREA_UNDER_PR_CURVE.value)
 
@@ -262,6 +275,7 @@ class BinaryCrossEntropy(ScalarMetricsBase):
     """
     Computes the cross entropy for binary classification.
     """
+
     def __init__(self) -> None:
         super().__init__(name=MetricType.CROSS_ENTROPY.value)
 
@@ -312,6 +326,96 @@ class InferenceMetricsForSegmentation(InferenceMetrics):
         run_context.log_table(name=self.get_metrics_log_key(), value={
             "Dice": self.metrics
         })
+
+
+@dataclass
+class EpochTimers:
+    """
+    Contains all information necessary to compute the IO metrics: Epoch times, batch times, loading times.
+    """
+    epoch_start_time: float = time.time()
+    epoch_end_time: float = time.time()
+    batch_start_time: float = time.time()
+    num_load_time_warnings: int = 0
+    num_load_time_exceeded: int = 0
+    total_extra_load_time: float = 0.0
+    total_load_time: float = 0.0
+    num_batches: int = 0
+    load_time_warning_epochs: Set[int] = field(default_factory=set)
+
+    def reset(self) -> None:
+        """
+        Resets all timers to the current time, and all counters to 0. The set of epochs for which warnings about
+        load time were produced will not be reset.
+        """
+        current_time = time.time()
+        self.epoch_start_time = current_time
+        self.epoch_end_time = current_time
+        self.batch_start_time = current_time
+        self.num_load_time_warnings = 0
+        self.num_load_time_exceeded = 0
+        self.total_extra_load_time = 0.0
+        self.total_load_time = 0.0
+        self.num_batches = 0
+
+    def epoch_end(self) -> None:
+        """
+        Stores the present time in the epoch_end_time field of the object.
+        """
+        self.epoch_end_time = time.time()
+
+    @property
+    def total_epoch_time(self) -> float:
+        """
+        Gets the time in seconds between epoch start and epoch end.
+        """
+        return self.epoch_end_time - self.epoch_start_time
+
+    @property
+    def should_warn_in_this_epoch(self) -> bool:
+        """
+        Returns True if warnings about loading time should be printed in the present epoch. Returns False if
+        this warning has been printed already in more than MAX_LOAD_TIME_EPOCHS epochs.
+        :return:
+        """
+        return len(self.load_time_warning_epochs) <= MAX_LOAD_TIME_EPOCHS
+
+    def batch_start(self, batch_index: int, epoch: int, message_prefix: str) -> float:
+        """
+        Called when a minibatch of data has been loaded. This computes the time it took to load the minibatch,
+        and adds it to the internal bookkeeping.
+        :return: The time it took to load the minibatch, in seconds.
+        """
+        item_finish_time = time.time()
+        item_load_time = item_finish_time - self.batch_start_time
+        self.total_load_time += item_load_time
+        # Having slow minibatch loading is OK in the very first batch of the every epoch, where processes
+        # are spawned. Later, the load time should be zero.
+        if batch_index == 0:
+            logging.info(f"{message_prefix}: Loaded the first minibatch of data in {item_load_time:0.2f} sec.")
+        elif item_load_time > MAX_ITEM_LOAD_TIME_SEC:
+            self.load_time_warning_epochs.add(epoch)
+            self.num_load_time_exceeded += 1
+            self.total_extra_load_time += item_load_time
+            if self.num_load_time_warnings < MAX_LOAD_TIME_WARNINGS and self.should_warn_in_this_epoch:
+                logging.warning(f"{message_prefix}: Loading minibatch {batch_index} took {item_load_time:0.2f} sec. "
+                                "This can mean that there are not enough data loader worker processes, or that there "
+                                "is a performance problem in loading. This warning will be printed at most "
+                                f"{MAX_LOAD_TIME_WARNINGS} times in at most {MAX_LOAD_TIME_EPOCHS} epochs.")
+                self.num_load_time_warnings += 1
+        return item_load_time
+
+    def batch_end(self) -> float:
+        """
+        Called after a minibatch has been processed (training or validation step completed). Returns the time it took
+        to process the current batch (including loading).
+        :return: The time it took to process the current batch, in seconds.
+        """
+        current_time = time.time()
+        elapsed = current_time - self.batch_start_time
+        self.batch_start_time = current_time
+        self.num_batches += 1
+        return elapsed
 
 
 def surface_distance(seg: sitk.Image, reference_segmentation: sitk.Image) -> float:

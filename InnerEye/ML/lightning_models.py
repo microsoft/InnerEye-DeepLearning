@@ -28,9 +28,9 @@ from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
-    AreaUnderRocCurve, AverageWithoutNan, BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
-    FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, OptimalThreshold, \
-    compute_dice_across_patches, nanmean, store_epoch_metrics
+    AreaUnderRocCurve, AverageWithoutNan, BinaryCrossEntropy, EpochTimers, ExplainedVariance, \
+    FalseNegativeRateOptimalThreshold, FalsePositiveRateOptimalThreshold, MAX_ITEM_LOAD_TIME_SEC, \
+    MeanAbsoluteError, MeanSquaredError, OptimalThreshold, compute_dice_across_patches, nanmean, store_epoch_metrics
 from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, SequenceMetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
@@ -42,9 +42,6 @@ from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss, get_masked_model_outputs_and_labels
-
-MAX_ITEM_LOAD_TIME_SEC = 0.5
-MAX_LOAD_TIME_WARNINGS = 3
 
 AVERAGE_DICE_SUFFIX = "AverageAcrossStructures"
 
@@ -256,14 +253,8 @@ class InnerEyeLightning(LightningModule):
         self.cross_validation_split_index = config.cross_validation_split_index
         self.effective_random_seed = config.get_effective_random_seed()
         # Timers for monitoring data loading time
-        self.epoch_start_time = 0.0
-        self.item_start_time = 0.0
-        self.batch_start_time = 0.0
-        self.num_load_time_warnings = 0
-        self.num_load_time_exceeded = 0
-        self.num_batches = 0
-        self.total_extra_load_time = 0.0
-        self.total_load_time = 0.0
+        self.train_timers = EpochTimers()
+        self.val_timers = EpochTimers()
         # This should be re-assigned on the outside, to a logger that is hooked up with the Trainer object.
         self.storing_logger = StoringLogger()
         # This will be initialized correctly in epoch_start
@@ -297,7 +288,7 @@ class InnerEyeLightning(LightningModule):
         self.val_epoch_metrics_logger.flush()
 
     def on_train_epoch_start(self) -> None:
-        self.reset_timers()
+        self.train_timers.reset()
 
     def on_train_epoch_end(self, outputs: Any) -> None:
         self.on_train_or_validation_epoch_end(is_training=True)
@@ -311,7 +302,10 @@ class InnerEyeLightning(LightningModule):
         that any randomization when loading validation data is consistent during training. In particular, this ensures
         that drawing random patches for segmentation model training is giving a validation set that does not fluctuate.
         """
-        self.reset_timers()
+        self.val_timers.reset()
+        # In Lightning, the validation epoch is running "inside" the training. If we get here, it means that training
+        # is done for this epoch, even though the on_training_epoch hook has not yet been called.
+        self.train_timers.epoch_end()
         # Store the random number generator state, so that the next training epoch starts from here.
         self.random_state = RandomStateSnapshot.snapshot_random_state()
         # reset the random state for validation, so that we get consistent behaviour when drawing random patches
@@ -320,6 +314,7 @@ class InnerEyeLightning(LightningModule):
         set_random_seed(seed, "Validation")
 
     def on_validation_epoch_end(self) -> None:
+        self.val_timers.epoch_end()
         self.on_train_or_validation_epoch_end(is_training=False)
 
     def validation_epoch_end(self, outputs: List[Any]) -> None:
@@ -358,16 +353,21 @@ class InnerEyeLightning(LightningModule):
         :param is_training: If True, this is called at the end of a training epoch. If False, this is at the
         end of a validation epoch.
         """
-        epoch_time_seconds = time.time() - self.epoch_start_time
+        timers = self.get_timers(is_training=is_training)
+        if not is_training:
+            # In validation epochs, mark that it has been completed. Training epochs are marked completed already
+            # at the start of the validation epoch.
+            timers.epoch_end()
+        epoch_time_seconds = timers.total_epoch_time
         status = "training" if is_training else "validation"
         logging.info(f"Epoch {self.current_epoch} {status} took {epoch_time_seconds:0.2f}sec, of which waiting for "
-                     f"data took {self.total_load_time:0.2f} sec total.")
-        if self.num_load_time_exceeded > 0:
+                     f"data took {timers.total_load_time:0.2f} sec total.")
+        if timers.num_load_time_exceeded > 0 and timers.should_warn_in_this_epoch:
             logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
                             f"{MAX_ITEM_LOAD_TIME_SEC}sec.")
             logging.warning(
-                f"In this epoch, {self.num_load_time_exceeded} out of {self.num_batches} batches exceeded the load "
-                f"time threshold. Total loading time for the slow batches was {self.total_extra_load_time:0.2f}sec.")
+                f"In this epoch, {timers.num_load_time_exceeded} out of {timers.num_batches} batches exceeded the load "
+                f"time threshold. Total loading time for the slow batches was {timers.total_extra_load_time:0.2f}sec.")
         # This metric is only written at rank zero, and hence must no be synchronized across workers. If attempted,
         # training will get stuck.
         self.log_on_epoch(MetricType.SECONDS_PER_EPOCH, epoch_time_seconds, is_training=is_training,
@@ -470,32 +470,15 @@ class InnerEyeLightning(LightningModule):
     @rank_zero_only
     def batch_start(self, batch_idx: int, is_training: bool) -> None:
         """
-        Shared code to keep track of IO-related metrics when loading a minibatch.
+        Shared code to keep track of IO-related metrics when loading a minibatch. This is only done on rank zero.
         :param batch_idx: The index of the current minibatch.
         :param is_training: If true, this has been called from `on_train_batch_start`, otherwise it has been called from
         `on_validation_batch_start`.
         :return:
         """
-        # Print out data loading statistics only on global rank 0.
-        item_finish_time = time.time()
-        item_load_time = item_finish_time - self.item_start_time
-        self.total_load_time += item_load_time
-        # Having slow minibatch loading is OK in the very first batch of the every epoch, where processes
-        # are spawned. Later, the load time should be zero.
-        status_string = "training" if is_training else "validation"
-        if batch_idx == 0:
-            logging.info(f"Epoch {self.current_epoch}: Loaded the first minibatch of {status_string} data "
-                         f"in {item_load_time:0.2f} sec.")
-        elif item_load_time > MAX_ITEM_LOAD_TIME_SEC:
-            self.num_load_time_exceeded += 1
-            self.total_extra_load_time += item_load_time
-            if self.num_load_time_warnings < MAX_LOAD_TIME_WARNINGS:
-                logging.warning(f"Loading {status_string} minibatch {batch_idx} took {item_load_time:0.2f} sec. "
-                                "This can mean that there are not enough data loader worker processes, or that there "
-                                "is a performance problem in loading. This warning will be printed at most "
-                                f"{MAX_LOAD_TIME_WARNINGS} times.")
-                self.num_load_time_warnings += 1
-        self.batch_start_time = time.time()
+        timers = self.get_timers(is_training=is_training)
+        message_prefix = f"Epoch {self.current_epoch} {'training' if is_training else 'validation'}"
+        timers.batch_start(batch_index=batch_idx, epoch=self.current_epoch, message_prefix=message_prefix)
 
     @rank_zero_only
     def batch_end(self, is_training: bool) -> None:
@@ -504,24 +487,24 @@ class InnerEyeLightning(LightningModule):
         :param is_training: If true, this has been called from `on_train_batch_end`, otherwise it has been called from
         `on_validation_batch_end`.
         """
+        timers = self.get_timers(is_training=is_training)
+        batch_time = timers.batch_end()
         # This metric is only written at rank 0, and hence must not be synchronized. Trying to synchronize will
         # block training.
-        self.log_on_epoch(MetricType.SECONDS_PER_BATCH, time.time() - self.batch_start_time, is_training=is_training,
-                          sync_dist_override=False)
-        self.item_start_time = time.time()
-        self.num_batches += 1
+        self.log_on_epoch(MetricType.SECONDS_PER_BATCH, batch_time, is_training=is_training, sync_dist_override=False)
+
+    def get_timers(self, is_training: bool) -> EpochTimers:
+        """
+        Gets the object that holds all IO-related metrics and timers, for either the validation or the training epoch.
+        """
+        return self.train_timers if is_training else self.val_timers
 
     def reset_timers(self) -> None:
         """
-        Resets all timers and counters that are aggregated per epoch.
+        Resets all timers and counters for IO-related metrics, for both the validation and the training epoch.
         """
-        self.epoch_start_time = time.time()
-        self.item_start_time = time.time()
-        self.num_load_time_warnings = 0
-        self.num_load_time_exceeded = 0
-        self.total_extra_load_time = 0.0
-        self.total_load_time = 0.0
-        self.num_batches = 0
+        self.train_timers.reset()
+        self.val_timers.reset()
 
     def write_loss(self, is_training: bool, loss: torch.Tensor) -> None:
         """
@@ -677,6 +660,7 @@ class ScalarLightning(InnerEyeLightning):
     """
     This class implements training of classification, regression, and sequence models with PyTorch Lightning.
     """
+
     def __init__(self, config: ScalarModelBase, *args: Any, **kwargs: Any) -> None:
         super().__init__(config, *args, **kwargs)
         self.model = config.create_model()
