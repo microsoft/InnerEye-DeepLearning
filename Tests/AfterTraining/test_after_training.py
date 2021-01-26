@@ -35,11 +35,18 @@ from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_workspace, get_nifti_shape
 from TestsOutsidePackage.test_register_model import SubprocessConfig
 
+FALLBACK_ENSEMBLE_RUN = "refs_pull_323_merge:HD_92be13fd-a69f-49b2-8d84-620f35d61711"
+FALLBACK_SINGLE_RUN = "refs_pull_323_merge:refs_pull_323_merge_1611612512_ac434012"
 
-def get_most_recent_run_id() -> str:
+
+def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> str:
     """
     Gets the string name of the most recently executed AzureML run. This is picked up from the `most_recent_run.txt`
-    file when running on the cloud. For execution on the local dev box, a fixed path is returned.
+    file when running on the cloud. For execution on the local dev box, use a hardcoded run ID.
+    Consequently, local execution of tests that use this run may fail, while executing in the cloud passes.
+    In this case, modify the run here to something more recent.
+    :param fallback_run_id_for_local_execution: A hardcoded AzureML run ID that is used when executing this code
+    on a local box, outside of Azure build agents.
     :return:
     """
     run_recovery_file = Path(RUN_RECOVERY_FILE)
@@ -49,20 +56,19 @@ def get_most_recent_run_id() -> str:
         print("Reading run information from file.")
         return run_recovery_file.read_text().strip()
     else:
-        # When executing on the local box, we usually don't have any recent runs. Use a hardcoded run ID here.
-        # Consequently, local execution of tests that use this run may fail, while executing in the cloud passes.
-        # In this case, modify the run here to something more recent.
-        print("Using hardcoded run ID.")
-        return "refs_pull_323_merge_1611174301_c9ee36d5"
+        assert fallback_run_id_for_local_execution, "When running on local box, a hardcoded run ID must be given."
+        return fallback_run_id_for_local_execution
 
 
-def get_most_recent_run() -> Run:
+def get_most_recent_run(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> Run:
     """
     Gets the name of the most recently executed AzureML run, instantiates that Run object and returns it.
+    :param fallback_run_id_for_local_execution: A hardcoded AzureML run ID that is used when executing this code
+    on a local box, outside of Azure build agents.
     """
     return fetch_run(
         workspace=get_default_workspace(),
-        run_recovery_id=get_most_recent_run_id()
+        run_recovery_id=get_most_recent_run_id(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
     )
 
 

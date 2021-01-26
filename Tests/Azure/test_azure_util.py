@@ -19,7 +19,7 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
-from Tests.AfterTraining.test_after_training import get_most_recent_run, get_most_recent_run_id
+from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, get_most_recent_run, get_most_recent_run_id
 from Tests.ML.util import get_default_workspace
 
 
@@ -50,10 +50,10 @@ def test_get_cross_validation_split_index_ensemble_run() -> None:
     """
     Test that retrieved cross validation split index is as expected, for ensembles.
     """
-    run = get_most_recent_run()
     # check for offline run
     assert get_cross_validation_split_index(Run.get_context()) == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
     # check for online runs
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
     assert get_cross_validation_split_index(run) == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
     assert all([get_cross_validation_split_index(x) > DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
                 for x in fetch_child_runs(run)])
@@ -77,10 +77,10 @@ def test_is_cross_validation_child_run_ensemble_run() -> None:
     """
     Test that cross validation child runs are identified correctly.
     """
-    run = get_most_recent_run()
     # check for offline run
     assert not is_cross_validation_child_run(Run.get_context())
     # check for online runs
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
     assert not is_cross_validation_child_run(run)
     assert all([is_cross_validation_child_run(x) for x in fetch_child_runs(run)])
 
@@ -187,4 +187,5 @@ def test_is_completed_ensemble_run() -> None:
     """
     logging_to_stdout()
     workspace = get_default_workspace()
-    get_run_and_check(get_most_recent_run_id(), True, workspace)
+    run_id = get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
+    get_run_and_check(run_id, True, workspace)
