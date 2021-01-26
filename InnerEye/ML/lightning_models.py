@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import numbers
-import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 

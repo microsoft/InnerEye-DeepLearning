@@ -34,6 +34,8 @@ def test_run_scoring(test_output_dirs: OutputFolderForTests, is_ensemble: bool) 
     Run the scoring script on an image file.
     This test lives outside the normal Tests folder because it imports "score.py" from the repository root folder.
     If we switched to InnerEye as a package, we would have to treat this import special.
+    The inference run here is on a 1-channel model, whereas test_register_and_score_model works with a 2-channel
+    model.
     """
     seed_everything(42)
     checkpoint = test_output_dirs.root_dir / "checkpoint.ckpt"

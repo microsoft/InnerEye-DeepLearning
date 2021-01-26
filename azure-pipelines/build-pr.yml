@@ -82,7 +82,7 @@ jobs:
   - job: TrainEnsemble
     variables:
       - name: model
-        value: 'BasicModel2Epochs1Channel'
+        value: 'BasicModel2Epochs'
       - name: number_of_cross_validation_splits
         value: 2
       - name: tag

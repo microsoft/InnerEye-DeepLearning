@@ -168,7 +168,8 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
     """
     End-to-end test which ensures the scoring pipeline is functioning as expected when used on a recently created
     model. This test is run after training an ensemble run in AzureML. It starts "submit_for_inference" via
-    Popen.
+    Popen. The inference run here is on a 2-channel model, whereas test_submit_for_inference works with a 1-channel
+    model.
     """
     azureml_model = get_most_recent_model(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
     assert azureml_model is not None

@@ -15,7 +15,7 @@ import pytest
 from torch.utils.data import DataLoader
 
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import logging_to_stdout
+from InnerEye.Common.common_util import is_windows, logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -111,10 +111,21 @@ def _test_model_train(output_dirs: OutputFolderForTests,
                                                        checkpoint_handler=checkpoint_handler)
     assert isinstance(model_training_result, ModelTrainingResults)
 
+    def assert_all_close(metric: str, expected: List[float], **kwargs: Any) -> None:
+        actual = model_training_result.get_training_metric(metric)
+        assert np.allclose(actual, expected, **kwargs), f"Mismatch for {metric}: Got {actual}, expected {expected}"
+
     # check to make sure training batches are NOT all the same across epochs
     _check_patch_centers(model_training_result.train_diagnostics, should_equal=False)
     # check to make sure validation batches are all the same across epochs
     _check_patch_centers(model_training_result.val_diagnostics, should_equal=True)
+    assert_all_close(MetricType.SUBJECT_COUNT.value, [3.0, 3.0])
+    assert_all_close(MetricType.LEARNING_RATE.value, expected_learning_rates, rtol=1e-6)
+
+    if is_windows():
+        # Randomization comes out slightly different on Windows. Skip the rest of the detailed checks.
+        return
+
     # Simple regression test: Voxel counts should be the same in both epochs on the validation set,
     # and be the same across 'region' and 'region_1' because they derive from the same Nifti files.
     # The following values are read off directly from the results of compute_dice_across_patches in the training loop
@@ -123,19 +134,12 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     _check_voxel_count(model_training_result.train_results_per_epoch, _mean_list(train_voxels))
     _check_voxel_count(model_training_result.val_results_per_epoch, _mean_list(val_voxels))
 
-    def assert_all_close(metric: str, expected: List[float], **kwargs: Any) -> None:
-        actual = model_training_result.get_training_metric(metric)
-        assert np.allclose(actual, expected, **kwargs), f"Mismatch for {metric}: Got {actual}, expected {expected}"
-
-    assert_all_close(MetricType.SUBJECT_COUNT.value, [3.0, 3.0])
-    assert_all_close(MetricType.LEARNING_RATE.value, expected_learning_rates, rtol=1e-6)
     actual_train_losses = model_training_result.get_training_metric(MetricType.LOSS.value)
     actual_val_losses = model_training_result.get_validation_metric(MetricType.LOSS.value)
     print("actual_train_losses = {}".format(actual_train_losses))
     print("actual_val_losses = {}".format(actual_val_losses))
     assert np.allclose(actual_train_losses, expected_train_losses, atol=loss_absolute_tolerance), "Train losses"
     assert np.allclose(actual_val_losses, expected_val_losses, atol=loss_absolute_tolerance), "Val losses"
-    assert_all_close(MetricType.LEARNING_RATE.value, expected_learning_rates, rtol=1e-6)
     # Check that the metric we track for Hyperdrive runs is actually written.
     assert TrackedMetrics.Val_Loss.value.startswith(VALIDATION_PREFIX)
     tracked_metric = TrackedMetrics.Val_Loss.value[len(VALIDATION_PREFIX):]
