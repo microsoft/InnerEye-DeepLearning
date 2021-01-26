@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import shutil
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -11,11 +10,9 @@ import pytest
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
-from InnerEye.ML.common import CHECKPOINT_SUFFIX
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -37,25 +34,22 @@ class SubprocessConfig(GenericConfig):
 
 def create_checkpoints(model_config: SegmentationModelBase, is_ensemble: bool) -> Tuple[List[Path], List[Path]]:
     """
-    Copies 1 or 2 checkpoint files from the stored test data into the model's checkpoint folder, and returns
-    the absolute paths of those files.
+    Creates 1 or 2 empty checkpoint files in the model's checkpoint folder, and returns
+    the paths of those files, both absolute and relative to the
     :param model_config: The model configuration, where a correct output folder must be set.
     :param is_ensemble: If true, 2 checkpoints (simulating an ensemble run) will be created. If false, only a
     single checkpoint will be created.
+    :return: Tuple[absolute checkpoint paths, relative checkpoint paths]
     """
     # To simulate ensemble models, there are two checkpoints, one in the root dir and one in a folder
-    stored_checkpoints = full_ml_test_data_path('checkpoints')
-    checkpoints = list(stored_checkpoints.rglob(f"*{CHECKPOINT_SUFFIX}")) if is_ensemble \
-        else list(stored_checkpoints.glob(f"*{CHECKPOINT_SUFFIX}"))
-    assert len(checkpoints) == (2 if is_ensemble else 1)
-    checkpoints_relative = [checkpoint.relative_to(stored_checkpoints) for checkpoint in checkpoints]
-    checkpoints_absolute = []
-    # copy_child_paths_to_folder expects all checkpoints to live inside the model's checkpoint folder
-    for (file_abs, file_relative) in list(zip(checkpoints, checkpoints_relative)):
-        destination_abs = model_config.checkpoint_folder / file_relative
-        destination_abs.parent.mkdir(exist_ok=True, parents=True)
-        shutil.copy(str(file_abs), str(destination_abs))
-        checkpoints_absolute.append(destination_abs)
+    folder = model_config.checkpoint_folder
+    checkpoints_absolute = [folder / "foo.ckpt"]
+    if is_ensemble:
+        checkpoints_absolute.append(folder / "other" / "foo2.ckpt")
+    for checkpoint in checkpoints_absolute:
+        checkpoint.parent.mkdir(parents=True, exist_ok=True)
+        checkpoint.touch()
+    checkpoints_relative = [checkpoint.relative_to(folder) for checkpoint in checkpoints_absolute]
     return checkpoints_absolute, checkpoints_relative
 
 
@@ -74,8 +68,7 @@ def test_copy_child_paths_to_folder(is_ensemble: bool,
     project_root = Path(__file__).parent.parent
     ml_runner = MLRunner(model_config=fake_model, azure_config=azure_config, project_root=project_root)
     model_folder = test_output_dirs.root_dir / "final"
-    ml_runner.copy_child_paths_to_folder(model_folder=model_folder,
-                                         checkpoint_paths=checkpoints_absolute)
+    ml_runner.copy_child_paths_to_folder(model_folder=model_folder, checkpoint_paths=checkpoints_absolute)
     expected_files = [
         fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
         fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME,

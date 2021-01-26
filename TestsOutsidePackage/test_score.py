@@ -30,6 +30,11 @@ def test_score_check_spacing() -> None:
 
 @pytest.mark.parametrize("is_ensemble", [True, False])
 def test_run_scoring(test_output_dirs: OutputFolderForTests, is_ensemble: bool) -> None:
+    """
+    Run the scoring script on an image file.
+    This test lives outside the normal Tests folder because it imports "score.py" from the repository root folder.
+    If we switched to InnerEye as a package, we would have to treat this import special.
+    """
     seed_everything(42)
     checkpoint = test_output_dirs.root_dir / "checkpoint.ckpt"
     image_size = (40, 40, 40)
