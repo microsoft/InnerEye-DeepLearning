@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import time
 from pathlib import Path
 from typing import Any
 
@@ -106,17 +107,21 @@ def test_keep_latest(test_output_dirs: OutputFolderForTests) -> None:
     assert keep_latest(folder, pattern) is None
     # Single file present: This should be returned.
     file1.touch()
+    # Without sleeping, the test can fail in Azure build agents
+    time.sleep(secs=1)
     latest = keep_latest(folder, pattern)
     assert latest == file1
     assert latest.is_file()
     # Two files present: keep file2, file1 should be deleted
     file2.touch()
+    time.sleep(secs=1)
     latest = keep_latest(folder, pattern)
     assert latest == file2
     assert latest.is_file()
     assert not file1.is_file()
     # Add file1 again: Now this one should be the most recent one
     file1.touch()
+    time.sleep(secs=1)
     latest = keep_latest(folder, pattern)
     assert latest == file1
     assert latest.is_file()
