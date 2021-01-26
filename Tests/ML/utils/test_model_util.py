@@ -108,20 +108,20 @@ def test_keep_latest(test_output_dirs: OutputFolderForTests) -> None:
     # Single file present: This should be returned.
     file1.touch()
     # Without sleeping, the test can fail in Azure build agents
-    time.sleep(secs=1)
+    time.sleep(0.1)
     latest = keep_latest(folder, pattern)
     assert latest == file1
     assert latest.is_file()
     # Two files present: keep file2, file1 should be deleted
     file2.touch()
-    time.sleep(secs=1)
+    time.sleep(0.1)
     latest = keep_latest(folder, pattern)
     assert latest == file2
     assert latest.is_file()
     assert not file1.is_file()
     # Add file1 again: Now this one should be the most recent one
     file1.touch()
-    time.sleep(secs=1)
+    time.sleep(0.1)
     latest = keep_latest(folder, pattern)
     assert latest == file1
     assert latest.is_file()
