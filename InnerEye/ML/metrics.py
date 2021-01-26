@@ -108,7 +108,6 @@ class AverageWithoutNan(Metric):
     """
     A generic metric computer that keep track of the average of all values excluding those that are NaN.
     """
-
     def __init__(self, dist_sync_on_step: bool = False, name: str = ""):
         super().__init__(dist_sync_on_step=dist_sync_on_step)
         self.add_state("sum", default=torch.tensor(0.0), dist_reduce_fx="sum")
@@ -131,6 +130,11 @@ class AverageWithoutNan(Metric):
 
 
 class ScalarMetricsBase(Metric):
+    """
+    A base class for all metrics that can only be computed once the complete set of model predictions and labels
+    is available. The base class provides an `update` method, and synchronized storage for predictions (field `preds`)
+    and labels (field `targets`). Derived classes need to override the `compute` method.
+    """
     def __init__(self, name: str = ""):
         super().__init__(dist_sync_on_step=False)
         self.add_state("preds", default=[], dist_reduce_fx=None)
@@ -142,6 +146,9 @@ class ScalarMetricsBase(Metric):
         self.targets.append(targets)  # type: ignore
 
     def compute(self) -> torch.Tensor:
+        """
+        Computes a metric from the stored predictions and targets.
+        """
         raise NotImplementedError("Should be implemented in the child classes")
 
     def _get_preds_and_targets(self) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -179,6 +186,9 @@ class ScalarMetricsBase(Metric):
 
 
 class AccuracyAtOptimalThreshold(ScalarMetricsBase):
+    """
+    Computes the binary classification accuracy at an optimal cut-off point.
+    """
     def __init__(self) -> None:
         super().__init__(name=MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD.value)
 
@@ -187,6 +197,9 @@ class AccuracyAtOptimalThreshold(ScalarMetricsBase):
 
 
 class OptimalThreshold(ScalarMetricsBase):
+    """
+    Computes the optimal cut-off point for a binary classifier.
+    """
     def __init__(self) -> None:
         super().__init__(name=MetricType.OPTIMAL_THRESHOLD.value)
 
@@ -195,6 +208,9 @@ class OptimalThreshold(ScalarMetricsBase):
 
 
 class FalsePositiveRateOptimalThreshold(ScalarMetricsBase):
+    """
+    Computes the false positive rate when choosing the optimal cut-off point for a binary classifier.
+    """
     def __init__(self) -> None:
         super().__init__(name=MetricType.FALSE_POSITIVE_RATE_AT_OPTIMAL_THRESHOLD.value)
 
@@ -203,6 +219,9 @@ class FalsePositiveRateOptimalThreshold(ScalarMetricsBase):
 
 
 class FalseNegativeRateOptimalThreshold(ScalarMetricsBase):
+    """
+    Computes the false negative rate when choosing the optimal cut-off point for a binary classifier.
+    """
     def __init__(self) -> None:
         super().__init__(name=MetricType.FALSE_NEGATIVE_RATE_AT_OPTIMAL_THRESHOLD.value)
 
@@ -211,6 +230,9 @@ class FalseNegativeRateOptimalThreshold(ScalarMetricsBase):
 
 
 class AreaUnderRocCurve(ScalarMetricsBase):
+    """
+    Computes the area under the receiver operating curve (ROC).
+    """
     def __init__(self) -> None:
         super().__init__(name=MetricType.AREA_UNDER_ROC_CURVE.value)
 
@@ -222,6 +244,9 @@ class AreaUnderRocCurve(ScalarMetricsBase):
 
 
 class AreaUnderPrecisionRecallCurve(ScalarMetricsBase):
+    """
+    Computes the area under the precision-recall-curve.
+    """
     def __init__(self) -> None:
         super().__init__(name=MetricType.AREA_UNDER_PR_CURVE.value)
 
@@ -234,6 +259,9 @@ class AreaUnderPrecisionRecallCurve(ScalarMetricsBase):
 
 
 class BinaryCrossEntropy(ScalarMetricsBase):
+    """
+    Computes the cross entropy for binary classification.
+    """
     def __init__(self) -> None:
         super().__init__(name=MetricType.CROSS_ENTROPY.value)
 
