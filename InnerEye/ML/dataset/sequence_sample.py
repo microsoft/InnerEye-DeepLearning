@@ -63,7 +63,7 @@ class ClassificationItemSequence(Generic[T]):
         otherwise fill with NaN.
         """
         target_indices = sorted(target_indices)
-        nan = torch.tensor([np.nan], device=self.items[0].label.device)
+        nan = torch.tensor([np.nan]).type_as(self.items[0].label)
 
         def _get_label_or_nan(idx: int) -> torch.Tensor:
             return self.items[idx].label if idx < len(self.items) else nan

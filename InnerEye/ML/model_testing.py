@@ -25,8 +25,7 @@ from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForClassification, InferenceMetricsForSegmentation, \
     compute_scalar_metrics
-from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, ScalarMetricsDict, \
-    SequenceMetricsDict
+from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, ScalarMetricsDict, SequenceMetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline, InferencePipelineBase
@@ -38,8 +37,7 @@ from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import io_util, ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
-from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, \
-    save_lines_to_file
+from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, save_lines_to_file
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 
 BOXPLOT_FILE = "metrics_boxplot.png"

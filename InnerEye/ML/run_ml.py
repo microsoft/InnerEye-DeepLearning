@@ -273,9 +273,7 @@ class MLRunner:
         self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
 
         if self.model_config.generate_report:
-            if self.model_config.is_scalar_model or self.model_config.is_segmentation_model:
-                # Generate report
-                self.generate_report(ModelProcessing.DEFAULT)
+            self.generate_report(ModelProcessing.DEFAULT)
 
         # If this is an cross validation run, and the present run is child run 0, then wait for the sibling runs,
         # build the ensemble model, and write a report for that.
@@ -720,12 +718,11 @@ class MLRunner:
         return cross_val_results_root
 
     def generate_report(self, model_proc: ModelProcessing) -> None:
-        logging.info("Saving report in HTML")
         config = self.model_config
         if config.model_category not in [ModelCategory.Segmentation, ModelCategory.Classification]:
             logging.info(f"No reporting available for a model with category {config.model_category}")
             return
-
+        logging.info("Saving report in HTML")
         try:
             def get_epoch_path(mode: ModelExecutionMode) -> Path:
                 p = get_epoch_results_path(mode=mode, model_proc=model_proc)

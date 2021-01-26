@@ -548,7 +548,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         return self.get_total_number_of_training_epochs()
 
-    def get_path_to_checkpoint(self, epoch: int) -> Path:
+    def get_path_to_checkpoint(self) -> Path:
         """
         Returns full path to a recovery checkpoint.
         :return: path to a checkpoint given an epoch

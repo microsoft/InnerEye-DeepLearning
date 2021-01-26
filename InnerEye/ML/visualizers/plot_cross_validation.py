@@ -359,7 +359,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
     if run_recovery_id is None:
         run_recovery_id = config.run_recovery_id
     if run_recovery_id:
-        parent = config.fetch_run(run_recovery_id)
+        parent = config.azure_config.fetch_run(run_recovery_id)
         runs_to_evaluate = fetch_child_runs(
             run=parent, expected_number_cross_validation_splits=config.number_of_cross_validation_splits)
         logging.info("Adding parent run to the list of runs to evaluate.")

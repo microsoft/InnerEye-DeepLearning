@@ -30,8 +30,7 @@ from InnerEye.ML.metrics_dict import DataframeLogger, INTERNAL_TO_LOGGING_COLUMN
 from InnerEye.ML.scalar_config import ScalarLoss
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array, is_binary_array
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
-from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, \
-    mean_absolute_error, r2_score
+from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, r2_score
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
 
@@ -131,7 +130,7 @@ class AverageWithoutNan(Metric):
 
     def compute(self) -> torch.Tensor:
         if self.count == 0.0:
-            raise ValueError("No values stored (no or only NaN values have so far been fed into this object).")
+            raise ValueError("No values stored, or only NaN values have so far been fed into this object.")
         return self.sum / self.count
 
 

@@ -16,9 +16,8 @@ from InnerEye.Common import common_util
 from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig
 from InnerEye.Common.common_util import BASELINE_WILCOXON_RESULTS_FILE, ENSEMBLE_SPLIT_NAME, \
-    EPOCH_FOLDER_NAME_PATTERN, \
-    FULL_METRICS_DATAFRAME_FILE, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
-    remove_file_or_directory
+    EPOCH_FOLDER_NAME_PATTERN, FULL_METRICS_DATAFRAME_FILE, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, \
+    SUBJECT_METRICS_FILE_NAME, remove_file_or_directory
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
