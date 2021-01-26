@@ -106,6 +106,9 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
     check_log_file(epoch_metrics_path, expected_epoch_metrics,
                    ignore_columns=[LoggingColumns.SecondsPerEpoch.value])
     # Check metrics.csv: This contains the per-subject per-epoch model outputs
+    # Randomization comes out slightly different on Windows, hence only execute the test on Linux
+    if common_util.is_windows():
+        return
     metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
     metrics_expected = \
         """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split

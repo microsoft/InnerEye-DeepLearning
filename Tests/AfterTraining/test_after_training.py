@@ -53,10 +53,12 @@ def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_S
     if is_running_on_azure_agent():
         assert run_recovery_file.is_file(), "When running in cloud builds, this should pick up the ID of a previous " \
                                             "training run"
-        print("Reading run information from file.")
-        return run_recovery_file.read_text().strip()
+        run_id = run_recovery_file.read_text().strip()
+        print(f"Read this run ID from file: {run_id}")
+        return run_id
     else:
         assert fallback_run_id_for_local_execution, "When running on local box, a hardcoded run ID must be given."
+        print(f"Using this hardcoded run ID: {fallback_run_id_for_local_execution}")
         return fallback_run_id_for_local_execution
 
 
@@ -72,12 +74,14 @@ def get_most_recent_run(fallback_run_id_for_local_execution: str = FALLBACK_SING
     )
 
 
-def get_most_recent_model() -> Model:
+def get_most_recent_model(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> Model:
     """
     Gets the string name of the most recently executed AzureML run, extracts which model that run had registered,
     and return the instantiated model object.
+    :param fallback_run_id_for_local_execution: A hardcoded AzureML run ID that is used when executing this code
+    on a local box, outside of Azure build agents.
     """
-    most_recent_run = get_most_recent_run_id()
+    most_recent_run = get_most_recent_run_id(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
     azure_config = AzureConfig.from_yaml(fixed_paths.SETTINGS_YAML_FILE,
                                          project_root=fixed_paths.repository_root_directory())
     workspace = azure_config.get_workspace()
@@ -93,7 +97,7 @@ def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
     """
     Downloads the model that was built in the most recent run, and checks if its file structure is as expected.
     """
-    model = get_most_recent_model()
+    model = get_most_recent_model(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
     downloaded_folder = Path(model.download(str(test_output_dirs.root_dir)))
     print(f"Model was downloaded to folder {downloaded_folder}")
     expected_files = \
@@ -140,7 +144,7 @@ def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     and downloads the segmentation. Then check if the segmentation was actually produced.
     :return:
     """
-    model = get_most_recent_model()
+    model = get_most_recent_model(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
     image_file = fixed_paths_for_tests.full_ml_test_data_path() / "train_and_test_data" / "id1_channel1.nii.gz"
     assert image_file.exists(), f"Image file not found: {image_file}"
     settings_file = fixed_paths.SETTINGS_YAML_FILE
@@ -169,7 +173,7 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
     model. This test is run after training an ensemble run in AzureML. It starts "submit_for_inference" via
     Popen.
     """
-    azureml_model = get_most_recent_model()
+    azureml_model = get_most_recent_model(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
     assert azureml_model is not None
     # download the registered model and test that we can run the score pipeline on it
     model_root = Path(azureml_model.download(str(test_output_dirs.root_dir)))
