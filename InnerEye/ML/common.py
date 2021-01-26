@@ -63,10 +63,18 @@ class OneHotEncoderBase(abc.ABC):
 
 def create_recovery_checkpoint_path(path: Path) -> Path:
     """
-    Creates the file name of a recovery checkpoint in the given folder.
-    :param path: path to checkpoint folder
+    Returns the file name of a recovery checkpoint in the given folder. Raises a FileNotFoundError if no
+    recovery checkpoint file is present.
+    :param path: Path to checkpoint folder
     """
-    return path / (RECOVERY_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX)
+    # Recovery checkpoints are written alternately as recovery.ckpt and recovery-v0.ckpt.
+    best_checkpoint1 = path / f"{RECOVERY_CHECKPOINT_FILE_NAME_WITH_SUFFIX}"
+    best_checkpoint2 = path / f"{RECOVERY_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
+    for p in [best_checkpoint1, best_checkpoint2]:
+        if p.is_file():
+            return p
+    files = list(path.glob("*"))
+    raise FileNotFoundError(f"No checkpoint files found in {path}. Existing files: {' '.join(p.name for p in files)}")
 
 
 def get_best_checkpoint_path(path: Path) -> Path:
@@ -74,16 +82,7 @@ def get_best_checkpoint_path(path: Path) -> Path:
     Given a path and checkpoint, formats a path based on the checkpoint file name format.
     :param path to checkpoint folder
     """
-    # TODO antonsc: This is to work around Lightning's inconsistent treatment of checkpoint filenames.
-    # Maybe do that once and for all after training?
-
-    best_checkpoint1 = path / f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}"
-    best_checkpoint2 = path / f"{BEST_CHECKPOINT_FILE_NAME}-v0{CHECKPOINT_SUFFIX}"
-    for p in [best_checkpoint1, best_checkpoint2]:
-        if p.is_file():
-            return p
-    files = list(path.glob("*"))
-    raise FileNotFoundError(f"No checkpoint files found in {path}. Existing files: {' '.join(p.name for p in files)}")
+    return path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 
 
 def keep_latest(path: Path, search_pattern: str) -> Optional[Path]:

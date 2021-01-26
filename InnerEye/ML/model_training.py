@@ -82,7 +82,6 @@ def create_lightning_trainer(config: ModelConfigBase,
     # cleanup_checkpoint_folder
     recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
                                                    filename=RECOVERY_CHECKPOINT_FILE_NAME,
-                                                   save_top_k=1,
                                                    period=config.recovery_checkpoint_save_interval
                                                    )
 
