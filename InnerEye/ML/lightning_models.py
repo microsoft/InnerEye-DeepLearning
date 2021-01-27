@@ -5,7 +5,7 @@
 import logging
 import numbers
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
@@ -55,12 +55,25 @@ class StoringLogger(LightningLoggerBase):
 
     def __init__(self) -> None:
         super().__init__()
-        self.results: List[Dict[str, float]] = []
+        self.results: Dict[int, DictStrFloat] = {}
         self.hyperparams: Any = None
 
     @rank_zero_only
-    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
-        self.results.append(metrics)
+    def log_metrics(self, metrics: DictStrFloat, step: Optional[int] = None) -> None:
+        epoch_name = "epoch"
+        if epoch_name not in metrics:
+            raise ValueError("Each of the logged metrics should have an 'epoch' key.")
+        epoch = int(metrics[epoch_name])
+        del metrics[epoch_name]
+        if epoch in self.results:
+            current_results = self.results[epoch]
+            overlapping_keys = set(metrics.keys()).intersection(current_results.keys())
+            if len(overlapping_keys) > 0:
+                raise ValueError(f"Unable to log metric with same name twice for epoch {epoch}: "
+                                 f"{', '.join(overlapping_keys)}")
+            current_results.update(metrics)
+        else:
+            self.results[epoch] = metrics
 
     @rank_zero_only
     def log_hyperparams(self, params: Any) -> None:
@@ -75,31 +88,35 @@ class StoringLogger(LightningLoggerBase):
     def version(self) -> int:
         return 0
 
-    @staticmethod
-    def extract_by_prefix(metrics: Dict[str, float], prefix_filter: str = "") -> Tuple[int, DictStrFloat]:
+    @property
+    def epochs(self) -> Iterable[int]:
         """
-        Gets a set of metrics from a dictionary in the format that `StoringLogger` uses, and returns them
-        filtered for a prefix, and extracts the epoch that wrote the results. This is usually used to break a set
+        Gets the epochs for which the present object holds any results.
+        """
+        return self.results.keys()
+
+    def extract_by_prefix(self, epoch: int, prefix_filter: str = "") -> DictStrFloat:
+        """
+        Reads the set of metrics for a given epoch, filters them to retain only those that have the given prefix,
+        and returns the filtered ones. This is used to break a set
         of results down into those for training data (prefix "Train/") or validation data (prefix "Val/").
-        :param metrics: The metrics that should be processed.
+        :param epoch: The epoch for which results should be read.
         :param prefix_filter: If empty string, return all metrics. If not empty, return only those metrics that
         have a name starting with `prefix`, and strip off the prefix.
-        :return: A tuple [epoch number, metrics dictionary]
+        :return: A metrics dictionary.
         """
-        epoch_name = "epoch"
-        epoch_str = metrics.get(epoch_name, None)
-        if epoch_str is None:
-            raise ValueError("Each of the logged metrics should have an 'epoch' key.")
-        epoch = int(epoch_str)
-        metrics_dict = {}
-        for key, value in metrics.items():
+        epoch_results = self.results.get(epoch, None)
+        if epoch_results is None:
+            raise KeyError(f"No results are stored for epoch {epoch}")
+        filtered = {}
+        for key, value in epoch_results.items():
             assert isinstance(key, str), f"All dictionary keys should be strings, but got: {type(key)}"
             # Add the metric if either there is no prefix filter (prefix does not matter), or if the prefix
             # filter is supplied and really matches the metric name
-            if key != epoch_name and (not prefix_filter) or key.startswith(prefix_filter):
+            if (not prefix_filter) or key.startswith(prefix_filter):
                 stripped_key = key[len(prefix_filter):]
-                metrics_dict[stripped_key] = value
-        return int(epoch), metrics_dict
+                filtered[stripped_key] = value
+        return filtered
 
     def to_metrics_dicts(self, prefix_filter: str = "") -> Dict[int, DictStrFloat]:
         """
@@ -110,12 +127,7 @@ class StoringLogger(LightningLoggerBase):
         have a name starting with `prefix`, and strip off the prefix.
         :return: A dictionary mapping from epoch number to metric name to metric value.
         """
-        result = {}
-        for metrics in self.results:
-            epoch, metrics_dict = self.extract_by_prefix(metrics, prefix_filter)
-            if len(metrics_dict) != 0:
-                result[epoch] = metrics_dict
-        return result
+        return {epoch: self.extract_by_prefix(epoch, prefix_filter) for epoch in self.epochs}
 
 
 class AzureMLLogger(LightningLoggerBase):
@@ -289,9 +301,6 @@ class InnerEyeLightning(LightningModule):
     def on_train_epoch_start(self) -> None:
         self.train_timers.reset()
 
-    def on_train_epoch_end(self, outputs: Any) -> None:
-        self.on_train_or_validation_epoch_end(is_training=True)
-
     def training_epoch_end(self, outputs: List[Any]) -> None:
         self.training_or_validation_epoch_end(is_training=True)
 
@@ -314,7 +323,6 @@ class InnerEyeLightning(LightningModule):
 
     def on_validation_epoch_end(self) -> None:
         self.val_timers.epoch_end()
-        self.on_train_or_validation_epoch_end(is_training=False)
 
     def validation_epoch_end(self, outputs: List[Any]) -> None:
         """
@@ -327,22 +335,33 @@ class InnerEyeLightning(LightningModule):
         self.training_or_validation_epoch_end(is_training=False)
 
     @rank_zero_only
-    def on_train_or_validation_epoch_end(self, is_training: bool) -> None:
+    def on_epoch_end(self) -> None:
         """
-        This is a hook called once all per-epoch computation is finished, and all metrics are written.
-        It extracts the final set of metrics for the epoch from the `storing_logger` field, and writes them to a file.
-        :param is_training: Set to True to read out the training set metrics, or False to read out the
-        validation set metrics.
+        This hook is called once per epoch, before on_train_epoch_end. Use it to write out all the metrics
+        that have been accumulated in the StoringLogger in the previous epoch.
         """
-        prefix_filter = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
-        # Get the last set of metrics that the logger stores. That set belongs to the current train/validation
-        # epoch because it was written just before this hook is called.
-        if len(self.storing_logger.results) > 0:
-            epoch, metrics = StoringLogger.extract_by_prefix(self.storing_logger.results[-1], prefix_filter)
-            # Sanity check: We should see metrics for the current epoch.
-            assert epoch == self.current_epoch, f"Epochs don't match: logger has {epoch}, module has " \
-                                                f"{self.current_epoch}"
-            self.store_epoch_results(metrics, epoch, is_training)
+        self.read_epoch_results_from_logger_and_store(epoch=self.current_epoch - 1)
+
+    @rank_zero_only
+    def on_train_end(self) -> None:
+        """
+        This hook is called at the very end of training. Use that to write the very last set of training and
+        validation metrics from the StoringLogger to disk.
+        """
+        self.read_epoch_results_from_logger_and_store(epoch=self.current_epoch)
+
+    def read_epoch_results_from_logger_and_store(self, epoch: int) -> None:
+        """
+        Reads the metrics for the previous epoch from the StoringLogger, and writes them to disk, broken down by
+        Training and Validation metrics.
+        """
+        if epoch >= 0:
+            if epoch in self.storing_logger.results:
+                for is_training, prefix in [(True, TRAIN_PREFIX), (False, VALIDATION_PREFIX)]:
+                    metrics = self.storing_logger.extract_by_prefix(epoch, prefix)
+                    self.store_epoch_results(metrics, epoch, is_training)
+            else:
+                print(f"Skipping, no results for {epoch}")
 
     @rank_zero_only
     def training_or_validation_epoch_end(self, is_training: bool) -> None:
@@ -352,11 +371,22 @@ class InnerEyeLightning(LightningModule):
         :param is_training: If True, this is called at the end of a training epoch. If False, this is at the
         end of a validation epoch.
         """
-        timers = self.get_timers(is_training=is_training)
         if not is_training:
             # In validation epochs, mark that it has been completed. Training epochs are marked completed already
             # at the start of the validation epoch.
-            timers.epoch_end()
+            self.val_timers.epoch_end()
+            # Write all IO stats here, so that the order on the console is Train start, train end, val start, val end.
+            self.write_and_log_epoch_time(is_training=True)
+            self.write_and_log_epoch_time(is_training=False)
+
+    def write_and_log_epoch_time(self, is_training: bool) -> None:
+        """
+        Reads the IO timers for either the training or validation epoch, writes them to the console, and logs the
+        time per epoch.
+        :param is_training: If True, show and log the data for the training epoch. If False, use the data for the
+        validation epoch.
+        """
+        timers = self.get_timers(is_training=is_training)
         epoch_time_seconds = timers.total_epoch_time
         status = "training" if is_training else "validation"
         logging.info(f"Epoch {self.current_epoch} {status} took {epoch_time_seconds:0.2f}sec, of which waiting for "
@@ -414,9 +444,7 @@ class InnerEyeLightning(LightningModule):
         for validation metrics.
         """
         file_logger = self.train_epoch_metrics_logger if is_training else self.val_epoch_metrics_logger
-        store_epoch_metrics(metrics,
-                            epoch,
-                            file_logger=file_logger)
+        store_epoch_metrics(metrics, epoch, file_logger=file_logger)
 
     def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         """
