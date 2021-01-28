@@ -18,7 +18,7 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata, PatientDatasetSource, \
     PatientMetadata, Sample
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.utils import io_util, ml_util
+from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_PATH_HEADER, \
     CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.transforms import Compose3D

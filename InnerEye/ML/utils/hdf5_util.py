@@ -10,7 +10,7 @@ from typing import Optional, Type, TypeVar, Union
 import h5py
 import numpy as np
 
-from InnerEye.ML.utils.image_util import ImageDataType, multi_label_array_to_binary
+from InnerEye.ML.utils.image_util import ImageDataType
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 

@@ -95,7 +95,7 @@ class ScalarItem(ScalarItemBase):
         Creates a copy of the present object where all tensors live on the given CUDA device.
         The metadata field is left unchanged.
         :param device: The CUDA or GPU device to move to.
-        :return: A new `ScalarItem` with all tensors on the chose device.
+        :return: A new `ScalarItem` with all tensors on the chosen device.
         """
         return ScalarItem(
             metadata=self.metadata,

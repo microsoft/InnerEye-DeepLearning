@@ -47,7 +47,7 @@ from InnerEye.ML.configs.segmentation.ProstateBase import ProstateBase
 class Prostate(ProstateBase):
     def __init__(self) -> None:
         super().__init__(
-            ground_truth_ids=["femur_r", "femur_l", "rectum", "prostate"]
+            ground_truth_ids=["femur_r", "femur_l", "rectum", "prostate"],
             azure_dataset_id="id-of-your-blob-containing-prostate-data")
 ```
 The allowed parameters and their meanings are defined in [`SegmentationModelBase`](/InnerEye/ML/config.py).
