@@ -115,6 +115,7 @@ def create_lightning_trainer(config: ModelConfigBase,
                       logger=loggers,
                       progress_bar_refresh_rate=0,  # Disable the progress bar,
                       gpus=num_gpus,
+                      precision=16 if config.use_mixed_precision else 32,
                       sync_batchnorm=True,
                       terminate_on_nan=config.detect_anomaly,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None
