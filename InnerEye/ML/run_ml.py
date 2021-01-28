@@ -291,8 +291,7 @@ class MLRunner:
         """
 
         if self.should_register_model():
-            checkpoint_paths = self.decide_registration_epoch_without_evaluating(checkpoint_handler=checkpoint_handler)
-
+            checkpoint_paths = checkpoint_handler.get_checkpoints_to_test()
             if not checkpoint_paths:
                 raise ValueError("Model registration failed: No checkpoints found")
 
@@ -313,20 +312,7 @@ class MLRunner:
         model (from the run we recovered) should already have been registered, so we should only
         do so if this run is specifically for that purpose.
         """
-        return self.azure_config.train or self.azure_config.only_register_model is not None
-
-    def decide_registration_epoch_without_evaluating(self,
-                                                     checkpoint_handler: CheckpointHandler) -> List[Path]:
-        """
-        In general we need to do evaluations to discover the best test epoch to register the model
-        for. But there are two exceptions, which allow us to register first: (1) the switch
-        only_register_model is set; (2) there is only one test epoch.
-        :return: the epoch to register, or None if it cannot be decided or if registration is not needed.
-        """
-        if not self.should_register_model():
-            return []
-        candidate_best_epochs = checkpoint_handler.get_checkpoints_to_test()
-        return candidate_best_epochs
+        return self.azure_config.train or self.azure_config.only_register_model
 
     def create_activation_maps(self) -> None:
         if self.model_config.is_segmentation_model and self.model_config.activation_map_layers is not None:
