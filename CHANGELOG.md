@@ -11,8 +11,11 @@ created.
 ## Upcoming
 
 ### Added
-- There are new commandline options for controlling PyTorch Lightning training: 
+- There are new model configuration fields (and hence, commandline options), in particular for controlling PyTorch 
+Lightning (PL) training: 
   - `max_num_gpus` controls how many GPUs are used at most for training (default: all GPUs, value -1).
+  - `pl_num_sanity_val_steps` controls the PL trainer flag `num_sanity_val_steps`
+  - `pl_deterministic` controls the PL trainer flags `benchmark` and `deterministic`
   - `generate_report` controls if a HTML report will be written (default: True) 
   - `recovery_checkpoint_save_interval` determines how often a checkpoint for training recovery is saved.
 - New extensions of SegmentationModelBases `HeadAndNeckBase` and `ProstateBase`. Use these classes to build your own Head&Neck or Prostate models, by just providing a list of foreground classes.

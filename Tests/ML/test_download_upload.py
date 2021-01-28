@@ -35,8 +35,7 @@ def runner_config() -> AzureConfig:
     return config
 
 
-def test_download_checkpoints_invalid_run(test_output_dirs: OutputFolderForTests,
-                                          runner_config: AzureConfig) -> None:
+def test_get_results_blob_path() -> None:
     assert get_results_blob_path("some_run_id") == "azureml/ExperimentRun/dcid.some_run_id"
 
 

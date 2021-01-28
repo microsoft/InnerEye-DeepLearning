@@ -110,11 +110,22 @@ def create_lightning_trainer(config: ModelConfigBase,
     #     loggers.append(mlflow_logger)
     # Use 32bit precision when running on CPU. Otherwise, make it depend on use_mixed_precision flag.
     precision = 32 if num_gpus == 0 else 16 if config.use_mixed_precision else 32
+    # The next two flags control the settings in torch.backends.cudnn.deterministic and torch.backends.cudnn.benchmark
+    # https://pytorch.org/docs/stable/notes/randomness.html
+    # For the classification models, we observed only a small performance deterioration (increase in 10sec on total
+    # training time of 22min) when switching to deterministic.
+    if config.pl_deterministic:
+        deterministic = True
+        benchmark = False
+    else:
+        deterministic = False
+        benchmark = True
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
-                      deterministic=True,
+                      deterministic=deterministic,
+                      benchmark=benchmark,
                       accelerator=accelerator,
                       max_epochs=config.num_epochs,
-                      num_sanity_val_steps=0,  # Otherwise a small number of validation steps is run before first train
+                      num_sanity_val_steps=config.pl_num_sanity_val_steps,
                       callbacks=[best_checkpoint_callback, recovery_checkpoint_callback],
                       logger=loggers,
                       progress_bar_refresh_rate=0,  # Disable the progress bar,
@@ -145,11 +156,11 @@ def model_train(config: ModelConfigBase,
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
     # training in the unit tests.d
     old_environ = dict(os.environ)
+    seed_everything(config.get_effective_random_seed())
     trainer, storing_logger = create_lightning_trainer(config, checkpoint_path)
 
     logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
                  f"trainer.global_rank: {trainer.global_rank}")
-    seed_everything(config.get_effective_random_seed())
     logging.debug("Creating the PyTorch model.")
     lightning_model = create_lightning_model(config)
     lightning_model.storing_logger = storing_logger

@@ -48,7 +48,6 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
-from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
@@ -246,9 +245,6 @@ class MLRunner:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
             self.model_config.local_dataset = self.mount_or_download_dataset()
-            # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
-            make_pytorch_reproducible()
-
             # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
             # loaded (typically only during tests)
             if self.model_config.dataset_data_frame is None:

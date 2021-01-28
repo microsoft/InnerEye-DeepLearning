@@ -368,6 +368,14 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     generate_report: bool = param.Boolean(default=True,
                                           doc="If True (default), write a modelling report in HTML format. If False,"
                                               "do not write that report.")
+    pl_num_sanity_val_steps: int = \
+        param.Integer(default=0, doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
+                                     "steps to run before training, to identify possible problems")
+    pl_deterministic: bool = \
+        param.Integer(default=True,
+                      doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
+                          "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
+                          "you may see training speed increases.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
