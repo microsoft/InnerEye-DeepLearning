@@ -11,7 +11,8 @@ from typing import Any, Dict, List, Optional
 
 import torch
 
-from InnerEye.ML.lightning_models import ScalarLightning, load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_helpers import load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_models import ScalarLightning
 from InnerEye.ML.pipelines.inference import InferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType, ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase

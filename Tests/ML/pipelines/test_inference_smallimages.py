@@ -11,8 +11,8 @@ from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.lightning_models import SegmentationLightning, create_lightning_model, \
-    load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_helpers import create_lightning_model, load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_models import SegmentationLightning
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.utils import image_util
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint

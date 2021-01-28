@@ -19,8 +19,11 @@ from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, cleanup_checkpoint_folder
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_models import AzureMLLogger, SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
-    StoringLogger, TrainingAndValidationDataLightning, create_lightning_model, get_subject_output_file_per_rank
+from InnerEye.ML.lightning_base import TrainingAndValidationDataLightning
+from InnerEye.ML.lightning_helpers import create_lightning_model
+from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
+from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
+    get_subject_output_file_per_rank
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
@@ -105,7 +108,8 @@ def create_lightning_trainer(config: ModelConfigBase,
     #     # results for each run, one from native AzureML and one from the MLFlow logger.
     #     mlflow_logger._run_id = RUN_CONTEXT.id
     #     loggers.append(mlflow_logger)
-
+    # Use 32bit precision when running on CPU. Otherwise, make it depend on use_mixed_precision flag.
+    precision = 32 if num_gpus == 0 else 16 if config.use_mixed_precision else 32
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
                       deterministic=True,
                       accelerator=accelerator,
@@ -115,7 +119,7 @@ def create_lightning_trainer(config: ModelConfigBase,
                       logger=loggers,
                       progress_bar_refresh_rate=0,  # Disable the progress bar,
                       gpus=num_gpus,
-                      precision=16 if config.use_mixed_precision else 32,
+                      precision=precision,
                       sync_batchnorm=True,
                       terminate_on_nan=config.detect_anomaly,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None
@@ -184,8 +188,7 @@ def model_train(config: ModelConfigBase,
     # When trying to store the config object in the constructor, it does not appear to get stored at all, later
     # reference of the object simply fail. Hence, have to set explicitly here.
     lightning_data.config = config
-    trainer.fit(lightning_model,
-                datamodule=lightning_data)
+    trainer.fit(lightning_model, datamodule=lightning_data)
     trainer.logger.close()  # type: ignore
     lightning_model.close_all_loggers()
     world_size = getattr(trainer, "world_size", 0)

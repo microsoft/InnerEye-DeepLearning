@@ -150,7 +150,10 @@ def store_and_upload_example(dataset_example: DatasetExample,
     the args.example_images_folder is used instead.
     """
 
-    folder = images_folder or args.example_images_folder
+    if images_folder is not None:
+        folder = images_folder
+    else:
+        folder = args.example_images_folder if args else Path("")
     if folder != "" and not os.path.exists(folder):
         os.mkdir(folder)
 

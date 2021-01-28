@@ -11,6 +11,8 @@ TRAIN_PREFIX = "train/"
 VALIDATION_PREFIX = "val/"
 
 SEQUENCE_POSITION_HUE_NAME_PREFIX = "Seq_pos"
+# Suffix for logging a Dice score averaged across all structures
+AVERAGE_DICE_SUFFIX = "AverageAcrossStructures"
 
 
 class MetricsFileColumns(Enum):

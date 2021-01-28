@@ -10,14 +10,15 @@ import pytest
 import torch
 from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_curve
 
-from InnerEye.Common.metrics_constants import INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, TRAIN_PREFIX, \
+from InnerEye.Common.metrics_constants import AVERAGE_DICE_SUFFIX, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, \
+    TRAIN_PREFIX, \
     VALIDATION_PREFIX
 from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import metrics
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.configs.regression.DummyRegression import DummyRegression
-from InnerEye.ML.lightning_models import AVERAGE_DICE_SUFFIX, ScalarLightning
-from InnerEye.ML.metrics import AverageWithoutNan, MetricForMultipleStructures
+from InnerEye.ML.lightning_metrics import AverageWithoutNan, MetricForMultipleStructures
+from InnerEye.ML.lightning_models import ScalarLightning
 from InnerEye.ML.metrics_dict import MetricsDict, get_column_name_for_logging
 
 

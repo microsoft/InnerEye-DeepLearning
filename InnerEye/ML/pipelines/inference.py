@@ -18,7 +18,8 @@ from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import config
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.lightning_models import SegmentationLightning, load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_helpers import load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_models import SegmentationLightning
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.utils import image_util, ml_util
