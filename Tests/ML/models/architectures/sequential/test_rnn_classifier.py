@@ -206,6 +206,11 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
                               use_encoder_layer_norm=use_encoder_layer_norm,
                               use_mean_teacher_model=use_mean_teacher_model,
                               should_validate=False)
+    # This fails with 16bit precision, saying "torch.nn.functional.binary_cross_entropy and torch.nn.BCELoss are
+    # unsafe to autocast. Many models use a sigmoid layer right before the binary cross entropy layer. In this case,
+    # combine the two layers using torch.nn.functional.binary_cross_entropy_with_logits or
+    # torch.nn.BCEWithLogitsLoss.  binary_cross_entropy_with_logits and BCEWithLogits are safe to autocast."
+    config.use_mixed_precision = False
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     # Patch the load_images function that will be called once we access a dataset item

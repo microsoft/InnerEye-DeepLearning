@@ -263,6 +263,11 @@ def test_image_encoder_with_segmentation(test_output_dirs: OutputFolderForTests,
                           should_validate=False,
                           aggregation_type=aggregation_type,
                           scan_size=scan_size)
+    # This fails with 16bit precision, saying "torch.nn.functional.binary_cross_entropy and torch.nn.BCELoss are
+    # unsafe to autocast. Many models use a sigmoid layer right before the binary cross entropy layer. In this case,
+    # combine the two layers using torch.nn.functional.binary_cross_entropy_with_logits or
+    # torch.nn.BCEWithLogitsLoss.  binary_cross_entropy_with_logits and BCEWithLogits are safe to autocast."
+    config.use_mixed_precision = False
     config.set_output_to(test_output_dirs.root_dir)
     config.num_epochs = 1
     config.local_dataset = Path()
