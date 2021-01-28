@@ -297,7 +297,7 @@ class MLRunner:
 
             model_description = "Registering model."
             checkpoint_paths = checkpoint_paths
-            self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
+            self.register_model(checkpoint_paths, model_description, model_proc)
 
         if not self.azure_config.only_register_model:
             # run full image inference on existing or newly trained model on the training, and testing set
@@ -308,10 +308,13 @@ class MLRunner:
 
     def should_register_model(self) -> bool:
         """
-        Whether we should register a model at all. If no training has taken place, an equivalent
+        Returns True if we should register a model at all. No models should be registered when running outside
+        AzureML. Inside AzureML, if no training has taken place, an equivalent
         model (from the run we recovered) should already have been registered, so we should only
         do so if this run is specifically for that purpose.
         """
+        if self.model_config.is_offline_run:
+            return False
         return self.azure_config.train or self.azure_config.only_register_model
 
     def create_activation_maps(self) -> None:
@@ -384,10 +387,10 @@ class MLRunner:
             logging.info(f"Setting multiprocessing start method to '{method.name}'")
             torch.multiprocessing.set_start_method(method.name, force=True)
 
-    def register_model_for_epoch(self,
-                                 checkpoint_paths: List[Path],
-                                 model_description: str,
-                                 model_proc: ModelProcessing) -> None:
+    def register_model(self,
+                       checkpoint_paths: List[Path],
+                       model_description: str,
+                       model_proc: ModelProcessing) -> None:
         """
         Registers the model in AzureML, with the given set of checkpoints. The AzureML run's tags are updated
         to describe with information about ensemble creation and the parent run ID.
@@ -428,11 +431,10 @@ class MLRunner:
     def register_segmentation_model(self,
                                     checkpoint_paths: List[Path],
                                     model_description: str,
-                                    model_proc: ModelProcessing) -> Tuple[Optional[Model], Optional[Any]]:
+                                    model_proc: ModelProcessing) -> Tuple[Model, Any]:
         """
         Registers a new model in the workspace's model registry to be deployed further,
-        and creates a model zip for portal deployment (if required). This is only done if the present process
-        is running in AzureML, and skipped in runs outside AzureML.
+        and creates a model zip for portal deployment (if required).
         :param model_description: A string description that is added to the deployed model. It would usually contain
         the test set performance and information at which epoch the result was achieved.
         :param checkpoint_paths: Checkpoint paths to use to upload model checkpoints to AML.
@@ -440,9 +442,6 @@ class MLRunner:
         :returns Tuple element 1: AML model object, or None if no model could be registered.
         Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
         """
-        if self.model_config.is_offline_run:
-            logging.info("Skipping model registration because the process is not running in AzureML.")
-            return None, None
         # The files for the final model can't live in the outputs folder. If they do: when registering the model,
         # the files may not yet uploaded by hosttools, and that may (or not) cause errors. Hence, place the folder
         # for the final models outside of "outputs", and upload manually.
