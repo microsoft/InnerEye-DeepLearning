@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from enum import Enum, unique
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -16,11 +15,12 @@ from param import Parameterized
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import MetricsDataframeLoggers, is_windows
+from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import ModelExecutionMode, create_checkpoint_path, create_unique_timestamp_id
+from InnerEye.ML.common import ModelExecutionMode, create_recovery_checkpoint_path, create_unique_timestamp_id, \
+    get_best_checkpoint_path
 
 VISUALIZATION_FOLDER = "Visualizations"
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
@@ -138,8 +138,7 @@ class DeepLearningFileSystemConfig(Parameterized):
         if not project_root.is_absolute():
             raise ValueError(f"The project root is required to be an absolute path, but got {project_root}")
 
-        if is_offline_run:
-            logging.info("Running outside of AzureML.")
+        if is_offline_run or output_to:
             if output_to:
                 logging.info(f"All results will be written to the specified output folder {output_to}")
                 root = Path(output_to).absolute()
@@ -255,11 +254,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  doc="The betas parameter of Adam, default is (0.9, 0.999)")
     momentum: float = param.Number(0.6, doc="The momentum parameter of the optimizers")
     weight_decay: float = param.Number(1e-4, doc="The weight decay used to control L2 regularization")
-
-    save_start_epoch: int = param.Integer(100, bounds=(0, None), doc="Save epoch checkpoints only when epoch is "
-                                                                     "larger or equal to this value.")
-    save_step_epochs: int = param.Integer(50, bounds=(0, None), doc="Save epoch checkpoints when epoch number is a "
-                                                                    "multiple of save_step_epochs")
+    recovery_checkpoint_save_interval: int = param.Integer(10, bounds=(0, None),
+                                                           doc="Save epoch checkpoints when epoch number is a multiple "
+                                                               "of recovery_checkpoint_save_interval. The intended use "
+                                                               "is to allow restore training from failed runs.")
     train_batch_size: int = param.Integer(4, bounds=(0, None),
                                           doc="The number of crops that make up one minibatch during training.")
     detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "
@@ -269,24 +267,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     use_model_parallel: bool = param.Boolean(False, doc="If true, neural network model is partitioned across all "
                                                         "available GPUs to fit in a large model. It shall not be used "
                                                         "together with data parallel.")
-    epochs_to_test: Optional[List[int]] = param.List(None, bounds=(1, None), allow_None=True, class_=int,
-                                                     doc="Epochs to test on. This should be a list of integers > 1."
-                                                         "Note that this option takes precedence over the config "
-                                                         "option "
-                                                         "set `test_diff_epochs`, `test_step_epochs` and "
-                                                         "`test_start_epoch`")
-    test_diff_epochs: Optional[int] = param.Integer(None, allow_None=True,
-                                                    doc="Deprecated: "
-                                                        "Number of different epochs of the same model to test. "
-                                                        "This option will be ignored if `epochs_to_test` is set")
-    test_step_epochs: Optional[int] = param.Integer(None, allow_None=True,
-                                                    doc="Deprecated: "
-                                                        "How many epochs to move for each test "
-                                                        "This option will be ignored if `epochs_to_test` is set")
-    test_start_epoch: Optional[int] = param.Integer(None, allow_None=True,
-                                                    doc="Deprecated: "
-                                                        "The first epoch on which testing should run."
-                                                        "This option will be ignored if `epochs_to_test` is set")
     monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
                                                             "statistics. If 0 or less, do not log any resource "
                                                             "statistics.")
@@ -319,11 +299,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     perform_validation_and_test_set_inference: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on validation and test set after training.")
-    _metrics_data_frame_loggers: MetricsDataframeLoggers = param.ClassSelector(default=None,
-                                                                               class_=MetricsDataframeLoggers,
-                                                                               instantiate=False,
-                                                                               doc="Data frame loggers for this model "
-                                                                                   "config")
     _dataset_data_frame: Optional[DataFrame] = \
         param.DataFrame(default=None,
                         doc="The dataframe that contains the dataset for the model. This is usually read from disk "
@@ -347,10 +322,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                             doc="Method to be used to start child processes in pytorch. Should be one of forkserver, "
                                 "fork or spawn. If not specified, fork is used on Linux and spawn on Windows. "
                                 "Set to forkserver as a possible remedy for stuck jobs.")
-    output_to: Optional[str] = \
-        param.String(default=None,
-                     doc="If provided, the run outputs will be written to the given folder. If not provided, outputs "
-                         "will go into a subfolder of the project root folder.")
+    output_to: str = param.String(default="",
+                                  doc="If provided, the run outputs will be written to the given folder. If not "
+                                      "provided, outputs will go into a subfolder of the project root folder.")
     max_batch_grad_cam: int = param.Integer(default=0, doc="Max number of validation batches for which "
                                                            "to save gradCam images. By default "
                                                            "visualizations are saved for all images "
@@ -389,6 +363,19 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                              doc="The path to the weights to use for model "
                                                                  "initialization, "
                                                                  "when training is running outside Azure.")
+    max_num_gpus: int = param.Integer(default=-1, doc="The maximum number of GPUS to use. If set to a value < 0, use"
+                                                      "all available GPUs.")
+    generate_report: bool = param.Boolean(default=True,
+                                          doc="If True (default), write a modelling report in HTML format. If False,"
+                                              "do not write that report.")
+    pl_num_sanity_val_steps: int = \
+        param.Integer(default=0, doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
+                                     "steps to run before training, to identify possible problems")
+    pl_deterministic: bool = \
+        param.Integer(default=True,
+                      doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
+                          "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
+                          "you may see training speed increases.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
@@ -413,13 +400,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
         if self.weights_url and self.local_weights_path:
             raise ValueError("Cannot specify both local_weights_path and weights_url.")
-
-        if self.test_start_epoch or self.test_step_epochs or self.test_diff_epochs:
-            warnings.warn("DEPRECATED: The combination of (test_diff_epochs, test_step_epochs "
-                          "and test_start_epoch) is deprecated, use epochs_to_start instead.", DeprecationWarning)
-            if self.epochs_to_test:
-                logging.warning("self.epochs_to_test will take precedence over the config parameter set "
-                                "(test_diff_epochs, test_step_epochs, test_start_epoch)")
 
         if self.number_of_cross_validation_splits == 1:
             raise ValueError(f"At least two splits required to perform cross validation found "
@@ -532,14 +512,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         self._dataset_data_frame = data_frame
 
-    @property
-    def metrics_data_frame_loggers(self) -> MetricsDataframeLoggers:
-        """
-        Gets the metrics data frame loggers for this config.
-        :return:
-        """
-        return self._metrics_data_frame_loggers
-
     def set_output_to(self, output_to: PathOrString) -> None:
         """
         Adjusts the file system settings in the present object such that all outputs are written to the given folder.
@@ -563,25 +535,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
             output_to=self.output_to
         )
 
-    def create_dataframe_loggers(self) -> None:
-        """
-        Initializes the metrics loggers that are stored in self._metrics_data_frame_loggers
-        :return:
-        """
-        self._metrics_data_frame_loggers = MetricsDataframeLoggers(outputs_folder=self.outputs_folder)
-
-    def should_save_epoch(self, epoch: int) -> bool:
-        """Returns True if the present epoch should be saved, as per the save_start_epoch and save_step_epochs
-        settings. Epoch writing starts with the first epoch that is >= save_start_epoch, and that
-        is evenly divisible by save_step_epochs. A checkpoint is always written for the last epoch (num_epochs),
-        such that it is easy to overwrite num_epochs on the commandline without having to change the test parameters
-        at the same time.
-        :param epoch: The current epoch. The first epoch is assumed to be 1."""
-        should_save_epoch = epoch >= self.save_start_epoch \
-                            and epoch % self.save_step_epochs == 0
-        is_last_epoch = epoch == self.num_epochs
-        return should_save_epoch or is_last_epoch
-
     def get_train_epochs(self) -> List[int]:
         """
         Returns the epochs for which training will be performed.
@@ -596,13 +549,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         return len(self.get_train_epochs())
 
-    def get_total_number_of_save_epochs(self) -> int:
-        """
-        Returns the number of epochs for which a model checkpoint will be saved.
-        :return:
-        """
-        return len(list(filter(self.should_save_epoch, self.get_train_epochs())))
-
     def get_total_number_of_validation_epochs(self) -> int:
         """
         Returns the number of epochs for which a model will be validated.
@@ -610,33 +556,19 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         """
         return self.get_total_number_of_training_epochs()
 
-    def get_test_epochs(self) -> List[int]:
+    def get_path_to_checkpoint(self) -> Path:
         """
-        Returns the list of epochs for which the model should be evaluated on full images in the test set.
-        These are all epochs starting at self.test_start_epoch, in intervals of self.n_steps_epoch.
-        The last training epoch is always included. If either of the self.test_* fields is missing (set to None),
-        only the last training epoch is returned.
-        :return:
-        """
-        test_epochs = {self.num_epochs}
-        if self.epochs_to_test:
-            return sorted(test_epochs | set(self.epochs_to_test))
-        elif self.test_diff_epochs is not None and self.test_start_epoch is not None and \
-                self.test_step_epochs is not None:
-            for j in range(self.test_diff_epochs):
-                epoch = self.test_start_epoch + self.test_step_epochs * j
-                if epoch > self.num_epochs:
-                    break
-                test_epochs.add(epoch)
-        return sorted(test_epochs)
-
-    def get_path_to_checkpoint(self, epoch: int) -> Path:
-        """
-        Returns full path to a checkpoint given an epoch
-        :param epoch: the epoch number
+        Returns full path to a recovery checkpoint.
         :return: path to a checkpoint given an epoch
         """
-        return create_checkpoint_path(self.checkpoint_folder, epoch=epoch)
+        return create_recovery_checkpoint_path(self.checkpoint_folder)
+
+    def get_path_to_best_checkpoint(self) -> Path:
+        """
+        Returns full path to a checkpoint given an epoch
+        :return: path to a checkpoint given an epoch
+        """
+        return get_best_checkpoint_path(self.checkpoint_folder)
 
     def get_effective_random_seed(self) -> int:
         """
@@ -676,21 +608,12 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                 raise ValueError("Can't set use_gpu to True if there is not CUDA capable GPU present.")
         self._use_gpu = value
 
-    @property
-    def use_data_parallel(self) -> bool:
+    def write_args_file(self) -> None:
         """
-        Data parallel is used if GPUs are usable and the number of CUDA devices are greater than 1.
-        :return:
+        Writes the current config to disk in the default output folder.
         """
-        _devices = self.get_cuda_devices()
-        return _devices is not None and len(_devices) > 1
-
-    def write_args_file(self, root: Optional[Path] = None) -> None:
-        """
-        Writes the current config to disk. The file is written either to the given folder, or if omitted,
-        to the default outputs folder.
-        """
-        dst = (root or self.outputs_folder) / ARGS_TXT
+        self.outputs_folder.mkdir(exist_ok=True, parents=True)
+        dst = self.outputs_folder / ARGS_TXT
         dst.write_text(data=str(self))
 
     def should_wait_for_other_cross_val_child_runs(self) -> bool:
@@ -717,12 +640,15 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         return self.mean_teacher_alpha is not None
 
     def __str__(self) -> str:
-        """Returns a string describing the present object, as a list of key == value pairs."""
+        """Returns a string describing the present object, as a list of key: value strings."""
         arguments_str = "\nArguments:\n"
-        property_dict = vars(self)
-        keys = sorted(property_dict)
-        for key in keys:
-            arguments_str += "\t{:18}: {}\n".format(key, property_dict[key])
+        # Avoid callable params, the bindings that are printed out can be humongous.
+        # Avoid dataframes
+        skip_params = {name for name, value in self.param.params().items()
+                       if isinstance(value, (param.Callable, DataFrame))}
+        for key, value in self.param.get_param_values():
+            if key not in skip_params:
+                arguments_str += f"\t{key:40}: {value}\n"
         return arguments_str
 
     def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:

@@ -18,7 +18,7 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata, PatientDatasetSource, \
     PatientMetadata, Sample
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.utils import io_util, ml_util
+from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_PATH_HEADER, \
     CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.transforms import Compose3D
@@ -47,16 +47,6 @@ def collate_with_metadata(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
                 result[key] = default_collate([d[key] for d in batch])
         return result
     raise TypeError(f"Unexpected batch data: Expected a dictionary, but got: {type(elem)}")
-
-
-def set_random_seed_for_dataloader_worker(worker_id: int) -> None:
-    """
-    Set the seed for the random number generators of python, numpy.
-    """
-    # Set the seeds for numpy and python random based on the offset of the worker_id and initial seed,
-    # converting the initial_seed which is a long to modulo int32 which is what numpy expects.
-    random_seed = (torch.initial_seed() + worker_id) % (2 ** 32)
-    ml_util.set_random_seed(random_seed, f"Data loader worker ({worker_id})")
 
 
 class _RepeatSampler(BatchSampler):
@@ -188,7 +178,6 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
                 shuffle=shuffle,
                 num_workers=num_dataload_workers,
                 pin_memory=self.args.pin_memory,
-                worker_init_fn=set_random_seed_for_dataloader_worker,
                 collate_fn=collate_with_metadata,
                 use_imbalanced_sampler=use_imbalanced_sampler,
                 drop_last=drop_last_batch
@@ -205,7 +194,6 @@ class GeneralDataset(Dataset, ABC, Generic[D]):
                 shuffle=shuffle,
                 num_workers=num_dataload_workers,
                 pin_memory=self.args.pin_memory,
-                worker_init_fn=set_random_seed_for_dataloader_worker,
                 collate_fn=collate_with_metadata,
                 sampler=sampler,  # type: ignore
                 drop_last=drop_last_batch

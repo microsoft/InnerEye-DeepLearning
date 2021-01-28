@@ -48,7 +48,6 @@ class RandomStateSnapshot:
         """
         Restore the state for the random number generators of python, numpy, torch.random, and torch.cuda for all gpus.
         """
-        logging.debug("Restoring all random states")
         random.setstate(self.random_state)
         np.random.set_state(self.numpy_random_state)
         torch.random.set_rng_state(self.torch_random_state)
@@ -162,18 +161,6 @@ def set_random_seed(random_seed: int, caller_name: Optional[str] = None) -> None
     if caller_name is not None:
         prefix = caller_name + ": "
     logging.debug(f"{prefix}Random seed set to: {random_seed}")
-
-
-# noinspection PyUnresolvedReferences,PyTypeHints
-def make_pytorch_reproducible() -> None:
-    """
-    Sets pytorch to a state such that 2 independent training runs do really give the same results.
-    """
-    # These two settings come from https://pytorch.org/docs/stable/notes/randomness.html
-    # Caveat: small increase in training time. For classification models, training time increased from
-    # 22:25min / 22:35min to 22:45min / 22:50min
-    torch.backends.cudnn.deterministic = True  # type: ignore
-    torch.backends.cudnn.benchmark = False  # type: ignore
 
 
 def is_test_from_execution_mode(execution_mode: ModelExecutionMode) -> bool:

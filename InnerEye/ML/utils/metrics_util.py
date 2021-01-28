@@ -2,40 +2,18 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
-from dataclasses import dataclass
 from functools import reduce
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import tensorboardX
 import torch
 from pandas import DataFrame
 from sklearn.metrics import r2_score as sklearn_r2_score
 
-from InnerEye.Common import common_util
+from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.Common.type_annotations import TupleFloat3
-from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
-
-
-@dataclass
-class SummaryWriters:
-    """
-    Wrapper class to store the tensorboard summaries for
-    validation and training.
-    """
-    train: tensorboardX.SummaryWriter
-    val: tensorboardX.SummaryWriter
-
-    def __post_init__(self) -> None:
-        common_util.check_properties_are_not_none(self)
-
-    def close_all(self) -> None:
-        self.train.close()
-        self.val.close()
 
 
 class MetricsPerPatientWriter:
@@ -133,34 +111,12 @@ class MetricsPerPatientWriter:
         return df
 
 
-def create_summary_writers(args: ModelConfigBase) -> SummaryWriters:
-    """
-    Creates two tensorboard writers, one for training and one for
-    validation. Stored in a SummaryWriters objects.
-
-    :param args: config of the model
-    :return: SummaryWriters with tensorboard summary writers.
-    """
-    # Disable tensorboardX's logs
-    logging.getLogger().disabled = True
-
-    writer_train = tensorboardX.SummaryWriter(str(args.logs_folder / "train"))
-    writer_val = tensorboardX.SummaryWriter(str(args.logs_folder / "val"))
-
-    # Reset logger
-    logging.getLogger().disabled = False
-
-    return SummaryWriters(train=writer_train, val=writer_val)
-
-
-def get_number_of_voxels_per_class(labels: Union[np.ndarray, torch.Tensor]) -> List[int]:
+def get_number_of_voxels_per_class(labels: torch.Tensor) -> torch.Tensor:
     """
     Computes the number of voxels for each class in a one-hot label map.
-
     :param labels: one-hot label map in shape Batches x Classes x Z x Y x X or Classes x Z x Y x X
+    :return: A tensor of shape [Batches x Classes] containing the number of non-zero voxels along Z, Y, X
     """
-    if labels is None:
-        raise Exception("labels cannot be None")
     if not len(labels.shape) in [5, 4]:
         raise Exception("labels must have either 4 (Classes x Z x Y x X) "
                         "or 5 dimensions (Batches x Classes x Z x Y x X), found:{}"
@@ -169,7 +125,7 @@ def get_number_of_voxels_per_class(labels: Union[np.ndarray, torch.Tensor]) -> L
     if len(labels.shape) == 4:
         labels = labels[None, ...]
 
-    return [np.sum(c).item() for c in np.count_nonzero(labels, axis=0)]
+    return torch.tensor(np.count_nonzero(labels.cpu().numpy(), axis=(2, 3, 4)))
 
 
 def get_label_overlap_stats(labels: np.ndarray, label_names: List[str]) -> Dict[str, int]:

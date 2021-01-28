@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR, LambdaLR, MultiStepLR, StepLR, _LRScheduler
 from torch.optim.optimizer import Optimizer
@@ -40,6 +40,18 @@ class LinearWarmUp(_LRScheduler):
 
     def get_lr(self) -> List[float]:  # type: ignore
         return [self.final_lr * self.warmup_multiplier()]
+
+
+class PolynomialLR:
+    def __init__(self, gamma: float, l_rate: float, min_l_rate: float, epochs_after_warmup: int) -> None:
+        self.gamma = gamma
+        self.l_rate = l_rate
+        self.min_l_rate = min_l_rate
+        self.epochs_after_warmup = epochs_after_warmup
+
+    def get_lr(self, epoch: int) -> float:
+        x = self.min_l_rate / self.l_rate
+        return (1 - x) * ((1. - float(epoch) / self.epochs_after_warmup) ** self.gamma) + x
 
 
 class SchedulerWithWarmUp(_LRScheduler):
@@ -85,11 +97,12 @@ class SchedulerWithWarmUp(_LRScheduler):
                                     gamma=args.l_rate_multi_step_gamma,
                                     last_epoch=self.last_epoch)
         elif args.l_rate_scheduler == LRSchedulerType.Polynomial:
-            x = args.min_l_rate / args.l_rate
-            polynomial_decay: Any = lambda epoch: (1 - x) * (
-                    (1. - float(epoch) / epochs_after_warmup) ** args.l_rate_polynomial_gamma) + x
+            polynomial_lr = PolynomialLR(gamma=args.l_rate_polynomial_gamma,
+                                         l_rate=args.l_rate,
+                                         min_l_rate=args.min_l_rate,
+                                         epochs_after_warmup=epochs_after_warmup)
             scheduler = LambdaLR(optimizer=self.optimizer,
-                                 lr_lambda=polynomial_decay,
+                                 lr_lambda=polynomial_lr.get_lr,
                                  last_epoch=self.last_epoch)
         elif args.l_rate_scheduler == LRSchedulerType.Cosine:
             scheduler = CosineAnnealingLR(optimizer=self.optimizer,
@@ -102,7 +115,6 @@ class SchedulerWithWarmUp(_LRScheduler):
 
     def state_dict(self) -> Dict:
         """
-        Added for completeness, since base class _LRScheduler implements this.
         Returns a dictionary with all the values in this objects __dict__.
         It creates the dictionary entry for variables "_scheduler" and "_warmup_scheduler" separately, by calling
         state_dict for these variables.
@@ -110,21 +122,21 @@ class SchedulerWithWarmUp(_LRScheduler):
         """
         state_dict = {key: val for key, val in self.__dict__.items()
                       if key != "_scheduler" and key != "optimizer" and key != "_warmup"}
+
         state_dict['_scheduler'] = self._scheduler.state_dict()
         state_dict['_warmup'] = self._warmup.state_dict()
         return state_dict
 
     def load_state_dict(self, state_dict: Dict) -> None:
         """
-        Added for completeness, since base class _LRScheduler implements this.
         Initializes the current object with values from state_dict.
         Initializes variables "_scheduler" and "_warmup_scheduler" separately, by calling load_state_dict
         for these variables.
         """
         top_level = {key: val for key, val in state_dict.items() if key != "_scheduler" and key != "_warmup"}
         self.__dict__.update(top_level)
-        self._scheduler.__dict__.update(state_dict["_scheduler"])
-        self._warmup.__dict__.update(state_dict["_warmup"])
+        self._scheduler.load_state_dict(state_dict["_scheduler"])
+        self._warmup.load_state_dict(state_dict["_warmup"])
 
     def step(self, epoch: int = None) -> None:
         # self.step() is called in the _LRScheduler.__init__, as the very last operation, when self.last_epoch == -1

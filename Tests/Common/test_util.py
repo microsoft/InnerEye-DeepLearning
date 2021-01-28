@@ -6,15 +6,10 @@
 import pytest
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import check_is_any_of, get_namespace_root, is_private_field_name, namespace_to_path, \
+from InnerEye.Common.common_util import check_is_any_of, is_private_field_name, namespace_to_path, \
     path_to_namespace, print_exception
-from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
-
-DEFAULT_ENSEMBLE_RUN_RECOVERY_ID = "dacart_local_branch_202008:HD_99938f3c-b25f-4604-bfcc-bb7c9ed3516f"
-DEFAULT_RUN_RECOVERY_ID = "melanibe_setup_branch_mock:melanibe_setup_branch_mock_1592327919_0a161296"
-DEFAULT_ENSEMBLE_RUN_RECOVERY_ID_NUMERIC = "dacart_local_branch_202008:1"
-DEFAULT_RUN_RECOVERY_ID_NUMERIC = "melanibe_setup_branch_mock:1"
+from InnerEye.Common.output_directories import OutputFolderForTests
 
 
 def test_get_items_from_string() -> None:
@@ -111,13 +106,3 @@ def test_path_to_namespace(is_external: bool, test_output_dirs: OutputFolderForT
             path=full_ml_test_data_path(),
             root=tests_root_directory().parent
         ) == test_data.__name__
-
-
-def test_get_namespace_root() -> None:
-    """
-    Tests that namespace root is retrieved correctly.
-    """
-    current_namespace = "Tests.Common.test_util"
-    root = get_namespace_root(current_namespace)
-    assert root is not None
-    assert root.exists()

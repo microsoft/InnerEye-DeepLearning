@@ -47,7 +47,7 @@ from InnerEye.ML.configs.segmentation.ProstateBase import ProstateBase
 class Prostate(ProstateBase):
     def __init__(self) -> None:
         super().__init__(
-            ground_truth_ids=["femur_r", "femur_l", "rectum", "prostate"]
+            ground_truth_ids=["femur_r", "femur_l", "rectum", "prostate"],
             azure_dataset_id="id-of-your-blob-containing-prostate-data")
 ```
 The allowed parameters and their meanings are defined in [`SegmentationModelBase`](/InnerEye/ML/config.py).
@@ -232,8 +232,6 @@ the `metrics.csv` files of the current run and the comparison run(s).
   of the "Details" tab.
   * `dataset.csv` for the whole dataset (see ["Creating Datasets](creating_dataset.md) for details),
   and `test_dataset.csv`, `train_dataset.csv` and `val_dataset.csv` for those subsets of it.
-  * `train_stats.csv`, containing summary statistics for each training epoch (learning rate, losses and
-  Dice scores).
   * `BaselineComparisonWilcoxonSignedRankTestResults.txt`, containing the results of comparisons
   between the current run and any specified baselines (earlier runs) to compare with. Each paragraph of that file compares two models and
   indicates, for each structure, when the Dice scores for the second model are significantly better 

@@ -9,36 +9,45 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import pandas as pd
+import stopit
 import torch.multiprocessing
+from azureml._restclient.constants import RunStatus
 from azureml.core import Run
 from azureml.core.model import Model
 from azureml.data import FileDataset
 
+from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import INPUT_DATA_KEY, get_or_create_dataset
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, \
     MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
     RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, get_results_blob_path, has_input_datasets, \
-    is_offline_run_context, merge_conda_files, update_run_tags
+    merge_conda_files
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
-from InnerEye.Common.common_util import ModelProcessing, is_windows, logging_section
+from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
+    CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
+    OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
+    get_epoch_results_path, is_windows, logging_section, print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER, \
-    MultiprocessingStartMethod
+    ModelCategory, MultiprocessingStartMethod
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.runner import ModelDeploymentHookSignature, Runner, get_all_environment_files
+from InnerEye.ML.reports.notebook_report import generate_classification_notebook, generate_segmentation_notebook
+from InnerEye.ML.runner import ModelDeploymentHookSignature, PostCrossValidationHookSignature, REPORT_HTML, \
+    REPORT_IPYNB, get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
-from InnerEye.ML.utils.ml_util import make_pytorch_reproducible
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
@@ -115,6 +124,7 @@ class MLRunner:
                  model_config: ModelConfigBase,
                  azure_config: Optional[AzureConfig] = None,
                  project_root: Optional[Path] = None,
+                 post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
                  model_deployment_hook: Optional[ModelDeploymentHookSignature] = None) -> None:
         """
         Driver class to run a ML experiment. Note that the project root argument MUST be supplied when using InnerEye
@@ -123,11 +133,16 @@ class MLRunner:
         :param azure_config: Azure related configurations
         :param project_root: Project root. This should only be omitted if calling run_ml from the test suite. Supplying
         it is crucial when using InnerEye as a package or submodule!
-        :param model_deployment_hook: optional function for deploying a model in an application-specific way
+        :param post_cross_validation_hook: A function to call after waiting for completion of cross validation runs.
+        The function is called with the model configuration and the path to the downloaded and merged metrics files.
+        :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
+        If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
+        Model as arguments, and return an optional Path and a further object of any type.
         """
         self.model_config = model_config
         self.azure_config: AzureConfig = azure_config or AzureConfig()
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
+        self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
 
     def is_offline_cross_val_parent_run(self) -> bool:
@@ -156,8 +171,11 @@ class MLRunner:
             split_model_config.file_system_config = parent_run_file_system.add_subfolder(_local_split_folder_name)
 
             logging.info(f"Running model train and test on cross validation split: {cross_val_split_index}")
-            split_ml_runner = MLRunner(split_model_config, self.azure_config, self.project_root,
-                                       self.model_deployment_hook)
+            split_ml_runner = MLRunner(model_config=split_model_config,
+                                       azure_config=self.azure_config,
+                                       project_root=self.project_root,
+                                       post_cross_validation_hook=self.post_cross_validation_hook,
+                                       model_deployment_hook=self.model_deployment_hook)
             split_ml_runner.run()
 
         for i in range(_config.number_of_cross_validation_splits):
@@ -220,18 +238,13 @@ class MLRunner:
                                                azure_config=self.azure_config,
                                                project_root=self.project_root,
                                                run_context=RUN_CONTEXT)
-        checkpoint_handler.discover_and_download_checkpoints_from_previous_runs()
+        checkpoint_handler.download_recovery_checkpoints_or_weights()
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
-        if not self.azure_config.register_model_only_for_epoch:
+        if not self.azure_config.only_register_model:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
             self.model_config.local_dataset = self.mount_or_download_dataset()
-            self.model_config.write_args_file()
-            logging.info(str(self.model_config))
-            # Ensure that training runs are fully reproducible - setting random seeds alone is not enough!
-            make_pytorch_reproducible()
-
             # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
             # loaded (typically only during tests)
             if self.model_config.dataset_data_frame is None:
@@ -251,17 +264,20 @@ class MLRunner:
 
         # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
         # the current run is a single one. See the documentation of ModelProcessing for more details.
-        best_epoch = self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
+        self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
 
-        # Generate report
-        if best_epoch:
-            Runner.generate_report(self.model_config, best_epoch, ModelProcessing.DEFAULT)
-        elif self.model_config.is_scalar_model and len(self.model_config.get_test_epochs()) == 1:
-            # We don't register scalar models but still want to create a report if we have run inference.
-            Runner.generate_report(self.model_config, self.model_config.get_test_epochs()[0], ModelProcessing.DEFAULT)
+        if self.model_config.generate_report:
+            self.generate_report(ModelProcessing.DEFAULT)
+
+        # If this is an cross validation run, and the present run is child run 0, then wait for the sibling runs,
+        # build the ensemble model, and write a report for that.
+        if self.model_config.number_of_cross_validation_splits > 0:
+            if self.model_config.should_wait_for_other_cross_val_child_runs():
+                self.wait_for_runs_to_finish()
+                self.create_ensemble_model()
 
     def run_inference_and_register_model(self, checkpoint_handler: CheckpointHandler,
-                                         model_proc: ModelProcessing) -> Optional[int]:
+                                         model_proc: ModelProcessing) -> None:
         """
         Run inference as required, and register the model, but not necessarily in that order:
         if we can identify the epoch to register at without running inference, we register first.
@@ -269,57 +285,33 @@ class MLRunner:
         :param model_proc: whether we are running an ensemble model from within a child run with index 0. If we are,
         then outputs will be written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
         """
-        registration_epoch = self.decide_registration_epoch_without_evaluating()
-        if registration_epoch is not None:
-            model_description = f"Registering model for epoch {registration_epoch} without considering metrics."
-            checkpoint_paths = checkpoint_handler.get_checkpoint_paths_from_epoch_or_fail(registration_epoch)
-            self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
-            if self.azure_config.register_model_only_for_epoch is not None:
-                return self.azure_config.register_model_only_for_epoch
 
-        # run full image inference on existing or newly trained model on the training, and testing set
-        test_metrics, val_metrics, _ = self.model_inference_train_and_test(checkpoint_handler=checkpoint_handler,
-                                                                           model_proc=model_proc)
+        if self.should_register_model():
+            checkpoint_paths = checkpoint_handler.get_checkpoints_to_test()
+            if not checkpoint_paths:
+                raise ValueError("Model registration failed: No checkpoints found")
 
-        # register the generated model from the run if we haven't already done so
-        if self.model_config.is_segmentation_model and (not self.model_config.is_offline_run):
-            if registration_epoch is None:
-                if self.should_register_model():
-                    assert test_metrics is None or isinstance(test_metrics, InferenceMetricsForSegmentation)
-                    assert val_metrics is None or isinstance(val_metrics, InferenceMetricsForSegmentation)
-                    registration_epoch = self.register_model_for_best_epoch(checkpoint_handler,
-                                                                            test_metrics,
-                                                                            val_metrics,
-                                                                            model_proc)
+            model_description = "Registering model."
+            checkpoint_paths = checkpoint_paths
+            self.register_model(checkpoint_paths, model_description, model_proc)
+
+        if not self.azure_config.only_register_model:
+            # run full image inference on existing or newly trained model on the training, and testing set
+            test_metrics, val_metrics, _ = self.model_inference_train_and_test(checkpoint_handler=checkpoint_handler,
+                                                                               model_proc=model_proc)
+
             self.try_compare_scores_against_baselines(model_proc)
-        else:
-            logging.warning("Couldn't register model in offline mode")
-
-        return registration_epoch
 
     def should_register_model(self) -> bool:
         """
-        Whether we should register a model at all. If no training has taken place, an equivalent
+        Returns True if we should register a model at all. No models should be registered when running outside
+        AzureML. Inside AzureML, if no training has taken place, an equivalent
         model (from the run we recovered) should already have been registered, so we should only
         do so if this run is specifically for that purpose.
         """
-        return self.azure_config.train or self.azure_config.register_model_only_for_epoch is not None
-
-    def decide_registration_epoch_without_evaluating(self) -> Optional[int]:
-        """
-        In general we need to do evaluations to discover the best test epoch to register the model
-        for. But there are two exceptions, which allow us to register first: (1) the switch
-        register_model_only_for_epoch is set; (2) there is only one test epoch.
-        :return: the epoch to register, or None if it cannot be decided or if registration is not needed.
-        """
-        if not self.should_register_model():
-            return None
-        if self.azure_config.register_model_only_for_epoch is not None:
-            return self.azure_config.register_model_only_for_epoch
-        candidate_best_epochs = self.model_config.get_test_epochs()
-        if len(candidate_best_epochs) == 1:
-            return candidate_best_epochs[0]
-        return None
+        if self.model_config.is_offline_run:
+            return False
+        return self.azure_config.train or self.azure_config.only_register_model
 
     def create_activation_maps(self) -> None:
         if self.model_config.is_segmentation_model and self.model_config.activation_map_layers is not None:
@@ -339,7 +331,7 @@ class MLRunner:
         """
         azure_dataset_id = self.model_config.azure_dataset_id
 
-        if is_offline_run_context(RUN_CONTEXT):
+        if self.model_config.is_offline_run:
             # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
             # Otherwise, download the dataset specified by the azure_dataset_id
             local_dataset = self.model_config.local_dataset
@@ -362,34 +354,6 @@ class MLRunner:
         if not mounted:
             raise ValueError("Unable to mount or download input dataset.")
         return mounted
-
-    def register_model_for_best_epoch(self,
-                                      checkpoint_handler: CheckpointHandler,
-                                      test_metrics: Optional[InferenceMetricsForSegmentation],
-                                      val_metrics: Optional[InferenceMetricsForSegmentation],
-                                      model_proc: ModelProcessing) -> int:
-        if val_metrics is not None:
-            best_epoch = val_metrics.get_best_epoch()
-            num_epochs = len(val_metrics.epochs)
-            model_description = f"Epoch {best_epoch} has best validation set metrics (out of {num_epochs} epochs " \
-                                f"available). Validation set Dice: {val_metrics.epochs[best_epoch]}. "
-            if test_metrics:
-                model_description += f"Test set Dice: {test_metrics.epochs[best_epoch]}."
-            else:
-                model_description += "Test set metrics not available."
-        elif test_metrics is not None:
-            # We should normally not get here. We presently always run inference on both validation and test set
-            # together.
-            best_epoch = test_metrics.get_best_epoch()
-            num_epochs = len(test_metrics.epochs)
-            model_description = f"Epoch {best_epoch} has best test set metrics (out of {num_epochs} epochs " \
-                                f"available). Test set Dice: {test_metrics.epochs[best_epoch]}"
-        else:
-            best_epoch = self.model_config.get_test_epochs()[-1]
-            model_description = f"Model for epoch {best_epoch}. No validation or test set metrics were available."
-        checkpoint_paths = checkpoint_handler.get_checkpoint_paths_from_epoch_or_fail(best_epoch)
-        self.register_model_for_epoch(checkpoint_paths, model_description, model_proc)
-        return best_epoch
 
     def save_build_info_for_dotnet_consumers(self) -> None:
         results_container = get_results_blob_path(RUN_CONTEXT.id)
@@ -419,10 +383,10 @@ class MLRunner:
             logging.info(f"Setting multiprocessing start method to '{method.name}'")
             torch.multiprocessing.set_start_method(method.name, force=True)
 
-    def register_model_for_epoch(self,
-                                 checkpoint_paths: List[Path],
-                                 model_description: str,
-                                 model_proc: ModelProcessing) -> None:
+    def register_model(self,
+                       checkpoint_paths: List[Path],
+                       model_description: str,
+                       model_proc: ModelProcessing) -> None:
         """
         Registers the model in AzureML, with the given set of checkpoints. The AzureML run's tags are updated
         to describe with information about ensemble creation and the parent run ID.
@@ -438,9 +402,9 @@ class MLRunner:
         if not self.model_config.is_offline_run:
             split_index = RUN_CONTEXT.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
             if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-                update_run_tags(RUN_CONTEXT, {IS_ENSEMBLE_KEY_NAME: model_proc == ModelProcessing.ENSEMBLE_CREATION})
+                RUN_CONTEXT.tag(IS_ENSEMBLE_KEY_NAME, str(model_proc == ModelProcessing.ENSEMBLE_CREATION))
             elif PARENT_RUN_CONTEXT is not None:
-                update_run_tags(RUN_CONTEXT, {PARENT_RUN_ID_KEY_NAME: PARENT_RUN_CONTEXT.id})
+                RUN_CONTEXT.tag(PARENT_RUN_ID_KEY_NAME, str(PARENT_RUN_CONTEXT.id))
         if isinstance(self.model_config, SegmentationModelBase):
             with logging_section(f"Registering {model_proc.value} model"):
                 self.register_segmentation_model(
@@ -463,11 +427,10 @@ class MLRunner:
     def register_segmentation_model(self,
                                     checkpoint_paths: List[Path],
                                     model_description: str,
-                                    model_proc: ModelProcessing) -> Tuple[Optional[Model], Optional[Any]]:
+                                    model_proc: ModelProcessing) -> Tuple[Model, Any]:
         """
         Registers a new model in the workspace's model registry to be deployed further,
-        and creates a model zip for portal deployment (if required). This model is the
-        model checkpoint with the highest test accuracy.
+        and creates a model zip for portal deployment (if required).
         :param model_description: A string description that is added to the deployed model. It would usually contain
         the test set performance and information at which epoch the result was achieved.
         :param checkpoint_paths: Checkpoint paths to use to upload model checkpoints to AML.
@@ -475,64 +438,42 @@ class MLRunner:
         :returns Tuple element 1: AML model object, or None if no model could be registered.
         Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
         """
-        is_offline_run = is_offline_run_context(RUN_CONTEXT)
-        workspace = None
-        # Terminate early if this is running outside AzureML, and we can't access the AzureML workspace. This
-        # saves time copying around files.
-        if is_offline_run:
-            try:
-                workspace = self.azure_config.get_workspace()
-            except Exception:
-                logging.warning("Unable to retrieve AzureML workspace. Was the Azure setup completed?")
-                logging.info("No model was registered in AzureML.")
-                return None, None
         # The files for the final model can't live in the outputs folder. If they do: when registering the model,
         # the files may not yet uploaded by hosttools, and that may (or not) cause errors. Hence, place the folder
         # for the final models outside of "outputs", and upload manually.
         model_subfolder = FINAL_MODEL_FOLDER if model_proc == ModelProcessing.DEFAULT else FINAL_ENSEMBLE_MODEL_FOLDER
+        # This is the path under which AzureML will know the files: Either "final_model" or "final_ensemble_model"
+        artifacts_path = model_subfolder
         final_model_folder = self.model_config.file_system_config.run_folder / model_subfolder
         # Copy all code from project and InnerEye into the model folder, and copy over checkpoints.
         # This increases the size of the data stored for the run. The other option would be to store all checkpoints
         # right in the final model folder - however, then that would also contain any other checkpoints that the model
         # produced or downloaded for recovery, bloating the final model file.
         self.copy_child_paths_to_folder(final_model_folder, checkpoint_paths)
-        logging.info("Registering the model on the workspace.")
-        if is_offline_run:
-            model_description = model_description + f"\nModel built by {self.azure_config.build_user} outside AzureML"
-            model = Model.register(
-                workspace=workspace,
-                model_name=self.model_config.model_name,
-                model_path=str(final_model_folder),
-                description=model_description
-            )
+        # If the present run is a child run of a Hyperdrive parent run, and we are building an ensemble model,
+        # register it the model on the parent run.
+        if PARENT_RUN_CONTEXT and model_proc == ModelProcessing.ENSEMBLE_CREATION:
+            run_to_register_on = PARENT_RUN_CONTEXT
+            logging.info(f"Registering the model on the parent run {run_to_register_on.id}")
         else:
-            # This is the path under which AzureML will know the files: Either "final_model" or "final_ensemble_model"
-            artifacts_path = model_subfolder
-            # If the present run is a child run of a Hyperdrive parent run, and we are building an ensemble model,
-            # register it the model on the parent run.
-            if PARENT_RUN_CONTEXT and model_proc == ModelProcessing.ENSEMBLE_CREATION:
-                run_to_register_on = PARENT_RUN_CONTEXT
-                logging.info(f"Registering the model on the parent run {run_to_register_on.id}")
-            else:
-                run_to_register_on = RUN_CONTEXT
-                logging.info(f"Registering the model on the current run {run_to_register_on.id}")
-            logging.info(f"Uploading files in {final_model_folder} with prefix '{artifacts_path}'")
-            final_model_folder_relative = final_model_folder.relative_to(Path.cwd())
-            run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
-            # When registering the model on the run, we need to provide a relative path inside of the run's output
-            # folder in `model_path`
-            model = run_to_register_on.register_model(
-                model_name=self.model_config.model_name,
-                model_path=artifacts_path,
-                tags=RUN_CONTEXT.get_tags(),
-                description=model_description
-            )
+            run_to_register_on = RUN_CONTEXT
+            logging.info(f"Registering the model on the current run {run_to_register_on.id}")
+        logging.info(f"Uploading files in {final_model_folder} with prefix '{artifacts_path}'")
+        final_model_folder_relative = final_model_folder.relative_to(Path.cwd())
+        run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
+        # When registering the model on the run, we need to provide a relative path inside of the run's output
+        # folder in `model_path`
+        model = run_to_register_on.register_model(
+            model_name=self.model_config.model_name,
+            model_path=artifacts_path,
+            tags=RUN_CONTEXT.get_tags(),
+            description=model_description
+        )
+        # update the run's tags with the registered model information
+        run_to_register_on.tag(MODEL_ID_KEY_NAME, model.id)
 
         deployment_result = None
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
-        # update the run's tags with the registered model information
-        if not is_offline_run:
-            update_run_tags(RUN_CONTEXT, {MODEL_ID_KEY_NAME: model.id})
         # create a version of the model for deployment if the hook is provided
         if self.model_deployment_hook is not None:
             assert isinstance(self.model_config, SegmentationModelBase)
@@ -656,9 +597,139 @@ class MLRunner:
 
         # log the metrics to AzureML experiment if possible. When doing ensemble runs, log to the Hyperdrive parent run,
         # so that we get the metrics of child run 0 and the ensemble separated.
-        if config.is_segmentation_model and not is_offline_run_context(RUN_CONTEXT):
+        if config.is_segmentation_model and not config.is_offline_run:
             run_for_logging = PARENT_RUN_CONTEXT if model_proc.ENSEMBLE_CREATION else RUN_CONTEXT
             log_metrics(val_metrics=val_metrics, test_metrics=test_metrics,  # type: ignore
                         train_metrics=train_metrics, run_context=run_for_logging)  # type: ignore
 
         return test_metrics, val_metrics, train_metrics
+
+    @stopit.threading_timeoutable()
+    def wait_for_runs_to_finish(self, delay: int = 60) -> None:
+        """
+        Wait for cross val runs (apart from the current one) to finish and then aggregate results of all.
+        :param delay: How long to wait between polls to AML to get status of child runs
+        """
+        with logging_section("Waiting for sibling runs"):
+            while not self.are_sibling_runs_finished():
+                time.sleep(delay)
+
+    def are_sibling_runs_finished(self) -> bool:
+        """
+        Checks if all child runs (except the current run) of the current run's parent are completed or failed.
+        :return: True if all sibling runs of the current run have finished (they either completed successfully,
+        or failed). False if any of them is still pending (running or queued).
+        """
+        if (not self.model_config.is_offline_run) \
+                and (azure_util.is_cross_validation_child_run(RUN_CONTEXT)):
+            n_splits = self.model_config.get_total_number_of_cross_validation_runs()
+            child_runs = azure_util.fetch_child_runs(PARENT_RUN_CONTEXT,
+                                                     expected_number_cross_validation_splits=n_splits)
+            pending_runs = [x.id for x in child_runs
+                            if (x.id != RUN_CONTEXT.id)
+                            and (x.get_status() not in [RunStatus.COMPLETED, RunStatus.FAILED])]
+            all_runs_finished = len(pending_runs) == 0
+            if not all_runs_finished:
+                logging.info(f"Waiting for sibling run(s) to finish: {pending_runs}")
+            return all_runs_finished
+        else:
+            raise NotImplementedError("are_sibling_runs_finished only works for cross validation runs in AzureML.")
+
+    def create_ensemble_model(self) -> None:
+        """
+        Create an ensemble model from the results of the sibling runs of the present run. The present run here will
+        be cross validation child run 0.
+        """
+        assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
+        with logging_section("Downloading checkpoints from sibling runs"):
+            checkpoint_handler = CheckpointHandler(model_config=self.model_config,
+                                                   azure_config=self.azure_config,
+                                                   project_root=self.project_root,
+                                                   run_context=PARENT_RUN_CONTEXT)
+            checkpoint_handler.download_checkpoints_from_hyperdrive_child_runs(PARENT_RUN_CONTEXT)
+
+        self.run_inference_and_register_model(checkpoint_handler=checkpoint_handler,
+                                              model_proc=ModelProcessing.ENSEMBLE_CREATION)
+
+        crossval_dir = self.plot_cross_validation_and_upload_results()
+        self.generate_report(ModelProcessing.ENSEMBLE_CREATION)
+        # CrossValResults should have been uploaded to the parent run, so we don't need it here.
+        remove_file_or_directory(crossval_dir)
+        # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files
+        # available elsewhere. However, first we need to upload relevant parts of OTHER_RUNS/ENSEMBLE.
+        other_runs_dir = self.model_config.outputs_folder / OTHER_RUNS_SUBDIR_NAME
+        other_runs_ensemble_dir = other_runs_dir / ENSEMBLE_SPLIT_NAME
+        if PARENT_RUN_CONTEXT is not None:
+            if other_runs_ensemble_dir.exists():
+                # Only keep baseline Wilcoxon results and scatterplots and reports
+                for subdir in other_runs_ensemble_dir.glob("*"):
+                    if subdir.name not in [BASELINE_WILCOXON_RESULTS_FILE,
+                                           SCATTERPLOTS_SUBDIR_NAME,
+                                           REPORT_HTML,
+                                           REPORT_IPYNB]:
+                        remove_file_or_directory(subdir)
+                PARENT_RUN_CONTEXT.upload_folder(name=BASELINE_COMPARISONS_FOLDER, path=str(other_runs_ensemble_dir))
+            else:
+                logging.warning(f"Directory not found for upload: {other_runs_ensemble_dir}")
+        remove_file_or_directory(other_runs_dir)
+
+    def plot_cross_validation_and_upload_results(self) -> Path:
+        from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
+            plot_cross_validation, unroll_aggregate_metrics
+        # perform aggregation as cross val splits are now ready
+        plot_crossval_config = crossval_config_from_model_config(self.model_config)
+        plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
+        plot_crossval_config.outputs_directory = self.model_config.outputs_folder
+        plot_crossval_config.azure_config = self.azure_config
+        cross_val_results_root = plot_cross_validation(plot_crossval_config, is_ensemble_run=True)
+        if self.post_cross_validation_hook:
+            self.post_cross_validation_hook(self.model_config, cross_val_results_root)
+        # upload results to the parent run's outputs so that the files are visible inside the AzureML UI.
+        PARENT_RUN_CONTEXT.upload_folder(name=CROSSVAL_RESULTS_FOLDER, path=str(cross_val_results_root))
+        if self.model_config.is_scalar_model:
+            try:
+                aggregates = pd.read_csv(cross_val_results_root / METRICS_AGGREGATES_FILE)
+                unrolled_aggregate_metrics = unroll_aggregate_metrics(aggregates)
+                for m in unrolled_aggregate_metrics:
+                    PARENT_RUN_CONTEXT.log(m.metric_name, m.metric_value)
+            except Exception as ex:
+                print_exception(ex, "Unable to log metrics to Hyperdrive parent run.", logger_fn=logging.warning)
+        return cross_val_results_root
+
+    def generate_report(self, model_proc: ModelProcessing) -> None:
+        config = self.model_config
+        if config.model_category not in [ModelCategory.Segmentation, ModelCategory.Classification]:
+            logging.info(f"No reporting available for a model with category {config.model_category}")
+            return
+        logging.info("Saving report in HTML")
+        try:
+            def get_epoch_path(mode: ModelExecutionMode) -> Path:
+                p = get_epoch_results_path(mode=mode, model_proc=model_proc)
+                return config.outputs_folder / p / SUBJECT_METRICS_FILE_NAME
+
+            path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
+            path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
+            path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
+
+            output_dir = config.outputs_folder / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME \
+                if model_proc == ModelProcessing.ENSEMBLE_CREATION else config.outputs_folder
+            if config.model_category == ModelCategory.Segmentation:
+                generate_segmentation_notebook(result_notebook=output_dir / REPORT_IPYNB,
+                                               train_metrics=path_to_best_epoch_train,
+                                               val_metrics=path_to_best_epoch_val,
+                                               test_metrics=path_to_best_epoch_test)
+            else:
+                if isinstance(config, ScalarModelBase) and not isinstance(config, SequenceModelBase):
+                    generate_classification_notebook(result_notebook=output_dir / REPORT_IPYNB,
+                                                     train_metrics=path_to_best_epoch_train,
+                                                     val_metrics=path_to_best_epoch_val,
+                                                     test_metrics=path_to_best_epoch_test,
+                                                     dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
+                                                     if config.local_dataset else None,
+                                                     dataset_subject_column=config.subject_column,
+                                                     dataset_file_column=config.image_file_column)
+                else:
+                    logging.info(f"Cannot create report for config of type {type(config)}.")
+        except Exception as ex:
+            print_exception(ex, "Failed to generated reporting notebook.")
+            raise

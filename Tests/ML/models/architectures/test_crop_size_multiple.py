@@ -8,7 +8,7 @@ import pytest
 
 from InnerEye.Common.type_annotations import IntOrTuple3, TupleInt3
 from InnerEye.ML.config import ModelArchitectureConfig, SegmentationModelBase
-from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.models.architectures.unet_3d import UNet3D
 from InnerEye.ML.utils.model_util import build_net
 from Tests.ML.pipelines.test_forward_pass import SimpleModel
@@ -102,7 +102,7 @@ def test_crop_size_check_in_model() -> None:
     Test that crop size checks are correctly integrated and called from within BaseModel
     """
 
-    def create_model(crop_size: TupleInt3, multiple_of: IntOrTuple3) -> BaseModel:
+    def create_model(crop_size: TupleInt3, multiple_of: IntOrTuple3) -> BaseSegmentationModel:
         model = SimpleModel(1, [1], 2, 2, crop_size_constraints=CropSizeConstraints(multiple_of=multiple_of))
         model.validate_crop_size(crop_size)
         return model

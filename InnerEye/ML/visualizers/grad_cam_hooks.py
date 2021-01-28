@@ -10,12 +10,13 @@ import numpy as np
 import torch
 from torch.nn import Module
 
+from InnerEye.Common.metrics_constants import SEQUENCE_POSITION_HUE_NAME_PREFIX
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImagingFeatureType
 from InnerEye.ML.reports.notebook_report import convert_to_html
 from InnerEye.ML.scalar_config import ScalarModelBase
-from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
+from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES
 from InnerEye.ML.visualizers.model_hooks import HookBasedFeatureExtractor
@@ -505,7 +506,7 @@ class VisualizationMaps:
         for label_index in range(len(target_indices)):
             target_position = target_indices[label_index]
             current_output_dir = self.config.visualization_folder / f"{SEQUENCE_POSITION_HUE_NAME_PREFIX}_" \
-                f"{target_position}"
+                                                                    f"{target_position}"
             current_output_dir.mkdir(exist_ok=True)
             guided_grad_cams, grad_cams, pseudo_cam_non_img, probas = self.generate(input_batch,
                                                                                     target_position,

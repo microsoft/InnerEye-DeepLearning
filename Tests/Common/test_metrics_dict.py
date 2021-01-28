@@ -12,15 +12,14 @@ import pandas as pd
 import pytest
 from sklearn.metrics import roc_auc_score, roc_curve
 
-from InnerEye.Common.common_util import DataframeLogger
-from InnerEye.Common.metrics_dict import Hue, MetricType, MetricsDict, PredictionEntry, ScalarMetricsDict, \
-    SequenceMetricsDict, average_metric_values
+from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
+from InnerEye.ML.metrics_dict import DataframeLogger, Hue, MetricsDict, PredictionEntry, \
+    ScalarMetricsDict, SequenceMetricsDict, average_metric_values
 from InnerEye.ML.utils.io_util import tabulate_dataframe
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
 
 
 def test_average_metric_values() -> None:
@@ -517,55 +516,6 @@ def test_get_single_metric() -> None:
     assert "Expected a single entry" in str(ex3)
 
 
-def test_aggregate_segmentation_metrics() -> None:
-    """
-    Test how per-epoch segmentation metrics are aggregated to computed foreground dice and voxel count proportions.
-    """
-    g1 = "Liver"
-    g2 = "Lung"
-    ground_truth_ids = [BACKGROUND_CLASS_NAME, g1, g2]
-    dice = [0.85, 0.75, 0.55]
-    voxels_proportion = [0.85, 0.10, 0.05]
-    loss = 3.14
-    other_metric = 2.71
-    m = MetricsDict(hues=ground_truth_ids)
-    voxel_count = 200
-    # Add 3 values per metric, but such that the averages are back at the value given in dice[i]
-    for i in range(3):
-        delta = (i - 1) * 0.05
-        for j, ground_truth_id in enumerate(ground_truth_ids):
-            m.add_metric(MetricType.DICE, dice[j] + delta, hue=ground_truth_id)
-            m.add_metric(MetricType.VOXEL_COUNT, int(voxels_proportion[j] * voxel_count), hue=ground_truth_id)
-        m.add_metric(MetricType.LOSS, loss + delta)
-        m.add_metric("foo", other_metric)
-    m.add_diagnostics("foo", "bar")
-    aggregate = metrics.aggregate_segmentation_metrics(m)
-    assert aggregate.diagnostics == m.diagnostics
-    enumerated = list((g, s, v) for g, s, v in aggregate.enumerate_single_values())
-    expected = [
-        # Dice and voxel count per foreground structure should be retained during averaging
-        (g1, MetricType.DICE.value, dice[1]),
-        (g1, MetricType.VOXEL_COUNT.value, voxels_proportion[1] * voxel_count),
-        # Proportion of foreground voxels is computed during averaging
-        (g1, MetricType.PROPORTION_FOREGROUND_VOXELS.value, voxels_proportion[1]),
-        (g2, MetricType.DICE.value, dice[2]),
-        (g2, MetricType.VOXEL_COUNT.value, voxels_proportion[2] * voxel_count),
-        (g2, MetricType.PROPORTION_FOREGROUND_VOXELS.value, voxels_proportion[2]),
-        # Loss is present in the default metrics group, and should be retained.
-        (MetricsDict.DEFAULT_HUE_KEY, MetricType.LOSS.value, loss),
-        (MetricsDict.DEFAULT_HUE_KEY, "foo", other_metric),
-        # Dice averaged across the foreground structures is added during the function call, as is proportion of voxels
-        (MetricsDict.DEFAULT_HUE_KEY, MetricType.DICE.value, 0.5 * (dice[1] + dice[2])),
-        (MetricsDict.DEFAULT_HUE_KEY, MetricType.PROPORTION_FOREGROUND_VOXELS.value,
-         voxels_proportion[1] + voxels_proportion[2]),
-    ]
-    assert len(enumerated) == len(expected)
-    # Numbers won't match up precisely because of rounding during averaging
-    for (actual, e) in zip(enumerated, expected):
-        assert actual[0:2] == e[0:2]
-        assert actual[2] == pytest.approx(e[2])
-
-
 def test_add_foreground_dice() -> None:
     g1 = "Liver"
     g2 = "Lung"
@@ -576,3 +526,20 @@ def test_add_foreground_dice() -> None:
         m.add_metric(MetricType.DICE, dice[j], hue=ground_truth_id)
     metrics.add_average_foreground_dice(m)
     assert m.get_single_metric(MetricType.DICE) == 0.5 * (dice[1] + dice[2])
+
+
+def test_dataframe_logger() -> None:
+    fixed_columns = {"cross_validation_split_index": 1}
+    records = [
+        {"bar": math.pi, MetricType.LEARNING_RATE.value: 1e-5, MetricType.SECONDS_PER_EPOCH.value: 123.123456},
+        {"bar": math.pi, MetricType.LEARNING_RATE.value: 1, MetricType.SECONDS_PER_EPOCH.value: 123.123456},
+    ]
+    out_buffer = StringIO()
+    df = DataframeLogger(csv_path=out_buffer, fixed_columns=fixed_columns)
+    for r in records:
+        df.add_record(r)
+    df.flush()
+    assert out_buffer.getvalue().splitlines() == [
+        'bar,LearningRate,SecondsPerEpoch,cross_validation_split_index',
+        '3.141593,1.000000e-05,123.12,1',
+        '3.141593,1.000000e+00,123.12,1']
