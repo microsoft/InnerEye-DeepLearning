@@ -124,21 +124,14 @@ class SampleBase:
 
 
 @dataclass(frozen=True)
-class SegmentationSampleBase(SampleBase):
-    """
-    A base class for all samples for segmentation models.
-    """
-    metadata: PatientMetadata
-
-
-@dataclass(frozen=True)
-class PatientDatasetSource(SegmentationSampleBase):
+class PatientDatasetSource(SampleBase):
     """
     Dataset source locations for channels associated with a given patient in a particular dataset.
     """
     image_channels: List[PathOrString]
     ground_truth_channels: List[PathOrString]
     mask_channel: Optional[PathOrString]
+    metadata: PatientMetadata
 
     def __post_init__(self) -> None:
         # make sure all properties are populated
@@ -151,16 +144,18 @@ class PatientDatasetSource(SegmentationSampleBase):
 
 
 @dataclass(frozen=True)
-class Sample(SegmentationSampleBase):
+class Sample(SampleBase):
     """
     Instance of a dataset sample that contains full 3D images, and is compatible with PyTorch data loader.
     """
+    # The first field in this class must be a torch.Tensor, in order for Result.unpack_batch_size to work correctly.
     # (Batches if from data loader) x Channels x Z x Y x X
     image: Union[np.ndarray, torch.Tensor]
     # (Batches if from data loader) x Z x Y x X
     mask: Union[np.ndarray, torch.Tensor]
     # (Batches if from data loader) x Classes x Z X Y x X
     labels: Union[np.ndarray, torch.Tensor]
+    metadata: PatientMetadata
 
     def __post_init__(self) -> None:
         # make sure all properties are populated

@@ -8,13 +8,13 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
+from pytorch_lightning.core.step_result import Result
 
 from InnerEye.Common import common_util
 from InnerEye.ML.config import PaddingMode, SegmentationModelBase
 from InnerEye.ML.dataset.cropping_dataset import CroppingDataset
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset, collate_with_metadata
-from InnerEye.ML.dataset.sample import CroppedSample, PatientMetadata, SAMPLE_METADATA_FIELD, \
-    Sample, SegmentationSampleBase
+from InnerEye.ML.dataset.sample import CroppedSample, PatientMetadata, SAMPLE_METADATA_FIELD, Sample
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.utils import image_util, ml_util
@@ -424,10 +424,20 @@ def test_sample_metadata_field() -> None:
     Test that the string constant we use to identify the metadata field is really matching the
     field name in SampleWithMetadata
     """
-    s = SegmentationSampleBase(metadata=DummyPatientMetadata)
+    batch_size = 5
+    xyz = (6, 7, 8)
+    shape = (batch_size,) + xyz
+    zero = torch.zeros(shape)
+    s = Sample(metadata=DummyPatientMetadata,
+               image=zero,
+               mask=zero,
+               labels=torch.zeros((batch_size,) + (2,) + xyz))
     fields = vars(s)
-    assert len(fields) == 1
+    assert len(fields) == 4
     assert SAMPLE_METADATA_FIELD in fields
+    # Lightning attempts to determine the batch size by trying to find a tensor field in the sample.
+    # This only works if any field other than Metadata is first.
+    assert Result.unpack_batch_size(fields) == batch_size
 
 
 def test_custom_collate() -> None:

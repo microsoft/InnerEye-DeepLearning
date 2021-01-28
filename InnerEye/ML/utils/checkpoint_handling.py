@@ -5,7 +5,6 @@
 import logging
 import os
 import uuid
-from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse
@@ -18,15 +17,6 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, WEIGHTS_FILE
 from InnerEye.ML.utils.run_recovery import RunRecovery
-
-
-@dataclass
-class CheckpointPathsAndEpoch:
-    """
-    Holds the path path to a checkpoint and the checkpoint epoch.
-    """
-    epoch: int
-    checkpoint_paths: List[Path]
 
 
 class CheckpointHandler:
@@ -42,31 +32,30 @@ class CheckpointHandler:
         self.run_recovery: Optional[RunRecovery] = None
         self.project_root = project_root
         self.run_context = run_context
-
         self.local_weights_path: Optional[Path] = None
-
         self.has_continued_training = False
 
-    def discover_and_download_checkpoint_from_sibling_runs(self) -> None:
+    def download_checkpoints_from_hyperdrive_child_runs(self, hyperdrive_parent_run: Run) -> None:
         """
-        Downloads checkpoints from sibling runs in a hyperdrive run. This is used to gather results from all
-        splits in a hyperdrive run.
+        Downloads the best checkpoints from all child runs of a Hyperdrive parent runs. This is used to gather results
+        for ensemble creation.
         """
-
-        self.run_recovery = RunRecovery.download_checkpoints_from_run(self.model_config, self.run_context)
+        self.run_recovery = RunRecovery.download_best_checkpoints_from_child_runs(self.model_config,
+                                                                                  hyperdrive_parent_run)
         # Check paths are good, just in case
         for path in self.run_recovery.checkpoints_roots:
             if not path.is_dir():
                 raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
 
-    def discover_and_download_checkpoints_from_previous_runs(self) -> None:
+    def download_recovery_checkpoints_or_weights(self) -> None:
         """
         Download checkpoints from a run recovery object or from a weights url. Set the checkpoints path based on the
-        run_recovery_object, weights_url or local_weights_path
+        run_recovery_object, weights_url or local_weights_path.
+        This is called at the start of training.
         """
         if self.azure_config.run_recovery_id:
-            self.run_recovery = RunRecovery.download_checkpoints_from_recovery_run(
-                self.azure_config, self.model_config, self.run_context)
+            run_to_recover = self.azure_config.fetch_run(self.azure_config.run_recovery_id.strip())
+            self.run_recovery = RunRecovery.download_all_checkpoints_from_run(self.model_config, run_to_recover)
         else:
             self.run_recovery = None
 
@@ -96,7 +85,7 @@ class CheckpointHandler:
         if self.run_recovery:
             # run_recovery takes first precedence over local_weights_path.
             # This is to allow easy recovery of runs which have either of these parameters set in the config:
-            checkpoints = self.run_recovery.get_checkpoint_paths(self.model_config.start_epoch)
+            checkpoints = self.run_recovery.get_recovery_checkpoint_paths()
             if len(checkpoints) > 1:
                 raise ValueError(f"Recovering training of ensemble runs is not supported. Found more than one "
                                  f"checkpoint for epoch {self.model_config.start_epoch}")
@@ -106,7 +95,7 @@ class CheckpointHandler:
         else:
             return None
 
-    def get_checkpoint_from_epoch(self, epoch: int) -> Optional[CheckpointPathsAndEpoch]:
+    def get_best_checkpoint(self) -> List[Path]:
         """
         Get a list of checkpoints per epoch for testing/registration.
         1. If a run recovery object is used and no training was done in this run, use checkpoints from run recovery.
@@ -118,73 +107,63 @@ class CheckpointHandler:
         and drops any that do not.
         """
         if not self.run_recovery and not self.has_continued_training:
-            raise ValueError(f"Cannot recover checkpoint for epoch {epoch}, no run recovery object provided and"
-                             f"no training has been done in this run.")
+            raise ValueError("Cannot recover checkpoint, no run recovery object provided and"
+                             "no training has been done in this run.")
 
-        if self.run_recovery and (not self.has_continued_training or epoch <= self.model_config.start_epoch):
-            checkpoint_paths = self.run_recovery.get_checkpoint_paths(epoch)
-            logging.info(f"Using checkpoints from run recovery for epoch {epoch}")
-        else:
+        checkpoint_paths = []
+
+        if self.run_recovery:
+            checkpoint_paths = self.run_recovery.get_best_checkpoint_paths()
+
+            checkpoint_exists = []
+            # Discard any checkpoint paths that do not exist - they will make inference/registration fail.
+            # This can happen when some child runs in a hyperdrive run fail; it may still be worth running inference
+            # or registering the model.
+            for path in checkpoint_paths:
+                if path.is_file():
+                    checkpoint_exists.append(path)
+                else:
+                    logging.warning(f"Could not recover checkpoint path {path}")
+            checkpoint_paths = checkpoint_exists
+
+        if self.has_continued_training:
             # Checkpoint is from the current run, whether a new run or a run recovery which has been doing more
             # training, so we look for it there.
-            checkpoint_paths = [self.model_config.get_path_to_checkpoint(epoch)]
-            logging.info(f"Using checkpoints from current run for epoch {epoch}.")
-
-        checkpoint_exists = []
-        # Discard any checkpoint paths that do not exist - they will make inference/registration fail.
-        # This can happen when some child runs in a hyperdrive run fail; it may still be worth running inference
-        # or registering the model.
-        for path in checkpoint_paths:
-            if path.is_file():
-                checkpoint_exists.append(path)
+            checkpoint_from_current_run = self.model_config.get_path_to_best_checkpoint()
+            if checkpoint_from_current_run.is_file():
+                logging.info("Using checkpoints from current run.")
+                checkpoint_paths = [checkpoint_from_current_run]
             else:
-                logging.warning(f"Could not recover checkpoint path {path}")
-
-        if len(checkpoint_exists) > 0:
-            return CheckpointPathsAndEpoch(epoch=epoch, checkpoint_paths=checkpoint_exists)
+                logging.info("Training has continued, but not yet written a checkpoint. Using recovery checkpoints.")
         else:
-            logging.warning(f"Could not find any checkpoints in run recovery/training checkpoints for epoch {epoch}.")
-            return None
+            logging.info("Using checkpoints from run recovery")
 
-    def get_checkpoint_paths_from_epoch_or_fail(self, epoch: int) -> List[Path]:
-        """
-        Get a list of full checkpoint paths per epoch for testing/registration. If no information for that epoch
-        is found, raise a ValueError.
-        """
-        checkpoint_and_epoch = self.get_checkpoint_from_epoch(epoch)
-        if checkpoint_and_epoch:
-            return checkpoint_and_epoch.checkpoint_paths
-        raise ValueError(f"No checkpoints found for epoch {epoch}")
+        return checkpoint_paths
 
-    def get_checkpoints_to_test(self) -> Optional[List[CheckpointPathsAndEpoch]]:
+    def get_checkpoints_to_test(self) -> List[Path]:
         """
         Find the checkpoints to test. If a run recovery is provided, or if the model has been training, look for
         checkpoints corresponding to the epochs in get_test_epochs(). If there is no run recovery and the model was
         not trained in this run, then return the checkpoint from the local_weights_path.
         """
 
-        test_epochs = self.model_config.get_test_epochs()
+        checkpoints = []
+
         # If recovery object exists, or model was trained, look for checkpoints by epoch
         if self.run_recovery or self.has_continued_training:
-            checkpoints = []
-            for epoch in test_epochs:
-                epoch_checkpoints = self.get_checkpoint_from_epoch(epoch)
-                if epoch_checkpoints:
-                    checkpoints.append(epoch_checkpoints)
-            return checkpoints if checkpoints else None
+            checkpoints = self.get_best_checkpoint()
         elif self.local_weights_path and not self.has_continued_training:
             # No recovery object and model was not trained, check if there is a local weight path.
             if self.local_weights_path.exists():
                 logging.info(f"Using model weights at {self.local_weights_path} to initialize model")
-                return [CheckpointPathsAndEpoch(epoch=0,
-                                                checkpoint_paths=[self.local_weights_path])]
+                checkpoints = [self.local_weights_path]
             else:
                 logging.warning(f"local_weights_path does not exist, "
                                 f"cannot recover from {self.local_weights_path}")
-                return None
         else:
             logging.warning("Could not find any run recovery object or local_weights_path to get checkpoints from")
-            return None
+
+        return checkpoints
 
     def download_weights(self) -> Path:
         """

@@ -8,7 +8,6 @@ import getpass
 import logging
 import sys
 from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -19,19 +18,10 @@ from azureml.train.estimator import MMLBaseEstimator
 from azureml.train.hyperdrive import HyperDriveConfig
 from git import Repo
 
-from InnerEye.Azure.azure_util import is_offline_run_context
+from InnerEye.Azure.azure_util import fetch_run, is_offline_run_context
 from InnerEye.Azure.secrets_handling import SecretsHandling, read_all_settings
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
-
-
-class VMPriority(Enum):
-    """
-    Configurations for VM priority to use for execution
-    """
-    LowPriority = 'lowpriority'
-    Dedicated = 'dedicated'
-
 
 # The name of the "azureml" property of AzureConfig
 AZURECONFIG_SUBMIT_TO_AZUREML = "azureml"
@@ -77,14 +67,13 @@ class AzureConfig(GenericConfig):
                                 doc="If True, train a new model. If False, run inference on an existing model. For "
                                     "inference, you need to specify a --run_recovery_id=... as well.")
     model: str = param.String(doc="The name of the model to train/test.")
-    register_model_only_for_epoch: Optional[int] = param.Integer(None,
-                                                                 doc="If set, and run_recovery_id is also set, "
-                                                                     "register the model for this epoch and do no "
-                                                                     "training or testing")
-    pytest_mark: str = param.String(doc="If provided, run pytest after model training. pytest will only "
+    only_register_model: bool = param.Boolean(False,
+                                              doc="If set, and run_recovery_id is also set, register the model "
+                                                  "that was trained in the recovery run, but don't do training"
+                                                  "or inference.")
+    pytest_mark: str = param.String(doc="If provided, run pytest instead of model training. pytest will only "
                                         "run the tests that have the mark given in this argument "
-                                        "('--pytest_mark gpu' will run all tests marked with "
-                                        "'pytest.mark.gpu')")
+                                        "('--pytest_mark gpu' will run all tests marked with 'pytest.mark.gpu')")
     run_recovery_id: str = param.String(doc="A run recovery id string in the form 'experiment name:run id'"
                                             " to use for inference or recovering a model training run.")
     experiment_name: str = param.String(doc="If provided, use this string as the name of the AzureML experiment. "
@@ -109,7 +98,7 @@ class AzureConfig(GenericConfig):
     use_dataset_mount: bool = param.Boolean(False, doc="If true, consume an AzureML Dataset via mounting it "
                                                        "at job start. If false, consume it by downloading it at job "
                                                        "start. When running outside AzureML, datasets will always be "
-                                                       "downloaded via blobxfer.")
+                                                       "downloaded.")
     extra_code_directory: str = param.String(doc="Directory (relative to project root) containing code "
                                                  "(e.g. model config) to be included in the model for "
                                                  "inference. Ignored by default.")
@@ -128,8 +117,8 @@ class AzureConfig(GenericConfig):
         self.git_information: Optional[GitInformation] = None
 
     def validate(self) -> None:
-        if self.register_model_only_for_epoch and not self.run_recovery_id:
-            raise ValueError("If register_model_only_for_epoch is set, must also provide a valid run_recovery_id")
+        if self.only_register_model and not self.run_recovery_id:
+            raise ValueError("If only_register_model is set, must also provide a valid run_recovery_id")
 
     def get_git_information(self) -> GitInformation:
         """
@@ -226,7 +215,8 @@ class AzureConfig(GenericConfig):
          is not present
         """
         secrets_handler = SecretsHandling(project_root=self.project_root)
-        application_key = secrets_handler.get_secret_from_environment(fixed_paths.SERVICE_PRINCIPAL_KEY, allow_missing=True)
+        application_key = secrets_handler.get_secret_from_environment(fixed_paths.SERVICE_PRINCIPAL_KEY,
+                                                                      allow_missing=True)
         if not application_key:
             logging.warning("Unable to retrieve the key for the Service Principal authentication "
                             f"(expected in environment variable '{fixed_paths.SERVICE_PRINCIPAL_KEY}' or YAML). "
@@ -237,6 +227,13 @@ class AzureConfig(GenericConfig):
             tenant_id=self.tenant_id,
             service_principal_id=self.application_id,
             service_principal_password=application_key)
+
+    def fetch_run(self, run_recovery_id: str) -> Run:
+        """
+        Gets an instantiated Run object for a given run recovery ID (format experiment_name:run_id).
+        :param run_recovery_id: A run recovery ID (format experiment_name:run_id)
+        """
+        return fetch_run(workspace=self.get_workspace(), run_recovery_id=run_recovery_id)
 
 
 @dataclass

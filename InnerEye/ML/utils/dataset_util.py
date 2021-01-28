@@ -139,21 +139,21 @@ class DatasetExample:
 
 
 def store_and_upload_example(dataset_example: DatasetExample,
-                             args: Optional[SegmentationModelBase],
+                             args: Optional[SegmentationModelBase] = None,
                              images_folder: Optional[Path] = None) -> None:
     """
     Stores an example input and output of the network to Nifti files.
 
     :param dataset_example: The dataset example, with image, label and prediction, that should be written.
-    :param args: configuration information to be used for normalization. TODO: This should not be optional why is this
-    assigning to example_images_folder
+    :param args: configuration information to be used for normalization.
     :param images_folder: The folder to which the result Nifti files should be written. If args is not None,
     the args.example_images_folder is used instead.
     """
 
-    folder = Path("") if images_folder is None else images_folder
-    if args is not None:
-        folder = args.example_images_folder
+    if images_folder is not None:
+        folder = images_folder
+    else:
+        folder = args.example_images_folder if args else Path("")
     if folder != "" and not os.path.exists(folder):
         os.mkdir(folder)
 

@@ -12,7 +12,7 @@ import pytest
 from InnerEye.Azure.azure_config import AZURECONFIG_SUBMIT_TO_AZUREML, AzureConfig, SourceConfig
 from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables, \
     run_duration_string_to_seconds
-from InnerEye.Azure.parser_util import _is_empty_or_empty_string_list, item_to_script_param
+from InnerEye.Azure.parser_util import _is_empty_or_empty_string_list
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.config import SegmentationModelBase
 
@@ -35,20 +35,6 @@ def test_is_not_empty_list(items: Any) -> None:
 
 class MyTestEnum(Enum):
     Value1 = "a"
-
-
-def test_item_to_script_param() -> None:
-    """
-    Check that items are converted to strings representing script parameters correctly.
-    """
-    assert "foo" == item_to_script_param("foo")
-    assert "\"foo bar\"" == item_to_script_param("foo bar")
-    assert "1,2" == item_to_script_param([1, 2])
-    assert "1" == item_to_script_param([1])
-    assert item_to_script_param(None) is None
-    assert item_to_script_param([]) is None
-    assert item_to_script_param([""]) is None
-    assert item_to_script_param(MyTestEnum.Value1) == "a"
 
 
 def test_create_runner_parser_check_fails_unknown() -> None:

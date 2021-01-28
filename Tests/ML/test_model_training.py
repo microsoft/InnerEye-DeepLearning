@@ -2,9 +2,11 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
+import os
 import shutil
 from pathlib import Path
-from typing import Any, List
+from typing import Any, Dict, List
 
 import h5py
 import numpy as np
@@ -13,105 +15,30 @@ import pytest
 from torch.utils.data import DataLoader
 
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict
+from InnerEye.Common.common_util import is_windows, logging_to_stdout
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML import metrics, model_training
-from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
+from InnerEye.ML import model_training
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode, \
+    RECOVERY_CHECKPOINT_FILE_NAME_WITH_SUFFIX, \
+    STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, TemperatureScalingConfig
-from InnerEye.ML.metrics import TRAIN_STATS_FILE
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.model_training_steps import ModelTrainingStepsForSegmentation
 from InnerEye.ML.models.losses.mixture import MixtureLoss
-from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.io_util import load_nifti_image
+from InnerEye.ML.utils.model_util import create_segmentation_loss_function
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import assert_file_contains_string, get_default_checkpoint_handler
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from Tests.ML.util import get_default_checkpoint_handler
 
 config_path = full_ml_test_data_path()
 base_path = full_ml_test_data_path()
-
-
-# Test for the logic that decides on which epochs to save.
-# The legacy behaviour is: Epoch counting starts at 1, last epoch is num_epochs.
-# Once the epoch number is >= save_start_epoch, all epochs with number even divisible by save_step_epochs
-# will have a checkpoint written.
-# New behaviour: In addition to that, also the very last training epoch has its checkpoint written.
-@pytest.mark.parametrize(["save_start_epoch", "save_step_epochs", "num_epochs", "expected_true", "verify_up_to_epoch"],
-                         [(5, 20, 10, [10, 20, 40], 50),
-                          (1, 1, 10, list(range(1, 21)), 20),
-                          (5, 20, 50, [20, 40, 50], 55),
-                          (5, 20, 100, [20, 40, 60, 80, 100], 110)])
-def test_should_save_epoch(save_start_epoch: int,
-                           save_step_epochs: int,
-                           num_epochs: int,
-                           expected_true: List[int],
-                           verify_up_to_epoch: int) -> None:
-    train_config = DeepLearningConfig(save_start_epoch=save_start_epoch,
-                                      save_step_epochs=save_step_epochs,
-                                      num_epochs=num_epochs,
-                                      should_validate=False)
-    for epoch in expected_true:
-        assert train_config.should_save_epoch(epoch), "Epoch {} should be saved".format(epoch)
-    expected_false = set(range(1, verify_up_to_epoch + 1)) - set(expected_true)
-    for epoch in expected_false:
-        assert not train_config.should_save_epoch(epoch), "Epoch {} should not be saved".format(epoch)
-
-
-def test_get_test_epochs() -> None:
-    """
-    Test if the creation of the list of epochs for model testing will always contain at least the last training epoch.
-    """
-    c = DeepLearningConfig(num_epochs=2, test_start_epoch=100, test_diff_epochs=2, test_step_epochs=10,
-                           should_validate=False)
-    assert c.get_test_epochs() == [2]
-    c = DeepLearningConfig(num_epochs=100, test_start_epoch=100, test_diff_epochs=2, test_step_epochs=10,
-                           should_validate=False)
-    assert c.get_test_epochs() == [100]
-    c = DeepLearningConfig(num_epochs=150, test_start_epoch=100, test_diff_epochs=2, test_step_epochs=10,
-                           should_validate=False)
-    assert c.get_test_epochs() == [100, 110, 150]
-    c = DeepLearningConfig(num_epochs=100, test_start_epoch=100, test_diff_epochs=0, test_step_epochs=10,
-                           should_validate=False)
-    assert c.get_test_epochs() == [100]
-    c = DeepLearningConfig(num_epochs=100, test_start_epoch=200, test_diff_epochs=None, test_step_epochs=10,
-                           should_validate=False)
-    assert c.get_test_epochs() == [100]
-    c = DeepLearningConfig(num_epochs=100, epochs_to_test=[1, 3, 5],
-                           should_validate=False)
-    assert c.get_test_epochs() == [1, 3, 5, 100]
-
-    # epochs_to_test should have precedence over (test_start_epoch, test_diff_epochs and test_step_epochs)
-    c = DeepLearningConfig(num_epochs=150, epochs_to_test=[1, 3, 5],
-                           test_start_epoch=100, test_diff_epochs=2, test_step_epochs=10,
-                           should_validate=False)
-    assert c.get_test_epochs() == [1, 3, 5, 150]
-
-
-def test_get_total_number_of_validation_epochs() -> None:
-    """
-    Since an extra validation epoch is performed when temperature scaling for each checkpoint, make sure
-    the expected count is correct, as it is used to restrict the iterations on the validation data loader.
-    """
-    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1],
-                          temperature_scaling_config=None, should_validate=False)
-    assert c.get_total_number_of_validation_epochs() == 2
-    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1], should_validate=False,
-                          temperature_scaling_config=TemperatureScalingConfig())
-    assert c.get_total_number_of_validation_epochs() == 3
-    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1], temperature_scaling_config=None,
-                          save_start_epoch=1, save_step_epochs=1, should_validate=False)
-    assert c.get_total_number_of_validation_epochs() == 2
-    c = SequenceModelBase(num_epochs=2, sequence_target_positions=[1],
-                          save_start_epoch=1, save_step_epochs=1, should_validate=False,
-                          temperature_scaling_config=TemperatureScalingConfig())
-    assert c.get_total_number_of_validation_epochs() == 4
 
 
 def test_get_total_number_of_training_epochs() -> None:
@@ -129,6 +56,7 @@ def test_invalid_model_train(test_output_dirs: OutputFolderForTests, image_chann
         _test_model_train(test_output_dirs, image_channels, ground_truth_ids)
 
 
+@pytest.mark.cpu_and_gpu
 @pytest.mark.parametrize("no_mask_channel", [True, False])
 def test_valid_model_train(test_output_dirs: OutputFolderForTests, no_mask_channel: bool) -> None:
     _test_model_train(test_output_dirs, ["channel1", "channel2"], ["region", "region_1"], no_mask_channel)
@@ -138,12 +66,29 @@ def _test_model_train(output_dirs: OutputFolderForTests,
                       image_channels: Any,
                       ground_truth_ids: Any,
                       no_mask_channel: bool = False) -> None:
-    def _check_patch_centers(epoch_results: List[MetricsDict], should_equal: bool) -> None:
-        diagnostics_per_epoch = [m.diagnostics[MetricType.PATCH_CENTER.value] for m in epoch_results]
+    def _check_patch_centers(diagnostics_per_epoch: List[np.ndarray], should_equal: bool) -> None:
         patch_centers_epoch1 = diagnostics_per_epoch[0]
+        assert len(diagnostics_per_epoch) > 1, "Not enough data to check patch centers, need at least 2"
         for diagnostic in diagnostics_per_epoch[1:]:
             assert np.array_equal(patch_centers_epoch1, diagnostic) == should_equal
 
+    def _check_voxel_count(results_per_epoch: List[Dict[str, float]],
+                           expected_voxel_count_per_epoch: List[float]) -> None:
+        assert len(results_per_epoch) == len(expected_voxel_count_per_epoch)
+        for (results, voxel_count) in zip(results_per_epoch, expected_voxel_count_per_epoch):
+            # In the test data, both structures "region" and "region_1" are read from the same nifti file, hence
+            # their voxel counts must be identical.
+            for structure in ["region", "region_1"]:
+                assert results[f"{MetricType.VOXEL_COUNT.value}/{structure}"] == pytest.approx(voxel_count, abs=1e-2), \
+                    f"Voxel count mismatch for '{structure}'"
+
+    def _mean(a: List[float]) -> float:
+        return sum(a) / len(a)
+
+    def _mean_list(lists: List[List[float]]) -> List[float]:
+        return list(map(_mean, lists))
+
+    logging_to_stdout(log_level=logging.DEBUG)
     train_config = DummyModel()
     train_config.local_dataset = base_path
     train_config.set_output_to(output_dirs.root_dir)
@@ -153,81 +98,100 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.random_seed = 42
     train_config.class_weights = [0.5, 0.25, 0.25]
     train_config.store_dataset_sample = True
+    train_config.recovery_checkpoint_save_interval = 1
 
-    expected_train_losses = [0.455538, 0.455213]
-    expected_val_losses = [0.455190, 0.455139]
+    expected_train_losses = [0.4552295, 0.4548622]
+    expected_val_losses = [0.4553889, 0.4553044]
+    loss_absolute_tolerance = 1e-6
+    expected_learning_rates = [train_config.l_rate, 5.3589e-4]
 
-    expected_stats = "Epoch\tLearningRate\tTrainLoss\tTrainDice\tValLoss\tValDice\n" \
-                     "1\t1.00e-03\t0.456\t0.242\t0.455\t0.000\n" \
-                     "2\t5.36e-04\t0.455\t0.247\t0.455\t0.000"
-
-    expected_learning_rates = [[train_config.l_rate], [5.3589e-4]]
-
-    loss_absolute_tolerance = 1e-3
     checkpoint_handler = get_default_checkpoint_handler(model_config=train_config,
                                                         project_root=Path(output_dirs.root_dir))
     model_training_result = model_training.model_train(train_config,
                                                        checkpoint_handler=checkpoint_handler)
     assert isinstance(model_training_result, ModelTrainingResults)
 
+    def assert_all_close(metric: str, expected: List[float], **kwargs: Any) -> None:
+        actual = model_training_result.get_training_metric(metric)
+        assert np.allclose(actual, expected, **kwargs), f"Mismatch for {metric}: Got {actual}, expected {expected}"
+
     # check to make sure training batches are NOT all the same across epochs
-    _check_patch_centers(model_training_result.train_results_per_epoch, should_equal=False)
+    _check_patch_centers(model_training_result.train_diagnostics, should_equal=False)
     # check to make sure validation batches are all the same across epochs
-    _check_patch_centers(model_training_result.val_results_per_epoch, should_equal=True)
-    assert isinstance(model_training_result.train_results_per_epoch[0], MetricsDict)
-    actual_train_losses = [m.get_single_metric(MetricType.LOSS)
-                           for m in model_training_result.train_results_per_epoch]
-    actual_val_losses = [m.get_single_metric(MetricType.LOSS)
-                         for m in model_training_result.val_results_per_epoch]
+    _check_patch_centers(model_training_result.val_diagnostics, should_equal=True)
+    assert_all_close(MetricType.SUBJECT_COUNT.value, [3.0, 3.0])
+    assert_all_close(MetricType.LEARNING_RATE.value, expected_learning_rates, rtol=1e-6)
+
+    if is_windows():
+        # Randomization comes out slightly different on Windows. Skip the rest of the detailed checks.
+        return
+
+    # Simple regression test: Voxel counts should be the same in both epochs on the validation set,
+    # and be the same across 'region' and 'region_1' because they derive from the same Nifti files.
+    # The following values are read off directly from the results of compute_dice_across_patches in the training loop
+    train_voxels = [[83014.0, 83255.0, 82946.0], [83000.0, 82881.0, 83309.0]]
+    val_voxels = [[82765.0, 83212.0], [82765.0, 83212.0]]
+    _check_voxel_count(model_training_result.train_results_per_epoch, _mean_list(train_voxels))
+    _check_voxel_count(model_training_result.val_results_per_epoch, _mean_list(val_voxels))
+
+    actual_train_losses = model_training_result.get_training_metric(MetricType.LOSS.value)
+    actual_val_losses = model_training_result.get_validation_metric(MetricType.LOSS.value)
     print("actual_train_losses = {}".format(actual_train_losses))
     print("actual_val_losses = {}".format(actual_val_losses))
-    assert np.allclose(actual_train_losses, expected_train_losses, atol=loss_absolute_tolerance)
-    assert np.allclose(actual_val_losses, expected_val_losses, atol=loss_absolute_tolerance)
-    assert np.allclose(model_training_result.learning_rates_per_epoch, expected_learning_rates, rtol=1e-6)
+    assert np.allclose(actual_train_losses, expected_train_losses, atol=loss_absolute_tolerance), "Train losses"
+    assert np.allclose(actual_val_losses, expected_val_losses, atol=loss_absolute_tolerance), "Val losses"
+    # Check that the metric we track for Hyperdrive runs is actually written.
+    assert TrackedMetrics.Val_Loss.value.startswith(VALIDATION_PREFIX)
+    tracked_metric = TrackedMetrics.Val_Loss.value[len(VALIDATION_PREFIX):]
+    for val_result in model_training_result.val_results_per_epoch:
+        assert tracked_metric in val_result
+    # The following values are read off directly from the results of compute_dice_across_patches in the training loop
+    train_dice_region = [[0.0, 0.0, 0.0], [0.01922884, 0.01918082, 0.07752819]]
+    train_dice_region1 = [[0.48280242, 0.48337635, 0.4974504], [0.5024475, 0.5007884, 0.48952717]]
+    assert_all_close("Dice/region", _mean_list(train_dice_region), atol=1e-4)
+    assert_all_close("Dice/region_1", _mean_list(train_dice_region1), atol=1e-4)
+    expected_average_dice = [_mean(train_dice_region[i] + train_dice_region1[i])  # type: ignore
+                             for i in range(len(train_dice_region))]
+    assert_all_close("Dice/AverageAcrossStructures", expected_average_dice, atol=1e-4)
 
     # check output files/directories
     assert train_config.outputs_folder.is_dir()
     assert train_config.logs_folder.is_dir()
 
-    # The train and val folder should contain Tensorflow event files
-    assert (train_config.logs_folder / "train").is_dir()
-    assert (train_config.logs_folder / "val").is_dir()
-    assert len([(train_config.logs_folder / "train").glob("*")]) == 1
-    assert len([(train_config.logs_folder / "val").glob("*")]) == 1
+    # Tensorboard event files go into a Lightning subfolder (Pytorch Lightning default)
+    assert (train_config.logs_folder / "Lightning").is_dir()
+    assert len([(train_config.logs_folder / "Lightning").glob("events*")]) == 1
 
-    # Checkpoint folder
-    # With these settings, we should see a checkpoint only at epoch 2:
-    # That's the last epoch, and there should always be checkpoint at the last epoch)
-    assert train_config.save_start_epoch == 1
-    assert train_config.save_step_epochs == 100
     assert train_config.num_epochs == 2
+    # Checkpoint folder
     assert train_config.checkpoint_folder.is_dir()
-    assert (train_config.checkpoint_folder / ("2" + CHECKPOINT_FILE_SUFFIX)).is_file()
+    actual_checkpoints = list(train_config.checkpoint_folder.rglob("*.ckpt"))
+    assert len(actual_checkpoints) == 2, f"Actual checkpoints: {actual_checkpoints}"
+    assert (train_config.checkpoint_folder / RECOVERY_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
+    assert (train_config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.VAL]).is_file()
-    assert_file_contains_string(train_config.outputs_folder / TRAIN_STATS_FILE, expected_stats)
 
-    # Test for saving of example images
-    assert train_config.example_images_folder.is_dir()
-    example_files = list(train_config.example_images_folder.rglob("*.*"))
-    assert len(example_files) == 3 * 2
     # Path visualization: There should be 3 slices for each of the 2 subjects
     sampling_folder = train_config.outputs_folder / PATCH_SAMPLING_FOLDER
     assert sampling_folder.is_dir()
     assert train_config.show_patch_sampling > 0
     assert len(list(sampling_folder.rglob("*.png"))) == 3 * train_config.show_patch_sampling
 
+    # Time per epoch: Test that we have all these times logged.
+    model_training_result.get_training_metric(MetricType.SECONDS_PER_EPOCH.value)
+    model_training_result.get_validation_metric(MetricType.SECONDS_PER_EPOCH.value)
+    model_training_result.get_validation_metric(MetricType.SECONDS_PER_BATCH.value)
+    # We should have time per batch also for training, but it does not appear in the logs somehow?
+    # Logging the metric is called, but they never make it to the logger object.
+    # model_training_result.get_training_metric(MetricType.SECONDS_PER_BATCH.value)
 
-@pytest.mark.parametrize(["rates", "expected"],
-                         [(None, ""),
-                          ([], ""),
-                          ([0.0], "0.00e+00"),
-                          ([0.000056789], "5.68e-05"),
-                          ([0.000536], "5.36e-04"),
-                          ([1.23456], "1.23e+00")])
-def test_format_learning_rate(rates: Any, expected: str) -> None:
-    assert metrics.format_learning_rates(rates) == expected
+    # Issue #372
+    # # Test for saving of example images
+    # assert train_config.example_images_folder.is_dir()
+    # example_files = list(train_config.example_images_folder.rglob("*.*"))
+    # assert len(example_files) == 3 * 2
 
 
 def test_create_data_loaders() -> None:
@@ -328,7 +292,7 @@ def test_construct_loss_function() -> None:
     model_config.mixture_loss_components = [
         MixtureLossComponent(weights[0], SegmentationLoss.CrossEntropy, 0.2),
         MixtureLossComponent(weights[1], SegmentationLoss.SoftDice, 0.1)]
-    loss_fn = ModelTrainingStepsForSegmentation.construct_loss_function(model_config)
+    loss_fn = create_segmentation_loss_function(model_config)
     assert isinstance(loss_fn, MixtureLoss)
     assert len(loss_fn.components) == len(weights)
     assert loss_fn.components[0][0] == weights[0] / sum(weights)
@@ -341,26 +305,33 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
     """
     config = DummyClassification()
     config.mean_teacher_alpha = 0.999
+    config.recovery_checkpoint_save_interval = 1
+    config.set_output_to(test_output_dirs.root_dir / "original")
+    os.makedirs(str(config.outputs_folder))
+
+    original_checkpoint_folder = config.checkpoint_folder
 
     # First round of training
     config.num_epochs = 2
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
     model_train(config, checkpoint_handler=checkpoint_handler)
-    assert len(list(config.checkpoint_folder.rglob("*.*"))) == 1
+    assert len(list(config.checkpoint_folder.glob("*.*"))) == 2
 
     # Restart training from previous run
     config.start_epoch = 2
     config.num_epochs = 3
+    config.set_output_to(test_output_dirs.root_dir / "recovered")
+    os.makedirs(str(config.outputs_folder))
     # make if seem like run recovery objects have been downloaded
-    checkpoint_root = config.checkpoint_folder / "recovered"
-    shutil.copytree(config.checkpoint_folder, checkpoint_root)
+    checkpoint_root = config.checkpoint_folder / "old_run"
+    shutil.copytree(str(original_checkpoint_folder), str(checkpoint_root))
     checkpoint_handler.run_recovery = RunRecovery([checkpoint_root])
 
     model_train(config, checkpoint_handler=checkpoint_handler)
     # remove recovery checkpoints
     shutil.rmtree(checkpoint_root)
-    assert len(list(config.checkpoint_folder.rglob("*.*"))) == 2
+    assert len(list(config.checkpoint_folder.glob("*.*"))) == 2
 
 
 def test_script_names_correct() -> None:

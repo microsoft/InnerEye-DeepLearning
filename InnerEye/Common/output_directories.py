@@ -6,7 +6,6 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from InnerEye.Common import common_util
 from InnerEye.Common.type_annotations import PathOrString
 
 
@@ -29,9 +28,6 @@ class OutputFolderForTests:
     Data class for the output directories for a given test
     """
     root_dir: Path
-
-    def __post_init__(self) -> None:
-        common_util.check_properties_are_not_none(self)
 
     def create_file_or_folder_path(self, file_or_folder_name: str) -> Path:
         """

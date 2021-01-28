@@ -12,37 +12,34 @@ from unittest import mock
 import pandas as pd
 import pytest
 import torch
-from more_itertools import flatten
 
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, METRICS_AGGREGATES_FILE, \
-    METRICS_FILE_NAME, logging_to_stdout, epoch_folder_name
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict, ScalarMetricsDict
+    SUBJECT_METRICS_FILE_NAME, get_epoch_results_path, logging_to_stdout
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, model_training, runner
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
+from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get_config_and_results_for_offline_runs, \
     unroll_aggregate_metrics
-
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_azure_config, machine_has_gpu, get_default_checkpoint_handler
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler, machine_has_gpu
 
 
 @pytest.mark.cpu_and_gpu
-@pytest.mark.parametrize("use_mixed_precision", [False, True])
-def test_train_classification_model(test_output_dirs: OutputFolderForTests,
-                                    use_mixed_precision: bool) -> None:
+def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test training and testing of classification models, asserting on the individual results from training and testing.
+    Test training and testing of classification models, asserting on the individual results from training and
+    testing.
     Expected test results are stored for GPU with and without mixed precision.
     """
     logging_to_stdout(logging.DEBUG)
@@ -52,107 +49,101 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests,
                                                         project_root=Path(test_output_dirs.root_dir))
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
-    config.use_mixed_precision = use_mixed_precision
-    config.save_start_epoch = 2
-    config.save_step_epochs = 2
-    config.test_start_epoch = 2
-    config.test_step_epochs = 2
-    config.test_diff_epochs = 2
-    expected_epochs = [2, 4]
-    assert config.get_test_epochs() == expected_epochs
     model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
-    use_mixed_precision_and_gpu = use_mixed_precision and machine_has_gpu
-    if use_mixed_precision_and_gpu:
-        expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
-        expected_val_loss = [0.737039, 0.736721, 0.736339, 0.735957]
-    else:
-        expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
-        expected_val_loss = [0.737061, 0.736690, 0.736321, 0.735952]
-
-    def extract_loss(results: List[MetricsDict]) -> List[float]:
-        return [d.values()[MetricType.LOSS.value][0] for d in results]
-
-    actual_train_loss = extract_loss(model_training_result.train_results_per_epoch)
-    actual_val_loss = extract_loss(model_training_result.val_results_per_epoch)
-    actual_learning_rates = list(flatten(model_training_result.learning_rates_per_epoch))
-    assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6)
-    assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6)
-    assert actual_learning_rates == pytest.approx(expected_learning_rates, rel=1e-5)
+    expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
+    expected_val_loss = [0.737061, 0.736691, 0.736321, 0.735952]
+    # Ensure that all metrics are computed on both training and validation set
+    assert len(model_training_result.train_results_per_epoch) == config.num_epochs
+    assert len(model_training_result.val_results_per_epoch) == config.num_epochs
+    assert len(model_training_result.train_results_per_epoch[0]) >= 11
+    assert len(model_training_result.val_results_per_epoch[0]) >= 11
+    for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
+                   MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
+                   MetricType.AREA_UNDER_PR_CURVE,
+                   MetricType.AREA_UNDER_ROC_CURVE,
+                   MetricType.CROSS_ENTROPY,
+                   MetricType.LOSS,
+                   # For unknown reasons, we don't get seconds_per_batch for the training data.
+                   # MetricType.SECONDS_PER_BATCH,
+                   MetricType.SECONDS_PER_EPOCH,
+                   MetricType.SUBJECT_COUNT,
+                   ]:
+        assert metric.value in model_training_result.train_results_per_epoch[0], f"{metric.value} not in training"
+        assert metric.value in model_training_result.val_results_per_epoch[0], f"{metric.value} not in validation"
+    actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS.value)
+    actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS.value)
+    actual_lr = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE.value)
+    assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6), "Training loss"
+    assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6), "Validation loss"
+    assert actual_lr == pytest.approx(expected_learning_rates, rel=1e-5), "Learning rates"
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
                                             checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
-    assert list(test_results.epochs.keys()) == expected_epochs
-    if use_mixed_precision_and_gpu:
-        expected_metrics = {
-            2: [0.635942, 0.736691],
-            4: [0.636085, 0.735952],
-        }
-    else:
-        expected_metrics = {
-            2: [0.635941, 0.736690],
-            4: [0.636084, 0.735952],
-        }
-    for epoch in expected_epochs:
-        assert test_results.epochs[epoch].values()[MetricType.CROSS_ENTROPY.value] == \
-               pytest.approx(expected_metrics[epoch], abs=1e-6)
+    expected_metrics = [0.636085, 0.735952]
+    assert test_results.metrics.values()[MetricType.CROSS_ENTROPY.value] == \
+           pytest.approx(expected_metrics, abs=1e-5)
     # Run detailed logs file check only on CPU, it will contain slightly different metrics on GPU, but here
     # we want to mostly assert that the files look reasonable
-    if not machine_has_gpu:
-        # Check log EPOCH_METRICS_FILE_NAME
-        epoch_metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME
-        # Auto-format will break the long header line, hence the strange way of writing it!
-        expected_epoch_metrics = \
-            "loss,cross_entropy,accuracy_at_threshold_05,seconds_per_batch,seconds_per_epoch,learning_rate," + \
-            "area_under_roc_curve,area_under_pr_curve,accuracy_at_optimal_threshold," \
-            "false_positive_rate_at_optimal_threshold,false_negative_rate_at_optimal_threshold," \
-            "optimal_threshold,subject_count,epoch,cross_validation_split_index\n" + \
-            """0.6866141557693481,0.6866141557693481,0.5,0,0,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,1,-1
-            0.6864652633666992,0.6864652633666992,0.5,0,0,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,2,-1
-            0.6863163113594055,0.6863162517547607,0.5,0,0,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,3,-1
-            0.6861673593521118,0.6861673593521118,0.5,0,0,9.998613801725043e-05,1.0,1.0,0.5,0.0,0.0,0.529399,2.0,4,-1
-            """
-        check_log_file(epoch_metrics_path, expected_epoch_metrics,
-                       ignore_columns=[LoggingColumns.SecondsPerBatch.value, LoggingColumns.SecondsPerEpoch.value])
-
-        # Check log METRICS_FILE_NAME
-        metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / METRICS_FILE_NAME
-        metrics_expected = \
-            """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
-Default,1,S4,0.5216594338417053,0.0,-1,Train
-Default,1,S2,0.5295137763023376,1.0,-1,Train
-Default,2,S4,0.5214819312095642,0.0,-1,Train
-Default,2,S2,0.5294750332832336,1.0,-1,Train
-Default,3,S4,0.5213046073913574,0.0,-1,Train
-Default,3,S2,0.5294366478919983,1.0,-1,Train
-Default,4,S4,0.5211275815963745,0.0,-1,Train
-Default,4,S2,0.5293986201286316,1.0,-1,Train
+    if machine_has_gpu:
+        return
+    # Check epoch_metrics.csv
+    epoch_metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME
+    # Auto-format will break the long header line, hence the strange way of writing it!
+    expected_epoch_metrics = \
+        "loss,cross_entropy,accuracy_at_threshold_05,seconds_per_epoch,learning_rate," + \
+        "area_under_roc_curve,area_under_pr_curve,accuracy_at_optimal_threshold," \
+        "false_positive_rate_at_optimal_threshold,false_negative_rate_at_optimal_threshold," \
+        "optimal_threshold,subject_count,epoch,cross_validation_split_index\n" + \
+        """0.6866141557693481,0.6866141557693481,0.5,0,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,0,-1	
+        0.6864652633666992,0.6864652633666992,0.5,0,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,1,-1	
+        0.6863163113594055,0.6863162517547607,0.5,0,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,2,-1	
+        0.6861673593521118,0.6861673593521118,0.5,0,9.998613801725043e-05,1.0,1.0,0.5,0.0,0.0,0.529399,2.0,3,-1	
+        """
+    # We cannot compare columns like "seconds_per_epoch" because timing will obviously vary between machines.
+    # Column must still be present, though.
+    check_log_file(epoch_metrics_path, expected_epoch_metrics,
+                   ignore_columns=[LoggingColumns.SecondsPerEpoch.value])
+    # Check metrics.csv: This contains the per-subject per-epoch model outputs
+    # Randomization comes out slightly different on Windows, hence only execute the test on Linux
+    if common_util.is_windows():
+        return
+    metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
+    metrics_expected = \
+        """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
+Default,0,S2,0.5295137763023376,1.0,-1,Train
+Default,0,S4,0.5216594338417053,0.0,-1,Train
+Default,1,S4,0.5214819312095642,0.0,-1,Train
+Default,1,S2,0.5294750332832336,1.0,-1,Train
+Default,2,S2,0.5294366478919983,1.0,-1,Train
+Default,2,S4,0.5213046073913574,0.0,-1,Train
+Default,3,S2,0.5293986201286316,1.0,-1,Train
+Default,3,S4,0.5211275815963745,0.0,-1,Train
 """
-        check_log_file(metrics_path, metrics_expected, ignore_columns=[])
-
-        # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
-        # Normally, we would run it on the Test and Val splits, but for convenience we test on the train split here.
-        inference_metrics_path = config.outputs_folder / Path(epoch_folder_name(config.num_epochs)) / \
-                           ModelExecutionMode.TRAIN.value / METRICS_FILE_NAME
-        inference_metrics_expected = \
-            """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
-Default,4,S2,0.5293986201286316,1.0,-1,Train
-Default,4,S4,0.5211275815963745,0.0,-1,Train
+    check_log_file(metrics_path, metrics_expected, ignore_columns=[])
+    # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
+    # Normally, we would run it on the Test and Val splits, but for convenience we test on the train split here.
+    inference_metrics_path = config.outputs_folder / get_epoch_results_path(ModelExecutionMode.TRAIN) / \
+                             SUBJECT_METRICS_FILE_NAME
+    inference_metrics_expected = \
+        """prediction_target,subject,model_output,label,cross_validation_split_index,data_split
+Default,S2,0.5293986201286316,1.0,-1,Train
+Default,S4,0.5211275815963745,0.0,-1,Train
 """
-        check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
+    check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
 
 
 def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> None:
     df_expected = pd.read_csv(StringIO(expected_csv))
     df_epoch_metrics_actual = pd.read_csv(path)
     for ignore_column in ignore_columns:
-        assert ignore_column in df_epoch_metrics_actual
-        # We cannot compare time because in different machines this takes different times
+        assert ignore_column in df_epoch_metrics_actual, f"Column {ignore_column} will be ignored, but must still be" \
+                                                         f"present in the dataframe"
         del df_epoch_metrics_actual[ignore_column]
         if ignore_column in df_expected:
             del df_expected[ignore_column]
-    pd.testing.assert_frame_equal(df_expected, df_epoch_metrics_actual, check_less_precise=True)
+    pd.testing.assert_frame_equal(df_expected, df_epoch_metrics_actual, check_less_precise=True, check_like=True)
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -167,24 +158,23 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
     logging_to_stdout()
     azure_config = get_default_azure_config()
     azure_config.train = True
-    train_config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
+    config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
         .create_model_config_from_name(model_name)
-    train_config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
-    train_config.set_output_to(test_output_dirs.root_dir)
-    MLRunner(train_config, azure_config).run()
-    _check_offline_cross_validation_output_files(train_config)
+    config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
+    config.set_output_to(test_output_dirs.root_dir)
+    # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+    config.max_num_gpus = 1
+    MLRunner(config, azure_config).run()
+    _check_offline_cross_validation_output_files(config)
 
-    if train_config.is_regression_model:
-        assert (train_config.outputs_folder / "0" / "error_plot_4.png").is_file()
-
-    if train_config.perform_cross_validation:
+    if config.perform_cross_validation:
         # Test that the result files can be correctly picked up by the cross validation routine.
         # For that, we point the downloader to the local results folder. The core download method
         # recognizes run_recovery_id == None as the signal to read from the local_run_results folder.
-        config_and_files = get_config_and_results_for_offline_runs(train_config)
+        config_and_files = get_config_and_results_for_offline_runs(config)
         result_files = config_and_files.files
         # One file for VAL and one for TRAIN for each child run
-        assert len(result_files) == train_config.get_total_number_of_cross_validation_runs() * 2
+        assert len(result_files) == config.get_total_number_of_cross_validation_runs() * 2
         for file in result_files:
             assert file.execution_mode != ModelExecutionMode.TEST
             assert file.dataset_csv_file is not None
@@ -198,19 +188,19 @@ def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) 
     """
     Test training and testing of segmentation models, when it is started together via run_ml.
     """
-    train_config = DummyModel()
-    train_config.num_dataload_workers = 0
-    train_config.restrict_subjects = "1"
+    config = DummyModel()
+    config.num_dataload_workers = 0
+    config.restrict_subjects = "1"
     # Increasing the test crop size should not have any effect on the results.
     # This is for a bug in an earlier version of the code where the wrong execution mode was used to
     # compute the expected mask size at training time.
-    train_config.test_crop_size = (75, 75, 75)
-    train_config.perform_training_set_inference = False
-    train_config.perform_validation_and_test_set_inference = True
-    train_config.set_output_to(test_output_dirs.root_dir)
+    config.test_crop_size = (75, 75, 75)
+    config.perform_training_set_inference = False
+    config.perform_validation_and_test_set_inference = True
+    config.set_output_to(test_output_dirs.root_dir)
     azure_config = get_default_azure_config()
     azure_config.train = True
-    MLRunner(train_config, azure_config).run()
+    MLRunner(config, azure_config).run()
 
 
 def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
@@ -231,6 +221,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
             "--random_seed", str(set_from_commandline),
             "--non_image_feature_channels", scalar1,
             "--output_to", output_root,
+            "--max_num_gpus", "1"
             ]
     with mock.patch("sys.argv", args):
         config, _ = runner.run(project_root=fixed_paths.repository_root_directory(),
@@ -254,6 +245,7 @@ def test_runner2(test_output_dirs: OutputFolderForTests) -> None:
             "--model", "DummyClassification",
             "--train", "True",
             "--output_to", output_root,
+            "--max_num_gpus", "1"
             ]
     with mock.patch("sys.argv", args):
         config, _ = runner.run(project_root=fixed_paths.repository_root_directory(),
@@ -299,10 +291,11 @@ def test_scalar_metrics(has_hues: bool, is_classification: bool) -> None:
         labels = [[2.0, 2.0, 2.0], [1.0, 1.0, 1.0]]
         expected_accuracy = [0.25, 5, 0]
         accuracy_metric_key = MetricType.MEAN_SQUARED_ERROR.value
+        # Issue #373: We have odd values here for ExplainedVariance, and had already for r2score
         expected_info_format_strs = [
-            "MeanSquaredError: 0.2500, MeanAbsoluteError: 0.5000, r2Score: 0.0000",
-            "MeanSquaredError: 5.0000, MeanAbsoluteError: 2.0000, r2Score: -19.0000",
-            "MeanSquaredError: 0.0000, MeanAbsoluteError: 0.0000, r2Score: 1.0000"
+            "MeanSquaredError: 0.2500, MeanAbsoluteError: 0.5000, ExplainedVariance: 0.0000",
+            "MeanSquaredError: 5.0000, MeanAbsoluteError: 2.0000, ExplainedVariance: -19.0000",
+            "MeanSquaredError: 0.0000, MeanAbsoluteError: 0.0000, ExplainedVariance: 1.0000"
         ]
 
     def _get_expected_info_str(index: Optional[int] = None) -> str:
@@ -365,7 +358,7 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         expected_outputs_folder = root / str(x)
         assert expected_outputs_folder.exists()
         for m in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
-            metrics_path = expected_outputs_folder / m.value / METRICS_FILE_NAME
+            metrics_path = expected_outputs_folder / m.value / SUBJECT_METRICS_FILE_NAME
             assert metrics_path.exists()
             split_metrics = pd.read_csv(metrics_path)
             if m in metrics:
@@ -389,7 +382,7 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         # Each epoch is recorded twice once for the training split and once for the validation
         # split
         assert len(_epochs) == train_config.num_epochs * 2
-        assert all([x + 1 in _epochs for x in list(range(train_config.num_epochs)) * 2])
+        assert _epochs == list(range(train_config.num_epochs)) * 2
         # Only the validation mode is kept for unrolled aggregates
         unrolled = unroll_aggregate_metrics(_aggregates_csv)
         if train_config.is_classification_model:
@@ -404,7 +397,7 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         else:
             expected_metrics = {LoggingColumns.MeanAbsoluteError.value,
                                 LoggingColumns.MeanSquaredError.value,
-                                LoggingColumns.R2Score.value}
+                                LoggingColumns.ExplainedVariance.value}
         expected_metrics = expected_metrics.union({LoggingColumns.SubjectCount.value})
         assert len(unrolled) == train_config.num_epochs * len(expected_metrics)
         actual_metrics = set(m.metric_name for m in unrolled)

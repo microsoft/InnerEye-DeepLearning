@@ -32,15 +32,11 @@ class BasicModel2Epochs(SegmentationModelBase):
             level=50,
             window=200,
             class_weights=equally_weighted_classes(fg_classes),
-            num_dataload_workers=4,
+            num_dataload_workers=1,
             train_batch_size=8,
             start_epoch=0,
             num_epochs=2,
-            save_start_epoch=1,
-            save_step_epochs=1,
-            test_start_epoch=2,
-            test_diff_epochs=1,
-            test_step_epochs=1,
+            recovery_checkpoint_save_interval=1,
             use_mixed_precision=True,
             azure_dataset_id=AZURE_DATASET_ID,
             # Use an LR scheduler with a pronounced and clearly visible decay, to be able to easily see if that
@@ -48,7 +44,9 @@ class BasicModel2Epochs(SegmentationModelBase):
             l_rate=1e-4,
             l_rate_scheduler=LRSchedulerType.Step,
             l_rate_step_step_size=1,
-            l_rate_step_gamma=0.9
+            l_rate_step_gamma=0.9,
+            # Necessary to avoid https://github.com/pytorch/pytorch/issues/45324
+            max_num_gpus=2,
         )
         self.add_and_validate(kwargs)
 

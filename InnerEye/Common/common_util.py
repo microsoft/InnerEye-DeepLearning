@@ -5,7 +5,6 @@
 import inspect
 import logging
 import os
-import shutil
 import sys
 import time
 import traceback
@@ -13,7 +12,7 @@ from contextlib import contextmanager
 from enum import Enum
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Union
+from typing import Any, Callable, Generator, Iterable, List, Optional, Union
 
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.Common.type_annotations import PathOrString
@@ -28,81 +27,19 @@ string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(
 # File name pattern that will match anything returned by epoch_folder_name.
 EPOCH_FOLDER_NAME_PATTERN = "epoch_[0-9][0-9][0-9]"
 
-METRICS_FILE_NAME = "metrics.csv"
+SUBJECT_METRICS_FILE_NAME = "metrics.csv"
 EPOCH_METRICS_FILE_NAME = "epoch_metrics.csv"
 METRICS_AGGREGATES_FILE = "metrics_aggregates.csv"
 CROSSVAL_RESULTS_FOLDER = "CrossValResults"
 BASELINE_COMPARISONS_FOLDER = "BaselineComparisons"
 FULL_METRICS_DATAFRAME_FILE = "MetricsAcrossAllRuns.csv"
+BEST_EPOCH_FOLDER_NAME = "best_validation_epoch"
 
 OTHER_RUNS_SUBDIR_NAME = "OTHER_RUNS"
 ENSEMBLE_SPLIT_NAME = "ENSEMBLE"
 
 SCATTERPLOTS_SUBDIR_NAME = "scatterplots"
 BASELINE_WILCOXON_RESULTS_FILE = "BaselineComparisonWilcoxonSignedRankTestResults.txt"
-
-
-class DataframeLogger:
-    """
-    Single DataFrame logger for logging to CSV file
-    """
-
-    def __init__(self, csv_path: Path):
-        self.records: List[Dict[str, Any]] = []
-        self.csv_path = csv_path
-
-    def add_record(self, record: Dict[str, Any]) -> None:
-        self.records.append(record)
-
-    def flush(self, log_info: bool = False) -> None:
-        """
-        Save the internal records to a csv file.
-        :param log_info: Log INFO if log_info is True.
-        """
-        import pandas as pd
-        if not self.csv_path.parent.is_dir():
-            self.csv_path.parent.mkdir(parents=True)
-        # Specifying columns such that the order in which columns appear matches the order in which
-        # columns were added in the code.
-        columns = self.records[0].keys() if len(self.records) > 0 else None
-        df = pd.DataFrame.from_records(self.records, columns=columns)
-        df.to_csv(self.csv_path, sep=',', mode='w', index=False)
-        if log_info:
-            logging.info(f"\n {df.to_string(index=False)}")
-
-
-class MetricsDataframeLoggers:
-    """
-    Contains DataframeLogger instances for logging metrics to CSV during training and validation stages respectively
-    """
-    def __init__(self, outputs_folder: Path):
-        self.outputs_folder = outputs_folder
-        _train_root = self.outputs_folder / ModelExecutionMode.TRAIN.value
-        _val_root = self.outputs_folder / ModelExecutionMode.VAL.value
-        # training loggers
-        self.train_subject_metrics = DataframeLogger(_train_root / METRICS_FILE_NAME)
-        self.train_epoch_metrics = DataframeLogger(_train_root / EPOCH_METRICS_FILE_NAME)
-        # validation loggers
-        self.val_subject_metrics = DataframeLogger(_val_root / METRICS_FILE_NAME)
-        self.val_epoch_metrics = DataframeLogger(_val_root / EPOCH_METRICS_FILE_NAME)
-        self._all_metrics = [
-            self.train_subject_metrics, self.train_epoch_metrics,
-            self.val_subject_metrics, self.val_epoch_metrics
-        ]
-
-    def close_all(self) -> None:
-        """
-        Save all records for each logger to disk.
-        """
-        for x in self._all_metrics:
-            x.flush()
-
-
-def epoch_folder_name(epoch: int) -> str:
-    """
-    Returns a formatted name for the a given epoch number, padded with zeros to 3 digits.
-    """
-    return "epoch_{0:03d}".format(epoch)
 
 
 class ModelProcessing(Enum):
@@ -135,7 +72,7 @@ class ModelProcessing(Enum):
     ENSEMBLE_CREATION = 'ensemble_creation'
 
 
-def get_epoch_results_path(epoch: int, mode: ModelExecutionMode,
+def get_epoch_results_path(mode: ModelExecutionMode,
                            model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Path:
     """
     For a given model execution mode, and an epoch index, creates the relative results path
@@ -145,7 +82,7 @@ def get_epoch_results_path(epoch: int, mode: ModelExecutionMode,
     :param model_proc: whether this is for an ensemble or single model. If ensemble, we return a different path
     to avoid colliding with the results from the single model that may have been created earlier in the same run.
     """
-    subpath = Path(epoch_folder_name(epoch)) / mode.value
+    subpath = Path(BEST_EPOCH_FOLDER_NAME) / mode.value
     if model_proc == ModelProcessing.ENSEMBLE_CREATION:
         return Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME / subpath
     else:
@@ -321,26 +258,14 @@ def logging_section(gerund: str) -> Generator:
     elapsed = time() - start_time
     logging.info("")
     if elapsed >= 3600:
-        time_expr = f"{elapsed/3600:0.2f} hours"
+        time_expr = f"{elapsed / 3600:0.2f} hours"
     elif elapsed >= 60:
-        time_expr = f"{elapsed/60:0.2f} minutes"
+        time_expr = f"{elapsed / 60:0.2f} minutes"
     else:
         time_expr = f"{elapsed:0.2f} seconds"
     msg = f"**** FINISHED: {gerund} after {time_expr} "
     logging.info(msg + (100 - len(msg)) * "*")
     logging.info("")
-
-
-def delete_and_remake_directory(folder: Union[str, Path]) -> None:
-    """
-    Delete the folder if it exists, and remakes it.
-    """
-    folder = str(folder)
-
-    if os.path.exists(folder):
-        shutil.rmtree(folder)
-
-    os.makedirs(folder)
 
 
 def is_windows() -> bool:
@@ -450,19 +375,6 @@ def path_to_namespace(path: Path, root: PathOrString = repository_root_directory
     :return:
     """
     return ".".join([Path(x).stem for x in path.relative_to(root).parts])
-
-
-def get_namespace_root(namespace: str) -> Optional[Path]:
-    """
-    Given a namespace (in the form foo.bar.baz), returns a Path for the member of sys.path
-    that contains a directory of file for that namespace, or None if there is no such member.
-    """
-    for root in sys.path:
-        path = namespace_to_path(namespace, root)
-        path_py = path.parent / (path.name + '.py')
-        if path.exists() or path_py.exists():
-            return Path(root)
-    return None
 
 
 def remove_file_or_directory(pth: Path) -> None:

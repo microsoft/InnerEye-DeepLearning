@@ -9,13 +9,11 @@ import pandas as pd
 import param
 from pandas import DataFrame
 
+from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.scalar_config import ScalarModelBase
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-
-SEQUENCE_POSITION_HUE_NAME_PREFIX = "Seq_pos"
 
 SEQUENCE_LENGTH_STATS_FILE = "sequence_length_stats.txt"
 SEQUENCE_LENGTH_FILE = "sequence_length.csv"
@@ -66,14 +64,6 @@ class SequenceModelBase(ScalarModelBase):
         if self.temperature_scaling_config:
             logging.info(f"Temperature scaling will be performed on the "
                          f"validation set using the config: {self.temperature_scaling_config}")
-
-    def get_total_number_of_validation_epochs(self) -> int:
-        num_val_epochs = super().get_total_number_of_validation_epochs()
-        if self.temperature_scaling_config:
-            # as temperature scaling will be performed for each checkpoint epoch
-            # make sure this is accounted for in the allowed repeats of the validation data loader
-            num_val_epochs += self.get_total_number_of_save_epochs()
-        return num_val_epochs
 
     def get_target_indices(self) -> List[int]:
         """

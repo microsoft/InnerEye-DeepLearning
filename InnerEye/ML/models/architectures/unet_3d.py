@@ -10,7 +10,7 @@ from torch.nn.modules import Conv3d, ConvTranspose3d
 from InnerEye.Common.common_util import initialize_instance_variables
 from InnerEye.Common.type_annotations import IntOrTuple3, TupleInt2
 from InnerEye.ML.config import PaddingMode
-from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.models.layers.basic import BasicLayer
 from InnerEye.ML.models.parallel.model_parallel import get_device_from_parameters, move_to_device, \
     partition_layers
@@ -18,7 +18,7 @@ from InnerEye.ML.utils.layer_util import get_padding_from_kernel_size, get_upsam
     initialise_layer_weights
 
 
-class UNet3D(BaseModel):
+class UNet3D(BaseSegmentationModel):
     """
     Implementation of 3D UNet model.
     Ref: Ronneberger et al. U-Net: Convolutional Networks for Biomedical Image Segmentation
@@ -252,9 +252,11 @@ class UNet3D(BaseModel):
     def get_all_child_layers(self) -> List[torch.nn.Module]:
         return list(self._layers.children()) + [self.output_layer]
 
-    def partition_model(self, devices: List[torch.device]) -> None:
+    def partition_model(self, devices: Optional[List[torch.device]] = None) -> None:
         if self.summary is None:
             raise RuntimeError(
                 "Network summary is required to partition UNet3D. Call model.generate_model_summary() first.")
-
-        partition_layers(self.get_all_child_layers(), summary=self.summary, target_devices=devices)
+        if devices is None:
+            devices = [torch.device(type='cuda', index=i) for i in range(torch.cuda.device_count())]
+        if len(devices) > 0:
+            partition_layers(self.get_all_child_layers(), summary=self.summary, target_devices=devices)
