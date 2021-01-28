@@ -82,10 +82,6 @@ class ModelWithTemperature(DeviceAwareModule):
             # zero the gradients for the next optimization step
             optimizer.zero_grad()
             loss, ece = criterion_fn(self.temperature_scale(logits), labels)
-            # TODO antonsc: re-enable logging
-            # if logger:
-            #     logger.log_to_azure_and_tensorboard("Temp_Scale_LOSS", loss.item())
-            #     logger.log_to_azure_and_tensorboard("Temp_Scale_ECE", ece.item())
             loss.backward()
             return loss
 

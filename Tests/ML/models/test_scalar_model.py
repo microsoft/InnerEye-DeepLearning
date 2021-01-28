@@ -291,7 +291,7 @@ def test_scalar_metrics(has_hues: bool, is_classification: bool) -> None:
         labels = [[2.0, 2.0, 2.0], [1.0, 1.0, 1.0]]
         expected_accuracy = [0.25, 5, 0]
         accuracy_metric_key = MetricType.MEAN_SQUARED_ERROR.value
-        # TODO antonsc: We have odd values here for ExplainedVariance, and had already for r2score
+        # Issue #373: We have odd values here for ExplainedVariance, and had already for r2score
         expected_info_format_strs = [
             "MeanSquaredError: 0.2500, MeanAbsoluteError: 0.5000, ExplainedVariance: 0.0000",
             "MeanSquaredError: 5.0000, MeanAbsoluteError: 2.0000, ExplainedVariance: -19.0000",

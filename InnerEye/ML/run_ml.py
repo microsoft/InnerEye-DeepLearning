@@ -258,8 +258,6 @@ class MLRunner:
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    # TODO antonsc: Return the ModelCheckpoint object here, with the path to the best checkpoints,
-                    # or convert it into a checkpoint_handler object
                     model_train(self.model_config, checkpoint_handler)
             else:
                 self.model_config.write_dataset_files()

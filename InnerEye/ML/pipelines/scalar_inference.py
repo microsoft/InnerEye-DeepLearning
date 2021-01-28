@@ -86,7 +86,6 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
             logging.warning(f"Could not recover model from checkpoint path {path_to_checkpoint}")
             return None
         if config.compute_mean_teacher_model:
-            # TODO antonsc: Need to adjust that
             raise NotImplementedError("Mean teacher models not supported yet.")
         else:
             model = load_from_checkpoint_and_adjust_for_inference(config, path_to_checkpoint)

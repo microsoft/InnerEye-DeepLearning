@@ -322,7 +322,6 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     if config.model_category == ModelCategory.Segmentation:
         if epoch is None:
             raise ValueError("Epoch must be provided in segmentation runs")
-        # TODO remove epoch arg here
         src = get_epoch_results_path(mode) / SUBJECT_METRICS_FILE_NAME
     else:
         src = Path(mode.value) / SUBJECT_METRICS_FILE_NAME

@@ -19,7 +19,6 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from Tests.ML.util import get_default_checkpoint_handler
 
 
-# TODO: re-enable once we have mean teacher in place again
 # @pytest.mark.parametrize("mean_teacher_model", [True, False])
 @pytest.mark.parametrize("mean_teacher_model", [False])
 def test_recover_testing_from_run_recovery(mean_teacher_model: bool,

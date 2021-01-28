@@ -127,27 +127,3 @@ class HDF5Object:
                    volume=volume,
                    segmentation=segmentation,
                    acquisition_date=acquisition_date)
-
-
-def load_labels(hdf5: HDF5Object) -> np.ndarray:
-    """
-    Load labels containing segmentation binary labels in one-hot-encoding.
-    :return A numpy array containing ground-truth information.
-    """
-    # For labels we are using the segmentation data provided in the HDF5 files.
-    labels = hdf5.segmentation  # 1 x N x H x W
-    n_classes = int(np.amax(labels) - np.amin(labels)) + 1
-    labels = multi_label_array_to_binary(labels, n_classes)
-    return labels.astype(HDF5ImageDataType.SEGMENTATION.value)
-
-
-def get_mask(hdf5_object: HDF5Object) -> np.ndarray:
-    """
-    TODO: Replace this with actual mask
-    :param hdf5_object:
-    :return:
-    """
-    img_shape = hdf5_object.volume.shape
-    mask = np.ones(img_shape, dtype=HDF5ImageDataType.MASK.value)
-    mask[-1, -1, -1] = 0
-    return mask

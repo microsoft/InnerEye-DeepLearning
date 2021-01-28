@@ -44,10 +44,6 @@ BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
 
 
-# TODO antonsc:
-# We need to clarify if we want to keep the ability to test on multiple checkpoints
-
-
 def model_test(config: ModelConfigBase,
                data_split: ModelExecutionMode,
                checkpoint_handler: CheckpointHandler,

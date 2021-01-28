@@ -187,9 +187,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # Logging the metric is called, but they never make it to the logger object.
     # model_training_result.get_training_metric(MetricType.SECONDS_PER_BATCH.value)
 
-    # TODO antonsc: Check that both Train and Val epoch_metrics.csv have all relevant columns and 2 rows
-
-    # TODO antonsc: enable
+    # Issue #372
     # # Test for saving of example images
     # assert train_config.example_images_folder.is_dir()
     # example_files = list(train_config.example_images_folder.rglob("*.*"))

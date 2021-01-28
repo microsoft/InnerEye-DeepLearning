@@ -56,7 +56,7 @@ class CudaAwareConfig(param.Parameterized, Generic[T]):
         from torch.cuda import device_count
         from torch import device
         if self.use_gpu:
-            return [device(type='cuda', index=ii) for ii in list(range(device_count()))]
+            return [device(type='cuda', index=i) for i in list(range(device_count()))]
         else:
             return []
 

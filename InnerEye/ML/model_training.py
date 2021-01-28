@@ -139,8 +139,7 @@ def model_train(config: ModelConfigBase,
     config.read_dataset_if_needed()
 
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
-    # training in the unit tests.
-    # TODO antonsc: Can we do in-situ cross validation with multiple GPUs still?
+    # training in the unit tests.d
     old_environ = dict(os.environ)
     trainer, storing_logger = create_lightning_trainer(config, checkpoint_path)
 
@@ -182,7 +181,8 @@ def model_train(config: ModelConfigBase,
     logging.info("Starting training")
 
     lightning_data = TrainingAndValidationDataLightning(config)  # type: ignore
-    # TODO: Why can't we do that in the constructor?
+    # When trying to store the config object in the constructor, it does not appear to get stored at all, later
+    # reference of the object simply fail. Hence, have to set explicitly here.
     lightning_data.config = config
     trainer.fit(lightning_model,
                 datamodule=lightning_data)

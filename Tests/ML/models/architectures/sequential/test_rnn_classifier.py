@@ -187,7 +187,6 @@ def _get_mock_sequence_dataset(dataset_contents: Optional[str] = None) -> pd.Dat
                           (True, ImagingFeatureType.ImageAndSegmentation)])
 @pytest.mark.parametrize("combine_hidden_state", (True, False))
 @pytest.mark.parametrize("use_encoder_layer_norm", (True, False))
-# TODO antonsc: re-enable when mean teacher is back in
 @pytest.mark.parametrize("use_mean_teacher_model", (False,))
 @pytest.mark.gpu
 def test_rnn_classifier_via_config_1(use_combined_model: bool,
@@ -388,7 +387,7 @@ def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> 
     print(f"Validation loss after {config.num_epochs} epochs: {actual_val_loss}")
     assert actual_train_loss <= expected_max_train_loss, "Training loss too high"
     assert actual_val_loss <= expected_max_val_loss, "Validation loss too high"
-    # TODO antonsc: put back in when temperature scaling is enabled again
+    # Issue #374: put back in when temperature scaling is enabled again
     # assert np.allclose(results.optimal_temperature_scale_values_per_checkpoint_epoch, [0.97], rtol=0.1)
 
 

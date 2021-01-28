@@ -710,7 +710,6 @@ class ScalarLightning(InnerEyeLightning):
         self.train_metric_computers = self.create_metric_computers()
         self.val_metric_computers = self.create_metric_computers()
 
-        # TODO antonsc: Work out how we handle mean teacher model
         # if config.compute_grad_cam:
         #     model_to_evaluate = self.train_val_params.mean_teacher_model if \
         #         config.compute_mean_teacher_model else self.train_val_params.model
@@ -841,14 +840,6 @@ class ScalarLightning(InnerEyeLightning):
                 LoggingColumns.Label.value: label,
                 LoggingColumns.DataSplit.value: data_split.value
             })
-        # TODO antonsc: Find a better place for this code. We can only draw plots once all results are aggregated,
-        # maybe move to the report?
-        # if self._should_save_regression_error_plot(self.current_epoch):
-        #     error_plot_name = f"error_plot_{self.train_val_params.epoch}"
-        #     path = str(self.config.outputs_folder / f"{error_plot_name}.png")
-        #     plot_variation_error_prediction(epoch_metrics.get_labels(), epoch_metrics.get_predictions(), path)
-        #     logger = self.config.azure_loggers_train if is_training else self.config.azure_loggers_val
-        #     logger.log_image(error_plot_name, path)
 
     def training_or_validation_epoch_end(self, is_training: bool) -> None:
         """

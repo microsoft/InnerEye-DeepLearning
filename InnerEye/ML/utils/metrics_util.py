@@ -125,7 +125,6 @@ def get_number_of_voxels_per_class(labels: torch.Tensor) -> torch.Tensor:
     if len(labels.shape) == 4:
         labels = labels[None, ...]
 
-    # TODO antonsc: Switch to Pytorch 1.7 and use torch.count_nonzero
     return torch.tensor(np.count_nonzero(labels.cpu().numpy(), axis=(2, 3, 4)))
 
 

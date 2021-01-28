@@ -172,7 +172,7 @@ def test_save_dataset_example(test_output_dirs: OutputFolderForTests) -> None:
                                     labels=labels)
 
     images_folder = test_output_dirs.root_dir
-    store_and_upload_example(dataset_sample, None, images_folder)
+    store_and_upload_example(dataset_sample, images_folder=images_folder)
     image_from_disk = io_util.load_nifti_image(os.path.join(images_folder, "p2_e_1_image.nii.gz"))
     labels_from_disk = io_util.load_nifti_image(os.path.join(images_folder, "p2_e_1_label.nii.gz"))
     prediction_from_disk = io_util.load_nifti_image(os.path.join(images_folder, "p2_e_1_prediction.nii.gz"))

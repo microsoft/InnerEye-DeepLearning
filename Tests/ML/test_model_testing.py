@@ -131,7 +131,7 @@ class SimpleUNet(DummyModel):
                          [(SimpleUNet(), InferencePipeline, EnsemblePipeline),
                           (ClassificationModelForTesting(mean_teacher_model=False),
                            ScalarInferencePipeline, ScalarEnsemblePipeline),
-                          # TODO: re-enable once we have mean teacher in place again
+                          # Re-enable once we have mean teacher in place again
                           # (ClassificationModelForTesting(mean_teacher_model=True),
                           #  ScalarInferencePipeline, ScalarEnsemblePipeline)
                           ])
