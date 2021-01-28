@@ -69,7 +69,8 @@ class AzureConfig(GenericConfig):
     model: str = param.String(doc="The name of the model to train/test.")
     only_register_model: bool = param.Boolean(False,
                                               doc="If set, and run_recovery_id is also set, register the model "
-                                                  "that was trained in the recovery run, but don't do training.")
+                                                  "that was trained in the recovery run, but don't do training"
+                                                  "or inference.")
     pytest_mark: str = param.String(doc="If provided, run pytest instead of model training. pytest will only "
                                         "run the tests that have the mark given in this argument "
                                         "('--pytest_mark gpu' will run all tests marked with 'pytest.mark.gpu')")
