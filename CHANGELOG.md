@@ -22,8 +22,13 @@ created.
 
 - The codebase has undergone a massive refactoring, to use PyTorch Lightning as the foundation for all training. As
 a consequence of that:
+  - Training is now using Distributed Data Parallel with synchronized `batchnorm`. The number of GPUs to use can be 
+  controlled by a new commandline argument `max_num_gpus`.
   - Several classes, like `ModelTrainingSteps*`, have been removed completely.
   - The final model is now always the one that is written at the end of all training epochs.
+  - The old code that options to run full image inference at multiple epochs (i.e., multiple checkpoints), this
+  has been removed, alongside the respective commandline options `save_start_epoch`, `save_step_epochs`, 
+  `epochs_to_test`, `test_diff_epochs`, `test_step_epochs`, `test_start_epoch`
   - The commandline option `register_model_only_for_epoch` is now called `only_register_model`, and is boolean.
   - All metrics are written to AzureML and Tensorboard in a unified format. A training Dice score for 'bladder' would
   previously be called Train_Dice/bladder, now it is train/Dice/bladder.

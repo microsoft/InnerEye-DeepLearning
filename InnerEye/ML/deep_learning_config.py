@@ -600,15 +600,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                 raise ValueError("Can't set use_gpu to True if there is not CUDA capable GPU present.")
         self._use_gpu = value
 
-    @property
-    def use_data_parallel(self) -> bool:
-        """
-        Data parallel is used if GPUs are usable and the number of CUDA devices are greater than 1.
-        :return:
-        """
-        _devices = self.get_cuda_devices()
-        return len(_devices) > 1
-
     def write_args_file(self) -> None:
         """
         Writes the current config to disk in the default output folder.

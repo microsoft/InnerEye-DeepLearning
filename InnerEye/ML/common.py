@@ -107,9 +107,10 @@ def keep_latest(path: Path, search_pattern: str) -> Optional[Path]:
 
 def keep_best_checkpoint(path: Path) -> Path:
     """
-    Clean up all checkpoints that are found in the given folder, and keep the "best" one. "Best" is at the moment
-    defined as being the last checkpoint, but could be based on some defined policy. All other files checkpoint files
-    but the best will be removed.
+    Clean up all checkpoints that are found in the given folder, and keep only the "best" one. "Best" is at the moment
+    defined as being the last checkpoint, but could be based on some defined policy. The best checkpoint will be
+    renamed to `best_checkpoint.ckpt`. All other files checkpoint files
+    but the best will be removed (or an existing checkpoint renamed to be the best checkpoint).
     :param path: The folder that contains all checkpoint files.
     """
     last_ckpt = path / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX

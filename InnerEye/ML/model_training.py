@@ -13,7 +13,7 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
-from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
+from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
 from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.resource_monitor import ResourceMonitor
@@ -189,7 +189,7 @@ def model_train(config: ModelConfigBase,
     trainer.logger.close()  # type: ignore
     lightning_model.close_all_loggers()
     world_size = getattr(trainer, "world_size", 0)
-    is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
+    is_azureml_run = not config.is_offline_run
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
     # Each thread per rank will come here, and upload its files to the run outputs. Rank 0 will later download them.
     if is_azureml_run and world_size > 1 and isinstance(lightning_model, ScalarLightning):
@@ -256,7 +256,7 @@ def model_train(config: ModelConfigBase,
         logging.info("Shutting down the resource monitor process. Aggregate resource utilization:")
         for name, value in resource_monitor.read_aggregate_metrics():
             logging.info(f"{name}: {value}")
-            if not is_offline_run_context(RUN_CONTEXT):
+            if not config.is_offline_run:
                 RUN_CONTEXT.log(name, value)
         resource_monitor.kill()
 

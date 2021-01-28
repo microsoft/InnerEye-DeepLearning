@@ -35,7 +35,7 @@ class SubprocessConfig(GenericConfig):
 def create_checkpoints(model_config: SegmentationModelBase, is_ensemble: bool) -> Tuple[List[Path], List[Path]]:
     """
     Creates 1 or 2 empty checkpoint files in the model's checkpoint folder, and returns
-    the paths of those files, both absolute and relative to the
+    the paths of those files, both absolute paths and paths relative to the checkpoint folder.
     :param model_config: The model configuration, where a correct output folder must be set.
     :param is_ensemble: If true, 2 checkpoints (simulating an ensemble run) will be created. If false, only a
     single checkpoint will be created.

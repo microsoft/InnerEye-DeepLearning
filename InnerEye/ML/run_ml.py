@@ -24,7 +24,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, \
     MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
     RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, get_results_blob_path, has_input_datasets, \
-    is_offline_run_context, merge_conda_files
+    merge_conda_files
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
@@ -346,7 +346,7 @@ class MLRunner:
         """
         azure_dataset_id = self.model_config.azure_dataset_id
 
-        if is_offline_run_context(RUN_CONTEXT):
+        if self.model_config.is_offline_run:
             # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
             # Otherwise, download the dataset specified by the azure_dataset_id
             local_dataset = self.model_config.local_dataset
@@ -454,7 +454,7 @@ class MLRunner:
         :returns Tuple element 1: AML model object, or None if no model could be registered.
         Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
         """
-        if is_offline_run_context(RUN_CONTEXT):
+        if self.model_config.is_offline_run:
             logging.info("Skipping model registration because the process is not running in AzureML.")
             return None, None
         # The files for the final model can't live in the outputs folder. If they do: when registering the model,
@@ -616,7 +616,7 @@ class MLRunner:
 
         # log the metrics to AzureML experiment if possible. When doing ensemble runs, log to the Hyperdrive parent run,
         # so that we get the metrics of child run 0 and the ensemble separated.
-        if config.is_segmentation_model and not is_offline_run_context(RUN_CONTEXT):
+        if config.is_segmentation_model and not config.is_offline_run:
             run_for_logging = PARENT_RUN_CONTEXT if model_proc.ENSEMBLE_CREATION else RUN_CONTEXT
             log_metrics(val_metrics=val_metrics, test_metrics=test_metrics,  # type: ignore
                         train_metrics=train_metrics, run_context=run_for_logging)  # type: ignore
