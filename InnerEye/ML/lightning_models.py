@@ -5,12 +5,11 @@
 import logging
 import numbers
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
-from pytorch_lightning.metrics import Metric
 from pytorch_lightning.utilities import move_data_to_device, rank_zero_only
 from torch.nn import ModuleDict, ModuleList
 from torch.optim import Optimizer
@@ -27,9 +26,9 @@ from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
-    AreaUnderRocCurve, AverageWithoutNan, BinaryCrossEntropy, EpochTimers, ExplainedVariance, \
-    FalseNegativeRateOptimalThreshold, FalsePositiveRateOptimalThreshold, MAX_ITEM_LOAD_TIME_SEC, \
-    MeanAbsoluteError, MeanSquaredError, OptimalThreshold, compute_dice_across_patches, nanmean, store_epoch_metrics
+    AreaUnderRocCurve, BinaryCrossEntropy, EpochTimers, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
+    FalsePositiveRateOptimalThreshold, MAX_ITEM_LOAD_TIME_SEC, MeanAbsoluteError, MeanSquaredError, \
+    MetricForMultipleStructures, OptimalThreshold, compute_dice_across_patches, store_epoch_metrics
 from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, SequenceMetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
@@ -181,67 +180,6 @@ class TrainingAndValidationDataLightning(LightningDataModule):
 
     def test_dataloader(self) -> DataLoader:  # type: ignore
         raise NotImplementedError("For segmentation models, the test dataset should not be evaluated patch-wise.")
-
-
-class MetricForMultipleStructures(torch.nn.Module):
-    """
-    Stores a metric for multiple structures, and an average Dice score across all structures.
-    The class consumes pre-computed metric values, and only keeps an aggregate for later computing the
-    averages. When averaging, metric values that are NaN are skipped.
-    """
-
-    def __init__(self, ground_truth_ids: List[str], is_training: bool,
-                 metric_name: str = MetricType.DICE.value,
-                 use_average_across_structures: bool = True) -> None:
-        """
-        Creates a new MetricForMultipleStructures object.
-        :param ground_truth_ids: The list of anatomical structures that should be stored.
-        :param metric_name: The name of the metric that should be stored. This is used in the names of the individual
-        metrics.
-        :param is_training: If true, use "train/" as the prefix for all metric names, otherwise "val/"
-        :param use_average_across_structures: If True, keep track of the average metric value across structures,
-        while skipping NaNs. If false, only store the per-structure metric values.
-        """
-        super().__init__()
-        prefix = (TRAIN_PREFIX if is_training else VALIDATION_PREFIX) + metric_name + "/"
-        # All Metric classes must be
-        self.average_per_structure = ModuleList([AverageWithoutNan(name=prefix + g) for g in ground_truth_ids])
-        self.use_average_across_structures = use_average_across_structures
-        if use_average_across_structures:
-            self.average_all = AverageWithoutNan(name=prefix + AVERAGE_DICE_SUFFIX)
-        self.count = len(ground_truth_ids)
-
-    def update(self, values_per_structure: torch.Tensor) -> None:
-        """
-        Stores a vector of per-structure Dice scores in the present object. It updates the per-structure values,
-        and the aggregate value across all structures.
-        :param values_per_structure: A row tensor that has as many entries as there are ground truth IDs.
-        """
-        if values_per_structure.dim() != 1 or values_per_structure.numel() != self.count:
-            raise ValueError(f"Expected a tensor with {self.count} elements, but "
-                             f"got shape {values_per_structure.shape}")
-        for i, v in enumerate(values_per_structure.view((-1,))):
-            self.average_per_structure[i].update(v)
-        if self.use_average_across_structures:
-            self.average_all.update(nanmean(values_per_structure))
-
-    def __iter__(self) -> Iterator[Metric]:
-        """
-        Enumerates all the metrics that the present object holds: First the average across all structures,
-        then the per-structure Dice scores.
-        """
-        if self.use_average_across_structures:
-            yield self.average_all
-        yield from self.average_per_structure
-
-    def compute_all(self) -> Iterator[Tuple[str, torch.Tensor]]:
-        """
-        Calls the .compute() method on all the metrics that the present object holds, and returns a sequence
-        of (metric name, metric value) tuples. This will automatically also call .reset() on the metrics.
-        The first returned metric is the average across all structures, then come the per-structure values.
-        """
-        for d in iter(self):
-            yield d.name, d.compute()  # type: ignore
 
 
 class InnerEyeLightning(LightningModule):

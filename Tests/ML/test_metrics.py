@@ -16,8 +16,8 @@ from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import metrics
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.configs.regression.DummyRegression import DummyRegression
-from InnerEye.ML.lightning_models import AVERAGE_DICE_SUFFIX, MetricForMultipleStructures, ScalarLightning
-from InnerEye.ML.metrics import AverageWithoutNan
+from InnerEye.ML.lightning_models import AVERAGE_DICE_SUFFIX, ScalarLightning
+from InnerEye.ML.metrics import AverageWithoutNan, MetricForMultipleStructures
 from InnerEye.ML.metrics_dict import MetricsDict, get_column_name_for_logging
 
 
