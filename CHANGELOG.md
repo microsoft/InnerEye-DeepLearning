@@ -11,20 +11,37 @@ created.
 ## Upcoming
 
 ### Added
-- There are new model configuration fields (and hence, commandline options), in particular for controlling PyTorch 
-Lightning (PL) training: 
+
+### Changed
+
+### Fixed
+
+### Removed
+
+### Deprecated
+
+## 0.2 (2021-01-29)
+
+### Added
+- ([#323](https://github.com/microsoft/InnerEye-DeepLearning/pull/323)) There are new model configuration fields 
+(and hence, commandline options), in particular for controlling PyTorch Lightning (PL) training: 
   - `max_num_gpus` controls how many GPUs are used at most for training (default: all GPUs, value -1).
   - `pl_num_sanity_val_steps` controls the PL trainer flag `num_sanity_val_steps`
   - `pl_deterministic` controls the PL trainer flags `benchmark` and `deterministic`
   - `generate_report` controls if a HTML report will be written (default: True) 
   - `recovery_checkpoint_save_interval` determines how often a checkpoint for training recovery is saved.
-- New extensions of SegmentationModelBases `HeadAndNeckBase` and `ProstateBase`. Use these classes to build your own Head&Neck or Prostate models, by just providing a list of foreground classes.
-- Grouped dataset splits and k-fold cross-validation. This allows, for example, training on datasets with multiple images per subject without leaking data from the same subject across train/test/validation sets or cross-validation folds. To use this functionality, simply provide the name of the CSV grouping column (`group_column`) when creating the `DatasetSplits` object in your model config's `get_model_train_test_dataset_splits()` method. See the `InnerEye.ML.utils.split_dataset.DatasetSplits` class for details.
+- ([#336](https://github.com/microsoft/InnerEye-DeepLearning/pull/336)) New extensions of SegmentationModelBases `HeadAndNeckBase` and `ProstateBase`. 
+Use these classes to build your own Head&Neck or Prostate models, by just providing a 
+list of foreground classes.
+- ([#363](https://github.com/microsoft/InnerEye-DeepLearning/pull/363)) Grouped dataset splits and k-fold cross-validation. This allows, for example, 
+training on datasets with multiple images per subject without leaking data from the 
+same subject across train/test/validation sets or cross-validation folds. To use this 
+functionality, simply provide the name of the CSV grouping column (`group_column`) when creating the `DatasetSplits` object in your model config's `get_model_train_test_dataset_splits()` method. See the `InnerEye.ML.utils.split_dataset.DatasetSplits` class for details.
 
 ### Changed
 
-- The codebase has undergone a massive refactoring, to use PyTorch Lightning as the foundation for all training. As
-a consequence of that:
+- ([#323](https://github.com/microsoft/InnerEye-DeepLearning/pull/323)) The codebase has undergone a massive 
+refactoring, to use PyTorch Lightning as the foundation for all training. As a consequence of that:
   - Training is now using Distributed Data Parallel with synchronized `batchnorm`. The number of GPUs to use can be 
   controlled by a new commandline argument `max_num_gpus`.
   - Several classes, like `ModelTrainingSteps*`, have been removed completely.
@@ -41,7 +58,8 @@ a consequence of that:
 `data` subfolder. `project_root` -> `model_root`, `test_image_channels` -> `image_files`.
 - By default, the visualization of patch sampling for segmentation models will run on only 1 image (down from 5).
 This is because patch sampling is expensive to compute, taking 1min per large CT scan.
-- Renamed `HeadAndNeckBase` to `HeadAndNeckPaper`, and `ProstateBase` to `ProstatePaper`.
+- ([#336](https://github.com/microsoft/InnerEye-DeepLearning/pull/336)) Renamed `HeadAndNeckBase` to `HeadAndNeckPaper`,
+and `ProstateBase` to `ProstatePaper`.
 
 ### Fixed
 - When registering a model, it now has a consistent folder structured, described [here](docs/deploy_on_aml.md). This
@@ -58,8 +76,6 @@ Please remove the following fields from your settings.yml file: 'datasets_storag
 and `cross_validation_sub_fold_split_index` have been removed from ScalarModelBase.
 
 ### Deprecated
-
-
 
 ## 0.1 (2020-11-13)
 - This is the baseline release.
