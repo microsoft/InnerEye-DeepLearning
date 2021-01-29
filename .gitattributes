@@ -12,3 +12,4 @@
 *.pth.tar binary
 *.npy binary
 *.npz filter=lfs diff=lfs merge=lfs -text
+*.dcm filter=lfs diff=lfs merge=lfs -text
