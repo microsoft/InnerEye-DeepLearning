@@ -65,9 +65,12 @@ You can skip this if you have chosen automatic deployment above.
 We recommend using [low priority](https://docs.microsoft.com/en-us/azure/batch/batch-low-pri-vms) clusters, since 
 they only cost a fraction of the dedicated VMs.
 As a reference:
-* The Prostate model and the Head and Neck model require VMs with 4 GPUs with at least 16GB of memory
-per GPU, for example `Standard_ND24s` (4 GPUs, 24GB per GPU), `Standard_NC24s_v3` (4 GPUs, 16GB per GPU) or `Standard_NC24s_v2` (4 GPUs, 16GB per GPU) 
-* The Lung model requires at least a `Standard_ND24s` instance (4 GPUs, 24GB per GPU) 
+* The Prostate, HeadAndNeck, and the Lung model require VMs with 4 GPUs with at least 24GB of memory
+per GPU, for example `Standard_ND24s` (4 GPUs, 24GB per GPU).
+* It is possible to train all of these models on machines with fewer GPUs, or GPUs with less memory. If using GPUs with
+less memory, some model parameters will need to be adjusted. As a starting point, we would suggest reducing the `train_batch_size`,
+and if that is not sufficient, reducing the `crop_size`, bearing in mind though that the size of the crops has a large
+impact on the model's accuracy.
 
 You need to ensure that your Azure subscription actually has a quota for accessing GPU machines. To see your quota,
 find your newly created AzureML workspace in the [Azure portal](http://portal.azure.com), using the search bar at the
