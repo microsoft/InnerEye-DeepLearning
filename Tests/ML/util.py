@@ -14,6 +14,7 @@ from azureml.core import Workspace
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.type_annotations import PathOrString, TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import PatientDatasetSource
@@ -25,7 +26,6 @@ from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.io_util import ImageHeader, ImageWithHeader
 from InnerEye.ML.utils.ml_util import is_gpu_available
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 TEST_CHANNEL_IDS = ["channel1", "channel2"]
 TEST_MASK_ID = "mask"

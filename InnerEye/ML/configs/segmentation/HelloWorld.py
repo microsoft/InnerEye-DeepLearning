@@ -9,11 +9,11 @@ from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import BanditPolicy, HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, uniform
 from networkx.tests.test_convert_pandas import pd
 
-from InnerEye.ML.common import TrackedMetrics
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.metrics_constants import TrackedMetrics
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 class HelloWorld(SegmentationModelBase):
@@ -56,16 +56,11 @@ class HelloWorld(SegmentationModelBase):
             # Model training and testing - in this section we define configurations pertaining to the model
             # training loop (ie: batch size, how many epochs to train, number of epochs to save)
             # and testing (ie: how many epochs to test)
-            use_gpu=False,
             num_dataload_workers=0,
             train_batch_size=2,
             start_epoch=0,
             num_epochs=2,
-            save_start_epoch=1,
-            save_step_epochs=1,
-            test_start_epoch=2,
-            test_diff_epochs=1,
-            test_step_epochs=1,
+            recovery_checkpoint_save_interval=1,
             use_mixed_precision=True,
 
             # Pre-processing - in this section we define how to normalize our inputs, in this case we are doing

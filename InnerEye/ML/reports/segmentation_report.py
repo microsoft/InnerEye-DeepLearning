@@ -8,9 +8,9 @@ import pandas as pd
 from IPython.display import HTML, display
 from pandas import DataFrame
 
+from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.ML.reports.notebook_report import print_header
 from InnerEye.ML.utils.csv_util import mark_outliers
-from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 
 
 def plot_scores_for_csv(path_csv: str, outlier_range: float, max_row_count: int) -> None:

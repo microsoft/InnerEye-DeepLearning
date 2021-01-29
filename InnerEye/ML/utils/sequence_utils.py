@@ -117,3 +117,21 @@ def get_masked_model_outputs_and_labels(model_output: torch.Tensor,
         )
     else:
         return None
+
+
+def apply_sequence_model_loss(loss_fn: torch.nn.Module,
+                              model_output: torch.Tensor,
+                              labels: torch.Tensor) -> torch.Tensor:
+    """
+    Applies a loss function to a model output and labels, when the labels come from sequences with unequal length.
+    Missing sequence elements are masked out.
+    :param loss_fn: The loss function to apply to the sequence elements that are present.
+    :param model_output: The model outputs
+    :param labels: The ground truth labels.
+    :return: The value of the loss function.
+    """
+    # create masked sequences based on the labels
+    masked_model_outputs_and_labels = get_masked_model_outputs_and_labels(model_output, labels)
+    if masked_model_outputs_and_labels is None:
+        raise ValueError("Invalid model_output and labels found")
+    return loss_fn(masked_model_outputs_and_labels.model_outputs, masked_model_outputs_and_labels.labels)

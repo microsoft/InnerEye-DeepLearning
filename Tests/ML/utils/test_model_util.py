@@ -2,257 +2,168 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import time
+from pathlib import Path
+from typing import Any
 
 import pytest
 import torch
-import os
+from pytorch_lightning.callbacks import ModelCheckpoint
 
-from torch.optim import Optimizer
-from torch import nn
-from typing import Callable
-
-from InnerEye.ML.utils.model_util import ModelAndInfo
-from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
-from InnerEye.Common.common_util import ModelExecutionMode
-from InnerEye.ML.models.architectures.base_model import BaseModel
-from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, LAST_CHECKPOINT_FILE_NAME, \
+    LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME, RECOVERY_CHECKPOINT_FILE_NAME_WITH_SUFFIX, \
+    cleanup_checkpoint_folder, keep_best_checkpoint, keep_latest
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.models.parallel.data_parallel import DataParallelModel
+from InnerEye.ML.lightning_helpers import create_lightning_model, load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.model_training import create_lightning_trainer
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import no_gpu_available
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from Tests.ML.util import machine_has_gpu
+
+FIXED_EPOCH = 42
+FIXED_GLOBAL_STEP = 4242
 
 
-@pytest.mark.parametrize("config, checkpoint_path",
-                         [(DummyModel(), "checkpoints/1_checkpoint.pth.tar"),
-                          (ClassificationModelForTesting(),
-                           "classification_data_generated_random/checkpoints/1_checkpoint.pth.tar")])
-def test_try_create_model_and_load_from_checkpoint(config: ModelConfigBase, checkpoint_path: str) -> None:
-    # no checkpoint path provided
-    model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=ModelExecutionMode.TEST,
-                                  checkpoint_path=None)
-
-    with pytest.raises(ValueError):
-        model_and_info.model
-
-    model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
-    assert model_loaded
-    if isinstance(config, SegmentationModelBase):
-        assert isinstance(model_and_info.model, BaseModel)
-    else:
-        assert isinstance(model_and_info.model, DeviceAwareModule)
-
-    # Invalid checkpoint path provided
-    model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=ModelExecutionMode.TEST,
-                                  checkpoint_path=full_ml_test_data_path("non_exist.pth.tar"))
-    model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
-    assert not model_loaded
-    # Current code assumes that even if this function returns False, the model itself was created, only the checkpoint
-    # loading failed.
-    if isinstance(config, SegmentationModelBase):
-        assert isinstance(model_and_info.model, BaseModel)
-    else:
-        assert isinstance(model_and_info.model, DeviceAwareModule)
-
-    # Valid checkpoint path provided
-    model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=ModelExecutionMode.TEST,
-                                  checkpoint_path=full_ml_test_data_path(checkpoint_path))
-    model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
-    assert model_loaded
-    if isinstance(config, SegmentationModelBase):
-        assert isinstance(model_and_info.model, BaseModel)
-    else:
-        assert isinstance(model_and_info.model, DeviceAwareModule)
-    assert model_and_info.checkpoint_epoch == 1
-
-
-@pytest.mark.gpu
-@pytest.mark.skipif(no_gpu_available, reason="Testing shift to DataParallelModel requires a GPU")
-@pytest.mark.parametrize("model_execution_mode", [ModelExecutionMode.TRAIN, ModelExecutionMode.TEST])
-@pytest.mark.parametrize("config, checkpoint_path",
-                         [(DummyModel(), "checkpoints/1_checkpoint.pth.tar"),
-                          (ClassificationModelForTesting(),
-                           "classification_data_generated_random/checkpoints/1_checkpoint.pth.tar")])
-def test_try_create_model_load_from_checkpoint_and_adjust(config: ModelConfigBase, checkpoint_path: str,
-                                                          model_execution_mode: ModelExecutionMode) -> None:
-    config.use_gpu = True
-
-    # no checkpoint path provided
-    model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=model_execution_mode,
-                                  checkpoint_path=None)
-
-    with pytest.raises(ValueError):
-        model_and_info.model
-
-    model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
-    assert model_loaded
-    assert isinstance(model_and_info.model, DataParallelModel)
-
-    # Invalid checkpoint path provided
-    model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=model_execution_mode,
-                                  checkpoint_path=full_ml_test_data_path("non_exist.pth.tar"))
-    model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
-    assert not model_loaded
-    # Current code assumes that even if this function returns False, the model itself was created, only the checkpoint
-    # loading failed.
-    assert isinstance(model_and_info.model, DataParallelModel)
-
-    # Valid checkpoint path provided
-    model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=model_execution_mode,
-                                  checkpoint_path=full_ml_test_data_path(checkpoint_path))
-    model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
-    assert model_loaded
-    assert isinstance(model_and_info.model, DataParallelModel)
-    assert model_and_info.checkpoint_epoch == 1
-
-
-@pytest.mark.parametrize("config, checkpoint_path",
-                         [(DummyModel(), "checkpoints/1_checkpoint.pth.tar"),
-                          (ClassificationModelForTesting(),
-                           "classification_data_generated_random/checkpoints/1_checkpoint.pth.tar")])
-def test_try_create_optimizer_and_load_from_checkpoint(config: ModelConfigBase, checkpoint_path: str) -> None:
-    # no checkpoint path provided
-    model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=ModelExecutionMode.TEST,
-                                  checkpoint_path=None)
-
-    with pytest.raises(ValueError):
-        model_and_info.optimizer
-
-    model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
-    assert model_loaded
-    optimizer_loaded = model_and_info.try_create_optimizer_and_load_from_checkpoint()
-    assert optimizer_loaded
-    assert isinstance(model_and_info.optimizer, Optimizer)
-
-    # Invalid checkpoint path provided
-    model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=ModelExecutionMode.TEST,
-                                  checkpoint_path=full_ml_test_data_path("non_exist.pth.tar"))
-    model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
-    assert not model_loaded
-    # Current code assumes that even if this function returns False, the model itself was created, only the checkpoint
-    # loading failed.
-    optimizer_loaded = model_and_info.try_create_optimizer_and_load_from_checkpoint()
-    assert not optimizer_loaded
-    # Current code assumes that even if this function returns False,
-    # the optimizer itself was created, only the checkpoint loading failed.
-    assert isinstance(model_and_info.optimizer, Optimizer)
-
-    # Valid checkpoint path provided
-    model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=ModelExecutionMode.TEST,
-                                  checkpoint_path=full_ml_test_data_path(checkpoint_path))
-    model_loaded = model_and_info.try_create_model_and_load_from_checkpoint()
-    assert model_loaded
-    assert model_and_info.checkpoint_epoch == 1
-    optimizer_loaded = model_and_info.try_create_optimizer_and_load_from_checkpoint()
-    assert optimizer_loaded
-    assert isinstance(model_and_info.optimizer, Optimizer)
-    assert model_and_info.checkpoint_epoch == 1
-
-
-@pytest.mark.parametrize("config, checkpoint_path",
-                         [(ClassificationModelForTesting(),
-                           "classification_data_generated_random/checkpoints/1_checkpoint.pth.tar")])
-def test_try_create_mean_teacher_model_and_load_from_checkpoint(config: ModelConfigBase, checkpoint_path: str) -> None:
-    config.mean_teacher_alpha = 0.999
-
-    # no checkpoint path provided
-    model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=ModelExecutionMode.TEST,
-                                  checkpoint_path=None)
-
-    with pytest.raises(ValueError):
-        model_and_info.mean_teacher_model
-
-    model_loaded = model_and_info.try_create_mean_teacher_model_and_load_from_checkpoint()
-    assert model_loaded
-    if isinstance(config, SegmentationModelBase):
-        assert isinstance(model_and_info.mean_teacher_model, BaseModel)
-    else:
-        assert isinstance(model_and_info.mean_teacher_model, DeviceAwareModule)
-
-    # Invalid checkpoint path provided
-    model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=ModelExecutionMode.TEST,
-                                  checkpoint_path=full_ml_test_data_path("non_exist.pth.tar"))
-    model_loaded = model_and_info.try_create_mean_teacher_model_and_load_from_checkpoint()
-    assert not model_loaded
-    # Current code assumes that even if this function returns False, the model itself was created, only the checkpoint
-    # loading failed.
-    if isinstance(config, SegmentationModelBase):
-        assert isinstance(model_and_info.mean_teacher_model, BaseModel)
-    else:
-        assert isinstance(model_and_info.mean_teacher_model, DeviceAwareModule)
-
-    # Valid checkpoint path provided
-    model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=ModelExecutionMode.TEST,
-                                  checkpoint_path=full_ml_test_data_path(checkpoint_path))
-    model_loaded = model_and_info.try_create_mean_teacher_model_and_load_from_checkpoint()
-    assert model_loaded
-    if isinstance(config, SegmentationModelBase):
-        assert isinstance(model_and_info.mean_teacher_model, BaseModel)
-    else:
-        assert isinstance(model_and_info.mean_teacher_model, DeviceAwareModule)
-    assert model_and_info.checkpoint_epoch == 1
-
-
-@pytest.mark.parametrize("config",
-                         [DummyModel(), ClassificationModelForTesting()])
-def test_save_checkpoint(config: ModelConfigBase) -> None:
+def create_model_and_store_checkpoint(config: ModelConfigBase, checkpoint_path: Path) -> None:
     """
-    Test that checkpoints are saved correctly
+    Creates a Lightning model for the given model configuration, and stores it as a checkpoint file.
+    If a GPU is available, the model is moved to the GPU before storing.
+    The trainer properties `current_epoch` and `global_step` are set to fixed non-default values.
+    :param config: The model configuration.
+    :param checkpoint_path: The path and filename of the checkpoint file.
     """
+    trainer, _ = create_lightning_trainer(config)
+    model = create_lightning_model(config)
+    if machine_has_gpu:
+        model = model.cuda()  # type: ignore
+    trainer.model = model
+    # Before saving, the values for epoch and step are incremented. Save them here in such a way that we can assert
+    # easily later.
+    trainer.current_epoch = FIXED_EPOCH - 1
+    trainer.global_step = FIXED_GLOBAL_STEP - 1
+    # In PL, it is the Trainer's responsibility to save the model. Checkpoint handling refers back to the trainer
+    # to get a save_func. Mimicking that here.
+    trainer.save_checkpoint(checkpoint_path, weights_only=True)
 
-    config.mean_teacher_alpha = 0.999
 
-    model_and_info = ModelAndInfo(config,
-                                  model_execution_mode=ModelExecutionMode.TEST,
-                                  checkpoint_path=None)
-    model_and_info.try_create_model_and_load_from_checkpoint()
-    model_and_info.try_create_mean_teacher_model_and_load_from_checkpoint()
-    model_and_info.try_create_optimizer_and_load_from_checkpoint()
+@pytest.mark.cpu_and_gpu
+@pytest.mark.parametrize("config_cls", [DummyModel, ClassificationModelForTesting])
+@pytest.mark.parametrize("use_gpu", [True, False] if machine_has_gpu else [False])
+def test_create_model_from_lightning_checkpoint(test_output_dirs: OutputFolderForTests,
+                                                config_cls: Any,
+                                                use_gpu: bool) -> None:
+    config = config_cls()
+    config.use_model_parallel = True
+    config.use_gpu = use_gpu
+    # Check that loading from an invalid checkpoint raises an error
+    with pytest.raises(FileNotFoundError):
+        checkpoint_path = test_output_dirs.root_dir / "nonexist.ckpt"
+        load_from_checkpoint_and_adjust_for_inference(config, checkpoint_path)
 
-    def get_constant_init_function(constant: float) -> Callable:
-        def init(layer: nn.Module) -> None:
-            if type(layer) == nn.Conv3d:
-                layer.weight.data.fill_(constant)  # type: ignore
-        return init
+    checkpoint_path = test_output_dirs.root_dir / "checkpoint.ckpt"
+    create_model_and_store_checkpoint(config, checkpoint_path=checkpoint_path)
 
-    assert model_and_info.mean_teacher_model is not None  # for mypy
+    if isinstance(config, SegmentationModelBase):
+        assert config._test_output_size is None
+        assert config._train_output_size is None
+    # method to get all devices of a model
+    loaded_model = load_from_checkpoint_and_adjust_for_inference(config, checkpoint_path)
+    # Information about epoch and global step must be present in the message that on_checkpoint_load writes
+    assert str(FIXED_EPOCH) in loaded_model.checkpoint_loading_message
+    assert str(FIXED_GLOBAL_STEP) in loaded_model.checkpoint_loading_message
+    assert loaded_model is not None
+    if isinstance(config, SegmentationModelBase):
+        assert config._test_output_size is not None
+        assert config._train_output_size is not None
+        if use_gpu:
+            # Check that a model summary for segmentation models was created, which is necessary for model partitioning.
+            assert loaded_model.model.summary is not None
+    devices = set(p.device for p in loaded_model.parameters())
+    if use_gpu:
+        assert torch.device("cuda", 0) in devices
+    else:
+        assert len(devices) == 1
+        assert torch.device("cpu") in devices, "Model should have been mapped to CPU."
 
-    model_and_info.model.apply(get_constant_init_function(1.0))
-    model_and_info.mean_teacher_model.apply(get_constant_init_function(2.0))
 
-    epoch = 3
+def test_checkpoint_path() -> None:
+    assert LAST_CHECKPOINT_FILE_NAME == ModelCheckpoint.CHECKPOINT_NAME_LAST
 
-    checkpoint_path = config.get_path_to_checkpoint(epoch=epoch)
-    checkpoint_dir = checkpoint_path.parent
-    if not os.path.isdir(checkpoint_dir):
-        os.makedirs(checkpoint_dir)
-    model_and_info.save_checkpoint(epoch=epoch)
 
-    model_and_info_restored = ModelAndInfo(config,
-                                           model_execution_mode=ModelExecutionMode.TEST,
-                                           checkpoint_path=config.get_path_to_checkpoint(epoch=epoch))
-    model_and_info_restored.try_create_model_load_from_checkpoint_and_adjust()
-    model_and_info_restored.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
+def test_keep_latest(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if the logic to keep only the most recently modified file works.
+    """
+    folder = test_output_dirs.root_dir
+    prefix = "foo"
+    pattern = prefix + "*"
+    file1 = folder / (prefix + ".txt")
+    file2 = folder / (prefix + "2.txt")
+    # No file present yet
+    assert keep_latest(folder, pattern) is None
+    # Single file present: This should be returned.
+    file1.touch()
+    # Without sleeping, the test can fail in Azure build agents
+    time.sleep(0.1)
+    latest = keep_latest(folder, pattern)
+    assert latest == file1
+    assert latest.is_file()
+    # Two files present: keep file2, file1 should be deleted
+    file2.touch()
+    time.sleep(0.1)
+    latest = keep_latest(folder, pattern)
+    assert latest == file2
+    assert latest.is_file()
+    assert not file1.is_file()
+    # Add file1 again: Now this one should be the most recent one
+    file1.touch()
+    time.sleep(0.1)
+    latest = keep_latest(folder, pattern)
+    assert latest == file1
+    assert latest.is_file()
+    assert not file2.is_file()
 
-    assert model_and_info_restored.mean_teacher_model is not None  # for mypy
 
-    for module in model_and_info_restored.model.modules():
-        if type(module) == nn.Conv3d:
-            assert torch.equal(module.weight.detach(), torch.full_like(module.weight.detach(), 1.0))  # type: ignore
+def test_keep_best_checkpoint(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if the logic to keep only one checkpoint file works as expected.
+    """
+    folder = test_output_dirs.root_dir
+    with pytest.raises(FileNotFoundError) as ex:
+        keep_best_checkpoint(folder)
+    assert "Checkpoint file" in str(ex)
+    last = folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    last.touch()
+    actual = keep_best_checkpoint(folder)
+    assert not last.is_file(), "Checkpoint file should have been renamed"
+    expected = folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    assert actual == expected
+    assert actual.is_file()
 
-    for module in model_and_info_restored.mean_teacher_model.modules():
-        if type(module) == nn.Conv3d:
-            assert torch.equal(module.weight.detach(), torch.full_like(module.weight.detach(), 2.0))  # type: ignore
+
+def test_cleanup_checkpoints1(test_output_dirs: OutputFolderForTests) -> None:
+    folder = test_output_dirs.root_dir
+    with pytest.raises(FileNotFoundError) as ex:
+        cleanup_checkpoint_folder(folder)
+    assert "Checkpoint file" in str(ex)
+    # Single checkpoint file, nothing else: This file should be rename to best_checkpoint
+    last = folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    last.touch()
+    cleanup_checkpoint_folder(folder)
+    assert len(list(folder.glob("*"))) == 1
+    assert (folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
+
+
+def test_cleanup_checkpoints2(test_output_dirs: OutputFolderForTests) -> None:
+    # Single checkpoint file and two recovery checkpoints: Should keep the last and rename it.
+    folder = test_output_dirs.root_dir
+    last = folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    last.touch()
+    (folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}-v0").touch()
+    (folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}-v1").touch()
+    cleanup_checkpoint_folder(folder)
+    assert len(list(folder.glob("*"))) == 2
+    assert (folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
+    assert (folder / RECOVERY_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()

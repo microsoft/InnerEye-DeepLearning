@@ -2,38 +2,43 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
 import os
 import sys
-import time
+from pathlib import Path
+
+# Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
+# individual warnings only.
+# flake8: noqa
+
+# Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
+# the working directory is not correctly picked up in sys.path
+print("Starting InnerEye runner.")
+innereye_root = Path(__file__).absolute().parent.parent.parent
+if (innereye_root / "InnerEye").is_dir():
+    innereye_root_str = str(innereye_root)
+    if innereye_root_str not in sys.path:
+        print(f"Adding to sys.path: {innereye_root_str}")
+        sys.path.insert(0, innereye_root_str)
+
+import logging
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
-import pandas as pd
-import stopit
 from azureml._base_sdk_common import user_agent
-from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables, \
     parse_arguments, submit_to_azureml
-from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT, RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, \
-    is_run_and_child_runs_completed
+from InnerEye.Azure.azure_util import is_run_and_child_runs_completed
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
-    CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    METRICS_FILE_NAME, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, disable_logging_to_file, \
-    get_epoch_results_path, is_linux, logging_section, logging_to_file, logging_to_stdout, \
-    print_exception, remove_file_or_directory
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
+    ModelProcessing, disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout, print_exception
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.reports.notebook_report import generate_classification_notebook, generate_segmentation_notebook
-from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 
 REPORT_IPYNB = "report.ipynb"
@@ -126,144 +131,13 @@ class Runner:
         self.model_config: ModelConfigBase = ModelConfigBase(azure_dataset_id="")
         self.azure_config: AzureConfig = AzureConfig()
 
-    def wait_until_cross_val_splits_are_ready_for_aggregation(self) -> bool:
-        """
-        Checks if all child runs (except the current run) of the current run's parent are completed or failed.
-        If this is the case, then we can aggregate the results of the other runs before terminating this run.
-        :return: whether we need to wait, i.e. whether some runs are still pending.
-        """
-        if (not self.model_config.is_offline_run) \
-                and (azure_util.is_cross_validation_child_run(RUN_CONTEXT)):
-            n_splits = self.model_config.get_total_number_of_cross_validation_runs()
-            child_runs = azure_util.fetch_child_runs(PARENT_RUN_CONTEXT,
-                                                     expected_number_cross_validation_splits=n_splits)
-            pending_runs = [x.id for x in child_runs
-                            if (x.id != RUN_CONTEXT.id)
-                            and (x.get_status() not in [RunStatus.COMPLETED, RunStatus.FAILED])]
-            should_wait = len(pending_runs) > 0
-            if should_wait:
-                logging.info(f"Waiting for sibling run(s) to finish: {pending_runs}")
-            return should_wait
-        else:
-            raise NotImplementedError("cross_val_splits_are_ready_for_aggregation is implemented for online "
-                                      "cross validation runs only")
-
-    @stopit.threading_timeoutable()
-    def wait_for_cross_val_runs_to_finish_and_aggregate(self, delay: int = 60) -> None:
-        """
-        Wait for cross val runs (apart from the current one) to finish and then aggregate results of all.
-        :param delay: How long to wait between polls to AML to get status of child runs
-        """
-        with logging_section("Waiting for sibling runs"):
-            while self.wait_until_cross_val_splits_are_ready_for_aggregation():
-                time.sleep(delay)
-        assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
-        self.create_ensemble_model()
-
-    @staticmethod
-    def generate_report(config: DeepLearningConfig, best_epoch: int, model_proc: ModelProcessing) -> None:
-        logging.info("Saving report in html")
-        if config.model_category not in [ModelCategory.Segmentation, ModelCategory.Classification]:
-            return
-
-        try:
-            def get_epoch_path(mode: ModelExecutionMode) -> Path:
-                p = get_epoch_results_path(best_epoch, mode=mode, model_proc=model_proc)
-                return config.outputs_folder / p / METRICS_FILE_NAME
-
-            path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
-            path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
-            path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
-
-            output_dir = config.outputs_folder / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME \
-                if model_proc == ModelProcessing.ENSEMBLE_CREATION else config.outputs_folder
-            if config.model_category == ModelCategory.Segmentation:
-                generate_segmentation_notebook(result_notebook=output_dir / REPORT_IPYNB,
-                                               train_metrics=path_to_best_epoch_train,
-                                               val_metrics=path_to_best_epoch_val,
-                                               test_metrics=path_to_best_epoch_test)
-            else:
-                if isinstance(config, ScalarModelBase):
-                    generate_classification_notebook(result_notebook=output_dir / REPORT_IPYNB,
-                                                     train_metrics=path_to_best_epoch_train,
-                                                     val_metrics=path_to_best_epoch_val,
-                                                     test_metrics=path_to_best_epoch_test,
-                                                     dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
-                                                     if config.local_dataset else None,
-                                                     dataset_subject_column=config.subject_column,
-                                                     dataset_file_column=config.image_file_column)
-                else:
-                    logging.info(f"Cannot create report for config of type {type(config)}.")
-        except Exception as ex:
-            print_exception(ex, "Failed to generated reporting notebook.")
-
-    def plot_cross_validation_and_upload_results(self) -> Path:
-        from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
-            plot_cross_validation, unroll_aggregate_metrics
-        # perform aggregation as cross val splits are now ready
-        plot_crossval_config = crossval_config_from_model_config(self.model_config)
-        plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
-        plot_crossval_config.outputs_directory = self.model_config.outputs_folder
-        plot_crossval_config.settings_yaml_file = self.yaml_config_file
-        cross_val_results_root = plot_cross_validation(plot_crossval_config)
-        if self.post_cross_validation_hook:
-            self.post_cross_validation_hook(self.model_config, cross_val_results_root)
-        # upload results to the parent run's outputs. Normally, we use blobxfer for that, but here we want
-        # to ensure that the files are visible inside the AzureML UI.
-        PARENT_RUN_CONTEXT.upload_folder(name=CROSSVAL_RESULTS_FOLDER, path=str(cross_val_results_root))
-        if self.model_config.is_scalar_model:
-            try:
-                aggregates = pd.read_csv(cross_val_results_root / METRICS_AGGREGATES_FILE)
-                unrolled_aggregate_metrics = unroll_aggregate_metrics(aggregates)
-                for m in unrolled_aggregate_metrics:
-                    PARENT_RUN_CONTEXT.log(m.metric_name, m.metric_value)
-            except Exception as ex:
-                print_exception(ex, "Unable to log metrics to Hyperdrive parent run.", logger_fn=logging.warning)
-        return cross_val_results_root
-
-    def create_ensemble_model(self) -> None:
-        """
-        Call MLRunner again after training cross-validation models, to create an ensemble model from them.
-        """
-        # Import only here in case of dependency issues in reduced environment
-        from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
-        # Adjust parameters
-        self.azure_config.hyperdrive = False
-        self.model_config.number_of_cross_validation_splits = 0
-        self.model_config.is_train = False
-
-        with logging_section("Downloading checkpoints from sibling runs"):
-            checkpoint_handler = CheckpointHandler(model_config=self.model_config, azure_config=self.azure_config,
-                                                   project_root=self.project_root, run_context=PARENT_RUN_CONTEXT)
-            checkpoint_handler.discover_and_download_checkpoint_from_sibling_runs()
-
-        best_epoch = self.create_ml_runner().run_inference_and_register_model(checkpoint_handler=checkpoint_handler,
-                                                                              model_proc=ModelProcessing.ENSEMBLE_CREATION)
-
-        crossval_dir = self.plot_cross_validation_and_upload_results()
-        Runner.generate_report(self.model_config, best_epoch, ModelProcessing.ENSEMBLE_CREATION)
-        # CrossValResults should have been uploaded to the parent run, so we don't need it here.
-        remove_file_or_directory(crossval_dir)
-        # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files
-        # available elsewhere. However, first we need to upload relevant parts of OTHER_RUNS/ENSEMBLE.
-        other_runs_dir = self.model_config.outputs_folder / OTHER_RUNS_SUBDIR_NAME
-        other_runs_ensemble_dir = other_runs_dir / ENSEMBLE_SPLIT_NAME
-        if PARENT_RUN_CONTEXT is not None:
-            if other_runs_ensemble_dir.exists():
-                # Only keep baseline Wilcoxon results and scatterplots and reports
-                for subdir in other_runs_ensemble_dir.glob("*"):
-                    if subdir.name not in [BASELINE_WILCOXON_RESULTS_FILE, SCATTERPLOTS_SUBDIR_NAME, REPORT_HTML,
-                                           REPORT_IPYNB]:
-                        remove_file_or_directory(subdir)
-                PARENT_RUN_CONTEXT.upload_folder(name=BASELINE_COMPARISONS_FOLDER, path=str(other_runs_ensemble_dir))
-            else:
-                logging.warning(f"Directory not found for upload: {other_runs_ensemble_dir}")
-        remove_file_or_directory(other_runs_dir)
-
-    def parse_and_load_model(self) -> ParserResult:
+    def parse_and_load_model(self) -> Optional[ParserResult]:
         """
         Parses the command line arguments, and creates configuration objects for the model itself, and for the
-        Azure-related parameters. Sets self.azure_config and self.model_config to their proper values.
+        Azure-related parameters. Sets self.azure_config and self.model_config to their proper values. Returns the
+        parser output from parsing the model commandline arguments.
+        If no "model" argument is provided on the commandline, self.model_config will be set to None, and the return
+        value is None.
         """
         # Create a parser that will understand only the args we need for an AzureConfig
         parser1 = create_runner_parser()
@@ -274,6 +148,10 @@ class Runner:
                                                            fail_on_unknown_args=False)
         azure_config = AzureConfig(**parser1_result.args)
         azure_config.project_root = self.project_root
+        self.azure_config = azure_config
+        self.model_config = None  # type: ignore
+        if not azure_config.model:
+            return None
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser1_result.args)
         # Create the model as per the "model" commandline option
         model_config = model_config_loader.create_model_config_from_name(
@@ -300,7 +178,6 @@ class Runner:
             logging.info(f"extra_code_directory is {azure_config.extra_code_directory}, which {exist}")
         else:
             logging.info("extra_code_directory is unset")
-        self.azure_config = azure_config
         self.model_config = model_config
         return parser2_result
 
@@ -317,7 +194,7 @@ class Runner:
         may_initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
-        if self.model_config.perform_cross_validation:
+        if self.model_config is not None and self.model_config.perform_cross_validation:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None
@@ -372,56 +249,51 @@ class Runner:
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(self.azure_config.log_level)
         suppress_logging_noise()
-        pytest_failed = False
-        training_failed = False
-        pytest_passed = True
-        # Ensure that both model training and pytest both get executed in all cases, so that we see a full set of
-        # test results in each PR
-        outputs_folder = self.model_config.outputs_folder
-        try:
-            logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
+        error_messages = []
+        # For the PR build in AzureML, we can either pytest, or the training of the simple PR model. Running both
+        # only works when using DDP_spawn, but that has as a side-effect that it messes up memory consumption of the
+        # large models.
+        if self.azure_config.pytest_mark:
             try:
-                self.create_ml_runner().run()
+                outputs_folder = Path.cwd() / fixed_paths.DEFAULT_AML_UPLOAD_DIR
+                pytest_passed, results_file_path = run_pytest(self.azure_config.pytest_mark, outputs_folder)
+                if not pytest_passed:
+                    pytest_failures = f"Not all PyTest tests passed. See {results_file_path}"
+                    logging.error(pytest_failures)
+                    error_messages.append(pytest_failures)
             except Exception as ex:
-                print_exception(ex, "Model training/testing failed.")
-                training_failed = True
-            if self.azure_config.pytest_mark:
+                print_exception(ex, "Unable to run PyTest.")
+                error_messages.append(f"Unable to run PyTest: {ex}")
+        else:
+            try:
+                logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
                 try:
-                    pytest_passed, results_file_path = run_pytest(self.azure_config.pytest_mark, outputs_folder)
-                    if not pytest_passed:
-                        logging.error(
-                            f"Not all PyTest tests passed. See {results_file_path}")
+                    self.create_ml_runner().run()
                 except Exception as ex:
-                    print_exception(ex, "Unable to run PyTest.")
-                    pytest_failed = True
-        finally:
-            # wait for aggregation if required, and only if the training actually succeeded.
-            if not training_failed and self.model_config.should_wait_for_other_cross_val_child_runs():
-                self.wait_for_cross_val_runs_to_finish_and_aggregate()
-            disable_logging_to_file()
-        message = []
-        if training_failed:
-            message.append("Training failed")
-        if pytest_failed:
-            message.append("Unable to run Pytest")
-        if not pytest_passed:
-            message.append("At least 1 test in Pytest failed")
+                    print_exception(ex, "Model training/testing failed.")
+                    error_messages.append(f"Training failed: {ex}")
+            finally:
+                disable_logging_to_file()
         # Terminate if pytest or model training has failed. This makes the smoke test in
         # PR builds fail if pytest fails.
-        if message:
-            raise ValueError(f"One component of the training pipeline failed: {'. '.join(message)}")
+        if error_messages:
+            raise ValueError(
+                f"At least one component of the runner failed: {os.linesep} {os.linesep.join(error_messages)}")
 
     def create_ml_runner(self) -> Any:
         """
         Create and return an ML runner using the attributes of this Runner object.
         """
         # This import statement cannot be at the beginning of the file because it will cause import
-        # of packages that are not available inside the azure_runner.yml environment: torch, blobxfer.
+        # of packages that are not available inside the azure_runner.yml environment, in particular pytorch.
         # That is also why we specify the return type as Any rather than MLRunner.
         from InnerEye.ML.run_ml import MLRunner
         return MLRunner(
-            self.model_config, self.azure_config, self.project_root,
-            self.model_deployment_hook)
+            model_config=self.model_config,
+            azure_config=self.azure_config,
+            project_root=self.project_root,
+            post_cross_validation_hook=self.post_cross_validation_hook,
+            model_deployment_hook=self.model_deployment_hook)
 
 
 def default_post_cross_validation_hook(config: ModelConfigBase, root_folder: Path) -> None:

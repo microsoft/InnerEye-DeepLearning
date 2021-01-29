@@ -7,12 +7,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from InnerEye.Common.common_util import ModelExecutionMode, is_windows
+from InnerEye.Common.common_util import is_windows
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.lightning_helpers import create_lightning_model, load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_models import SegmentationLightning
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.utils import image_util
-from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
+from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
 def run_inference_on_unet(size: TupleInt3) -> None:
@@ -44,8 +47,9 @@ def run_inference_on_unet(size: TupleInt3) -> None:
         inference_stride_size=(40, 40, 40),
         use_mixed_precision=True
     )
-    model = create_model_with_temperature_scaling(config)
-    pipeline = InferencePipeline(model=model, model_config=config, epoch=1)
+    lightning_model = create_lightning_model(config)
+    assert isinstance(lightning_model, SegmentationLightning)
+    pipeline = InferencePipeline(model=lightning_model, model_config=config)
     image = np.random.uniform(-1, 1, (1,) + size)
     result = pipeline.predict_and_post_process_whole_image(image, mask=np.ones(size), voxel_spacing_mm=(1, 1, 1))
     # All posteriors and segmentations must have the size of the input image
@@ -61,8 +65,9 @@ def test_inference_on_too_small_image() -> None:
     """
     Running inference on a simplified Unet model when the input image is too small along an axis.
     """
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as ex:
         run_inference_on_unet((5, 10, 64))
+    assert "input image must have at least a size of (16, 16, 16)" in str(ex)
 
 
 @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
@@ -76,7 +81,7 @@ def test_inference_on_small_image(size: TupleInt3) -> None:
     run_inference_on_unet(size)
 
 
-def test_invalid_stride_size() -> None:
+def test_invalid_stride_size(test_output_dirs: OutputFolderForTests) -> None:
     config = SegmentationModelBase(
         architecture="UNet3D",
         feature_channels=[1],
@@ -89,11 +94,13 @@ def test_invalid_stride_size() -> None:
         inference_stride_size=(120, 120, 120),
         should_validate=False
     )
-    with pytest.raises(ValueError) as ex:
-        model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
-                                      checkpoint_path=None)
-        model_and_info.try_create_model_load_from_checkpoint_and_adjust()
+    config.set_output_to(test_output_dirs.root_dir)
+    checkpoint_path = test_output_dirs.root_dir / "checkpoint.ckpt"
+    create_model_and_store_checkpoint(config, checkpoint_path)
 
-    assert "inference stride size must be smaller" in ex.value.args[0]
+    with pytest.raises(ValueError) as ex:
+        load_from_checkpoint_and_adjust_for_inference(config=config, checkpoint_path=checkpoint_path)
+
+    assert "The inference stride size (120, 120, 120) must be smaller" in ex.value.args[0]
     assert str(config.inference_stride_size) in ex.value.args[0]
     assert str(config.test_crop_size) in ex.value.args[0]

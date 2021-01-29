@@ -100,33 +100,6 @@ def download_files_from_model(model_sas_urls: Dict[str, str], base_name: str, di
     return downloaded
 
 
-def download_from_model_or_find_default(model_sas_urls: Dict[str, str],
-                                        base_name: str,
-                                        dir_path: Path) -> Path:
-    """
-    Identifies all files that have the given name from in the model, and downloads them. If any such files exist,
-    return the first one. If no single file of the desired name is present in the model, try to copy the file from the
-    present repository (the latter should only happen for malformed legacy models).
-    :param model_sas_urls: The files making up the model, as a mapping from file name to a URL with
-    an SAS token.
-    :param base_name: The file name of the files to download.
-    :param dir_path: The folder into which the files will be written. All downloaded files will keep the relative
-    path that they also have in the model.
-    :return: The absolute path to the desired file.
-    """
-    files = download_files_from_model(model_sas_urls, base_name, dir_path)
-    if files:
-        return files[0]
-    logging.warning(f"The model does not contain any file with name '{base_name}'. Trying to find it in "
-                    "the repository root.")
-    default_run_scoring = fixed_paths.repository_root_directory() / base_name
-    if not default_run_scoring.exists():
-        raise ValueError(f"No file with name {base_name} available in the repository.")
-    result = dir_path / base_name
-    shutil.copyfile(str(default_run_scoring), str(result))
-    return result
-
-
 def choose_download_path(download_folder: Path) -> Path:
     """
     Returns the path of a file in download_folder that does already exist. The first path tried is

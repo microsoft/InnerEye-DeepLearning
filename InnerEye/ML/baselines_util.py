@@ -9,16 +9,15 @@ from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 import pandas as pd
+
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, fetch_run, get_comparison_baseline_paths, strip_prefix
+from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, get_comparison_baseline_paths, strip_prefix
 from InnerEye.Common import common_util
 from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig
 from InnerEye.Common.common_util import BASELINE_WILCOXON_RESULTS_FILE, ENSEMBLE_SPLIT_NAME, \
-    EPOCH_FOLDER_NAME_PATTERN, \
-    FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_FILE_NAME, \
-    ModelProcessing, OTHER_RUNS_SUBDIR_NAME, remove_file_or_directory
+    EPOCH_FOLDER_NAME_PATTERN, FULL_METRICS_DATAFRAME_FILE, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, \
+    SUBJECT_METRICS_FILE_NAME, remove_file_or_directory
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -67,7 +66,7 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
         return
     # Use the last (highest-numbered) epoch path for the current run.
     model_epoch_path = model_epoch_paths[-1]
-    model_metrics_path = model_epoch_path / ModelExecutionMode.TEST.value / METRICS_FILE_NAME
+    model_metrics_path = model_epoch_path / ModelExecutionMode.TEST.value / SUBJECT_METRICS_FILE_NAME
     model_dataset_path = model_epoch_path / ModelExecutionMode.TEST.value / DATASET_CSV_FILE_NAME
     if not model_dataset_path.exists():
         logging.warning(f"Not comparing with baselines because no {model_dataset_path} file found for this run")
@@ -152,7 +151,6 @@ def perform_score_comparisons(model_dataset_df: pd.DataFrame, model_metrics_df: 
 def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
                              comparison_blob_storage_paths: List[Tuple[str, str]]) -> \
         List[ComparisonBaseline]:
-    workspace = azure_config.get_workspace()
     comparison_baselines = []
     for (comparison_name, comparison_path) in comparison_blob_storage_paths:
         # Discard the experiment part of the run rec ID, if any.
@@ -160,7 +158,7 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
         run_rec_id, blob_path_str = comparison_path.split("/", 1)
         run_rec_id = strip_prefix(run_rec_id, AZUREML_RUN_FOLDER_PREFIX)
         blob_path = Path(strip_prefix(blob_path_str, DEFAULT_AML_UPLOAD_DIR + "/"))
-        run = fetch_run(workspace, run_rec_id)
+        run = azure_config.fetch_run(run_rec_id)
         (comparison_dataset_path, comparison_metrics_path) = get_comparison_baseline_paths(outputs_folder, blob_path,
                                                                                            run, DATASET_CSV_FILE_NAME)
         # If both dataset.csv and metrics.csv were downloaded successfully, read their contents and

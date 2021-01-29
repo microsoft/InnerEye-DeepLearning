@@ -2,15 +2,16 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import pandas as pd
 from typing import Any
+
+import pandas as pd
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import HyperDriveConfig
 
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
 from InnerEye.ML.deep_learning_config import OptimizerType
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 class DummyModel(SegmentationModelBase):
@@ -46,7 +47,7 @@ class DummyModel(SegmentationModelBase):
             sharpen=1.9,
             trim_percentiles=(1, 99),
             inference_batch_size=1,
-            train_batch_size=10,
+            train_batch_size=2,
             start_epoch=0,
             num_epochs=2,
             l_rate=1e-3,
@@ -57,20 +58,17 @@ class DummyModel(SegmentationModelBase):
             adam_betas=(0.9, 0.999),
             momentum=0.6,
             weight_decay=1e-4,
-            save_start_epoch=1,
-            save_step_epochs=100,
             class_weights=[0.5, 0.5],
             detect_anomaly=False,
             use_mixed_precision=False,
-            test_start_epoch=1,
-            test_diff_epochs=1,
-            test_step_epochs=1,
         )
         self.add_and_validate(kwargs)
+        # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+        self.max_num_gpus = 1
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
-        return DatasetSplits(train=dataset_df[dataset_df.subject.isin(['1', '2'])],
-                             test=dataset_df[dataset_df.subject.isin(['3', '4'])],
+        return DatasetSplits(train=dataset_df[dataset_df.subject.isin(['1', '2', '3'])],
+                             test=dataset_df[dataset_df.subject.isin(['4', '7'])],
                              val=dataset_df[dataset_df.subject.isin(['5', '6'])])
 
     def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:

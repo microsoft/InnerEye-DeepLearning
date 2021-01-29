@@ -4,20 +4,20 @@
 #  ------------------------------------------------------------------------------------------
 import copy
 import logging
+import os
 from functools import partial
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
-from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, METRICS_FILE_NAME, ModelProcessing, DataframeLogger, \
+from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, ModelProcessing, SUBJECT_METRICS_FILE_NAME, \
     get_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
-from InnerEye.Common.metrics_dict import MetricType, MetricsDict, create_metrics_dict_from_config, ScalarMetricsDict
+from InnerEye.Common.metrics_constants import MetricType, MetricsFileColumns
 from InnerEye.ML import metrics, plotting
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
@@ -25,6 +25,7 @@ from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForClassification, InferenceMetricsForSegmentation, \
     compute_scalar_metrics
+from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, ScalarMetricsDict, SequenceMetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline, InferencePipelineBase
@@ -32,13 +33,12 @@ from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, Scala
     ScalarInferencePipelineBase
 from InnerEye.ML.reports.segmentation_report import boxplot_per_structure
 from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import io_util, ml_util
-from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
-from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, \
-    save_lines_to_file
-from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
-from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
+from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
+from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, save_lines_to_file
+from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
@@ -86,36 +86,31 @@ def segmentation_model_test(config: SegmentationModelBase,
     :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetric object that contains metrics related for all of the checkpoint epochs.
     """
-    results: Dict[int, float] = {}
     checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
 
     if not checkpoints_to_test:
         raise ValueError("There were no checkpoints available for model testing.")
 
-    for checkpoint_paths_and_epoch in checkpoints_to_test:
-        epoch = checkpoint_paths_and_epoch.epoch
-        epoch_results_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc)
-        # save the datasets.csv used
-        config.write_dataset_files(root=epoch_results_folder)
-        epoch_and_split = "epoch {} {} set".format(epoch, data_split.value)
-        epoch_dice_per_image = segmentation_model_test_epoch(config=copy.deepcopy(config),
-                                                             data_split=data_split,
-                                                             checkpoint_paths=checkpoint_paths_and_epoch.checkpoint_paths,
-                                                             results_folder=epoch_results_folder,
-                                                             epoch_and_split=epoch_and_split)
-        if epoch_dice_per_image is None:
-            logging.warning("There is no checkpoint file for epoch {}".format(epoch))
-        else:
-            epoch_average_dice: float = np.mean(epoch_dice_per_image) if len(epoch_dice_per_image) > 0 else 0
-            results[epoch] = epoch_average_dice
-            logging.info("Epoch: {:3} | Mean Dice: {:4f}".format(epoch, epoch_average_dice))
-            if model_proc == ModelProcessing.ENSEMBLE_CREATION:
-                # For the upload, we want the path without the "OTHER_RUNS/ENSEMBLE" prefix.
-                name = str(get_epoch_results_path(epoch, data_split, ModelProcessing.DEFAULT))
-                PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
-    if len(results) == 0:
+    epoch_results_folder = config.outputs_folder / get_epoch_results_path(data_split, model_proc)
+    # save the datasets.csv used
+    config.write_dataset_files(root=epoch_results_folder)
+    epoch_and_split = f"{data_split.value} set"
+    epoch_dice_per_image = segmentation_model_test_epoch(config=copy.deepcopy(config),
+                                                         data_split=data_split,
+                                                         checkpoint_paths=checkpoints_to_test,
+                                                         results_folder=epoch_results_folder,
+                                                         epoch_and_split=epoch_and_split)
+    if epoch_dice_per_image is None:
         raise ValueError("There was no single checkpoint file available for model testing.")
-    return InferenceMetricsForSegmentation(data_split=data_split, epochs=results)
+    else:
+        epoch_average_dice: float = np.mean(epoch_dice_per_image) if len(epoch_dice_per_image) > 0 else 0
+        result = epoch_average_dice
+        logging.info(f"Mean Dice: {epoch_average_dice:4f}")
+        if model_proc == ModelProcessing.ENSEMBLE_CREATION:
+            # For the upload, we want the path without the "OTHER_RUNS/ENSEMBLE" prefix.
+            name = str(get_epoch_results_path(data_split, ModelProcessing.DEFAULT))
+            PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
+    return InferenceMetricsForSegmentation(data_split=data_split, metrics=result)
 
 
 def segmentation_model_test_epoch(config: SegmentationModelBase,
@@ -202,7 +197,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
                                hausdorff_distance_mm=hd_for_struct,
                                mean_distance_mm=md_for_struct)
 
-    metrics_writer.to_csv(results_folder / METRICS_FILE_NAME)
+    metrics_writer.to_csv(results_folder / SUBJECT_METRICS_FILE_NAME)
     metrics_writer.save_aggregates_to_csv(results_folder / METRICS_AGGREGATES_FILE)
     if config.is_plotting_enabled:
         plt.figure()
@@ -382,6 +377,19 @@ def create_inference_pipeline(config: ModelConfigBase,
     return None
 
 
+def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> \
+        Union[ScalarMetricsDict, SequenceMetricsDict]:
+    """
+    Create an instance of either a ScalarMetricsDict or SequenceMetricsDict, depending on whether the given
+     configuration is a sequence model configuration or not.
+    """
+    if isinstance(config, SequenceModelBase):
+        return SequenceMetricsDict.create(is_classification_model=config.is_classification_model,
+                                          sequence_target_positions=config.sequence_target_positions)
+    else:
+        return ScalarMetricsDict(is_classification_metrics=config.is_classification_model)
+
+
 def classification_model_test(config: ScalarModelBase,
                               data_split: ModelExecutionMode,
                               checkpoint_handler: CheckpointHandler,
@@ -414,14 +422,18 @@ def classification_model_test(config: ScalarModelBase,
             num_dataload_workers=0
         )
 
-        logging.info(f"Starting to evaluate model from epoch {test_epoch} on {data_split.value} set.")
-        metrics_dict = create_metrics_dict_from_config(config)
+        logging.info(f"Starting to evaluate model on {data_split.value} set.")
+        metrics_dict = create_metrics_dict_for_scalar_models(config)
         for sample in ds:
             result = pipeline.predict(sample)
-            # Since batch size is 1, we only have 1 item in each of the fields in result
-            sample_id, label_gpu, model_output = result.subject_ids[0], result.labels, result.model_outputs
-
-            compute_scalar_metrics(metrics_dict, [sample_id], model_output, label_gpu, config.loss_type)
+            model_output = result.posteriors
+            label = result.labels.to(device=model_output.device)
+            sample_id = result.subject_ids[0]
+            compute_scalar_metrics(metrics_dict,
+                                   subject_ids=[sample_id],
+                                   model_output=model_output,
+                                   labels=label,
+                                   loss_type=config.loss_type)
             logging.debug(f"Example {sample_id}: {metrics_dict.to_string()}")
 
         average = metrics_dict.average(across_hues=False)
@@ -429,42 +441,32 @@ def classification_model_test(config: ScalarModelBase,
 
         return metrics_dict
 
-    results: Dict[int, MetricsDict] = {}
     checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
 
     if not checkpoints_to_test:
         raise ValueError("There were no checkpoints available for model testing.")
 
-    for checkpoint_paths_and_epoch in checkpoints_to_test:
-        epoch = checkpoint_paths_and_epoch.epoch
-
-        epoch_result = test_epoch(checkpoint_paths=checkpoint_paths_and_epoch.checkpoint_paths)
-        if epoch_result is None:
-            logging.warning("There is no checkpoint file for epoch {}".format(epoch))
-        else:
-            results[epoch] = epoch_result
-
-            if isinstance(epoch_result, ScalarMetricsDict):
-                epoch_folder = config.outputs_folder / get_epoch_results_path(epoch, data_split, model_proc)
-                csv_file = epoch_folder / METRICS_FILE_NAME
-
-                logging.info(f"Writing {data_split.value} metrics to file {str(csv_file)}")
-
-                # If we are running inference after a training run, the validation set metrics may have been written
-                # during train time. If this is not the case, or we are running on the test set, create the metrics
-                # file.
-                if not csv_file.exists():
-                    os.makedirs(str(epoch_folder), exist_ok=False)
-                    df_logger = DataframeLogger(csv_file)
-
-                    # cross validation split index not relevant during test time
-                    epoch_result.store_metrics_per_subject(epoch=epoch,
-                                                           df_logger=df_logger,
-                                                           mode=data_split)
-                    # write to disk
-                    df_logger.flush()
-
-    if len(results) == 0:
+    result = test_epoch(checkpoint_paths=checkpoints_to_test)
+    if result is None:
         raise ValueError("There was no single checkpoint file available for model testing.")
+    else:
+        if isinstance(result, ScalarMetricsDict):
+            results_folder = config.outputs_folder / get_epoch_results_path(data_split, model_proc)
+            csv_file = results_folder / SUBJECT_METRICS_FILE_NAME
 
-    return InferenceMetricsForClassification(epochs=results)
+            logging.info(f"Writing {data_split.value} metrics to file {str(csv_file)}")
+
+            # If we are running inference after a training run, the validation set metrics may have been written
+            # during train time. If this is not the case, or we are running on the test set, create the metrics
+            # file.
+            if not csv_file.exists():
+                os.makedirs(str(results_folder), exist_ok=False)
+                df_logger = DataframeLogger(csv_file)
+
+                # cross validation split index not relevant during test time
+                result.store_metrics_per_subject(df_logger=df_logger,
+                                                 mode=data_split)
+                # write to disk
+                df_logger.flush()
+
+    return InferenceMetricsForClassification(metrics=result)

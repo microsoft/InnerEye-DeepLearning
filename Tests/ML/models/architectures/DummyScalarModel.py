@@ -10,7 +10,6 @@ from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.models.layers.identity import Identity
-from InnerEye.ML.models.parallel.data_parallel import execute_within_autocast_if_needed
 
 
 class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
@@ -44,18 +43,12 @@ class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
         return [item.images]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
-        def _forward() -> torch.Tensor:
-            # Need to copy to a local variable, because we can't re-assign x here
-            x2 = x
-            if x2.shape[-3:] != self.expected_image_size_zyx:
-                raise ValueError(f"Expected a tensor with trailing size {self.expected_image_size_zyx}, but got "
-                                 f"{x2.shape}")
+        if x.shape[-3:] != self.expected_image_size_zyx:
+            raise ValueError(f"Expected a tensor with trailing size {self.expected_image_size_zyx}, but got "
+                             f"{x.shape}")
 
-            for layer in self._layers.__iter__():
-                x2 = layer(x2)
-            x2 = x2.view(x2.size(0), -1)
-            x2 = self.fc(x2)
-            return self.activation(x2)
-
-        # Models that will be used inside of DataParallel need to do their own autocast
-        return execute_within_autocast_if_needed(_forward, use_autocast=self.use_mixed_precision)
+        for layer in self._layers.__iter__():
+            x = layer(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return self.activation(x)

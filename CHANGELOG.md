@@ -11,10 +11,32 @@ created.
 ## Upcoming
 
 ### Added
+- There are new model configuration fields (and hence, commandline options), in particular for controlling PyTorch 
+Lightning (PL) training: 
+  - `max_num_gpus` controls how many GPUs are used at most for training (default: all GPUs, value -1).
+  - `pl_num_sanity_val_steps` controls the PL trainer flag `num_sanity_val_steps`
+  - `pl_deterministic` controls the PL trainer flags `benchmark` and `deterministic`
+  - `generate_report` controls if a HTML report will be written (default: True) 
+  - `recovery_checkpoint_save_interval` determines how often a checkpoint for training recovery is saved.
 - New extensions of SegmentationModelBases `HeadAndNeckBase` and `ProstateBase`. Use these classes to build your own Head&Neck or Prostate models, by just providing a list of foreground classes.
 - Grouped dataset splits and k-fold cross-validation. This allows, for example, training on datasets with multiple images per subject without leaking data from the same subject across train/test/validation sets or cross-validation folds. To use this functionality, simply provide the name of the CSV grouping column (`group_column`) when creating the `DatasetSplits` object in your model config's `get_model_train_test_dataset_splits()` method. See the `InnerEye.ML.utils.split_dataset.DatasetSplits` class for details.
 
 ### Changed
+
+- The codebase has undergone a massive refactoring, to use PyTorch Lightning as the foundation for all training. As
+a consequence of that:
+  - Training is now using Distributed Data Parallel with synchronized `batchnorm`. The number of GPUs to use can be 
+  controlled by a new commandline argument `max_num_gpus`.
+  - Several classes, like `ModelTrainingSteps*`, have been removed completely.
+  - The final model is now always the one that is written at the end of all training epochs.
+  - The old code that options to run full image inference at multiple epochs (i.e., multiple checkpoints), this
+  has been removed, alongside the respective commandline options `save_start_epoch`, `save_step_epochs`, 
+  `epochs_to_test`, `test_diff_epochs`, `test_step_epochs`, `test_start_epoch`
+  - The commandline option `register_model_only_for_epoch` is now called `only_register_model`, and is boolean.
+  - All metrics are written to AzureML and Tensorboard in a unified format. A training Dice score for 'bladder' would
+  previously be called Train_Dice/bladder, now it is train/Dice/bladder.
+  - Due to a different checkpoint format, it is no longer possible to use checkpoints written
+  by the previous version of the code.
 - The arguments of the `score.py` script changed: `data_root` -> `data_folder`, it no longer assumes a fixed
 `data` subfolder. `project_root` -> `model_root`, `test_image_channels` -> `image_files`.
 - By default, the visualization of patch sampling for segmentation models will run on only 1 image (down from 5).
@@ -27,6 +49,8 @@ folder structure is present irrespective of using InnerEye as a submodule or not
 environment will be contained in the model.
 
 ### Removed
+- The commandline options to control which checkpoint is saved, and which is used for inference, have been removed:
+`save_start_epoch`, `save_step_epochs`, `epochs_to_test`, `test_diff_epochs`, `test_step_epochs`, `test_start_epoch`
 - Removed blobxfer completely. When downloading a dataset from Azure, we now use AzureML dataset downloading tools.
 Please remove the following fields from your settings.yml file: 'datasets_storage_account' and 'datasets_container'. 
 - Removed `ProstatePaperBase`.
