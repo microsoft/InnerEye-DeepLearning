@@ -6,16 +6,23 @@ import numpy as np
 import pytest
 from pytorch_lightning import seed_everything
 
+from unittest import mock
+
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
-from score import create_inference_pipeline, is_spacing_valid, run_inference
+from score import create_inference_pipeline, is_spacing_valid, run_inference, score_image, ScorePipelineConfig
+
 
 test_image = full_ml_test_data_path("train_and_test_data") / "id1_channel1.nii.gz"
 img_nii_path = full_ml_test_data_path("test_img.nii.gz")
+
+hnsegmentation_file = "hnsegmentation.nii.gz"
+hnsegmentation_path = full_ml_test_data_path(hnsegmentation_file)
+sample_dicom_zip_file = full_ml_test_data_path("sample_dicom.zip")
 
 
 def test_score_check_spacing() -> None:
@@ -54,3 +61,45 @@ def test_run_scoring(test_output_dirs: OutputFolderForTests, is_ensemble: bool) 
     assert image_with_header.image.shape == result.shape  # type: ignore
     print(f"Unique result values: {np.unique(result)}")
     assert np.all(result == 1)
+
+
+def test_score_image_nifti(test_output_dirs: OutputFolderForTests) -> None:
+    model_folder = test_output_dirs.root_dir / "final"
+
+    score_pipeline_config = ScorePipelineConfig(
+        data_folder=full_ml_test_data_path(),
+        model_folder=str(model_folder),
+        image_files=[str(img_nii_path)],
+        result_image_name='result_image_name',
+        use_gpu=False,
+        use_dicom=False)
+
+    with mock.patch('score.init_from_model_inference_json',
+                    return_value=(1, 2)):
+        with mock.patch('score.run_inference',
+                        return_value=True):
+            with mock.patch('score.store_as_ubyte_nifti',
+                            return_value='result_image_name.nii.gz'):
+                segmentation = score_image(score_pipeline_config)
+                assert segmentation
+
+
+def test_score_image_dicom(test_output_dirs: OutputFolderForTests) -> None:
+    model_folder = test_output_dirs.root_dir / "final"
+
+    score_pipeline_config = ScorePipelineConfig(
+        data_folder=full_ml_test_data_path("HN"),
+        model_folder=str(model_folder),
+        image_files=[str(sample_dicom_zip_file)],
+        result_image_name="result_image_name",
+        use_gpu=False,
+        use_dicom=True)
+
+    with mock.patch('score.init_from_model_inference_json',
+                    return_value=(1, 2)):
+        with mock.patch('score.run_inference',
+                        return_value=True):
+            with mock.patch('score.store_as_ubyte_nifti',
+                            return_value=hnsegmentation_path):
+                segmentation = score_image(score_pipeline_config)
+                assert segmentation

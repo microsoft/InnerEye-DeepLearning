@@ -8,6 +8,7 @@ import os
 import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
+from zipfile import ZipFile
 
 import numpy as np
 import param
@@ -24,7 +25,9 @@ from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline
 from InnerEye.ML.utils.config_util import ModelConfigLoader
-from InnerEye.ML.utils.io_util import ImageWithHeader, load_nifti_image, reverse_tuple_float3, store_as_ubyte_nifti
+from InnerEye.ML.utils.io_util import ImageWithHeader, load_nifti_image, reverse_tuple_float3, store_as_ubyte_nifti, \
+    load_dicom_series
+# from InnerEye_DICOM_RT.nifti_to_dicom_rt_converter import rtconvert
 
 
 class ScorePipelineConfig(GenericConfig):
@@ -40,6 +43,9 @@ class ScorePipelineConfig(GenericConfig):
     result_image_name: str = param.String(DEFAULT_RESULT_IMAGE_NAME,
                                           doc="The name of the result image, created in the project root folder.")
     use_gpu: bool = param.Boolean(True, doc="If GPU should be used or not.")
+    use_dicom: bool = param.Boolean(False, doc="If images to be scored are DICOM and output to be DICOM-RT. "
+                                               "If this is set then image_files should contain a single zip file "
+                                               "containing a set of DICOM files.")
 
 
 def init_from_model_inference_json(model_folder: Path, use_gpu: bool = True) -> Tuple[FullImageInferencePipelineBase,
@@ -128,6 +134,35 @@ def run_inference(images_with_header: List[ImageWithHeader],
     return segmentation
 
 
+def convert_dicom_series_to_nifti(zip_file_path: Path, model_folder: Path) -> List[Path]:
+    """
+    Unzip a zip file. If it contains multiple directories, assume each is a DICOM series and convert each
+    to a Nifti file. Otherwise assume that it is a single DICOM series and convert it to a Nifti file.
+    Return a list of converted Nifti filenames.
+
+    :param zip_file_path: Path to zip file.
+    :param model_folder: Path to model folder.
+    :return: List of Nifti filenames.
+    """
+    with ZipFile(zip_file_path, 'r') as zip_file:
+        extraction_folder = model_folder / "temp_extraction"
+        zip_file.extractall(extraction_folder)
+    images: List[Path] = []
+    extracted_folders: List[Path] = [e for e in extraction_folder.iterdir() if e.is_dir()]
+    if len(extracted_folders) > 0:
+        # This is a set of channels, convert each to nifi.
+        for extracted_folder in extracted_folders:
+            nifti_filename = model_folder / f"temp_nifti_filename_{len(images)}.nii.gz"
+            load_dicom_series(extracted_folder, nifti_filename)
+            images.append(nifti_filename)
+    else:
+        # This is a single channel, convert it to nifti.
+        nifti_filename = model_folder / "temp_nifti_filename.nii.gz"
+        load_dicom_series(extraction_folder, nifti_filename)
+        images.append(nifti_filename)
+    return images
+
+
 def score_image(args: ScorePipelineConfig) -> Path:
     """
     Perform model inference on a single image. By doing the following:
@@ -145,7 +180,6 @@ def score_image(args: ScorePipelineConfig) -> Path:
     run_context = Run.get_context()
     logging.info(f"Run context={run_context.id}")
 
-    # TODO change this to read DICOM folders for each channel inside a zip file
     test_images = []
     data_folder = args.data_folder
     for file in args.image_files:
@@ -155,18 +189,43 @@ def score_image(args: ScorePipelineConfig) -> Path:
                 str(data_folder) if data_folder.is_absolute() else f"{data_folder}, absolute: {data_folder.absolute()}"
             raise ValueError(f"File {file} does not exist in data folder {message}")
         test_images.append(full_file_path)
+
+    if args.use_dicom:
+        # Assume that test_images is a list of zips of DICOM series
+        test_images = [nifti_filename for test_image in test_images
+                       for nifti_filename in convert_dicom_series_to_nifti(test_image, model_folder)]
+
     images = [load_nifti_image(file) for file in test_images]
+
     inference_pipeline, config = init_from_model_inference_json(model_folder, args.use_gpu)
     segmentation = run_inference(images, inference_pipeline, config)
 
-    segmentation_file_name = str(model_folder / args.result_image_name)
+    segmentation_file_name = model_folder / args.result_image_name
     result_dst = store_as_ubyte_nifti(segmentation, images[0].header, segmentation_file_name)
-    # TODO:
-    #  1 - call Nifti-to-DICOM-RT compression
-    #  2 - Upload to run_context as zip file with name model_output.zip
 
+    if args.use_dicom:
+        # TODO:
+        #  1 - call Nifti-to-DICOM-RT compression
+        #  2 - Upload to run_context as zip file with name model_output.zip
+
+        # Convert back from nifti to dicom-rt
+        dicom_rt_file = result_dst.with_suffix(".dcm")
+        # (stdout, stderr) = rtconvert(
+        #    in_file=result_dst,
+        #    reference_series=model_folder,
+        #    out_file=dicom_rt_file,
+        #    struct_names=config.ground_truth_ids_display_names,
+        #    struct_colors=config.colours,
+        #    fill_holes=config.fill_holes)
+        # logging.debug("stdout: %s", stdout)
+        # logging.debug("stderr: %s", stderr)
+        dicom_rt_zip_file = dicom_rt_file.with_suffix(dicom_rt_file.suffix + '.zip')
+        with ZipFile(dicom_rt_zip_file, 'w') as dicom_rt_zip:
+            # dicom_rt_zip.write(dicom_rt_file)
+            dicom_rt_zip.write(result_dst)
+        result_dst = dicom_rt_zip_file
     if not is_offline_run_context(run_context):
-        run_context.upload_file(args.result_image_name, segmentation_file_name)
+        run_context.upload_file(args.result_image_name, str(result_dst))
     logging.info(f"Segmentation completed: {result_dst}")
     return result_dst
 
