@@ -10,7 +10,7 @@ import torch
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 class ClassificationModelForTesting(ScalarModelBase):
@@ -28,12 +28,13 @@ class ClassificationModelForTesting(ScalarModelBase):
             loss_type=ScalarLoss.BinaryCrossEntropyWithLogits,
             num_epochs=num_epochs,
             num_dataload_workers=0,
-            test_start_epoch=num_epochs,
             subject_column="subjectID",
             mean_teacher_alpha=mean_teacher_alpha
         )
         self.expected_image_size_zyx = (4, 5, 7)
         self.conv_in_3d = conv_in_3d
+        # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+        self.max_num_gpus = 1
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits.from_proportions(

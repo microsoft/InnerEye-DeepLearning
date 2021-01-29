@@ -4,40 +4,28 @@
 #  ------------------------------------------------------------------------------------------
 from __future__ import annotations
 
+import logging
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from enum import Enum, unique
+from pathlib import Path
 from typing import Any, Dict, Generic, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 import pandas as pd
 from more_itertools import flatten
+from pandas._typing import FilePathOrBuffer
 from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_auc_score, roc_curve
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
-from InnerEye.Common.common_util import DataframeLogger, check_properties_are_not_none
+from InnerEye.Common.common_util import check_properties_are_not_none
+from InnerEye.Common.metrics_constants import INTERNAL_TO_LOGGING_COLUMN_NAMES, LoggingColumns, MetricType, \
+    MetricTypeOrStr, SEQUENCE_POSITION_HUE_NAME_PREFIX
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.scalar_config import ScalarModelBase
-from InnerEye.ML.sequence_config import SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
-from InnerEye.ML.utils.io_util import tabulate_dataframe
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, mean_squared_error, \
-    r2_score
+from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, \
+    mean_squared_error, r2_score
 
 FloatOrInt = Union[float, int]
 T = TypeVar('T', np.ndarray, float)
-
-
-def create_metrics_dict_from_config(config: ScalarModelBase) -> Union[ScalarMetricsDict, SequenceMetricsDict]:
-    """
-    Create an instance of either a ScalarMetricsDict or SequenceMetricsDict, based on the
-    type of config provided.
-    :param config: Model configuration information.
-    """
-    if isinstance(config, SequenceModelBase):
-        return SequenceMetricsDict.create_from_config(config)
-    else:
-        return ScalarMetricsDict.create_from_config(config)
 
 
 def average_metric_values(values: List[float], skip_nan_when_averaging: bool) -> float:
@@ -63,70 +51,6 @@ class PredictionEntry(Generic[T]):
 
     def __post_init__(self) -> None:
         check_properties_are_not_none(self)
-
-
-@unique
-class MetricType(Enum):
-    """
-    Contains the different metrics that are computed.
-    """
-    # Any result of loss computation, depending on what's configured in the model.
-    LOSS = "Loss"
-
-    # Classification metrics
-    CROSS_ENTROPY = "CrossEntropy"
-    # Classification accuracy assuming that posterior > 0.5 means predicted class 1
-    ACCURACY_AT_THRESHOLD_05 = "AccuracyAtThreshold05"
-    ACCURACY_AT_OPTIMAL_THRESHOLD = "AccuracyAtOptimalThreshold"
-    # Metrics for segmentation
-    DICE = "Dice"
-    HAUSDORFF_mm = "HausdorffDistance_millimeters"
-    MEAN_SURFACE_DIST_mm = "MeanSurfaceDistance_millimeters"
-    VOXEL_COUNT = "VoxelCount"
-    PROPORTION_FOREGROUND_VOXELS = "ProportionForegroundVoxels"
-
-    PATCH_CENTER = "PatchCenter"
-
-    AREA_UNDER_ROC_CURVE = "AreaUnderRocCurve"
-    AREA_UNDER_PR_CURVE = "AreaUnderPRCurve"
-    OPTIMAL_THRESHOLD = "OptimalThreshold"
-    FALSE_POSITIVE_RATE_AT_OPTIMAL_THRESHOLD = "FalsePositiveRateAtOptimalThreshold"
-    FALSE_NEGATIVE_RATE_AT_OPTIMAL_THRESHOLD = "FalseNegativeRateAtOptimalThreshold"
-
-    # Regression metrics
-    MEAN_ABSOLUTE_ERROR = "MeanAbsoluteError"
-    MEAN_SQUARED_ERROR = "MeanSquaredError"
-    R2_SCORE = "r2Score"
-
-    # Common metrics
-    SECONDS_PER_BATCH = "SecondsPerBatch"
-    SECONDS_PER_EPOCH = "SecondsPerEpoch"
-    SUBJECT_COUNT = "SubjectCount"
-    LEARNING_RATE = "LearningRate"
-
-
-MetricTypeOrStr = Union[str, MetricType]
-
-# Mapping from the internal logging column names to the ones used in the outside-facing pieces of code:
-# Output data files, logging systems.
-INTERNAL_TO_LOGGING_COLUMN_NAMES = {
-    MetricType.LOSS.value: LoggingColumns.Loss,
-    MetricType.ACCURACY_AT_THRESHOLD_05.value: LoggingColumns.AccuracyAtThreshold05,
-    MetricType.CROSS_ENTROPY.value: LoggingColumns.CrossEntropy,
-    MetricType.SECONDS_PER_BATCH.value: LoggingColumns.SecondsPerBatch,
-    MetricType.SECONDS_PER_EPOCH.value: LoggingColumns.SecondsPerEpoch,
-    MetricType.AREA_UNDER_ROC_CURVE.value: LoggingColumns.AreaUnderRocCurve,
-    MetricType.AREA_UNDER_PR_CURVE.value: LoggingColumns.AreaUnderPRCurve,
-    MetricType.SUBJECT_COUNT.value: LoggingColumns.SubjectCount,
-    MetricType.MEAN_SQUARED_ERROR.value: LoggingColumns.MeanSquaredError,
-    MetricType.MEAN_ABSOLUTE_ERROR.value: LoggingColumns.MeanAbsoluteError,
-    MetricType.R2_SCORE.value: LoggingColumns.R2Score,
-    MetricType.LEARNING_RATE.value: LoggingColumns.LearningRate,
-    MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD.value: LoggingColumns.AccuracyAtOptimalThreshold,
-    MetricType.OPTIMAL_THRESHOLD.value: LoggingColumns.OptimalThreshold,
-    MetricType.FALSE_POSITIVE_RATE_AT_OPTIMAL_THRESHOLD.value: LoggingColumns.FalsePositiveRateAtOptimalThreshold,
-    MetricType.FALSE_NEGATIVE_RATE_AT_OPTIMAL_THRESHOLD.value: LoggingColumns.FalseNegativeRateAtOptimalThreshold
-}
 
 
 def get_column_name_for_logging(metric_name: Union[str, MetricType],
@@ -458,12 +382,13 @@ class MetricsDict:
                         if add_metrics_from_entries:
                             _values[MetricType.MEAN_ABSOLUTE_ERROR.value] = [self.get_mean_absolute_error(_hue)]
                             _values[MetricType.MEAN_SQUARED_ERROR.value] = [self.get_mean_squared_error(_hue)]
-                            _values[MetricType.R2_SCORE.value] = [self.get_r2_score(_hue)]
+                            _values[MetricType.EXPLAINED_VAR.value] = [self.get_r2_score(_hue)]
 
                     _values[MetricType.SUBJECT_COUNT.value] = [len(self.get_predictions(_hue))]
                 _all_values[_hue] = _values
             # noinspection PyTypeChecker
-            return list(flatten([list(map(lambda x: (k, *x), v.items())) for k, v in _all_values.items()]))  # type: ignore
+            return list(
+                flatten([list(map(lambda x: (k, *x), v.items())) for k, v in _all_values.items()]))  # type: ignore
 
         def _fill_new_metrics_dict(m: MetricsDict, average: bool = False) -> MetricsDict:
             for _m_hue, _m_metric_name, _m_value in _get_all_metrics():
@@ -664,6 +589,7 @@ class MetricsDict:
         :param tabulate: If True then create a pretty printable table string.
         :return: Formatted metrics string
         """
+        from InnerEye.ML.utils.io_util import tabulate_dataframe
         df = self.to_data_frame()
         return tabulate_dataframe(df) if tabulate else df.to_string(index=False)
 
@@ -708,16 +634,6 @@ class ScalarMetricsDict(MetricsDict):
     def __init__(self, hues: Optional[List[str]] = None, is_classification_metrics: bool = True) -> None:
         super().__init__(hues, is_classification_metrics=is_classification_metrics)
 
-    @staticmethod
-    def create_from_config(config: ScalarModelBase) -> ScalarMetricsDict:
-        """
-        Creates an instance of the ScalarMetricsDict from the provided ScalarModelBase config.
-        Label channels for the provided model config will be used to set the hues for this dictionary.
-        :param config: ScalarModelBase
-        :return: ScalarMetricsDict
-        """
-        return ScalarMetricsDict(is_classification_metrics=config.is_classification_model)
-
     def binary_classification_accuracy(self, hue: str = MetricsDict.DEFAULT_HUE_KEY) -> float:
         """
         :param hue: The hue to restrict the values, otherwise all values will be used.
@@ -727,13 +643,11 @@ class ScalarMetricsDict(MetricsDict):
                                               label=self.get_labels(hue=hue))
 
     def store_metrics_per_subject(self,
-                                  epoch: int,
                                   df_logger: DataframeLogger,
                                   mode: ModelExecutionMode,
                                   cross_validation_split_index: int = DEFAULT_CROSS_VALIDATION_SPLIT_INDEX) -> None:
         """
         Store metrics using the provided df_logger at subject level for classification models.
-        :param epoch: Epoch these metrics are computed for.
         :param df_logger: A data frame logger to use to write the metrics to disk.
         :param mode: Model execution mode these metrics belong to.
         :param cross_validation_split_index: cross validation split index for the epoch if performing cross val
@@ -743,7 +657,6 @@ class ScalarMetricsDict(MetricsDict):
             for prediction_entry in self.get_predictions_and_labels_per_subject(hue=hue):
                 df_logger.add_record({
                     LoggingColumns.Hue.value: hue,
-                    LoggingColumns.Epoch.value: epoch,
                     LoggingColumns.Patient.value: prediction_entry.subject_id,
                     LoggingColumns.ModelOutput.value: prediction_entry.predictions,
                     LoggingColumns.Label.value: prediction_entry.labels,
@@ -841,12 +754,12 @@ class SequenceMetricsDict(ScalarMetricsDict):
         super().__init__(hues, is_classification_metrics=is_classification_metrics)
 
     @staticmethod
-    def create_from_config(config: SequenceModelBase) -> SequenceMetricsDict:
+    def create(is_classification_model: bool, sequence_target_positions: List[int]) -> SequenceMetricsDict:
         # Create labels for the different prediction target positions that give numerically increasing positions
         # when using string sorting
         hues = [SequenceMetricsDict.get_hue_name_from_target_index(p)
-                for p in config.sequence_target_positions]
-        return SequenceMetricsDict(hues=hues, is_classification_metrics=config.is_classification_model)
+                for p in sequence_target_positions]
+        return SequenceMetricsDict(hues=hues, is_classification_metrics=is_classification_model)
 
     @staticmethod
     def get_hue_name_from_target_index(target_index: int) -> str:
@@ -869,3 +782,43 @@ class SequenceMetricsDict(ScalarMetricsDict):
             except:
                 pass
         raise ValueError(f"Unable to extract target index from this string: {hue_name}")
+
+
+class DataframeLogger:
+    """
+    Single DataFrame logger for logging to CSV file
+    """
+
+    def __init__(self, csv_path: FilePathOrBuffer, fixed_columns: Optional[Dict[str, Any]] = None):
+        self.csv_path = csv_path
+        self.fixed_columns = fixed_columns or {}
+        self.records: List[Dict[str, Any]] = []
+
+    def add_record(self, record: Dict[str, Any]) -> None:
+        self.records.append({**record, **self.fixed_columns})
+
+    def flush(self, log_info: bool = False) -> None:
+        """
+        Save the internal records to a csv file.
+        :param log_info: If true, write the final dataframe also to logging.info.
+        """
+        import pandas as pd
+        if isinstance(self.csv_path, Path):
+            self.csv_path.parent.mkdir(parents=True, exist_ok=True)
+        # Specifying columns such that the order in which columns appear matches the order in which
+        # columns were added in the code.
+        columns = self.records[0].keys() if len(self.records) > 0 else None
+        df = pd.DataFrame.from_records(self.records, columns=columns)
+        special_formatting = {
+            MetricType.LEARNING_RATE.value: ".6e",
+            MetricType.SECONDS_PER_EPOCH.value: ".2f",
+            MetricType.SECONDS_PER_BATCH.value: ".2f",
+        }
+        for column, column_format in special_formatting.items():
+            if column in df:
+                column_format = "{0:" + column_format + "}"
+                df[column] = df[column].map(lambda x: column_format.format(x))
+        df.to_csv(self.csv_path, sep=',', mode='w', index=False, float_format="%.6f")
+        if log_info:
+            s = df.to_string(index=False, float_format="%.6f")
+            logging.info(f"\n{s}")

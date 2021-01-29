@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from enum import Enum, unique
 from math import isclose
@@ -689,20 +690,22 @@ class SegmentationModelBase(ModelConfigBase):
             return self._test_output_size
         raise ValueError("Unknown execution mode '{}' for function 'get_output_size'".format(execution_mode))
 
-    def adjust_after_mixed_precision_and_parallel(self, model: Any) -> None:
+    def set_derived_model_properties(self, model: Any) -> None:
         """
-        Updates the model config parameters (e.g. output patch size). If testing patch stride size is unset then
-        its value is set by the output patch size
+        Updates the model config parameters that depend on how the segmentation model is structured.
+        In particular, this computes the model's output size for the training and the inference crops.
+        If the inference stride size is not set, then set it to be equal to the size of the inference output patches.
         """
+        logging.info(f"Computing model output size when fed with training crops of size {self.crop_size}")
         self._train_output_size = model.get_output_shape(input_shape=self.crop_size)
+        logging.info(f"Computing model output size when fed with inference crops of size {self.test_crop_size}")
         self._test_output_size = model.get_output_shape(input_shape=self.test_crop_size)
         if self.inference_stride_size is None:
             self.inference_stride_size = self._test_output_size
         else:
             if any_pairwise_larger(self.inference_stride_size, self._test_output_size):
-                raise ValueError("The inference stride size must be smaller than the model's output size in each"
-                                 "dimension. Inference stride was set to {}, the model outputs {} in test mode."
-                                 .format(self.inference_stride_size, self._test_output_size))
+                raise ValueError(f"The inference stride size {self.inference_stride_size} must be smaller than the "
+                                 f"model's output size {self._test_output_size} in each dimension.")
 
     def class_and_index_with_background(self) -> Dict[str, int]:
         """
@@ -751,7 +754,6 @@ class SegmentationModelBase(ModelConfigBase):
     def create_model(self) -> Any:
         """
         Creates a PyTorch model from the settings stored in the present object.
-
         :return: The network model as a torch.nn.Module object
         """
         # Use a local import here to avoid reliance on pytorch too early.

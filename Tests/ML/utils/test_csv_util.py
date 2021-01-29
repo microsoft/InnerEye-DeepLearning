@@ -7,10 +7,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.utils.csv_util import COL_IS_OUTLIER, CSV_DATE_HEADER, CSV_FEATURE_HEADER, CSV_PATH_HEADER, \
     CSV_SUBJECT_HEADER, \
     OutlierType, drop_rows_missing_important_values, extract_outliers, load_csv, mark_outliers
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 known_csv_path = full_ml_test_data_path("hdf5_data") / "dataset.csv"
 nonexistent_csv_path = full_ml_test_data_path("hdf5_data") / "idontexist.csv"

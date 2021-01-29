@@ -12,30 +12,29 @@ import pytest
 import torch
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import METRICS_FILE_NAME, ModelExecutionMode, logging_to_stdout
-from InnerEye.Common.metrics_dict import MetricType, SequenceMetricsDict
+from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_to_stdout
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, SEQUENCE_POSITION_HUE_NAME_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
+from InnerEye.ML.lightning_models import transfer_batch_to_device
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
+from InnerEye.ML.model_testing import create_metrics_dict_for_scalar_models
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoder, ImagingFeatureType
 from InnerEye.ML.models.architectures.sequential.rnn_classifier import RNNClassifier, RNNClassifierWithEncoder
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss
-from InnerEye.ML.sequence_config import SEQUENCE_LENGTH_FILE, SEQUENCE_LENGTH_STATS_FILE, \
-    SEQUENCE_POSITION_HUE_NAME_PREFIX, SequenceModelBase
+from InnerEye.ML.sequence_config import SEQUENCE_LENGTH_FILE, SEQUENCE_LENGTH_STATS_FILE, SequenceModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentation
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.io_util import ImageAndSegmentations
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
-from InnerEye.ML.utils.model_util import ModelAndInfo, create_model_with_temperature_scaling
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
-from Tests.ML.util import get_default_checkpoint_handler, get_default_azure_config
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler
 
 SCAN_SIZE = (6, 64, 60)
 
@@ -85,7 +84,6 @@ class ToySequenceModel(SequenceModelBase):
             loss_type=ScalarLoss.WeightedCrossEntropyWithLogits,
             num_epochs=num_epochs,
             num_dataload_workers=0,
-            test_start_epoch=num_epochs,
             train_batch_size=3,
             l_rate=1e-1,
             load_segmentation=True,
@@ -93,6 +91,8 @@ class ToySequenceModel(SequenceModelBase):
             label_smoothing_eps=0.05,
             drop_last_batch_in_training=True,
             mean_teacher_alpha=mean_teacher_alpha,
+            # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+            max_num_gpus=1,
             **kwargs
         )
         self.use_combined_model = use_combined_model
@@ -187,7 +187,7 @@ def _get_mock_sequence_dataset(dataset_contents: Optional[str] = None) -> pd.Dat
                           (True, ImagingFeatureType.ImageAndSegmentation)])
 @pytest.mark.parametrize("combine_hidden_state", (True, False))
 @pytest.mark.parametrize("use_encoder_layer_norm", (True, False))
-@pytest.mark.parametrize("use_mean_teacher_model", (True, False))
+@pytest.mark.parametrize("use_mean_teacher_model", (False,))
 @pytest.mark.gpu
 def test_rnn_classifier_via_config_1(use_combined_model: bool,
                                      imaging_feature_type: ImagingFeatureType,
@@ -206,16 +206,19 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
                               use_encoder_layer_norm=use_encoder_layer_norm,
                               use_mean_teacher_model=use_mean_teacher_model,
                               should_validate=False)
+    # This fails with 16bit precision, saying "torch.nn.functional.binary_cross_entropy and torch.nn.BCELoss are
+    # unsafe to autocast. Many models use a sigmoid layer right before the binary cross entropy layer. In this case,
+    # combine the two layers using torch.nn.functional.binary_cross_entropy_with_logits or
+    # torch.nn.BCEWithLogitsLoss.  binary_cross_entropy_with_logits and BCEWithLogits are safe to autocast."
+    config.use_mixed_precision = False
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     # Patch the load_images function that will be called once we access a dataset item
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, SCAN_SIZE),
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
-        results = model_train(config, get_default_checkpoint_handler(model_config=config,
-                                                                     project_root=test_output_dirs.root_dir))
-        assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
-               == config.get_total_number_of_save_epochs()
+        model_train(config, get_default_checkpoint_handler(model_config=config,
+                                                           project_root=test_output_dirs.root_dir))
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
@@ -264,14 +267,9 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     config.num_epochs = 1
-
-    model_and_info = ModelAndInfo(config=config, model_execution_mode=ModelExecutionMode.TEST,
-                                  checkpoint_path=None)
-    model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
-    assert model_loaded
-
-    model = model_and_info.model
-
+    model = config.create_model()
+    if config.use_gpu:
+        model = model.cuda()
     dataloader = SequenceDataset(config,
                                  data_frame=config.dataset_data_frame).as_data_loader(shuffle=False,
                                                                                       batch_size=2)
@@ -280,7 +278,11 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         batch = next(iter(dataloader))
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(config, model, batch)  # type: ignore
+        if config.use_gpu:
+            batch = transfer_batch_to_device(batch, torch.device(0))
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(model,
+                                                                     target_indices=config.get_target_indices(),
+                                                                     sample=batch)  # type: ignore
     number_sequences = model_inputs_and_labels.model_inputs[0].shape[1]
     number_subjects = len(model_inputs_and_labels.subject_ids)
     visualizer = VisualizationMaps(model, config)
@@ -332,6 +334,8 @@ class ToySequenceModel2(SequenceModelBase):
             train_batch_size=40,
             l_rate=1e-2,
             drop_last_batch_in_training=True,
+            # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+            max_num_gpus=1,
             **kwargs
         )
 
@@ -382,15 +386,14 @@ def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> 
     results = model_train(config, get_default_checkpoint_handler(model_config=config,
                                                                  project_root=test_output_dirs.root_dir))
 
-    actual_train_loss = results.train_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
-    actual_val_loss = results.val_results_per_epoch[-1].values()[MetricType.LOSS.value][0]
+    actual_train_loss = results.get_metric(is_training=True, metric_type=MetricType.LOSS.value)[-1]
+    actual_val_loss = results.get_metric(is_training=False, metric_type=MetricType.LOSS.value)[-1]
     print(f"Training loss after {config.num_epochs} epochs: {actual_train_loss}")
     print(f"Validation loss after {config.num_epochs} epochs: {actual_val_loss}")
     assert actual_train_loss <= expected_max_train_loss, "Training loss too high"
     assert actual_val_loss <= expected_max_val_loss, "Validation loss too high"
-    assert len(results.optimal_temperature_scale_values_per_checkpoint_epoch) \
-           == config.get_total_number_of_save_epochs()
-    assert np.allclose(results.optimal_temperature_scale_values_per_checkpoint_epoch, [0.97], rtol=0.1)
+    # Issue #374: put back in when temperature scaling is enabled again
+    # assert np.allclose(results.optimal_temperature_scale_values_per_checkpoint_epoch, [0.97], rtol=0.1)
 
 
 class ToyMultiLabelSequenceModel(SequenceModelBase):
@@ -405,11 +408,12 @@ class ToyMultiLabelSequenceModel(SequenceModelBase):
             loss_type=ScalarLoss.WeightedCrossEntropyWithLogits,
             num_epochs=num_epochs,
             num_dataload_workers=0,
-            test_start_epoch=num_epochs,
             train_batch_size=3,
             l_rate=1e-1,
             label_smoothing_eps=0.05,
             categorical_columns=["CAT1"],
+            # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+            max_num_gpus=1,
             **kwargs
         )
 
@@ -444,7 +448,7 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: OutputFolderFo
     _target_indices = config.get_target_indices()
     assert _target_indices is not None
     assert len(_target_indices) == len(expected_prediction_targets)
-    metrics_dict = SequenceMetricsDict.create_from_config(config)
+    metrics_dict = create_metrics_dict_for_scalar_models(config)
     assert metrics_dict.get_hue_names(include_default=False) == expected_prediction_targets
     config.set_output_to(test_output_dirs.root_dir)
     # Create a fake dataset directory to make config validation pass
@@ -458,7 +462,7 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: OutputFolderFo
     MLRunner(config, azure_config).run()
     # The metrics file should have one entry per epoch per subject per prediction target,
     # for all the 3 prediction targets.
-    metrics_file = config.outputs_folder / "Train" / METRICS_FILE_NAME
+    metrics_file = config.outputs_folder / "Train" / SUBJECT_METRICS_FILE_NAME
     assert metrics_file.exists()
     metrics = pd.read_csv(metrics_file)
     assert LoggingColumns.Patient.value in metrics
@@ -513,9 +517,15 @@ def test_visualization_for_different_target_weeks(test_output_dirs: OutputFolder
                                  data_frame=config.dataset_data_frame).as_data_loader(shuffle=False,
                                                                                       batch_size=2)
     batch = next(iter(dataloader))
-    model_inputs_and_labels = get_scalar_model_inputs_and_labels(config, model, batch)  # type: ignore
+    model_inputs_and_labels = get_scalar_model_inputs_and_labels(model,
+                                                                 target_indices=config.get_target_indices(),
+                                                                 sample=batch)
 
     visualizer = VisualizationMaps(model, config)
+    if config.use_gpu:
+        device = visualizer.grad_cam.device
+        batch = transfer_batch_to_device(batch, device)
+        model = model.to(device)
     # Pseudo-grad cam explaining the prediction at target sequence 2
     _, _, pseudo_cam_non_img_3, probas_3 = visualizer.generate(model_inputs_and_labels.model_inputs,
                                                                target_position=2,

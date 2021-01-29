@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from enum import Enum
 from typing import Any, Optional
 
 import torch
@@ -10,20 +9,6 @@ import torch.nn.functional as F
 
 from InnerEye.ML.utils.image_util import get_class_weights
 from InnerEye.ML.utils.supervised_criterion import SupervisedLearningCriterion
-
-
-class ReductionType(Enum):
-    """
-    Supported types of pixel reduction techniques
-    """
-    MEAN = "mean"
-    SUM = "sum"
-    NONE = "none"
-
-    @classmethod
-    def has_value(cls, value: str) -> bool:
-        available_values = [item.value for item in cls]
-        return value in available_values
 
 
 class CrossEntropyLoss(SupervisedLearningCriterion):
@@ -87,7 +72,7 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
         pixel_weights = torch.sum(pixel_weights * target, dim=1)
 
         # Normalise the pixel weights
-        scaling = pixel_weights.nelement() / (torch.sum(pixel_weights) + self.eps) 
+        scaling = pixel_weights.nelement() / (torch.sum(pixel_weights) + self.eps)
 
         return pixel_weights * scaling
 
@@ -130,9 +115,9 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
 
         # Determine class weights for unbalanced datasets
         if self.class_weight_power is not None and self.class_weight_power != 0.0:
-            class_weight = get_class_weights(target, class_weight_power=self.class_weight_power) 
+            class_weight = get_class_weights(target, class_weight_power=self.class_weight_power)
 
-        # Compute negative log-likelihood
+            # Compute negative log-likelihood
         log_prob = F.log_softmax(output, dim=1)
         if self.smoothing_eps > 0.0:
             loss = -1.0 * log_prob * target

@@ -8,7 +8,7 @@ import pandas as pd
 
 from InnerEye.ML.scalar_config import LabelTransformation, ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 class DummyRegression(ScalarModelBase):
@@ -27,7 +27,6 @@ class DummyRegression(ScalarModelBase):
             loss_type=ScalarLoss.MeanSquaredError,
             num_epochs=num_epochs,
             num_dataload_workers=0,
-            test_start_epoch=num_epochs,
             use_mixed_precision=True,
             subject_column="subjectID"
         )

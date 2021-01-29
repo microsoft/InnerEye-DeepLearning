@@ -143,8 +143,8 @@ def create_and_submit_experiment(
     # set metadata for the run
     set_run_tags(run, azure_config, model_config_overrides)
 
-    print("\nSuccessfully queued new run for experiment: {}".format(exp.name))
-    print("==============================================================================")
+    print("\n==============================================================================")
+    print(f"Successfully queued new run {run.id} in experiment: {exp.name}")
 
     if azure_config.run_recovery_id:
         print(f"\nRecovered from: {azure_config.run_recovery_id}")
@@ -155,7 +155,6 @@ def create_and_submit_experiment(
         recovery_file.unlink()
     recovery_file.write_text(recovery_id)
 
-    print("==============================================================================")
     print("Experiment URL: {}".format(exp.get_portal_url()))
     print("Run URL: {}".format(run.get_portal_url()))
     print("If this run fails, re-start runner.py and supply these additional arguments: "
@@ -196,6 +195,8 @@ def get_or_create_dataset(azure_config: AzureConfig,
 
     These behaviours can be verified by calling "ds.download()" on each dataset ds.
     """
+    if not azure_config.azureml_datastore:
+        raise ValueError("No value set for 'azureml_datastore' (name of the datastore in the AzureML workspace)")
     logging.info(f"Retrieving datastore '{azure_config.azureml_datastore}' from AzureML workspace")
     workspace = azure_config.get_workspace()
     datastore = Datastore.get(workspace, azure_config.azureml_datastore)
@@ -217,7 +218,6 @@ def create_pytorch_environment(azure_config: AzureConfig,
                                azure_dataset_id: str) -> PyTorch:
     """
     Creates an Estimator environment required for model execution
-
     :param workspace: The AzureML workspace
     :param azure_config: azure related configurations to use for model scaleout behaviour
     :param source_config: configurations for model execution, such as name and execution mode
@@ -308,8 +308,6 @@ def create_estimator_from_configs(azure_config: AzureConfig,
         max_run_duration_seconds=max_run_duration
     )
     estimator.run_config.environment.python.conda_dependencies = conda_dependencies
-    # We'd like to log the estimator config, but conversion to string fails when the Estimator has some inputs.
-    # logging.info(azure_util.estimator_to_string(estimator))
     if azure_config.hyperdrive:
         estimator = source_config.hyperdrive_config_func(estimator)  # type: ignore
     return estimator

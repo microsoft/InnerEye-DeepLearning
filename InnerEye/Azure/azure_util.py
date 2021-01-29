@@ -7,32 +7,27 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional, Tuple
+from typing import Any, Generator, List, Optional, Tuple
 
 import conda_merge
 import ruamel.yaml
 from azureml._restclient.constants import RunStatus
 from azureml.core import Experiment, Run, Workspace, get_run
-from azureml.core._serialization_utils import _serialize_to_dict
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.exceptions import UserErrorException
-from azureml.train.estimator import Estimator
 
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import METRICS_FILE_NAME
-
+from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
 
 DEFAULT_CROSS_VALIDATION_SPLIT_INDEX = -1
 EXPERIMENT_RUN_SEPARATOR = ":"
 EFFECTIVE_RANDOM_SEED_KEY_NAME = "effective_random_seed"
-NUMBER_OF_CROSS_VALIDATION_SPLITS_PER_FOLD_KEY_NAME = "number_of_cross_validation_splits_per_fold"
 RUN_RECOVERY_ID_KEY_NAME = "run_recovery_id"
 RUN_RECOVERY_FROM_ID_KEY_NAME = "recovered_from"
 IS_ENSEMBLE_KEY_NAME = "is_ensemble"
 MODEL_ID_KEY_NAME = "model_id"
 # The name of the key used to store the cross validation index of the dataset for the run
 CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY = "cross_validation_split_index"
-CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY = "cross_validation_sub_fold_split_index"
 PARENT_RUN_ID_KEY_NAME = "parent_run_id"
 
 # This is the folder structure that AzureML generates to store all results for an experiment run.
@@ -104,35 +99,27 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     experiment, run = split_recovery_id(run_recovery_id)
     try:
         experiment_to_recover = Experiment(workspace, experiment)
-    except Exception:
-        raise (Exception("Unable to retrieve experiment {}".format(experiment)))
+    except Exception as ex:
+        raise Exception(f"Unable to retrieve run {run} in experiment {experiment}: {str(ex)}")
     run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
     logging.info("Fetched run #{} {} from experiment {}.".format(run, run_to_recover.number, experiment))
     return run_to_recover
 
 
-def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id_or_number: str) -> Run:
+def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> Run:
     """
     :param experiment_to_recover: an experiment
-    :param run_id_or_number: a string representing the Run ID or Run Number of one of the runs of the experiment
+    :param run_id: a string representing the Run ID of one of the runs of the experiment
     :return: the run matching run_id_or_number; raises an exception if not found
     """
-    available_runs = experiment_to_recover.get_runs()
     try:
-        run_number = int(run_id_or_number)
-        for run in available_runs:
-            if run.number == run_number:
-                return run
-    except ValueError:
-        # will be raised in run_id_or_number does not represent a number
-        pass
-    try:
-        return get_run(experiment=experiment_to_recover, run_id=run_id_or_number, rehydrate=True)
+        return get_run(experiment=experiment_to_recover, run_id=run_id, rehydrate=True)
     except Exception:
+        available_runs = experiment_to_recover.get_runs()
         available_ids = ", ".join([run.id for run in available_runs])
         raise (Exception(
             "Run {} not found for experiment: {}. Available runs are: {}".format(
-                run_id_or_number, experiment_to_recover.name, available_ids)))
+                run_id, experiment_to_recover.name, available_ids)))
 
 
 def fetch_runs(experiment: Experiment, filters: List[str]) -> List[Run]:
@@ -187,11 +174,6 @@ def is_ensemble_run(run: Run) -> bool:
     return run.get_tags().get(IS_ENSEMBLE_KEY_NAME) == 'True'
 
 
-def update_run_tags(run: Run, tags: Dict[str, Any]) -> None:
-    """Updates tags for the given run with the provided dictionary"""
-    run.set_tags({**run.get_tags(), **tags})
-
-
 def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
     """
     Given a string, ensure it can be used in Azure by replacing everything apart from a-zA-Z0-9_ with _,
@@ -201,13 +183,6 @@ def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
         return x
     else:
         return re.sub('_+', '_', re.sub(r'\W+', '_', x))
-
-
-def estimator_to_string(estimator: Estimator) -> Optional[str]:
-    """
-    Convert a given AzureML estimator object to a string with its run configurations
-    """
-    return ruamel.yaml.round_trip_dump(_serialize_to_dict(estimator.run_config))
 
 
 def to_azure_friendly_container_path(path: Path) -> str:
@@ -235,20 +210,6 @@ def get_run_context_or_default(run: Optional[Run] = None) -> Run:
     :return: Run context
     """
     return run if run else Run.get_context()
-
-
-def get_run_id(run: Optional[Run] = None) -> str:
-    """
-    Gets the id of a run handling both offline and online runs.
-    :param run: If offline run, a Run object must be provided,
-    for online runs if a run object is not provided the current run's context is used.
-    :return: id of the run
-    """
-    run_context = get_run_context_or_default(run)
-    if is_offline_run_context(run_context) and run:
-        return run.id
-    else:
-        return run_context.id
 
 
 def get_cross_validation_split_index(run: Run) -> int:
@@ -458,9 +419,9 @@ def get_comparison_baseline_paths(outputs_folder: Path,
     # Look for epoch_NNN/Test/metrics.csv
     try:
         comparison_metrics_path = download_outputs_from_run(
-            blob_path / METRICS_FILE_NAME, destination_folder, run, True)
+            blob_path / SUBJECT_METRICS_FILE_NAME, destination_folder, run, True)
     except (ValueError, UserErrorException):
-        logging.warning(f"cannot find {METRICS_FILE_NAME} at {blob_path} in {run_rec_id}")
+        logging.warning(f"cannot find {SUBJECT_METRICS_FILE_NAME} at {blob_path} in {run_rec_id}")
     return (comparison_dataset_path, comparison_metrics_path)
 
 

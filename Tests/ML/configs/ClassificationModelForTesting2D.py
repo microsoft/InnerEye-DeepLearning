@@ -10,7 +10,7 @@ import torch
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from Tests.ML.models.architectures.DummyScalarModel2D import DummyScalarModel2D
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 class ClassificationModelForTesting2D(ScalarModelBase):
@@ -28,7 +28,6 @@ class ClassificationModelForTesting2D(ScalarModelBase):
             loss_type=ScalarLoss.BinaryCrossEntropyWithLogits,
             num_epochs=num_epochs,
             num_dataload_workers=0,
-            test_start_epoch=num_epochs,
             subject_column="subjectID",
             mean_teacher_alpha=mean_teacher_alpha
         )

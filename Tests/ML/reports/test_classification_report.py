@@ -10,12 +10,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.reports.classification_report import ReportedMetrics, get_correct_and_misclassified_examples, \
     get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_results, \
     plot_image_from_filepath
 from InnerEye.ML.reports.notebook_report import generate_classification_notebook
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
 
 
 def test_generate_classification_report(test_output_dirs: OutputFolderForTests) -> None:

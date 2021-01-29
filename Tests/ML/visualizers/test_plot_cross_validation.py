@@ -10,42 +10,33 @@ import pytest
 from azureml.core import Run
 from pandas.core.dtypes.common import is_string_dtype
 
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, fetch_run
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    METRICS_FILE_NAME, logging_to_stdout
+    SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
     METRICS_BY_MODE_AND_STRUCTURE_FILE, METRICS_BY_MODE_FILE, \
     OfflineCrossvalConfigAndFiles, PORTAL_QUERY_TEMPLATE, PlotCrossValidationConfig, RUN_RECOVERY_ID_KEY, \
     RunResultFiles, add_comparison_data, check_result_file_counts, create_portal_query_for_outliers, \
     create_results_breakdown, download_crossval_result_files, get_split_id, load_dataframes, \
     plot_cross_validation_from_files, save_outliers
-from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
+from Tests.AfterTraining.test_after_training import get_most_recent_run_id
 from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToyMultiLabelSequenceModel, \
     _get_multi_label_sequence_dataframe
 from Tests.ML.util import assert_text_files_match, get_default_azure_config
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
-
-
-@pytest.fixture
-def test_config_ensemble() -> PlotCrossValidationConfig:
-    return PlotCrossValidationConfig(
-        run_recovery_id=DEFAULT_ENSEMBLE_RUN_RECOVERY_ID,
-        epoch=1,
-        model_category=ModelCategory.Segmentation
-    )
 
 
 @pytest.fixture
 def test_config() -> PlotCrossValidationConfig:
     return PlotCrossValidationConfig(
-        run_recovery_id=DEFAULT_RUN_RECOVERY_ID,
+        run_recovery_id=get_most_recent_run_id(),
         epoch=1,
         model_category=ModelCategory.Segmentation
     )
@@ -54,18 +45,17 @@ def test_config() -> PlotCrossValidationConfig:
 @pytest.fixture
 def test_config_comparison() -> PlotCrossValidationConfig:
     return PlotCrossValidationConfig(
-        run_recovery_id=DEFAULT_ENSEMBLE_RUN_RECOVERY_ID + "_0",
+        run_recovery_id=get_most_recent_run_id() + "_0",
         epoch=1,
-        comparison_run_recovery_ids=[DEFAULT_ENSEMBLE_RUN_RECOVERY_ID + "_1"],
-        comparison_epochs=[1],
+        comparison_run_recovery_ids=[get_most_recent_run_id() + "_1"],
         model_category=ModelCategory.Segmentation
     )
 
 
-def _get_metrics_df(mode: ModelExecutionMode) -> pd.DataFrame:
+def _get_metrics_df(run_recovery_id: str, mode: ModelExecutionMode) -> pd.DataFrame:
     metrics_df = pd.read_csv(full_ml_test_data_path("{}_agg_splits.csv".format(mode.value)))
     # noinspection PyUnresolvedReferences
-    metrics_df.split = [DEFAULT_ENSEMBLE_RUN_RECOVERY_ID + "_" + index for index in metrics_df.split.astype(str)]
+    metrics_df.split = [run_recovery_id + "_" + index for index in metrics_df.split.astype(str)]
     return metrics_df.sort_values(list(metrics_df.columns), ascending=True).reset_index(drop=True)
 
 
@@ -76,21 +66,19 @@ def download_metrics(config: PlotCrossValidationConfig) -> \
     return dataframes, root_folder
 
 
-def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str,
-                                perform_sub_fold_cross_validation: bool = False) -> List[RunResultFiles]:
+def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str) -> List[RunResultFiles]:
     """
     Creates a list of input files for cross validation analysis, from files stored inside of the test data folder.
     :param config: The overall cross validation config
     :param folder: The folder to read from, inside of test_data/plot_cross_validation.
-    :param perform_sub_fold_cross_validation: If True then create input files for sub fold cross validation analysis.
     :return:
     """
     full_folder = full_ml_test_data_path("plot_cross_validation") / folder
     files: List[RunResultFiles] = []
     previous_dataset_file = None
-    for split in ["0", "1", "1", "1"] if perform_sub_fold_cross_validation else ["0", "1"]:
+    for split in ["0", "1"]:
         for mode in config.execution_modes_to_download():
-            metrics_file = full_folder / split / mode.value / METRICS_FILE_NAME
+            metrics_file = full_folder / split / mode.value / SUBJECT_METRICS_FILE_NAME
             dataset_file: Optional[Path] = full_folder / split / DATASET_CSV_FILE_NAME
             if dataset_file.exists():  # type: ignore
                 # Reduce amount of checked-in large files. dataset files can be large, and usually duplicate across
@@ -114,15 +102,17 @@ def create_file_list_for_segmentation_recovery_run(test_config_ensemble: PlotCro
                                        folder="master_1570466706163110")
 
 
-def test_metrics_preparation_for_segmentation(test_config_ensemble: PlotCrossValidationConfig) -> None:
+@pytest.mark.after_training_ensemble_run
+def test_metrics_preparation_for_segmentation(test_config: PlotCrossValidationConfig) -> None:
     """
     Test if metrics dataframes can be loaded and prepared. The files in question are checked in, but
     were downloaded from a run, ID given in DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.
     """
-    files = create_file_list_for_segmentation_recovery_run(test_config_ensemble)
-    downloaded_metrics = load_dataframes(files, test_config_ensemble)
-    for mode in test_config_ensemble.execution_modes_to_download():
-        expected_df = _get_metrics_df(mode)
+    files = create_file_list_for_segmentation_recovery_run(test_config)
+    downloaded_metrics = load_dataframes(files, test_config)
+    assert test_config.run_recovery_id
+    for mode in test_config.execution_modes_to_download():
+        expected_df = _get_metrics_df(test_config.run_recovery_id, mode)
         # Drop the "mode" column, because that was added after creating the test data
         metrics = downloaded_metrics[mode]
         assert metrics is not None
@@ -131,7 +121,7 @@ def test_metrics_preparation_for_segmentation(test_config_ensemble: PlotCrossVal
         pd.testing.assert_frame_equal(expected_df, actual_df, check_like=True, check_dtype=False)
 
 
-def load_result_files_for_classification(perform_sub_fold_cross_validation: bool = False) -> \
+def load_result_files_for_classification() -> \
         Tuple[List[RunResultFiles], PlotCrossValidationConfig]:
     plotting_config = PlotCrossValidationConfig(
         run_recovery_id="local_branch:HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301",
@@ -139,24 +129,21 @@ def load_result_files_for_classification(perform_sub_fold_cross_validation: bool
         model_category=ModelCategory.Classification
     )
     files = create_run_result_file_list(config=plotting_config,
-                                        folder="HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301",
-                                        perform_sub_fold_cross_validation=perform_sub_fold_cross_validation)
+                                        folder="HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301")
     return files, plotting_config
 
 
-@pytest.mark.parametrize("perform_sub_fold_cross_validation", [True, False])
-def test_metrics_preparation_for_classification(perform_sub_fold_cross_validation: bool) -> None:
+def test_metrics_preparation_for_classification() -> None:
     """
     Test if metrics from classification models can be loaded and prepared. The files in question are checked in,
     and were downloaded from a run on AzureML.
     """
-    files, plotting_config = load_result_files_for_classification(perform_sub_fold_cross_validation)
+    files, plotting_config = load_result_files_for_classification()
     downloaded_metrics = load_dataframes(files, plotting_config)
     assert ModelExecutionMode.TEST not in downloaded_metrics
     metrics = downloaded_metrics[ModelExecutionMode.VAL]
     assert metrics is not None
-    expected_metrics_file = "metrics_preparation_for_sub_fold_classification_VAL.csv" \
-        if perform_sub_fold_cross_validation else "metrics_preparation_for_classification_VAL.csv"
+    expected_metrics_file = "metrics_preparation_for_classification_VAL.csv"
     expected_df_csv = full_ml_test_data_path("plot_cross_validation") / expected_metrics_file
     metrics = metrics.sort_values(list(metrics.columns), ascending=True).reset_index(drop=True)
     # To write new test results:
@@ -269,9 +256,9 @@ def test_result_aggregation_for_classification_all_epochs(test_output_dirs: Outp
                                                 expected_epochs={1, 2, 3})
 
 
+@pytest.mark.after_training_ensemble_run
 def test_add_comparison_data(test_config_comparison: PlotCrossValidationConfig) -> None:
     test_config_comparison.epoch = 2
-    test_config_comparison.comparison_epochs = [2]
     metrics_df, root_folder = download_metrics(test_config_comparison)
     initial_metrics = pd.concat(list(metrics_df.values()))
     all_metrics, focus_splits = add_comparison_data(test_config_comparison, initial_metrics)
@@ -281,15 +268,17 @@ def test_add_comparison_data(test_config_comparison: PlotCrossValidationConfig) 
     assert set(all_metrics.split) == {focus_split, comparison_split}
 
 
-def test_save_outliers(test_config_ensemble: PlotCrossValidationConfig,
+@pytest.mark.after_training_ensemble_run
+def test_save_outliers(test_config: PlotCrossValidationConfig,
                        test_output_dirs: OutputFolderForTests) -> None:
     """Test to make sure the outlier file for a split is as expected"""
-    test_config_ensemble.outputs_directory = test_output_dirs.root_dir
-    test_config_ensemble.outlier_range = 0
-    dataset_split_metrics = {x: _get_metrics_df(x) for x in [ModelExecutionMode.VAL]}
-    save_outliers(test_config_ensemble, dataset_split_metrics, test_config_ensemble.outputs_directory)
+    test_config.outputs_directory = test_output_dirs.root_dir
+    test_config.outlier_range = 0
+    assert test_config.run_recovery_id
+    dataset_split_metrics = {x: _get_metrics_df(test_config.run_recovery_id, x) for x in [ModelExecutionMode.VAL]}
+    save_outliers(test_config, dataset_split_metrics, test_config.outputs_directory)
     f = f"{ModelExecutionMode.VAL.value}_outliers.txt"
-    assert_text_files_match(full_file=test_config_ensemble.outputs_directory / f,
+    assert_text_files_match(full_file=test_config.outputs_directory / f,
                             expected_file=full_ml_test_data_path(f))
 
 
@@ -326,10 +315,6 @@ def test_plot_config() -> None:
     """
     with pytest.raises(ValueError):
         PlotCrossValidationConfig()
-    with pytest.raises(ValueError):
-        PlotCrossValidationConfig(run_recovery_id="foo")
-    with pytest.raises(ValueError):
-        PlotCrossValidationConfig(epoch=1)
     PlotCrossValidationConfig(run_recovery_id="foo", epoch=1)
 
 
@@ -346,6 +331,7 @@ def test_get_split_index() -> None:
     assert get_split_id(tags) == "42"
 
 
+@pytest.mark.after_training_single_run
 @pytest.mark.parametrize("is_current_run", [True, False])
 def test_download_or_get_local_blobs(is_current_run: bool,
                                      test_config: PlotCrossValidationConfig,
@@ -353,8 +339,7 @@ def test_download_or_get_local_blobs(is_current_run: bool,
     azure_config = get_default_azure_config()
     azure_config.get_workspace()
     assert test_config.run_recovery_id is not None
-    run = Run.get_context() if is_current_run else fetch_run(azure_config.get_workspace(),
-                                                             test_config.run_recovery_id)
+    run = Run.get_context() if is_current_run else azure_config.fetch_run(test_config.run_recovery_id)
     run_outputs_dir = full_ml_test_data_path() if is_current_run else Path(DEFAULT_AML_UPLOAD_DIR)
     test_config.outputs_directory = run_outputs_dir
     dst = test_config.download_or_get_local_file(

@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 import torch
 
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import PaddingMode, SegmentationModelBase, SliceExclusionRule, SummedProbabilityRule
 from InnerEye.ML.utils import image_util
@@ -16,7 +17,6 @@ from InnerEye.ML.utils.image_util import compute_uncertainty_map_from_posteriors
 from InnerEye.ML.utils.io_util import ImageWithHeader, load_nifti_image
 from InnerEye.ML.utils.transforms import LinearTransform
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 @pytest.mark.parametrize("image_size", [None, (4, 4, 5), (2, 4, 4, 5)])

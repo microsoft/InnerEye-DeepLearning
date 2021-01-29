@@ -13,7 +13,8 @@ from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, Pr
 from pandas import DataFrame
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES, TrackedMetrics
+from InnerEye.Common.metrics_constants import TrackedMetrics
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
@@ -26,6 +27,10 @@ class ModelConfigBaseMeta(type(DeepLearningConfig), abc.ABCMeta):  # type: ignor
 
 
 class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta):
+
+    def __init__(self, **params: Any):
+        super().__init__(**params)
+
     def read_dataset_into_dataframe_and_pre_process(self) -> None:
         """
         Loads a dataset from a file or other source, and saves it into the model's data_frame property.
@@ -135,9 +140,9 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
 
     def create_model(self) -> Any:
         """
-        Creates a torch model from the provided arguments and returns a torch.nn.Module object.
+        Creates a PyTorch model from the settings stored in the present object.
         This is an abstract method that each model class (segmentation, regression) should override.
-        Return type should really be BaseModel, but that involves importing more than we can afford to.
+        Return type is LightningModule, not Any - but we want to avoid importing torch at this point.
         """
         # This method is factually an abstract method. We don't want to mark at as such
         # because this would prevent us from easily instantiating this class in tests.
@@ -234,7 +239,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
             dst = root / STORED_CSV_FILE_NAMES[mode]
             dataframe.to_csv(dst, mode='w', index=False)
 
-    def adjust_after_mixed_precision_and_parallel(self, model: Any) -> None:
+    def set_derived_model_properties(self, model: Any) -> None:
         """
         A hook to adjust the model configuration that is stored in the present object to match
         the torch model given in the argument. This hook is called after adjusting the model for

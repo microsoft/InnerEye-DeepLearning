@@ -3,14 +3,13 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Tuple
 
 import torch
 from torch.optim import LBFGS  # type: ignore
 
 from InnerEye.Common.type_annotations import T
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
-from InnerEye.ML.metrics import AzureAndTensorboardLogger
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule, E
 
 
@@ -29,7 +28,7 @@ class ModelWithTemperature(DeviceAwareModule):
         # assign this parameter to the first model device otherwise use PyTorch default.
         _model_devices = model.get_devices()
         _device = _model_devices[0] if _model_devices else None
-        self.temperature = torch.nn.Parameter(torch.ones(1, device=_device), requires_grad=True)
+        self.temperature = torch.nn.Parameter(torch.ones(1, device=_device), requires_grad=False)
 
     def forward(self, *x: torch.Tensor) -> torch.Tensor:  # type: ignore
         logits = self.model(*x)
@@ -56,15 +55,13 @@ class ModelWithTemperature(DeviceAwareModule):
                         labels: torch.Tensor,
                         criterion_fn: Callable[[torch.Tensor, torch.Tensor],
                                                Tuple[torch.Tensor, torch.Tensor]],
-                        use_gpu: bool,
-                        logger: Optional[AzureAndTensorboardLogger] = None) -> float:
+                        use_gpu: bool) -> float:
         """
         Tune the temperature of the model using the provided logits and labels.
         :param logits: Logits to use to learn the temperature parameter
         :param labels: Labels to use to learn the temperature parameter
         :param criterion_fn: A criterion function s.t: (logits, labels) => (loss, ECE)
         :param use_gpu: If True then GPU will be used otherwise CPU will be used.
-        :param logger: If provided, the intermediate loss and ECE values in the optimization will be reported
         :return Optimal temperature value
         """
         if use_gpu:
@@ -77,6 +74,7 @@ class ModelWithTemperature(DeviceAwareModule):
               .format(before_temperature_loss.item(), before_temperature_ece.item()))
 
         # Next: optimize the temperature w.r.t. the provided criterion function
+        self.temperature.requires_grad = True
         optimizer = LBFGS([self.temperature], lr=self.temperature_scaling_config.lr,
                                       max_iter=self.temperature_scaling_config.max_iter)
 
@@ -84,9 +82,6 @@ class ModelWithTemperature(DeviceAwareModule):
             # zero the gradients for the next optimization step
             optimizer.zero_grad()
             loss, ece = criterion_fn(self.temperature_scale(logits), labels)
-            if logger:
-                logger.log_to_azure_and_tensorboard("Temp_Scale_LOSS", loss.item())
-                logger.log_to_azure_and_tensorboard("Temp_Scale_ECE", ece.item())
             loss.backward()
             return loss
 
@@ -96,4 +91,6 @@ class ModelWithTemperature(DeviceAwareModule):
         print('Optimal temperature: {:.3f}'.format(self.temperature.item()))
         print('After temperature scaling - LOSS: {:.3f} ECE: {:.3f}'
               .format(after_temperature_loss.item(), after_temperature_ece.item()))
+
+        self.temperature.requires_grad = False
         return self.temperature.item()

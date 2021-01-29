@@ -10,13 +10,13 @@ import numpy as np
 import pytest
 
 from InnerEye.Common import common_util
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import plotting
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import Sample
 from InnerEye.ML.photometric_normalization import PhotometricNormalization, PhotometricNormalizationMethod
 from Tests.ML.util import DummyPatientMetadata
-from Tests.fixed_paths_for_tests import full_ml_test_data_path
 
 
 def file_as_bytes(name: Union[str, Path]) -> bytes:

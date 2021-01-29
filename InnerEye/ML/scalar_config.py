@@ -9,10 +9,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import pandas as pd
 import param
 from azureml.train.estimator import Estimator
-from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, choice
+from azureml.train.hyperdrive import HyperDriveConfig
 
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
-    CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
@@ -190,14 +188,7 @@ class ScalarModelBase(ModelConfigBase):
                                                                              instantiate=False,
                                                                              doc="The aggregation method to use when"
                                                                                  "testing ensemble models.")
-    number_of_cross_validation_splits_per_fold: int = param.Integer(0, bounds=(0, None),
-                                                                    doc="Number of cross validation splits for k-fold "
-                                                                        "cross validation within a fold.")
 
-    cross_validation_sub_fold_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
-                                                               doc="The index of the cross validation fold this model "
-                                                                   "is associated with when performing k-fold cross "
-                                                                   "validation")
     dataset_stats_hook: Optional[Callable[[Dict[ModelExecutionMode, Any]], None]] = \
         param.Callable(default=None,
                        allow_None=True,
@@ -214,14 +205,6 @@ class ScalarModelBase(ModelConfigBase):
                          "num_dataset_reader_workers to 0 as this is an AML run.")
         else:
             self.num_dataset_reader_workers = num_dataset_reader_workers
-
-    def validate(self) -> None:
-        if not self.perform_cross_validation and self.perform_sub_fold_cross_validation:
-            raise ValueError("Cannot perform sub fold cross validation if not running in cross validation mode"
-                             " found, please set number_of_cross_validation_splits >= 2")
-        if self.number_of_cross_validation_splits_per_fold == 1:
-            raise ValueError("At least two sub folds must be required when performing sub fold cross validation,"
-                             " but number_of_cross_validation_splits_per_fold was set to 1")
 
     @property
     def is_classification_model(self) -> bool:
@@ -243,14 +226,6 @@ class ScalarModelBase(ModelConfigBase):
         Returns whether the model uses non image features only
         """
         return len(self.image_channels) == 0
-
-    @property
-    def perform_sub_fold_cross_validation(self) -> bool:
-        """
-        True if sub fold cross validation will be be performed as part of the training procedure.
-        :return:
-        """
-        return self.number_of_cross_validation_splits_per_fold > 1
 
     def get_total_number_of_non_imaging_features(self) -> int:
         """Returns the total number of non imaging features expected in the input"""
@@ -441,69 +416,6 @@ class ScalarModelBase(ModelConfigBase):
         For data augmentation, specify a Compose3D for the training execution mode.
         """
         return ModelTransformsPerExecutionMode()
-
-    def get_cross_validation_dataset_splits(self, dataset_split: DatasetSplits) -> DatasetSplits:
-        """
-        When running cross validation, this method returns the dataset split that should be used for the
-        currently executed cross validation split. If sub fold cross validation is required,
-        then the training set corresponding to the currently executed cross validation split is further
-        into a child fold, which has the same validation set as the parent fold.
-
-        :param dataset_split: The full dataset, split into training, validation and test section.
-        :return: The dataset split with training and validation sections shuffled according to the current
-        cross validation index.
-        """
-        split_for_current_fold = super().get_cross_validation_dataset_splits(dataset_split)
-        if self.perform_sub_fold_cross_validation:
-            # create a sub fold based on the training set and set the validation set
-            # as the validation set of the split.
-            val_split = split_for_current_fold.val
-            split_for_current_fold.val = pd.DataFrame()
-            sub_fold_split = split_for_current_fold.get_k_fold_cross_validation_splits(
-                self.number_of_cross_validation_splits_per_fold)[self.cross_validation_sub_fold_split_index]
-            sub_fold_split.val = val_split
-            return sub_fold_split
-        else:
-            return split_for_current_fold
-
-    def get_effective_random_seed(self) -> int:
-        seed = super().get_effective_random_seed()
-        if self.perform_sub_fold_cross_validation:
-            # offset the random seed based on the cross validation split index so each
-            # sub fold with respect to the parent fold cross validation index so that
-            # each sub fold has a different initial random state.
-            seed += (self.cross_validation_split_index * self.number_of_cross_validation_splits_per_fold) \
-                   + self.cross_validation_sub_fold_split_index
-        return seed
-
-    def get_total_number_of_cross_validation_runs(self) -> int:
-        if self.perform_sub_fold_cross_validation:
-            return self.number_of_cross_validation_splits * self.number_of_cross_validation_splits_per_fold
-        else:
-            return super().get_total_number_of_cross_validation_runs()
-
-    def get_cross_validation_hyperdrive_sampler(self) -> GridParameterSampling:
-        if self.perform_sub_fold_cross_validation:
-            return GridParameterSampling(parameter_space={
-                CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
-                CROSS_VALIDATION_SUB_FOLD_SPLIT_INDEX_TAG_KEY: choice(list(range(
-                    self.number_of_cross_validation_splits_per_fold))),
-            })
-        else:
-            return super().get_cross_validation_hyperdrive_sampler()
-
-    def should_wait_for_other_cross_val_child_runs(self) -> bool:
-        """
-        Returns True if the current run is an online run and is the 0th cross validation split and
-        0th sub fold split if sub fold cross validation is being performed.
-        In this case, this will be the run that will wait for all other child runs to finish in order
-        to aggregate their results.
-        :return:
-        """
-        should_wait_child = True
-        if self.perform_sub_fold_cross_validation and self.cross_validation_sub_fold_split_index != 0:
-            should_wait_child = False
-        return (not self.is_offline_run) and self.cross_validation_split_index == 0 and should_wait_child
 
 
 def get_non_image_features_dict(default_channels: List[str],
