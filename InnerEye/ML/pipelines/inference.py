@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 import numpy as np
 import torch
@@ -18,17 +18,18 @@ from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import config
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.lightning_helpers import load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_models import SegmentationLightning
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.models.architectures.base_model import CropSizeConstraints
-from InnerEye.ML.pipelines.forward_pass import SegmentationForwardPass
-from InnerEye.ML.utils import image_util, ml_util, model_util
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
+from InnerEye.ML.utils import image_util, ml_util
 from InnerEye.ML.utils.image_util import compute_uncertainty_map_from_posteriors, gaussian_smooth_posteriors, \
     posteriors_to_segmentation
-from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 
 
 class InferencePipelineBase:
     """Base class for all inference pipelines."""
+
     def __init__(self, model_config: ModelConfigBase):
         self.model_config = model_config
 
@@ -69,7 +70,6 @@ class FullImageInferencePipelineBase(InferencePipelineBase):
             )
 
             results = InferencePipeline.Result(
-                epoch=results.epoch,
                 patient_id=results.patient_id,
                 posteriors=posteriors,
                 segmentation=posteriors_to_segmentation(posteriors),
@@ -136,19 +136,17 @@ class InferencePipeline(FullImageInferencePipelineBase):
         Contains the inference results from a single pass of the inference pipeline
         """
 
-        def __init__(self, epoch: int,
+        def __init__(self,
                      patient_id: int,
                      segmentation: np.ndarray,
                      posteriors: np.ndarray,
                      voxel_spacing_mm: TupleFloat3):
             """
-            :param epoch: The epoch for which inference in being performed on.
             :param patient_id: The id of the patient instance for with inference is being performed on.
             :param segmentation: Z x Y x X (argmaxed over the posteriors in the class dimension)
             :param voxel_spacing_mm: Voxel spacing to use for each dimension in (Z x Y x X) order
             :param posteriors: Class x Z x Y x X
             """
-            self.epoch = epoch
             self.patient_id = patient_id
             self.segmentation = segmentation
             self.posteriors = posteriors
@@ -184,17 +182,16 @@ class InferencePipeline(FullImageInferencePipelineBase):
                 raise ValueError(f"Attempt to replace segmentation of shape {self.segmentation.shape} "
                                  f"with one of shape {segmentation.shape}")
             return InferencePipeline.Result(
-                epoch=self.epoch,
                 patient_id=self.patient_id,
                 segmentation=segmentation,
                 posteriors=self.posteriors,
                 voxel_spacing_mm=self.voxel_spacing_mm)
 
-    def __init__(self, model: DeviceAwareModule, model_config: config.SegmentationModelBase, epoch: int = 0,
+    def __init__(self, model: SegmentationLightning, model_config: config.SegmentationModelBase,
                  pipeline_id: int = 0):
         super().__init__(model_config)
         self.model = model
-        self.epoch = epoch
+        self.model.model.eval()
         self.pipeline_id = pipeline_id
 
     @staticmethod
@@ -212,28 +209,14 @@ class InferencePipeline(FullImageInferencePipelineBase):
         :return InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint
         file for this epoch.
         """
-        model_and_info = model_util.ModelAndInfo(config=model_config,
-                                                 model_execution_mode=ModelExecutionMode.TEST,
-                                                 checkpoint_path=path_to_checkpoint)
-        if model_config.compute_mean_teacher_model:
-            model_loaded = model_and_info.try_create_mean_teacher_model_load_from_checkpoint_and_adjust()
-            model = model_and_info.mean_teacher_model
-        else:
-            model_loaded = model_and_info.try_create_model_load_from_checkpoint_and_adjust()
-            model = model_and_info.model
-
-        if not model_loaded:
+        if not path_to_checkpoint.is_file():
+            # not raising a value error here: This is used to create individual pipelines for ensembles,
+            #                                   possible one model cannot be created but others can
+            logging.warning(f"Could not recover model from checkpoint path {path_to_checkpoint}")
             return None
-
-        # for mypy, if model has been loaded these will not be None
-        assert model_and_info.checkpoint_epoch is not None
-
-        for name, param in model.named_parameters():
-            param_numpy = param.clone().cpu().data.numpy()
-            image_util.check_array_range(param_numpy, error_prefix="Parameter {}".format(name))
-
-        return InferencePipeline(model=model, model_config=model_config,
-                                 epoch=model_and_info.checkpoint_epoch, pipeline_id=pipeline_id)
+        lightning_model = load_from_checkpoint_and_adjust_for_inference(model_config, path_to_checkpoint)
+        assert isinstance(lightning_model, SegmentationLightning)
+        return InferencePipeline(model=lightning_model, model_config=model_config, pipeline_id=pipeline_id)
 
     def predict_whole_image(self, image_channels: np.ndarray,
                             voxel_spacing_mm: TupleFloat3,
@@ -254,7 +237,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
                                       "found image_channels shape: {}".format(image_channels.shape))
         if mask is not None:
             ml_util.check_size_matches(image_channels, mask, 4, 3, [-1, -2, -3])
-
+        self.model.eval()
         # create the dataset for the batch
         batch_dataset = Dataset(index=[patient_id], batch_class=InferenceBatch)
         # setup the pipeline
@@ -282,7 +265,6 @@ class InferencePipeline(FullImageInferencePipelineBase):
         image_util.check_array_range(posteriors, error_prefix="Whole image posteriors")
         # prepare pipeline results from the processed batch
         return InferencePipeline.Result(
-            epoch=self.epoch,
             patient_id=patient_id,
             segmentation=processed_batch.get_component(InferenceBatch.Components.Segmentation),
             posteriors=posteriors,
@@ -339,11 +321,7 @@ class InferenceBatch(CTImagesMaskedBatch):
         # There may be cases where the test image is smaller than the test_crop_size. Adjust crop_size
         # to always fit into image. If test_crop_size is smaller than the image, crop will remain unchanged.
         image_size = image_channels.shape[1:]
-        model: Union[torch.nn.Module, torch.nn.DataParallel] = \
-            self.pipeline.get_variable(InferencePipeline.Variables.Model)
-        if isinstance(model, torch.nn.DataParallel):
-            model = model.module
-        assert isinstance(model.crop_size_constraints, CropSizeConstraints)
+        model: BaseSegmentationModel = self.pipeline.get_variable(InferencePipeline.Variables.Model).model
         effective_crop, effective_stride = \
             model.crop_size_constraints.restrict_crop_size_to_image(image_size,
                                                                     model_config.test_crop_size,
@@ -407,12 +385,11 @@ class InferenceBatch(CTImagesMaskedBatch):
 
         for batch_idx in range(0, len(patches), batch_size):
             # slice over the batches to prepare batch
-            batch = patches[batch_idx: batch_idx + batch_size, ...]
+            batch = torch.tensor(patches[batch_idx: batch_idx + batch_size, ...]).float()
+            if model_config.use_gpu:
+                batch = batch.cuda()
             # perform the forward pass
-            batch_predictions = self._model_fn(batch)
-            image_util.check_array_range(batch_predictions,
-                                         expected_range=InferencePipeline.MODEL_OUTPUT_POSTERIOR_RANGE,  # type: ignore
-                                         error_prefix="Model predictions for current batch")
+            batch_predictions = self._model_fn(batch).detach().cpu().numpy()
             # collect the predictions over each of the batches
             predictions.append(batch_predictions)
 
@@ -506,25 +483,14 @@ class InferenceBatch(CTImagesMaskedBatch):
 
         return np.stack(patches, axis=1)
 
-    def _model_fn(self, patches: np.ndarray) -> np.ndarray:
+    def _model_fn(self, patches: torch.Tensor) -> torch.Tensor:
         """
         Wrapper function to handle the model forward pass
         :param patches: Image patches to be passed to the model in format Patches x Channels x Z x Y x X
         :return posteriors: Confidence maps [0,1] for each patch per class
         in format: Patches x Channels x Class x Z x Y x X
         """
-        model_config = self.get_configs()
-
-        # get the model from the pipeline environment
         model = self.pipeline.get_variable(InferencePipeline.Variables.Model)
-
-        # convert patches to Torch tensor
-        patches = torch.from_numpy(patches).float()
-
-        return SegmentationForwardPass(
-            model=model,
-            model_config=model_config,
-            batch_size=model_config.inference_batch_size,
-            optimizer=None,
-            in_training_mode=False
-        ).forward_pass_patches(patches=patches).posteriors
+        # Model forward pass returns posteriors
+        with torch.no_grad():
+            return model(patches)

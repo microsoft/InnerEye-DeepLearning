@@ -7,33 +7,96 @@ from typing import Any, List
 import numpy as np
 import pytest
 import torch
+from torch.nn import Parameter
 
 from InnerEye.Common import common_util
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.models.architectures.base_model import BaseModel
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.utils import image_util
+from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("image_size", [(4, 4, 4), (4, 6, 8)])
 @pytest.mark.parametrize("crop_size", [(5, 5, 5), (3, 3, 3), (3, 5, 7)])
+def test_inference_image_and_crop_size(image_size: Any,
+                                       crop_size: Any,
+                                       test_output_dirs: OutputFolderForTests) -> None:
+    inference_identity(image_size=image_size,
+                       crop_size=crop_size,
+                       test_output_dirs=test_output_dirs)
+
+
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("shrink_by", [(0, 0, 0), (1, 1, 1), (1, 0, 1)])
+def test_inference_shrink_y(shrink_by: Any,
+                            test_output_dirs: OutputFolderForTests) -> None:
+    inference_identity(shrink_by=shrink_by,
+                       test_output_dirs=test_output_dirs)
+
+
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("num_classes", [1, 5])
+def test_inference_num_classes(num_classes: int,
+                               test_output_dirs: OutputFolderForTests) -> None:
+    inference_identity(num_classes=num_classes,
+                       test_output_dirs=test_output_dirs)
+
+
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("create_mask", [True, False])
+def test_inference_create_mask(create_mask: bool,
+                               test_output_dirs: OutputFolderForTests) -> None:
+    inference_identity(create_mask=create_mask,
+                       test_output_dirs=test_output_dirs)
+
+
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("extract_largest_foreground_connected_component", [True, False])
+def test_inference_component(extract_largest_foreground_connected_component: bool,
+                             test_output_dirs: OutputFolderForTests) -> None:
+    inference_identity(extract_largest_foreground_connected_component=extract_largest_foreground_connected_component,
+                       test_output_dirs=test_output_dirs)
+
+
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("is_ensemble", [True, False])
+def test_inference_ensemble(is_ensemble: bool,
+                            test_output_dirs: OutputFolderForTests) -> None:
+    inference_identity(is_ensemble=is_ensemble,
+                       test_output_dirs=test_output_dirs)
+
+
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("posterior_smoothing_mm", [None, (0.05, 0.06, 0.1)])
-def test_inference_identity(image_size: Any,
-                            crop_size: Any,
-                            shrink_by: Any,
-                            num_classes: int,
-                            create_mask: bool,
-                            extract_largest_foreground_connected_component: bool,
-                            is_ensemble: bool,
-                            posterior_smoothing_mm: Any) -> None:
+def test_inference_smoothing(posterior_smoothing_mm: Any,
+                             test_output_dirs: OutputFolderForTests) -> None:
+    inference_identity(posterior_smoothing_mm=posterior_smoothing_mm,
+                       test_output_dirs=test_output_dirs)
+
+
+class InferenceIdentityModel(SegmentationModelBase):
+    def __init__(self, shrink_by: Any) -> None:
+        super().__init__(should_validate=False)
+        self.shrink_by = shrink_by
+
+    def create_model(self) -> torch.nn.Module:
+        return PyTorchMockModel(self.shrink_by)
+
+
+def inference_identity(test_output_dirs: OutputFolderForTests,
+                       image_size: Any = (4, 5, 8),
+                       crop_size: Any = (5, 5, 5),
+                       shrink_by: Any = (0, 0, 0),
+                       num_classes: int = 5,
+                       create_mask: bool = True,
+                       extract_largest_foreground_connected_component: bool = False,
+                       is_ensemble: bool = False,
+                       posterior_smoothing_mm: Any = None) -> None:
     """
     Test to make sure inference pipeline is identity preserving, ie: we can recreate deterministic
     model output, ensuring the patching and stitching is robust.
@@ -49,17 +112,17 @@ def test_inference_identity(image_size: Any,
     image_channels = np.random.randn(num_channels, *list(image_size))
     # create a random mask if required
     mask = np.round(np.random.uniform(size=image_size)).astype(np.int) if create_mask else None
-    model_config = SegmentationModelBase(
-        crop_size=crop_size,
-        image_channels=list(map(str, range(num_channels))),
-        ground_truth_ids=ground_truth_ids,
-        should_validate=False,
-        posterior_smoothing_mm=posterior_smoothing_mm
-    )
+    config = InferenceIdentityModel(shrink_by=shrink_by)
+    config.crop_size = crop_size
+    config.test_crop_size = crop_size
+    config.image_channels = list(map(str, range(num_channels)))
+    config.ground_truth_ids = ground_truth_ids
+    config.posterior_smoothing_mm = posterior_smoothing_mm
+
     # We have to set largest_connected_component_foreground_classes after creating the model config,
     # because this parameter is not overridable and hence will not be set by GenericConfig's constructor.
     if extract_largest_foreground_connected_component:
-        model_config.largest_connected_component_foreground_classes = [(c, None) for c in ground_truth_ids]
+        config.largest_connected_component_foreground_classes = [(c, None) for c in ground_truth_ids]
     # set expected posteriors
     expected_posteriors = torch.nn.functional.softmax(torch.tensor(image_channels), dim=0).numpy()
     # apply the mask if required
@@ -81,12 +144,14 @@ def test_inference_identity(image_size: Any,
         expected_segmentation = largest_component
 
     # instantiate the model
-    model = PyTorchMockModel(shrink_by)
-    model_config.adjust_after_mixed_precision_and_parallel(model)
+    checkpoint = test_output_dirs.root_dir / "checkpoint.ckpt"
+    create_model_and_store_checkpoint(config, checkpoint_path=checkpoint)
 
     # create single or ensemble inference pipeline
-    inference_pipeline = InferencePipeline(model=model, model_config=model_config)
-    full_image_inference_pipeline = EnsemblePipeline([inference_pipeline], model_config) \
+    inference_pipeline = InferencePipeline.create_from_checkpoint(path_to_checkpoint=checkpoint,
+                                                                  model_config=config)
+    assert inference_pipeline is not None
+    full_image_inference_pipeline = EnsemblePipeline([inference_pipeline], config) \
         if is_ensemble else inference_pipeline
 
     # compute full image inference results
@@ -102,38 +167,7 @@ def test_inference_identity(image_size: Any,
     assert np.array_equal(inference_result.segmentation, expected_segmentation)
 
 
-@pytest.mark.parametrize("image_size", [None, (4, 4)])
-@pytest.mark.parametrize("crop_size", [None, (5, 5, 5), (5, 5)])
-@pytest.mark.parametrize("output_size", [None, (3, 3, 3), (3, 3)])
-@pytest.mark.parametrize("ground_truth_ids", [None, ["Liver"], ["Liver", "Kidney_L", "Kidney_R", "Lung_L", "Lung_R"]])
-@pytest.mark.parametrize("create_mask", [True, False])
-def test_inference_identity_invalid(image_size: Any, crop_size: Any, output_size: Any,
-                                    ground_truth_ids: Any, create_mask: Any) -> None:
-    with pytest.raises(Exception):
-        test_inference_identity(image_size, crop_size, output_size, ground_truth_ids, create_mask)
-
-
-@pytest.mark.parametrize("segmentation", [None, np.zeros(shape=(1, 1)), np.zeros(shape=(1, 1, 1, 1)),
-                                          np.round(np.random.uniform(size=(3, 3, 3)))])
-@pytest.mark.parametrize("posteriors", [None, np.zeros(shape=(1, 1)), np.zeros(shape=(1, 1, 1, 1, 1)),
-                                        np.ones(shape=(3, 3, 3)) * 3])
-@pytest.mark.parametrize("voxel_spacing_mm", [None, (0, 0, 0), (-1, 1, 2), (0, 1, 2)])
-def test_check_inference_result(segmentation: Any, posteriors: Any, voxel_spacing_mm: Any) -> None:
-    """
-    Tests to make sure correct checks are made when creating results.
-    :return:
-    """
-    with pytest.raises(Exception):
-        InferencePipeline.Result(
-            epoch=0,
-            patient_id=0,
-            segmentation=segmentation,
-            posteriors=posteriors,
-            voxel_spacing_mm=voxel_spacing_mm
-        )
-
-
-class PyTorchMockModel(BaseModel):
+class PyTorchMockModel(BaseSegmentationModel):
     """
     Defines a model that returns a center crop of its input tensor. The center crop is defined by
     shrinking the image dimensions by a given amount, on either size of each axis.
@@ -143,6 +177,8 @@ class PyTorchMockModel(BaseModel):
 
     def __init__(self, shrink_by: TupleInt3):
         super().__init__(input_channels=1, name='MockModel')
+        # Create a fake parameter so that we can instantiate an optimizer easily
+        self.foo = Parameter(requires_grad=True)
         self.shrink_by = shrink_by
 
     def forward(self, patches: np.ndarray) -> torch.Tensor:  # type: ignore

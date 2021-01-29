@@ -80,39 +80,38 @@ def extract_activation_maps(args: ModelConfigBase) -> None:
         model = torch.nn.DataParallel(model, device_ids=list(range(torch.cuda.device_count())))
         model = model.cuda()
 
-    if args.test_start_epoch:
-        checkpoint_path = args.get_path_to_checkpoint(args.test_start_epoch)
-        if checkpoint_path.exists():
-            checkpoint = torch.load(checkpoint_path)  # type: ignore
-            model.load_state_dict(checkpoint['state_dict'])
+    checkpoint_path = args.get_path_to_checkpoint()
+    if checkpoint_path.is_file():
+        checkpoint = torch.load(checkpoint_path)  # type: ignore
+        model.load_state_dict(checkpoint['state_dict'])
+    else:
+        raise FileNotFoundError("Could not find checkpoint")
+
+    model.eval()
+
+    val_loader = args.create_data_loaders()[ModelExecutionMode.VAL]
+
+    feature_extractor = model_hooks.HookBasedFeatureExtractor(model, layer_name=args.activation_map_layers)
+
+    for batch, sample in enumerate(val_loader):
+
+        sample = CroppedSample.from_dict(sample=sample)
+
+        input_image = sample.image.cuda().float()
+
+        feature_extractor(input_image)
+
+        # access first image of batch of feature maps
+        activation_map = feature_extractor.outputs[0][0].cpu().numpy()
+
+        if len(activation_map.shape) == 4:
+            visualize_3d_activation_map(activation_map, args)
+
+        elif len(activation_map.shape) == 3:
+            visualize_2d_activation_map(activation_map, args)
+
         else:
-            raise ValueError("Could not find checkpoint")
+            raise NotImplementedError('cannot visualize activation map of shape', activation_map.shape)
 
-        model.eval()
-
-        val_loader = args.create_data_loaders()[ModelExecutionMode.VAL]
-
-        feature_extractor = model_hooks.HookBasedFeatureExtractor(model, layer_name=args.activation_map_layers)
-
-        for batch, sample in enumerate(val_loader):
-
-            sample = CroppedSample.from_dict(sample=sample)
-
-            input_image = sample.image.cuda().float()
-
-            feature_extractor(input_image)
-
-            # access first image of batch of feature maps
-            activation_map = feature_extractor.outputs[0][0].cpu().numpy()
-
-            if len(activation_map.shape) == 4:
-                visualize_3d_activation_map(activation_map, args)
-
-            elif len(activation_map.shape) == 3:
-                visualize_2d_activation_map(activation_map, args)
-
-            else:
-                raise NotImplementedError('cannot visualize activation map of shape', activation_map.shape)
-
-            # Only visualize the first validation example
-            break
+        # Only visualize the first validation example
+        break

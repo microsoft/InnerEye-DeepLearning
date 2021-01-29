@@ -11,9 +11,9 @@ dependencies:
   - pip:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - azure-mgmt-resource==10.2.0
-      - azureml-mlflow==1.17.0
-      - azureml-sdk==1.17.0
-      - azureml-tensorboard==1.17.0
+      - azureml-mlflow==1.19.0
+      - azureml-sdk==1.19.0
+      - azureml-tensorboard==1.19.0
       - conda-merge==0.1.5
       - dataclasses-json==0.5.2
       - flake8==3.8.3
@@ -24,9 +24,10 @@ dependencies:
       - jupyter==1.0.0
       - jupyter-client==6.1.5
       - matplotlib==3.3.0
-      - mlflow==1.11.0
+      - mlflow==1.12.1
       - mypy==0.770
       - mypy-extensions==0.4.3
+      - numba==0.51.2
       - numpy==1.19.1
       - numba==0.51.2
       - pandas==1.1.0
@@ -40,6 +41,7 @@ dependencies:
       - pytest-cov==2.10.1
       - pytest-forked==1.3.0
       - pytest-xdist==1.34.0
+      - pytorch-lightning==1.0.6
       - rich==5.1.1
       - rpdb==0.1.6
       - scikit-image==0.17.2

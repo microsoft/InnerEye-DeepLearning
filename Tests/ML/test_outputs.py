@@ -10,6 +10,8 @@ import numpy as np
 import pytest
 import torch
 
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, \
     PhotometricNormalizationMethod, SegmentationModelBase
@@ -21,12 +23,10 @@ from InnerEye.ML.reports.segmentation_report import boxplot_per_structure
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import ImageHeader
-from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 from InnerEye.ML.utils.transforms import LinearTransform, get_range_for_window_level
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import assert_file_contains_string, assert_nifti_content, assert_text_files_match
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 model_name = "Basic"
 base_path = full_ml_test_data_path()
@@ -66,7 +66,6 @@ def test_store_inference_results(test_output_dirs: OutputFolderForTests) -> None
     spacing = (2.0, 2.0, 2.0)
     header = get_unit_image_header(spacing=spacing)
     inference_result = InferencePipeline.Result(
-        epoch=1,
         patient_id=12,
         posteriors=posterior,
         segmentation=segmentation,

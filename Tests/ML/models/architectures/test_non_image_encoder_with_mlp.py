@@ -35,12 +35,13 @@ class NonImageEncoder(ScalarModelBase):
             loss_type=ScalarLoss.BinaryCrossEntropyWithLogits,
             num_epochs=num_epochs,
             num_dataload_workers=0,
-            test_start_epoch=num_epochs,
             train_batch_size=2,
             l_rate=1e-1,
             **kwargs
         )
         self.hidden_layer_num_feature_channels = hidden_layer_num_feature_channels
+        # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+        self.max_num_gpus = 1
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits.from_proportions(
@@ -68,6 +69,7 @@ def test_non_image_encoder(test_output_dirs: OutputFolderForTests,
     (dataset_folder / DATASET_CSV_FILE_NAME).write_text(dataset_contents)
     config = NonImageEncoder(should_validate=False, hidden_layer_num_feature_channels=hidden_layer_num_feature_channels)
     config.local_dataset = dataset_folder
+    config.set_output_to(test_output_dirs.root_dir)
     config.max_batch_grad_cam = 1
     config.validate()
     # run model training

@@ -3,23 +3,25 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+from pathlib import Path
+from typing import List
+
 import pytest
 
-from pathlib import Path
-
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import fetch_child_runs, fetch_run, get_results_blob_path
-from InnerEye.Common import common_util, fixed_paths
+from InnerEye.Azure.azure_util import get_results_blob_path
+from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import CHECKPOINT_FILE_SUFFIX, DATASET_CSV_FILE_NAME
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.run_recovery import RunRecovery
-from Tests.Common.test_util import DEFAULT_ENSEMBLE_RUN_RECOVERY_ID, DEFAULT_RUN_RECOVERY_ID
+from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLBACK_SINGLE_RUN, get_most_recent_run
 from Tests.ML.util import get_default_azure_config
 
 logging_to_stdout(logging.DEBUG)
+
 
 @pytest.fixture
 def runner_config() -> AzureConfig:
@@ -33,56 +35,44 @@ def runner_config() -> AzureConfig:
     return config
 
 
-@pytest.mark.parametrize("is_ensemble", [True, False])
-def test_download_checkpoints(test_output_dirs: OutputFolderForTests, is_ensemble: bool,
-                              runner_config: AzureConfig) -> None:
-    output_dir = test_output_dirs.root_dir
+def test_get_results_blob_path() -> None:
     assert get_results_blob_path("some_run_id") == "azureml/ExperimentRun/dcid.some_run_id"
-    # Any recent run ID from a PR build will do. Use a PR build because the checkpoint files are small there.
-    config = ModelConfigBase(should_validate=False)
-    config.set_output_to(output_dir)
-
-    runner_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID if is_ensemble else DEFAULT_RUN_RECOVERY_ID
-    run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config)
-    run_to_recover = fetch_run(workspace=runner_config.get_workspace(), run_recovery_id=runner_config.run_recovery_id)
-    expected_checkpoint_file = "1" + CHECKPOINT_FILE_SUFFIX
-    if is_ensemble:
-        child_runs = fetch_child_runs(run_to_recover)
-        expected_files = [config.checkpoint_folder
-                          / OTHER_RUNS_SUBDIR_NAME
-                          / str(x.get_tags()['cross_validation_split_index']) / expected_checkpoint_file
-                          for x in child_runs]
-    else:
-        expected_files = [config.checkpoint_folder / run_to_recover.id / expected_checkpoint_file]
-
-    checkpoint_paths = run_recovery.get_checkpoint_paths(1)
-    if is_ensemble:
-        assert len(run_recovery.checkpoints_roots) == len(expected_files)
-        assert all([(x in [y.parent for y in expected_files]) for x in run_recovery.checkpoints_roots])
-        assert len(checkpoint_paths) == len(expected_files)
-        assert all([x in expected_files for x in checkpoint_paths])
-    else:
-        assert len(checkpoint_paths) == 1
-        assert checkpoint_paths[0] == expected_files[0]
-
-    assert all([expected_file.exists() for expected_file in expected_files])
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on the windows build")
-def test_download_checkpoints_hyperdrive_run(test_output_dirs: OutputFolderForTests,
-                                             runner_config: AzureConfig) -> None:
+def check_single_checkpoint(downloaded_checkpoints: List[Path]) -> None:
+    assert len(downloaded_checkpoints) == 1
+    assert downloaded_checkpoints[0].is_file()
+
+
+@pytest.mark.after_training_single_run
+def test_download_recovery_single_run(test_output_dirs: OutputFolderForTests,
+                                      runner_config: AzureConfig) -> None:
     output_dir = test_output_dirs.root_dir
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(output_dir)
-    runner_config.run_recovery_id = DEFAULT_ENSEMBLE_RUN_RECOVERY_ID
-    child_runs = fetch_child_runs(run=fetch_run(runner_config.get_workspace(), DEFAULT_ENSEMBLE_RUN_RECOVERY_ID))
-    # recover child runs separately also to test hyperdrive child run recovery functionality
-    expected_checkpoint_file = "1" + CHECKPOINT_FILE_SUFFIX
-    for child in child_runs:
-        expected_files = [config.checkpoint_folder / child.id / expected_checkpoint_file]
-        run_recovery = RunRecovery.download_checkpoints_from_recovery_run(runner_config, config, child)
-        assert all([x in expected_files for x in run_recovery.get_checkpoint_paths(epoch=1)])
-        assert all([expected_file.exists() for expected_file in expected_files])
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
+    run_recovery = RunRecovery.download_all_checkpoints_from_run(config, run)
+
+    # This fails if there is no recovery checkpoint
+    check_single_checkpoint(run_recovery.get_recovery_checkpoint_paths())
+    check_single_checkpoint(run_recovery.get_best_checkpoint_paths())
+
+
+@pytest.mark.after_training_ensemble_run
+def test_download_best_checkpoints_ensemble_run(test_output_dirs: OutputFolderForTests,
+                                                runner_config: AzureConfig) -> None:
+    output_dir = test_output_dirs.root_dir
+    config = ModelConfigBase(should_validate=False)
+    config.set_output_to(output_dir)
+
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
+    run_recovery = RunRecovery.download_best_checkpoints_from_child_runs(config, run)
+    other_runs_folder = config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME
+    assert other_runs_folder.is_dir()
+    for child in ["0", "1"]:
+        assert (other_runs_folder / child).is_dir(), "Child run folder does not exist"
+    for checkpoint in run_recovery.get_best_checkpoint_paths():
+        assert checkpoint.is_file(), f"File {checkpoint} does not exist"
 
 
 def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> None:

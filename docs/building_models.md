@@ -47,7 +47,7 @@ from InnerEye.ML.configs.segmentation.ProstateBase import ProstateBase
 class Prostate(ProstateBase):
     def __init__(self) -> None:
         super().__init__(
-            ground_truth_ids=["femur_r", "femur_l", "rectum", "prostate"]
+            ground_truth_ids=["femur_r", "femur_l", "rectum", "prostate"],
             azure_dataset_id="id-of-your-blob-containing-prostate-data")
 ```
 The allowed parameters and their meanings are defined in [`SegmentationModelBase`](/InnerEye/ML/config.py).
@@ -110,22 +110,6 @@ AzureML job, with `N` child runs that will execute in parallel. You can see the 
 The dataset splits for those `N` child runs will be
 computed from the union of the Training and Validation sets. The Test set is unchanged. Note that the Test set can be
 empty, in which case the union of all validation sets for the `N` child runs will be the full dataset.
-
-#### Sub-fold cross validation
-
-For scalar models (ie: classification or regression) sub fold cross validation can also be performed by adding
-the switch `--number_of_cross_validation_splits_per_fold=P`, for some `P` greater than
-1; a value of 5 is typical. This will start a HyperDrive run similar to a normal K-Fold model training run as 
-described above but now with `number_of_cross_validation_splits * number_of_cross_validation_splits_per_fold` 
-child runs.
-
-Each sub-fold is associated with a parent cross validation fold, and the dataset splits for those `P` sub-fold child 
-runs will be computed from the training set of the parent cross validation
-fold they belong to, with the validation set being the same as the validation set of the parent cross validation fold.
-The Test set is unchanged.
-
-Once all the child runs have finished the results of each of the sub-folds created from the parent cross validation
-folds are averaged to generate the results for each of the parent cross validation folds.
 
 ### Recovering failed runs and continuing training
 
@@ -248,8 +232,6 @@ the `metrics.csv` files of the current run and the comparison run(s).
   of the "Details" tab.
   * `dataset.csv` for the whole dataset (see ["Creating Datasets](creating_dataset.md) for details),
   and `test_dataset.csv`, `train_dataset.csv` and `val_dataset.csv` for those subsets of it.
-  * `train_stats.csv`, containing summary statistics for each training epoch (learning rate, losses and
-  Dice scores).
   * `BaselineComparisonWilcoxonSignedRankTestResults.txt`, containing the results of comparisons
   between the current run and any specified baselines (earlier runs) to compare with. Each paragraph of that file compares two models and
   indicates, for each structure, when the Dice scores for the second model are significantly better 

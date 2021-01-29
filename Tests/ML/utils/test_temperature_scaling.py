@@ -26,6 +26,8 @@ def test_set_temperature() -> None:
         model=IdentityModel(),
         temperature_scaling_config=TemperatureScalingConfig(lr=0.1, max_iter=10)
     )
+    # Temperature should not be learnt during model training
+    assert model.temperature.requires_grad is False
 
     def criterion_fn(_logits: torch.Tensor, _labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         return loss_fn(_logits, _labels), ece_loss_fn(_logits, _labels)
@@ -39,4 +41,5 @@ def test_set_temperature() -> None:
     assert after_loss.item() < before_loss.item()
     assert after_ece.item() < before_ece.item()
     assert np.isclose(optimal_temperature, 1.44, rtol=0.1)
+    assert model.temperature.requires_grad is False
 

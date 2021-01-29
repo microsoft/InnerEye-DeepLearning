@@ -28,7 +28,6 @@ class ClassificationModelForTesting2D(ScalarModelBase):
             loss_type=ScalarLoss.BinaryCrossEntropyWithLogits,
             num_epochs=num_epochs,
             num_dataload_workers=0,
-            test_start_epoch=num_epochs,
             subject_column="subjectID",
             mean_teacher_alpha=mean_teacher_alpha
         )

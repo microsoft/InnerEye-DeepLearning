@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from InnerEye.ML.utils.metrics_constants import MetricsFileColumns
+from InnerEye.Common.metrics_constants import MetricsFileColumns
 
 CSV_FEATURE_HEADER: str = "feature"
 CSV_DATE_HEADER: str = "acquisition_date"

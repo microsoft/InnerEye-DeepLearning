@@ -18,9 +18,9 @@ from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
+from InnerEye.ML.lightning_models import transfer_batch_to_device
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.model_training_steps import get_scalar_model_inputs_and_labels
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoderWithMlp, \
     ImagingFeatureType
 from InnerEye.ML.run_ml import MLRunner
@@ -30,7 +30,7 @@ from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES, segmentation_to_one_hot
 from InnerEye.ML.utils.io_util import ImageAndSegmentations, NumpyFile
 from InnerEye.ML.utils.ml_util import is_gpu_available, set_random_seed
-from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from InnerEye.ML.visualizers.model_summary import ModelSummary
@@ -56,7 +56,6 @@ class ImageEncoder(ScalarModelBase):
             loss_type=ScalarLoss.WeightedCrossEntropyWithLogits,
             num_epochs=num_epochs,
             num_dataload_workers=0,
-            test_start_epoch=num_epochs,
             train_batch_size=16,
             l_rate=1e-1,
             use_mixed_precision=True,
@@ -72,6 +71,9 @@ class ImageEncoder(ScalarModelBase):
         self.stride_size_per_encoding_block = stride_size_per_encoding_block
         self.encoder_dimensionality_reduction_factor = encoder_dimensionality_reduction_factor
         self.size_input = scan_size
+        # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
+        self.max_num_gpus = 1
+        self.generate_report = False
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits.from_proportions(
@@ -112,15 +114,22 @@ class ImageEncoder(ScalarModelBase):
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
-@pytest.mark.parametrize("encode_channels_jointly", [True, False])
-@pytest.mark.parametrize(["use_non_imaging_features", "reduction_factor", "expected_num_reduced_features"],
-                         [(True, 1, 8), (True, 0.1, 1), (True, 0.5, 4), (False, 1, 0)])
-@pytest.mark.parametrize("kernel_size_per_encoding_block", [None, [(1, 1, 1), (1, 3, 3), (3, 3, 3)]])
-@pytest.mark.parametrize("stride_size_per_encoding_block", [None, [(1, 1, 1), (1, 2, 2), (2, 2, 2)]])
-@pytest.mark.parametrize("aggregation_type", [AggregationType.Average,
-                                              AggregationType.ZAdaptive3dAvg,
-                                              AggregationType.GatedPooling])
-def test_image_encoder(test_output_dirs: OutputFolderForTests, encode_channels_jointly: bool,
+@pytest.mark.parametrize(["encode_channels_jointly", "use_non_imaging_features",
+                          "reduction_factor", "expected_num_reduced_features",
+                          "kernel_size_per_encoding_block", "stride_size_per_encoding_block",
+                          "aggregation_type"],
+                         [(True, True, 1, 8, None, None, AggregationType.Average),
+                          (True, True, 1, 8, None, None, AggregationType.ZAdaptive3dAvg),
+                          (True, True, 1, 8, None, None, AggregationType.GatedPooling),
+                          (False, True, 1, 8, None, None, AggregationType.Average),
+                          (False, True, 0.1, 1, None, None, AggregationType.Average),
+                          (False, True, 0.5, 4, None, None, AggregationType.Average),
+                          (False, False, 1, 0, None, None, AggregationType.Average),
+                          (True, True, 1, 8, [(1, 1, 1), (1, 3, 3), (3, 3, 3)], [(1, 1, 1), (1, 2, 2), (2, 2, 2)],
+                           AggregationType.Average),
+                          ])
+def test_image_encoder(test_output_dirs: OutputFolderForTests,
+                       encode_channels_jointly: bool,
                        use_non_imaging_features: bool,
                        kernel_size_per_encoding_block: Optional[Union[TupleInt3, List[TupleInt3]]],
                        stride_size_per_encoding_block: Optional[Union[TupleInt3, List[TupleInt3]]],
@@ -221,13 +230,14 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.gpu
-@pytest.mark.parametrize("encode_channels_jointly", [True, False])
-@pytest.mark.parametrize("aggregation_type", [AggregationType.Average,
-                                              AggregationType.GatedPooling,
-                                              AggregationType.MixPooling,
-                                              AggregationType.ZAdaptive3dAvg])
-@pytest.mark.parametrize("imaging_feature_type", [ImagingFeatureType.Segmentation,
-                                                  ImagingFeatureType.ImageAndSegmentation])
+@pytest.mark.parametrize(["encode_channels_jointly", "aggregation_type", "imaging_feature_type"],
+    [(False, AggregationType.Average, ImagingFeatureType.Segmentation),
+     (True, AggregationType.Average, ImagingFeatureType.Segmentation),
+     (False, AggregationType.Average, ImagingFeatureType.ImageAndSegmentation),
+     (True, AggregationType.Average, ImagingFeatureType.ImageAndSegmentation),
+     (True, AggregationType.GatedPooling, ImagingFeatureType.ImageAndSegmentation),
+     (True, AggregationType.MixPooling, ImagingFeatureType.ImageAndSegmentation),
+     (True, AggregationType.ZAdaptive3dAvg, ImagingFeatureType.ImageAndSegmentation)])
 def test_image_encoder_with_segmentation(test_output_dirs: OutputFolderForTests,
                                          encode_channels_jointly: bool,
                                          aggregation_type: AggregationType,
@@ -253,6 +263,11 @@ def test_image_encoder_with_segmentation(test_output_dirs: OutputFolderForTests,
                           should_validate=False,
                           aggregation_type=aggregation_type,
                           scan_size=scan_size)
+    # This fails with 16bit precision, saying "torch.nn.functional.binary_cross_entropy and torch.nn.BCELoss are
+    # unsafe to autocast. Many models use a sigmoid layer right before the binary cross entropy layer. In this case,
+    # combine the two layers using torch.nn.functional.binary_cross_entropy_with_logits or
+    # torch.nn.BCEWithLogitsLoss.  binary_cross_entropy_with_logits and BCEWithLogits are safe to autocast."
+    config.use_mixed_precision = False
     config.set_output_to(test_output_dirs.root_dir)
     config.num_epochs = 1
     config.local_dataset = Path()
@@ -349,16 +364,21 @@ def test_visualization_with_scalar_model(use_non_imaging_features: bool,
     config.set_output_to(test_output_dirs.root_dir)
     config.num_epochs = 1
     model = create_model_with_temperature_scaling(config)
+    visualizer = VisualizationMaps(model, config)
     # Patch the load_images function that will be called once we access a dataset item
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, (6, 64, 60)),
                                                       segmentations=np.random.randint(0, 2, (6, 64, 60)))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         batch = next(iter(dataloader))
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(config, model, batch)
-
+        if config.use_gpu:
+            device = visualizer.grad_cam.device
+            batch = transfer_batch_to_device(batch, device)
+            visualizer.grad_cam.model = visualizer.grad_cam.model.to(device)
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(model,
+                                                                     target_indices=[],
+                                                                     sample=batch)
     number_channels = len(config.image_channels)
     number_subjects = len(model_inputs_and_labels.subject_ids)
-    visualizer = VisualizationMaps(model, config)
     guided_grad_cams, grad_cams, pseudo_cam_non_img, probas = visualizer.generate(
         model_inputs_and_labels.model_inputs)
 

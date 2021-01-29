@@ -2,23 +2,23 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
-import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
-import numpy as np
-
+import math
 from dataclasses import dataclass
-from sklearn.metrics import precision_recall_curve, roc_curve, auc, roc_auc_score, recall_score
 from enum import Enum
 from pathlib import Path
 from typing import Optional, Tuple
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from IPython.display import display
 from PIL import Image
+from matplotlib.axes import Axes
+from sklearn.metrics import auc, precision_recall_curve, recall_score, roc_auc_score, roc_curve
 
+from InnerEye.Common.metrics_constants import LoggingColumns
+from InnerEye.ML.metrics_dict import MetricsDict, binary_classification_accuracy
 from InnerEye.ML.reports.notebook_report import print_header
-from InnerEye.Common.metrics_dict import MetricsDict, binary_classification_accuracy
-from InnerEye.ML.utils.metrics_constants import LoggingColumns
 from InnerEye.ML.utils.io_util import load_image_in_known_formats
 
 
@@ -115,10 +115,13 @@ def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMe
         return optimal_threshold
 
     results_test = get_results(test_metrics_csv)
+    only_one_class_present = len(set(results_test.labels)) < 2
 
     if metric is ReportedMetrics.AUC_ROC:
-        return roc_auc_score(results_test.labels, results_test.model_outputs)
+        return math.nan if only_one_class_present else roc_auc_score(results_test.labels, results_test.model_outputs)
     elif metric is ReportedMetrics.AUC_PR:
+        if only_one_class_present:
+            return math.nan
         precision, recall, _ = precision_recall_curve(results_test.labels, results_test.model_outputs)
         return auc(recall, precision)
     elif metric is ReportedMetrics.Accuracy:
@@ -162,12 +165,12 @@ def print_metrics(val_metrics_csv: Path, test_metrics_csv: Path) -> None:
     fpr = get_metric(val_metrics_csv=val_metrics_csv,
                      test_metrics_csv=test_metrics_csv,
                      metric=ReportedMetrics.FalsePositiveRate)
-    print_header(f"Specificity at optimal threshold: {1-fpr:.4f}", level=4)
+    print_header(f"Specificity at optimal threshold: {1 - fpr:.4f}", level=4)
 
     fnr = get_metric(val_metrics_csv=val_metrics_csv,
                      test_metrics_csv=test_metrics_csv,
                      metric=ReportedMetrics.FalseNegativeRate)
-    print_header(f"Sensitivity at optimal threshold: {1-fnr:.4f}", level=4)
+    print_header(f"Sensitivity at optimal threshold: {1 - fnr:.4f}", level=4)
 
 
 def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path) -> Results:
@@ -239,22 +242,22 @@ def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: P
     print_header(f"Top {k} false positives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.false_positives[LoggingColumns.Patient.value],
                                                         results.false_positives[LoggingColumns.ModelOutput.value])):
-        print_header(f"{index+1}. ID {subject} Score: {model_output:.5f}", level=4)
+        print_header(f"{index + 1}. ID {subject} Score: {model_output:.5f}", level=4)
 
     print_header(f"Top {k} false negatives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.false_negatives[LoggingColumns.Patient.value],
                                                         results.false_negatives[LoggingColumns.ModelOutput.value])):
-        print_header(f"{index+1}. ID {subject} Score: {model_output:.5f}", level=4)
+        print_header(f"{index + 1}. ID {subject} Score: {model_output:.5f}", level=4)
 
     print_header(f"Top {k} true positives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.true_positives[LoggingColumns.Patient.value],
                                                         results.true_positives[LoggingColumns.ModelOutput.value])):
-        print_header(f"{index+1}. ID {subject} Score: {model_output:.5f}", level=4)
+        print_header(f"{index + 1}. ID {subject} Score: {model_output:.5f}", level=4)
 
     print_header(f"Top {k} true negatives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.true_negatives[LoggingColumns.Patient.value],
                                                         results.true_negatives[LoggingColumns.ModelOutput.value])):
-        print_header(f"{index+1}. ID {subject} Score: {model_output:.5f}", level=4)
+        print_header(f"{index + 1}. ID {subject} Score: {model_output:.5f}", level=4)
 
 
 def get_image_filepath_from_subject_id(subject_id: str,

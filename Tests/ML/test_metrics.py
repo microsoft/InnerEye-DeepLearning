@@ -8,11 +8,18 @@ from typing import List, Optional
 import numpy as np
 import pytest
 import torch
+from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_curve
 
-from InnerEye.Common.metrics_dict import INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, MetricsDict, \
-    get_column_name_for_logging
+from InnerEye.Common.metrics_constants import AVERAGE_DICE_SUFFIX, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, \
+    TRAIN_PREFIX, \
+    VALIDATION_PREFIX
 from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import metrics
+from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
+from InnerEye.ML.configs.regression.DummyRegression import DummyRegression
+from InnerEye.ML.lightning_metrics import AverageWithoutNan, MetricForMultipleStructures
+from InnerEye.ML.lightning_models import ScalarLightning
+from InnerEye.ML.metrics_dict import MetricsDict, get_column_name_for_logging
 
 
 def test_calculate_dice1() -> None:
@@ -134,7 +141,6 @@ def test_compute_dice_across_patches() -> None:
     prediction_argmax[0, 1, 0, 0] = 1
     dice = metrics.compute_dice_across_patches(prediction_argmax,
                                                ground_truth,
-                                               use_cuda=False,
                                                allow_multiple_classes_for_each_pixel=True).cpu().numpy()
 
     expected_dice_patch0 = np.array([2 * 3 / (4 + 3), 2 * 1 / (4 + 1), 0])
@@ -155,3 +161,124 @@ def test_get_column_name_for_logging() -> None:
     hue_name = "foo"
     assert f"{hue_name}/{expected_metric_name}" == \
            get_column_name_for_logging(metric_name=metric_name, hue_name=hue_name)
+
+
+def test_classification_metrics() -> None:
+    classification_module = ScalarLightning(DummyClassification())
+    metrics = classification_module._get_metrics_computers()
+    outputs = [torch.tensor([0.9, 0.8, 0.6]), torch.tensor([0.3, 0.9, 0.4])]
+    labels = [torch.tensor([1., 1., 0.]), torch.tensor([0., 0., 0.])]
+    for output, label in zip(outputs, labels):
+        for metric in metrics:
+            metric.update(output, label)
+    accuracy_05, accuracy_opt, threshold, fpr, fnr, roc_auc, pr_auc, cross_entropy = [metric.compute() for metric in
+                                                                                      metrics]
+    all_labels = torch.cat(labels).numpy()
+    all_outputs = torch.cat(outputs).numpy()
+    expected_accuracy_at_05 = np.mean((all_outputs > 0.5) == all_labels)
+    expected_binary_cross_entropy = log_loss(y_true=all_labels, y_pred=all_outputs)
+    expected_fpr, expected_tpr, expected_thresholds = roc_curve(y_true=all_labels, y_score=all_outputs)
+    expected_roc_auc = auc(expected_fpr, expected_tpr)
+    expected_optimal_idx = np.argmax(expected_tpr - expected_fpr)
+    expected_optimal_threshold = expected_thresholds[expected_optimal_idx]
+    expected_accuracy = np.mean((all_outputs > expected_optimal_threshold) == all_labels)
+    expected_optimal_fpr = expected_fpr[expected_optimal_idx]
+    expected_optimal_fnr = 1 - expected_tpr[expected_optimal_idx]
+    prec, recall, _ = precision_recall_curve(y_true=all_labels, probas_pred=all_outputs)
+    expected_pr_auc = auc(recall, prec)
+    assert accuracy_opt == expected_accuracy
+    assert threshold == expected_optimal_threshold
+    assert fpr == expected_optimal_fpr
+    assert fnr == expected_optimal_fnr
+    assert roc_auc == expected_roc_auc
+    assert pr_auc == expected_pr_auc
+    assert cross_entropy == expected_binary_cross_entropy
+    assert accuracy_05 == expected_accuracy_at_05
+
+
+def test_regression_metrics() -> None:
+    regression_module = ScalarLightning(DummyRegression())
+    metrics = regression_module._get_metrics_computers()
+    outputs = [torch.tensor([1., 2., 1.]), torch.tensor([4., 0., 2.])]
+    labels = [torch.tensor([1., 1., 0.]), torch.tensor([2., 0., 2.])]
+    for output, label in zip(outputs, labels):
+        for metric in metrics:
+            metric.update(output, label)
+    MAE, MSE, ExpVar = [metric.compute() for metric in metrics]
+    all_labels = torch.cat(labels)
+    all_outputs = torch.cat(outputs)
+    expected_mae = torch.mean(torch.abs(all_labels - all_outputs))
+    expected_mse = torch.mean(torch.square(all_labels - all_outputs))
+    # ExpVar 1 - Var(y_pred - y_true) / Var(y_true)
+    expected_expVar = 1 - torch.var(all_outputs - all_labels) / torch.var(all_labels)
+    assert expected_mae == MAE
+    assert expected_mse == MSE
+    assert torch.isclose(expected_expVar, ExpVar, atol=1e-5)
+
+
+def test_average_without_nan() -> None:
+    """
+    Tests the class that computes an average of Dice scores while skipping NaN values.
+    """
+    # The third value should be skipped when averaging
+    values = [1.0, 2.0, math.nan]
+    expected = np.nanmean(values)
+    average = AverageWithoutNan()
+    average.update(torch.tensor(values))
+    # We have 2 values that are not NaN
+    assert average.count == 2
+    actual1 = average.compute()
+    # Return value is a scalar, but should be a tensor
+    assert torch.is_tensor(actual1)
+    assert actual1 == expected
+    # .compute() has a special wrapper that calls .reset() right after calling .compute(). Hence, now it seems
+    # that the average has not seen any values
+    assert average.count == 0
+    # Store the same set of values twice, we should still see the same mean
+    average.update(torch.tensor(values))
+    average.update(torch.tensor(values))
+    assert average.count == 4
+    assert average.compute() == expected
+    # Reset should null the counters
+    average.reset()
+    assert average.count == 0
+    assert average.sum == 0.0
+    # This is a weird side effect of Lightning's way of caching metric results. As long as we don't call
+    # .update, the last computed value will be kept and returned, even though we have called .reset() already.
+    assert average.compute() == expected
+    # Update with a tensor that does not contain any values: Can't compute the average then.
+    average.update(torch.zeros((0,)))
+    with pytest.raises(ValueError) as ex:
+        average.compute()
+        assert "No values stored" in str(ex)
+
+
+def test_dice_for_multiple_structures() -> None:
+    """
+    Test the class that stores per-structure Dice values and their across-structure mean.
+    """
+    structure = "foo"
+    m = MetricForMultipleStructures(ground_truth_ids=[structure], is_training=True)
+    name_average = f"{TRAIN_PREFIX}{MetricType.DICE.value}/{AVERAGE_DICE_SUFFIX}"
+    assert m.average_all.name == name_average
+    name_foo = f"{TRAIN_PREFIX}{MetricType.DICE.value}/{structure}"
+    assert m.average_per_structure[0].name == name_foo
+    # The value tensor must have the same number of entries as we have ground truth IDs
+    with pytest.raises(ValueError) as ex:
+        m.update(torch.zeros((2,)))
+        assert "Expected a tensor with 1 elements" in str(ex)
+    # Store a single valid value: We should get that back as the averages
+    value = 1.0
+    values = torch.tensor([value])
+    m.update(values)
+    # This call fails if DiceForMultipleStructures is derived from the Metric class.
+    result = list(m.compute_all())
+    assert result == [(name_average, values), (name_foo, values)]
+    # An object where we skip the across-structures average
+    m2 = MetricForMultipleStructures(ground_truth_ids=[structure], is_training=False,
+                                     metric_name=structure, use_average_across_structures=False)
+    m2_name = f"{VALIDATION_PREFIX}{structure}/{structure}"
+    assert m2.average_per_structure[0].name == m2_name
+    m2.update(values)
+    result = list(m2.compute_all())
+    assert result == [(m2_name, values)]

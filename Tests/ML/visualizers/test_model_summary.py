@@ -11,7 +11,7 @@ import torch
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_MODEL_SUMMARIES_DIR_PATH
 from InnerEye.ML.configs.classification.GlaucomaPublic import GlaucomaPublic
-from InnerEye.ML.models.architectures.base_model import BaseModel, CropSizeConstraints
+from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoderWithMlp, \
     ImagingFeatureType
 from InnerEye.ML.models.layers.basic import BasicLayer
@@ -94,7 +94,7 @@ def test_log_model_summary_to_file() -> None:
     assert not expected_log_file.exists()
 
 
-class MyFavModel(BaseModel, ABC):
+class MyFavModel(BaseSegmentationModel, ABC):
     def __init__(self) -> None:
         super().__init__(input_channels=1, name='MyFavModel')
 
