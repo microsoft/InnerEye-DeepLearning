@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 from azureml.core import Dataset, Environment, Experiment, Run, ScriptRunConfig
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.datastore import Datastore
-from azureml.core.runconfig import MpiConfiguration, RunConfiguration
+from azureml.core.runconfig import PyTorchConfiguration, RunConfiguration
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
 from azureml.data import FileDataset
 from azureml.train.dnn import PyTorch
@@ -230,6 +230,47 @@ def pytorch_version_from_conda_dependencies(conda_dependencies: CondaDependencie
     return None
 
 
+def get_or_create_python_environment(azure_config: AzureConfig,
+                                     source_config: SourceConfig) -> Environment:
+    """
+    Creates a description for the Python execution environment in AzureML, based on the Conda environment
+    definition files that are specified in `source_config`. If such environment with this Conda environment already
+    exists, it is retrieved, otherwise created afresh.
+    :param azure_config: azure related configurations to use for model scale-out behaviour
+    :param source_config: configurations for model execution, such as name and execution mode
+    """
+    # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not be
+    # necessary if the innereye package is installed. It is necessary when working with an outer project and
+    # InnerEye as a git submodule and submitting jobs from the local machine.
+    # In case of version conflicts, the package version in the outer project is given priority.
+    conda_dependencies, merged_yaml = merge_conda_dependencies(source_config.conda_dependencies_files)  # type: ignore
+    if azure_config.pip_extra_index_url:
+        # When an extra-index-url is supplied, swap the order in which packages are searched for.
+        # This is necessary if we need to consume packages from extra-index that clash with names of packages on
+        # pypi
+        conda_dependencies.set_pip_option(f"--index-url {azure_config.pip_extra_index_url}")
+        conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
+    # Hashing should include everything that can reasonably change. Missing here are the environment variables.
+    base_image = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
+    overall_hash = hash(merged_yaml) + hash(azure_config.docker_shm_size) + hash(base_image)
+    env_name = f"InnerEye-hash{overall_hash}"
+    try:
+        return Environment.get(azure_config.get_workspace(), name=env_name)
+    except Exception:
+        logging.info(f"Environment '{env_name}' does not yet exist, creating it.")
+    env = Environment(name=env_name)
+    env.docker.enabled = True
+    env.docker.shm_size = azure_config.docker_shm_size
+    env.python.conda_dependencies = conda_dependencies
+    env.docker.base_image = base_image
+    env.environment_variables = {
+        "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": str(source_config.upload_timeout_seconds),
+        "MKL_SERVICE_FORCE_INTEL": "1"
+    }
+    env.register(azure_config.get_workspace())
+    return env
+
+
 def create_run_config(azure_config: AzureConfig,
                       source_config: SourceConfig,
                       azure_dataset_id: str) -> ScriptRunConfig:
@@ -249,48 +290,30 @@ def create_run_config(azure_config: AzureConfig,
     entry_script_relative_path = source_config.entry_script.relative_to(source_config.root_folder).as_posix()
     logging.info(f"Entry script {entry_script_relative_path} ({source_config.entry_script} relative to "
                  f"source directory {source_config.root_folder})")
-    environment_variables = {
-        "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": str(source_config.upload_timeout_seconds),
-        "MKL_SERVICE_FORCE_INTEL": "1",
-        **(source_config.environment_variables or {})
-    }
-    # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not be
-    # necessary if the innereye package is installed. It is necessary when working with an outer project and
-    # InnerEye as a git submodule and submitting jobs from the local machine.
-    # In case of version conflicts, the package version in the outer project is given priority.
-    conda_dependencies = merge_conda_dependencies(source_config.conda_dependencies_files)  # type: ignore
-    if azure_config.pip_extra_index_url:
-        # When an extra-index-url is supplied, swap the order in which packages are searched for.
-        # This is necessary if we need to consume packages from extra-index that clash with names of packages on
-        # pypi
-        conda_dependencies.set_pip_option(f"--index-url {azure_config.pip_extra_index_url}")
-        conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
     max_run_duration = None
     if azure_config.max_run_duration:
         max_run_duration = run_duration_string_to_seconds(azure_config.max_run_duration)
     workspace = azure_config.get_workspace()
-    distributed_job_config = MpiConfiguration(node_count=azure_config.num_nodes)
-    pytorch_env = Environment.from_conda_specification(name='pytorch-1.6-gpu', file_path='./conda_dependencies.yml')
-    pytorch_env.docker.enabled = True
-    pytorch_env.docker.base_image = 'mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.1-cudnn7-ubuntu18.04'
     run_configuration = RunConfiguration(
         script=entry_script_relative_path,
         arguments=source_config.script_params,
     )
+    run_configuration.environment = get_or_create_python_environment(azure_config, source_config)
     run_configuration.target = azure_config.cluster
     run_configuration.max_run_duration_seconds = max_run_duration
+    distributed_job_config = PyTorchConfiguration(node_count=azure_config.num_nodes)
     run_configuration.mpi = distributed_job_config
-    run_configuration.communicator = "IntelMpi"
+    run_configuration.framework = "PyTorch"
+    run_configuration.node_count = distributed_job_config.node_count
+    # This must be in sync with what is available in the base image, defined in get_or_create_python_environment.
+    run_configuration.communicator = "OpenMpi"
+
     run_configuration.data = {INPUT_DATA_KEY: dataset_consumption}
     # Use blob storage for storing the source, rather than the FileShares section of the storage account.
-    run_configuration.source_directory_data_store = workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME)
-    run_configuration.environment.docker.shm_size = azure_config.docker_shm_size
-    run_configuration.environment.python.conda_dependencies = conda_dependencies
-    run_configuration.environment.environment_variables = environment_variables
+    run_configuration.source_directory_data_store = workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME).name
     estimator = ScriptRunConfig(
         source_directory=str(source_config.root_folder),
-        run_configuration=run_configuration,
-        distributed_job_config=distributed_job_config,
+        run_config=run_configuration,
     )
     if azure_config.hyperdrive:
         estimator = source_config.hyperdrive_config_func(estimator)  # type: ignore

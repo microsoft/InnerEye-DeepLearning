@@ -293,22 +293,25 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
 
 
-def merge_conda_dependencies(files: List[Path]) -> CondaDependencies:
+def merge_conda_dependencies(files: List[Path]) -> Tuple[CondaDependencies, str]:
     """
     Creates a CondaDependencies object from the Conda environments specified in one or more files.
     The resulting object contains the union of the Conda and pip packages in the files, where merging
     is done via the conda_merge package.
     :param files: The Conda environment files to read.
-    :return: A CondaDependencies object that contains packages from all the files.
+    :return: Tuple of (CondaDependencies object that contains packages from all the files,
+    string contents of the merge Conda environment)
     """
     for file in files:
         _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
-    merged_file = tempfile.NamedTemporaryFile(delete=False)
-    merge_conda_files(files, result_file=Path(merged_file.name))
-    merged_dependencies = CondaDependencies(merged_file.name)
+    temp_merged_file = tempfile.NamedTemporaryFile(delete=False)
+    merged_file_path = Path(temp_merged_file.name)
+    merge_conda_files(files, result_file=merged_file_path)
+    merged_dependencies = CondaDependencies(temp_merged_file.name)
     _log_conda_dependencies_stats(merged_dependencies, "Merged Conda environment")
-    merged_file.close()
-    return merged_dependencies
+    merged_file_contents = merged_file_path.read_text()
+    temp_merged_file.close()
+    return merged_dependencies, merged_file_contents
 
 
 def tag_values_all_distinct(runs: List[Run], tag: str) -> bool:

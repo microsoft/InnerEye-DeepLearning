@@ -7,7 +7,7 @@ from __future__ import annotations
 import getpass
 import logging
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -246,10 +246,9 @@ class SourceConfig:
     root_folder: Path
     entry_script: Path
     conda_dependencies_files: List[Path]
-    script_params: Optional[Dict[str, str]] = None
+    script_params: List[str] = field(default_factory=list)
     hyperdrive_config_func: Optional[Callable[[ScriptRunConfig], HyperDriveConfig]] = None
     upload_timeout_seconds: int = 36000
-    environment_variables: Optional[Dict[str, str]] = None
 
     def set_script_params_except_submit_flag(self) -> None:
         """
@@ -272,9 +271,7 @@ class SourceConfig:
             else:
                 retained_args.append(arg)
             i = i + 1
-        # The AzureML documentation says that positional arguments should be passed in using an
-        # empty string as the value.
-        self.script_params = {arg: "" for arg in retained_args}
+        self.script_params = retained_args
 
 
 @dataclass
