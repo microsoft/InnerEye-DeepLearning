@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 from azureml.core import Dataset, Environment, Experiment, Run, ScriptRunConfig
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.datastore import Datastore
-from azureml.core.runconfig import PyTorchConfiguration, RunConfiguration
+from azureml.core.runconfig import MpiConfiguration, PyTorchConfiguration, RunConfiguration
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
 from azureml.data import FileDataset
 from azureml.train.dnn import PyTorch
@@ -301,7 +301,7 @@ def create_run_config(azure_config: AzureConfig,
     run_configuration.environment = get_or_create_python_environment(azure_config, source_config)
     run_configuration.target = azure_config.cluster
     run_configuration.max_run_duration_seconds = max_run_duration
-    distributed_job_config = PyTorchConfiguration(node_count=azure_config.num_nodes)
+    distributed_job_config = MpiConfiguration(node_count=azure_config.num_nodes)
     run_configuration.mpi = distributed_job_config
     run_configuration.framework = "PyTorch"
     run_configuration.node_count = distributed_job_config.node_count
