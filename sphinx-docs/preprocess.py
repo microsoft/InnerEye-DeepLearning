@@ -35,4 +35,4 @@ if __name__ == '__main__':
     # replace links to files in repository with urls
     md_file_list = md_root.rglob("*.md")
     for filepath in md_file_list:
-        replace_in_file(filepath, "](/", f"]({repository_url}/blob/master/")
+        replace_in_file(filepath, "](/", f"]({repository_url}/blob/main/")

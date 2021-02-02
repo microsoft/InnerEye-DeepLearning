@@ -99,7 +99,7 @@ def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str) 
 def create_file_list_for_segmentation_recovery_run(test_config_ensemble: PlotCrossValidationConfig) -> \
         List[RunResultFiles]:
     return create_run_result_file_list(config=test_config_ensemble,
-                                       folder="master_1570466706163110")
+                                       folder="main_1570466706163110")
 
 
 @pytest.mark.after_training_ensemble_run
