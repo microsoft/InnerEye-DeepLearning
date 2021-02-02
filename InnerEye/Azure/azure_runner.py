@@ -12,11 +12,12 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from azureml.core import Dataset, Experiment, Run
+from azureml.core import Dataset, Environment, Experiment, Run, ScriptRunConfig
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.datastore import Datastore
+from azureml.core.runconfig import MpiConfiguration, RunConfiguration
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
-from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
+from azureml.data import FileDataset
 from azureml.train.dnn import PyTorch
 
 from InnerEye.Azure import azure_util
@@ -135,10 +136,10 @@ def create_and_submit_experiment(
     workspace = azure_config.get_workspace()
     experiment_name = create_experiment_name(azure_config)
     exp = Experiment(workspace=workspace, name=azure_util.to_azure_friendly_string(experiment_name))
-    pt_env = create_pytorch_environment(azure_config, source_config, azure_dataset_id)
+    script_run_config = create_run_config(azure_config, source_config, azure_dataset_id)
 
     # submit a training/testing run associated with the experiment
-    run: Run = exp.submit(pt_env)
+    run: Run = exp.submit(script_run_config)
 
     # set metadata for the run
     set_run_tags(run, azure_config, model_config_overrides)
@@ -172,7 +173,7 @@ def create_and_submit_experiment(
 
 
 def get_or_create_dataset(azure_config: AzureConfig,
-                          azure_dataset_id: str) -> Dataset:
+                          azure_dataset_id: str) -> FileDataset:
     """
     Looks in the AzureML datastore for a dataset of the given name. If there is no such dataset, a dataset is created
     and registered, assuming that the files are in a folder that has the same name as the dataset. For example, if
@@ -213,31 +214,6 @@ def get_or_create_dataset(azure_config: AzureConfig,
     return azureml_dataset
 
 
-def create_pytorch_environment(azure_config: AzureConfig,
-                               source_config: SourceConfig,
-                               azure_dataset_id: str) -> PyTorch:
-    """
-    Creates an Estimator environment required for model execution
-    :param workspace: The AzureML workspace
-    :param azure_config: azure related configurations to use for model scaleout behaviour
-    :param source_config: configurations for model execution, such as name and execution mode
-    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
-    :return: The configured PyTorch environment to be used for experimentation
-    """
-    azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
-    if azureml_dataset:
-        if azure_config.use_dataset_mount:
-            logging.info("Inside AzureML, the dataset will be provided as a mounted folder.")
-            estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_mount()]
-        else:
-            logging.info("Inside AzureML, the dataset will be downloaded before training starts.")
-            estimator_inputs = [azureml_dataset.as_named_input(INPUT_DATA_KEY).as_download()]
-    else:
-        raise ValueError("No AzureML dataset was found.")
-
-    return create_estimator_from_configs(azure_config, source_config, estimator_inputs)
-
-
 def pytorch_version_from_conda_dependencies(conda_dependencies: CondaDependencies) -> Optional[str]:
     """
     Given a CondaDependencies object, look for a spec of the form "pytorch=...", and return
@@ -254,16 +230,21 @@ def pytorch_version_from_conda_dependencies(conda_dependencies: CondaDependencie
     return None
 
 
-def create_estimator_from_configs(azure_config: AzureConfig,
-                                  source_config: SourceConfig,
-                                  estimator_inputs: List[DatasetConsumptionConfig]) -> PyTorch:
+def create_run_config(azure_config: AzureConfig,
+                      source_config: SourceConfig,
+                      azure_dataset_id: str) -> ScriptRunConfig:
     """
-    Create an return a PyTorch estimator from the provided configuration information.
-    :param azure_config: Azure configuration, used to store various values for the job to be submitted
-    :param source_config: source configutation, for other needed values
-    :param estimator_inputs: value for the "inputs" field of the estimator.
-    :return:
+    Creates a configuration to run the InnerEye training script in AzureML.
+    :param azure_config: azure related configurations to use for model scale-out behaviour
+    :param source_config: configurations for model execution, such as name and execution mode
+    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
+    :return: The configured script run.
     """
+    azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
+    if not azureml_dataset:
+        raise ValueError("No AzureML dataset was found.")
+    dataset_consumption = azureml_dataset.as_mount() if azure_config.use_dataset_mount \
+        else azureml_dataset.as_download()
     # AzureML seems to sometimes expect the entry script path in Linux format, hence convert to posix path
     entry_script_relative_path = source_config.entry_script.relative_to(source_config.root_folder).as_posix()
     logging.info(f"Entry script {entry_script_relative_path} ({source_config.entry_script} relative to "
@@ -284,30 +265,33 @@ def create_estimator_from_configs(azure_config: AzureConfig,
         # pypi
         conda_dependencies.set_pip_option(f"--index-url {azure_config.pip_extra_index_url}")
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
-    # create Estimator environment
-    framework_version = pytorch_version_from_conda_dependencies(conda_dependencies)
-    assert framework_version is not None, "The AzureML SDK is behind PyTorch, it does not yet know the version we use."
-    logging.info(f"PyTorch framework version: {framework_version}")
     max_run_duration = None
     if azure_config.max_run_duration:
         max_run_duration = run_duration_string_to_seconds(azure_config.max_run_duration)
     workspace = azure_config.get_workspace()
-    estimator = PyTorch(
-        source_directory=str(source_config.root_folder),
-        entry_script=entry_script_relative_path,
-        script_params=source_config.script_params,
-        compute_target=azure_config.cluster,
-        # Use blob storage for storing the source, rather than the FileShares section of the storage account.
-        source_directory_data_store=workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME),
-        inputs=estimator_inputs,
-        environment_variables=environment_variables,
-        shm_size=azure_config.docker_shm_size,
-        use_docker=True,
-        use_gpu=True,
-        framework_version=framework_version,
-        max_run_duration_seconds=max_run_duration
+    distributed_job_config = MpiConfiguration(node_count=azure_config.num_nodes)
+    pytorch_env = Environment.from_conda_specification(name='pytorch-1.6-gpu', file_path='./conda_dependencies.yml')
+    pytorch_env.docker.enabled = True
+    pytorch_env.docker.base_image = 'mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.1-cudnn7-ubuntu18.04'
+    run_configuration = RunConfiguration(
+        script=entry_script_relative_path,
+        arguments=source_config.script_params,
     )
-    estimator.run_config.environment.python.conda_dependencies = conda_dependencies
+    run_configuration.target = azure_config.cluster
+    run_configuration.max_run_duration_seconds = max_run_duration
+    run_configuration.mpi = distributed_job_config
+    run_configuration.communicator = "IntelMpi"
+    run_configuration.data = {INPUT_DATA_KEY: dataset_consumption}
+    # Use blob storage for storing the source, rather than the FileShares section of the storage account.
+    run_configuration.source_directory_data_store = workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME)
+    run_configuration.environment.docker.shm_size = azure_config.docker_shm_size
+    run_configuration.environment.python.conda_dependencies = conda_dependencies
+    run_configuration.environment.environment_variables = environment_variables
+    estimator = ScriptRunConfig(
+        source_directory=str(source_config.root_folder),
+        run_configuration=run_configuration,
+        distributed_job_config=distributed_job_config,
+    )
     if azure_config.hyperdrive:
         estimator = source_config.hyperdrive_config_func(estimator)  # type: ignore
     return estimator

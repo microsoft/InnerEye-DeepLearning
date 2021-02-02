@@ -58,7 +58,7 @@ def test_get_hyperdrive_config(number_of_cross_validation_splits: int,
         compute_target="Local"
     )
 
-    hd_config = config.get_hyperdrive_config(estimator=estimator)
+    hd_config = config.get_hyperdrive_config(run_config=estimator)
 
     assert hd_config.estimator.source_directory == str(source_config.root_folder)
     assert hd_config.estimator.run_config.script == str(source_config.entry_script)

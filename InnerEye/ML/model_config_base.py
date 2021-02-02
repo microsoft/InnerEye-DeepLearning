@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 import pandas as pd
-from azureml.train.estimator import Estimator
+from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 from pandas import DataFrame
 
@@ -48,12 +48,12 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         pass
 
-    def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
+    def get_parameter_search_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
         """
         Returns a configuration for AzureML Hyperdrive that should be used when running hyperparameter
         tuning.
         This is an abstract method that each specific model should override.
-        :param estimator: The AzureML estimator object that runs model training.
+        :param run_config: The AzureML estimator object that runs model training.
         :return: A hyperdrive configuration object.
         """
         # This method is factually an abstract method. We don't want to mark at as such
@@ -163,7 +163,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
             CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
         })
 
-    def get_cross_validation_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
+    def get_cross_validation_hyperdrive_config(self, estimator: ScriptRunConfig) -> HyperDriveConfig:
         """
         Returns a configuration for AzureML Hyperdrive that varies the cross validation split index.
         :param estimator: The AzureML estimator object that runs model training.
@@ -188,17 +188,17 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         splits = dataset_split.get_k_fold_cross_validation_splits(self.number_of_cross_validation_splits)
         return splits[self.cross_validation_split_index]
 
-    def get_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
+    def get_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
         """
         Returns the HyperDrive config for either parameter search or cross validation
         (if number_of_cross_validation_splits > 1).
-        :param estimator: AzureML estimator
+        :param run_config: AzureML estimator
         :return: HyperDriveConfigs
         """
         if self.perform_cross_validation:
-            return self.get_cross_validation_hyperdrive_config(estimator)
+            return self.get_cross_validation_hyperdrive_config(run_config)
         else:
-            return self.get_parameter_search_hyperdrive_config(estimator)
+            return self.get_parameter_search_hyperdrive_config(run_config)
 
     def get_dataset_splits(self) -> DatasetSplits:
         """

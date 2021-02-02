@@ -7,7 +7,7 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Any, Generator, List, Optional, Tuple
+from typing import Generator, List, Optional, Tuple
 
 import conda_merge
 import ruamel.yaml
@@ -244,15 +244,6 @@ def strip_prefix(string: str, prefix: str) -> str:
     if string.startswith(prefix):
         return string[len(prefix):]
     return string
-
-
-def has_input_datasets(run_context: Any) -> bool:
-    """
-    Chceks if the run context has any input datasets defined.
-    :param run_context: Run context to check.
-    :return: True if the run context has any input datasets defined. False otherwise.
-    """
-    return hasattr(run_context, "input_datasets")
 
 
 def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str) -> None:

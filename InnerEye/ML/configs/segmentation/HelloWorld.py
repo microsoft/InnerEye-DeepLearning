@@ -88,14 +88,14 @@ class HelloWorld(SegmentationModelBase):
             test_ids=['6'],
         )
 
-    def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
+    def get_parameter_search_hyperdrive_config(self, run_config: Estimator) -> HyperDriveConfig:
         """
         Specify an Azure HyperDrive configuration.
         Further details are described in the tutorial
         https://docs.microsoft.com/en-us/azure/machine-learning/service/how-to-tune-hyperparameters
         A reference is provided at https://docs.microsoft.com/en-us/python/api/azureml-train-core/azureml.train
         .hyperdrive?view=azure-ml-py
-        :param estimator: The estimator (configured PyTorch environment) of the experiment.
+        :param run_config: The estimator (configured PyTorch environment) of the experiment.
         :return: An Azure HyperDrive run configuration (configured PyTorch environment).
         """
         parameter_space = {
@@ -108,7 +108,7 @@ class HelloWorld(SegmentationModelBase):
         early_termination_policy = BanditPolicy(slack_factor=0.15, evaluation_interval=1, delay_evaluation=10)
 
         return HyperDriveConfig(
-            estimator=estimator,
+            estimator=run_config,
             hyperparameter_sampling=param_sampling,
             policy=early_termination_policy,
             primary_metric_name=TrackedMetrics.Val_Loss.value,

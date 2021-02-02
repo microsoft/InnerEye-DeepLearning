@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import param
+from azureml.core import ScriptRunConfig
 from azureml.train.estimator import Estimator
 from azureml.train.hyperdrive import HyperDriveConfig
 
@@ -403,8 +404,8 @@ class ScalarModelBase(ModelConfigBase):
             raise NotImplementedError("get_post_loss_logits_normalization_function not implemented for "
                                       f"loss type: {self.loss_type}")
 
-    def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
-        return super().get_parameter_search_hyperdrive_config(estimator)
+    def get_parameter_search_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
+        return super().get_parameter_search_hyperdrive_config(run_config)
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return super().get_model_train_test_dataset_splits(dataset_df)

@@ -23,8 +23,7 @@ from InnerEye.Azure.azure_runner import INPUT_DATA_KEY, get_or_create_dataset
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, \
     MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
-    RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, get_results_blob_path, has_input_datasets, \
-    merge_conda_files
+    RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, get_results_blob_path, merge_conda_files
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
@@ -53,15 +52,10 @@ from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
 
 
-def try_to_mount_input_dataset(run_context: Any) -> Optional[Path]:
-    """
-    If run_context has an input_datasets attribute with an INPUT_DATA_KEY key, return
-    the corresponding value as a Path. Otherwise, warn and return None, so that a backup
-    strategy can be tried.
-    """
-    if has_input_datasets(run_context):
+def try_to_mount_input_dataset() -> Optional[Path]:
+    if hasattr(RUN_CONTEXT, "input_datasets"):
         try:
-            return Path(run_context.input_datasets[INPUT_DATA_KEY])
+            return Path(RUN_CONTEXT.input_datasets[INPUT_DATA_KEY])
         except KeyError:
             logging.warning(f"Run context input_datasets has no {INPUT_DATA_KEY} entry")
             logging.warning("Attempting to download dataset instead")
@@ -350,7 +344,7 @@ class MLRunner:
         # Inside of AzureML, datasets can be either mounted or downloaded.
         if not azure_dataset_id:
             raise ValueError("The model must contain azure_dataset_id for running on AML")
-        mounted = try_to_mount_input_dataset(RUN_CONTEXT)
+        mounted = try_to_mount_input_dataset()
         if not mounted:
             raise ValueError("Unable to mount or download input dataset.")
         return mounted
