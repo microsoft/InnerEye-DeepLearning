@@ -11,7 +11,7 @@ This example is based on the paper [A feature agnostic approach for glaucoma det
 ### Downloading and preparing the dataset
 1. The dataset is available [here](https://zenodo.org/record/1481223#.Xs-ehzPiuM_) <sup>[[1]](#1)</sup>.
 
-1. After downloading and extracting the zip file, run the [create_glaucoma_dataset_csv.py](https://github.com/microsoft/InnerEye-DeepLearning/blob/master/InnerEye/Scripts/create_glaucoma_dataset_csv.py)
+1. After downloading and extracting the zip file, run the [create_glaucoma_dataset_csv.py](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/InnerEye/Scripts/create_glaucoma_dataset_csv.py)
  script on the extracted folder.
     ```
     python create_dataset_csv.py /path/to/extracted/folder
