@@ -162,9 +162,9 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
                        "--image_files", image.name],
         conda_dependencies_files=conda_files,
     )
-    estimator = create_run_config(azure_config, source_config)
+    run_config = create_run_config(azure_config, source_config)
     exp = Experiment(workspace=workspace, name=args.experiment_name)
-    run = exp.submit(estimator)
+    run = exp.submit(run_config)
     logging.info(f"Submitted run {run.id} in experiment {run.experiment.name}")
     logging.info(f"Run URL: {run.get_portal_url()}")
     if not args.keep_upload_folder:

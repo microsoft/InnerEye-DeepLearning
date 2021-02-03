@@ -218,7 +218,7 @@ class Runner:
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
             conda_dependencies_files=get_all_environment_files(self.project_root),
-            hyperdrive_config_func=lambda estimator: self.model_config.get_hyperdrive_config(estimator),
+            hyperdrive_config_func=lambda run_config: self.model_config.get_hyperdrive_config(run_config),
             # For large jobs, upload of results times out frequently because of large checkpoint files. Default is 600
             upload_timeout_seconds=86400,
         )

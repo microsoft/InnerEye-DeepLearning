@@ -163,14 +163,14 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
             CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
         })
 
-    def get_cross_validation_hyperdrive_config(self, estimator: ScriptRunConfig) -> HyperDriveConfig:
+    def get_cross_validation_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
         """
         Returns a configuration for AzureML Hyperdrive that varies the cross validation split index.
-        :param estimator: The AzureML estimator object that runs model training.
+        :param run_config: The AzureML run configuration object that training for an individual model.
         :return: A hyperdrive configuration object.
         """
         return HyperDriveConfig(
-            estimator=estimator,
+            run_config=run_config,
             hyperparameter_sampling=self.get_cross_validation_hyperdrive_sampler(),
             primary_metric_name=TrackedMetrics.Val_Loss.value,
             primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
