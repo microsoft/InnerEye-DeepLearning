@@ -48,7 +48,7 @@ class Prostate(ProstateBase):
     def __init__(self) -> None:
         super().__init__(
             ground_truth_ids=["femur_r", "femur_l", "rectum", "prostate"],
-            azure_dataset_id="id-of-your-blob-containing-prostate-data")
+            azure_dataset_id="name-of-your-AML-dataset-with-prostate-data")
 ```
 The allowed parameters and their meanings are defined in [`SegmentationModelBase`](/InnerEye/ML/config.py).
 The class name must be the same as the basename of the file containing it, so `Prostate.py` must contain `Prostate`. 
@@ -64,12 +64,14 @@ class HeadAndNeck(HeadAndNeckBase):
     def __init__(self) -> None:
         super().__init__(
             ground_truth_ids=["parotid_l", "parotid_r", "smg_l", "smg_r", "spinal_cord"]
-            azure_dataset_id="id-of-your-blob-containing-prostate-data")
+            azure_dataset_id="name-of-your-AML-dataset-with-prostate-data")
 ```
 
 ### Training a new model
 
-* Set up your model configuration as above.
+* Set up your model configuration as above and update `azure_dataset_id` to the name of your Dataset in the AML workspace.
+It is enough to put your dataset into blob storage. The dataset should be a contained in a folder at the root of the datasets container. 
+The InnerEye runner will check if there is a dataset in the AzureML workspace already, and if not, generate it directly from blob storage.
 
 * Train a new model, for example `Prostate`:
 ```shell script
