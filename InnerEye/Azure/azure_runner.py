@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import argparse
 import getpass
+import hashlib
 import logging
 import signal
 import sys
@@ -244,48 +245,61 @@ def get_or_create_python_environment(azure_config: AzureConfig,
     # InnerEye as a git submodule and submitting jobs from the local machine.
     # In case of version conflicts, the package version in the outer project is given priority.
     conda_dependencies, merged_yaml = merge_conda_dependencies(source_config.conda_dependencies_files)  # type: ignore
+    # TODO antonsc: We should download the inference config and read the environment hash
     if azure_config.pip_extra_index_url:
         # When an extra-index-url is supplied, swap the order in which packages are searched for.
         # This is necessary if we need to consume packages from extra-index that clash with names of packages on
         # pypi
         conda_dependencies.set_pip_option(f"--index-url {azure_config.pip_extra_index_url}")
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
-    # Hashing should include everything that can reasonably change. Missing here are the environment variables.
+    env_variables = {
+        "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": str(source_config.upload_timeout_seconds),
+        "MKL_SERVICE_FORCE_INTEL": "1"
+    }
     base_image = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
-    overall_hash = hash(merged_yaml) + hash(azure_config.docker_shm_size) + hash(base_image)
-    env_name = f"InnerEye-hash{overall_hash}"
+    # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
+    # and will re-use existing environments even if they don't have the same name.
+    # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
+    # hash function gives different results for the same string in different python instances.
+    hash_string = "\n".join([merged_yaml, azure_config.docker_shm_size, base_image, str(env_variables)])
+    sha1 = hashlib.sha1(hash_string.encode("utf8"))
+    overall_hash = sha1.hexdigest()[:32]
+    env_name = f"InnerEye-{overall_hash}"
     try:
-        return Environment.get(azure_config.get_workspace(), name=env_name)
+        env = Environment.get(azure_config.get_workspace(), name=env_name)
+        logging.info(f"Using existing Python environment '{env.name}'.")
+        return env
     except Exception:
-        logging.info(f"Environment '{env_name}' does not yet exist, creating it.")
+        logging.info(f"Python environment '{env_name}' does not yet exist, creating and registering it.")
     env = Environment(name=env_name)
     env.docker.enabled = True
     env.docker.shm_size = azure_config.docker_shm_size
     env.python.conda_dependencies = conda_dependencies
     env.docker.base_image = base_image
-    env.environment_variables = {
-        "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": str(source_config.upload_timeout_seconds),
-        "MKL_SERVICE_FORCE_INTEL": "1"
-    }
+    env.environment_variables = env_variables
     env.register(azure_config.get_workspace())
     return env
 
 
 def create_run_config(azure_config: AzureConfig,
                       source_config: SourceConfig,
-                      azure_dataset_id: str) -> ScriptRunConfig:
+                      azure_dataset_id: str = "") -> ScriptRunConfig:
     """
     Creates a configuration to run the InnerEye training script in AzureML.
     :param azure_config: azure related configurations to use for model scale-out behaviour
     :param source_config: configurations for model execution, such as name and execution mode
-    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
+    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run. This can be an empty
+    string to not use any datasets.
     :return: The configured script run.
     """
-    azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
-    if not azureml_dataset:
-        raise ValueError("No AzureML dataset was found.")
-    dataset_consumption = azureml_dataset.as_mount() if azure_config.use_dataset_mount \
-        else azureml_dataset.as_download()
+    if azure_dataset_id:
+        azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
+        if not azureml_dataset:
+            raise ValueError(f"AzureML dataset {azure_dataset_id} could not be found or created.")
+        named_input = azureml_dataset.as_named_input(INPUT_DATA_KEY)
+        dataset_consumption = named_input.as_mount() if azure_config.use_dataset_mount else named_input.as_download()
+    else:
+        dataset_consumption = None
     # AzureML seems to sometimes expect the entry script path in Linux format, hence convert to posix path
     entry_script_relative_path = source_config.entry_script.relative_to(source_config.root_folder).as_posix()
     logging.info(f"Entry script {entry_script_relative_path} ({source_config.entry_script} relative to "
@@ -307,8 +321,8 @@ def create_run_config(azure_config: AzureConfig,
     run_configuration.node_count = distributed_job_config.node_count
     # This must be in sync with what is available in the base image, defined in get_or_create_python_environment.
     run_configuration.communicator = "OpenMpi"
-
-    run_configuration.data = {INPUT_DATA_KEY: dataset_consumption}
+    if dataset_consumption:
+        run_configuration.data = {dataset_consumption.name: dataset_consumption}
     # Use blob storage for storing the source, rather than the FileShares section of the storage account.
     run_configuration.source_directory_data_store = workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME).name
     estimator = ScriptRunConfig(

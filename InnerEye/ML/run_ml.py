@@ -53,12 +53,15 @@ from InnerEye.ML.visualizers.plot_cross_validation import \
 
 
 def try_to_mount_input_dataset() -> Optional[Path]:
+    """
+    Checks if the AzureML run context has a field for input datasets. If yes, the dataset stored there is
+    returned as a Path. Returns None if no input datasets was found.
+    """
     if hasattr(RUN_CONTEXT, "input_datasets"):
         try:
             return Path(RUN_CONTEXT.input_datasets[INPUT_DATA_KEY])
         except KeyError:
-            logging.warning(f"Run context input_datasets has no {INPUT_DATA_KEY} entry")
-            logging.warning("Attempting to download dataset instead")
+            logging.warning(f"Run context field input_datasets has no {INPUT_DATA_KEY} entry.")
     return None
 
 

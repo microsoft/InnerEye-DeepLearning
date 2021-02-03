@@ -14,7 +14,7 @@ import requests
 from azureml.core import Experiment, Model
 
 from InnerEye.Azure.azure_config import AzureConfig, SourceConfig
-from InnerEye.Azure.azure_runner import create_estimator_from_configs
+from InnerEye.Azure.azure_runner import create_run_config
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, ENVIRONMENT_YAML_FILE_NAME
@@ -153,16 +153,16 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
     source_config = SourceConfig(
         root_folder=source_directory_path,
         entry_script=entry_script,
-        script_params={"--model-folder": ".",
-                       "--model-id": model_id,
-                       fixed_paths.SCORE_SCRIPT: "",
+        script_params=["--model-folder", ".",
+                       "--model-id", model_id,
+                       fixed_paths.SCORE_SCRIPT,
                        # The data folder must be relative to the root folder of the AzureML job. test_image_files
                        # is then just the file relative to the data_folder
-                       "--data_folder": image.parent.name,
-                       "--image_files": image.name},
+                       "--data_folder", image.parent.name,
+                       "--image_files", image.name],
         conda_dependencies_files=conda_files,
     )
-    estimator = create_estimator_from_configs(azure_config, source_config, [])
+    estimator = create_run_config(azure_config, source_config)
     exp = Experiment(workspace=workspace, name=args.experiment_name)
     run = exp.submit(estimator)
     logging.info(f"Submitted run {run.id} in experiment {run.experiment.name}")
