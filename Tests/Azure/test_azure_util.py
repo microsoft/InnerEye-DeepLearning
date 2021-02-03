@@ -135,7 +135,7 @@ dependencies:
   - bar==2.0
   - foo==1.0
 """.splitlines()
-    conda_dep = merge_conda_dependencies(files)
+    conda_dep, _ = merge_conda_dependencies(files)
     # We expect to see the union of channels.
     assert list(conda_dep.conda_channels) == ["defaults", "pytorch"]
     # Package version conflicts are not resolved, both versions are retained.
