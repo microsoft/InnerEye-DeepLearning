@@ -11,7 +11,6 @@ from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, \
     choice, uniform
 
-from InnerEye.Azure.azure_config import SourceConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.metrics_constants import TrackedMetrics
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -49,20 +48,14 @@ def test_get_hyperdrive_config(number_of_cross_validation_splits: int,
     config = HyperDriveTestModel()
 
     config.number_of_cross_validation_splits = number_of_cross_validation_splits
-    # create HyperDrive config with dummy estimator for testing
-    source_config = SourceConfig(root_folder=test_output_dirs.root_dir,
-                                 entry_script=Path("something.py"), conda_dependencies_files=[])
     run_config = ScriptRunConfig(
-        source_directory=str(source_config.root_folder),
-        entry_script=str(source_config.entry_script),
+        source_directory=str(test_output_dirs.root_dir),
+        script=str(Path("something.py")),
+        arguments=["foo"],
         compute_target="Local"
     )
 
     hd_config = config.get_hyperdrive_config(run_config=run_config)
-
-    assert hd_config.run_config.source_directory == str(source_config.root_folder)
-    assert hd_config.run_config.run_config.script == str(source_config.entry_script)
-    assert hd_config.run_config._script_params == source_config.script_params
 
     if number_of_cross_validation_splits > 0:
         assert hd_config._max_total_runs == number_of_cross_validation_splits
