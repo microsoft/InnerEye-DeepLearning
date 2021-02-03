@@ -30,7 +30,7 @@ from azureml.core import Model, Run
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables, \
-    parse_arguments, submit_to_azureml
+    parse_arguments, set_environment_variables_for_multi_node, submit_to_azureml
 from InnerEye.Azure.azure_util import is_run_and_child_runs_completed
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
@@ -266,6 +266,7 @@ class Runner:
                 error_messages.append(f"Unable to run PyTest: {ex}")
         else:
             try:
+                set_environment_variables_for_multi_node()
                 logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
                 try:
                     self.create_ml_runner().run()

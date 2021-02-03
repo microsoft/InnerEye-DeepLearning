@@ -251,7 +251,7 @@ class MLRunner:
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    model_train(self.model_config, checkpoint_handler)
+                    model_train(self.model_config, checkpoint_handler, num_nodes=self.azure_config.num_nodes)
             else:
                 self.model_config.write_dataset_files()
                 self.create_activation_maps()

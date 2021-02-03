@@ -6,6 +6,7 @@ import argparse
 import getpass
 import hashlib
 import logging
+import os
 import signal
 import sys
 from argparse import ArgumentError, ArgumentParser, Namespace
@@ -16,7 +17,7 @@ from typing import Any, Dict, List, Optional
 from azureml.core import Dataset, Environment, Experiment, Run, ScriptRunConfig
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.datastore import Datastore
-from azureml.core.runconfig import MpiConfiguration, PyTorchConfiguration, RunConfiguration
+from azureml.core.runconfig import MpiConfiguration, RunConfiguration
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
 from azureml.data import FileDataset
 from azureml.train.dnn import PyTorch
@@ -308,30 +309,30 @@ def create_run_config(azure_config: AzureConfig,
     if azure_config.max_run_duration:
         max_run_duration = run_duration_string_to_seconds(azure_config.max_run_duration)
     workspace = azure_config.get_workspace()
-    run_configuration = RunConfiguration(
+    run_config = RunConfiguration(
         script=entry_script_relative_path,
         arguments=source_config.script_params,
     )
-    run_configuration.environment = get_or_create_python_environment(azure_config, source_config)
-    run_configuration.target = azure_config.cluster
-    run_configuration.max_run_duration_seconds = max_run_duration
-    distributed_job_config = MpiConfiguration(node_count=azure_config.num_nodes)
-    run_configuration.mpi = distributed_job_config
-    run_configuration.framework = "PyTorch"
-    run_configuration.node_count = distributed_job_config.node_count
-    # This must be in sync with what is available in the base image, defined in get_or_create_python_environment.
-    run_configuration.communicator = "OpenMpi"
+    run_config.environment = get_or_create_python_environment(azure_config, source_config)
+    run_config.target = azure_config.cluster
+    run_config.max_run_duration_seconds = max_run_duration
+    if azure_config.num_nodes > 1:
+        distributed_job_config = MpiConfiguration(node_count=azure_config.num_nodes)
+        run_config.mpi = distributed_job_config
+        run_config.framework = "Python"
+        run_config.communicator = "IntelMpi"
+        run_config.node_count = distributed_job_config.node_count
     if dataset_consumption:
-        run_configuration.data = {dataset_consumption.name: dataset_consumption}
+        run_config.data = {dataset_consumption.name: dataset_consumption}
     # Use blob storage for storing the source, rather than the FileShares section of the storage account.
-    run_configuration.source_directory_data_store = workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME).name
-    estimator = ScriptRunConfig(
+    run_config.source_directory_data_store = workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME).name
+    script_run_config = ScriptRunConfig(
         source_directory=str(source_config.root_folder),
-        run_config=run_configuration,
+        run_config=run_config,
     )
     if azure_config.hyperdrive:
-        estimator = source_config.hyperdrive_config_func(estimator)  # type: ignore
-    return estimator
+        script_run_config = source_config.hyperdrive_config_func(script_run_config)  # type: ignore
+    return script_run_config
 
 
 def create_runner_parser(model_config_class: type = None) -> argparse.ArgumentParser:
@@ -473,3 +474,33 @@ def run_duration_string_to_seconds(s: str) -> Optional[int]:
     else:
         raise ArgumentError("s", f"Invalid suffix: Must be one of 's', 'm', 'h', 'd', but got: {s}")
     return int(float(s[:-1]) * multiplier)
+
+
+def set_environment_variables_for_multi_node() -> None:
+    """
+    Sets the environment variables that PyTorch Lightning needs for multi-node training.
+    """
+    az_master_node = "AZ_BATCHAI_MPI_MASTER_NODE"
+    master_addr = "MASTER_ADDR"
+    master_ip = "MASTER_IP"
+    master_port = "MASTER_PORT"
+    world_rank = "OMPI_COMM_WORLD_RANK"
+    node_rank = "NODE_RANK"
+
+    if az_master_node in os.environ:
+        # For AML BATCHAI
+        os.environ[master_addr] = os.environ[az_master_node]
+    elif master_ip in os.environ:
+        # AKS
+        os.environ[master_addr] = os.environ[master_ip]
+    else:
+        logging.info("No settings for the MPI central node found. Assuming that this is a single node training job.")
+        return
+
+    if master_port not in os.environ:
+        os.environ[master_port] = "6105"
+
+    if world_rank in os.environ:
+        os.environ[node_rank] = os.environ[world_rank]  # node rank is the world_rank from mpi run
+    for var in [master_addr, master_port, node_rank]:
+        print(f"Distributed training: {var} = {os.environ[var]}")
