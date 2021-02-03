@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run
 
 from InnerEye.Azure.azure_config import AzureConfig
@@ -37,6 +38,7 @@ from TestsOutsidePackage.test_register_model import SubprocessConfig
 
 FALLBACK_ENSEMBLE_RUN = "refs_pull_323_merge:HD_39282253-5363-4956-a8a9-253f4f769c22"
 FALLBACK_SINGLE_RUN = "refs_pull_323_merge:refs_pull_323_merge_1611668076_723bd198"
+FALLBACK_2NODE_RUN = "antonsc_multi_node_1612371835_5f03aaa3"
 
 
 def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> str:
@@ -206,7 +208,7 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
                                                args=["--version"]).spawn_and_monitor_subprocess()
     assert return_code1 == 0
     print(f"Executing Python version {stdout1[0]}")
-    return_code, stdout2 = SubprocessConfig(process=python_executable, args=[
+    return_code, stdout2 = SubprocessConfig(psrocess=python_executable, args=[
         str(model_root / fixed_paths.SCORE_SCRIPT),
         f"--data_folder={str(data_root)}",
         f"--image_files={img_files[0]},{img_files[1]}",
@@ -222,3 +224,41 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
     expected_shape = get_nifti_shape(train_and_test_data_dir / img_files[0])
     image_header = get_unit_image_header()
     assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [3], np.ubyte)
+
+
+@pytest.mark.after_training_2node
+def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if a job running on 2 nodes trains correctly.
+    """
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)
+    assert run.status == RunStatus.COMPLETED
+    files = run.get_file_names()
+    # There are two nodes, so there should be one log file per node.
+    log0_path = "azureml-logs/70_driver_log_0.txt"
+    log1_path = "azureml-logs/70_driver_log_1.txt"
+    assert log0_path in files, "Node rank 0 log file is missing"
+    assert log1_path in files, "Node rank 1 log file is missing"
+    # Download both log files and check their contents
+    log0 = test_output_dirs.root_dir / log0_path
+    log1 = test_output_dirs.root_dir / log1_path
+    run.download_file(log0_path, output_file_path=str(log0))
+    run.download_file(log1_path, output_file_path=str(log1))
+    log0_txt = log0.read_text()
+    log1_txt = log1.read_text()
+    # Only the node at rank 0 should be done certain startup activities, like visualizing crops.
+    # Running inference similarly should only run on one node.
+    for in_log0_only in ["Visualizing the effect of sampling random crops for training",
+                         "STARTING: Registering default model",
+                         "STARTING: Running default model on test set"]:
+        assert in_log0_only in log0_txt
+        assert in_log0_only not in log1_txt
+    training_indicator = "STARTING: Model training"
+    assert training_indicator in log0_txt
+    assert training_indicator in log1_txt
+    # Check diagnostic messages that show if DDP was set up correctly. This could fail if Lightning
+    # changes its diagnostic outputs.
+    assert "initializing ddp: GLOBAL_RANK: 0, MEMBER: 1/4" in log0_txt
+    assert "initializing ddp: GLOBAL_RANK: 1, MEMBER: 2/4" in log0_txt
+    assert "initializing ddp: GLOBAL_RANK: 2, MEMBER: 3/4" in log1_txt
+    assert "initializing ddp: GLOBAL_RANK: 3, MEMBER: 4/4" in log1_txt
