@@ -18,7 +18,7 @@ from InnerEye.Azure.azure_runner import create_run_config
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_DATA_FOLDER, DEFAULT_RESULT_IMAGE_NAME, DEFAULT_TEST_IMAGE_NAME, \
     ENVIRONMENT_YAML_FILE_NAME, RUN_SCORING_SCRIPT, SCORE_SCRIPT, SETTINGS_YAML_FILE, repository_root_directory, \
-PYTHON_ENVIRONMENT_NAME
+    PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 
 

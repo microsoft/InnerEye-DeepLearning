@@ -29,16 +29,16 @@ from InnerEye.Common.common_util import get_epoch_results_path
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape
-from TestsOutsidePackage.test_register_model import SubprocessConfig
 
-FALLBACK_ENSEMBLE_RUN = "refs_pull_323_merge:HD_39282253-5363-4956-a8a9-253f4f769c22"
-FALLBACK_SINGLE_RUN = "refs_pull_323_merge:refs_pull_323_merge_1611668076_723bd198"
-FALLBACK_2NODE_RUN = "antonsc_multi_node_1612371835_5f03aaa3"
+FALLBACK_ENSEMBLE_RUN = "refs_pull_385_merge:HD_2850254e-4ecf-4425-9245-70fa98f50d81"
+FALLBACK_SINGLE_RUN = "refs_pull_385_merge:refs_pull_385_merge_1612421372_b8070506"
+FALLBACK_2NODE_RUN = "refs_pull_385_merge:refs_pull_385_merge_1612421371_ba12a007"
 
 
 def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> str:
@@ -206,16 +206,15 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
 
     # run score pipeline as a separate process
     python_executable = sys.executable
-    [return_code1, stdout1] = SubprocessConfig(process=python_executable,
-                                               args=["--version"]).spawn_and_monitor_subprocess()
+    [return_code1, stdout1] = spawn_and_monitor_subprocess(process=python_executable,
+                                                           args=["--version"])
     assert return_code1 == 0
     print(f"Executing Python version {stdout1[0]}")
-    return_code, stdout2 = SubprocessConfig(psrocess=python_executable, args=[
+    return_code, stdout2 = spawn_and_monitor_subprocess(process=python_executable, args=[
         str(model_root / fixed_paths.SCORE_SCRIPT),
         f"--data_folder={str(data_root)}",
         f"--image_files={img_files[0]},{img_files[1]}",
-        "--use_gpu=False"
-    ]).spawn_and_monitor_subprocess()
+        "--use_gpu=False"])
 
     # check that the process completed as expected
     assert return_code == 0, f"Subprocess failed with return code {return_code}. Stdout: {os.linesep.join(stdout2)}"
