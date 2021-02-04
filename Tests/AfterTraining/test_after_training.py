@@ -26,7 +26,7 @@ from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, get_comparison_baseline
     is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import get_epoch_results_path
-from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
+from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
@@ -144,6 +144,7 @@ def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     :return:
     """
     model = get_most_recent_model(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
+    assert PYTHON_ENVIRONMENT_NAME in model.tags, "Environment name not present in model properties"
     image_file = fixed_paths_for_tests.full_ml_test_data_path() / "train_and_test_data" / "id1_channel1.nii.gz"
     assert image_file.exists(), f"Image file not found: {image_file}"
     settings_file = fixed_paths.SETTINGS_YAML_FILE
@@ -175,6 +176,7 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
     """
     azureml_model = get_most_recent_model(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
     assert azureml_model is not None
+    assert PYTHON_ENVIRONMENT_NAME in azureml_model.tags, "Environment name not present in model properties"
     # download the registered model and test that we can run the score pipeline on it
     model_root = Path(azureml_model.download(str(test_output_dirs.root_dir)))
     # The model needs to contain score.py at the root, the (merged) environment definition,

@@ -37,6 +37,9 @@ SLEEP_TIME_SECONDS = 30
 INPUT_DATA_KEY = "input_data"
 
 RUN_RECOVERY_FILE = "most_recent_run.txt"
+# The version to use when creating an AzureML Python environment. We create all environments with a unique hashed
+# name, hence version will always be fixed
+ENVIRONMENT_VERSION = "1"
 
 
 def submit_to_azureml(azure_config: AzureConfig,
@@ -233,20 +236,23 @@ def pytorch_version_from_conda_dependencies(conda_dependencies: CondaDependencie
 
 
 def get_or_create_python_environment(azure_config: AzureConfig,
-                                     source_config: SourceConfig) -> Environment:
+                                     source_config: SourceConfig,
+                                     environment_name: str = "") -> Environment:
     """
     Creates a description for the Python execution environment in AzureML, based on the Conda environment
     definition files that are specified in `source_config`. If such environment with this Conda environment already
     exists, it is retrieved, otherwise created afresh.
     :param azure_config: azure related configurations to use for model scale-out behaviour
     :param source_config: configurations for model execution, such as name and execution mode
+    :param environment_name: If specified, try to retrieve the existing Python environment with this name. If that
+    is not found, create one from the Conda files provided. This parameter is meant to be used when running
+    inference for an existing model.
     """
     # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not be
     # necessary if the innereye package is installed. It is necessary when working with an outer project and
     # InnerEye as a git submodule and submitting jobs from the local machine.
     # In case of version conflicts, the package version in the outer project is given priority.
     conda_dependencies, merged_yaml = merge_conda_dependencies(source_config.conda_dependencies_files)  # type: ignore
-    # TODO antonsc: We should download the inference config and read the environment hash
     if azure_config.pip_extra_index_url:
         # When an extra-index-url is supplied, swap the order in which packages are searched for.
         # This is necessary if we need to consume packages from extra-index that clash with names of packages on
@@ -265,14 +271,15 @@ def get_or_create_python_environment(azure_config: AzureConfig,
     hash_string = "\n".join([merged_yaml, azure_config.docker_shm_size, base_image, str(env_variables)])
     sha1 = hashlib.sha1(hash_string.encode("utf8"))
     overall_hash = sha1.hexdigest()[:32]
-    env_name = f"InnerEye-{overall_hash}"
+    unique_env_name = f"InnerEye-{overall_hash}"
     try:
-        env = Environment.get(azure_config.get_workspace(), name=env_name)
+        env_name_to_find = environment_name or unique_env_name
+        env = Environment.get(azure_config.get_workspace(), name=env_name_to_find, version=ENVIRONMENT_VERSION)
         logging.info(f"Using existing Python environment '{env.name}'.")
         return env
     except Exception:
-        logging.info(f"Python environment '{env_name}' does not yet exist, creating and registering it.")
-    env = Environment(name=env_name)
+        logging.info(f"Python environment '{unique_env_name}' does not yet exist, creating and registering it.")
+    env = Environment(name=unique_env_name)
     env.docker.enabled = True
     env.docker.shm_size = azure_config.docker_shm_size
     env.python.conda_dependencies = conda_dependencies
@@ -284,13 +291,17 @@ def get_or_create_python_environment(azure_config: AzureConfig,
 
 def create_run_config(azure_config: AzureConfig,
                       source_config: SourceConfig,
-                      azure_dataset_id: str = "") -> ScriptRunConfig:
+                      azure_dataset_id: str = "",
+                      environment_name: str = "") -> ScriptRunConfig:
     """
     Creates a configuration to run the InnerEye training script in AzureML.
     :param azure_config: azure related configurations to use for model scale-out behaviour
     :param source_config: configurations for model execution, such as name and execution mode
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run. This can be an empty
     string to not use any datasets.
+    :param environment_name: If specified, try to retrieve the existing Python environment with this name. If that
+    is not found, create one from the Conda files provided in `source_config`. This parameter is meant to be used
+    when running inference for an existing model.
     :return: The configured script run.
     """
     if azure_dataset_id:
@@ -313,7 +324,8 @@ def create_run_config(azure_config: AzureConfig,
         script=entry_script_relative_path,
         arguments=source_config.script_params,
     )
-    run_config.environment = get_or_create_python_environment(azure_config, source_config)
+    run_config.environment = get_or_create_python_environment(azure_config, source_config,
+                                                              environment_name=environment_name)
     run_config.target = azure_config.cluster
     run_config.max_run_duration_seconds = max_run_duration
     if azure_config.num_nodes > 1:

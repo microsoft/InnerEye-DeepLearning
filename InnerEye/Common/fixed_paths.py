@@ -72,6 +72,9 @@ RUN_SCORING_SCRIPT = f"{INNEREYE_PACKAGE_NAME}/Scripts/download_model_and_run_sc
 DEFAULT_DATA_FOLDER = "data"
 DEFAULT_TEST_IMAGE_NAME = "test.nii.gz"
 
+# The property in the model registry that holds the name of the Python environment
+PYTHON_ENVIRONMENT_NAME = "python_environment_name"
+
 
 def get_environment_yaml_file() -> Path:
     """
