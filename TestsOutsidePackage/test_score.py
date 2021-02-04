@@ -22,9 +22,6 @@ from score import create_inference_pipeline, is_spacing_valid, run_inference, sc
 test_image = full_ml_test_data_path("train_and_test_data") / "id1_channel1.nii.gz"
 img_nii_path = full_ml_test_data_path("test_img.nii.gz")
 
-hnsegmentation_file = "hnsegmentation.nii.gz"
-hnsegmentation_path = full_ml_test_data_path(hnsegmentation_file)
-sample_dicom_zip_file = full_ml_test_data_path("sample_dicom.zip")
 
 # The directory containing this file.
 THIS_DIR: Path = Path(__file__).parent.resolve()
@@ -46,6 +43,11 @@ TEST_TWO_ZIP_FILE: Path = TEST_DATA_DIR / "test_two.zip"
 TEST_TWO_NESTED_ZIP_FILE: Path = TEST_DATA_DIR / "test_two_nested.zip"
 # As above, but all in another folder.
 TEST_TWO_NESTED_TWICE_ZIP_FILE: Path = TEST_DATA_DIR / "test_two_nested_twice.zip"
+
+# A sample H&N segmentation
+HNSEGMENTATION_FILE = TEST_DATA_DIR / "hnsegmentation.nii.gz"
+# A sample H&N DICOM series
+HN_DICOM_SERIES_ZIP = TEST_DATA_DIR / "HN.zip"
 
 
 def test_score_check_spacing() -> None:
@@ -135,7 +137,29 @@ def _common_test_unpack_zip(zip_filename: Path, expected_filenames: List[List[st
     assert series_file_names == expected_filenames
 
 
-def test_score_image_nifti(test_output_dirs: OutputFolderForTests) -> None:
+@mock.patch('score.store_as_ubyte_nifti')
+@mock.patch('score.run_inference')
+@mock.patch('score.init_from_model_inference_json')
+def test_score_image_nifti(mock_init_from_model_inference_json,
+                           mock_run_inference,
+                           mock_store_as_ubyte_nifti,
+                           test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that original behaviour is unaffected.
+
+    :param mock_init_from_model_inference_json: Mock of score.init_from_model_inference_json
+    :param mock_run_inference: Mock of score.run_inference
+    :param mock_store_as_ubyte_nifti: Mock of score.store_as_ubyte_nifti
+    :param test_output_dirs: Test output directories.
+    """
+    mock_pipeline_base = {'mock_pipeline_base': True}
+    mock_config = {'mock_config': True}
+    mock_init_from_model_inference_json.return_value = (mock_pipeline_base, mock_config)
+    mock_segmentation = {'mock_segmentation': True}
+    mock_run_inference.return_value = mock_segmentation
+    mock_nifti_filename = Path('result_image_name.nii.gz')
+    mock_store_as_ubyte_nifti.return_value = mock_nifti_filename
+
     model_folder = test_output_dirs.root_dir / "final"
 
     score_pipeline_config = ScorePipelineConfig(
@@ -146,32 +170,51 @@ def test_score_image_nifti(test_output_dirs: OutputFolderForTests) -> None:
         use_gpu=False,
         use_dicom=False)
 
-    with mock.patch('score.init_from_model_inference_json',
-                    return_value=(1, 2)):
-        with mock.patch('score.run_inference',
-                        return_value=True):
-            with mock.patch('score.store_as_ubyte_nifti',
-                            return_value='result_image_name.nii.gz'):
-                segmentation = score_image(score_pipeline_config)
-                assert segmentation
+    segmentation = score_image(score_pipeline_config)
+    assert segmentation == mock_nifti_filename
+
+    mock_init_from_model_inference_json.assert_called_once_with(Path(score_pipeline_config.model_folder),
+                                                                score_pipeline_config.use_gpu)
+    mock_run_inference.assert_called()
+    mock_store_as_ubyte_nifti.assert_called()
 
 
-def test_score_image_dicom(test_output_dirs: OutputFolderForTests) -> None:
+@mock.patch('score.store_as_ubyte_nifti')
+@mock.patch('score.run_inference')
+@mock.patch('score.init_from_model_inference_json')
+def test_score_image_dicom(mock_init_from_model_inference_json,
+                           mock_run_inference,
+                           mock_store_as_ubyte_nifti,
+                           test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that dicom in and dicom-rt out works, by mocking out functions that do most of the work.
+
+    :param mock_init_from_model_inference_json: Mock of score.init_from_model_inference_json
+    :param mock_run_inference: Mock of score.run_inference
+    :param mock_store_as_ubyte_nifti: Mock of score.store_as_ubyte_nifti
+    :param test_output_dirs: Test output directories.
+    """
+    mock_pipeline_base = {'mock_pipeline_base': True}
+    mock_config = {'ground_truth_ids_display_names': []}
+    mock_init_from_model_inference_json.return_value = (mock_pipeline_base, mock_config)
+    mock_segmentation = {'mock_segmentation': True}
+    mock_run_inference.return_value = mock_segmentation
+    mock_store_as_ubyte_nifti.return_value = HNSEGMENTATION_FILE
+
     model_folder = test_output_dirs.root_dir / "final"
 
     score_pipeline_config = ScorePipelineConfig(
-        data_folder=full_ml_test_data_path("HN"),
+        data_folder=TEST_DATA_DIR,
         model_folder=str(model_folder),
-        image_files=[str(sample_dicom_zip_file)],
+        image_files=[str(HN_DICOM_SERIES_ZIP)],
         result_image_name="result_image_name",
         use_gpu=False,
         use_dicom=True)
 
-    with mock.patch('score.init_from_model_inference_json',
-                    return_value=(1, 2)):
-        with mock.patch('score.run_inference',
-                        return_value=True):
-            with mock.patch('score.store_as_ubyte_nifti',
-                            return_value=hnsegmentation_path):
-                segmentation = score_image(score_pipeline_config)
-                assert segmentation
+    segmentation = score_image(score_pipeline_config)
+    assert segmentation
+
+    mock_init_from_model_inference_json.assert_called_once_with(Path(score_pipeline_config.model_folder),
+                                                                score_pipeline_config.use_gpu)
+    mock_run_inference.assert_called()
+    mock_store_as_ubyte_nifti.assert_called()

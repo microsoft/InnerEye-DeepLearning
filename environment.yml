@@ -55,3 +55,4 @@ dependencies:
       - tensorboard==2.3.0
       - tensorboardX==2.1
       - torchprof==1.1.1
+      - https://test-files.pythonhosted.org/packages/9c/7d/0c0ab76d40ff801ca7db266af884b87d50730bdcc6206c87f429795608a9/InnerEye_DICOM_RT-0.1.1.post116-py3-none-any.whl
