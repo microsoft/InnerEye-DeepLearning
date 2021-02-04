@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 from unittest import mock
@@ -48,6 +49,39 @@ TEST_TWO_NESTED_TWICE_ZIP_FILE: Path = TEST_DATA_DIR / "test_two_nested_twice.zi
 HNSEGMENTATION_FILE = TEST_DATA_DIR / "hnsegmentation.nii.gz"
 # A sample H&N DICOM series
 HN_DICOM_SERIES_ZIP = TEST_DATA_DIR / "HN.zip"
+
+# Test fill holes.
+FillHoles: List[bool] = \
+    [
+        True, True, True, True,
+        False, False, True, True,
+        True, True, False, True,
+        True, True, True, False,
+        True, False, True, True,
+        False, True
+    ]
+
+# Test structure colors.
+StructureColors: List[str] = \
+    [
+        "FF0001", "FF0002", "FF0003", "FF0004",
+        "FF0101", "FF0102", "FF0103", "FF0103",
+        "FF0201", "FF02FF", "FF0203", "FF0204",
+        "FF0301", "FF0302", "01FF03", "FF0304",
+        "FF0401", "00FFFF", "FF0403", "FF0404",
+        "FF0501", "FF0502"
+    ]
+
+# Test structure names.
+StructureNames: List[str] = \
+    [
+        "External", "parotid_l", "parotid_r", "smg_l",
+        "smg_r", "spinal_cord", "brainstem", "globe_l",
+        "Globe_r", "mandible", "spc_muscle", "mpc_muscle",
+        "Cochlea_l", "cochlea_r", "lens_l", "lens_r",
+        "optic_chiasm", "optic_nerve_l", "optic_nerve_r", "pituitary_gland",
+        "lacrimal_gland_l", "lacrimal_gland_r"
+    ]
 
 
 def test_score_check_spacing() -> None:
@@ -136,47 +170,11 @@ def _common_test_unpack_zip(zip_filename: Path, expected_filenames: List[List[st
         series_file_names.append([series_file.name for series_file in series_files])
     assert series_file_names == expected_filenames
 
-
-@mock.patch('score.store_as_ubyte_nifti')
-@mock.patch('score.run_inference')
-@mock.patch('score.init_from_model_inference_json')
-def test_score_image_nifti(mock_init_from_model_inference_json,
-                           mock_run_inference,
-                           mock_store_as_ubyte_nifti,
-                           test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test that original behaviour is unaffected.
-
-    :param mock_init_from_model_inference_json: Mock of score.init_from_model_inference_json
-    :param mock_run_inference: Mock of score.run_inference
-    :param mock_store_as_ubyte_nifti: Mock of score.store_as_ubyte_nifti
-    :param test_output_dirs: Test output directories.
-    """
-    mock_pipeline_base = {'mock_pipeline_base': True}
-    mock_config = {'mock_config': True}
-    mock_init_from_model_inference_json.return_value = (mock_pipeline_base, mock_config)
-    mock_segmentation = {'mock_segmentation': True}
-    mock_run_inference.return_value = mock_segmentation
-    mock_nifti_filename = Path('result_image_name.nii.gz')
-    mock_store_as_ubyte_nifti.return_value = mock_nifti_filename
-
-    model_folder = test_output_dirs.root_dir / "final"
-
-    score_pipeline_config = ScorePipelineConfig(
-        data_folder=full_ml_test_data_path(),
-        model_folder=str(model_folder),
-        image_files=[str(img_nii_path)],
-        result_image_name='result_image_name',
-        use_gpu=False,
-        use_dicom=False)
-
-    segmentation = score_image(score_pipeline_config)
-    assert segmentation == mock_nifti_filename
-
-    mock_init_from_model_inference_json.assert_called_once_with(Path(score_pipeline_config.model_folder),
-                                                                score_pipeline_config.use_gpu)
-    mock_run_inference.assert_called()
-    mock_store_as_ubyte_nifti.assert_called()
+@dataclass
+class MockConfig:
+    ground_truth_ids_display_names: List[str]
+    colours: List[str]
+    fill_holes: List[bool]
 
 
 @mock.patch('score.store_as_ubyte_nifti')
@@ -195,7 +193,7 @@ def test_score_image_dicom(mock_init_from_model_inference_json,
     :param test_output_dirs: Test output directories.
     """
     mock_pipeline_base = {'mock_pipeline_base': True}
-    mock_config = {'ground_truth_ids_display_names': []}
+    mock_config = MockConfig(StructureNames, StructureColors,FillHoles)
     mock_init_from_model_inference_json.return_value = (mock_pipeline_base, mock_config)
     mock_segmentation = {'mock_segmentation': True}
     mock_run_inference.return_value = mock_segmentation
@@ -212,7 +210,7 @@ def test_score_image_dicom(mock_init_from_model_inference_json,
         use_dicom=True)
 
     segmentation = score_image(score_pipeline_config)
-    assert segmentation
+    assert segmentation.is_file()
 
     mock_init_from_model_inference_json.assert_called_once_with(Path(score_pipeline_config.model_folder),
                                                                 score_pipeline_config.use_gpu)
