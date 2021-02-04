@@ -2,11 +2,12 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from pathlib import Path
+from typing import List
+from unittest import mock
 import numpy as np
 import pytest
 from pytorch_lightning import seed_everything
-
-from unittest import mock
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -14,7 +15,8 @@ from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
-from score import create_inference_pipeline, is_spacing_valid, run_inference, score_image, ScorePipelineConfig
+from score import create_inference_pipeline, is_spacing_valid, run_inference, score_image, ScorePipelineConfig, \
+    extract_zipped_dicom_series
 
 
 test_image = full_ml_test_data_path("train_and_test_data") / "id1_channel1.nii.gz"
@@ -23,6 +25,27 @@ img_nii_path = full_ml_test_data_path("test_img.nii.gz")
 hnsegmentation_file = "hnsegmentation.nii.gz"
 hnsegmentation_path = full_ml_test_data_path(hnsegmentation_file)
 sample_dicom_zip_file = full_ml_test_data_path("sample_dicom.zip")
+
+# The directory containing this file.
+THIS_DIR: Path = Path(__file__).parent.resolve()
+# The TestData directory.
+TEST_DATA_DIR: Path = THIS_DIR / "TestData"
+# Filenames of dcm files in flat test zip.
+TEST_FLAT_ZIP_FILENAMES = [['2.dcm', '3.dcm', '4.dcm']]
+# Flat test zip file.
+TEST_FLAT_ZIP_FILE: Path = TEST_DATA_DIR / "test_flat.zip"
+# As test_flat but everything in "folder1"
+TEST_FLAT_NESTED_ZIP_FILE: Path = TEST_DATA_DIR / "test_flat_nested.zip"
+# As test_flat_nested but everything in "folder2"
+TEST_FLAT_NESTED_TWICE_ZIP_FILE: Path = TEST_DATA_DIR / "test_flat_nested_twice.zip"
+# Filenames of dcm files in test two zip.
+TEST_TWO_ZIP_FILENAMES = [['2.dcm', '3.dcm', '4.dcm'], ['6.dcm', '7.dcm', '8.dcm']]
+# Two folders containing dcm files
+TEST_TWO_ZIP_FILE: Path = TEST_DATA_DIR / "test_two.zip"
+# Two folders each containing a folder containing dcm files
+TEST_TWO_NESTED_ZIP_FILE: Path = TEST_DATA_DIR / "test_two_nested.zip"
+# As above, but all in another folder.
+TEST_TWO_NESTED_TWICE_ZIP_FILE: Path = TEST_DATA_DIR / "test_two_nested_twice.zip"
 
 
 def test_score_check_spacing() -> None:
@@ -61,6 +84,55 @@ def test_run_scoring(test_output_dirs: OutputFolderForTests, is_ensemble: bool) 
     assert image_with_header.image.shape == result.shape  # type: ignore
     print(f"Unique result values: {np.unique(result)}")
     assert np.all(result == 1)
+
+
+@pytest.mark.parametrize("zip_filename", [TEST_FLAT_ZIP_FILE, TEST_FLAT_NESTED_ZIP_FILE, TEST_FLAT_NESTED_TWICE_ZIP_FILE])
+def test_unpack_flat_zip(zip_filename: Path, test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test the a zip file containing just files: 1.txt, 2.dcm, 3.dcm, 4.dcm and 5.txt
+    can be extracted into a folder containing only the .dcm files.
+
+    :param zip_filename: Path to test zip file.
+    :param test_output_dirs: Test output directories.
+    """
+    _common_test_unpack_zip(zip_filename, TEST_FLAT_ZIP_FILENAMES, test_output_dirs)
+
+
+@pytest.mark.parametrize("zip_filename", [TEST_TWO_ZIP_FILE, TEST_TWO_NESTED_ZIP_FILE, TEST_TWO_NESTED_TWICE_ZIP_FILE])
+def test_unpack_two_zip(zip_filename: Path, test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test the zip file containing files: 1.txt, 2.dcm, 3.dcm, 4.dcm and 5.txt in one folder
+    and 5.txt, 6.dcm, 7.dcm, 8.dcm, 9.txt in another folder
+    can be extracted into two folders containing only the .dcm files.
+
+    :param zip_filename: Path to test zip file.
+    :param test_output_dirs: Test output directories.
+    """
+    _common_test_unpack_zip(zip_filename, TEST_TWO_ZIP_FILENAMES, test_output_dirs)
+
+
+def _common_test_unpack_zip(zip_filename: Path, expected_filenames: List[List[str]],
+                            test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test the zip file contains expected .dcm files grouped by folder.
+
+    :param zip_filename: Path to test zip file.
+    :param expected_filenames: List of list of expected filenames, grouped by expected folder.
+    :param test_output_dirs: Test output directories.
+    """
+    model_folder = test_output_dirs.root_dir / "unpack"
+    series = extract_zipped_dicom_series(zip_filename, model_folder)
+    series_file_names = []
+    assert len(series) == len(expected_filenames)
+    for series_item in series:
+        # Get all files/folders in this series
+        series_files = list(series_item.glob('**/*'))
+        # Check they are all files (no folders)
+        for series_file in series_files:
+            assert series_file.is_file()
+        # Check names are as expected
+        series_file_names.append([series_file.name for series_file in series_files])
+    assert series_file_names == expected_filenames
 
 
 def test_score_image_nifti(test_output_dirs: OutputFolderForTests) -> None:
