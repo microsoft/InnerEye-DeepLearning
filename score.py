@@ -149,7 +149,7 @@ def extract_zipped_dicom_series(zip_file_path: Path, model_folder: Path) -> List
     with zipfile.ZipFile(zip_file_path, 'r') as zip_file:
         for zipped_file in zip_file.namelist():
             if zipped_file.endswith('.dcm'):
-                zip_file.extract(zipped_file, extraction_folder)
+                zip_file.extract(zipped_file, str(extraction_folder))
                 extracted_file_path = extraction_folder / zipped_file
                 extracted_file_path_folder = extracted_file_path.parent
                 if extracted_file_path_folder not in dicom_folders:
