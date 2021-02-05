@@ -147,28 +147,28 @@ def extract_zipped_dicom_series(zip_file_path: Path, model_folder: Path) -> List
     dicom_folders: List[Path] = []
     extraction_folder = model_folder / "temp_extraction"
     with zipfile.ZipFile(zip_file_path, 'r') as zip_file:
-        for zipped_file in zip_file.namelist():
-            if zipped_file.endswith('.dcm'):
+        for zipped_file in zip_file.infolist():
+            # try to extract only DICOM files, but these need not have
+            # an extension
+            if not zipped_file.is_dir() and (
+                    zipped_file.filename.endswith('.dcm') or '.' not in zipped_file.filename):
                 zip_file.extract(zipped_file, str(extraction_folder))
-                extracted_file_path = extraction_folder / zipped_file
+                extracted_file_path = extraction_folder / zipped_file.filename
                 extracted_file_path_folder = extracted_file_path.parent
                 if extracted_file_path_folder not in dicom_folders:
                     dicom_folders.append(extracted_file_path_folder)
     return dicom_folders
 
 
-def convert_zipped_dicom_to_nifti(test_images: List[Path], model_folder: Path) -> Tuple[List[Path], List[Path]]:
+def convert_zipped_dicom_to_nifti(test_image: Path, model_folder: Path) -> Tuple[List[Path], List[Path]]:
     """
     Given a zip file, extract DICOM series and convert to Nifti format.
 
-    :param test_images: A list containing a single zip file.
+    :param test_image: Path to a zip file.
     :param model_folder: Scratch folder to extract files into.
     :return: Pair of list of Nifti files and their corresponding reference series.
     """
-    # Only a single zip file is supported.
-    if len(test_images) != 1 or not zipfile.is_zipfile(test_images[0]):
-        raise ValueError("Supply exactly one zip file in args.images.")
-    reference_series_folders = extract_zipped_dicom_series(test_images[0], model_folder)
+    reference_series_folders = extract_zipped_dicom_series(test_image, model_folder)
     converted_images: List[Path] = []
     for i, reference_series_folder in enumerate(reference_series_folders):
         nifti_filename = model_folder / f"temp_nifti_{i}.nii.gz"
@@ -203,6 +203,22 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path,
     return dicom_rt_zip_file
 
 
+def check_input_file(data_folder: Path, file: str) -> Path:
+    """
+    Check that input file exists, and raise an exception if not.
+
+    :param data_folder: Path to data folder.
+    :param file: Filename within data folder.
+    :return: Full path to filename.
+    """
+    full_file_path = data_folder / file
+    if not full_file_path.exists():
+        message = \
+            str(data_folder) if data_folder.is_absolute() else f"{data_folder}, absolute: {data_folder.absolute()}"
+        raise ValueError(f"File {file} does not exist in data folder {message}")
+    return full_file_path
+
+
 def score_image(args: ScorePipelineConfig) -> Path:
     """
     Perform model inference on a single image. By doing the following:
@@ -220,18 +236,14 @@ def score_image(args: ScorePipelineConfig) -> Path:
     run_context = Run.get_context()
     logging.info(f"Run context={run_context.id}")
 
-    test_images = []
-    data_folder = args.data_folder
-    for file in args.image_files:
-        full_file_path = data_folder / file
-        if not full_file_path.exists():
-            message = \
-                str(data_folder) if data_folder.is_absolute() else f"{data_folder}, absolute: {data_folder.absolute()}"
-            raise ValueError(f"File {file} does not exist in data folder {message}")
-        test_images.append(full_file_path)
-
     if args.use_dicom:
-        test_images, reference_series_folders = convert_zipped_dicom_to_nifti(test_images, model_folder)
+        # Only a single zip file is supported.
+        if len(args.image_files) > 1:
+            raise ValueError("Supply exactly one zip file in args.images.")
+        input_zip_file = check_input_file(args.data_folder, args.image_files[0])
+        test_images, reference_series_folders = convert_zipped_dicom_to_nifti(input_zip_file, model_folder)
+    else:
+        test_images = [check_input_file(args.data_folder, file) for file in args.image_files]
 
     images = [load_nifti_image(file) for file in test_images]
 

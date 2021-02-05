@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 from unittest import mock
+from zipfile import BadZipFile
 import numpy as np
 import pytest
 from pytorch_lightning import seed_everything
@@ -176,6 +177,46 @@ class MockConfig:
     ground_truth_ids_display_names: List[str]
     colours: List[str]
     fill_holes: List[bool]
+
+
+def test_score_image_dicom_two_inputs(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that dicom in with more than one input fails.
+
+    :param test_output_dirs: Test output directories.
+    """
+    model_folder = test_output_dirs.root_dir / "final"
+
+    score_pipeline_config = ScorePipelineConfig(
+        data_folder=TEST_DATA_DIR,
+        model_folder=str(model_folder),
+        image_files=[str(HN_DICOM_SERIES_ZIP), str(HN_DICOM_SERIES_ZIP)],
+        result_image_name="result_image_name",
+        use_gpu=False,
+        use_dicom=True)
+
+    with pytest.raises(ValueError):
+        score_image(score_pipeline_config)
+
+
+def test_score_image_dicom_not_zip_input(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that dicom in with more than one input fails.
+
+    :param test_output_dirs: Test output directories.
+    """
+    model_folder = test_output_dirs.root_dir / "final"
+
+    score_pipeline_config = ScorePipelineConfig(
+        data_folder=TEST_DATA_DIR,
+        model_folder=str(model_folder),
+        image_files=[str(HNSEGMENTATION_FILE)],
+        result_image_name="result_image_name",
+        use_gpu=False,
+        use_dicom=True)
+
+    with pytest.raises(BadZipFile):
+        score_image(score_pipeline_config)
 
 
 def test_score_image_dicom(test_output_dirs: OutputFolderForTests) -> None:
