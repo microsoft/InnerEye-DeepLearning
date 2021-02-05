@@ -27,7 +27,7 @@ from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.utils.io_util import ImageWithHeader, load_nifti_image, reverse_tuple_float3, store_as_ubyte_nifti, \
-    load_dicom_series
+    load_dicom_series_and_save
 
 
 class ScorePipelineConfig(GenericConfig):
@@ -172,7 +172,7 @@ def convert_zipped_dicom_to_nifti(test_images: List[Path], model_folder: Path) -
     converted_images: List[Path] = []
     for i, reference_series_folder in enumerate(reference_series_folders):
         nifti_filename = model_folder / f"temp_nifti_{i}.nii.gz"
-        load_dicom_series(reference_series_folder, nifti_filename)
+        load_dicom_series_and_save(reference_series_folder, nifti_filename)
         converted_images.append(nifti_filename)
     return converted_images, reference_series_folders
 

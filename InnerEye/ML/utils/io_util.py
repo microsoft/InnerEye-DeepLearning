@@ -653,14 +653,17 @@ def tabulate_dataframe(df: pd.DataFrame, pefix_newline: bool = True) -> str:
     return ("\n" if pefix_newline else "") + tabulate(df, tablefmt="fancy_grid", headers="keys", showindex="never")
 
 
-def load_dicom_series(folder: PathOrString, file_name: PathOrString) -> Path:
+def load_dicom_series_and_save(folder: Path, file_name: Path) -> None:
     """
     Load a DICOM series into a 3d image and save as file_name.
 
     If the folder contains more than one series then the first will be loaded.
-    :param folder: Path to folder containing images.
+    The file format type is determined by SimpleITK based on the file name's suffix.
+    List of supported file types is here:
+    https://simpleitk.readthedocs.io/en/master/IO.html
+
+    :param folder: Path to folder containing DICOM series.
     :param file_name: Path to save image.
-    :return: the path to the saved image.
     """
     reader = sitk.ImageSeriesReader()
     series_found = reader.GetGDCMSeriesIDs(str(folder))
@@ -673,4 +676,3 @@ def load_dicom_series(folder: PathOrString, file_name: PathOrString) -> Path:
 
     image = reader.Execute()
     sitk.WriteImage(image, str(file_name))
-    return Path(file_name)

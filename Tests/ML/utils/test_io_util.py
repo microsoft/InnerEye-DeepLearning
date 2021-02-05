@@ -20,7 +20,7 @@ from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
 from InnerEye.ML.utils.io_util import DicomTags, ImageAndSegmentations, ImageHeader, PhotometricInterpretation, \
     is_dicom_file_path, is_nifti_file_path, is_numpy_file_path, load_dicom_image, load_image_in_known_formats, \
-    load_images_and_stack, load_numpy_image, reverse_tuple_float3, load_dicom_series
+    load_images_and_stack, load_numpy_image, reverse_tuple_float3, load_dicom_series_and_save
 from Tests.ML.util import assert_file_contains_string
 
 known_nii_path = full_ml_test_data_path("test_good.nii.gz")
@@ -28,7 +28,7 @@ known_array = np.ones((128, 128, 128))
 bad_nii_path = full_ml_test_data_path("test_bad.nii.gz")
 good_npy_path = full_ml_test_data_path("test_good.npz")
 good_h5_path = full_ml_test_data_path("data.h5")
-dicom_series_folder = full_ml_test_data_path("HN")
+dicom_series_folder = full_ml_test_data_path() / "dicom_series_data" / "HN"
 
 
 @pytest.mark.parametrize("path", ["", " ", None, "not_exists", ".", "tests/test_io_util.py"])
@@ -615,9 +615,8 @@ def test_load_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
     :param test_output_dirs: Test output directories.
     :return: None.
     """
-    nifti_file_out = test_output_dirs.root_dir / "test_dicom_series.nii.gz"
-    nifti_file = load_dicom_series(dicom_series_folder, nifti_file_out)
-    assert nifti_file == nifti_file_out
+    nifti_file = test_output_dirs.root_dir / "test_dicom_series.nii.gz"
+    load_dicom_series_and_save(dicom_series_folder, nifti_file)
     expected_shape = (157, 512, 512)
     image_header = io_util.load_nifti_image(nifti_file)
     assert image_header.image.shape == expected_shape
