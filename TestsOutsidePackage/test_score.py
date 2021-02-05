@@ -51,37 +51,34 @@ HNSEGMENTATION_FILE = TEST_DATA_DIR / "hnsegmentation.nii.gz"
 HN_DICOM_SERIES_ZIP = TEST_DATA_DIR / "HN.zip"
 
 # Test fill holes.
-FillHoles: List[bool] = \
-    [
-        True, True, True, True,
-        False, False, True, True,
-        True, True, False, True,
-        True, True, True, False,
-        True, False, True, True,
-        False, True
-    ]
+FillHoles: List[bool] = [
+    True, True, True, True,
+    False, False, True, True,
+    True, True, False, True,
+    True, True, True, False,
+    True, False, True, True,
+    False, True
+]
 
 # Test structure colors.
-StructureColors: List[str] = \
-    [
-        "FF0001", "FF0002", "FF0003", "FF0004",
-        "FF0101", "FF0102", "FF0103", "FF0103",
-        "FF0201", "FF02FF", "FF0203", "FF0204",
-        "FF0301", "FF0302", "01FF03", "FF0304",
-        "FF0401", "00FFFF", "FF0403", "FF0404",
-        "FF0501", "FF0502"
-    ]
+StructureColors: List[str] = [
+    "FF0001", "FF0002", "FF0003", "FF0004",
+    "FF0101", "FF0102", "FF0103", "FF0103",
+    "FF0201", "FF02FF", "FF0203", "FF0204",
+    "FF0301", "FF0302", "01FF03", "FF0304",
+    "FF0401", "00FFFF", "FF0403", "FF0404",
+    "FF0501", "FF0502"
+]
 
 # Test structure names.
-StructureNames: List[str] = \
-    [
-        "External", "parotid_l", "parotid_r", "smg_l",
-        "smg_r", "spinal_cord", "brainstem", "globe_l",
-        "Globe_r", "mandible", "spc_muscle", "mpc_muscle",
-        "Cochlea_l", "cochlea_r", "lens_l", "lens_r",
-        "optic_chiasm", "optic_nerve_l", "optic_nerve_r", "pituitary_gland",
-        "lacrimal_gland_l", "lacrimal_gland_r"
-    ]
+StructureNames: List[str] = [
+    "External", "parotid_l", "parotid_r", "smg_l",
+    "smg_r", "spinal_cord", "brainstem", "globe_l",
+    "Globe_r", "mandible", "spc_muscle", "mpc_muscle",
+    "Cochlea_l", "cochlea_r", "lens_l", "lens_r",
+    "optic_chiasm", "optic_nerve_l", "optic_nerve_r", "pituitary_gland",
+    "lacrimal_gland_l", "lacrimal_gland_r"
+]
 
 
 def test_score_check_spacing() -> None:
@@ -170,34 +167,26 @@ def _common_test_unpack_zip(zip_filename: Path, expected_filenames: List[List[st
         series_file_names.append([series_file.name for series_file in series_files])
     assert series_file_names == expected_filenames
 
+
 @dataclass
 class MockConfig:
+    """
+    Mock config for testing score_image with DICOM.
+    """
     ground_truth_ids_display_names: List[str]
     colours: List[str]
     fill_holes: List[bool]
 
 
-@mock.patch('score.store_as_ubyte_nifti')
-@mock.patch('score.run_inference')
-@mock.patch('score.init_from_model_inference_json')
-def test_score_image_dicom(mock_init_from_model_inference_json,
-                           mock_run_inference,
-                           mock_store_as_ubyte_nifti,
-                           test_output_dirs: OutputFolderForTests) -> None:
+def test_score_image_dicom(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that dicom in and dicom-rt out works, by mocking out functions that do most of the work.
 
-    :param mock_init_from_model_inference_json: Mock of score.init_from_model_inference_json
-    :param mock_run_inference: Mock of score.run_inference
-    :param mock_store_as_ubyte_nifti: Mock of score.store_as_ubyte_nifti
     :param test_output_dirs: Test output directories.
     """
     mock_pipeline_base = {'mock_pipeline_base': True}
-    mock_config = MockConfig(StructureNames, StructureColors,FillHoles)
-    mock_init_from_model_inference_json.return_value = (mock_pipeline_base, mock_config)
+    mock_config = MockConfig(StructureNames, StructureColors, FillHoles)
     mock_segmentation = {'mock_segmentation': True}
-    mock_run_inference.return_value = mock_segmentation
-    mock_store_as_ubyte_nifti.return_value = HNSEGMENTATION_FILE
 
     model_folder = test_output_dirs.root_dir / "final"
 
@@ -209,8 +198,14 @@ def test_score_image_dicom(mock_init_from_model_inference_json,
         use_gpu=False,
         use_dicom=True)
 
-    segmentation = score_image(score_pipeline_config)
-    assert segmentation.is_file()
+    with mock.patch('score.init_from_model_inference_json',
+                    return_value=(mock_pipeline_base, mock_config)) as mock_init_from_model_inference_json:
+        with mock.patch('score.run_inference',
+                        return_value=mock_segmentation) as mock_run_inference:
+            with mock.patch('score.store_as_ubyte_nifti',
+                            return_value=HNSEGMENTATION_FILE) as mock_store_as_ubyte_nifti:
+                segmentation = score_image(score_pipeline_config)
+                assert segmentation.is_file()
 
     mock_init_from_model_inference_json.assert_called_once_with(Path(score_pipeline_config.model_folder),
                                                                 score_pipeline_config.use_gpu)
