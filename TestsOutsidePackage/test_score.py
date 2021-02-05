@@ -30,7 +30,7 @@ THIS_DIR: Path = Path(__file__).parent.resolve()
 # The TestData directory.
 TEST_DATA_DIR: Path = THIS_DIR / "TestData"
 # Filenames of dcm files in flat test zip.
-TEST_FLAT_ZIP_FILENAMES = [['2.dcm', '3.dcm', '4.dcm']]
+TEST_FLAT_ZIP_FILENAMES = ['2.dcm', '3.dcm', '4.dcm']
 # Flat test zip file.
 TEST_FLAT_ZIP_FILE: Path = TEST_DATA_DIR / "test_flat.zip"
 # As test_flat but everything in "folder1"
@@ -38,7 +38,7 @@ TEST_FLAT_NESTED_ZIP_FILE: Path = TEST_DATA_DIR / "test_flat_nested.zip"
 # As test_flat_nested but everything in "folder2"
 TEST_FLAT_NESTED_TWICE_ZIP_FILE: Path = TEST_DATA_DIR / "test_flat_nested_twice.zip"
 # Filenames of dcm files in test two zip.
-TEST_TWO_ZIP_FILENAMES = [['2.dcm', '3.dcm', '4.dcm'], ['6.dcm', '7.dcm', '8.dcm']]
+TEST_TWO_ZIP_FILENAMES = ['2.dcm', '3.dcm', '4.dcm', '6.dcm', '7.dcm', '8.dcm']
 # Two folders containing dcm files
 TEST_TWO_ZIP_FILE: Path = TEST_DATA_DIR / "test_two.zip"
 # Two folders each containing a folder containing dcm files
@@ -145,7 +145,7 @@ def test_unpack_two_zip(zip_filename: Path, test_output_dirs: OutputFolderForTes
     _common_test_unpack_zip(zip_filename, TEST_TWO_ZIP_FILENAMES, test_output_dirs)
 
 
-def _common_test_unpack_zip(zip_filename: Path, expected_filenames: List[List[str]],
+def _common_test_unpack_zip(zip_filename: Path, expected_filenames: List[str],
                             test_output_dirs: OutputFolderForTests) -> None:
     """
     Test the zip file contains expected .dcm files grouped by folder.
@@ -155,18 +155,18 @@ def _common_test_unpack_zip(zip_filename: Path, expected_filenames: List[List[st
     :param test_output_dirs: Test output directories.
     """
     model_folder = test_output_dirs.root_dir / "unpack"
-    series = extract_zipped_dicom_series(zip_filename, model_folder)
-    series_file_names = []
-    assert len(series) == len(expected_filenames)
-    for series_item in series:
-        # Get all files/folders in this series
-        series_files = list(series_item.glob('**/*'))
-        # Check they are all files (no folders)
-        for series_file in series_files:
-            assert series_file.is_file()
-        series_file_names.append(sorted([series_file.name for series_file in series_files]))
+    extraction_folder = model_folder / "temp_extraction"
+    extract_zipped_dicom_series(zip_filename, extraction_folder)
+    # Get all files/folders in this series
+    extracted_files = list(extraction_folder.glob('**/*'))
+    # Check they are all files (no folders) and in the extraction_folder (not a subdirectory)
+    for extracted_file in extracted_files:
+        assert extracted_file.is_file()
+        relative_path = extracted_file.relative_to(extraction_folder)
+        assert str(relative_path.parent) == '.'
+    extracted_file_names = sorted([extracted_file.name for extracted_file in extracted_files])
     # Check names are as expected
-    assert series_file_names == expected_filenames
+    assert extracted_file_names == expected_filenames
 
 
 @dataclass

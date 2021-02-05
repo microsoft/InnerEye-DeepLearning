@@ -668,7 +668,7 @@ def load_dicom_series_and_save(folder: Path, file_name: Path) -> None:
     reader = sitk.ImageSeriesReader()
     series_found = reader.GetGDCMSeriesIDs(str(folder))
 
-    if not len(series_found):
+    if not series_found:
         raise ValueError("Folder does not contain any DICOM series: {}".format(str(folder)))
 
     dicom_names = reader.GetGDCMSeriesFileNames(str(folder), series_found[0])

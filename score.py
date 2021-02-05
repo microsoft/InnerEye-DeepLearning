@@ -134,47 +134,38 @@ def run_inference(images_with_header: List[ImageWithHeader],
     return segmentation
 
 
-def extract_zipped_dicom_series(zip_file_path: Path, model_folder: Path) -> List[Path]:
+def extract_zipped_dicom_series(zip_file_path: Path, extraction_folder: Path) -> None:
     """
-    Unzip a zip file. If it contains multiple directories, assume each is a DICOM series.
-    Otherwise assume that it is a single DICOM series.
-    Return a list of DICOM series folders.
+    Unzip a zip file. Assume that it is a single DICOM series, and extract all
+    DICOM files into the extraction folder.
 
     :param zip_file_path: Path to zip file.
-    :param model_folder: Path to model folder.
-    :return: List of DICOM series folders.
+    :param extraction_folder: Path to extraction folder.
     """
-    dicom_folders: List[Path] = []
-    extraction_folder = model_folder / "temp_extraction"
     with zipfile.ZipFile(zip_file_path, 'r') as zip_file:
         for zipped_file in zip_file.infolist():
             # try to extract only DICOM files, but these need not have
             # an extension
             if not zipped_file.is_dir() and (
                     zipped_file.filename.endswith('.dcm') or '.' not in zipped_file.filename):
+                # discard the path, if any, to just get the filename and suffix
+                zipped_file.filename = os.path.basename(zipped_file.filename)
                 zip_file.extract(zipped_file, str(extraction_folder))
-                extracted_file_path = extraction_folder / zipped_file.filename
-                extracted_file_path_folder = extracted_file_path.parent
-                if extracted_file_path_folder not in dicom_folders:
-                    dicom_folders.append(extracted_file_path_folder)
-    return dicom_folders
 
 
-def convert_zipped_dicom_to_nifti(test_image: Path, model_folder: Path) -> Tuple[List[Path], List[Path]]:
+def convert_zipped_dicom_to_nifti(test_image: Path, model_folder: Path) -> Tuple[Path, Path]:
     """
     Given a zip file, extract DICOM series and convert to Nifti format.
 
     :param test_image: Path to a zip file.
     :param model_folder: Scratch folder to extract files into.
-    :return: Pair of list of Nifti files and their corresponding reference series.
+    :return: Pair of path to Nifti file and path to folder of reference series.
     """
-    reference_series_folders = extract_zipped_dicom_series(test_image, model_folder)
-    converted_images: List[Path] = []
-    for i, reference_series_folder in enumerate(reference_series_folders):
-        nifti_filename = model_folder / f"temp_nifti_{i}.nii.gz"
-        load_dicom_series_and_save(reference_series_folder, nifti_filename)
-        converted_images.append(nifti_filename)
-    return converted_images, reference_series_folders
+    reference_series_folder = model_folder / "temp_extraction"
+    extract_zipped_dicom_series(test_image, reference_series_folder)
+    nifti_filename = model_folder / "temp_nifti.nii.gz"
+    load_dicom_series_and_save(reference_series_folder, nifti_filename)
+    return nifti_filename, reference_series_folder
 
 
 def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path,
@@ -241,7 +232,8 @@ def score_image(args: ScorePipelineConfig) -> Path:
         if len(args.image_files) > 1:
             raise ValueError("Supply exactly one zip file in args.images.")
         input_zip_file = check_input_file(args.data_folder, args.image_files[0])
-        test_images, reference_series_folders = convert_zipped_dicom_to_nifti(input_zip_file, model_folder)
+        nifti_filename, reference_series_folder = convert_zipped_dicom_to_nifti(input_zip_file, model_folder)
+        test_images = [nifti_filename]
     else:
         test_images = [check_input_file(args.data_folder, file) for file in args.image_files]
 
@@ -254,7 +246,7 @@ def score_image(args: ScorePipelineConfig) -> Path:
     result_dst = store_as_ubyte_nifti(segmentation, images[0].header, segmentation_file_name)
 
     if args.use_dicom:
-        result_dst = convert_nifti_to_zipped_dicom_rt(result_dst, reference_series_folders[0], config)
+        result_dst = convert_nifti_to_zipped_dicom_rt(result_dst, reference_series_folder, config)
 
     if not is_offline_run_context(run_context):
         run_context.upload_file(args.result_image_name, str(result_dst))
