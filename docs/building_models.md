@@ -92,6 +92,9 @@ python InnerEyeLocal/ML/runner.py --azureml=True --model=Prostate --num_nodes=2
 ```
 On each of the 2 machines, all available GPUs will be used. Model inference will always use only one machine.
 
+For the Prostate model, we observed a 2.8x speedup for model training when using 4 nodes, and a 1.65x speedup 
+when using 2 nodes.
+
 ### AzureML Run Hierarchy
 
 AzureML structures all jobs in a hierarchical fashion:
