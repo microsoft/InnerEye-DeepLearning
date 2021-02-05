@@ -163,8 +163,8 @@ def _common_test_unpack_zip(zip_filename: Path, expected_filenames: List[List[st
         # Check they are all files (no folders)
         for series_file in series_files:
             assert series_file.is_file()
-        # Check names are as expected
-        series_file_names.append([series_file.name for series_file in series_files])
+        series_file_names.append(sorted([series_file.name for series_file in series_files]))
+    # Check names are as expected
     assert series_file_names == expected_filenames
 
 
