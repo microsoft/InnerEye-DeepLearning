@@ -41,6 +41,13 @@ def extract_label_classification(label_string: Union[str, float], sample_id: str
     :param sample_id: The sample ID where this label was read from. This is only used for creating error messages.
     :return:
     """
+
+    if '|' in label_string:
+        return int(label_string.split('|')[0])
+
+    if label_string.isdigit():
+        return int(label_string)
+
     if isinstance(label_string, float):
         if math.isnan(label_string):
             # When loading a dataframe with dtype=str, missing values can be encoded as NaN, and get into here.
@@ -54,6 +61,7 @@ def extract_label_classification(label_string: Union[str, float], sample_id: str
             return 1
         if label_lower in ["0", "false", "no"]:
             return 0
+
         raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
     else:
         return math.nan
