@@ -30,7 +30,7 @@ def find_models() -> List[str]:
 def test_any_models_found() -> None:
     """
     Test that the basic setup for finding all model configs works: At least one of
-    the models in master must be found.
+    the models are are in the main branch must be found.
     """
     model_names = find_models()
     assert len(model_names) > 0
