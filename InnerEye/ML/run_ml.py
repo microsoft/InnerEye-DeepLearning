@@ -13,25 +13,24 @@ import pandas as pd
 import stopit
 import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
-from azureml.core import Run
+from azureml.core import Environment, Run
 from azureml.core.model import Model
 from azureml.data import FileDataset
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_runner import INPUT_DATA_KEY, get_or_create_dataset
+from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, INPUT_DATA_KEY, get_or_create_dataset
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, \
     MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
-    RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, get_results_blob_path, has_input_datasets, \
-    merge_conda_files
+    RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, get_results_blob_path, merge_conda_files
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
     OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
     get_epoch_results_path, is_windows, logging_section, print_exception, remove_file_or_directory
-from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME
+from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER, \
@@ -53,18 +52,16 @@ from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
 
 
-def try_to_mount_input_dataset(run_context: Any) -> Optional[Path]:
+def try_to_mount_input_dataset() -> Optional[Path]:
     """
-    If run_context has an input_datasets attribute with an INPUT_DATA_KEY key, return
-    the corresponding value as a Path. Otherwise, warn and return None, so that a backup
-    strategy can be tried.
+    Checks if the AzureML run context has a field for input datasets. If yes, the dataset stored there is
+    returned as a Path. Returns None if no input datasets was found.
     """
-    if has_input_datasets(run_context):
+    if hasattr(RUN_CONTEXT, "input_datasets"):
         try:
-            return Path(run_context.input_datasets[INPUT_DATA_KEY])
+            return Path(RUN_CONTEXT.input_datasets[INPUT_DATA_KEY])
         except KeyError:
-            logging.warning(f"Run context input_datasets has no {INPUT_DATA_KEY} entry")
-            logging.warning("Attempting to download dataset instead")
+            logging.warning(f"Run context field input_datasets has no {INPUT_DATA_KEY} entry.")
     return None
 
 
@@ -254,7 +251,7 @@ class MLRunner:
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    model_train(self.model_config, checkpoint_handler)
+                    model_train(self.model_config, checkpoint_handler, num_nodes=self.azure_config.num_nodes)
             else:
                 self.model_config.write_dataset_files()
                 self.create_activation_maps()
@@ -350,7 +347,7 @@ class MLRunner:
         # Inside of AzureML, datasets can be either mounted or downloaded.
         if not azure_dataset_id:
             raise ValueError("The model must contain azure_dataset_id for running on AML")
-        mounted = try_to_mount_input_dataset(RUN_CONTEXT)
+        mounted = try_to_mount_input_dataset()
         if not mounted:
             raise ValueError("Unable to mount or download input dataset.")
         return mounted
@@ -469,6 +466,14 @@ class MLRunner:
             tags=RUN_CONTEXT.get_tags(),
             description=model_description
         )
+        # Add the name of the Python environment as a model tag, because we need it when running inference
+        # on the model. We could add that as an immutable property, but with tags we have the option to modify
+        # to a custom environment later.
+        python_environment = RUN_CONTEXT.get_environment()
+        assert python_environment.version == ENVIRONMENT_VERSION, \
+            f"Expected all Python environments to have version '{ENVIRONMENT_VERSION}', but got: " \
+            f"'{python_environment.version}"
+        model.add_tags({PYTHON_ENVIRONMENT_NAME: python_environment.name})
         # update the run's tags with the registered model information
         run_to_register_on.tag(MODEL_ID_KEY_NAME, model.id)
 
@@ -491,15 +496,19 @@ class MLRunner:
 
     def copy_child_paths_to_folder(self,
                                    model_folder: Path,
-                                   checkpoint_paths: List[Path]) -> None:
+                                   checkpoint_paths: List[Path],
+                                   python_environment: Optional[Environment] = None) -> None:
         """
         Gets the files that are required to register a model for inference. The necessary files are copied from
         the current folder structure into the given temporary folder.
         The folder will contain all source code in the InnerEye folder, possibly additional source code from the
         extra_code_directory, and all checkpoints in a newly created "checkpoints" folder inside the model.
+        In addition, the name of the present AzureML Python environment will be written to a file, for later use
+        in the inference code.
         :param model_folder: The folder into which all files should be copied.
         :param checkpoint_paths: A list with absolute paths to checkpoint files. They are expected to be
         inside of the model's checkpoint folder.
+        :param python_environment: The Python environment that is used in the present AzureML run.
         """
 
         def copy_folder(source_folder: Path, destination_folder: str = "") -> None:

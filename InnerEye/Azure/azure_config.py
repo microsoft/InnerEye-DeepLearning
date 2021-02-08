@@ -7,14 +7,13 @@ from __future__ import annotations
 import getpass
 import logging
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import param
-from azureml.core import Run, Workspace
+from azureml.core import Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
-from azureml.train.estimator import MMLBaseEstimator
 from azureml.train.hyperdrive import HyperDriveConfig
 from git import Repo
 
@@ -108,6 +107,8 @@ class AzureConfig(GenericConfig):
     max_run_duration: str = param.String(doc="The maximum runtime that is allowed for this job when running in "
                                              "AzureML. This is a floating point number with a string suffix s, m, h, d "
                                              "for seconds, minutes, hours, day. Examples: '3.5h', '2d'")
+    num_nodes: int = param.Integer(default=1, doc="The number of virtual machines that will be allocated for this"
+                                                  "job in AzureML.")
     _workspace: Workspace = param.ClassSelector(class_=Workspace,
                                                 doc="The cached workspace object that has been created in the first"
                                                     "call to get_workspace")
@@ -245,8 +246,8 @@ class SourceConfig:
     root_folder: Path
     entry_script: Path
     conda_dependencies_files: List[Path]
-    script_params: Optional[Dict[str, str]] = None
-    hyperdrive_config_func: Optional[Callable[[MMLBaseEstimator], HyperDriveConfig]] = None
+    script_params: List[str] = field(default_factory=list)
+    hyperdrive_config_func: Optional[Callable[[ScriptRunConfig], HyperDriveConfig]] = None
     upload_timeout_seconds: int = 36000
     environment_variables: Optional[Dict[str, str]] = None
 
@@ -271,9 +272,7 @@ class SourceConfig:
             else:
                 retained_args.append(arg)
             i = i + 1
-        # The AzureML documentation says that positional arguments should be passed in using an
-        # empty string as the value.
-        self.script_params = {arg: "" for arg in retained_args}
+        self.script_params = retained_args
 
 
 @dataclass

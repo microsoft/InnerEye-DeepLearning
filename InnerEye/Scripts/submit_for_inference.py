@@ -14,10 +14,11 @@ import requests
 from azureml.core import Experiment, Model
 
 from InnerEye.Azure.azure_config import AzureConfig, SourceConfig
-from InnerEye.Azure.azure_runner import create_estimator_from_configs
-from InnerEye.Common import fixed_paths
+from InnerEye.Azure.azure_runner import create_run_config
 from InnerEye.Common.common_util import logging_to_stdout
-from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, ENVIRONMENT_YAML_FILE_NAME
+from InnerEye.Common.fixed_paths import DEFAULT_DATA_FOLDER, DEFAULT_RESULT_IMAGE_NAME, DEFAULT_TEST_IMAGE_NAME, \
+    ENVIRONMENT_YAML_FILE_NAME, RUN_SCORING_SCRIPT, SCORE_SCRIPT, SETTINGS_YAML_FILE, repository_root_directory, \
+    PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 
 
@@ -66,7 +67,7 @@ def copy_image_file(image: Path, destination_folder: Path) -> Path:
     :return: The full path of the image in the destination_folder
     """
     destination_folder.mkdir(parents=True, exist_ok=True)
-    destination = destination_folder / fixed_paths.DEFAULT_TEST_IMAGE_NAME
+    destination = destination_folder / DEFAULT_TEST_IMAGE_NAME
     logging.info(f"Copying {image} to {destination}")
     shutil.copyfile(str(image), str(destination))
     return destination
@@ -134,7 +135,7 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
     source_directory = tempfile.TemporaryDirectory()
     source_directory_path = Path(source_directory.name)
     logging.info(f"Building inference run submission in {source_directory_path}")
-    image_folder = source_directory_path / fixed_paths.DEFAULT_DATA_FOLDER
+    image_folder = source_directory_path / DEFAULT_DATA_FOLDER
     image = copy_image_file(args.image_file, image_folder)
     model_sas_urls = model.get_sas_urls()
     # Identifies all the files with basename "environment.yml" in the model and downloads them.
@@ -145,26 +146,29 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
     conda_files = download_files_from_model(model_sas_urls, ENVIRONMENT_YAML_FILE_NAME, dir_path=temp_folder)
     if not conda_files:
         raise ValueError("At least 1 Conda environment definition must exist in the model.")
+    # Retrieve the name of the Python environment that the training run used. This environment should have been
+    # registered. If no such environment exists, it will be re-create from the Conda files provided.
+    python_environment_name = model.tags.get(PYTHON_ENVIRONMENT_NAME, "")
     # Copy the scoring script from the repository. This will start the model download from Azure, and invoke the
     # scoring script.
-    entry_script = source_directory_path / Path(fixed_paths.RUN_SCORING_SCRIPT).name
-    shutil.copyfile(str(fixed_paths.repository_root_directory(fixed_paths.RUN_SCORING_SCRIPT)),
+    entry_script = source_directory_path / Path(RUN_SCORING_SCRIPT).name
+    shutil.copyfile(str(repository_root_directory(RUN_SCORING_SCRIPT)),
                     str(entry_script))
     source_config = SourceConfig(
         root_folder=source_directory_path,
         entry_script=entry_script,
-        script_params={"--model-folder": ".",
-                       "--model-id": model_id,
-                       fixed_paths.SCORE_SCRIPT: "",
+        script_params=["--model-folder", ".",
+                       "--model-id", model_id,
+                       SCORE_SCRIPT,
                        # The data folder must be relative to the root folder of the AzureML job. test_image_files
                        # is then just the file relative to the data_folder
-                       "--data_folder": image.parent.name,
-                       "--image_files": image.name},
+                       "--data_folder", image.parent.name,
+                       "--image_files", image.name],
         conda_dependencies_files=conda_files,
     )
-    estimator = create_estimator_from_configs(azure_config, source_config, [])
+    run_config = create_run_config(azure_config, source_config, environment_name=python_environment_name)
     exp = Experiment(workspace=workspace, name=args.experiment_name)
-    run = exp.submit(estimator)
+    run = exp.submit(run_config)
     logging.info(f"Submitted run {run.id} in experiment {run.experiment.name}")
     logging.info(f"Run URL: {run.get_portal_url()}")
     if not args.keep_upload_folder:
@@ -191,7 +195,7 @@ def main(args: Optional[List[str]] = None, project_root: Optional[Path] = None) 
     """
     logging_to_stdout()
     inference_config = SubmitForInferenceConfig.parse_args(args)
-    settings = inference_config.settings or fixed_paths.SETTINGS_YAML_FILE
+    settings = inference_config.settings or SETTINGS_YAML_FILE
     azure_config = AzureConfig.from_yaml(settings, project_root=project_root)
     if inference_config.cluster:
         azure_config.cluster = inference_config.cluster
@@ -199,4 +203,4 @@ def main(args: Optional[List[str]] = None, project_root: Optional[Path] = None) 
 
 
 if __name__ == '__main__':
-    main(project_root=fixed_paths.repository_root_directory())
+    main(project_root=repository_root_directory())

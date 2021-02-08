@@ -12,3 +12,5 @@ run_outputs
 # Test output from model registration
 TestsOutsidePackage/azureml-models
 tensorboard_runs
+InnerEyeTestVariables.txt
+InnerEyePrivateSettings.yml

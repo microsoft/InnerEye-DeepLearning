@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import pandas as pd
 import param
-from azureml.train.estimator import Estimator
+from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 from pandas import DataFrame
 
@@ -660,15 +660,15 @@ class SegmentationModelBase(ModelConfigBase):
                                               low_memory=False)
         self.pre_process_dataset_dataframe()
 
-    def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
+    def get_parameter_search_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
         """
         Turns the given AzureML estimator (settings for running a job in AzureML) into a configuration object
         for doing hyperparameter searches.
 
-        :param estimator: The settings for running a single AzureML job.
+        :param run_config: The settings for running a single AzureML job.
         :return: A HyperDriveConfig object for running multiple AzureML jobs.
         """
-        return super().get_parameter_search_hyperdrive_config(estimator)
+        return super().get_parameter_search_hyperdrive_config(run_config)
 
     def get_model_train_test_dataset_splits(self, dataset_df: DataFrame) -> DatasetSplits:
         """

@@ -44,9 +44,12 @@ def is_rank_zero() -> bool:
     by looking at environment variables.
     :return: True if the current process is global_rank 0.
     """
-    global_rank = os.getenv('GLOBAL_RANK')
-    local_rank = os.getenv('LOCAL_RANK')
-    return global_rank is None and local_rank is None
+    global_rank = os.getenv("GLOBAL_RANK")
+    local_rank = os.getenv("LOCAL_RANK")
+    # When doing multi-node training, this indicates which node the present job is on. This is set in
+    # set_environment_variables_for_multi_node
+    node_rank = os.getenv("NODE_RANK", "0")
+    return global_rank is None and local_rank is None and node_rank == "0"
 
 
 def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
@@ -61,13 +64,15 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
 
 
 def create_lightning_trainer(config: ModelConfigBase,
-                             resume_from_checkpoint: Optional[Path] = None) -> Tuple[Trainer, StoringLogger]:
+                             resume_from_checkpoint: Optional[Path] = None,
+                             num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
     and loggers. That includes a diagnostic logger for use in unit tests, that is also returned as the second
     return value.
     :param config: The model configuration.
     :param resume_from_checkpoint: If provided, training resumes from this checkpoint point.
+    :param num_nodes: The number of nodes to use in distributed training.
     :return: A tuple [Trainer object, diagnostic logger]
     """
     # For now, stick with the legacy behaviour of always saving only the last epoch checkpoint. For large segmentation
@@ -128,7 +133,8 @@ def create_lightning_trainer(config: ModelConfigBase,
                       num_sanity_val_steps=config.pl_num_sanity_val_steps,
                       callbacks=[best_checkpoint_callback, recovery_checkpoint_callback],
                       logger=loggers,
-                      progress_bar_refresh_rate=0,  # Disable the progress bar,
+                      progress_bar_refresh_rate=0,  # Disable the progress bar completely
+                      num_nodes=num_nodes,
                       gpus=num_gpus,
                       precision=precision,
                       sync_batchnorm=True,
@@ -139,13 +145,15 @@ def create_lightning_trainer(config: ModelConfigBase,
 
 
 def model_train(config: ModelConfigBase,
-                checkpoint_handler: CheckpointHandler) -> ModelTrainingResults:
+                checkpoint_handler: CheckpointHandler,
+                num_nodes: int = 1) -> ModelTrainingResults:
     """
     The main training loop. It creates the Pytorch model based on the configuration options passed in,
     creates a Pytorch Lightning trainer, and trains the model.
     If a checkpoint was specified, then it loads the checkpoint before resuming training.
     :param config: The arguments which specify all required information.
     :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
+    :param num_nodes: The number of nodes to use in distributed training.
     """
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
@@ -157,7 +165,7 @@ def model_train(config: ModelConfigBase,
     # training in the unit tests.d
     old_environ = dict(os.environ)
     seed_everything(config.get_effective_random_seed())
-    trainer, storing_logger = create_lightning_trainer(config, checkpoint_path)
+    trainer, storing_logger = create_lightning_trainer(config, checkpoint_path, num_nodes=num_nodes)
 
     logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
                  f"trainer.global_rank: {trainer.global_rank}")
