@@ -18,7 +18,8 @@ from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, fetc
     merge_conda_files, to_azure_friendly_container_path
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
-from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME
+from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, PRIVATE_SETTINGS_FILE, PROJECT_SECRETS_FILE, \
+    repository_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, get_most_recent_run, get_most_recent_run_id
 from Tests.ML.util import get_default_workspace
@@ -192,3 +193,18 @@ def test_is_completed_ensemble_run() -> None:
     workspace = get_default_workspace()
     run_id = get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
     get_run_and_check(run_id, True, workspace)
+
+
+def test_amlignore() -> None:
+    """
+    Test if the private settings files are excluded from getting into the AML snapshot.
+    """
+    amlignore = repository_root_directory(".amlignore")
+    assert amlignore.is_file()
+    ignored = amlignore.read_text()
+    private_settings = repository_root_directory(PRIVATE_SETTINGS_FILE)
+    if private_settings.is_file():
+        assert PRIVATE_SETTINGS_FILE in ignored, f"{PRIVATE_SETTINGS_FILE} is not in .amlignore"
+    test_variables = repository_root_directory(PROJECT_SECRETS_FILE)
+    if test_variables.is_file():
+        assert PROJECT_SECRETS_FILE in ignored, f"{PROJECT_SECRETS_FILE} is not in .amlignore"
