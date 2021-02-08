@@ -159,6 +159,7 @@ def model_train(config: ModelConfigBase,
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
     # This reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
     # for categorical features, that need to be available before creating the model.
+    # TODO antonsc
     config.read_dataset_if_needed()
 
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
@@ -209,8 +210,10 @@ def model_train(config: ModelConfigBase,
     lightning_data.config = config
     trainer.fit(lightning_model, datamodule=lightning_data)
     trainer.logger.close()  # type: ignore
+    # TODO antonsc
     lightning_model.close_all_loggers()
     world_size = getattr(trainer, "world_size", 0)
+    # TODO antonsc
     is_azureml_run = not config.is_offline_run
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
     # Each thread per rank will come here, and upload its files to the run outputs. Rank 0 will later download them.
