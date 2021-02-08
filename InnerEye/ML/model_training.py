@@ -31,8 +31,6 @@ from InnerEye.ML.utils.model_util import generate_and_print_model_summary
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
-MAX_ITEM_LOAD_TIME_SEC = 0.5
-MAX_LOAD_TIME_WARNINGS = 3
 TEMP_PREFIX = "temp/"
 
 T = TypeVar('T')
