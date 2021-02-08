@@ -36,7 +36,7 @@ For example, for a CT dataset with two structures `heart` and `lung` to be segme
 could look like:
 
 ```
-root_folder
+dataset_folder_name
 ├──dataset.csv
 ├──subjectID1/
 │  ├── ct.nii.gz
@@ -59,27 +59,55 @@ subject,filePath,channel
 2,subjectID2/heart.nii.gz,structure1
 2,subjectID2/lung.nii.gz,structure2
 ```
+Note: The paths in the `dataset.csv` file should **not** be absolute paths, but relative to the folder that contains
+`dataset.csv'.
 
-The images must adhere to these constraints:
-* All images (across all subjects) must have already undergone geometric normalization, i.e., all images must have
-approximately the same voxel size.
+### Image size requirements
+The images in a dataset must adhere to these constraints:
+* All images, across all subjects, must have already undergone geometric normalization, i.e., all images must have
+approximately the same voxel size. For example, if all images for subject 1 have voxel size 1.5mm x 1.01mm x 1.01mm, 
+and all images for subject 2 have voxel size 1.51mm x 0.99mm x 0.99mm, this should be fine. In particular, this
+constraint does not mean that voxels need to be isotropic.
 * All images for a particular subject must have the same dimensions. In the above example, if `subjectID1/ct.nii.gz`
 has size 200 x 256 x 256, then `subjectID1/heart.nii.gz` and `subjectID1/lung.nii.gz` must have exactly the
 same dimensions.
-* It is usually not required that images for different subjects have the same dimensions.
+* It is not required that images for different subjects have the same dimensions.
 
 All these constraints are automatically checked and guaranteed if the raw data is in DICOM format and you are using
 the [InnerEye-CreateDataset](https://github.com/microsoft/InnerEye-CreateDataset) tool to convert them to Nifti
 format. Geometric normalization can also be turned on as a pre-processing step.
- 
+
+
+### Uploading to Azure
+
+When running in Azure, you need to upload the folder containing the dataset (i.e., the file `dataset.csv` and the
+image referenced therein) to the storage account for datasets. This is the storage account you created in the
+[Azure setup, Step 4](setting_up_aml.md). 
+
+The best way of uploading the data is via 
+[Azure Storage Explorer](https://azure.microsoft.com/en-gb/features/storage-explorer/). Please follow the installation
+instructions first.
+- Find your Azure subscription in the "Explorer" bar, and inside of that, the "Storage Accounts" field, and the
+storage account you created for datasets.
+- That storage account should have a section "Blob Containers". Check if there is a container called "datasets" already.
+If not, create one using the context menu.
+- Navigate into the "datasets" container. 
+- Then use "Upload/Upload Folder" and choose the folder that contains your dataset (`dataset_folder_name` in the
+above example). Leave all other settings in the upload dialog at their default.
+- This will start the upload. Depending on the number of files, that can of course take some time.
+
+
+### Creating a model configuration
+
 For the above dataset structure for heart and lung segmentation, you would then create a model configuration that 
 contains at least the following fields:
 ```python
 class HeartLungModel(SegmentationModelBase):
     def __init__(self) -> None:
         super().__init__(
-            azure_dataset_id="folder_name_in_azure",
-            local_dataset="/home/me/folder_name_on_local_vm",
+            azure_dataset_id="dataset_folder_name",
+            # Adjust this to where your dataset_folder lives
+            local_dataset="/home/me/dataset_folder_name",
             image_channels=["ct"],
             ground_truth_ids=["heart", "lung"],
             # Segmentation architecture
