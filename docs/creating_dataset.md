@@ -106,7 +106,7 @@ class HeartLungModel(SegmentationModelBase):
     def __init__(self) -> None:
         super().__init__(
             azure_dataset_id="dataset_folder_name",
-            # Adjust this to where your dataset_folder lives
+            # Adjust this to where your dataset_folder is on your local box
             local_dataset="/home/me/dataset_folder_name",
             image_channels=["ct"],
             ground_truth_ids=["heart", "lung"],
