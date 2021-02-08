@@ -4,14 +4,16 @@
 #  ------------------------------------------------------------------------------------------
 import time
 from pathlib import Path
+from typing import Iterator, Set
 
 import pytest
 from azureml.core import Run
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.workspace import Workspace
 
-from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_runner import create_experiment_name, pytorch_version_from_conda_dependencies
+from InnerEye.Azure.azure_config import AzureConfig, SourceConfig
+from InnerEye.Azure.azure_runner import create_experiment_name, get_or_create_python_environment, \
+    pytorch_version_from_conda_dependencies
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, fetch_child_runs, fetch_run, \
     get_cross_validation_split_index, is_cross_validation_child_run, is_run_and_child_runs_completed, \
     merge_conda_dependencies, \
@@ -19,10 +21,10 @@ from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, fetc
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, PRIVATE_SETTINGS_FILE, PROJECT_SECRETS_FILE, \
-    repository_root_directory
+    get_environment_yaml_file, repository_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, get_most_recent_run, get_most_recent_run_id
-from Tests.ML.util import get_default_workspace
+from Tests.ML.util import get_default_azure_config, get_default_workspace
 
 
 def test_os_path_to_azure_friendly_container_path() -> None:
@@ -208,3 +210,29 @@ def test_amlignore() -> None:
     test_variables = repository_root_directory(PROJECT_SECRETS_FILE)
     if test_variables.is_file():
         assert PROJECT_SECRETS_FILE in ignored, f"{PROJECT_SECRETS_FILE} is not in .amlignore"
+
+
+def test_create_python_env() -> None:
+    """
+    Checks if environment variables in the SourceConfig are correctly passed through to the Python environment.
+    Environment variables in SourceConfig are only used in the internal InnerEye repo.
+    :return:
+    """
+    foo = "foo"
+    bar = "bar"
+    entry_script = Path("something.py")
+    conda_file = get_environment_yaml_file()
+    s = SourceConfig(root_folder=Path(""), entry_script=entry_script, conda_dependencies_files=[conda_file],
+                     environment_variables={foo: bar})
+    env = get_or_create_python_environment(source_config=s,
+                                           azure_config=get_default_azure_config(),
+                                           register_environment=False)
+    assert foo in env.environment_variables
+    assert env.environment_variables[foo] == bar
+
+    # Check that some of the basic packages that we expect to always exist are picked up correctly in the Conda env
+    def remove_version_number(items: Iterator[str]) -> Set[str]:
+        return set(c.split("=")[0] for c in items)
+
+    assert "pytorch" in remove_version_number(env.python.conda_dependencies.conda_packages)
+    assert "pytorch-lightning" in remove_version_number(env.python.conda_dependencies.pip_packages)

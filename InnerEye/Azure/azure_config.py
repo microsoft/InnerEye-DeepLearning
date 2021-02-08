@@ -249,6 +249,7 @@ class SourceConfig:
     script_params: List[str] = field(default_factory=list)
     hyperdrive_config_func: Optional[Callable[[ScriptRunConfig], HyperDriveConfig]] = None
     upload_timeout_seconds: int = 36000
+    environment_variables: Optional[Dict[str, str]] = None
 
     def set_script_params_except_submit_flag(self) -> None:
         """

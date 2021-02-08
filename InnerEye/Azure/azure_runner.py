@@ -237,7 +237,8 @@ def pytorch_version_from_conda_dependencies(conda_dependencies: CondaDependencie
 
 def get_or_create_python_environment(azure_config: AzureConfig,
                                      source_config: SourceConfig,
-                                     environment_name: str = "") -> Environment:
+                                     environment_name: str = "",
+                                     register_environment: bool = True) -> Environment:
     """
     Creates a description for the Python execution environment in AzureML, based on the Conda environment
     definition files that are specified in `source_config`. If such environment with this Conda environment already
@@ -247,6 +248,8 @@ def get_or_create_python_environment(azure_config: AzureConfig,
     :param environment_name: If specified, try to retrieve the existing Python environment with this name. If that
     is not found, create one from the Conda files provided. This parameter is meant to be used when running
     inference for an existing model.
+    :param register_environment: If True, the Python environment will be registered in the AzureML workspace. If
+    False, it will only be created, but not registered. Use this for unit testing.
     """
     # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not be
     # necessary if the innereye package is installed. It is necessary when working with an outer project and
@@ -261,7 +264,8 @@ def get_or_create_python_environment(azure_config: AzureConfig,
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
     env_variables = {
         "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": str(source_config.upload_timeout_seconds),
-        "MKL_SERVICE_FORCE_INTEL": "1"
+        "MKL_SERVICE_FORCE_INTEL": "1",
+        **(source_config.environment_variables or {})
     }
     base_image = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
@@ -285,7 +289,8 @@ def get_or_create_python_environment(azure_config: AzureConfig,
     env.python.conda_dependencies = conda_dependencies
     env.docker.base_image = base_image
     env.environment_variables = env_variables
-    env.register(azure_config.get_workspace())
+    if register_environment:
+        env.register(azure_config.get_workspace())
     return env
 
 
