@@ -11,14 +11,16 @@ import numpy as np
 import pytest
 from pytorch_lightning import seed_everything
 
+from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 from score import create_inference_pipeline, is_spacing_valid, run_inference, score_image, ScorePipelineConfig, \
-    extract_zipped_dicom_series
+    extract_zipped_dicom_series, convert_rgb_colour_to_hex
 
 
 test_image = full_ml_test_data_path("train_and_test_data") / "id1_channel1.nii.gz"
@@ -169,6 +171,32 @@ def _common_test_unpack_zip(zip_filename: Path, expected_filenames: List[str],
     assert extracted_file_names == expected_filenames
 
 
+rgb_colour_testdata = [
+    (0x00, 0x00, 0x00, "000000"),
+    (0x0f, 0x00, 0x00, "0F0000"),
+    (0xff, 0x00, 0x00, "FF0000"),
+    (0x00, 0x0f, 0x00, "000F00"),
+    (0x00, 0xff, 0x00, "00FF00"),
+    (0x00, 0x00, 0x0f, "00000F"),
+    (0x00, 0x00, 0xff, "0000FF"),
+    (0x04, 0x08, 0x0a, "04080A"),
+    (0xf4, 0xf8, 0xfa, "F4F8FA")
+]
+
+@pytest.mark.parametrize("r,g,b,hex", rgb_colour_testdata)
+def test_convert_rgb_colour_to_hex(r: int, g: int, b: int, hex: str) -> None:
+    """
+    Test that config colours, which are TupleInt3's, can be formatted as
+    strings.
+
+    :param r: Red component.
+    :param g: Green component.
+    :param b: Blue component.
+    :param hex: Expected hex string.
+    """
+    assert convert_rgb_colour_to_hex((r, g, b)) == hex
+
+
 @dataclass
 class MockConfig:
     """
@@ -250,5 +278,42 @@ def test_score_image_dicom(test_output_dirs: OutputFolderForTests) -> None:
 
     mock_init_from_model_inference_json.assert_called_once_with(Path(score_pipeline_config.model_folder),
                                                                 score_pipeline_config.use_gpu)
+    mock_run_inference.assert_called()
+    mock_store_as_ubyte_nifti.assert_called()
+
+
+def test_score_image_dicom2(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that dicom in and dicom-rt out works, by mocking out functions that do most of the work.
+
+    :param test_output_dirs: Test output directories.
+    """
+    mock_segmentation = {'mock_segmentation': True}
+    dummy_config = DummyModel()
+    dummy_config.set_output_to(test_output_dirs.root_dir)
+    checkpoint_path = dummy_config.checkpoint_folder / "checkpoint.ckpt"
+    create_model_and_store_checkpoint(dummy_config, checkpoint_path)
+
+    azure_config = AzureConfig(extra_code_directory="TestsOutsidePackage")
+    project_root = Path(__file__).parent.parent
+    ml_runner = MLRunner(model_config=dummy_config, azure_config=azure_config, project_root=project_root)
+    model_folder = test_output_dirs.root_dir / "final"
+    ml_runner.copy_child_paths_to_folder(model_folder=model_folder, checkpoint_paths=[checkpoint_path])
+
+    score_pipeline_config = ScorePipelineConfig(
+        data_folder=TEST_DATA_DIR,
+        model_folder=str(model_folder),
+        image_files=[str(HN_DICOM_SERIES_ZIP)],
+        result_image_name="result_image_name",
+        use_gpu=False,
+        use_dicom=True)
+
+    with mock.patch('score.run_inference',
+                    return_value=mock_segmentation) as mock_run_inference:
+        with mock.patch('score.store_as_ubyte_nifti',
+                        return_value=HNSEGMENTATION_FILE) as mock_store_as_ubyte_nifti:
+            segmentation = score_image(score_pipeline_config)
+            assert segmentation.is_file()
+
     mock_run_inference.assert_called()
     mock_store_as_ubyte_nifti.assert_called()

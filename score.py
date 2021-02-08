@@ -18,7 +18,7 @@ from InnerEye_DICOM_RT.nifti_to_dicom_rt_converter import rtconvert
 from InnerEye.Azure.azure_util import is_offline_run_context
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
-from InnerEye.Common.type_annotations import TupleFloat3
+from InnerEye.Common.type_annotations import TupleFloat3, TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
@@ -168,6 +168,18 @@ def convert_zipped_dicom_to_nifti(test_image: Path, model_folder: Path) -> Tuple
     return nifti_filename, reference_series_folder
 
 
+def convert_rgb_colour_to_hex(colour: TupleInt3) -> str:
+    """
+    Config colours are stored as TupleInt3's, but DICOM-RT convert expects
+    hexadecimal strings. This function converts them into the correct
+    format.
+
+    :param colour: RGB colour as a TupleInt3.
+    :return: Colour formatted as a hex string.
+    """
+    return '{0:02X}{1:02X}{2:02X}'.format(colour[0], colour[1], colour[2])
+
+
 def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path,
                                      config: SegmentationModelBase) -> Path:
     """
@@ -184,7 +196,7 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path,
         reference_series=reference_series,
         out_file=dicom_rt_file,
         struct_names=config.ground_truth_ids_display_names,
-        struct_colors=config.colours,
+        struct_colors=[convert_rgb_colour_to_hex(rgb) for rgb in config.colours],
         fill_holes=config.fill_holes)
     logging.debug("stdout: %s", stdout)
     logging.debug("stderr: %s", stderr)
