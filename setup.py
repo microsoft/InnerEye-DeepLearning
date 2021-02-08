@@ -27,13 +27,13 @@ BUILDID_ENV = "BUILDID"
 build_id = os.getenv(BUILDID_ENV, "1")
 
 SOURCEBRANCHNAME_ENV = "SOURCEBRANCHNAME"
-build_branchname = os.getenv(SOURCEBRANCHNAME_ENV, "NOT_MASTER")
+build_branchname = os.getenv(SOURCEBRANCHNAME_ENV, "NOT_MAIN")
 
 IS_DEV_PACKAGE_ENV = "IS_DEV_PACKAGE"
 is_dev_package = os.getenv(IS_DEV_PACKAGE_ENV, False) == "True"
 
 # Determine package version based on the source branch name being built from.
-package_minor_version = 1 if build_branchname == "master" else 0
+package_minor_version = 1 if build_branchname == "main" else 0
 
 # The full version of the package that we are creating is later needed for running pytest,
 # because we want to install the newly created package from the feed.

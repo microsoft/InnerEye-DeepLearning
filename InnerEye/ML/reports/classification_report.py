@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -290,11 +290,11 @@ def get_image_filepath_from_subject_id(subject_id: str,
     return dataset_dir / Path(filepath)
 
 
-def plot_image_from_filepath(filepath: Path, im_size: Tuple) -> bool:
+def plot_image_from_filepath(filepath: Path, im_width: int) -> bool:
     """
     Plots a 2D image given the filepath. Returns false if the image could not be plotted (for example, if it was 3D).
     :param filepath: Path to image
-    :param im_size: Display size for image
+    :param im_width: Display width for image
     :return: True if image was plotted, False otherwise
     """
 
@@ -314,7 +314,9 @@ def plot_image_from_filepath(filepath: Path, im_size: Tuple) -> bool:
     image = image * 255.
     image = np.repeat(image[:, :, None], 3, 2)
     image = image.astype(np.uint8)
-    display(Image.fromarray(image).resize(im_size))
+    h, w = image.shape[:2]
+    im_height = int(im_width * h / w)
+    display(Image.fromarray(image).resize((im_width, im_height)))
     return True
 
 
@@ -323,7 +325,7 @@ def plot_image_for_subject(subject_id: str,
                            dataset_subject_column: str,
                            dataset_file_column: str,
                            dataset_dir: Path,
-                           im_size: Tuple,
+                           im_width: int,
                            model_output: float,
                            header: Optional[str]) -> None:
     """
@@ -333,7 +335,7 @@ def plot_image_for_subject(subject_id: str,
     :param dataset_subject_column: Name of the column with the subject IDs
     :param dataset_file_column: Name of the column with the image filepaths
     :param dataset_dir: Path to the dataset
-    :param im_size: Display size for image
+    :param im_width: Display width for image
     :param model_output: The predicted value for this image
     :param header: Optional header printed along with the subject ID and score for the image.
     """
@@ -354,7 +356,7 @@ def plot_image_for_subject(subject_id: str,
                      f"are not yet supported.")
         return
 
-    success = plot_image_from_filepath(filepath, im_size=im_size)
+    success = plot_image_from_filepath(filepath, im_width=im_width)
     if not success:
         print_header("Unable to plot image: image must be 2D with shape [w, h] or [1, w, h].", level=0)
 
@@ -372,7 +374,7 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
     dataset_df = pd.read_csv(dataset_csv_path)
     dataset_dir = dataset_csv_path.parent
 
-    im_size = (800, 800)
+    im_width = 800
 
     print_header("", level=2)
     print_header(f"Top {k} false positives", level=2)
@@ -383,7 +385,7 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                dataset_subject_column=dataset_subject_column,
                                dataset_file_column=dataset_file_column,
                                dataset_dir=dataset_dir,
-                               im_size=im_size,
+                               im_width=im_width,
                                model_output=model_output,
                                header="False Positive")
 
@@ -395,7 +397,7 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                dataset_subject_column=dataset_subject_column,
                                dataset_file_column=dataset_file_column,
                                dataset_dir=dataset_dir,
-                               im_size=im_size,
+                               im_width=im_width,
                                model_output=model_output,
                                header="False Negative")
 
@@ -407,7 +409,7 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                dataset_subject_column=dataset_subject_column,
                                dataset_file_column=dataset_file_column,
                                dataset_dir=dataset_dir,
-                               im_size=im_size,
+                               im_width=im_width,
                                model_output=model_output,
                                header="True Positive")
 
@@ -419,6 +421,6 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                dataset_subject_column=dataset_subject_column,
                                dataset_file_column=dataset_file_column,
                                dataset_dir=dataset_dir,
-                               im_size=im_size,
+                               im_width=im_width,
                                model_output=model_output,
                                header="True Negative")
