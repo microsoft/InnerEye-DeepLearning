@@ -28,11 +28,10 @@ from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.features_util import FeatureStatistics
 from InnerEye.ML.utils.transforms import Compose3D, Transform3D
 
-
 T = TypeVar('T', bound=ScalarDataSource)
 
 
-def extract_label_classification(label_string: Union[str, float], sample_id: str) -> Union[float, int]:
+def extract_label_classification(label_string: Union[str, float], sample_id: str, num_classes: int) -> List[float]:
     """
     Converts a string from a dataset.csv file that contains a model's label to a scalar.
     The function maps ["1", "true", "yes"] to 1, ["0", "false", "no"] to 0.
@@ -42,11 +41,16 @@ def extract_label_classification(label_string: Union[str, float], sample_id: str
     :return:
     """
 
+    one_hot_array = np.zeros(num_classes, dtype=np.float)
     if '|' in label_string:
-        return int(label_string.split('|')[0])
+        classes = [int(a) for a in label_string.split('|')]
+        one_hot_array[classes] = 1.0
+        return one_hot_array
 
     if label_string.isdigit():
-        return int(label_string)
+        classes = int(label_string)
+        one_hot_array[classes] = 1.0
+        return one_hot_array
 
     if isinstance(label_string, float):
         if math.isnan(label_string):
@@ -58,16 +62,16 @@ def extract_label_classification(label_string: Union[str, float], sample_id: str
     if label_string:
         label_lower = label_string.lower()
         if label_lower in ["1", "true", "yes"]:
-            return 1
+            return [1]
         if label_lower in ["0", "false", "no"]:
-            return 0
+            return [0]
 
         raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
     else:
         return math.nan
 
 
-def extract_label_regression(label_string: Union[str, float], sample_id: str) -> Union[float, int]:
+def extract_label_regression(label_string: Union[str, float], sample_id: str, num_classes: int) -> List[float]:
     """
     Converts a string from a dataset.csv file that contains a model's label to a scalar.
     The function casts a string label to float. Raises an exception if the conversion is
@@ -77,6 +81,8 @@ def extract_label_regression(label_string: Union[str, float], sample_id: str) ->
     :param sample_id: The sample ID where this label was read from. This is only used for creating error messages.
     :return:
     """
+    if num_classes > 1:
+        raise ValueError("Not supported more than 1 classes")
     if isinstance(label_string, float):
         if math.isnan(label_string):
             # When loading a dataframe with dtype=str, missing values can be encoded as NaN, and get into here.
@@ -158,6 +164,7 @@ def load_single_data_source(subject_rows: pd.DataFrame,
                             categorical_data_encoder: Optional[CategoricalToOneHotEncoder] = None,
                             metadata_columns: Optional[Set[str]] = None,
                             is_classification_dataset: bool = True,
+                            num_classes: int = 1,
                             sequence_position_numeric: Optional[int] = None) -> T:
     """
     Converts a set of dataset rows for a single subject to a ScalarDataSource instance, which contains the
@@ -191,7 +198,7 @@ def load_single_data_source(subject_rows: pd.DataFrame,
         extract_fn = extract_label_classification if is_classification_dataset else extract_label_regression
         label_row = _get_row_for_channel(channel)
         label_string = label_row[label_value_column]
-        return torch.tensor([extract_fn(label_string=label_string, sample_id=subject_id)],
+        return torch.tensor([extract_fn(label_string=label_string, sample_id=subject_id, num_classes=num_classes)],
                             dtype=torch.float)
 
     def _apply_label_transforms(labels: Any) -> Any:
@@ -230,12 +237,7 @@ def load_single_data_source(subject_rows: pd.DataFrame,
         return None if isinstance(x, float) and np.isnan(x) else x
 
     subject_rows = subject_rows.fillna('')
-    labels = []
-    if label_channels:
-        for channel in label_channels:
-            labels.append(_get_label_as_tensor(channel))
-    else:
-        labels.append(_get_label_as_tensor(None))
+    labels = _get_label_as_tensor(label_channels[0])  # Should be only 1 label channel previous does not make sense
 
     label = _apply_label_transforms(labels)
 
@@ -322,6 +324,7 @@ class DataSourceReader(Generic[T]):
                  subject_column: str = CSV_SUBJECT_HEADER,
                  channel_column: str = CSV_CHANNEL_HEADER,
                  is_classification_dataset: bool = True,
+                 num_classes: int = 1,
                  categorical_data_encoder: Optional[CategoricalToOneHotEncoder] = None):
         """
         :param label_value_column: The column that contains the value for the label scalar or vector.
@@ -354,6 +357,7 @@ class DataSourceReader(Generic[T]):
         self.image_file_column = image_file_column
         self.label_value_column = label_value_column
         self.data_frame = data_frame
+        self.num_classes = num_classes
         self.expected_non_image_channels: Union[List[None], Set[str]]
 
         if self.non_image_feature_channels is None:
@@ -427,6 +431,7 @@ class DataSourceReader(Generic[T]):
             sequence_column=sequence_column,
             subject_column=args.subject_column,
             channel_column=args.channel_column,
+            num_classes=args.num_classes,
             is_classification_dataset=args.is_classification_model
         ).load_data_sources(num_dataset_reader_workers=args.num_dataset_reader_workers)
 
@@ -477,6 +482,7 @@ class DataSourceReader(Generic[T]):
                 metadata_columns=self.metadata_columns,
                 channel_column=self.channel_column,
                 is_classification_dataset=self.is_classification_dataset,
+                num_classes=self.num_classes,
                 sequence_position_numeric=_sequence_position_numeric
             )
 
