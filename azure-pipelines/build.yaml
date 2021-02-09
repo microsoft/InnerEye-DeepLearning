@@ -1,8 +1,3 @@
-variables:
-  # Disable a spurious warning
-  # https://stackoverflow.com/questions/56859264/publishing-code-coverage-results-from-reportgenerator-not-working
-  disable.coverage.autogenerate: 'true'
-
 steps:
   - template: checkout.yml
 
