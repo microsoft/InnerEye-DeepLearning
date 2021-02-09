@@ -144,7 +144,7 @@ def test_source_config_set_params() -> None:
     def assert_has_params(expected_args: str) -> None:
         assert s.script_params is not None
         # Arguments are in the keys of the dictionary only, and should have been added in the right order
-        assert " ".join(s.script_params.keys()) == expected_args
+        assert " ".join(s.script_params) == expected_args
 
     with mock.patch("sys.argv", ["", "some", "--param", "1", f"--{AZURECONFIG_SUBMIT_TO_AZUREML}=True", "more"]):
         s.set_script_params_except_submit_flag()

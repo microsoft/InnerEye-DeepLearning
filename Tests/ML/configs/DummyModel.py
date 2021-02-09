@@ -5,7 +5,7 @@
 from typing import Any
 
 import pandas as pd
-from azureml.train.estimator import Estimator
+from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
@@ -71,8 +71,8 @@ class DummyModel(SegmentationModelBase):
                              test=dataset_df[dataset_df.subject.isin(['4', '7'])],
                              val=dataset_df[dataset_df.subject.isin(['5', '6'])])
 
-    def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
-        return super().get_parameter_search_hyperdrive_config(estimator)
+    def get_parameter_search_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
+        return super().get_parameter_search_hyperdrive_config(run_config)
 
-    def get_cross_validation_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
-        return super().get_cross_validation_hyperdrive_config(estimator)
+    def get_cross_validation_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
+        return super().get_cross_validation_hyperdrive_config(run_config)
