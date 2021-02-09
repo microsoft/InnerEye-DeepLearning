@@ -114,3 +114,18 @@ def generate_classification_notebook(result_notebook: Path,
     return generate_notebook(template,
                              notebook_params=notebook_params,
                              result_notebook=result_notebook)
+
+
+def generate_classification_cross_validation_notebook(result_notebook: Path, full_csv_file: Path) -> Path:
+    """
+    Creates a reporting notebook for a classification model, using the given training, validation, and test set metrics.
+    Returns the report file after HTML conversion.
+    """
+    notebook_params = {
+        'innereye_path': str(fixed_paths.repository_root_directory()),
+        'metrics_across_all_runs_file': str(full_csv_file),
+    }
+    template = Path(__file__).absolute().parent / "classification_crossval_report.ipynb"
+    return generate_notebook(template,
+                             notebook_params=notebook_params,
+                             result_notebook=result_notebook)

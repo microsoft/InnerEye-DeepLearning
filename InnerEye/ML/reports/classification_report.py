@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -65,7 +65,8 @@ def get_results(csv: Path) -> LabelsAndPredictions:
     return LabelsAndPredictions(subject_ids=subjects, labels=labels, model_outputs=model_outputs)
 
 
-def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, print_coords: bool = False) -> None:
+def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, print_coords: bool = False,
+             **plot_kwargs) -> None:
     """
     Plot a curve given the x and y values of each point.
     :param x_values: x coordinate of each data point to be plotted
@@ -74,7 +75,7 @@ def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, p
     :param ax: matplotlib.axes.Axes object for plotting
     :param print_coords: If true, prints out the coordinates of each point on the graph.
     """
-    ax.plot(x_values, y_values)
+    ax.plot(x_values, y_values, **plot_kwargs)
     ax.set_xlim(left=0, right=1)
     ax.set_ylim(bottom=0, top=1)
     ax.set_title(title)
@@ -91,15 +92,24 @@ def plot_pr_and_roc_curves_from_csv(metrics_csv: Path) -> None:
     """
     print_header("ROC and PR curves", level=3)
     results = get_results(metrics_csv)
-
-    _, ax = plt.subplots(1, 2)
-
-    fpr, tpr, thresholds = roc_curve(results.labels, results.model_outputs)
-    plot_auc(fpr, tpr, "ROC Curve", ax[0])
-    precision, recall, thresholds = precision_recall_curve(results.labels, results.model_outputs)
-    plot_auc(recall, precision, "PR Curve", ax[1])
-
+    plot_pr_and_roc_curves(results.labels, results.model_outputs)
     plt.show()
+
+
+def plot_pr_and_roc_curves(labels: np.ndarray, model_outputs: np.ndarray, axs: Optional[Sequence[Axes]] = None,
+                           plot_kwargs: Optional[Dict[str, Any]] = None) -> None:
+    """
+    Plot the ROC and PR curves for the given predicted values and ground truth labels.
+    """
+    if axs is None:
+        _, axs = plt.subplots(1, 2)
+    if plot_kwargs is None:
+        plot_kwargs = {}
+
+    fpr, tpr, thresholds = roc_curve(labels, model_outputs)
+    plot_auc(fpr, tpr, "ROC Curve", axs[0], **plot_kwargs)
+    precision, recall, thresholds = precision_recall_curve(labels, model_outputs)
+    plot_auc(recall, precision, "PR Curve", axs[1], **plot_kwargs)
 
 
 def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMetrics) -> float:
