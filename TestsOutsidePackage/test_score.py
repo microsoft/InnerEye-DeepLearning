@@ -14,6 +14,7 @@ from pytorch_lightning import seed_everything
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
@@ -63,15 +64,29 @@ FillHoles: List[bool] = [
     False, True
 ]
 
+
+def convert_hex_to_rgb_colour(colour: str) -> TupleInt3:
+    """
+    Utility to convert hex strings to RGB triples.
+
+    :param colour: Colour formatted as a hex string.
+    :return: RGB colour as a TupleInt3.
+    """
+    red = int(colour[0:2], 16)
+    green = int(colour[2:4], 16)
+    blue = int(colour[4:6], 16)
+    return (red, green, blue)
+
+
 # Test structure colors.
-StructureColors: List[str] = [
+StructureColors: List[TupleInt3] = [convert_hex_to_rgb_colour(colour) for colour in [
     "FF0001", "FF0002", "FF0003", "FF0004",
     "FF0101", "FF0102", "FF0103", "FF0103",
     "FF0201", "FF02FF", "FF0203", "FF0204",
     "FF0301", "FF0302", "01FF03", "FF0304",
     "FF0401", "00FFFF", "FF0403", "FF0404",
     "FF0501", "FF0502"
-]
+]]
 
 # Test structure names.
 StructureNames: List[str] = [
@@ -183,18 +198,33 @@ rgb_colour_testdata = [
     (0xf4, 0xf8, 0xfa, "F4F8FA")
 ]
 
-@pytest.mark.parametrize("r,g,b,hex", rgb_colour_testdata)
-def test_convert_rgb_colour_to_hex(r: int, g: int, b: int, hex: str) -> None:
+
+@pytest.mark.parametrize("red,green,blue,colour", rgb_colour_testdata)
+def test_convert_hex_to_rgb_colour(red: int, green: int, blue: int, colour: str) -> None:
+    """
+    Test that test colours, which are strings, can be formatted as
+    TupleInt3's.
+
+    :param red: Expected red component.
+    :param green: Expected green component.
+    :param blue: Expected blue component.
+    :param colour: Hex string.
+    """
+    assert convert_hex_to_rgb_colour(colour) == (red, green, blue)
+
+
+@pytest.mark.parametrize("red,green,blue,colour", rgb_colour_testdata)
+def test_convert_rgb_colour_to_hex(red: int, green: int, blue: int, colour: str) -> None:
     """
     Test that config colours, which are TupleInt3's, can be formatted as
     strings.
 
-    :param r: Red component.
-    :param g: Green component.
-    :param b: Blue component.
-    :param hex: Expected hex string.
+    :param red: Red component.
+    :param green: Green component.
+    :param blue: Blue component.
+    :param colour: Expected hex string.
     """
-    assert convert_rgb_colour_to_hex((r, g, b)) == hex
+    assert convert_rgb_colour_to_hex((red, green, blue)) == colour
 
 
 @dataclass
@@ -203,7 +233,7 @@ class MockConfig:
     Mock config for testing score_image with DICOM.
     """
     ground_truth_ids_display_names: List[str]
-    colours: List[str]
+    colours: List[TupleInt3]
     fill_holes: List[bool]
 
 
