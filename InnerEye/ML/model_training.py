@@ -100,6 +100,7 @@ def create_lightning_trainer(config: ModelConfigBase,
     # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if num_gpus > 1 else None
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
+    # TODO antonsc: Only use storing logger with InnerEye configs?
     storing_logger = StoringLogger()
     tensorboard_logger = TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")
     loggers = [storing_logger, tensorboard_logger, AzureMLLogger()]
@@ -123,6 +124,8 @@ def create_lightning_trainer(config: ModelConfigBase,
     else:
         deterministic = False
         benchmark = True
+    # Read out additional model-specific args here.
+    # We probably want to keep essential ones like numgpu and logging.
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
                       deterministic=deterministic,
                       benchmark=benchmark,
