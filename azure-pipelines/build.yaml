@@ -101,7 +101,6 @@ steps:
     displayName: Publish test results tests_on_$(Agent.OS)
 
   - task: PublishCodeCoverageResults@1
-    variables:
     inputs:
       codeCoverageTool: Cobertura
       summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage.xml'
