@@ -36,7 +36,7 @@ need to be kept inside of the UK)
 - Then choose a name for your AzureML workspace. **Use letters and numbers only**, because other resources will be
  created using the workspace name as a prefix!
 
-[![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FInnerEye-DeepLearning%main%2Fazure-pipelines%2Fazure_deployment_template.json)
+[![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FInnerEye-DeepLearning%2Fmain%2Fazure-pipelines%2Fazure_deployment_template.json)
 
 You can invoke the deployment also by going to [Azure](https://ms.portal.azure.com/#create/Microsoft.Template), 
 selecting "Build your own template", and in the editor upload the 

@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run
 
 from InnerEye.Azure.azure_config import AzureConfig
@@ -25,18 +26,19 @@ from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, get_comparison_baseline
     is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import get_epoch_results_path
-from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
+from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape
-from TestsOutsidePackage.test_register_model import SubprocessConfig
 
-FALLBACK_ENSEMBLE_RUN = "refs_pull_323_merge:HD_39282253-5363-4956-a8a9-253f4f769c22"
-FALLBACK_SINGLE_RUN = "refs_pull_323_merge:refs_pull_323_merge_1611668076_723bd198"
+FALLBACK_ENSEMBLE_RUN = "refs_pull_385_merge:HD_2850254e-4ecf-4425-9245-70fa98f50d81"
+FALLBACK_SINGLE_RUN = "refs_pull_385_merge:refs_pull_385_merge_1612421372_b8070506"
+FALLBACK_2NODE_RUN = "refs_pull_385_merge:refs_pull_385_merge_1612421371_ba12a007"
 
 
 def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> str:
@@ -142,6 +144,7 @@ def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     :return:
     """
     model = get_most_recent_model(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
+    assert PYTHON_ENVIRONMENT_NAME in model.tags, "Environment name not present in model properties"
     image_file = fixed_paths_for_tests.full_ml_test_data_path() / "train_and_test_data" / "id1_channel1.nii.gz"
     assert image_file.exists(), f"Image file not found: {image_file}"
     settings_file = fixed_paths.SETTINGS_YAML_FILE
@@ -173,6 +176,7 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
     """
     azureml_model = get_most_recent_model(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
     assert azureml_model is not None
+    assert PYTHON_ENVIRONMENT_NAME in azureml_model.tags, "Environment name not present in model properties"
     # download the registered model and test that we can run the score pipeline on it
     model_root = Path(azureml_model.download(str(test_output_dirs.root_dir)))
     # The model needs to contain score.py at the root, the (merged) environment definition,
@@ -202,16 +206,15 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
 
     # run score pipeline as a separate process
     python_executable = sys.executable
-    [return_code1, stdout1] = SubprocessConfig(process=python_executable,
-                                               args=["--version"]).spawn_and_monitor_subprocess()
+    [return_code1, stdout1] = spawn_and_monitor_subprocess(process=python_executable,
+                                                           args=["--version"])
     assert return_code1 == 0
     print(f"Executing Python version {stdout1[0]}")
-    return_code, stdout2 = SubprocessConfig(process=python_executable, args=[
+    return_code, stdout2 = spawn_and_monitor_subprocess(process=python_executable, args=[
         str(model_root / fixed_paths.SCORE_SCRIPT),
         f"--data_folder={str(data_root)}",
         f"--image_files={img_files[0]},{img_files[1]}",
-        "--use_gpu=False"
-    ]).spawn_and_monitor_subprocess()
+        "--use_gpu=False"])
 
     # check that the process completed as expected
     assert return_code == 0, f"Subprocess failed with return code {return_code}. Stdout: {os.linesep.join(stdout2)}"
@@ -222,3 +225,41 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
     expected_shape = get_nifti_shape(train_and_test_data_dir / img_files[0])
     image_header = get_unit_image_header()
     assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [3], np.ubyte)
+
+
+@pytest.mark.after_training_2node
+def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if a job running on 2 nodes trains correctly.
+    """
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)
+    assert run.status == RunStatus.COMPLETED
+    files = run.get_file_names()
+    # There are two nodes, so there should be one log file per node.
+    log0_path = "azureml-logs/70_driver_log_0.txt"
+    log1_path = "azureml-logs/70_driver_log_1.txt"
+    assert log0_path in files, "Node rank 0 log file is missing"
+    assert log1_path in files, "Node rank 1 log file is missing"
+    # Download both log files and check their contents
+    log0 = test_output_dirs.root_dir / log0_path
+    log1 = test_output_dirs.root_dir / log1_path
+    run.download_file(log0_path, output_file_path=str(log0))
+    run.download_file(log1_path, output_file_path=str(log1))
+    log0_txt = log0.read_text()
+    log1_txt = log1.read_text()
+    # Only the node at rank 0 should be done certain startup activities, like visualizing crops.
+    # Running inference similarly should only run on one node.
+    for in_log0_only in ["Visualizing the effect of sampling random crops for training",
+                         "STARTING: Registering default model",
+                         "STARTING: Running default model on test set"]:
+        assert in_log0_only in log0_txt
+        assert in_log0_only not in log1_txt
+    training_indicator = "STARTING: Model training"
+    assert training_indicator in log0_txt
+    assert training_indicator in log1_txt
+    # Check diagnostic messages that show if DDP was set up correctly. This could fail if Lightning
+    # changes its diagnostic outputs.
+    assert "initializing ddp: GLOBAL_RANK: 0, MEMBER: 1/4" in log0_txt
+    assert "initializing ddp: GLOBAL_RANK: 1, MEMBER: 2/4" in log0_txt
+    assert "initializing ddp: GLOBAL_RANK: 2, MEMBER: 3/4" in log1_txt
+    assert "initializing ddp: GLOBAL_RANK: 3, MEMBER: 4/4" in log1_txt
