@@ -115,12 +115,14 @@ dependencies:
       - azureml-sdk==1.6.0
       - bar==2.0
 """
+    # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
+    time.sleep(0.5)
     file1 = test_output_dirs.root_dir / "env1.yml"
     file1.write_text(env1)
     file2 = test_output_dirs.root_dir / "env2.yml"
     file2.write_text(env2)
     # Spurious test failures on Linux build agents, saying that they can't read the file. Wait a bit.
-    time.sleep(1)
+    time.sleep(0.5)
     files = [file1, file2]
     merged_file = test_output_dirs.root_dir / "merged.yml"
     merge_conda_files(files, merged_file)
