@@ -57,6 +57,8 @@ class BringYourOwnLightning(LightningModule, DeepLearningConfig):
     def get_training_data_module(self) -> LightningDataModule:
         """
         Gets the data that is used for the training and validation steps.
+        This must take the cross validation fold
+        into account. Should those be arguments maybe? somewhat obsolete, but makes it visible.
         :return:
         """
         pass
@@ -66,6 +68,8 @@ class BringYourOwnLightning(LightningModule, DeepLearningConfig):
         Gets the data that is used for the inference after training. By default, this returns the value
         of get_training_data_module, but you can override this to get for example full image datasets for
         segmentation models.
+        This must take the cross validation fold
+        into account. Should those be arguments maybe? somewhat obsolete, but makes it visible.
         :return:
         """
         # You can override this if inference uses different data, for image full images
