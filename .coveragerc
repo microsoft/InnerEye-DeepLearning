@@ -1,2 +1,5 @@
 [run]
-omit = Tests/* TestsOutsidePackage/* TestSubmodule/*
+omit =
+    Tests/*
+    TestsOutsidePackage/*
+    TestSubmodule/*

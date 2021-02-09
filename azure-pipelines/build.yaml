@@ -104,6 +104,8 @@ steps:
     inputs:
       codeCoverageTool: Cobertura
       summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+      # Workaround for https://github.com/Microsoft/azure-pipelines-tasks/issues/10191
+      pathToSources: '$(System.DefaultWorkingDirectory)'
       reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
     condition: succeededOrFailed()
 
