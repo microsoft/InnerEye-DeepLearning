@@ -1,3 +1,8 @@
+variables:
+  # Disable a spurious warning
+  # https://stackoverflow.com/questions/56859264/publishing-code-coverage-results-from-reportgenerator-not-working
+  disable.coverage.autogenerate: 'true'
+
 steps:
   - template: checkout.yml
 
@@ -101,12 +106,11 @@ steps:
     displayName: Publish test results tests_on_$(Agent.OS)
 
   - task: PublishCodeCoverageResults@1
+    variables:
     inputs:
       codeCoverageTool: Cobertura
-      summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
-      # Workaround for https://github.com/Microsoft/azure-pipelines-tasks/issues/10191
-      pathToSources: '$(System.DefaultWorkingDirectory)'
-      reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
+      summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage.xml'
+      reportDirectory: '$(System.DefaultWorkingDirectory)/htmlcov'
     condition: succeededOrFailed()
 
   - task: ComponentGovernanceComponentDetection@0
