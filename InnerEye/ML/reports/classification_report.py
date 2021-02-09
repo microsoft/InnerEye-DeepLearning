@@ -183,7 +183,7 @@ def print_metrics(val_metrics_csv: Path, test_metrics_csv: Path, hue: str) -> No
     print_header(f"Sensitivity at optimal threshold: {1 - fnr:.4f}", level=4)
 
 
-def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path) -> Results:
+def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path, hue: str) -> Results:
     """
     Given the paths to the metrics files for the validation and test sets, get a list of true positives,
     false positives, false negatives and true negatives.
@@ -191,7 +191,7 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
     label predictions.
     """
     df_val = pd.read_csv(val_metrics_csv)
-
+    df_val = df_val[df_val[LoggingColumns.Hue.value] == hue]  # Filter Hue
     if not df_val[LoggingColumns.Patient.value].is_unique:
         raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
                          f"in column {LoggingColumns.Patient.value} in the csv file.")
@@ -201,7 +201,7 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
     optimal_threshold = thresholds[optimal_idx]
 
     df_test = pd.read_csv(test_metrics_csv)
-
+    df_test = df_test[df_test[LoggingColumns.Hue.value] == hue]  # Filter Hue
     if not df_test[LoggingColumns.Patient.value].is_unique:
         raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
                          f"in column {LoggingColumns.Patient.value} in the csv file.")
@@ -220,13 +220,14 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
                    false_negatives=false_negatives)
 
 
-def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int) -> Results:
+def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int, hue: str) -> Results:
     """
     Get the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
     top "k" worst predictions (i.e. misclassifications where the model was the most confident).
     """
     results = get_correct_and_misclassified_examples(val_metrics_csv=val_metrics_csv,
-                                                     test_metrics_csv=test_metrics_csv)
+                                                     test_metrics_csv=test_metrics_csv,
+                                                     hue=hue)
 
     # sort by model_output
     sorted = Results(true_positives=results.true_positives.sort_values(by=LoggingColumns.ModelOutput.value,
@@ -240,14 +241,15 @@ def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pat
     return sorted
 
 
-def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int) -> None:
+def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int, hue: str) -> None:
     """
     Print the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
     top "k" worst predictions (i.e. misclassifications where the model was the most confident).
     """
     results = get_k_best_and_worst_performing(val_metrics_csv=val_metrics_csv,
                                               test_metrics_csv=test_metrics_csv,
-                                              k=k)
+                                              k=k,
+                                              hue=hue)
 
     print_header(f"Top {k} false positives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.false_positives[LoggingColumns.Patient.value],
@@ -372,14 +374,15 @@ def plot_image_for_subject(subject_id: str,
 
 
 def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int, dataset_csv_path: Path,
-                                     dataset_subject_column: str, dataset_file_column: str) -> None:
+                                     dataset_subject_column: str, dataset_file_column: str, hue: str) -> None:
     """
     Plot images for the top "k" best predictions (i.e. correct classifications where the model was the most certain)
     and the top "k" worst predictions (i.e. misclassifications where the model was the most confident).
     """
     results = get_k_best_and_worst_performing(val_metrics_csv=val_metrics_csv,
                                               test_metrics_csv=test_metrics_csv,
-                                              k=k)
+                                              k=k,
+                                              hue=hue)
 
     dataset_df = pd.read_csv(dataset_csv_path)
     dataset_dir = dataset_csv_path.parent
