@@ -38,6 +38,7 @@ def extract_label_classification(label_string: Union[str, float], sample_id: str
     If the entry in the CSV file was missing (no string given at all), it returns math.nan.
     :param label_string: The value of the label as read from CSV via a DataFrame.
     :param sample_id: The sample ID where this label was read from. This is only used for creating error messages.
+    :param num_classes: Number of expected classes
     :return:
     """
 
@@ -169,6 +170,7 @@ def load_single_data_source(subject_rows: pd.DataFrame,
     """
     Converts a set of dataset rows for a single subject to a ScalarDataSource instance, which contains the
     labels, the non-image features, and the paths to the image files.
+    :param num_classes: number of classes
     :param channel_column: The name of the column that contains the row identifier ("channels")
     :param metadata_columns: A list of columns that well be added to the item metadata as key/value pairs.
     :param subject_rows: All dataset rows that belong to the same subject.
@@ -431,7 +433,7 @@ class DataSourceReader(Generic[T]):
             sequence_column=sequence_column,
             subject_column=args.subject_column,
             channel_column=args.channel_column,
-            num_classes=args.num_classes,
+            num_classes=len(args.class_names),
             is_classification_dataset=args.is_classification_model
         ).load_data_sources(num_dataset_reader_workers=args.num_dataset_reader_workers)
 

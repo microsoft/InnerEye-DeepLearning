@@ -16,6 +16,7 @@ from InnerEye.ML.reports.classification_report import ReportedMetrics, get_corre
     get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_results, \
     plot_image_from_filepath
 from InnerEye.ML.reports.notebook_report import generate_classification_notebook
+from InnerEye.ML.scalar_config import ScalarModelBase
 
 
 def test_generate_classification_report(test_output_dirs: OutputFolderForTests) -> None:
@@ -28,7 +29,9 @@ def test_generate_classification_report(test_output_dirs: OutputFolderForTests) 
 
     current_dir = test_output_dirs.make_sub_dir("test_classification_report")
     result_file = current_dir / "report.ipynb"
+    config = ScalarModelBase(num_classes=5)
     result_html = generate_classification_notebook(result_notebook=result_file,
+                                                   config=config,
                                                    val_metrics=val_metrics_file,
                                                    test_metrics=test_metrics_file,
                                                    dataset_csv_path=dataset_csv_path,
@@ -42,8 +45,8 @@ def test_generate_classification_report(test_output_dirs: OutputFolderForTests) 
 def test_get_results() -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
-
-    results = get_results(test_metrics_file)
+    hues = ["class0"]
+    results = get_results(test_metrics_file, hues)
     assert all([results.subject_ids[i] == i for i in range(12)])
     assert all([results.labels[i] == label for i, label in enumerate([1] * 6 + [0] * 6)])
     assert all([results.model_outputs[i] == op for i, op in enumerate([0.0, 0.2, 0.4, 0.6, 0.8, 1.0] * 2)])
@@ -55,12 +58,13 @@ def test_functions_with_invalid_csv(test_output_dirs: OutputFolderForTests) -> N
     val_metrics_file = reports_folder / "val_metrics_classification.csv"
     invalid_metrics_file = Path(test_output_dirs.root_dir) / "invalid_metrics_classification.csv"
     shutil.copyfile(test_metrics_file, invalid_metrics_file)
+    config = ScalarModelBase()
     # Duplicate a subject
     with open(invalid_metrics_file, "a") as file:
         file.write("Default,1,5,1.0,1,-1,Test")
 
     with pytest.raises(ValueError):
-        get_results(invalid_metrics_file)
+        get_results(invalid_metrics_file, config)
 
     with pytest.raises(ValueError):
         get_correct_and_misclassified_examples(invalid_metrics_file, test_metrics_file)

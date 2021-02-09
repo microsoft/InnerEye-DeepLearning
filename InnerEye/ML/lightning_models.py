@@ -183,7 +183,7 @@ class ScalarLightning(InnerEyeLightning):
         else:
             self.loss_fn = raw_loss
             self.target_indices = []
-            self.target_names = [MetricsDict.DEFAULT_HUE_KEY]
+            self.target_names = config.class_names
         self.is_classification_model = config.is_classification_model
         self.use_mean_teacher_model = config.compute_mean_teacher_model
         self.logits_to_posterior_fn = config.get_post_loss_logits_normalization_function()

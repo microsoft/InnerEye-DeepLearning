@@ -102,8 +102,9 @@ class LabelTransformation(Enum):
 
 
 class ScalarModelBase(ModelConfigBase):
-    num_classes: Optional[int] = param.Integer(default=1, allow_None=False,
-                                                    doc="Number of classes.")
+    class_names: List[str] = param.List(class_=str,
+                                        default=["Default"],
+                                        doc="Class names.")
     aggregation_type: AggregationType = param.ClassSelector(default=AggregationType.Average, class_=AggregationType,
                                                             doc="The type of global pooling aggregation to use between"
                                                                 " the encoder and the classifier.")

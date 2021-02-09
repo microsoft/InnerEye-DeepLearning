@@ -19,6 +19,7 @@ from sklearn.metrics import auc, precision_recall_curve, recall_score, roc_auc_s
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.ML.metrics_dict import MetricsDict, binary_classification_accuracy
 from InnerEye.ML.reports.notebook_report import print_header
+from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.io_util import load_image_in_known_formats
 
 
@@ -49,15 +50,17 @@ class ReportedMetrics(Enum):
     FalseNegativeRate = "false_negative_rate"
 
 
-def get_results(csv: Path) -> LabelsAndPredictions:
+def get_results(csv: Path, hue: str) -> LabelsAndPredictions:
     """
     Given a CSV file, reads the subject IDs, ground truth labels and model outputs for each subject.
     NOTE: This CSV file should have results from a single epoch, as in the metrics files written during inference, not
     like the ones written while training.
     """
     df = pd.read_csv(csv)
-    labels = df[LoggingColumns.Label.value]
-    model_outputs = df[LoggingColumns.ModelOutput.value]
+
+    df = df[df[LoggingColumns.Hue.value] == hue]  # Filter Hue
+    labels = df[LoggingColumns.Label.value].to_numpy()
+    model_outputs = df[LoggingColumns.ModelOutput.value].to_numpy()
     subjects = df[LoggingColumns.Patient.value]
     if not subjects.is_unique:
         raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
@@ -85,12 +88,12 @@ def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, p
             ax.annotate(f"{x:0.3f}, {y:0.3f}", xy=(x, y), xytext=(15, 0), textcoords='offset points')
 
 
-def plot_pr_and_roc_curves_from_csv(metrics_csv: Path) -> None:
+def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, hue: str) -> None:
     """
     Given a csv file, read the predicted values and ground truth labels and plot the ROC and PR curves.
     """
     print_header("ROC and PR curves", level=3)
-    results = get_results(metrics_csv)
+    results = get_results(metrics_csv, hue)
 
     _, ax = plt.subplots(1, 2)
 
@@ -102,11 +105,12 @@ def plot_pr_and_roc_curves_from_csv(metrics_csv: Path) -> None:
     plt.show()
 
 
-def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMetrics) -> float:
+def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMetrics,
+               hue: str) -> float:
     """
     Given a csv file, read the predicted values and ground truth labels and return the specified metric.
     """
-    results_val = get_results(val_metrics_csv)
+    results_val = get_results(val_metrics_csv, hue)
     fpr, tpr, thresholds = roc_curve(results_val.labels, results_val.model_outputs)
     optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
     optimal_threshold = thresholds[optimal_idx]
@@ -114,7 +118,7 @@ def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMe
     if metric is ReportedMetrics.OptimalThreshold:
         return optimal_threshold
 
-    results_test = get_results(test_metrics_csv)
+    results_test = get_results(test_metrics_csv, hue)
     only_one_class_present = len(set(results_test.labels)) < 2
 
     if metric is ReportedMetrics.AUC_ROC:
@@ -137,39 +141,45 @@ def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMe
         raise ValueError("Unknown metric")
 
 
-def print_metrics(val_metrics_csv: Path, test_metrics_csv: Path) -> None:
+def print_metrics(val_metrics_csv: Path, test_metrics_csv: Path, hue: str) -> None:
     """
     Given a csv file, read the predicted values and ground truth labels and print out some metrics.
     """
     roc_auc = get_metric(val_metrics_csv=val_metrics_csv,
                          test_metrics_csv=test_metrics_csv,
-                         metric=ReportedMetrics.AUC_ROC)
+                         metric=ReportedMetrics.AUC_ROC,
+                         hue=hue)
     print_header(f"Area under ROC Curve: {roc_auc:.4f}", level=4)
 
     pr_auc = get_metric(val_metrics_csv=val_metrics_csv,
                         test_metrics_csv=test_metrics_csv,
-                        metric=ReportedMetrics.AUC_PR)
+                        metric=ReportedMetrics.AUC_PR,
+                        hue=hue)
     print_header(f"Area under PR Curve: {pr_auc:.4f}", level=4)
 
     optimal_threshold = get_metric(val_metrics_csv=val_metrics_csv,
                                    test_metrics_csv=test_metrics_csv,
-                                   metric=ReportedMetrics.OptimalThreshold)
+                                   metric=ReportedMetrics.OptimalThreshold,
+                                   hue=hue)
 
     print_header(f"Optimal threshold: {optimal_threshold: .4f}", level=4)
 
     accuracy = get_metric(val_metrics_csv=val_metrics_csv,
                           test_metrics_csv=test_metrics_csv,
-                          metric=ReportedMetrics.Accuracy)
+                          metric=ReportedMetrics.Accuracy,
+                          hue=hue)
     print_header(f"Accuracy at optimal threshold: {accuracy:.4f}", level=4)
 
     fpr = get_metric(val_metrics_csv=val_metrics_csv,
                      test_metrics_csv=test_metrics_csv,
-                     metric=ReportedMetrics.FalsePositiveRate)
+                     metric=ReportedMetrics.FalsePositiveRate,
+                     hue=hue)
     print_header(f"Specificity at optimal threshold: {1 - fpr:.4f}", level=4)
 
     fnr = get_metric(val_metrics_csv=val_metrics_csv,
                      test_metrics_csv=test_metrics_csv,
-                     metric=ReportedMetrics.FalseNegativeRate)
+                     metric=ReportedMetrics.FalseNegativeRate,
+                     hue=hue)
     print_header(f"Sensitivity at optimal threshold: {1 - fnr:.4f}", level=4)
 
 

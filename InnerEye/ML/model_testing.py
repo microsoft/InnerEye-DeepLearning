@@ -387,7 +387,7 @@ def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> \
         return SequenceMetricsDict.create(is_classification_model=config.is_classification_model,
                                           sequence_target_positions=config.sequence_target_positions)
     else:
-        return ScalarMetricsDict(hues=[c for c in range(config.num_classes)],
+        return ScalarMetricsDict(hues=config.class_names,
                                  is_classification_metrics=config.is_classification_model)
 
 

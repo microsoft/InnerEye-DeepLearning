@@ -16,7 +16,7 @@ class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
     def __init__(self, expected_image_size_zyx: TupleInt3,
                  activation: torch.nn.Module = Identity(),
                  use_mixed_precision: bool = False,
-                 num_classes: int=1) -> None:
+                 num_classes: int = 1) -> None:
         super().__init__()
         self.expected_image_size_zyx = expected_image_size_zyx
         self._layers = torch.nn.ModuleList()

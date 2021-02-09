@@ -12,7 +12,7 @@ from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 class DummyMulticlassClassification(ScalarModelBase):
-    "A config file for dummy image classification model for debugging purposes" 
+    "A config file for dummy image classification model for debugging purposes"
 
     def __init__(self) -> None:
         num_epochs = 4
@@ -21,7 +21,8 @@ class DummyMulticlassClassification(ScalarModelBase):
             image_channels=["blue"],
             image_file_column="path",
             label_channels=["blue"],
-            num_classes=5,
+            class_names=["class0", "class1", "class2", "class3", "class4"],
+            # labels_exclusive=False,
             label_value_column="label",
             loss_type=ScalarLoss.BinaryCrossEntropyWithLogits,
             num_epochs=num_epochs,
@@ -47,5 +48,4 @@ class DummyMulticlassClassification(ScalarModelBase):
     def create_model(self) -> Any:
         # Use a local import so that we don't need to import pytorch when creating configs in the runner
         from Tests.ML.models.architectures.DummyScalarModel import DummyScalarModel
-        return DummyScalarModel(self.expected_image_size_zyx, num_classes=self.num_classes)
-
+        return DummyScalarModel(self.expected_image_size_zyx, num_classes=len(self.class_names))

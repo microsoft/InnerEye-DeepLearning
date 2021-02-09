@@ -721,6 +721,7 @@ class MLRunner:
             else:
                 if isinstance(config, ScalarModelBase) and not isinstance(config, SequenceModelBase):
                     generate_classification_notebook(result_notebook=output_dir / REPORT_IPYNB,
+                                                     config=config,
                                                      train_metrics=path_to_best_epoch_train,
                                                      val_metrics=path_to_best_epoch_val,
                                                      test_metrics=path_to_best_epoch_test,
