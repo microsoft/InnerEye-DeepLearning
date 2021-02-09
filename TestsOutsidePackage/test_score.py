@@ -3,10 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from dataclasses import dataclass
+import filecmp
 from pathlib import Path
 from typing import List
 from unittest import mock
-from zipfile import BadZipFile
+import zipfile
 import numpy as np
 import pytest
 from pytorch_lightning import seed_everything
@@ -21,7 +22,8 @@ from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 from score import create_inference_pipeline, is_spacing_valid, run_inference, score_image, ScorePipelineConfig, \
-    extract_zipped_dicom_series, convert_rgb_colour_to_hex
+    extract_zipped_dicom_series, convert_rgb_colour_to_hex, convert_zipped_dicom_to_nifti, \
+    convert_nifti_to_zipped_dicom_rt
 
 
 test_image = full_ml_test_data_path("train_and_test_data") / "id1_channel1.nii.gz"
@@ -53,6 +55,8 @@ TEST_TWO_NESTED_TWICE_ZIP_FILE: Path = TEST_DATA_DIR / "test_two_nested_twice.zi
 HNSEGMENTATION_FILE = TEST_DATA_DIR / "hnsegmentation.nii.gz"
 # A sample H&N DICOM series
 HN_DICOM_SERIES_ZIP = TEST_DATA_DIR / "HN.zip"
+# Expected zipped DICOM-RT file
+HN_DICOM_RT_ZIP = TEST_DATA_DIR / "hnsegmentation.nii.dcm.zip"
 
 # Test fill holes.
 FillHoles: List[bool] = [
@@ -227,6 +231,32 @@ def test_convert_rgb_colour_to_hex(red: int, green: int, blue: int, colour: str)
     assert convert_rgb_colour_to_hex((red, green, blue)) == colour
 
 
+def assert_zip_files_equivalent(lhs: Path, rhs: Path, model_folder: Path) -> None:
+    """
+    Compare the contents of two zip files, considering only file names.
+    File contents may differ.
+
+    :param lhs: First zip file.
+    :param rhs: Second zip file.
+    :param model_folder: Scratch folder.
+    """
+    assert lhs.is_file()
+    assert rhs.is_file()
+
+    temp_lhs = model_folder / "temp_lhs"
+    with zipfile.ZipFile(lhs, 'r') as zip_file:
+        zip_file.extractall(temp_lhs)
+
+    temp_rhs = model_folder / "temp_rhs"
+    with zipfile.ZipFile(rhs, 'r') as zip_file:
+        zip_file.extractall(temp_rhs)
+
+    dircmp = filecmp.dircmp(temp_lhs, temp_rhs)
+    assert dircmp.common_files
+    assert not dircmp.left_only
+    assert not dircmp.right_only
+
+
 @dataclass
 class MockConfig:
     """
@@ -235,6 +265,23 @@ class MockConfig:
     ground_truth_ids_display_names: List[str]
     colours: List[TupleInt3]
     fill_holes: List[bool]
+
+
+def test_convert_nifti_to_zipped_dicom_rt(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test calling convert_nifti_to_zipped_dicom_rt.
+
+    :param test_output_dirs: Test output directories.
+    """
+    model_folder = test_output_dirs.root_dir / "final"
+    model_folder.mkdir()
+
+    nifti_filename, reference_series_folder = convert_zipped_dicom_to_nifti(HN_DICOM_SERIES_ZIP,
+                                                                            model_folder)
+    mock_config = MockConfig(StructureNames, StructureColors, FillHoles)
+    result_dst = convert_nifti_to_zipped_dicom_rt(HNSEGMENTATION_FILE, reference_series_folder, model_folder,
+                                                  mock_config)
+    assert_zip_files_equivalent(result_dst, HN_DICOM_RT_ZIP, model_folder)
 
 
 def test_score_image_dicom_two_inputs(test_output_dirs: OutputFolderForTests) -> None:
@@ -273,7 +320,7 @@ def test_score_image_dicom_not_zip_input(test_output_dirs: OutputFolderForTests)
         use_gpu=False,
         use_dicom=True)
 
-    with pytest.raises(BadZipFile):
+    with pytest.raises(zipfile.BadZipFile):
         score_image(score_pipeline_config)
 
 
@@ -288,6 +335,7 @@ def test_score_image_dicom(test_output_dirs: OutputFolderForTests) -> None:
     mock_segmentation = {'mock_segmentation': True}
 
     model_folder = test_output_dirs.root_dir / "final"
+    model_folder.mkdir()
 
     score_pipeline_config = ScorePipelineConfig(
         data_folder=TEST_DATA_DIR,
@@ -304,7 +352,7 @@ def test_score_image_dicom(test_output_dirs: OutputFolderForTests) -> None:
             with mock.patch('score.store_as_ubyte_nifti',
                             return_value=HNSEGMENTATION_FILE) as mock_store_as_ubyte_nifti:
                 segmentation = score_image(score_pipeline_config)
-                assert segmentation.is_file()
+                assert_zip_files_equivalent(segmentation, HN_DICOM_RT_ZIP, model_folder)
 
     mock_init_from_model_inference_json.assert_called_once_with(Path(score_pipeline_config.model_folder),
                                                                 score_pipeline_config.use_gpu)
@@ -343,7 +391,51 @@ def test_score_image_dicom2(test_output_dirs: OutputFolderForTests) -> None:
         with mock.patch('score.store_as_ubyte_nifti',
                         return_value=HNSEGMENTATION_FILE) as mock_store_as_ubyte_nifti:
             segmentation = score_image(score_pipeline_config)
-            assert segmentation.is_file()
+            assert_zip_files_equivalent(segmentation, HN_DICOM_RT_ZIP, model_folder)
 
     mock_run_inference.assert_called()
     mock_store_as_ubyte_nifti.assert_called()
+
+
+def test_load_hnsegmentation_file(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that the target output file can be loaded.
+    """
+    image_with_header = io_util.load_nifti_image(HNSEGMENTATION_FILE)
+    test_file = test_output_dirs.create_file_or_folder_path("hnsegmentation.nii.gz")
+    io_util.store_as_ubyte_nifti(image_with_header.image, image_with_header.header,
+                                 test_file)
+    assert filecmp.cmp(HNSEGMENTATION_FILE, test_file, shallow=False)
+
+
+def test_score_image_dicom3(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that dicom in and dicom-rt out works, by mocking out functions that do most of the work.
+
+    :param test_output_dirs: Test output directories.
+    """
+    mock_pipeline_base = {'mock_pipeline_base': True}
+    mock_config = MockConfig(StructureNames, StructureColors, FillHoles)
+
+    model_folder = test_output_dirs.root_dir / "final"
+
+    score_pipeline_config = ScorePipelineConfig(
+        data_folder=TEST_DATA_DIR,
+        model_folder=str(model_folder),
+        image_files=[str(HN_DICOM_SERIES_ZIP)],
+        result_image_name=HNSEGMENTATION_FILE.name,
+        use_gpu=False,
+        use_dicom=True)
+
+    image_with_header = io_util.load_nifti_image(HNSEGMENTATION_FILE)
+
+    with mock.patch('score.init_from_model_inference_json',
+                    return_value=(mock_pipeline_base, mock_config)) as mock_init_from_model_inference_json:
+        with mock.patch('score.run_inference',
+                        return_value=image_with_header.image) as mock_run_inference:
+            segmentation = score_image(score_pipeline_config)
+            assert_zip_files_equivalent(segmentation, HN_DICOM_RT_ZIP, model_folder)
+
+    mock_init_from_model_inference_json.assert_called_once_with(Path(score_pipeline_config.model_folder),
+                                                                score_pipeline_config.use_gpu)
+    mock_run_inference.assert_called()

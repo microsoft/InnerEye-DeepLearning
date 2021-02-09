@@ -180,17 +180,18 @@ def convert_rgb_colour_to_hex(colour: TupleInt3) -> str:
     return '{0:02X}{1:02X}{2:02X}'.format(colour[0], colour[1], colour[2])
 
 
-def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path,
+def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, model_folder: Path,
                                      config: SegmentationModelBase) -> Path:
     """
     Given a Nifti file and a reference DICON series, convert Nifti file to DICOM-RT file.
 
     :param nifti_file: Path to Nifti file.
     :param reference_series: Path to folder containing reference DICOM series.
+    :param model_folder: Scratch folder to extract files into.
     :param config: Model config.
     :return: Path to DICOM-RT file.
     """
-    dicom_rt_file = nifti_file.with_suffix(".dcm")
+    dicom_rt_file = model_folder / nifti_file.with_suffix(".dcm").name
     (stdout, stderr) = rtconvert(
         in_file=nifti_file,
         reference_series=reference_series,
@@ -202,7 +203,7 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path,
     logging.debug("stderr: %s", stderr)
     dicom_rt_zip_file = dicom_rt_file.with_suffix(dicom_rt_file.suffix + '.zip')
     with zipfile.ZipFile(dicom_rt_zip_file, 'w') as dicom_rt_zip:
-        dicom_rt_zip.write(dicom_rt_file)
+        dicom_rt_zip.write(dicom_rt_file, dicom_rt_file.name)
     return dicom_rt_zip_file
 
 
@@ -258,7 +259,8 @@ def score_image(args: ScorePipelineConfig) -> Path:
     result_dst = store_as_ubyte_nifti(segmentation, images[0].header, segmentation_file_name)
 
     if args.use_dicom:
-        result_dst = convert_nifti_to_zipped_dicom_rt(result_dst, reference_series_folder, config)
+        result_dst = convert_nifti_to_zipped_dicom_rt(result_dst, reference_series_folder, model_folder,
+                                                      config)
 
     if not is_offline_run_context(run_context):
         run_context.upload_file(args.result_image_name, str(result_dst))
