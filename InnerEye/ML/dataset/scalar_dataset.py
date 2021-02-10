@@ -31,7 +31,8 @@ from InnerEye.ML.utils.transforms import Compose3D, Transform3D
 T = TypeVar('T', bound=ScalarDataSource)
 
 
-def extract_label_classification(label_string: Union[str, float], sample_id: str, num_classes: int) -> List[float]:
+def extract_label_classification(label_string: Union[str, float], sample_id: str, num_classes: int) ->Union[
+    List[float], float]:
     """
     Converts a string from a dataset.csv file that contains a model's label to a scalar.
     The function maps ["1", "true", "yes"] to 1, ["0", "false", "no"] to 0.
@@ -42,37 +43,31 @@ def extract_label_classification(label_string: Union[str, float], sample_id: str
     :return:
     """
 
-    one_hot_array = np.zeros(num_classes, dtype=np.float)
-    if '|' in label_string:
+    if '|' in label_string or label_string.isdigit():
+        if num_classes == 1:
+            if label_string in ["0", "1"]:
+                return float(label_string)
+            else:
+                raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
         classes = [int(a) for a in label_string.split('|')]
+        one_hot_array = np.zeros(num_classes, dtype=np.float)
         one_hot_array[classes] = 1.0
         return one_hot_array
 
-    if label_string.isdigit():
-        classes = int(label_string)
-        one_hot_array[classes] = 1.0
-        return one_hot_array
-
-    if isinstance(label_string, float):
-        if math.isnan(label_string):
-            # When loading a dataframe with dtype=str, missing values can be encoded as NaN, and get into here.
-            return label_string
-        else:
-            raise ValueError(f"Subject {sample_id}: Unexpected float input {label_string} - did you read the "
-                             f"dataframe column as a string?")
     if label_string:
         label_lower = label_string.lower()
-        if label_lower in ["1", "true", "yes"]:
-            return [1]
-        if label_lower in ["0", "false", "no"]:
-            return [0]
+        if label_lower in ["true", "yes"]:
+            return 1.0
+        if label_lower in ["false", "no"]:
+            return 0.0
 
         raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
     else:
         return math.nan
 
 
-def extract_label_regression(label_string: Union[str, float], sample_id: str, num_classes: int) -> List[float]:
+def extract_label_regression(label_string: Union[str, float], sample_id: str, num_classes: int) -> Union[
+    List[float], float]:
     """
     Converts a string from a dataset.csv file that contains a model's label to a scalar.
     The function casts a string label to float. Raises an exception if the conversion is

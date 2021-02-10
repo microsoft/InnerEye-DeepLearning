@@ -19,7 +19,6 @@ from sklearn.metrics import auc, precision_recall_curve, recall_score, roc_auc_s
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.ML.metrics_dict import MetricsDict, binary_classification_accuracy
 from InnerEye.ML.reports.notebook_report import print_header
-from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.io_util import load_image_in_known_formats
 
 
