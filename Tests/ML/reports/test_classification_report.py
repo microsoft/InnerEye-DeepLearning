@@ -29,7 +29,7 @@ def test_generate_classification_report(test_output_dirs: OutputFolderForTests) 
 
     current_dir = test_output_dirs.make_sub_dir("test_classification_report")
     result_file = current_dir / "report.ipynb"
-    config = ScalarModelBase(num_classes=5)
+    config = ScalarModelBase()
     result_html = generate_classification_notebook(result_notebook=result_file,
                                                    config=config,
                                                    val_metrics=val_metrics_file,
@@ -45,7 +45,7 @@ def test_generate_classification_report(test_output_dirs: OutputFolderForTests) 
 def test_get_results() -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
-    hues = ["class0"]
+    hues = "Default"
     results = get_results(test_metrics_file, hues)
     assert all([results.subject_ids[i] == i for i in range(12)])
     assert all([results.labels[i] == label for i, label in enumerate([1] * 6 + [0] * 6)])
@@ -58,19 +58,18 @@ def test_functions_with_invalid_csv(test_output_dirs: OutputFolderForTests) -> N
     val_metrics_file = reports_folder / "val_metrics_classification.csv"
     invalid_metrics_file = Path(test_output_dirs.root_dir) / "invalid_metrics_classification.csv"
     shutil.copyfile(test_metrics_file, invalid_metrics_file)
-    config = ScalarModelBase()
     # Duplicate a subject
     with open(invalid_metrics_file, "a") as file:
         file.write("Default,1,5,1.0,1,-1,Test")
+    hue = "Default"
+    with pytest.raises(ValueError):
+        get_results(invalid_metrics_file, hue)
 
     with pytest.raises(ValueError):
-        get_results(invalid_metrics_file, config)
+        get_correct_and_misclassified_examples(invalid_metrics_file, test_metrics_file, hue)
 
     with pytest.raises(ValueError):
-        get_correct_and_misclassified_examples(invalid_metrics_file, test_metrics_file)
-
-    with pytest.raises(ValueError):
-        get_correct_and_misclassified_examples(val_metrics_file, invalid_metrics_file)
+        get_correct_and_misclassified_examples(val_metrics_file, invalid_metrics_file, hue)
 
 
 def test_get_metric() -> None:
