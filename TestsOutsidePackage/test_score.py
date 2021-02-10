@@ -5,21 +5,25 @@
 from dataclasses import dataclass
 import filecmp
 from pathlib import Path
-from typing import List
+from typing import Any, List
 from unittest import mock
 import zipfile
 import numpy as np
 import pytest
 from pytorch_lightning import seed_everything
+import torch
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
+from InnerEye.ML.config import equally_weighted_classes, PhotometricNormalizationMethod, SegmentationModelBase
+from InnerEye.ML.deep_learning_config import OptimizerType
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from Tests.ML.configs.DummyModel import DummyModel
+from Tests.ML.pipelines.test_inference import PyTorchMockModel
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 from score import create_inference_pipeline, is_spacing_valid, run_inference, score_image, ScorePipelineConfig, \
     extract_zipped_dicom_series, convert_rgb_colour_to_hex, convert_zipped_dicom_to_nifti, \
@@ -324,7 +328,7 @@ def test_score_image_dicom_not_zip_input(test_output_dirs: OutputFolderForTests)
         score_image(score_pipeline_config)
 
 
-def test_score_image_dicom(test_output_dirs: OutputFolderForTests) -> None:
+def test_score_image_dicom_mock_all(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that dicom in and dicom-rt out works, by mocking out functions that do most of the work.
 
@@ -360,21 +364,21 @@ def test_score_image_dicom(test_output_dirs: OutputFolderForTests) -> None:
     mock_store_as_ubyte_nifti.assert_called()
 
 
-def test_score_image_dicom2(test_output_dirs: OutputFolderForTests) -> None:
+def test_score_image_dicom2_mock_run_store(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that dicom in and dicom-rt out works, by mocking out functions that do most of the work.
 
     :param test_output_dirs: Test output directories.
     """
     mock_segmentation = {'mock_segmentation': True}
-    dummy_config = DummyModel()
-    dummy_config.set_output_to(test_output_dirs.root_dir)
-    checkpoint_path = dummy_config.checkpoint_folder / "checkpoint.ckpt"
-    create_model_and_store_checkpoint(dummy_config, checkpoint_path)
+    model_config = DummyModel()
+    model_config.set_output_to(test_output_dirs.root_dir)
+    checkpoint_path = model_config.checkpoint_folder / "checkpoint.ckpt"
+    create_model_and_store_checkpoint(model_config, checkpoint_path)
 
-    azure_config = AzureConfig(extra_code_directory="TestsOutsidePackage")
+    azure_config = AzureConfig()
     project_root = Path(__file__).parent.parent
-    ml_runner = MLRunner(model_config=dummy_config, azure_config=azure_config, project_root=project_root)
+    ml_runner = MLRunner(model_config=model_config, azure_config=azure_config, project_root=project_root)
     model_folder = test_output_dirs.root_dir / "final"
     ml_runner.copy_child_paths_to_folder(model_folder=model_folder, checkpoint_paths=[checkpoint_path])
 
@@ -399,7 +403,10 @@ def test_score_image_dicom2(test_output_dirs: OutputFolderForTests) -> None:
 
 def test_load_hnsegmentation_file(test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test that the target output file can be loaded.
+    Test that the target output file can be loaded and that when saved
+    is the same as the original.
+
+    :param test_output_dirs: Test output directories.
     """
     image_with_header = io_util.load_nifti_image(HNSEGMENTATION_FILE)
     test_file = test_output_dirs.create_file_or_folder_path("hnsegmentation.nii.gz")
@@ -408,16 +415,22 @@ def test_load_hnsegmentation_file(test_output_dirs: OutputFolderForTests) -> Non
     assert filecmp.cmp(HNSEGMENTATION_FILE, test_file, shallow=False)
 
 
-def test_score_image_dicom3(test_output_dirs: OutputFolderForTests) -> None:
+def test_score_image_dicom_mock_run(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that dicom in and dicom-rt out works, by mocking out functions that do most of the work.
 
     :param test_output_dirs: Test output directories.
     """
-    mock_pipeline_base = {'mock_pipeline_base': True}
-    mock_config = MockConfig(StructureNames, StructureColors, FillHoles)
+    model_config = DummyModel()
+    model_config.set_output_to(test_output_dirs.root_dir)
+    checkpoint_path = model_config.checkpoint_folder / "checkpoint.ckpt"
+    create_model_and_store_checkpoint(model_config, checkpoint_path)
 
+    azure_config = AzureConfig()
+    project_root = Path(__file__).parent.parent
+    ml_runner = MLRunner(model_config=model_config, azure_config=azure_config, project_root=project_root)
     model_folder = test_output_dirs.root_dir / "final"
+    ml_runner.copy_child_paths_to_folder(model_folder=model_folder, checkpoint_paths=[checkpoint_path])
 
     score_pipeline_config = ScorePipelineConfig(
         data_folder=TEST_DATA_DIR,
@@ -429,13 +442,89 @@ def test_score_image_dicom3(test_output_dirs: OutputFolderForTests) -> None:
 
     image_with_header = io_util.load_nifti_image(HNSEGMENTATION_FILE)
 
-    with mock.patch('score.init_from_model_inference_json',
-                    return_value=(mock_pipeline_base, mock_config)) as mock_init_from_model_inference_json:
-        with mock.patch('score.run_inference',
-                        return_value=image_with_header.image) as mock_run_inference:
-            segmentation = score_image(score_pipeline_config)
-            assert_zip_files_equivalent(segmentation, HN_DICOM_RT_ZIP, model_folder)
+    with mock.patch('score.run_inference',
+                    return_value=image_with_header.image) as mock_run_inference:
+        segmentation = score_image(score_pipeline_config)
+        assert_zip_files_equivalent(segmentation, HN_DICOM_RT_ZIP, model_folder)
 
-    mock_init_from_model_inference_json.assert_called_once_with(Path(score_pipeline_config.model_folder),
-                                                                score_pipeline_config.use_gpu)
     mock_run_inference.assert_called()
+
+
+class PassThroughModel(SegmentationModelBase):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(
+            should_validate=False,
+            random_seed=42,
+            architecture="Basic",
+            # kernel_size=3,
+            local_dataset=full_ml_test_data_path(),
+            crop_size=(55, 55, 55),
+            # This speeds up loading dramatically. Multi-process data loading is tested via BasicModel2Epochs
+            num_dataload_workers=0,
+            # Disable monitoring so that we can use VS Code remote debugging
+            monitoring_interval_seconds=0,
+            # shuffle=True,
+            image_channels=list(map(str, range(2))),
+            ground_truth_ids=StructureNames,
+            ground_truth_ids_display_names=StructureNames,
+            colours=StructureColors,
+            fill_holes=FillHoles,
+            mask_id="mask",
+            dataset_expected_spacing_xyz=(1.269531011581421, 1.269531011581421, 2.5),
+            norm_method=PhotometricNormalizationMethod.CtWindow,
+            # output_range=(-1.0, 1.0),
+            level=50,
+            window=200,
+            # debug_mode=False,
+            # tail=[1.0],
+            # sharpen=1.9,
+            # trim_percentiles=(1, 99),
+            inference_batch_size=1,
+            # train_batch_size=2,
+            start_epoch=0,
+            num_epochs=1,
+            # l_rate=1e-3,
+            # l_rate_polynomial_gamma=0.9,
+            # optimizer_type=OptimizerType.RMSprop,
+            # opt_eps=1e-4,
+            # rms_alpha=0.9,
+            # adam_betas=(0.9, 0.999),
+            # momentum=0.6,
+            # weight_decay=1e-4,
+            class_weights=equally_weighted_classes(StructureNames),
+            # detect_anomaly=False,
+            # use_mixed_precision=False
+        )
+        self.add_and_validate(kwargs)
+
+    def create_model(self) -> torch.nn.Module:
+        return PyTorchMockModel((0, 0, 0))
+
+
+def test_score_image_dicom_mock_none(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that dicom in and dicom-rt out works, by mocking out functions that do most of the work.
+
+    :param test_output_dirs: Test output directories.
+    """
+    model_config = PassThroughModel()
+    model_config.set_output_to(test_output_dirs.root_dir)
+    checkpoint_path = model_config.checkpoint_folder / "checkpoint.ckpt"
+    create_model_and_store_checkpoint(model_config, checkpoint_path)
+
+    azure_config = AzureConfig()
+    project_root = Path(__file__).parent.parent
+    ml_runner = MLRunner(model_config=model_config, azure_config=azure_config, project_root=project_root)
+    model_folder = test_output_dirs.root_dir / "final"
+    ml_runner.copy_child_paths_to_folder(model_folder=model_folder, checkpoint_paths=[checkpoint_path])
+
+    score_pipeline_config = ScorePipelineConfig(
+        data_folder=TEST_DATA_DIR,
+        model_folder=str(model_folder),
+        image_files=[str(HN_DICOM_SERIES_ZIP)],
+        result_image_name=HNSEGMENTATION_FILE.name,
+        use_gpu=False,
+        use_dicom=True)
+
+    segmentation = score_image(score_pipeline_config)
+    assert_zip_files_equivalent(segmentation, HN_DICOM_RT_ZIP, model_folder)
