@@ -23,9 +23,52 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 
 
-# Do we want to support ensembles at inference time?
+# Goals:
+# run experiments by config name
+# AzureML submission framework
+# Consuming datasets from Azure blob storage
+
+# Do we want to support ensembles at inference time? Not now
+
+class Container(DeepLearningConfig):
+
+    def get_lightning_module(self) -> LightningModule:
+        pass
+
+    def get_training_data_module(self, cross_validation_split_index: int, crossval_count: int) -> LightningDataModule:
+        """
+        Gets the data that is used for the training and validation steps.
+        This must take the cross validation fold
+        into account. Should those be arguments maybe? somewhat obsolete, but makes it visible. YES.
+        :return:
+        """
+        split = self.cross_validation_split_index
+        pass
+
+    def get_inference_data_module(self, cross_validation_split_index: int, crossval_count: int) -> LightningDataModule:
+        """
+        Gets the data that is used for the inference after training. By default, this returns the value
+        of get_training_data_module, but you can override this to get for example full image datasets for
+        segmentation models.
+        This must take the cross validation fold
+        into account. Should those be arguments maybe? somewhat obsolete, but makes it visible. YES
+        :return:
+        """
+        # You can override this if inference uses different data, for image full images
+        return self.get_training_data_module(cross_validation_split_index=cross_validation_split_index,
+                                             crossval_count=crossval_count)
+
+    def get_trainer_arguments(self) -> Dict[str, Any]:
+        """
+        Gets additional parameters that will be passed on to the trainer.
+        :return:
+        """
+
 
 class BringYourOwnLightning(LightningModule, DeepLearningConfig):
+    """
+    Double inheritance. All files should be written to config.outputs_folder or config.logs_folder
+    """
     def __init__(self) -> None:
         super().__init__()
         pass
@@ -48,33 +91,6 @@ class BringYourOwnLightning(LightningModule, DeepLearningConfig):
         """
         pass
 
-    def get_trainer_arguments(self) -> Dict[str, Any]:
-        """
-        Gets additional parameters that will be passed on to the trainer.
-        :return:
-        """
-
-    def get_training_data_module(self) -> LightningDataModule:
-        """
-        Gets the data that is used for the training and validation steps.
-        This must take the cross validation fold
-        into account. Should those be arguments maybe? somewhat obsolete, but makes it visible.
-        :return:
-        """
-        pass
-
-    def get_inference_data_module(self) -> LightningDataModule:
-        """
-        Gets the data that is used for the inference after training. By default, this returns the value
-        of get_training_data_module, but you can override this to get for example full image datasets for
-        segmentation models.
-        This must take the cross validation fold
-        into account. Should those be arguments maybe? somewhat obsolete, but makes it visible.
-        :return:
-        """
-        # You can override this if inference uses different data, for image full images
-        return self.get_training_data_module()
-
     def inference_metrics(self) -> List[Metric]:
         # Get metrics to compute on test set. This could be obsolete if we for example enforce that everything
         # encapsulated in inference_step
@@ -87,6 +103,11 @@ class BringYourOwnLightning(LightningModule, DeepLearningConfig):
         """
         pass
 
+    # model.inference_start()
+    # for item in dataloader:
+    #     model_output = model.forward(item)
+    #     model.inference_step(item, model_output, mode)
+    # model.inference_end()
     def inference_step(self, item: Any, model_output: Any, mode: ModelExecutionMode) -> None:
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
@@ -97,6 +118,22 @@ class BringYourOwnLightning(LightningModule, DeepLearningConfig):
         :return:
         """
         # Need to make sure that both data and more are on the GPU
+
+        pass
+
+    def inference_step(self, item: Any, mode: ModelExecutionMode) -> None:
+        """
+        This hook is called when the model has finished making a prediction. It can write the results to a file,
+        or compute metrics and store them.
+        :param item: The item for which the model made a prediction.
+        :param model_output: The model output. This would usually be a torch.Tensor, but can be any datatype.
+        :param mode: Indicates whether the item comes from the training, validation or test set.
+        :return:
+        """
+        # Need to make sure that both data and more are on the GPU
+        model_output = self.forward(item)
+        metrics = whatever(model_output, item.labels)
+        self.write_output(model_output)
         pass
 
     def inference_end(self) -> None:
@@ -104,4 +141,5 @@ class BringYourOwnLightning(LightningModule, DeepLearningConfig):
         Called when the model has made predictions on all. This should write all metrics to disk.
         :return:
         """
+        self.metrics.write_to_disk()
         pass
