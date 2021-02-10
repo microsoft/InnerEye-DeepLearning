@@ -239,7 +239,12 @@ def load_single_data_source(subject_rows: pd.DataFrame,
         return None if isinstance(x, float) and np.isnan(x) else x
 
     subject_rows = subject_rows.fillna('')
-    labels = _get_label_as_tensor(label_channels[0])  # Should be only 1 label channel previous does not make sense
+    labels = []
+    if label_channels:
+        for channel in label_channels:
+            labels.append(_get_label_as_tensor(channel))
+    else:
+        labels.append(_get_label_as_tensor(None))
 
     label = _apply_label_transforms(labels)
 
