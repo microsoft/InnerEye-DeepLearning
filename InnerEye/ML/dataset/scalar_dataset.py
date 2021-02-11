@@ -31,7 +31,7 @@ from InnerEye.ML.utils.transforms import Compose3D, Transform3D
 T = TypeVar('T', bound=ScalarDataSource)
 
 
-def extract_label_classification(label_string: Union[str, float], sample_id: str, num_classes: int) -> List[float]:
+def extract_label_classification(label_string: str, sample_id: str, num_classes: int) -> List[float]:
     """
     Converts a string from a dataset.csv file that contains a model's label to a scalar.
     The function maps ["1", "true", "yes"] to 1, ["0", "false", "no"] to 0.
