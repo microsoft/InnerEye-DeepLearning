@@ -5,8 +5,49 @@
 from typing import List, Tuple
 import pytest
 import numpy as np
-from passthrough_model import make_distance_range, make_stroke_rectangle, \
+from passthrough_model import convert_hex_to_rgb_colour, make_distance_range, make_stroke_rectangle, \
     make_fill_rectangle, make_nesting_rectangles
+from score import convert_rgb_colour_to_hex
+
+rgb_colour_testdata = [
+    (0x00, 0x00, 0x00, "000000"),
+    (0x0f, 0x00, 0x00, "0F0000"),
+    (0xff, 0x00, 0x00, "FF0000"),
+    (0x00, 0x0f, 0x00, "000F00"),
+    (0x00, 0xff, 0x00, "00FF00"),
+    (0x00, 0x00, 0x0f, "00000F"),
+    (0x00, 0x00, 0xff, "0000FF"),
+    (0x04, 0x08, 0x0a, "04080A"),
+    (0xf4, 0xf8, 0xfa, "F4F8FA")
+]
+
+
+@pytest.mark.parametrize("red,green,blue,colour", rgb_colour_testdata)
+def test_convert_hex_to_rgb_colour(red: int, green: int, blue: int, colour: str) -> None:
+    """
+    Test that test colours, which are strings, can be formatted as
+    TupleInt3's.
+
+    :param red: Expected red component.
+    :param green: Expected green component.
+    :param blue: Expected blue component.
+    :param colour: Hex string.
+    """
+    assert convert_hex_to_rgb_colour(colour) == (red, green, blue)
+
+
+@pytest.mark.parametrize("red,green,blue,colour", rgb_colour_testdata)
+def test_convert_rgb_colour_to_hex(red: int, green: int, blue: int, colour: str) -> None:
+    """
+    Test that config colours, which are TupleInt3's, can be formatted as
+    strings.
+
+    :param red: Red component.
+    :param green: Green component.
+    :param blue: Blue component.
+    :param colour: Expected hex string.
+    """
+    assert convert_rgb_colour_to_hex((red, green, blue)) == colour
 
 
 # Test data for test_make_distance_range

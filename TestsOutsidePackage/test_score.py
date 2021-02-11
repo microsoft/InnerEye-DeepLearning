@@ -5,26 +5,23 @@
 from dataclasses import dataclass
 import filecmp
 from pathlib import Path
-from typing import Any, List
+from typing import List
 from unittest import mock
 import zipfile
 import numpy as np
 import pytest
 from pytorch_lightning import seed_everything
-import torch
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.config import equally_weighted_classes, PhotometricNormalizationMethod, SegmentationModelBase
-from InnerEye.ML.deep_learning_config import OptimizerType
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.pipelines.test_inference import PyTorchMockModel
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
+from passthrough_model import FillHoles, PassThroughModel, StructureColors, StructureNames
 from score import create_inference_pipeline, is_spacing_valid, run_inference, score_image, ScorePipelineConfig, \
     extract_zipped_dicom_series, convert_rgb_colour_to_hex, convert_zipped_dicom_to_nifti, \
     convert_nifti_to_zipped_dicom_rt
@@ -61,50 +58,6 @@ HNSEGMENTATION_FILE = TEST_DATA_DIR / "hnsegmentation.nii.gz"
 HN_DICOM_SERIES_ZIP = TEST_DATA_DIR / "HN.zip"
 # Expected zipped DICOM-RT file
 HN_DICOM_RT_ZIP = TEST_DATA_DIR / "hnsegmentation.nii.dcm.zip"
-
-# Test fill holes.
-FillHoles: List[bool] = [
-    True, True, True, True,
-    False, False, True, True,
-    True, True, False, True,
-    True, True, True, False,
-    True, False, True, True,
-    False, True
-]
-
-
-def convert_hex_to_rgb_colour(colour: str) -> TupleInt3:
-    """
-    Utility to convert hex strings to RGB triples.
-
-    :param colour: Colour formatted as a hex string.
-    :return: RGB colour as a TupleInt3.
-    """
-    red = int(colour[0:2], 16)
-    green = int(colour[2:4], 16)
-    blue = int(colour[4:6], 16)
-    return (red, green, blue)
-
-
-# Test structure colors.
-StructureColors: List[TupleInt3] = [convert_hex_to_rgb_colour(colour) for colour in [
-    "FF0001", "FF0002", "FF0003", "FF0004",
-    "FF0101", "FF0102", "FF0103", "FF0103",
-    "FF0201", "FF02FF", "FF0203", "FF0204",
-    "FF0301", "FF0302", "01FF03", "FF0304",
-    "FF0401", "00FFFF", "FF0403", "FF0404",
-    "FF0501", "FF0502"
-]]
-
-# Test structure names.
-StructureNames: List[str] = [
-    "External", "parotid_l", "parotid_r", "smg_l",
-    "smg_r", "spinal_cord", "brainstem", "globe_l",
-    "Globe_r", "mandible", "spc_muscle", "mpc_muscle",
-    "Cochlea_l", "cochlea_r", "lens_l", "lens_r",
-    "optic_chiasm", "optic_nerve_l", "optic_nerve_r", "pituitary_gland",
-    "lacrimal_gland_l", "lacrimal_gland_r"
-]
 
 
 def test_score_check_spacing() -> None:
@@ -192,47 +145,6 @@ def _common_test_unpack_zip(zip_filename: Path, expected_filenames: List[str],
     extracted_file_names = sorted([extracted_file.name for extracted_file in extracted_files])
     # Check names are as expected
     assert extracted_file_names == expected_filenames
-
-
-rgb_colour_testdata = [
-    (0x00, 0x00, 0x00, "000000"),
-    (0x0f, 0x00, 0x00, "0F0000"),
-    (0xff, 0x00, 0x00, "FF0000"),
-    (0x00, 0x0f, 0x00, "000F00"),
-    (0x00, 0xff, 0x00, "00FF00"),
-    (0x00, 0x00, 0x0f, "00000F"),
-    (0x00, 0x00, 0xff, "0000FF"),
-    (0x04, 0x08, 0x0a, "04080A"),
-    (0xf4, 0xf8, 0xfa, "F4F8FA")
-]
-
-
-@pytest.mark.parametrize("red,green,blue,colour", rgb_colour_testdata)
-def test_convert_hex_to_rgb_colour(red: int, green: int, blue: int, colour: str) -> None:
-    """
-    Test that test colours, which are strings, can be formatted as
-    TupleInt3's.
-
-    :param red: Expected red component.
-    :param green: Expected green component.
-    :param blue: Expected blue component.
-    :param colour: Hex string.
-    """
-    assert convert_hex_to_rgb_colour(colour) == (red, green, blue)
-
-
-@pytest.mark.parametrize("red,green,blue,colour", rgb_colour_testdata)
-def test_convert_rgb_colour_to_hex(red: int, green: int, blue: int, colour: str) -> None:
-    """
-    Test that config colours, which are TupleInt3's, can be formatted as
-    strings.
-
-    :param red: Red component.
-    :param green: Green component.
-    :param blue: Blue component.
-    :param colour: Expected hex string.
-    """
-    assert convert_rgb_colour_to_hex((red, green, blue)) == colour
 
 
 def assert_zip_files_equivalent(lhs: Path, rhs: Path, model_folder: Path) -> None:
@@ -448,57 +360,6 @@ def test_score_image_dicom_mock_run(test_output_dirs: OutputFolderForTests) -> N
         assert_zip_files_equivalent(segmentation, HN_DICOM_RT_ZIP, model_folder)
 
     mock_run_inference.assert_called()
-
-
-class PassThroughModel(SegmentationModelBase):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(
-            should_validate=False,
-            random_seed=42,
-            architecture="Basic",
-            # kernel_size=3,
-            local_dataset=full_ml_test_data_path(),
-            crop_size=(55, 55, 55),
-            # This speeds up loading dramatically. Multi-process data loading is tested via BasicModel2Epochs
-            num_dataload_workers=0,
-            # Disable monitoring so that we can use VS Code remote debugging
-            monitoring_interval_seconds=0,
-            # shuffle=True,
-            image_channels=list(map(str, range(2))),
-            ground_truth_ids=StructureNames,
-            ground_truth_ids_display_names=StructureNames,
-            colours=StructureColors,
-            fill_holes=FillHoles,
-            mask_id="mask",
-            dataset_expected_spacing_xyz=(1.269531011581421, 1.269531011581421, 2.5),
-            norm_method=PhotometricNormalizationMethod.CtWindow,
-            # output_range=(-1.0, 1.0),
-            level=50,
-            window=200,
-            # debug_mode=False,
-            # tail=[1.0],
-            # sharpen=1.9,
-            # trim_percentiles=(1, 99),
-            inference_batch_size=1,
-            # train_batch_size=2,
-            start_epoch=0,
-            num_epochs=1,
-            # l_rate=1e-3,
-            # l_rate_polynomial_gamma=0.9,
-            # optimizer_type=OptimizerType.RMSprop,
-            # opt_eps=1e-4,
-            # rms_alpha=0.9,
-            # adam_betas=(0.9, 0.999),
-            # momentum=0.6,
-            # weight_decay=1e-4,
-            class_weights=equally_weighted_classes(StructureNames),
-            # detect_anomaly=False,
-            # use_mixed_precision=False
-        )
-        self.add_and_validate(kwargs)
-
-    def create_model(self) -> torch.nn.Module:
-        return PyTorchMockModel((0, 0, 0))
 
 
 def test_score_image_dicom_mock_none(test_output_dirs: OutputFolderForTests) -> None:
