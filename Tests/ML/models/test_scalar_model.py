@@ -184,9 +184,6 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
                                             checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
-    expected_metrics = [0.636085, 0.735952]
-    assert test_results.metrics.values()[MetricType.CROSS_ENTROPY.value] == \
-           pytest.approx(expected_metrics, abs=1e-5)
 
 
 def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> None:
