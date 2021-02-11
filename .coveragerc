@@ -1,0 +1,5 @@
+[run]
+omit =
+    Tests/*
+    TestsOutsidePackage/*
+    TestSubmodule/*

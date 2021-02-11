@@ -12,6 +12,9 @@ variables:
   tag: ''
   number_of_cross_validation_splits: 0
   cluster: 'training-nc12'
+  # Disable a spurious warning
+  # https://stackoverflow.com/questions/56859264/publishing-code-coverage-results-from-reportgenerator-not-working
+  disable.coverage.autogenerate: 'true'
 
 jobs:
   - job: Windows
