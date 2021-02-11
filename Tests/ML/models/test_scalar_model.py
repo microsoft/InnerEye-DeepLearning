@@ -21,6 +21,7 @@ from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, model_training, runner
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
@@ -132,6 +133,60 @@ Default,S2,0.5293986201286316,1.0,-1,Train
 Default,S4,0.5211275815963745,0.0,-1,Train
 """
     check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
+
+
+@pytest.mark.cpu_and_gpu
+def test_train_classification_multilabel_model(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test training and testing of classification models, asserting on the individual results from training and
+    testing.
+    Expected test results are stored for GPU with and without mixed precision.
+    """
+    logging_to_stdout(logging.DEBUG)
+    config = DummyMulticlassClassification()
+    config.set_output_to(test_output_dirs.root_dir)
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=Path(test_output_dirs.root_dir))
+    # Train for 4 epochs, checkpoints at epochs 2 and 4
+    config.num_epochs = 4
+    model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
+    assert model_training_result is not None
+    expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
+    expected_train_loss = [1.6641048192977905, 1.6173171997070312, 1.573212742805481, 1.5325114727020264]
+    expected_val_loss = [1.1132521629333496, 1.1444058418273926, 1.1776609420776367, 1.2118185758590698]
+    # Ensure that all metrics are computed on both training and validation set
+    assert len(model_training_result.train_results_per_epoch) == config.num_epochs
+    assert len(model_training_result.val_results_per_epoch) == config.num_epochs
+    assert len(model_training_result.train_results_per_epoch[0]) >= 11
+    assert len(model_training_result.val_results_per_epoch[0]) >= 11
+    for class_name in config.class_names:
+        for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
+                       MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
+                       MetricType.AREA_UNDER_PR_CURVE,
+                       MetricType.AREA_UNDER_ROC_CURVE,
+                       MetricType.CROSS_ENTROPY]:
+            assert f'{metric.value}/{class_name}' in model_training_result.train_results_per_epoch[
+                0], f"{metric.value} not in training"
+            assert f'{metric.value}/{class_name}' in model_training_result.val_results_per_epoch[
+                0], f"{metric.value} not in validation"
+    for metric in [MetricType.LOSS,
+                   MetricType.SECONDS_PER_EPOCH,
+                   MetricType.SUBJECT_COUNT]:
+        assert metric.value in model_training_result.train_results_per_epoch[0], f"{metric.value} not in training"
+        assert metric.value in model_training_result.val_results_per_epoch[0], f"{metric.value} not in validation"
+
+    actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS.value)
+    actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS.value)
+    actual_lr = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE.value)
+    assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6), "Training loss"
+    assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6), "Validation loss"
+    assert actual_lr == pytest.approx(expected_learning_rates, rel=1e-5), "Learning rates"
+    test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
+                                            checkpoint_handler=checkpoint_handler)
+    assert isinstance(test_results, InferenceMetricsForClassification)
+    expected_metrics = [0.636085, 0.735952]
+    assert test_results.metrics.values()[MetricType.CROSS_ENTROPY.value] == \
+           pytest.approx(expected_metrics, abs=1e-5)
 
 
 def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> None:

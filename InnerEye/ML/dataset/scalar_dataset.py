@@ -31,8 +31,7 @@ from InnerEye.ML.utils.transforms import Compose3D, Transform3D
 T = TypeVar('T', bound=ScalarDataSource)
 
 
-def extract_label_classification(label_string: Union[str, float], sample_id: str, num_classes: int) ->Union[
-    List[float], float]:
+def extract_label_classification(label_string: Union[str, float], sample_id: str, num_classes: int) -> List[float]:
     """
     Converts a string from a dataset.csv file that contains a model's label to a scalar.
     The function maps ["1", "true", "yes"] to 1, ["0", "false", "no"] to 0.
@@ -46,7 +45,7 @@ def extract_label_classification(label_string: Union[str, float], sample_id: str
     if '|' in label_string or label_string.isdigit():
         if num_classes == 1:
             if label_string in ["0", "1"]:
-                return float(label_string)
+                return [float(label_string)]
             else:
                 raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
         classes = [int(a) for a in label_string.split('|')]
@@ -57,17 +56,16 @@ def extract_label_classification(label_string: Union[str, float], sample_id: str
     if label_string:
         label_lower = label_string.lower()
         if label_lower in ["true", "yes"]:
-            return 1.0
+            return [1.0]
         if label_lower in ["false", "no"]:
-            return 0.0
+            return [0.0]
 
         raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
     else:
-        return math.nan
+        return [math.nan]
 
 
-def extract_label_regression(label_string: Union[str, float], sample_id: str, num_classes: int) -> Union[
-    List[float], float]:
+def extract_label_regression(label_string: Union[str, float], sample_id: str, num_classes: int) -> List[float]:
     """
     Converts a string from a dataset.csv file that contains a model's label to a scalar.
     The function casts a string label to float. Raises an exception if the conversion is
@@ -82,17 +80,17 @@ def extract_label_regression(label_string: Union[str, float], sample_id: str, nu
     if isinstance(label_string, float):
         if math.isnan(label_string):
             # When loading a dataframe with dtype=str, missing values can be encoded as NaN, and get into here.
-            return label_string
+            return [label_string]
         else:
             raise ValueError(f"Subject {sample_id}: Unexpected float input {label_string} - did you read the "
                              f"dataframe column as a string?")
     if label_string:
         try:
-            return float(label_string)
+            return [float(label_string)]
         except ValueError:
             raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
     else:
-        return math.nan
+        return [math.nan]
 
 
 def _get_single_channel_row(subject_rows: pd.DataFrame,
@@ -195,7 +193,7 @@ def load_single_data_source(subject_rows: pd.DataFrame,
         extract_fn = extract_label_classification if is_classification_dataset else extract_label_regression
         label_row = _get_row_for_channel(channel)
         label_string = label_row[label_value_column]
-        return torch.tensor([extract_fn(label_string=label_string, sample_id=subject_id, num_classes=num_classes)],
+        return torch.tensor(extract_fn(label_string=label_string, sample_id=subject_id, num_classes=num_classes),
                             dtype=torch.float)
 
     def _apply_label_transforms(labels: Any) -> Any:

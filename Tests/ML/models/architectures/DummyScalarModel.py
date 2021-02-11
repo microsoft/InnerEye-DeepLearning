@@ -20,7 +20,7 @@ class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
         super().__init__()
         self.expected_image_size_zyx = expected_image_size_zyx
         self._layers = torch.nn.ModuleList()
-        fc = torch.nn.Conv3d(1, 1, kernel_size=(1, 3, 3))
+        fc = torch.nn.Conv3d(1, 1, kernel_size=3)
         torch.nn.init.normal_(fc.weight, 0, 0.01)
         with torch.no_grad():
             fc_out = fc(torch.zeros((1, 1) + self.expected_image_size_zyx))

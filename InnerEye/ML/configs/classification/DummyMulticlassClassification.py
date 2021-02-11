@@ -29,10 +29,10 @@ class DummyMulticlassClassification(ScalarModelBase):
             num_dataload_workers=0,
             use_mixed_precision=True,
             subject_column="ID",
-            image_size=(1, 5, 7)
+            image_size=(4, 5, 7)
         )
         self.conv_in_3d = True
-        self.expected_image_size_zyx = (1, 5, 7)
+        self.expected_image_size_zyx = (4, 5, 7)
         # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
         self.max_num_gpus = 1
 
