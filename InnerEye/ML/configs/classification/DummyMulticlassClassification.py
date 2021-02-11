@@ -27,7 +27,7 @@ class DummyMulticlassClassification(ScalarModelBase):
             loss_type=ScalarLoss.BinaryCrossEntropyWithLogits,
             num_epochs=num_epochs,
             num_dataload_workers=0,
-            use_mixed_precision=True,
+            use_mixed_precision=False,
             subject_column="ID",
             image_size=(4, 5, 7)
         )

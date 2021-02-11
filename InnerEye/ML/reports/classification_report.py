@@ -105,7 +105,7 @@ def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, hue: str) -> None:
 
 
 def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMetrics,
-               hue: str) -> float:
+               hue: str = "Default") -> float:
     """
     Given a csv file, read the predicted values and ground truth labels and return the specified metric.
     """
@@ -182,7 +182,8 @@ def print_metrics(val_metrics_csv: Path, test_metrics_csv: Path, hue: str) -> No
     print_header(f"Sensitivity at optimal threshold: {1 - fnr:.4f}", level=4)
 
 
-def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path, hue: str) -> Results:
+def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path,
+                                           hue: str = "Default") -> Results:
     """
     Given the paths to the metrics files for the validation and test sets, get a list of true positives,
     false positives, false negatives and true negatives.
@@ -219,7 +220,8 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
                    false_negatives=false_negatives)
 
 
-def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int, hue: str) -> Results:
+def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int,
+                                    hue: str = "Default") -> Results:
     """
     Get the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
     top "k" worst predictions (i.e. misclassifications where the model was the most confident).
