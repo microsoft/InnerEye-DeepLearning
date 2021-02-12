@@ -301,20 +301,6 @@ def test_score_image_dicom2_mock_run_store(test_output_dirs: OutputFolderForTest
     mock_store_as_ubyte_nifti.assert_called()
 
 
-def test_load_hnsegmentation_file(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test that the target output file can be loaded and that when saved
-    is the same as the original.
-
-    :param test_output_dirs: Test output directories.
-    """
-    image_with_header = io_util.load_nifti_image(HNSEGMENTATION_FILE)
-    test_file = test_output_dirs.create_file_or_folder_path("hnsegmentation.nii.gz")
-    io_util.store_as_ubyte_nifti(image_with_header.image, image_with_header.header,
-                                 test_file)
-    assert filecmp.cmp(str(HNSEGMENTATION_FILE), str(test_file), shallow=False)
-
-
 def test_score_image_dicom_mock_run(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that dicom in and dicom-rt out works, by mocking out functions that do most of the work.
