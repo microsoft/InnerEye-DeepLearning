@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from dataclasses import dataclass
 import filecmp
 from pathlib import Path
 from typing import List
@@ -15,14 +14,12 @@ from pytorch_lightning import seed_everything
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
-from passthrough_model import FillHoles, PassThroughModel, StructureColors, StructureNames
+from passthrough_model import PassThroughModel
 from score import create_inference_pipeline, is_spacing_valid, run_inference, score_image, ScorePipelineConfig, \
     extract_zipped_dicom_series, convert_zipped_dicom_to_nifti, \
     convert_nifti_to_zipped_dicom_rt
@@ -174,16 +171,6 @@ def assert_zip_files_equivalent(lhs: Path, rhs: Path, model_folder: Path) -> Non
     assert not dircmp.right_only
 
 
-@dataclass
-class MockConfig(SegmentationModelBase):
-    """
-    Mock config for testing score_image with DICOM.
-    """
-    ground_truth_ids_display_names: List[str]
-    colours: List[TupleInt3]
-    fill_holes: List[bool]
-
-
 def test_convert_nifti_to_zipped_dicom_rt(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test calling convert_nifti_to_zipped_dicom_rt.
@@ -195,9 +182,9 @@ def test_convert_nifti_to_zipped_dicom_rt(test_output_dirs: OutputFolderForTests
 
     nifti_filename, reference_series_folder = convert_zipped_dicom_to_nifti(HN_DICOM_SERIES_ZIP,
                                                                             model_folder)
-    mock_config = MockConfig(StructureNames, StructureColors, FillHoles)
+    model_config = PassThroughModel()
     result_dst = convert_nifti_to_zipped_dicom_rt(HNSEGMENTATION_FILE, reference_series_folder, model_folder,
-                                                  mock_config)
+                                                  model_config)
     assert_zip_files_equivalent(result_dst, HN_DICOM_RT_ZIP, model_folder)
 
 
@@ -248,7 +235,7 @@ def test_score_image_dicom_mock_all(test_output_dirs: OutputFolderForTests) -> N
     :param test_output_dirs: Test output directories.
     """
     mock_pipeline_base = {'mock_pipeline_base': True}
-    mock_config = MockConfig(StructureNames, StructureColors, FillHoles)
+    model_config = PassThroughModel()
     mock_segmentation = {'mock_segmentation': True}
 
     model_folder = test_output_dirs.root_dir / "final"
@@ -263,7 +250,7 @@ def test_score_image_dicom_mock_all(test_output_dirs: OutputFolderForTests) -> N
         use_dicom=True)
 
     with mock.patch('score.init_from_model_inference_json',
-                    return_value=(mock_pipeline_base, mock_config)) as mock_init_from_model_inference_json:
+                    return_value=(mock_pipeline_base, model_config)) as mock_init_from_model_inference_json:
         with mock.patch('score.run_inference',
                         return_value=mock_segmentation) as mock_run_inference:
             with mock.patch('score.store_as_ubyte_nifti',

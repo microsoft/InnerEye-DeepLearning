@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import List, Tuple
 import pytest
 import numpy as np
-from passthrough_model import convert_hex_to_rgb_colour, make_distance_range, make_stroke_rectangle, \
+from passthrough_model import make_distance_range, make_stroke_rectangle, \
     make_fill_rectangle, make_nesting_rectangles
 from score import convert_rgb_colour_to_hex
 
@@ -22,20 +22,6 @@ rgb_colour_testdata = [
     (0x04, 0x08, 0x0a, "04080A"),
     (0xf4, 0xf8, 0xfa, "F4F8FA")
 ]
-
-
-@pytest.mark.parametrize("red,green,blue,colour", rgb_colour_testdata)
-def test_convert_hex_to_rgb_colour(red: int, green: int, blue: int, colour: str) -> None:
-    """
-    Test that test colours, which are strings, can be formatted as
-    TupleInt3's.
-
-    :param red: Expected red component.
-    :param green: Expected green component.
-    :param blue: Expected blue component.
-    :param colour: Hex string.
-    """
-    assert convert_hex_to_rgb_colour(colour) == (red, green, blue)
 
 
 @pytest.mark.parametrize("red,green,blue,colour", rgb_colour_testdata)
@@ -210,25 +196,25 @@ def test_make_stroke_rectangle() -> None:
 
 
 make_nesting_rectangles_test_data: List[Tuple[int, int, int]] = [
-    (20, 30, 1),
-    (20, 30, 2),
-    (20, 30, 3),
-    (20, 30, 10),
+    (1, 20, 30),
+    (2, 20, 30),
+    (3, 20, 30),
+    (10, 20, 30),
     (20, 30, 20),
-    (20, 30, 30),
+    (30, 30, 20),
 ]
 
 
-@pytest.mark.parametrize("dim0,dim1,num_features", make_nesting_rectangles_test_data)
-def test_make_nesting_rectangles(dim0: int, dim1: int, num_features: int) -> None:
+@pytest.mark.parametrize("num_features,dim0,dim1", make_nesting_rectangles_test_data)
+def test_make_nesting_rectangles(num_features: int, dim0: int, dim1: int) -> None:
     """
     Test make_nesting_rectangles.
 
+    :param num_features: Number of rectangles.
     :param dim0: Target array dim0.
     :param dim1: Target array dim1.
-    :param num_features: Number of rectangles.
     """
-    nesting = make_nesting_rectangles(dim0, dim1, num_features)
+    nesting = make_nesting_rectangles(num_features, dim0, dim1)
     assert nesting.shape == (num_features, dim0, dim1)
     total = nesting.sum(axis=0)
     assert total.shape == (dim0, dim1)
