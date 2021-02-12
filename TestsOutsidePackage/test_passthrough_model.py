@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Tuple
 import pytest
@@ -94,7 +95,7 @@ class RectangleInRectangleLineData:
     stroke_slice: np.array  # Slice through the rectangle intercepting stroked inner.
 
     @staticmethod
-    def create(dim: int, half_side: int):
+    def create(dim: int, half_side: int) -> RectangleInRectangleLineData:
         """
         Given a dimension and half side length, create RectangleInRectangleLineData.
 
@@ -127,7 +128,7 @@ class RectangleInRectangleData:
     dim1_data: RectangleInRectangleLineData
 
     @staticmethod
-    def create(dim0: int, dim1: int, half_side: int):
+    def create(dim0: int, dim1: int, half_side: int) -> RectangleInRectangleData:
         """
         Given dimensions and half side length, create RectangleInRectangleData.
 

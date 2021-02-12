@@ -16,6 +16,7 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
+from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
@@ -23,7 +24,7 @@ from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 from passthrough_model import FillHoles, PassThroughModel, StructureColors, StructureNames
 from score import create_inference_pipeline, is_spacing_valid, run_inference, score_image, ScorePipelineConfig, \
-    extract_zipped_dicom_series, convert_rgb_colour_to_hex, convert_zipped_dicom_to_nifti, \
+    extract_zipped_dicom_series, convert_zipped_dicom_to_nifti, \
     convert_nifti_to_zipped_dicom_rt
 
 
@@ -167,14 +168,14 @@ def assert_zip_files_equivalent(lhs: Path, rhs: Path, model_folder: Path) -> Non
     with zipfile.ZipFile(rhs, 'r') as zip_file:
         zip_file.extractall(temp_rhs)
 
-    dircmp = filecmp.dircmp(temp_lhs, temp_rhs)
+    dircmp = filecmp.dircmp(str(temp_lhs), str(temp_rhs))
     assert dircmp.common_files
     assert not dircmp.left_only
     assert not dircmp.right_only
 
 
 @dataclass
-class MockConfig:
+class MockConfig(SegmentationModelBase):
     """
     Mock config for testing score_image with DICOM.
     """
@@ -324,7 +325,7 @@ def test_load_hnsegmentation_file(test_output_dirs: OutputFolderForTests) -> Non
     test_file = test_output_dirs.create_file_or_folder_path("hnsegmentation.nii.gz")
     io_util.store_as_ubyte_nifti(image_with_header.image, image_with_header.header,
                                  test_file)
-    assert filecmp.cmp(HNSEGMENTATION_FILE, test_file, shallow=False)
+    assert filecmp.cmp(str(HNSEGMENTATION_FILE), str(test_file), shallow=False)
 
 
 def test_score_image_dicom_mock_run(test_output_dirs: OutputFolderForTests) -> None:
