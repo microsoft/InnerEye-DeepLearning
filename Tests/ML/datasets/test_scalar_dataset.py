@@ -21,7 +21,7 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
 from InnerEye.ML.dataset.scalar_dataset import DataSourceReader, ScalarDataSource, ScalarDataset, \
-    _get_single_channel_row, _string_to_float, extract_label_classification, extract_label_regression, files_by_stem, \
+    _get_single_channel_row, _string_to_float, extract_label_classification, files_by_stem, \
     is_valid_item_index, load_single_data_source
 from InnerEye.ML.photometric_normalization import WindowNormalizationForScalarItem, mri_window
 from InnerEye.ML.scalar_config import LabelTransformation, ScalarLoss, ScalarModelBase
@@ -496,41 +496,37 @@ def test_load_single_item_7() -> None:
     assert torch.all(torch.isnan(item.categorical_non_image_features[4:6]))
 
 
-@pytest.mark.parametrize(["text", "expected_classification", "expected_regression"],
+@pytest.mark.parametrize(["text", "is_classification", "num_classes", "labels_exclusive", "expected_label"],
                          [
-                             ("true", 1, None),
-                             ("tRuE", 1, None),
-                             ("false", 0, None),
-                             ("False", 0, None),
-                             ("nO", 0, None),
-                             ("Yes", 1, None),
-                             ("1.23", None, 1.23),
-                             (3.45, None, None),
-                             (math.nan, math.nan, math.nan),
-                             ("", math.nan, math.nan),
-                             (None, math.nan, math.nan),
-                             ("abc", None, None),
-                             ("1", 1, 1.0),
-                             ("-1", None, -1.0)
+                             ("true", True, 1, True, [1]),
+                             ("tRuE", True, 1, True, [1]),
+                             ("false", True, 1, True, [0]),
+                             ("false", True, 0, True, None),
+                             ("false", False, 0, True, None),
+                             ("False", True, 1, True, [0]),
+                             ("nO", True, 1, True, [0]),
+                             ("Yes", True, 1, True, [1.0]),
+                             ("1.23", True, 1, True, [1.23]),
+                             ("1|2", True, 3, False, [0.0, 1.0, 1.0]),
+                             ("1|2", True, 3, True, None),
+                             ("3.45", False, 1, True, [3.45]),
+                             (math.nan, True, 1, True, [math.nan]),
+                             ("", True, 1, True, [math.nan]),
+                             ("abc", True, 1, True, None)
                          ])
-def test_extract_label(text: Union[float, str], expected_classification: Optional[float],
-                       expected_regression: Optional[float]) -> None:
-    _check_label_extraction_function(extract_label_classification, text, expected_classification)
-    _check_label_extraction_function(extract_label_regression, text, expected_regression)
-
-
-def _check_label_extraction_function(extract_fn: Callable, text: Union[float, str], expected: Optional[float]) -> None:
-    if expected is None:
+def test_extract_label(text: str, is_classification: bool, num_classes: int, labels_exclusive: int,
+                       expected_label: List[float], ) -> None:
+    if expected_label is None:
         with pytest.raises(ValueError) as ex:
-            extract_fn(text, "foo")
-        assert "Subject foo:" in str(ex)
+            extract_label_classification(text, "subject1", num_classes, labels_exclusive, is_classification)
+        assert "Subject subject1:" in str(ex)
     else:
-        actual = extract_fn(text, "foo")
-        assert isinstance(actual, type(expected))
-        if math.isnan(expected):
-            assert math.isnan(actual)
+        actual = extract_label_classification(text, "subject1", num_classes, labels_exclusive, is_classification)
+        assert isinstance(actual, type(expected_label))
+        if expected_label == [math.nan]:
+            assert math.isnan(actual[0])
         else:
-            assert actual == expected
+            assert actual == expected_label
 
 
 @pytest.mark.parametrize(["text", "expected"],

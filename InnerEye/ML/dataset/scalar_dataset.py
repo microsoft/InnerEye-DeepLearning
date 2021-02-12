@@ -31,66 +31,55 @@ from InnerEye.ML.utils.transforms import Compose3D, Transform3D
 T = TypeVar('T', bound=ScalarDataSource)
 
 
-def extract_label_classification(label_string: str, sample_id: str, num_classes: int) -> List[float]:
+def extract_label_classification(label_string: str, sample_id: str, num_classes: int, labels_exclusive: bool,
+                                 is_classification_dataset: bool) \
+        -> List[float]:
     """
     Converts a string from a dataset.csv file that contains a model's label to a scalar.
     The function maps ["1", "true", "yes"] to 1, ["0", "false", "no"] to 0.
     If the entry in the CSV file was missing (no string given at all), it returns math.nan.
+    :param is_classification_dataset: If the model is a classification model
+    :param labels_exclusive: True if the labels for one subject should be exclusive or a single value
     :param label_string: The value of the label as read from CSV via a DataFrame.
     :param sample_id: The sample ID where this label was read from. This is only used for creating error messages.
-    :param num_classes: Number of expected classes
-    :return:
+    :param num_classes: Number of class is in practice equals to the model outputs tensor size
+    :return: A list of floats with the same size as num_classes
     """
 
-    if '|' in label_string or label_string.isdigit():
-        if num_classes == 1:
-            if label_string in ["0", "1"]:
-                return [float(label_string)]
-            else:
-                raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
-        classes = [int(a) for a in label_string.split('|')]
-        one_hot_array = np.zeros(num_classes, dtype=np.float)
-        one_hot_array[classes] = 1.0
-        return one_hot_array
+    if num_classes < 1:
+        raise ValueError(f"Subject {sample_id}: Invalid number of classes: '{num_classes}'")
 
-    if label_string:
+    # Pandas special case: When loading a dataframe with dtype=str, missing values can be encoded as NaN
+    if isinstance(label_string, float) and math.isnan(label_string):
+        return [label_string]
+
+    if num_classes == 1 and is_classification_dataset:
         label_lower = label_string.lower()
         if label_lower in ["true", "yes"]:
             return [1.0]
         if label_lower in ["false", "no"]:
             return [0.0]
+        if label_string in ["0", "1"]:
+            return [float(label_string)]
+        if label_string == "":
+            return [math.nan]
 
-        raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
-    else:
-        return [math.nan]
-
-
-def extract_label_regression(label_string: Union[str, float], sample_id: str, num_classes: int) -> List[float]:
-    """
-    Converts a string from a dataset.csv file that contains a model's label to a scalar.
-    The function casts a string label to float. Raises an exception if the conversion is
-    not possible.
-    If the entry in the CSV file was missing (no string given at all), it returns math.nan.
-    :param label_string: The value of the label as read from CSV via a DataFrame.
-    :param sample_id: The sample ID where this label was read from. This is only used for creating error messages.
-    :return:
-    """
-    if num_classes > 1:
-        raise ValueError("Not supported more than 1 classes")
-    if isinstance(label_string, float):
-        if math.isnan(label_string):
-            # When loading a dataframe with dtype=str, missing values can be encoded as NaN, and get into here.
-            return [label_string]
-        else:
-            raise ValueError(f"Subject {sample_id}: Unexpected float input {label_string} - did you read the "
-                             f"dataframe column as a string?")
-    if label_string:
+    if num_classes == 1:
         try:
             return [float(label_string)]
         except ValueError:
             raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
-    else:
-        return [math.nan]
+
+    if '|' in label_string or label_string.isdigit():
+        classes = [int(a) for a in label_string.split('|')]
+        if len(classes) > 1 and labels_exclusive:
+            raise ValueError(f"Subject {sample_id}: Label string is not exclusive: '{label_string}'")
+
+        one_hot_array = np.zeros(num_classes, dtype=np.float)
+        one_hot_array[classes] = 1.0
+        return one_hot_array.tolist()
+
+    raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
 
 
 def _get_single_channel_row(subject_rows: pd.DataFrame,
@@ -159,11 +148,13 @@ def load_single_data_source(subject_rows: pd.DataFrame,
                             metadata_columns: Optional[Set[str]] = None,
                             is_classification_dataset: bool = True,
                             num_classes: int = 1,
+                            labels_exclusive: bool = False,
                             sequence_position_numeric: Optional[int] = None) -> T:
     """
     Converts a set of dataset rows for a single subject to a ScalarDataSource instance, which contains the
     labels, the non-image features, and the paths to the image files.
-    :param num_classes: number of classes
+    :param labels_exclusive: True if the labels are exclusive or False if they are not
+    :param num_classes: Number of classes, this is equivalent to model output tensor size
     :param channel_column: The name of the column that contains the row identifier ("channels")
     :param metadata_columns: A list of columns that well be added to the item metadata as key/value pairs.
     :param subject_rows: All dataset rows that belong to the same subject.
@@ -190,11 +181,13 @@ def load_single_data_source(subject_rows: pd.DataFrame,
         return _get_single_channel_row(subject_rows, channel, subject_id, channel_column)
 
     def _get_label_as_tensor(channel: Optional[str]) -> torch.Tensor:
-        extract_fn = extract_label_classification if is_classification_dataset else extract_label_regression
         label_row = _get_row_for_channel(channel)
         label_string = label_row[label_value_column]
-        return torch.tensor(extract_fn(label_string=label_string, sample_id=subject_id, num_classes=num_classes),
-                            dtype=torch.float)
+        return torch.tensor(
+            extract_label_classification(label_string=label_string, sample_id=subject_id, num_classes=num_classes,
+                                         labels_exclusive=labels_exclusive,
+                                         is_classification_dataset=is_classification_dataset),
+            dtype=torch.float)
 
     def _apply_label_transforms(labels: Any) -> Any:
         """
@@ -325,6 +318,7 @@ class DataSourceReader(Generic[T]):
                  channel_column: str = CSV_CHANNEL_HEADER,
                  is_classification_dataset: bool = True,
                  num_classes: int = 1,
+                 labels_exclusive: bool = False,
                  categorical_data_encoder: Optional[CategoricalToOneHotEncoder] = None):
         """
         :param label_value_column: The column that contains the value for the label scalar or vector.
@@ -358,6 +352,7 @@ class DataSourceReader(Generic[T]):
         self.label_value_column = label_value_column
         self.data_frame = data_frame
         self.num_classes = num_classes
+        self.labels_exclusive = labels_exclusive
         self.expected_non_image_channels: Union[List[None], Set[str]]
 
         if self.non_image_feature_channels is None:
@@ -432,6 +427,7 @@ class DataSourceReader(Generic[T]):
             subject_column=args.subject_column,
             channel_column=args.channel_column,
             num_classes=len(args.class_names),
+            labels_exclusive=args.labels_exclusive,
             is_classification_dataset=args.is_classification_model
         ).load_data_sources(num_dataset_reader_workers=args.num_dataset_reader_workers)
 
@@ -482,6 +478,7 @@ class DataSourceReader(Generic[T]):
                 metadata_columns=self.metadata_columns,
                 channel_column=self.channel_column,
                 is_classification_dataset=self.is_classification_dataset,
+                labels_exclusive=self.labels_exclusive,
                 num_classes=self.num_classes,
                 sequence_position_numeric=_sequence_position_numeric
             )
