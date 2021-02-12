@@ -177,6 +177,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
                                 results_folder=results_folder,
                                 image_header=sample.metadata.image_header)
     # Evaluate model generated segmentation maps.
+    config.use_gpu = False
     num_workers = min(cpu_count(), len(ds))
     with Pool(processes=num_workers) as pool:
         pool_outputs = pool.map(
