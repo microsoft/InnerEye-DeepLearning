@@ -16,6 +16,7 @@ from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, OneHotEncoderBase
 from InnerEye.ML.deep_learning_config import ModelCategory
+from InnerEye.ML.metrics_dict import MetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.split_dataset import DatasetSplits
@@ -106,7 +107,7 @@ class ScalarModelBase(ModelConfigBase):
         doc="If True we check that labels have a single class."
             "If False allow labels to have multiple classes")
     class_names: List[str] = param.List(class_=str,
-                                        default=["Default"],
+                                        default=[MetricsDict.DEFAULT_HUE_KEY],
                                         doc="Class names is the name of the outputs of the model."
                                             "You can model a 2 class problem with 1 model output or with 2 model "
                                             "outputs that are exclusive (using labels_exclusive=True)")

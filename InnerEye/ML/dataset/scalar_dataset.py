@@ -42,7 +42,7 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
     :param labels_exclusive: True if the labels for one subject should be exclusive or a single value
     :param label_string: The value of the label as read from CSV via a DataFrame.
     :param sample_id: The sample ID where this label was read from. This is only used for creating error messages.
-    :param num_classes: Number of class is in practice equals to the model outputs tensor size
+    :param num_classes: Number of classes. This should be equal the size of the model output
     :return: A list of floats with the same size as num_classes
     """
 
