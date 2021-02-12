@@ -11,7 +11,6 @@ from torch.nn.parameter import Parameter
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.config import equally_weighted_classes, SegmentationModelBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
-from InnerEye.ML.utils import image_util
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
 
 
@@ -27,7 +26,7 @@ class PassThroughModel(SegmentationModelBase):
         number_of_image_channels = 1
         number_of_classes = 5
         class_names = [f"structure_{i}" for i in range(number_of_classes)]
-        
+
         super().__init__(
             should_validate=False,
             random_seed=random_seed,
