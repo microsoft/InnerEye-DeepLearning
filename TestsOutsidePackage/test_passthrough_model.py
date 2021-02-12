@@ -81,7 +81,7 @@ def test_make_distance_range(expected: List[int]) -> None:
 
 
 @dataclass(frozen=True)
-class RectangleInRectangleData:
+class RectangleInRectangleLineData:
     """
     Contains information about lines through a rectangle containing another
     rectangle.
@@ -96,100 +96,94 @@ class RectangleInRectangleData:
     @staticmethod
     def create(dim: int, half_side: int):
         """
-        Given a dimension and half side length, create RectangleInRectangleData.
+        Given a dimension and half side length, create RectangleInRectangleLineData.
 
         :param dim: Outer rectangle dimension.
         :param half_side: Inner rectangle half side length.
-        :return: RectangleInRectangleData.
+        :return: RectangleInRectangleLineData.
         """
         centre_length = half_side * 2 if dim % 2 == 0 else half_side * 2 - 1
         border_length = int((dim - centre_length) / 2)
         centre_start, centre_end = border_length, border_length + centre_length
         border_slice = np.zeros(dim, dtype=np.int64)
         centre_slice = np.zeros(dim, dtype=np.int64)
-        for i in range(max(centre_start, 0), min(centre_end, dim)):
-            centre_slice[i] = 1
+        centre_slice[max(centre_start, 0):min(centre_end, dim)] = 1
         stroke_slice = np.zeros(dim, dtype=np.int64)
         if 0 <= centre_start < dim:
             stroke_slice[centre_start] = 1
         if 0 <= centre_end - 1 < dim:
             stroke_slice[centre_end - 1] = 1
-        return RectangleInRectangleData(dim, centre_start, centre_end, border_slice, centre_slice,
-                                        stroke_slice)
+        return RectangleInRectangleLineData(dim, centre_start, centre_end, border_slice, centre_slice,
+                                            stroke_slice)
 
-    def slice_line(self, i: int, other, fill: bool, invert: bool) -> np.array:
+
+@dataclass(frozen=True)
+class RectangleInRectangleData:
+    """
+    Contains information about a rectangle containing another
+    rectangle.
+    """
+    dim0_data: RectangleInRectangleLineData
+    dim1_data: RectangleInRectangleLineData
+
+    @staticmethod
+    def create(dim0: int, dim1: int, half_side: int):
+        """
+        Given dimensions and half side length, create RectangleInRectangleData.
+
+        :param dim0: Outer rectangle dimension 0.
+        :param dim1: Outer rectangle dimension 1.
+        :param half_side: Inner rectangle half side length.
+        :return: RectangleInRectangleData.
+        """
+        dim0_data = RectangleInRectangleLineData.create(dim0, half_side)
+        dim1_data = RectangleInRectangleLineData.create(dim1, half_side)
+        return RectangleInRectangleData(dim0_data, dim1_data)
+
+    def make_by_rows(self, fill: bool, invert: bool) -> np.array:
+        """
+        Create filled or stroked rectangle in rectangle, by rows.
+
+        :param fill: True for filled inner rectangle, false for stroked inner rectangle.
+        :param invert: True to invert when fill is true. Ignored for stroked.
+        :return: 2d np.array representing a rectangle in a rectangle.
+        """
+        rows = [self.slice_line(row, fill, invert)
+                for row in range(self.dim0_data.dim)]
+        return np.asarray(rows, dtype=np.int64)
+
+    def slice_line(self, i: int, fill: bool, invert: bool) -> np.array:
         """
         Calculate what a line sliced through the outer rectangle would look like.
 
         :param i: Line coordindate.
-        :param other: Data for other dimension.
         :param fill: True for filled inner rectangle, false for stroked inner rectangle.
-        :param invert: True to invert when fill is true. Ignored for stroked.
+        :param invert: True to invert.
         :return: Expected line slice.
         """
-        if fill:
-            plain_slice = self.centre_slice \
-                if other.centre_start <= i < other.centre_end \
-                else self.border_slice
-            return plain_slice if not invert else 1 - plain_slice
+        if not fill and (self.dim0_data.centre_start < i < self.dim0_data.centre_end - 1):
+            plain_slice = self.dim1_data.stroke_slice
+        elif self.dim0_data.centre_start <= i < self.dim0_data.centre_end:
+            plain_slice = self.dim1_data.centre_slice
         else:
-            if other.centre_start < i < other.centre_end - 1:
-                return self.stroke_slice
-            if i in (other.centre_start, other.centre_end - 1):
-                return self.centre_slice
-            return self.border_slice
-
-    @staticmethod
-    def make_by_columns(dim0_data, dim1_data, fill: bool, invert: bool) -> np.array:
-        """
-        Create filled or stroked rectangle in rectangle, by columns.
-
-        :param dim0_data: Dimension 0 data.
-        :param dim1_data: Dimension 1 data.
-        :param fill: True for filled inner rectangle, false for stroked inner rectangle.
-        :param invert: True to invert when fill is true. Ignored for stroked.
-        :return: 2d np.array representing a rectangle in a rectangle.
-        """
-        filled = np.empty((dim0_data.dim, dim1_data.dim), dtype=np.int64)
-        for x in range(dim1_data.dim):
-            filled[:, x] = dim0_data.slice_line(x, dim1_data, fill, invert)
-        return filled
-
-    @staticmethod
-    def make_by_rows(dim0_data, dim1_data, fill: bool, invert: bool) -> np.array:
-        """
-        Create filled or stroked rectangle in rectangle, by rows.
-
-        :param dim0_data: Dimension 0 data.
-        :param dim1_data: Dimension 1 data.
-        :param fill: True for filled inner rectangle, false for stroked inner rectangle.
-        :param invert: True to invert when fill is true. Ignored for stroked.
-        :return: 2d np.array representing a rectangle in a rectangle.
-        """
-        filled = np.empty((dim0_data.dim, dim1_data.dim), dtype=np.int64)
-        for y in range(dim0_data.dim):
-            filled[y] = dim1_data.slice_line(y, dim0_data, fill, invert)
-        return filled
+            plain_slice = self.dim1_data.border_slice
+        return plain_slice if not invert else 1 - plain_slice
 
 
 def test_make_fill_rectangle() -> None:
     """
     Test make_fill_rectangle.
     """
-    for dim0 in range(30):
-        for dim1 in range(30):
+    for dim0 in range(1, 30):
+        for dim1 in range(1, 30):
             for half_side in range(max(dim0, dim1) + 1):
                 for invert in [False, True]:
                     filled = make_fill_rectangle(dim0, dim1, half_side, invert)
                     assert filled.shape == (dim0, dim1)
 
-                    dim1_data = RectangleInRectangleData.create(dim1, half_side)
-                    dim0_data = RectangleInRectangleData.create(dim0, half_side)
+                    rectangle_data = RectangleInRectangleData.create(dim0, dim1, half_side)
 
-                    filled_by_columns = RectangleInRectangleData.make_by_columns(dim0_data, dim1_data, True, invert)
-                    assert np.array_equal(filled, filled_by_columns)
-
-                    filled_by_rows = RectangleInRectangleData.make_by_rows(dim0_data, dim1_data, True, invert)
+                    filled_by_rows = rectangle_data.make_by_rows(True, invert)
                     assert np.array_equal(filled, filled_by_rows)
 
                 filled_0s = make_fill_rectangle(dim0, dim1, half_side, False)
@@ -202,19 +196,15 @@ def test_make_stroke_rectangle() -> None:
     """
     Test make_stroke_rectangle.
     """
-    for dim0 in range(30):
-        for dim1 in range(30):
+    for dim0 in range(1, 30):
+        for dim1 in range(1, 30):
             for half_side in range(max(dim0, dim1) + 1):
                 stroked = make_stroke_rectangle(dim0, dim1, half_side)
                 assert stroked.shape == (dim0, dim1)
 
-                dim1_data = RectangleInRectangleData.create(dim1, half_side)
-                dim0_data = RectangleInRectangleData.create(dim0, half_side)
+                rectangle_data = RectangleInRectangleData.create(dim0, dim1, half_side)
 
-                filled2 = RectangleInRectangleData.make_by_columns(dim0_data, dim1_data, False, False)
-                assert np.array_equal(stroked, filled2)
-
-                filled2 = RectangleInRectangleData.make_by_rows(dim0_data, dim1_data, False, False)
+                filled2 = rectangle_data.make_by_rows(False, False)
                 assert np.array_equal(stroked, filled2)
 
 
