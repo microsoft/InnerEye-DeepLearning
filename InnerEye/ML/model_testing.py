@@ -143,7 +143,14 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     # Write the dataset id and ground truth ids into the results folder
     store_run_information(results_folder, config.azure_dataset_id, config.ground_truth_ids, config.image_channels)
 
+    # Possible workaround for what is probably a race condition: The evaluation loop throws GPU initialization errors,
+    # even though there is no obvious place where we use the GPU.
+    # https://github.com/microsoft/InnerEye-DeepLearning/issues/395
+    use_gpu = config.use_gpu
+    config.use_gpu = False
+    config._datasets_for_inference = None
     ds = config.get_torch_dataset_for_inference(data_split)
+    config.use_gpu = use_gpu
 
     inference_pipeline = create_inference_pipeline(config=config, checkpoint_paths=checkpoint_paths)
 
@@ -169,20 +176,15 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
                                 config=config,
                                 results_folder=results_folder,
                                 image_header=sample.metadata.image_header)
-    # Workaround for what is probably a race condition: The evaluation loop throws GPU initialization errors,
-    # even though there is no obvious place where we use the GPU.
-    config.use_gpu = False
-    config._datasets_for_inference = None
-    dataset_on_cpu = config.get_torch_dataset_for_inference(data_split)
     # Evaluate model generated segmentation maps.
-    num_workers = min(cpu_count(), len(dataset_on_cpu))
+    num_workers = min(cpu_count(), len(ds))
     with Pool(processes=num_workers) as pool:
         pool_outputs = pool.map(
             partial(evaluate_model_predictions,
                     config=config,
-                    dataset=dataset_on_cpu,
+                    dataset=ds,
                     results_folder=results_folder),
-            range(len(dataset_on_cpu)))
+            range(len(ds)))
 
     average_dice = list()
     metrics_writer = MetricsPerPatientWriter()
