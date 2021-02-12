@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from dataclasses import dataclass
 from typing import List, Tuple
 import pytest
 import numpy as np
@@ -79,280 +80,142 @@ def test_make_distance_range(expected: List[int]) -> None:
     assert np.array_equal(actual, expected_array)
 
 
-# Shorthands for some binary lists.
-e0 = [0]
-e1 = [1]
-e00 = [0, 0]
-e11 = [1, 1]
-e000 = [0, 0, 0]
-e010 = [0, 1, 0]
-e101 = [1, 0, 1]
-e111 = [1, 1, 1]
-e0000 = [0, 0, 0, 0]
-e0110 = [0, 1, 1, 0]
-e1001 = [1, 0, 0, 1]
-e1111 = [1, 1, 1, 1]
-e00000 = [0, 0, 0, 0, 0]
-e00100 = [0, 0, 1, 0, 0]
-e01010 = [0, 1, 0, 1, 0]
-e01110 = [0, 1, 1, 1, 0]
-e10001 = [1, 0, 0, 0, 1]
-e11111 = [1, 1, 1, 1, 1]
+@dataclass(frozen=True)
+class RectangleInRectangleData:
+    """
+    Contains information about lines through a rectangle containing another
+    rectangle.
+    """
+    dim: int  # Dimension
+    centre_start: int  # Coordinate where the inner rectangle starts.
+    centre_end: int  # Coordinate where the inner rectangle end.
+    border_slice: np.array  # Slice through the rectangle missing the inner.
+    centre_slice: np.array  # Slice through the rectangle intercepting filled inner.
+    stroke_slice: np.array  # Slice through the rectangle intercepting stroked inner.
 
-# Test data for test_make_stroke_rectangle
-# Data format is: (half_side, expected)
-# Where expected data is in row order.
-make_stroke_rectangle_test_data: List[Tuple[int, List[List[int]]]] = [
-    (0, [e0]),
-    (1, [e1]),
-    (2, [e0]),
-    (0, [e00]),
-    (1, [e11]),
-    (2, [e00]),
-    (0, [e00, e00]),
-    (1, [e11, e11]),
-    (2, [e00, e00]),
-    (0, [e000]),
-    (1, [e010]),
-    (2, [e101]),
-    (3, [e000]),
-    (0, [e000, e000]),
-    (1, [e010, e010]),
-    (2, [e101, e101]),
-    (3, [e000, e000]),
-    (0, [e000, e000, e000]),
-    (1, [e000, e010, e000]),
-    (2, [e111, e101, e111]),
-    (3, [e000, e000, e000]),
-    (0, [e0000]),
-    (1, [e0110]),
-    (2, [e1001]),
-    (3, [e0000]),
-    (0, [e0000, e0000]),
-    (1, [e0110, e0110]),
-    (2, [e1001, e1001]),
-    (3, [e0000, e0000]),
-    (0, [e0000, e0000, e0000]),
-    (1, [e0000, e0110, e0000]),
-    (2, [e1111, e1001, e1111]),
-    (3, [e0000, e0000, e0000]),
-    (0, [e0000, e0000, e0000, e0000]),
-    (1, [e0000, e0110, e0110, e0000]),
-    (2, [e1111, e1001, e1001, e1111]),
-    (3, [e0000, e0000, e0000, e0000]),
-    (0, [e00000]),
-    (1, [e00100]),
-    (2, [e01010]),
-    (3, [e10001]),
-    (0, [e00000, e00000]),
-    (1, [e00100, e00100]),
-    (2, [e01010, e01010]),
-    (3, [e10001, e10001]),
-    (4, [e00000, e00000]),
-    (0, [e00000, e00000, e00000]),
-    (1, [e00000, e00100, e00000]),
-    (2, [e01110, e01010, e01110]),
-    (3, [e10001, e10001, e10001]),
-    (4, [e00000, e00000, e00000]),
-    (0, [e00000, e00000, e00000, e00000]),
-    (1, [e00000, e00100, e00100, e00000]),
-    (2, [e01110, e01010, e01010, e01110]),
-    (3, [e10001, e10001, e10001, e10001]),
-    (4, [e00000, e00000, e00000, e00000]),
-    (0, [e00000, e00000, e00000, e00000, e00000]),
-    (1, [e00000, e00000, e00100, e00000, e00000]),
-    (2, [e00000, e01110, e01010, e01110, e00000]),
-    (3, [e11111, e10001, e10001, e10001, e11111]),
-    (4, [e00000, e00000, e00000, e00000, e00000]),
-]
+    @staticmethod
+    def create(dim: int, half_side: int):
+        """
+        Given a dimension and half side length, create RectangleInRectangleData.
+
+        :param dim: Outer rectangle dimension.
+        :param half_side: Inner rectangle half side length.
+        :return: RectangleInRectangleData.
+        """
+        centre_length = half_side * 2 if dim % 2 == 0 else half_side * 2 - 1
+        border_length = int((dim - centre_length) / 2)
+        centre_start, centre_end = border_length, border_length + centre_length
+        border_slice = np.zeros(dim, dtype=np.int64)
+        centre_slice = np.zeros(dim, dtype=np.int64)
+        for i in range(max(centre_start, 0), min(centre_end, dim)):
+            centre_slice[i] = 1
+        stroke_slice = np.zeros(dim, dtype=np.int64)
+        if 0 <= centre_start < dim:
+            stroke_slice[centre_start] = 1
+        if 0 <= centre_end - 1 < dim:
+            stroke_slice[centre_end - 1] = 1
+        return RectangleInRectangleData(dim, centre_start, centre_end, border_slice, centre_slice,
+                                        stroke_slice)
+
+    def slice_line(self, i: int, other, fill: bool, invert: bool) -> np.array:
+        """
+        Calculate what a line sliced through the outer rectangle would look like.
+
+        :param i: Line coordindate.
+        :param other: Data for other dimension.
+        :param fill: True for filled inner rectangle, false for stroked inner rectangle.
+        :param invert: True to invert when fill is true. Ignored for stroked.
+        :return: Expected line slice.
+        """
+        if fill:
+            plain_slice = self.centre_slice \
+                if other.centre_start <= i < other.centre_end \
+                else self.border_slice
+            return plain_slice if not invert else 1 - plain_slice
+        else:
+            if other.centre_start < i < other.centre_end - 1:
+                return self.stroke_slice
+            if i in (other.centre_start, other.centre_end - 1):
+                return self.centre_slice
+            return self.border_slice
+
+    @staticmethod
+    def make_by_columns(dim0_data, dim1_data, fill: bool, invert: bool) -> np.array:
+        """
+        Create filled or stroked rectangle in rectangle, by columns.
+
+        :param dim0_data: Dimension 0 data.
+        :param dim1_data: Dimension 1 data.
+        :param fill: True for filled inner rectangle, false for stroked inner rectangle.
+        :param invert: True to invert when fill is true. Ignored for stroked.
+        :return: 2d np.array representing a rectangle in a rectangle.
+        """
+        filled = np.empty((dim0_data.dim, dim1_data.dim), dtype=np.int64)
+        for x in range(dim1_data.dim):
+            filled[:, x] = dim0_data.slice_line(x, dim1_data, fill, invert)
+        return filled
+
+    @staticmethod
+    def make_by_rows(dim0_data, dim1_data, fill: bool, invert: bool) -> np.array:
+        """
+        Create filled or stroked rectangle in rectangle, by rows.
+
+        :param dim0_data: Dimension 0 data.
+        :param dim1_data: Dimension 1 data.
+        :param fill: True for filled inner rectangle, false for stroked inner rectangle.
+        :param invert: True to invert when fill is true. Ignored for stroked.
+        :return: 2d np.array representing a rectangle in a rectangle.
+        """
+        filled = np.empty((dim0_data.dim, dim1_data.dim), dtype=np.int64)
+        for y in range(dim0_data.dim):
+            filled[y] = dim1_data.slice_line(y, dim0_data, fill, invert)
+        return filled
 
 
-@pytest.mark.parametrize("half_side,expected", make_stroke_rectangle_test_data)
-def test_make_stroke_rectangle(half_side: int, expected: List[List[int]]) -> None:
+def test_make_fill_rectangle() -> None:
+    """
+    Test make_fill_rectangle.
+    """
+    for dim0 in range(30):
+        for dim1 in range(30):
+            for half_side in range(max(dim0, dim1) + 1):
+                for invert in [False, True]:
+                    filled = make_fill_rectangle(dim0, dim1, half_side, invert)
+                    assert filled.shape == (dim0, dim1)
+
+                    dim1_data = RectangleInRectangleData.create(dim1, half_side)
+                    dim0_data = RectangleInRectangleData.create(dim0, half_side)
+
+                    filled_by_columns = RectangleInRectangleData.make_by_columns(dim0_data, dim1_data, True, invert)
+                    assert np.array_equal(filled, filled_by_columns)
+
+                    filled_by_rows = RectangleInRectangleData.make_by_rows(dim0_data, dim1_data, True, invert)
+                    assert np.array_equal(filled, filled_by_rows)
+
+                filled_0s = make_fill_rectangle(dim0, dim1, half_side, False)
+                filled_1s = make_fill_rectangle(dim0, dim1, half_side, True)
+                total = filled_0s + filled_1s
+                assert np.array_equal(total, np.ones((dim0, dim1)))
+
+
+def test_make_stroke_rectangle() -> None:
     """
     Test make_stroke_rectangle.
-
-    :param half_side: Rectangle half side length.
-    :param expected: Expected output.
     """
-    dim0 = len(expected)  # number of rows
-    dim1 = len(expected[0])  # number of columns
-    actual = make_stroke_rectangle(dim0, dim1, half_side)
-    assert actual.shape == (dim0, dim1)
-    expected_array = np.asarray(expected, dtype=np.int64)
-    assert np.array_equal(actual, expected_array)
+    for dim0 in range(30):
+        for dim1 in range(30):
+            for half_side in range(max(dim0, dim1) + 1):
+                stroked = make_stroke_rectangle(dim0, dim1, half_side)
+                assert stroked.shape == (dim0, dim1)
 
-    if dim1 != dim0:
-        actual_transpose = make_stroke_rectangle(dim1, dim0, half_side)
-        assert actual_transpose.shape == (dim1, dim0)
-        expected_array_transpose = np.transpose(expected_array)
-        assert np.array_equal(actual_transpose, expected_array_transpose)
+                dim1_data = RectangleInRectangleData.create(dim1, half_side)
+                dim0_data = RectangleInRectangleData.create(dim0, half_side)
 
+                filled2 = RectangleInRectangleData.make_by_columns(dim0_data, dim1_data, False, False)
+                assert np.array_equal(stroked, filled2)
 
-# Test data for test_make_fill_rectangle_small
-# Data format is: (half_side, expected)
-# Where expected data is in row order.
-make_fill_rectangle_small_test_data: List[Tuple[int, List[List[int]]]] = [
-    (0, [e0]),
-    (1, [e1]),
-    (2, [e1]),
-    (0, [e00]),
-    (1, [e11]),
-    (2, [e11]),
-    (0, [e00, e00]),
-    (1, [e11, e11]),
-    (2, [e11, e11]),
-    (0, [e000]),
-    (1, [e010]),
-    (2, [e111]),
-    (3, [e111]),
-    (0, [e000, e000]),
-    (1, [e010, e010]),
-    (2, [e111, e111]),
-    (3, [e111, e111]),
-    (0, [e000, e000, e000]),
-    (1, [e000, e010, e000]),
-    (2, [e111, e111, e111]),
-    (3, [e111, e111, e111]),
-    (0, [e0000]),
-    (1, [e0110]),
-    (2, [e1111]),
-    (3, [e1111]),
-    (0, [e0000, e0000]),
-    (1, [e0110, e0110]),
-    (2, [e1111, e1111]),
-    (3, [e1111, e1111]),
-    (0, [e0000, e0000, e0000]),
-    (1, [e0000, e0110, e0000]),
-    (2, [e1111, e1111, e1111]),
-    (3, [e1111, e1111, e1111]),
-    (0, [e0000, e0000, e0000, e0000]),
-    (1, [e0000, e0110, e0110, e0000]),
-    (2, [e1111, e1111, e1111, e1111]),
-    (3, [e1111, e1111, e1111, e1111]),
-    (0, [e00000]),
-    (1, [e00100]),
-    (2, [e01110]),
-    (3, [e11111]),
-    (4, [e11111]),
-    (0, [e00000, e00000]),
-    (1, [e00100, e00100]),
-    (2, [e01110, e01110]),
-    (3, [e11111, e11111]),
-    (4, [e11111, e11111]),
-    (0, [e00000, e00000, e00000]),
-    (1, [e00000, e00100, e00000]),
-    (2, [e01110, e01110, e01110]),
-    (3, [e11111, e11111, e11111]),
-    (4, [e11111, e11111, e11111]),
-    (0, [e00000, e00000, e00000, e00000]),
-    (1, [e00000, e00100, e00100, e00000]),
-    (2, [e01110, e01110, e01110, e01110]),
-    (3, [e11111, e11111, e11111, e11111]),
-    (4, [e11111, e11111, e11111, e11111]),
-    (0, [e00000, e00000, e00000, e00000, e00000]),
-    (1, [e00000, e00000, e00100, e00000, e00000]),
-    (2, [e00000, e01110, e01110, e01110, e00000]),
-    (3, [e11111, e11111, e11111, e11111, e11111]),
-    (4, [e11111, e11111, e11111, e11111, e11111]),
-]
-
-
-@pytest.mark.parametrize("half_side,expected", make_fill_rectangle_small_test_data)
-def test_make_fill_rectangle_small(half_side: int, expected: List[List[int]]) -> None:
-    """
-    Test make_fill_rectangle for smaller sizes.
-
-    :param half_side: Rectangle half side length.
-    :param expected: Expected output.
-    """
-    dim0 = len(expected)  # number of rows
-    dim1 = len(expected[0])  # number of columns
-    actual = make_fill_rectangle(dim0, dim1, half_side, False)
-    assert actual.shape == (dim0, dim1)
-    expected_array = np.asarray(expected, dtype=np.int64)
-    assert np.array_equal(actual, expected_array)
-
-    actual_inverted = make_fill_rectangle(dim0, dim1, half_side, True)
-    assert actual_inverted.shape == (dim0, dim1)
-    expected_array_inverted = [1] - expected_array
-    assert np.array_equal(actual_inverted, expected_array_inverted)
-
-    total = actual + actual_inverted
-    assert np.array_equal(total, np.ones((dim0, dim1)))
-
-    if dim1 != dim0:
-        actual_transpose = make_fill_rectangle(dim1, dim0, half_side, False)
-        assert actual_transpose.shape == (dim1, dim0)
-        expected_array_transpose = np.transpose(expected_array)
-        assert np.array_equal(actual_transpose, expected_array_transpose)
-
-
-# Test data for test_make_fill_rectangle_large
-make_fill_rectangle_large_test_data: List[Tuple[int, int, int]] = [
-    (20, 30, 0),
-    (20, 30, 5),
-    (21, 30, 5),
-    (20, 31, 5),
-    (20, 30, 10),
-    (20, 30, 11),
-    (20, 30, 17),
-    (30, 20, 10),
-    (30, 20, 11),
-    (30, 20, 17),
-]
-
-@pytest.mark.parametrize("dim0,dim1,half_side", make_fill_rectangle_large_test_data)
-def test_make_fill_rectangle_large(dim0: int, dim1: int, half_side: int) -> None:
-    """
-    Test make_fill_rectangle for larger sizes.
-
-    :param dim0: Target array dim0.
-    :param dim1: Target array dim1.
-    :param half_side: Rough rectangle half side length.
-    """
-    filled = make_fill_rectangle(dim0, dim1, half_side, True)
-    assert filled.shape == (dim0, dim1)
-
-    x_centre_length = min(half_side * 2 if dim1 % 2 == 0 else half_side * 2 - 1, dim1)
-    x_buffer_length = max(int((dim1 - x_centre_length) / 2), 0)
-
-    y_centre_length = min(half_side * 2 if dim0 % 2 == 0 else half_side * 2 - 1, dim0)
-    y_buffer_length = max(int((dim0 - y_centre_length) / 2), 0)
-
-    expected_edge_row = np.ones(dim1, dtype=np.int64)
-    expected_centre_row = np.ones(dim1, dtype=np.int64)
-    for x in range(x_buffer_length, x_buffer_length + x_centre_length):
-        expected_centre_row[x] = 0
-
-    expected_edge_column = np.ones(dim0, dtype=np.int64)
-    expected_centre_column = np.ones(dim0, dtype=np.int64)
-    for y in range(y_buffer_length, y_buffer_length + y_centre_length):
-        expected_centre_column[y] = 0
-
-    for x in range(x_buffer_length):
-        column = filled[:, x]
-        assert np.array_equal(column, expected_edge_column)
-
-    for x in range(x_buffer_length, x_buffer_length + x_centre_length):
-        column = filled[:, x]
-        assert np.array_equal(column, expected_centre_column)
-
-    for x in range(x_buffer_length + x_centre_length, dim1):
-        column = filled[:, x]
-        assert np.array_equal(column, expected_edge_column)
-
-    for y in range(y_buffer_length):
-        row = filled[y]
-        assert np.array_equal(row, expected_edge_row)
-
-    for y in range(y_buffer_length, y_buffer_length + y_centre_length):
-        row = filled[y]
-        assert np.array_equal(row, expected_centre_row)
-
-    for y in range(y_buffer_length + y_centre_length, dim0):
-        row = filled[y]
-        assert np.array_equal(row, expected_edge_row)
+                filled2 = RectangleInRectangleData.make_by_rows(dim0_data, dim1_data, False, False)
+                assert np.array_equal(stroked, filled2)
 
 
 make_nesting_rectangles_test_data: List[Tuple[int, int, int]] = [
@@ -376,14 +239,5 @@ def test_make_nesting_rectangles(dim0: int, dim1: int, num_features: int) -> Non
     """
     nesting = make_nesting_rectangles(dim0, dim1, num_features)
     assert nesting.shape == (num_features, dim0, dim1)
-    actual_background_slice = nesting[0]
-    expected_background_slice = make_fill_rectangle(dim0, dim1, num_features - 1, True)
-    assert np.array_equal(actual_background_slice, expected_background_slice)
-
-    for feature in range(1, num_features):
-        actual_feature_slice = nesting[feature]
-        expected_feature_slice = make_stroke_rectangle(dim0, dim1, num_features - feature)
-        assert np.array_equal(actual_feature_slice, expected_feature_slice)
-
     total = nesting.sum(axis=0)
     assert total.shape == (dim0, dim1)
