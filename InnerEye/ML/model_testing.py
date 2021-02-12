@@ -169,16 +169,20 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
                                 config=config,
                                 results_folder=results_folder,
                                 image_header=sample.metadata.image_header)
-
+    # Workaround for what is probably a race condition: The evaluation loop throws GPU initialization errors,
+    # even though there is no obvious place where we use the GPU.
+    config.use_gpu = False
+    config._datasets_for_inference = None
+    dataset_on_cpu = config.get_torch_dataset_for_inference(data_split)
     # Evaluate model generated segmentation maps.
-    num_workers = min(cpu_count(), len(ds))
+    num_workers = min(cpu_count(), len(dataset_on_cpu))
     with Pool(processes=num_workers) as pool:
         pool_outputs = pool.map(
             partial(evaluate_model_predictions,
                     config=config,
-                    dataset=ds,
+                    dataset=dataset_on_cpu,
                     results_folder=results_folder),
-            range(len(ds)))
+            range(len(dataset_on_cpu)))
 
     average_dice = list()
     metrics_writer = MetricsPerPatientWriter()
