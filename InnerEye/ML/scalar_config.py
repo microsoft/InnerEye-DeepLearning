@@ -42,6 +42,7 @@ class EnsembleAggregationType(Enum):
 @unique
 class ScalarLoss(Enum):
     BinaryCrossEntropyWithLogits = "BinaryCrossEntropyWithLogits"
+    # WeightedCrossEntropyWithLogits does not work with 1 class_names, use 2 class_names and 2 outputs to allow weights
     WeightedCrossEntropyWithLogits = "WeightedCrossEntropyWithLogits"
     MeanSquaredError = "MeanSquaredError"
 
@@ -108,6 +109,7 @@ class ScalarModelBase(ModelConfigBase):
             "If False allow labels to have multiple classes")
     class_names: List[str] = param.List(class_=str,
                                         default=[MetricsDict.DEFAULT_HUE_KEY],
+                                        bounds=(1, None),
                                         doc="Class names is the name of the outputs of the model."
                                             "You can model a 2 class problem with 1 model output or with 2 model "
                                             "outputs that are exclusive (using labels_exclusive=True)")
@@ -214,6 +216,9 @@ class ScalarModelBase(ModelConfigBase):
                          "num_dataset_reader_workers to 0 as this is an AML run.")
         else:
             self.num_dataset_reader_workers = num_dataset_reader_workers
+
+        if self.loss_type == ScalarLoss.WeightedCrossEntropyWithLogits and len(self.class_names) == 1:
+            raise ValueError("Unsupported, use 2 classes or more with WeightedCrossEntropyWithLogits.")
 
     @property
     def is_classification_model(self) -> bool:

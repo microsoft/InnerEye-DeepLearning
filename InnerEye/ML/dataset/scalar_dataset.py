@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import itertools
 import logging
 import math
 import sys
@@ -764,8 +765,13 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
         Return class weights that are proportional to the inverse frequency of label counts.
         :return: Dictionary of {"label": count}
         """
-        all_labels = [item.label.item() for item in self.items]  # [N, 1]
-        return dict(Counter(all_labels))
+        all_labels = [torch.flatten(item.label.nonzero()).tolist() for item in self.items]  # [N, 1]
+        flat_list = list(flatten(all_labels))
+        freq_iter = Counter()
+        freq_iter.update({x: 0 for x in range(len(self.args.class_names))})
+        freq_iter.update(flat_list)
+        result = dict(freq_iter)
+        return result
 
     def __len__(self) -> int:
         return len(self.items)

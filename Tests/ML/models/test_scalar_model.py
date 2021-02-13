@@ -154,8 +154,8 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
-    expected_train_loss = [1.6641048192977905, 1.6173171997070312, 1.573212742805481, 1.5325114727020264]
-    expected_val_loss = [1.1132521629333496, 1.1444058418273926, 1.1776609420776367, 1.2118185758590698]
+    expected_train_loss = [1.0212818384170532, 0.9808608889579773, 0.9444588422775269, 0.912279486656189]
+    expected_val_loss = [0.7522633671760559, 0.6747795343399048, 0.6028474569320679, 0.5367878079414368]
     # Ensure that all metrics are computed on both training and validation set
     assert len(model_training_result.train_results_per_epoch) == config.num_epochs
     assert len(model_training_result.val_results_per_epoch) == config.num_epochs
@@ -190,6 +190,79 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     def get_epoch_path(mode: ModelExecutionMode) -> Path:
         p = get_epoch_results_path(mode=mode)
         return config.outputs_folder / p / SUBJECT_METRICS_FILE_NAME
+
+    path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
+    path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
+    path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
+    generate_classification_notebook(result_notebook=config.outputs_folder / REPORT_IPYNB,
+                                     config=config,
+                                     train_metrics=path_to_best_epoch_train,
+                                     val_metrics=path_to_best_epoch_val,
+                                     test_metrics=path_to_best_epoch_test,
+                                     dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
+                                     if config.local_dataset else None,
+                                     dataset_subject_column=config.subject_column,
+                                     dataset_file_column=config.image_file_column)
+    assert (config.outputs_folder / REPORT_HTML).exists()
+
+
+@pytest.mark.cpu_and_gpu
+def test_train_classification_multilabel_model_exclusive_labels(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test training and testing of classification models, asserting on the individual results from training and
+    testing.
+    Expected test results are stored for GPU with and without mixed precision.
+    """
+    logging_to_stdout(logging.DEBUG)
+    config = DummyMulticlassClassification()
+    config.local_dataset = full_ml_test_data_path("classification_data_multiclass_exclusive")
+    config.labels_exclusive = True
+    config.loss_type = ScalarLoss.BinaryCrossEntropyWithLogits
+    config.set_output_to(test_output_dirs.root_dir)
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=Path(test_output_dirs.root_dir))
+    # Train for 4 epochs, checkpoints at epochs 2 and 4
+    config.num_epochs = 4
+    model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
+    assert model_training_result is not None
+    expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
+    expected_train_loss = [1.597341775894165, 1.5495219230651855, 1.5060694217681885, 1.4683043956756592]
+    expected_val_loss = [1.331736445426941, 1.385276198387146, 1.4419323205947876, 1.4991058111190796]
+    # Ensure that all metrics are computed on both training and validation set
+    assert len(model_training_result.train_results_per_epoch) == config.num_epochs
+    assert len(model_training_result.val_results_per_epoch) == config.num_epochs
+    assert len(model_training_result.train_results_per_epoch[0]) >= 11
+    assert len(model_training_result.val_results_per_epoch[0]) >= 11
+    for class_name in config.class_names:
+        for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
+                       MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
+                       MetricType.AREA_UNDER_PR_CURVE,
+                       MetricType.AREA_UNDER_ROC_CURVE,
+                       MetricType.CROSS_ENTROPY]:
+            assert f'{metric.value}/{class_name}' in model_training_result.train_results_per_epoch[
+                0], f"{metric.value} not in training"
+            assert f'{metric.value}/{class_name}' in model_training_result.val_results_per_epoch[
+                0], f"{metric.value} not in validation"
+    for metric in [MetricType.LOSS,
+                   MetricType.SECONDS_PER_EPOCH,
+                   MetricType.SUBJECT_COUNT]:
+        assert metric.value in model_training_result.train_results_per_epoch[0], f"{metric.value} not in training"
+        assert metric.value in model_training_result.val_results_per_epoch[0], f"{metric.value} not in validation"
+
+    actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS.value)
+    actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS.value)
+    actual_lr = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE.value)
+    assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6), "Training loss"
+    assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6), "Validation loss"
+    assert actual_lr == pytest.approx(expected_learning_rates, rel=1e-5), "Learning rates"
+    test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
+                                            checkpoint_handler=checkpoint_handler)
+    assert isinstance(test_results, InferenceMetricsForClassification)
+
+    def get_epoch_path(mode: ModelExecutionMode) -> Path:
+        p = get_epoch_results_path(mode=mode)
+        return config.outputs_folder / p / SUBJECT_METRICS_FILE_NAME
+
     path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
     path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
     path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)

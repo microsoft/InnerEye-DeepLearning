@@ -37,7 +37,7 @@ class SupervisedLearningCriterion(torch.nn.Module, abc.ABC):
             # Smooth the one-hot target: 1.0 becomes 1.0-eps, 0.0 becomes eps / (nClasses - 1)
             # noinspection PyTypeChecker
             return target * (1.0 - self.smoothing_eps) + \
-                (1.0 - target) * self.smoothing_eps / (_num_classes - 1.0)  # type: ignore
+                   (1.0 - target) * self.smoothing_eps / (_num_classes - 1.0)  # type: ignore
 
         _input: List[T] = list(input)
         if self.smoothing_eps > 0.0:
@@ -74,15 +74,10 @@ class BinaryCrossEntropyWithLogitsLoss(SupervisedLearningCriterion):
         :return: a list of weights to use for the positive class for each target position.
         """
         assert self._class_counts is not None
-        labels = list(self._class_counts.keys())
-        if sorted(labels) != [0.0, 1.0]:
-            if labels == [1.0] or labels == [0.0]:
-                return torch.tensor(1.0)
-            else:
-                raise ValueError(f"Expected one-hot encoded binary label."
-                                 f"Found labels {self._class_counts.keys()}")
-        else:
-            return torch.tensor(float(self._class_counts[0.0]) / self._class_counts[1.0], dtype=torch.float32)
+        total = sum(self._class_counts.values())
+        weights = [value / total for (key, value) in
+                   sorted(self._class_counts.items())]  # Uses the first number on the tuple to compare
+        return torch.tensor(weights, dtype=torch.float32)
 
     def forward_minibatch(self, output: T, target: T, **kwargs: Any) -> Any:
         if isinstance(target, PackedSequence) and isinstance(output, PackedSequence):
