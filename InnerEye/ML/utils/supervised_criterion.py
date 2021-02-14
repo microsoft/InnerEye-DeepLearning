@@ -56,10 +56,11 @@ class SupervisedLearningCriterion(torch.nn.Module, abc.ABC):
 class BinaryCrossEntropyWithLogitsLoss(SupervisedLearningCriterion):
     """A wrapper function for torch.nn.BCEWithLogitsLoss to enable label smoothing"""
 
-    def __init__(self, class_counts: Optional[Dict[float, float]] = None, **kwargs: Any):
+    def __init__(self, num_classes: int, class_counts: Optional[Dict[float, float]] = None, **kwargs: Any):
         super().__init__(is_binary_classification=True, **kwargs)
         self._positive_class_weights = None
         self._class_counts = class_counts
+        self.num_classes = num_classes
         if class_counts:
             self._positive_class_weights = self.get_positive_class_weights()
             if torch.cuda.is_available():
@@ -74,10 +75,13 @@ class BinaryCrossEntropyWithLogitsLoss(SupervisedLearningCriterion):
         :return: a list of weights to use for the positive class for each target position.
         """
         assert self._class_counts is not None
-        total = sum(self._class_counts.values())
-        weights = [value / total for (key, value) in
-                   sorted(self._class_counts.items())]  # Uses the first number on the tuple to compare
-        return torch.tensor(weights, dtype=torch.float32)
+        if self.num_classes == 1:
+            return torch.tensor(float(self._class_counts[0.0]) / self._class_counts[1.0], dtype=torch.float32)
+        else:
+            total = sum(self._class_counts.values())
+            weights = [value / total for (key, value) in
+                       sorted(self._class_counts.items())]  # Uses the first number on the tuple to compare
+            return torch.tensor(weights, dtype=torch.float32)
 
     def forward_minibatch(self, output: T, target: T, **kwargs: Any) -> Any:
         if isinstance(target, PackedSequence) and isinstance(output, PackedSequence):

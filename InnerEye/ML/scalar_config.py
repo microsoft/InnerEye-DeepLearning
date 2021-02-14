@@ -217,9 +217,6 @@ class ScalarModelBase(ModelConfigBase):
         else:
             self.num_dataset_reader_workers = num_dataset_reader_workers
 
-        if self.loss_type == ScalarLoss.WeightedCrossEntropyWithLogits and len(self.class_names) == 1:
-            raise ValueError("Unsupported, use 2 classes or more with WeightedCrossEntropyWithLogits.")
-
     @property
     def is_classification_model(self) -> bool:
         """

@@ -105,9 +105,11 @@ def create_scalar_loss_function(config: ScalarModelBase) -> torch.nn.Module:
     Returns a torch module that computes a loss function for classification and regression models.
     """
     if config.loss_type == ScalarLoss.BinaryCrossEntropyWithLogits:
-        return BinaryCrossEntropyWithLogitsLoss(smoothing_eps=config.label_smoothing_eps)
+        return BinaryCrossEntropyWithLogitsLoss(num_classes=len(config.class_names),
+                                                smoothing_eps=config.label_smoothing_eps)
     if config.loss_type == ScalarLoss.WeightedCrossEntropyWithLogits:
         return BinaryCrossEntropyWithLogitsLoss(
+            num_classes=len(config.class_names),
             smoothing_eps=config.label_smoothing_eps,
             class_counts=config.get_training_class_counts())
     elif config.loss_type == ScalarLoss.MeanSquaredError:
