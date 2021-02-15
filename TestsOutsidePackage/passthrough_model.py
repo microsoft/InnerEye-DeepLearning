@@ -9,6 +9,7 @@ import torch
 from torch.nn.parameter import Parameter
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import equally_weighted_classes, SegmentationModelBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
@@ -50,7 +51,8 @@ class PassThroughModel(SegmentationModelBase):
         self.add_and_validate(kwargs)
 
     def create_model(self) -> torch.nn.Module:
-        return PyTorchPassthroughModel(self.number_of_image_channels, self.number_of_classes)
+        return PyTorchPassthroughModel(self.number_of_image_channels, self.number_of_classes,
+                                       self.crop_size)
 
 
 class PyTorchPassthroughModel(BaseSegmentationModel):
@@ -58,28 +60,44 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
     Defines a model that returns a nested set of extruded rectangles.
     """
 
-    def __init__(self, input_channels: int, number_of_classes: int):
+    def __init__(self, input_channels: int, number_of_classes: int, crop_size: TupleInt3):
         super().__init__(input_channels=input_channels, name='PassthroughModel')
         # Create a fake parameter so that we can instantiate an optimizer easily
         self.foo = Parameter(requires_grad=True)
         self.number_of_classes = number_of_classes
+        self.cached_patch = self.make_nest(crop_size)
 
     def forward(self, patches: torch.Tensor) -> torch.Tensor:
-        # simulate models where only the center of the patch is returned
-        image_shape = patches.shape[2:]
+        """
+        Just return a set of nesting rectangles, ignoring the actual patches.
 
-        output_size = (self.number_of_classes, image_shape[0], image_shape[1], image_shape[2])
-        predictions = torch.zeros(patches.shape[0], *output_size)
-        for i, patch in enumerate(patches):
-            nest = make_nesting_rectangles(self.number_of_classes, image_shape[1], image_shape[2], 3)
-            project_nest = nest.reshape(self.number_of_classes, 1, image_shape[1], image_shape[2])
-            extrusion = np.broadcast_to(project_nest, output_size)
-            predictions[i] = torch.from_numpy(extrusion)
-
-        return predictions
+        :param patches: Set of patches, of shape (#patches, #image_channels, Z, Y, X)
+        :return: Tensor of shape (#patch, #features, Z, Y, Z) containing nesting rectangles.
+        """
+        if self.cached_patch.shape[2:] == patches.shape[2:]:
+            patch = self.cached_patch
+        else:
+            patch = self.make_nest(patches.shape[2:])
+        if patches.shape[0] == 1:
+            np_predictions = patch
+        else:
+            np_predictions = np.broadcast_to(patch, (patches.shape[0],) + patch.shape[1:])
+        return torch.from_numpy(np_predictions)
 
     def get_all_child_layers(self) -> List[torch.nn.Module]:
         return list()
+
+    def make_nest(self, output_size: TupleInt3) -> np.array:
+        """
+        Given a patch shaped (Z, Y, X) return a set of nesting rectangles
+        reshaped to (1, #features, Z, Y, X).
+
+        :param output_size: Target output size.
+        :return: 5d tensor.
+        """
+        nest = make_nesting_rectangles(self.number_of_classes, output_size[1], output_size[2], 3) * 1.
+        project_nest = nest.reshape(1, self.number_of_classes, 1, output_size[1], output_size[2])
+        return np.broadcast_to(project_nest, (1, self.number_of_classes) + output_size)
 
 
 def make_distance_range(length: int) -> np.array:
