@@ -68,93 +68,63 @@ def test_make_distance_range(expected: List[int]) -> None:
 
 
 @dataclass(frozen=True)
-class RectangleInRectangleLineData:
+class RectInRectRayData:
     """
-    Contains information about lines through a rectangle containing another
-    rectangle.
+    Contains information about points on a ray through a rectangle containing another
+    stroked or filled rectangle.
+
+    Note that all coordinates are clamped to a minimum of 0 so they can be used
+    as indices into numpy arrays.
     """
-    dim: int  # Dimension
-    centre_start: int  # Coordinate where the inner rectangle starts.
-    centre_end: int  # Coordinate where the inner rectangle end.
-    border_slice: np.array  # Slice through the rectangle missing the inner.
-    centre_slice: np.array  # Slice through the rectangle intercepting filled inner.
-    stroke_slice: np.array  # Slice through the rectangle intercepting stroked inner.
+    first_start: int  # Coordinate where the inner rectangle starts (fill or stroke).
+    first_end: int  # Coordinate where the first stroke of the inner rectangle ends.
+    second_start: int  # Coordinate where the second stroke of the inner rectange starts.
+    second_end: int  # Coordinate where the inner rectangle ends (fill or stroke).
 
     @staticmethod
-    def create(dim: int, half_side: int) -> RectangleInRectangleLineData:
+    def create(dim: int, half_side: int, thickness: int) -> RectInRectRayData:
         """
-        Given a dimension and half side length, create RectangleInRectangleLineData.
+        Given a dimension, half side length and thickness, create RectInRectRayData.
 
         :param dim: Outer rectangle dimension.
-        :param half_side: Inner rectangle half side length.
-        :return: RectangleInRectangleLineData.
+        :param half_side: Inner rectangle approximate half side length.
+        :param thickness: Stroke thickness.
+        :return: RectInRectRayData.
         """
-        centre_length = half_side * 2 if dim % 2 == 0 else half_side * 2 - 1
-        border_length = int((dim - centre_length) / 2)
-        centre_start, centre_end = border_length, border_length + centre_length
-        border_slice = np.zeros(dim, dtype=np.int64)
-        centre_slice = np.zeros(dim, dtype=np.int64)
-        centre_slice[max(centre_start, 0):min(centre_end, dim)] = 1
-        stroke_slice = np.zeros(dim, dtype=np.int64)
-        if 0 <= centre_start < dim:
-            stroke_slice[centre_start] = 1
-        if 0 <= centre_end - 1 < dim:
-            stroke_slice[centre_end - 1] = 1
-        return RectangleInRectangleLineData(dim, centre_start, centre_end, border_slice, centre_slice,
-                                            stroke_slice)
+        def _clamp_not_neg(x: int) -> int:
+            """
+            Make sure an int isn't -ve.
+
+            :param i: int to test.
+            :return: i or 0, whichever is greater.
+            """
+            return max(x, 0)
+        fill_length = half_side * 2 if dim % 2 == 0 else half_side * 2 - 1
+        first_start = int((dim - fill_length) / 2)
+        first_end = first_start + thickness
+        second_end = first_start + fill_length
+        second_start = second_end - thickness
+        return RectInRectRayData(_clamp_not_neg(first_start), _clamp_not_neg(first_end),
+                                 _clamp_not_neg(second_start), _clamp_not_neg(second_end))
 
 
-@dataclass(frozen=True)
-class RectangleInRectangleData:
+def make_stroke_rectangle_alt(dim0: int, dim1: int, half_side: int, thickness: int, fill: bool) -> np.array:
     """
-    Contains information about a rectangle containing another
-    rectangle.
+    Create filled or stroked rectangle in rectangle.
+
+    :param fill: True for filled inner rectangle, false for stroked inner rectangle.
+    :return: 2d np.array representing a rectangle in a rectangle.
     """
-    dim0_data: RectangleInRectangleLineData
-    dim1_data: RectangleInRectangleLineData
+    dim0_data = RectInRectRayData.create(dim0, half_side, thickness)
+    dim1_data = RectInRectRayData.create(dim1, half_side, thickness)
 
-    @staticmethod
-    def create(dim0: int, dim1: int, half_side: int) -> RectangleInRectangleData:
-        """
-        Given dimensions and half side length, create RectangleInRectangleData.
-
-        :param dim0: Outer rectangle dimension 0.
-        :param dim1: Outer rectangle dimension 1.
-        :param half_side: Inner rectangle half side length.
-        :return: RectangleInRectangleData.
-        """
-        dim0_data = RectangleInRectangleLineData.create(dim0, half_side)
-        dim1_data = RectangleInRectangleLineData.create(dim1, half_side)
-        return RectangleInRectangleData(dim0_data, dim1_data)
-
-    def make_by_rows(self, fill: bool, invert: bool) -> np.array:
-        """
-        Create filled or stroked rectangle in rectangle, by rows.
-
-        :param fill: True for filled inner rectangle, false for stroked inner rectangle.
-        :param invert: True to invert when fill is true. Ignored for stroked.
-        :return: 2d np.array representing a rectangle in a rectangle.
-        """
-        rows = [self.slice_line(row, fill, invert)
-                for row in range(self.dim0_data.dim)]
-        return np.asarray(rows, dtype=np.int64)
-
-    def slice_line(self, i: int, fill: bool, invert: bool) -> np.array:
-        """
-        Calculate what a line sliced through the outer rectangle would look like.
-
-        :param i: Line coordindate.
-        :param fill: True for filled inner rectangle, false for stroked inner rectangle.
-        :param invert: True to invert.
-        :return: Expected line slice.
-        """
-        if not fill and (self.dim0_data.centre_start < i < self.dim0_data.centre_end - 1):
-            plain_slice = self.dim1_data.stroke_slice
-        elif self.dim0_data.centre_start <= i < self.dim0_data.centre_end:
-            plain_slice = self.dim1_data.centre_slice
-        else:
-            plain_slice = self.dim1_data.border_slice
-        return plain_slice if not invert else 1 - plain_slice
+    rows = np.zeros((dim0, dim1), dtype=np.int64)
+    rows[dim0_data.first_start:dim0_data.second_end,
+         dim1_data.first_start:dim1_data.second_end] = 1
+    if not fill:
+        rows[dim0_data.first_end:dim0_data.second_start,
+             dim1_data.first_end:dim1_data.second_start] = 0
+    return rows
 
 
 def test_make_fill_rectangle() -> None:
@@ -164,19 +134,10 @@ def test_make_fill_rectangle() -> None:
     for dim0 in range(1, 30):
         for dim1 in range(1, 30):
             for half_side in range(max(dim0, dim1) + 1):
-                for invert in [False, True]:
-                    filled = make_fill_rectangle(dim0, dim1, half_side, invert)
-                    assert filled.shape == (dim0, dim1)
-
-                    rectangle_data = RectangleInRectangleData.create(dim0, dim1, half_side)
-
-                    filled_by_rows = rectangle_data.make_by_rows(True, invert)
-                    assert np.array_equal(filled, filled_by_rows)
-
-                filled_0s = make_fill_rectangle(dim0, dim1, half_side, False)
-                filled_1s = make_fill_rectangle(dim0, dim1, half_side, True)
-                total = filled_0s + filled_1s
-                assert np.array_equal(total, np.ones((dim0, dim1)))
+                filled = make_fill_rectangle(dim0, dim1, half_side)
+                assert filled.shape == (dim0, dim1)
+                filled_alt = make_stroke_rectangle_alt(dim0, dim1, half_side, 1, True)
+                assert np.array_equal(filled, filled_alt)
 
 
 def test_make_stroke_rectangle() -> None:
@@ -186,13 +147,11 @@ def test_make_stroke_rectangle() -> None:
     for dim0 in range(1, 30):
         for dim1 in range(1, 30):
             for half_side in range(max(dim0, dim1) + 1):
-                stroked = make_stroke_rectangle(dim0, dim1, half_side)
-                assert stroked.shape == (dim0, dim1)
-
-                rectangle_data = RectangleInRectangleData.create(dim0, dim1, half_side)
-
-                filled2 = rectangle_data.make_by_rows(False, False)
-                assert np.array_equal(stroked, filled2)
+                for thickness in range(1, 5):
+                    stroked = make_stroke_rectangle(dim0, dim1, half_side, thickness)
+                    assert stroked.shape == (dim0, dim1)
+                    stroked_alt = make_stroke_rectangle_alt(dim0, dim1, half_side, thickness, False)
+                    assert np.array_equal(stroked, stroked_alt)
 
 
 make_nesting_rectangles_test_data: List[Tuple[int, int, int]] = [
@@ -214,7 +173,9 @@ def test_make_nesting_rectangles(num_features: int, dim0: int, dim1: int) -> Non
     :param dim0: Target array dim0.
     :param dim1: Target array dim1.
     """
-    nesting = make_nesting_rectangles(num_features, dim0, dim1)
-    assert nesting.shape == (num_features, dim0, dim1)
-    total = nesting.sum(axis=0)
-    assert total.shape == (dim0, dim1)
+    for thickness in range(1, 5):
+        nesting = make_nesting_rectangles(num_features, dim0, dim1, thickness)
+        assert nesting.shape == (num_features, dim0, dim1)
+        total = nesting.sum(axis=0)
+        assert total.shape == (dim0, dim1)
+        assert np.array_equal(total, np.ones((dim0, dim1)))

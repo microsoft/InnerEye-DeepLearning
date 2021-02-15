@@ -40,7 +40,7 @@ class PassThroughModel(SegmentationModelBase):
             ground_truth_ids=class_names,
             ground_truth_ids_display_names=class_names,
             colours=generate_random_colours_list(RANDOM_COLOUR_GENERATOR, number_of_classes),
-            fill_holes=[True] * number_of_classes,
+            fill_holes=[False] * number_of_classes,
             # mask_id="mask",
             dataset_expected_spacing_xyz=(1.269531011581421, 1.269531011581421, 2.5),
             inference_batch_size=1,
@@ -71,7 +71,7 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
         output_size = (self.number_of_classes, image_shape[0], image_shape[1], image_shape[2])
         predictions = torch.zeros(patches.shape[0], *output_size)
         for i, patch in enumerate(patches):
-            nest = make_nesting_rectangles(self.number_of_classes, image_shape[1], image_shape[2])
+            nest = make_nesting_rectangles(self.number_of_classes, image_shape[1], image_shape[2], 3)
             project_nest = nest.reshape(self.number_of_classes, 1, image_shape[1], image_shape[2])
             extrusion = np.broadcast_to(project_nest, output_size)
             predictions[i] = torch.from_numpy(extrusion)
@@ -95,70 +95,67 @@ def make_distance_range(length: int) -> np.array:
     For length=8, then the result is [3, 2, 1, 0, 0, 1, 2, 3]
 
     :param length: Size of array to return.
-    :return: Array of distances from the centre
+    :return: Array of distances from the centre.
     """
     return abs(np.arange(1 - length, length + 1, 2)) // 2
 
 
-def make_stroke_rectangle(dim0: int, dim1: int, half_side: int) -> np.array:
+def make_stroke_rectangle(dim0: int, dim1: int, half_side: int, thickness: int) -> np.array:
     """
-    Create a stroke rectangle within a rectangle.
+    Create a stroked rectangle within a rectangle.
 
     Create a numpy array of shape (dim0, dim1), that is 0 except for an unfilled
     rectangle of 1s centred about the centre of the array.
 
     :param dim0: Target array dim0.
     :param dim1: Target array dim1.
-    :param half_side: Rough rectangle half side length.
-    :return: np.array mostly 0s apart from the path of a rectangle.
+    :param half_side: Inner rectangle approximate half side length.
+    :param thickness: Stroke thickness.
+    :return: np.array mostly 0s apart from the stroked path of a rectangle.
     """
     x1 = make_distance_range(dim0)
     x2 = make_distance_range(dim1)
     X1, X2 = np.meshgrid(x1, x2, sparse=False, indexing='ij')
-    return ((X1 == half_side - 1) & (X2 < half_side)
-            | (X1 < half_side) & (X2 == half_side - 1)) * 1
+    return (((half_side - thickness <= X1) & (X1 < half_side) & (X2 < half_side))
+            | ((X1 < half_side) & (half_side - thickness <= X2) & (X2 < half_side))) * 1
 
 
-def make_fill_rectangle(dim0: int, dim1: int, half_side: int, invert: bool) -> np.array:
+def make_fill_rectangle(dim0: int, dim1: int, half_side: int) -> np.array:
     """
     Create a filled rectangle within a rectangle.
 
-    Create a numpy array of shape (dim0, dim1) that is background except for a filled
-    foreground rectangle centred about the centre of the array.
+    Create a numpy array of shape (dim0, dim1) that is 0 except for a filled
+    foreground rectangle of 1s centred about the centre of the array.
     If dim0 is odd then the length in axis 0 will be 2*half_side - 1, otherwise it will be
         length 2*half_side.
     Similarly for dim1.
 
     :param dim0: Target array dim0.
     :param dim1: Target array dim1.
-    :param half_side: Rough rectangle half side length.
-    :param invert: If False then background is 0, foreground 1. If True then v.v.
-    :return: np.array mostly background apart from the foreground rectangle.
+    :param half_side: Inner rectangle approximate half side length.
+    :return: np.array mostly 0s apart from the filled path of a rectangle.
     """
     x1 = make_distance_range(dim0)
     x2 = make_distance_range(dim1)
     X1, X2 = np.meshgrid(x1, x2, sparse=False, indexing='ij')
-    grid = ((X1 < half_side) & (X2 < half_side)) * 1
-
-    return grid if not invert else 1 - grid
+    return ((X1 < half_side) & (X2 < half_side)) * 1
 
 
-def make_nesting_rectangles(num_features: int, dim0: int, dim1: int) -> np.array:
+def make_nesting_rectangles(num_features: int, dim0: int, dim1: int, thickness: int) -> np.array:
     """
-    Create a np.array of shape (num_features, dim0, dim1) of nesting rectangles.
+    Create an np.array of shape (num_features, dim0, dim1) of nesting rectangles.
 
-    The first slice is intended to be a background, the remaining slices are
-    consecutively smaller rectanges, none overlapping.
+    The first slice is intended to be a background so is an inverted filled rectangle.
+    The remaining slices are consecutively larger stroked rectangles, none overlapping.
 
     :param num_features: Number of rectangles.
     :param dim0: Target array dim0.
     :param dim1: Target array dim1.
+    :param thickness: Stroke thickness.
     :return: np.array of background then a set of rectangles.
     """
     nesting = np.empty((num_features, dim0, dim1), dtype=np.int64)
-    nesting[0::] = make_fill_rectangle(dim0, dim1, num_features - 1, True)
-
+    nesting[0] = 1 - make_fill_rectangle(dim0, dim1, (num_features - 1) * thickness)
     for feature in range(1, num_features):
-        nesting[feature::] = make_stroke_rectangle(dim0, dim1, num_features - feature)
-
+        nesting[feature] = make_stroke_rectangle(dim0, dim1, feature * thickness, thickness)
     return nesting
