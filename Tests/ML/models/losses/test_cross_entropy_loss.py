@@ -58,8 +58,9 @@ def test_cross_entropy_loss_forward_smoothing(is_segmentation: bool) -> None:
     smoothed_target = torch.tensor([[[0.1, 0.1, 0.9], [0.9, 0.9, 0.1]]], dtype=torch.float32)
     logits = torch.tensor([[[-10, -10, 0], [0, 0, 0]]], dtype=torch.float32)
 
-    barely_smoothed_loss_fn: SupervisedLearningCriterion = BinaryCrossEntropyWithLogitsLoss(smoothing_eps=0)
-    smoothed_loss_fn: SupervisedLearningCriterion = BinaryCrossEntropyWithLogitsLoss(smoothing_eps=0.1)
+    barely_smoothed_loss_fn: SupervisedLearningCriterion = BinaryCrossEntropyWithLogitsLoss(num_classes=1,
+                                                                                            smoothing_eps=0)
+    smoothed_loss_fn: SupervisedLearningCriterion = BinaryCrossEntropyWithLogitsLoss(num_classes=1, smoothing_eps=0.1)
     if is_segmentation:
         # The two loss values are only expected to be the same when no class weighting takes place,
         # because weighting is done on the *unsmoothed* target values.
@@ -143,10 +144,11 @@ def test_weighted_binary_cross_entropy_loss_forward_smoothing() -> None:
     smoothed_target = torch.tensor([[0.9], [0.9], [0.9], [0.9], [0.9], [0.1]], dtype=torch.float32)
     logits = torch.tensor([[-10], [-10], [0], [0], [0], [0]], dtype=torch.float32)
     weighted_non_smoothed_loss_fn: SupervisedLearningCriterion = \
-        BinaryCrossEntropyWithLogitsLoss(smoothing_eps=0, class_counts={0.0: 1.0, 1.0: 5.0})
+        BinaryCrossEntropyWithLogitsLoss(num_classes=1, smoothing_eps=0, class_counts={0.0: 1.0, 1.0: 5.0})
     weighted_smoothed_loss_fn: SupervisedLearningCriterion = \
-        BinaryCrossEntropyWithLogitsLoss(smoothing_eps=0.1, class_counts={0.0: 1.0, 1.0: 5.0})
-    non_weighted_smoothed_loss_fn: SupervisedLearningCriterion = BinaryCrossEntropyWithLogitsLoss(smoothing_eps=0.1,
+        BinaryCrossEntropyWithLogitsLoss(num_classes=1, smoothing_eps=0.1, class_counts={0.0: 1.0, 1.0: 5.0})
+    non_weighted_smoothed_loss_fn: SupervisedLearningCriterion = BinaryCrossEntropyWithLogitsLoss(num_classes=1,
+                                                                                                  smoothing_eps=0.1,
                                                                                                   class_counts=None)
     w_loss1 = weighted_non_smoothed_loss_fn(logits, smoothed_target)
     w_loss2 = weighted_smoothed_loss_fn(logits, target)
@@ -162,11 +164,11 @@ def test_weighted_binary_cross_entropy_loss_multi_target() -> None:
     smoothed_target = torch.tensor([[[0.9], [0.1]], [[0.9], [0.1]], [[0.1], [0.1]]], dtype=torch.float32)
     logits = torch.tensor([[[-10], [1]], [[-10], [1]], [[10], [0]]], dtype=torch.float32)
     weighted_non_smoothed_loss_fn: SupervisedLearningCriterion = \
-        BinaryCrossEntropyWithLogitsLoss(smoothing_eps=0, class_counts={1.0: 2, 0.0: 4})
+        BinaryCrossEntropyWithLogitsLoss(num_classes=1, smoothing_eps=0, class_counts={1.0: 2, 0.0: 4})
     weighted_smoothed_loss_fn: SupervisedLearningCriterion = \
-        BinaryCrossEntropyWithLogitsLoss(smoothing_eps=0.1, class_counts={1.0: 2, 0.0: 4})
+        BinaryCrossEntropyWithLogitsLoss(num_classes=1, smoothing_eps=0.1, class_counts={1.0: 2, 0.0: 4})
     non_weighted_smoothed_loss_fn: SupervisedLearningCriterion = \
-        BinaryCrossEntropyWithLogitsLoss(smoothing_eps=0.1, class_counts=None)
+        BinaryCrossEntropyWithLogitsLoss(num_classes=1, smoothing_eps=0.1, class_counts=None)
     w_loss1 = weighted_non_smoothed_loss_fn(logits, smoothed_target)
     w_loss2 = weighted_smoothed_loss_fn(logits, target)
     w_loss3 = non_weighted_smoothed_loss_fn(logits, target)
