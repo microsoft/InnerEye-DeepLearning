@@ -386,8 +386,8 @@ def load_image_in_known_formats(file: Path,
     elif is_dicom_file_path(file):
         return ImageAndSegmentations(images=load_dicom_image(path=file))
     elif is_png(file):
-        imageWithHeader = load_image(path=file)
-        return ImageAndSegmentations(images=imageWithHeader.image)
+        image_with_header = load_image(path=file)
+        return ImageAndSegmentations(images=image_with_header.image)
     else:
         raise ValueError(f"Unsupported image file type for path {file}")
 

@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -277,7 +277,7 @@ def get_image_filepath_from_subject_id(subject_id: str,
                                        dataset_df: pd.DataFrame,
                                        dataset_subject_column: str,
                                        dataset_file_column: str,
-                                       dataset_dir: Path) -> Optional[Path]:
+                                       dataset_dir: Path) -> List[Path]:
     """
     Returns the filepath for the image associated with a subject. If the subject is not found, return None.
     If the csv contains multiple entries per subject (which may happen if the csv uses the channels column) then
@@ -290,17 +290,9 @@ def get_image_filepath_from_subject_id(subject_id: str,
     :return: path to the image file for the patient or None if it is not found.
     """
 
-    if not dataset_df[dataset_subject_column].is_unique:
-        return None
-
-    dataset_df[dataset_subject_column] = dataset_df.apply(lambda x: str(x[dataset_subject_column]), axis=1)
-
-    if subject_id not in dataset_df[dataset_subject_column].unique():
-        return None
-
     filtered = dataset_df[dataset_df[dataset_subject_column] == subject_id]
-    filepath = filtered.iloc[0][dataset_file_column]
-    return dataset_dir / Path(filepath)
+    filepaths = filtered[dataset_file_column].values()
+    return [dataset_dir / Path(filepath) for filepath in filepaths]
 
 
 def plot_image_from_filepath(filepath: Path, im_width: int) -> bool:
@@ -357,21 +349,15 @@ def plot_image_for_subject(subject_id: str,
         print_header(header, level=4)
     print_header(f"ID: {subject_id} Score: {model_output}", level=4)
 
-    filepath = get_image_filepath_from_subject_id(subject_id=str(subject_id),
-                                                  dataset_df=dataset_df,
-                                                  dataset_subject_column=dataset_subject_column,
-                                                  dataset_file_column=dataset_file_column,
-                                                  dataset_dir=dataset_dir)
-    if not filepath:
-        print_header(f"Subject ID {subject_id} not found, or found duplicate entries for this subject "
-                     f"in column {dataset_subject_column} in the csv file. "
-                     f"Note: Reports with datasets that use channel columns in the dataset.csv "
-                     f"are not yet supported.")
-        return
-
-    success = plot_image_from_filepath(filepath, im_width=im_width)
-    if not success:
-        print_header("Unable to plot image: image must be 2D with shape [w, h] or [1, w, h].", level=0)
+    filepaths = get_image_filepath_from_subject_id(subject_id=str(subject_id),
+                                                   dataset_df=dataset_df,
+                                                   dataset_subject_column=dataset_subject_column,
+                                                   dataset_file_column=dataset_file_column,
+                                                   dataset_dir=dataset_dir)
+    for filepath in filepaths:
+        success = plot_image_from_filepath(filepath, im_width=im_width)
+        if not success:
+            print_header("Unable to plot image: image must be 2D with shape [w, h] or [1, w, h].", level=0)
 
 
 def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int, dataset_csv_path: Path,
