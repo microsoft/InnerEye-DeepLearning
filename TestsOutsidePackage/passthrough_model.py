@@ -77,7 +77,7 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
         if self.cached_patch.shape[2:] == patches.shape[2:]:
             patch = self.cached_patch
         else:
-            patch = self.make_nest(patches.shape[2:])
+            patch = self.make_nest((patches.shape[2], patches.shape[3], patches.shape[4]))
         if patches.shape[0] == 1:
             np_predictions = patch
         else:
