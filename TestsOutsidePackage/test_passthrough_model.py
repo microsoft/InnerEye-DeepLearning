@@ -63,7 +63,7 @@ def test_make_distance_range(expected: List[int]) -> None:
     length = len(expected)
     actual = make_distance_range(length)
     assert actual.shape == (length,)
-    expected_array = np.asarray(expected, dtype=np.int64)
+    expected_array = np.asarray(expected, dtype=np.float32)
     assert np.array_equal(actual, expected_array)
 
 
@@ -118,12 +118,12 @@ def make_stroke_rectangle_alt(dim0: int, dim1: int, half_side: int, thickness: i
     dim0_data = RectInRectRayData.create(dim0, half_side, thickness)
     dim1_data = RectInRectRayData.create(dim1, half_side, thickness)
 
-    rows = np.zeros((dim0, dim1), dtype=np.int64)
+    rows = np.zeros((dim0, dim1), dtype=np.float32)
     rows[dim0_data.first_start:dim0_data.second_end,
-         dim1_data.first_start:dim1_data.second_end] = 1
+         dim1_data.first_start:dim1_data.second_end] = 1.
     if not fill:
         rows[dim0_data.first_end:dim0_data.second_start,
-             dim1_data.first_end:dim1_data.second_start] = 0
+             dim1_data.first_end:dim1_data.second_start] = 0.
     return rows
 
 
