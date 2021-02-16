@@ -27,8 +27,7 @@ rgb_colour_testdata = [
 @pytest.mark.parametrize("red,green,blue,colour", rgb_colour_testdata)
 def test_convert_rgb_colour_to_hex(red: int, green: int, blue: int, colour: str) -> None:
     """
-    Test that config colours, which are TupleInt3's, can be formatted as
-    strings.
+    Test that config colours, which are TupleInt3's, can be formatted as strings.
 
     :param red: Red component.
     :param green: Green component.
@@ -108,12 +107,17 @@ class RectInRectRayData:
                                  _clamp_not_neg(second_start), _clamp_not_neg(second_end))
 
 
-def make_stroke_rectangle_alt(dim0: int, dim1: int, half_side: int, thickness: int, fill: bool) -> np.array:
+def make_stroke_rectangle_alt(dim0: int, dim1: int, half_side: int, thickness: int, fill: bool) -> np.ndarray:
     """
-    Create filled or stroked rectangle in rectangle.
+    Create filled or stroked rectangle in rectangle using an alternative method to make_stroke_rectangle or
+    make_fill_rectangle.
 
+    :param dim0: Target array dim0.
+    :param dim1: Target array dim1.
+    :param half_side: Inner rectangle approximate half side length.
+    :param thickness: Stroke thickness.
     :param fill: True for filled inner rectangle, false for stroked inner rectangle.
-    :return: 2d np.array representing a rectangle in a rectangle.
+    :return: 2d np.ndarray representing a rectangle in a rectangle.
     """
     dim0_data = RectInRectRayData.create(dim0, half_side, thickness)
     dim1_data = RectInRectRayData.create(dim1, half_side, thickness)
@@ -129,7 +133,8 @@ def make_stroke_rectangle_alt(dim0: int, dim1: int, half_side: int, thickness: i
 
 def test_make_fill_rectangle() -> None:
     """
-    Test make_fill_rectangle.
+    Test that make_fill_rectangle produces arrays of the correct shape and content by
+    comparing them with the slower alternative for a range of parameters.
     """
     for dim0 in range(1, 30):
         for dim1 in range(1, 30):
@@ -142,7 +147,8 @@ def test_make_fill_rectangle() -> None:
 
 def test_make_stroke_rectangle() -> None:
     """
-    Test make_stroke_rectangle.
+    Test that make_stroke_rectangle produces arrays of the correct shape and content by
+    comparing them with the slower alternative for a range of parameters.
     """
     for dim0 in range(1, 30):
         for dim1 in range(1, 30):
@@ -164,18 +170,24 @@ make_nesting_rectangles_test_data: List[Tuple[int, int, int]] = [
 ]
 
 
-@pytest.mark.parametrize("num_features,dim0,dim1", make_nesting_rectangles_test_data)
-def test_make_nesting_rectangles(num_features: int, dim0: int, dim1: int) -> None:
+@pytest.mark.parametrize("dim0,dim1,dim2", make_nesting_rectangles_test_data)
+def test_make_nesting_rectangles(dim0: int, dim1: int, dim2: int) -> None:
     """
-    Test make_nesting_rectangles.
+    Test that make_nesting_rectangles produces a tensor of shape (dim0, dim1, dim2) suitable for use as a fixed
+    segmentation.
 
-    :param num_features: Number of rectangles.
-    :param dim0: Target array dim0.
-    :param dim1: Target array dim1.
+    The actual content does not matter, but what is tested is that for each
+    (axis 1, axis 2) coordinate then there is exactly one 1. amongst all the axis 0
+    slices, the remainder should be 0. This is done by summing along axis 0,
+    which should produce an array of 1.s of shape (dim1, dim2).
+
+    :param dim0: Test array dim0.
+    :param dim1: Test array dim1.
+    :param dim2: Test array dim2.
     """
     for thickness in range(1, 5):
-        nesting = make_nesting_rectangles(num_features, dim0, dim1, thickness)
-        assert nesting.shape == (num_features, dim0, dim1)
+        nesting = make_nesting_rectangles(dim0, dim1, dim2, thickness)
+        assert nesting.shape == (dim0, dim1, dim2)
         total = nesting.sum(axis=0)
-        assert total.shape == (dim0, dim1)
-        assert np.array_equal(total, np.ones((dim0, dim1)))
+        assert total.shape == (dim1, dim2)
+        assert np.array_equal(total, np.ones((dim1, dim2)))

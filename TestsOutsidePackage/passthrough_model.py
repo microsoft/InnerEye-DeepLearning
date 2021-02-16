@@ -20,7 +20,7 @@ RANDOM_COLOUR_GENERATOR = random.Random(0)
 
 class PassThroughModel(SegmentationModelBase):
     """
-    Dummy model that returns a fixed segmentation.
+    Dummy model that returns a fixed segmentation, explained in make_nesting_rectangles.
     """
     def __init__(self, **kwargs: Any) -> None:
         random_seed = 42
@@ -57,22 +57,31 @@ class PassThroughModel(SegmentationModelBase):
 
 class PyTorchPassthroughModel(BaseSegmentationModel):
     """
-    Defines a model that returns a nested set of extruded rectangles.
+    Defines a model that returns a fixed segmentation, explained in make_nesting_rectangles.
     """
 
     def __init__(self, input_channels: int, number_of_classes: int, crop_size: TupleInt3):
+        """
+        Creates a new instance of the class.
+
+        :param input_channels: Number of image channels.
+        :param number_of_classes: Number of segmentation classes.
+        :param crop_size: Crop size.
+        """
         super().__init__(input_channels=input_channels, name='PassthroughModel')
         # Create a fake parameter so that we can instantiate an optimizer easily
         self.foo = Parameter(requires_grad=True)
         self.number_of_classes = number_of_classes
+        # Cache the fixed segmentation.
         self.cached_patch = self.make_nest(crop_size)
 
     def forward(self, patches: torch.Tensor) -> torch.Tensor:
         """
-        Just return a set of nesting rectangles, ignoring the actual patches.
+        Ignore the actual patches and return a fixed segmentation, explained in make_nesting_rectangles.
 
-        :param patches: Set of patches, of shape (#patches, #image_channels, Z, Y, X)
-        :return: Tensor of shape (#patch, #features, Z, Y, Z) containing nesting rectangles.
+        :param patches: Set of patches, of shape (#patches, #image_channels, Z, Y, X). Only the shape
+        is used.
+        :return: Fixed tensor of shape (#patches, number_of_classes, Z, Y, Z).
         """
         if self.cached_patch.shape[2:] == patches.shape[2:]:
             patch = self.cached_patch
@@ -87,10 +96,9 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
     def get_all_child_layers(self) -> List[torch.nn.Module]:
         return list()
 
-    def make_nest(self, output_size: TupleInt3) -> np.array:
+    def make_nest(self, output_size: TupleInt3) -> np.ndarray:
         """
-        Given a patch shaped (Z, Y, X) return a set of nesting rectangles
-        reshaped to (1, #features, Z, Y, X).
+        Given a patch shaped (Z, Y, X) return a fixed segmentation shaped to (1, number_of_classes, Z, Y, X).
 
         :param output_size: Target output size.
         :return: 5d tensor.
@@ -100,7 +108,7 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
         return np.broadcast_to(project_nest, (1, self.number_of_classes) + output_size)
 
 
-def make_distance_range(length: int) -> np.array:
+def make_distance_range(length: int) -> np.ndarray:
     """
     Create a numpy array of np.float32 of shape (length,) where each item is the distance from the centre.
 
@@ -118,27 +126,35 @@ def make_distance_range(length: int) -> np.array:
     return abs(np.arange(1 - length, length + 1, 2, dtype=np.float32)) // 2
 
 
-def make_stroke_rectangle(dim0: int, dim1: int, half_side: int, thickness: int) -> np.array:
+def make_stroke_rectangle(dim0: int, dim1: int, half_side: int, thickness: int) -> np.ndarray:
     """
     Create a stroked rectangle within a rectangle.
 
     Create a numpy array of np.float32 of shape (dim0, dim1), that is 0. except for an unfilled
     rectangle of 1.'s centred about the centre of the array.
 
+    For example, with dim0=5, dim1=8, half_side=2, thickness=1, this will produce this array:
+    array([[0., 0., 0., 0., 0., 0., 0., 0.],
+           [0., 0., 1., 1., 1., 1., 0., 0.],
+           [0., 0., 1., 0., 0., 1., 0., 0.],
+           [0., 0., 1., 1., 1., 1., 0., 0.],
+           [0., 0., 0., 0., 0., 0., 0., 0.]], dtype=float32)
+
     :param dim0: Target array dim0.
     :param dim1: Target array dim1.
     :param half_side: Inner rectangle approximate half side length.
     :param thickness: Stroke thickness.
-    :return: np.array mostly 0s apart from the stroked path of a rectangle.
+    :return: np.ndarray mostly 0s apart from the stroked path of a rectangle.
     """
     x1 = make_distance_range(dim0)
     x2 = make_distance_range(dim1)
     X1, X2 = np.meshgrid(x1, x2, sparse=False, indexing='ij')
-    return (((half_side - thickness <= X1) & (X1 < half_side) & (X2 < half_side))
-            | ((X1 < half_side) & (half_side - thickness <= X2) & (X2 < half_side))) * 1
+    bool_array = (((half_side - thickness <= X1) & (X1 < half_side) & (X2 < half_side))
+                  | ((X1 < half_side) & (half_side - thickness <= X2) & (X2 < half_side))) * 1
+    return bool_array.astype(np.float32)
 
 
-def make_fill_rectangle(dim0: int, dim1: int, half_side: int) -> np.array:
+def make_fill_rectangle(dim0: int, dim1: int, half_side: int) -> np.ndarray:
     """
     Create a filled rectangle within a rectangle.
 
@@ -148,32 +164,61 @@ def make_fill_rectangle(dim0: int, dim1: int, half_side: int) -> np.array:
         length 2*half_side.
     Similarly for dim1.
 
+    For example, with dim0=5, dim1=8, half_side=2, this will produce this array:
+    array([[0., 0., 0., 0., 0., 0., 0., 0.],
+           [0., 0., 1., 1., 1., 1., 0., 0.],
+           [0., 0., 1., 1., 1., 1., 0., 0.],
+           [0., 0., 1., 1., 1., 1., 0., 0.],
+           [0., 0., 0., 0., 0., 0., 0., 0.]], dtype=float32)
+
     :param dim0: Target array dim0.
     :param dim1: Target array dim1.
     :param half_side: Inner rectangle approximate half side length.
-    :return: np.array mostly 0s apart from the filled path of a rectangle.
+    :return: np.ndarray mostly 0s apart from the filled path of a rectangle.
     """
     x1 = make_distance_range(dim0)
     x2 = make_distance_range(dim1)
     X1, X2 = np.meshgrid(x1, x2, sparse=False, indexing='ij')
-    return ((X1 < half_side) & (X2 < half_side)) * 1
+    bool_array = ((X1 < half_side) & (X2 < half_side))
+    return bool_array.astype(np.float32)
 
 
-def make_nesting_rectangles(num_features: int, dim0: int, dim1: int, thickness: int) -> np.array:
+def make_nesting_rectangles(dim0: int, dim1: int, dim2: int, thickness: int) -> np.ndarray:
     """
-    Create an np.array of np.float32 of shape (num_features, dim0, dim1) of nesting rectangles.
+    Create an np.ndarray of np.float32 of shape (dim0, dim1, dim2) of nesting rectangles.
 
     The first slice is intended to be a background so is an inverted filled rectangle.
     The remaining slices are consecutively larger stroked rectangles, none overlapping.
 
-    :param num_features: Number of rectangles.
+    For example, with dim0=3, dim1=5, dim2=8, half_side=2, thickness=1 this will produce an
+    array of shape (3, 5, 8) where:
+    slice 0 =
+    array([[1., 1., 1., 1., 1., 1., 1., 1.],
+           [1., 1., 0., 0., 0., 0., 1., 1.],
+           [1., 1., 0., 0., 0., 0., 1., 1.],
+           [1., 1., 0., 0., 0., 0., 1., 1.],
+           [1., 1., 1., 1., 1., 1., 1., 1.]], dtype=float32)
+    slice 1 =
+    array([[0., 0., 0., 0., 0., 0., 0., 0.],
+           [0., 0., 0., 0., 0., 0., 0., 0.],
+           [0., 0., 0., 1., 1., 0., 0., 0.],
+           [0., 0., 0., 0., 0., 0., 0., 0.],
+           [0., 0., 0., 0., 0., 0., 0., 0.]], dtype=float32)
+    slice 2 =
+    array([[0., 0., 0., 0., 0., 0., 0., 0.],
+           [0., 0., 1., 1., 1., 1., 0., 0.],
+           [0., 0., 1., 0., 0., 1., 0., 0.],
+           [0., 0., 1., 1., 1., 1., 0., 0.],
+           [0., 0., 0., 0., 0., 0., 0., 0.]], dtype=float32)
+
     :param dim0: Target array dim0.
     :param dim1: Target array dim1.
+    :param dim2: Target array dim2.
     :param thickness: Stroke thickness.
-    :return: np.array of background then a set of rectangles.
+    :return: np.ndarray of background then a set of rectangles.
     """
-    nesting = np.empty((num_features, dim0, dim1), dtype=np.float32)
-    nesting[0] = 1 - make_fill_rectangle(dim0, dim1, (num_features - 1) * thickness)
-    for feature in range(1, num_features):
-        nesting[feature] = make_stroke_rectangle(dim0, dim1, feature * thickness, thickness)
+    nesting = np.empty((dim0, dim1, dim2), dtype=np.float32)
+    nesting[0] = 1. - make_fill_rectangle(dim1, dim2, (dim0 - 1) * thickness)
+    for feature in range(1, dim0):
+        nesting[feature] = make_stroke_rectangle(dim1, dim2, feature * thickness, thickness)
     return nesting
