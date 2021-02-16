@@ -617,7 +617,7 @@ def test_load_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
     """
     nifti_file = test_output_dirs.root_dir / "test_dicom_series.nii.gz"
     load_dicom_series_and_save(dicom_series_folder, nifti_file)
-    expected_shape = (157, 512, 512)
+    expected_shape = (3, 512, 512)
     image_header = io_util.load_nifti_image(nifti_file)
     assert image_header.image.shape == expected_shape
     assert image_header.header.spacing is not None
