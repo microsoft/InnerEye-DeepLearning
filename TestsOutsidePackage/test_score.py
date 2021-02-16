@@ -52,10 +52,10 @@ TEST_TWO_NESTED_TWICE_ZIP_FILE: Path = TEST_DATA_DIR / "test_two_nested_twice.zi
 
 # A sample H&N segmentation
 HNSEGMENTATION_FILE = TEST_DATA_DIR / "hnsegmentation.nii.gz"
-# A sample H&N DICOM series
+# A sample H&N DICOM series, zipped
 HN_DICOM_SERIES_ZIP = TEST_DATA_DIR / "HN.zip"
-# Expected zipped DICOM-RT file
-HN_DICOM_RT_ZIP = TEST_DATA_DIR / "hnsegmentation.nii.dcm.zip"
+# Expected zipped DICOM-RT file contents
+HN_DICOM_RT_ZIPPED = ["hnsegmentation.nii.dcm"]
 
 
 def test_score_check_spacing() -> None:
@@ -99,40 +99,50 @@ def test_run_scoring(test_output_dirs: OutputFolderForTests, is_ensemble: bool) 
 @pytest.mark.parametrize("zip_filename", [TEST_FLAT_ZIP_FILE, TEST_FLAT_NESTED_ZIP_FILE, TEST_FLAT_NESTED_TWICE_ZIP_FILE])
 def test_unpack_flat_zip(zip_filename: Path, test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test the a zip file containing just files: 1.txt, 2.dcm, 3.dcm, 4.dcm and 5.txt
+    Test that a zip file containing just files: 1.txt, 2.dcm, 3.dcm, 4.dcm and 5.txt
     can be extracted into a folder containing only the .dcm files.
 
     :param zip_filename: Path to test zip file.
     :param test_output_dirs: Test output directories.
     """
-    _common_test_unpack_zip(zip_filename, TEST_FLAT_ZIP_FILENAMES, test_output_dirs)
+    _common_test_unpack_dicom_zip(zip_filename, TEST_FLAT_ZIP_FILENAMES, test_output_dirs)
 
 
 @pytest.mark.parametrize("zip_filename", [TEST_TWO_ZIP_FILE, TEST_TWO_NESTED_ZIP_FILE, TEST_TWO_NESTED_TWICE_ZIP_FILE])
 def test_unpack_two_zip(zip_filename: Path, test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test the zip file containing files: 1.txt, 2.dcm, 3.dcm, 4.dcm and 5.txt in one folder
+    Test that a zip file containing files: 1.txt, 2.dcm, 3.dcm, 4.dcm and 5.txt in one folder
     and 5.txt, 6.dcm, 7.dcm, 8.dcm, 9.txt in another folder
-    can be extracted into two folders containing only the .dcm files.
+    can be extracted into a folder containing only the .dcm files.
 
     :param zip_filename: Path to test zip file.
     :param test_output_dirs: Test output directories.
     """
-    _common_test_unpack_zip(zip_filename, TEST_TWO_ZIP_FILENAMES, test_output_dirs)
+    _common_test_unpack_dicom_zip(zip_filename, TEST_TWO_ZIP_FILENAMES, test_output_dirs)
 
 
-def _common_test_unpack_zip(zip_filename: Path, expected_filenames: List[str],
-                            test_output_dirs: OutputFolderForTests) -> None:
+def _common_test_unpack_dicom_zip(zip_filename: Path, expected_filenames: List[str],
+                                  test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test the zip file contains expected .dcm files grouped by folder.
+    Test the zip file contains expected .dcm files not in a folder.
 
     :param zip_filename: Path to test zip file.
-    :param expected_filenames: List of list of expected filenames, grouped by expected folder.
+    :param expected_filenames: List of expected filenames.
     :param test_output_dirs: Test output directories.
     """
     model_folder = test_output_dirs.root_dir / "unpack"
-    extraction_folder = model_folder / "temp_extraction"
+    extraction_folder = model_folder / "temp_zipped_dicom_extraction"
     extract_zipped_dicom_series(zip_filename, extraction_folder)
+    _common_test_unpack_zip(extraction_folder, expected_filenames)
+
+
+def _common_test_unpack_zip(extraction_folder: Path, expected_filenames: List[str]) -> None:
+    """
+    Test the extraction folder contains expected files, not in a folder.
+
+    :param extraction_folder: Path to extracted zip file.
+    :param expected_filenames: List of expected filenames.
+    """
     # Get all files/folders in this series
     extracted_files = list(extraction_folder.glob('**/*'))
     # Check they are all files (no folders) and in the extraction_folder (not a subdirectory)
@@ -145,30 +155,20 @@ def _common_test_unpack_zip(zip_filename: Path, expected_filenames: List[str],
     assert extracted_file_names == expected_filenames
 
 
-def assert_zip_files_equivalent(lhs: Path, rhs: Path, model_folder: Path) -> None:
+def assert_zip_file_contents(zip_filename: Path, expected_filenames: List[str],
+                             model_folder: Path) -> None:
     """
-    Compare the contents of two zip files, considering only file names.
-    File contents may differ.
+    Compare the contents of a zip file, with a list of expected filenames.
 
-    :param lhs: First zip file.
-    :param rhs: Second zip file.
+    :param zip_filename: Path to zip file.
+    :param expected_filenames: List of expected filenames.
     :param model_folder: Scratch folder.
     """
-    assert lhs.is_file()
-    assert rhs.is_file()
-
-    temp_lhs = model_folder / "temp_lhs"
-    with zipfile.ZipFile(lhs, 'r') as zip_file:
-        zip_file.extractall(temp_lhs)
-
-    temp_rhs = model_folder / "temp_rhs"
-    with zipfile.ZipFile(rhs, 'r') as zip_file:
-        zip_file.extractall(temp_rhs)
-
-    dircmp = filecmp.dircmp(str(temp_lhs), str(temp_rhs))
-    assert dircmp.common_files
-    assert not dircmp.left_only
-    assert not dircmp.right_only
+    assert zip_filename.is_file()
+    extraction_folder = model_folder / "temp_zip_extraction"
+    with zipfile.ZipFile(zip_filename, 'r') as zip_file:
+        zip_file.extractall(extraction_folder)
+    _common_test_unpack_zip(extraction_folder, expected_filenames)
 
 
 def test_convert_nifti_to_zipped_dicom_rt(test_output_dirs: OutputFolderForTests) -> None:
@@ -185,7 +185,7 @@ def test_convert_nifti_to_zipped_dicom_rt(test_output_dirs: OutputFolderForTests
     model_config = PassThroughModel()
     result_dst = convert_nifti_to_zipped_dicom_rt(HNSEGMENTATION_FILE, reference_series_folder, model_folder,
                                                   model_config)
-    assert_zip_files_equivalent(result_dst, HN_DICOM_RT_ZIP, model_folder)
+    assert_zip_file_contents(result_dst, HN_DICOM_RT_ZIPPED, model_folder)
 
 
 def test_score_image_dicom_two_inputs(test_output_dirs: OutputFolderForTests) -> None:
@@ -200,7 +200,7 @@ def test_score_image_dicom_two_inputs(test_output_dirs: OutputFolderForTests) ->
         data_folder=TEST_DATA_DIR,
         model_folder=str(model_folder),
         image_files=[str(HN_DICOM_SERIES_ZIP), str(HN_DICOM_SERIES_ZIP)],
-        result_image_name="result_image_name",
+        result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
         use_dicom=True)
 
@@ -210,7 +210,7 @@ def test_score_image_dicom_two_inputs(test_output_dirs: OutputFolderForTests) ->
 
 def test_score_image_dicom_not_zip_input(test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test that dicom in with more than one input fails.
+    Test that dicom in with input not a zip file fails.
 
     :param test_output_dirs: Test output directories.
     """
@@ -220,7 +220,7 @@ def test_score_image_dicom_not_zip_input(test_output_dirs: OutputFolderForTests)
         data_folder=TEST_DATA_DIR,
         model_folder=str(model_folder),
         image_files=[str(HNSEGMENTATION_FILE)],
-        result_image_name="result_image_name",
+        result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
         use_dicom=True)
 
@@ -245,7 +245,7 @@ def test_score_image_dicom_mock_all(test_output_dirs: OutputFolderForTests) -> N
         data_folder=TEST_DATA_DIR,
         model_folder=str(model_folder),
         image_files=[str(HN_DICOM_SERIES_ZIP)],
-        result_image_name="result_image_name",
+        result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
         use_dicom=True)
 
@@ -256,7 +256,7 @@ def test_score_image_dicom_mock_all(test_output_dirs: OutputFolderForTests) -> N
             with mock.patch('score.store_as_ubyte_nifti',
                             return_value=HNSEGMENTATION_FILE) as mock_store_as_ubyte_nifti:
                 segmentation = score_image(score_pipeline_config)
-                assert_zip_files_equivalent(segmentation, HN_DICOM_RT_ZIP, model_folder)
+                assert_zip_file_contents(segmentation, HN_DICOM_RT_ZIPPED, model_folder)
 
     mock_init_from_model_inference_json.assert_called_once_with(Path(score_pipeline_config.model_folder),
                                                                 score_pipeline_config.use_gpu)
@@ -264,9 +264,9 @@ def test_score_image_dicom_mock_all(test_output_dirs: OutputFolderForTests) -> N
     mock_store_as_ubyte_nifti.assert_called()
 
 
-def test_score_image_dicom2_mock_run_store(test_output_dirs: OutputFolderForTests) -> None:
+def test_score_image_dicom_mock_run_store(test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test that dicom in and dicom-rt out works, by mocking out functions that do most of the work.
+    Test that dicom in and dicom-rt out works, by mocking out run and store functions.
 
     :param test_output_dirs: Test output directories.
     """
@@ -286,7 +286,7 @@ def test_score_image_dicom2_mock_run_store(test_output_dirs: OutputFolderForTest
         data_folder=TEST_DATA_DIR,
         model_folder=str(model_folder),
         image_files=[str(HN_DICOM_SERIES_ZIP)],
-        result_image_name="result_image_name",
+        result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
         use_dicom=True)
 
@@ -295,7 +295,7 @@ def test_score_image_dicom2_mock_run_store(test_output_dirs: OutputFolderForTest
         with mock.patch('score.store_as_ubyte_nifti',
                         return_value=HNSEGMENTATION_FILE) as mock_store_as_ubyte_nifti:
             segmentation = score_image(score_pipeline_config)
-            assert_zip_files_equivalent(segmentation, HN_DICOM_RT_ZIP, model_folder)
+            assert_zip_file_contents(segmentation, HN_DICOM_RT_ZIPPED, model_folder)
 
     mock_run_inference.assert_called()
     mock_store_as_ubyte_nifti.assert_called()
@@ -303,7 +303,7 @@ def test_score_image_dicom2_mock_run_store(test_output_dirs: OutputFolderForTest
 
 def test_score_image_dicom_mock_run(test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test that dicom in and dicom-rt out works, by mocking out functions that do most of the work.
+    Test that dicom in and dicom-rt out works, by mocking out only the run scoring function.
 
     :param test_output_dirs: Test output directories.
     """
@@ -331,14 +331,14 @@ def test_score_image_dicom_mock_run(test_output_dirs: OutputFolderForTests) -> N
     with mock.patch('score.run_inference',
                     return_value=image_with_header.image) as mock_run_inference:
         segmentation = score_image(score_pipeline_config)
-        assert_zip_files_equivalent(segmentation, HN_DICOM_RT_ZIP, model_folder)
+        assert_zip_file_contents(segmentation, HN_DICOM_RT_ZIPPED, model_folder)
 
     mock_run_inference.assert_called()
 
 
 def test_score_image_dicom_mock_none(test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test that dicom in and dicom-rt out works, by mocking out functions that do most of the work.
+    Test that dicom in and dicom-rt out works.
 
     :param test_output_dirs: Test output directories.
     """
@@ -362,4 +362,4 @@ def test_score_image_dicom_mock_none(test_output_dirs: OutputFolderForTests) -> 
         use_dicom=True)
 
     segmentation = score_image(score_pipeline_config)
-    assert_zip_files_equivalent(segmentation, HN_DICOM_RT_ZIP, model_folder)
+    assert_zip_file_contents(segmentation, HN_DICOM_RT_ZIPPED, model_folder)
