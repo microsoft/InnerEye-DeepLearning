@@ -155,16 +155,17 @@ def _common_test_unpack_zip(extraction_folder: Path, expected_filenames: List[st
 
 
 def assert_zip_file_contents(zip_filename: Path, expected_filenames: List[str],
-                             model_folder: Path) -> None:
+                             scratch_folder: Path) -> None:
     """
-    Compare the contents of a zip file, with a list of expected filenames.
+    Check that a zip file contains exactly the expected_filenames and that the zip file
+    has no folders.
 
     :param zip_filename: Path to zip file.
     :param expected_filenames: List of expected filenames.
-    :param model_folder: Scratch folder.
+    :param scratch_folder: Scratch folder.
     """
     assert zip_filename.is_file()
-    extraction_folder = model_folder / "temp_zip_extraction"
+    extraction_folder = scratch_folder / "temp_zip_extraction"
     with zipfile.ZipFile(zip_filename, 'r') as zip_file:
         zip_file.extractall(extraction_folder)
     _common_test_unpack_zip(extraction_folder, expected_filenames)
@@ -189,7 +190,7 @@ def test_convert_nifti_to_zipped_dicom_rt(test_output_dirs: OutputFolderForTests
 
 def test_score_image_dicom_two_inputs(test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test that dicom in with more than one input fails.
+    Test that scoring with use_dicom and more than one input raises an exception.
 
     :param test_output_dirs: Test output directories.
     """
@@ -203,8 +204,9 @@ def test_score_image_dicom_two_inputs(test_output_dirs: OutputFolderForTests) ->
         use_gpu=False,
         use_dicom=True)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as e:
         score_image(score_pipeline_config)
+    assert str(e.value) == "Supply exactly one zip file in args.images."
 
 
 def test_score_image_dicom_not_zip_input(test_output_dirs: OutputFolderForTests) -> None:
@@ -230,6 +232,9 @@ def test_score_image_dicom_not_zip_input(test_output_dirs: OutputFolderForTests)
 def test_score_image_dicom_mock_all(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that dicom in and dicom-rt out works, by mocking out functions that do most of the work.
+
+    This mocks out init_from_model_inference_json, run_inference and store_as_ubyte_nifti so that
+    only the skeleton of the logic is tested, particularly the final conversion to DICOM-RT.
 
     :param test_output_dirs: Test output directories.
     """
@@ -266,6 +271,9 @@ def test_score_image_dicom_mock_all(test_output_dirs: OutputFolderForTests) -> N
 def test_score_image_dicom_mock_run_store(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that dicom in and dicom-rt out works, by mocking out run and store functions.
+
+    This mocks out run_inference and store_as_ubyte_nifti so that init_from_model_inference_json
+    is tested in addition to the tests in test_score_image_dicom_mock_all.
 
     :param test_output_dirs: Test output directories.
     """
@@ -304,6 +312,9 @@ def test_score_image_dicom_mock_run(test_output_dirs: OutputFolderForTests) -> N
     """
     Test that dicom in and dicom-rt out works, by mocking out only the run scoring function.
 
+    This mocks out run_inference so that store_as_ubyte_nifti
+    is tested in addition to the tests in test_score_image_dicom_mock_run_store.
+
     :param test_output_dirs: Test output directories.
     """
     model_config = DummyModel()
@@ -338,6 +349,8 @@ def test_score_image_dicom_mock_run(test_output_dirs: OutputFolderForTests) -> N
 def test_score_image_dicom_mock_none(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that dicom in and dicom-rt out works.
+
+    Finally there is no mocking and full image scoring is run using the PassThroughModel.
 
     :param test_output_dirs: Test output directories.
     """

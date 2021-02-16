@@ -136,34 +136,40 @@ def run_inference(images_with_header: List[ImageWithHeader],
 
 def extract_zipped_dicom_series(zip_file_path: Path, extraction_folder: Path) -> None:
     """
-    Unzip a zip file. Assume that it is a single DICOM series, and extract all
-    DICOM files into the extraction folder.
+    Unzip a zip file assumed to contain a single DICOM series.
+
+    All files are extracted directly into the extraction folder discarding any folders they
+    may have in the zip file.
 
     :param zip_file_path: Path to zip file.
     :param extraction_folder: Path to extraction folder.
     """
     with zipfile.ZipFile(zip_file_path, 'r') as zip_file:
         for zipped_file in zip_file.infolist():
-            # try to extract only DICOM files, but these need not have
-            # an extension
-            if not zipped_file.is_dir() and (
-                    zipped_file.filename.endswith('.dcm') or '.' not in zipped_file.filename):
+            if not zipped_file.is_dir():
                 # discard the path, if any, to just get the filename and suffix
                 zipped_file.filename = os.path.basename(zipped_file.filename)
                 zip_file.extract(zipped_file, str(extraction_folder))
 
 
-def convert_zipped_dicom_to_nifti(test_image: Path, model_folder: Path) -> Tuple[Path, Path]:
+def convert_zipped_dicom_to_nifti(zip_file_path: Path, scratch_folder: Path) -> Tuple[Path, Path]:
     """
     Given a zip file, extract DICOM series and convert to Nifti format.
 
-    :param test_image: Path to a zip file.
-    :param model_folder: Scratch folder to extract files into.
-    :return: Pair of path to Nifti file and path to folder of reference series.
+    This function:
+    1) Unzips the file at zip_file_path into a subfolder of the scratch_folder,
+    assumed to contain a DICOM series.
+    2) Creates a Nifti file from the DICOM series, also in the scratch folder.
+    3) Returns a pair containing the path to the Nifti file and the path to the
+    folder containing the DICOM series.
+
+    :param zip_file_path: Path to a zip file.
+    :param scratch_folder: Scratch folder to extract files into.
+    :return: Pair of path to Nifti file and path to the folder of the DICOM series.
     """
-    reference_series_folder = model_folder / "temp_extraction"
-    extract_zipped_dicom_series(test_image, reference_series_folder)
-    nifti_filename = model_folder / "temp_nifti.nii.gz"
+    reference_series_folder = scratch_folder / "temp_extraction"
+    extract_zipped_dicom_series(zip_file_path, reference_series_folder)
+    nifti_filename = scratch_folder / "temp_nifti.nii.gz"
     load_dicom_series_and_save(reference_series_folder, nifti_filename)
     return nifti_filename, reference_series_folder
 
@@ -180,18 +186,22 @@ def convert_rgb_colour_to_hex(colour: TupleInt3) -> str:
     return '{0:02X}{1:02X}{2:02X}'.format(colour[0], colour[1], colour[2])
 
 
-def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, model_folder: Path,
+def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, scratch_folder: Path,
                                      config: SegmentationModelBase) -> Path:
     """
-    Given a Nifti file and a reference DICON series, convert Nifti file to DICOM-RT file.
+    Given a Nifti file and a reference DICOM series, create zip file containing a DICOM-RT file.
+
+    Calls rtconvert with the given Nifti file, reference DICOM series and configuration from
+    config to create a DICOM-RT file in the scratch folder. This is then zipped and a path to
+    the zip returned.
 
     :param nifti_file: Path to Nifti file.
     :param reference_series: Path to folder containing reference DICOM series.
-    :param model_folder: Scratch folder to extract files into.
+    :param scratch_folder: Scratch folder to extract files into.
     :param config: Model config.
     :return: Path to DICOM-RT file.
     """
-    dicom_rt_file = model_folder / nifti_file.with_suffix(".dcm").name
+    dicom_rt_file = scratch_folder / nifti_file.with_suffix(".dcm").name
     (stdout, stderr) = rtconvert(
         in_file=nifti_file,
         reference_series=reference_series,
@@ -199,6 +209,7 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, m
         struct_names=config.ground_truth_ids_display_names,
         struct_colors=[convert_rgb_colour_to_hex(rgb) for rgb in config.colours],
         fill_holes=config.fill_holes)
+    # Log stdout, stderr from DICOM-RT conversion.
     logging.debug("stdout: %s", stdout)
     logging.debug("stderr: %s", stderr)
     dicom_rt_zip_file = dicom_rt_file.with_suffix(dicom_rt_file.suffix + '.zip')
@@ -207,19 +218,22 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, m
     return dicom_rt_zip_file
 
 
-def check_input_file(data_folder: Path, file: str) -> Path:
+def check_input_file(data_folder: Path, filename: str) -> Path:
     """
-    Check that input file exists, and raise an exception if not.
+    Check the folder: data_folder contains a file with name: filename.
+
+    If the file does not exist then raise a FileNotFoundError exception. Otherwise return the
+    path to the file.
 
     :param data_folder: Path to data folder.
-    :param file: Filename within data folder.
+    :param filename: Filename within data folder to test.
     :return: Full path to filename.
     """
-    full_file_path = data_folder / file
+    full_file_path = data_folder / filename
     if not full_file_path.exists():
         message = \
             str(data_folder) if data_folder.is_absolute() else f"{data_folder}, absolute: {data_folder.absolute()}"
-        raise ValueError(f"File {file} does not exist in data folder {message}")
+        raise FileNotFoundError(f"File {filename} does not exist in data folder {message}")
     return full_file_path
 
 
