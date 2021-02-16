@@ -7,21 +7,24 @@ import subprocess
 from typing import Dict, List, Optional, Tuple
 
 
-def spawn_and_monitor_subprocess(process: str, args: List[str], env: Optional[Dict[str, str]] = None) -> \
+def spawn_and_monitor_subprocess(process: str,
+                                 args: List[str],
+                                 env: Optional[Dict[str, str]] = None) -> \
         Tuple[int, List[str]]:
     """
-    Helper function to spawn and monitor subprocesses.
-    :param process: The name or path of the process to spawn.
+    Helper function to start a subprocess, passing in a given set of arguments, and monitor it.
+    Returns the subprocess exit code and the list of lines written to stdout.
+    :param process: The name and path of the executable to spawn.
     :param args: The args to the process.
-    :param env: The environment variables for the process (default is the environment variables of the parent).
-    If not provided, copy the environment from the current process.
+    :param env: The environment variables that the new process will run with. If not provided, copy the
+    environment from the current process.
     :return: Return code after the process has finished, and the list of lines that were written to stdout by the
     subprocess.
     """
     if env is None:
         env = dict(os.environ.items())
     p = subprocess.Popen(
-        [process] + args,
+        args=[process] + args,
         shell=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -29,7 +32,7 @@ def spawn_and_monitor_subprocess(process: str, args: List[str], env: Optional[Di
         universal_newlines=True
     )
 
-    # for mypy, we have just set stdout
+    # For mypy. We have set stdout in the arg list of Popen, so should be readable.
     assert p.stdout
 
     # Read and print all the lines that are printed by the subprocess
@@ -39,5 +42,5 @@ def spawn_and_monitor_subprocess(process: str, args: List[str], env: Optional[Di
         stdout_lines.append(line)
         print(line)
     p.stdout.close()
-    # return the subprocess error code to the calling job so that it is reported to AzureML
-    return p.wait(), stdout_lines
+    return_code = p.wait()
+    return return_code, stdout_lines

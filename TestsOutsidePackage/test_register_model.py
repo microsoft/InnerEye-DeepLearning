@@ -3,33 +3,17 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
-import param
 import pytest
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.run_ml import MLRunner
-
-
-class SubprocessConfig(GenericConfig):
-    """
-    Config class to store settings for sub-process spawning
-    """
-    process: str = param.String(None, doc="Path to the process to spawn")
-    args: List[str] = param.List(instantiate=True, doc="List of arguments to pass to the spawned process")
-    env: Dict[str, str] = param.Dict(instantiate=True, doc="Dictionary of environment variables "
-                                                           "to override for this process")
-
-    def spawn_and_monitor_subprocess(self) -> Tuple[int, List[str]]:
-        return spawn_and_monitor_subprocess(process=self.process, args=self.args, env=self.env)
 
 
 def create_checkpoints(model_config: SegmentationModelBase, is_ensemble: bool) -> Tuple[List[Path], List[Path]]:

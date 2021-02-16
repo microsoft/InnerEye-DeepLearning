@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import param
-from azureml.train.estimator import Estimator
+from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from InnerEye.Common.common_util import print_exception
@@ -113,7 +113,7 @@ class ScalarModelBase(ModelConfigBase):
                                                     doc="The column that contains the path to image files.")
     expected_column_values: List[Tuple[str, str]] = \
         param.List(default=None, doc="List of tuples with column name and expected value to filter rows in the "
-        f"{DATASET_CSV_FILE_NAME}",
+                                     f"{DATASET_CSV_FILE_NAME}",
                    allow_None=True)
     label_channels: Optional[List[str]] = \
         param.List(default=None, allow_None=True,
@@ -403,8 +403,8 @@ class ScalarModelBase(ModelConfigBase):
             raise NotImplementedError("get_post_loss_logits_normalization_function not implemented for "
                                       f"loss type: {self.loss_type}")
 
-    def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
-        return super().get_parameter_search_hyperdrive_config(estimator)
+    def get_parameter_search_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
+        return super().get_parameter_search_hyperdrive_config(run_config)
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return super().get_model_train_test_dataset_splits(dataset_df)

@@ -36,7 +36,7 @@ need to be kept inside of the UK)
 - Then choose a name for your AzureML workspace. **Use letters and numbers only**, because other resources will be
  created using the workspace name as a prefix!
 
-[![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FInnerEye-DeepLearning%2Fmaster%2Fazure-pipelines%2Fazure_deployment_template.json)
+[![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FInnerEye-DeepLearning%2Fmain%2Fazure-pipelines%2Fazure_deployment_template.json)
 
 You can invoke the deployment also by going to [Azure](https://ms.portal.azure.com/#create/Microsoft.Template), 
 selecting "Build your own template", and in the editor upload the 
@@ -64,8 +64,13 @@ You can skip this if you have chosen automatic deployment above.
 
 We recommend using [low priority](https://docs.microsoft.com/en-us/azure/batch/batch-low-pri-vms) clusters, since 
 they only cost a fraction of the dedicated VMs.
-As a reference, the Prostate model and the Head and Neck model require VMs with 4 GPUs with at least 16GB of memory
-per GPU, for example `Standard_ND24s`, `Standard_NC24s_v3` or `Standard_NC24s_v2`.
+As a reference:
+* The Prostate, HeadAndNeck, and the Lung model require VMs with 4 GPUs with at least 24GB of memory
+per GPU, for example `Standard_ND24s` (4 GPUs, 24GB per GPU).
+* It is possible to train all of these models on machines with fewer GPUs, or GPUs with less memory. If using GPUs with
+less memory, some model parameters will need to be adjusted. As a starting point, we would suggest reducing the `train_batch_size`,
+and if that is not sufficient, reducing the `crop_size`, bearing in mind though that the size of the crops has a large
+impact on the model's accuracy.
 
 You need to ensure that your Azure subscription actually has a quota for accessing GPU machines. To see your quota,
 find your newly created AzureML workspace in the [Azure portal](http://portal.azure.com), using the search bar at the

@@ -1,6 +1,6 @@
 # InnerEye-DeepLearning
 
-[![Build Status](https://innereye.visualstudio.com/InnerEye/_apis/build/status/InnerEye-DeepLearning/InnerEye-DeepLearning-PR?branchName=master)](https://innereye.visualstudio.com/InnerEye/_build?definitionId=112&branchName=master)
+[![Build Status](https://innereye.visualstudio.com/InnerEye/_apis/build/status/InnerEye-DeepLearning/InnerEye-DeepLearning-PR?branchName=main)](https://innereye.visualstudio.com/InnerEye/_build?definitionId=112&branchName=main)
 
 ## Overview
 

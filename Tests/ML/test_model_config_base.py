@@ -7,11 +7,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from azureml.train.estimator import Estimator
+from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, \
     choice, uniform
 
-from InnerEye.Azure.azure_config import SourceConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.metrics_constants import TrackedMetrics
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -24,13 +23,13 @@ class HyperDriveTestModel(ModelConfigBase):
     def __init__(self, **params: Any):
         super().__init__(should_validate=False, **params)
 
-    def get_parameter_search_hyperdrive_config(self, estimator: Estimator) -> HyperDriveConfig:
-        return _create_dummy_hyperdrive_param_search_config(estimator)
+    def get_parameter_search_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
+        return _create_dummy_hyperdrive_param_search_config(run_config)
 
 
-def _create_dummy_hyperdrive_param_search_config(estimator: Estimator) -> HyperDriveConfig:
+def _create_dummy_hyperdrive_param_search_config(run_config: ScriptRunConfig) -> HyperDriveConfig:
     return HyperDriveConfig(
-        estimator=estimator,
+        run_config=run_config,
         hyperparameter_sampling=RandomParameterSampling({
             'l_rate': uniform(0.0005, 0.01)
         }),
@@ -49,20 +48,14 @@ def test_get_hyperdrive_config(number_of_cross_validation_splits: int,
     config = HyperDriveTestModel()
 
     config.number_of_cross_validation_splits = number_of_cross_validation_splits
-    # create HyperDrive config with dummy estimator for testing
-    source_config = SourceConfig(root_folder=test_output_dirs.root_dir,
-                                 entry_script=Path("something.py"), conda_dependencies_files=[])
-    estimator = Estimator(
-        source_directory=str(source_config.root_folder),
-        entry_script=str(source_config.entry_script),
+    run_config = ScriptRunConfig(
+        source_directory=str(test_output_dirs.root_dir),
+        script=str(Path("something.py")),
+        arguments=["foo"],
         compute_target="Local"
     )
 
-    hd_config = config.get_hyperdrive_config(estimator=estimator)
-
-    assert hd_config.estimator.source_directory == str(source_config.root_folder)
-    assert hd_config.estimator.run_config.script == str(source_config.entry_script)
-    assert hd_config.estimator._script_params == source_config.script_params
+    hd_config = config.get_hyperdrive_config(run_config=run_config)
 
     if number_of_cross_validation_splits > 0:
         assert hd_config._max_total_runs == number_of_cross_validation_splits
@@ -79,8 +72,8 @@ def test_get_hyperdrive_config(number_of_cross_validation_splits: int,
 
         assert sampler._parameter_space == expected_sampler_dict
     else:
-        assert vars(config.get_hyperdrive_config(estimator)) \
-               == vars(_create_dummy_hyperdrive_param_search_config(estimator))
+        assert vars(config.get_hyperdrive_config(run_config)) \
+               == vars(_create_dummy_hyperdrive_param_search_config(run_config))
 
 
 def test_get_total_number_of_cross_validation_runs() -> None:

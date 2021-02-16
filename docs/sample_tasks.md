@@ -11,42 +11,57 @@ This example is based on the paper [A feature agnostic approach for glaucoma det
 ### Downloading and preparing the dataset
 1. The dataset is available [here](https://zenodo.org/record/1481223#.Xs-ehzPiuM_) <sup>[[1]](#1)</sup>.
 
-1. After downloading and extracting the zip file, run the [create_glaucoma_dataset_csv.py](https://github.com/microsoft/InnerEye-DeepLearning/blob/master/InnerEye/Scripts/create_glaucoma_dataset_csv.py)
+1. After downloading and extracting the zip file, run the [create_glaucoma_dataset_csv.py](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/InnerEye/Scripts/create_glaucoma_dataset_csv.py)
  script on the extracted folder.
-    ```
-    python create_dataset_csv.py /path/to/extracted/folder
-    ```
-    This will convert the dataset to csv form and create a file `dataset.csv`.
+```
+python create_dataset_csv.py /path/to/extracted/folder
+```
+This will convert the dataset to csv form and create a file `dataset.csv`.
  
-1.  Upload this folder (with the images and dataset.csv) to Azure Blob Storage. For details on creating a storage account, 
-see [Setting up AzureML](setting_up_aml.md#step-4-create-a-storage-account-for-your-datasets). 
+1.  Upload this folder (with the images and `dataset.csv`) to Azure Blob Storage. For details on creating a storage account, 
+see [Setting up AzureML](setting_up_aml.md#step-4-create-a-storage-account-for-your-datasets). The dataset should go
+into a container called `datasets`, with a folder name of your choice (`name_of_your_dataset_on_azure` in the 
+description below).
 
 ### Setting up training
+
+You have two options for running the Glaucoma model:
+- You can directly work on a fork of the InnerEye repository. In this case, you need to modify `AZURE_DATASET_ID`
+in `GlaucomaPublic.py` to match the dataset upload location, called `name_of_your_dataset_on_azure` above. 
+If you choose that, you can start training via
+```
+python InnerEye/ML/runner.py --model=GlaucomaPublic --azureml=True
+```
+- Alternatively, you can create a separate runner and a separate model configuration folder. The steps described
+below refer to this route.
+
+#### Setting up a second runner
 1. Set up a directory outside of InnerEye to holds your configs, as in 
 [Setting Up Training](building_models.md#setting-up-training). After this step, you should have a folder InnerEyeLocal
  beside InnerEye with files `settings.yml` and `ML/runner.py`.
 
-### Creating the classification model configuration
-The full configuration for the Glaucoma model is at InnerEye/ML/configs/classification/GlaucomaPublic. 
+#### Creating the classification model configuration
+The full configuration for the Glaucoma model is at `InnerEye/ML/configs/classification/GlaucomaPublic`. 
 All that needs to be done is change the dataset. We will do this by subclassing GlaucomaPublic in a new config 
-stored in InnerEyeLocal/ML
+stored in `InnerEyeLocal/ML`
 1. Create folder configs/classification under InnerEyeLocal/ML
 1. Create a config file called GlaucomaPublicExt.py there which extends the GlaucomaPublic class that looks like
-    ```python
+```python
 from InnerEye.ML.configs.classification.GlaucomaPublic import GlaucomaPublic
 
 
 class GlaucomaPublicExt(GlaucomaPublic):
     def __init__(self) -> None:
-        super().__init__(azure_dataset_id="name_of_your_dataset_on_azure")
-    ``` 
+        super().__init__()
+        self.azure_dataset_id="name_of_your_dataset_on_azure"
+``` 
 1. In `settings.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
 is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.
 
-### Start Training
+#### Start Training
 Run the following to start a job on AzureML
 ```
-python InnerEyeLocal/ML/runner.py --azureml=True --model=GlaucomaPublicExt --train=True
+python InnerEyeLocal/ML/runner.py --azureml=True --model=GlaucomaPublicExt
 ```
 See [Model Training](building_models.md) for details on training outputs, resuming training, testing models and model ensembles.
 
@@ -62,11 +77,11 @@ This example is based on the [Lung CT Segmentation Challenge 2017](https://wiki.
 1. Use the [InnerEye-CreateDataset](https://github.com/microsoft/InnerEye-createdataset) to create a NIFTI dataset
  from the downloaded (DICOM) files.
 After installing the tool, run
-    ```batch
-    InnerEye.CreateDataset.Runner.exe dataset --datasetRootDirectory=<path to the 'datasets' folder> --niftiDatasetDirectory=<output folder name for converted dataset> --dicomDatasetDirectory=<name of downloaded folder inside 'datasets'> --geoNorm 1;1;3
-    ```
-    Now, you should have another folder under `datasets` with the converted Nifti files.
-    The `geonorm` tag tells the tool to normalize the voxel sizes during conversion.
+```batch
+InnerEye.CreateDataset.Runner.exe dataset --datasetRootDirectory=<path to the 'datasets' folder> --niftiDatasetDirectory=<output folder name for converted dataset> --dicomDatasetDirectory=<name of downloaded folder inside 'datasets'> --geoNorm 1;1;3
+```
+Now, you should have another folder under `datasets` with the converted Nifti files.
+The `geonorm` tag tells the tool to normalize the voxel sizes during conversion.
 1.  Upload this folder (with the images and dataset.csv) to Azure Blob Storage. For details on creating a storage account, 
 see [Setting up AzureML](setting_up_aml.md#step-4-create-a-storage-account-for-your-datasets). 
  
@@ -82,13 +97,13 @@ All that needs to be done is change the dataset. We will do this by subclassing 
 stored in InnerEyeLocal/ML
 1. Create folder configs/segmentation under InnerEyeLocal/ML
 1. Create a config file called LungExt.py there which extends the GlaucomaPublic class that looks like this:
-    ```python
-    from InnerEye.ML.configs.segmentation.Lung import Lung  
+```python
+from InnerEye.ML.configs.segmentation.Lung import Lung  
 
-    class LungExt(Lung):
-        def __init__(self) -> None:
-            super().__init__(azure_dataset_id="name_of_your_dataset_on_azure")
-    ``` 
+class LungExt(Lung):
+    def __init__(self) -> None:
+        super().__init__(azure_dataset_id="name_of_your_dataset_on_azure")
+``` 
 1. In `settings.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config  
 is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.
 

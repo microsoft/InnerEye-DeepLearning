@@ -48,7 +48,7 @@ class Prostate(ProstateBase):
     def __init__(self) -> None:
         super().__init__(
             ground_truth_ids=["femur_r", "femur_l", "rectum", "prostate"],
-            azure_dataset_id="id-of-your-blob-containing-prostate-data")
+            azure_dataset_id="name-of-your-AML-dataset-with-prostate-data")
 ```
 The allowed parameters and their meanings are defined in [`SegmentationModelBase`](/InnerEye/ML/config.py).
 The class name must be the same as the basename of the file containing it, so `Prostate.py` must contain `Prostate`. 
@@ -64,12 +64,14 @@ class HeadAndNeck(HeadAndNeckBase):
     def __init__(self) -> None:
         super().__init__(
             ground_truth_ids=["parotid_l", "parotid_r", "smg_l", "smg_r", "spinal_cord"]
-            azure_dataset_id="id-of-your-blob-containing-prostate-data")
+            azure_dataset_id="name-of-your-AML-dataset-with-prostate-data")
 ```
 
 ### Training a new model
 
-* Set up your model configuration as above.
+* Set up your model configuration as above and update `azure_dataset_id` to the name of your Dataset in the AML workspace.
+It is enough to put your dataset into blob storage. The dataset should be a contained in a folder at the root of the datasets container. 
+The InnerEye runner will check if there is a dataset in the AzureML workspace already, and if not, generate it directly from blob storage.
 
 * Train a new model, for example `Prostate`:
 ```shell script
@@ -79,9 +81,19 @@ python InnerEyeLocal/ML/runner.py --azureml=True --model=Prostate --train=True
 Alternatively, you can train the model on your current machine if it is powerful enough. In
 this case, you would simply omit the `azureml` flag, and instead of specifying
 `azure_dataset_id` in the class constructor, you can instead use `local_dataset="my/data/folder"`,
-where the folder `my/data/folder` contains a `dataset.csv` file and subfolders `0`, `1`, `2`, ...,
-one for each image.
+where the folder `my/data/folder` contains a `dataset.csv` file and all the files that are referenced therein.
 
+
+### Training using multiple machines
+To speed up training in AzureML, you can use multiple machines, by specifying the additional
+`--num_nodes` argument. For example, to use 2 machines to train, specify:
+```shell script
+python InnerEyeLocal/ML/runner.py --azureml=True --model=Prostate --num_nodes=2
+```
+On each of the 2 machines, all available GPUs will be used. Model inference will always use only one machine.
+
+For the Prostate model, we observed a 2.8x speedup for model training when using 4 nodes, and a 1.65x speedup 
+when using 2 nodes.
 
 ### AzureML Run Hierarchy
 
@@ -136,7 +148,7 @@ run recovery ID without the final underscore and digit.
 ### Testing an existing model
 To evaluate an existing model on a test set, you can use models from previous runs in AzureML or from local checkpoints.
 
-##### From a previus run in AzureML:
+#### From a previus run in AzureML:
 This is similar to continuing training using a run_recovery object, but you will need to set `--train` to `False`. 
 Thus your command should look like this:
 
@@ -144,7 +156,7 @@ Thus your command should look like this:
 python Inner/ML/runner.py --azureml=True --model=Prostate --train=False --cluster=my_cluster_name \
    --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
 ```
-##### From a local checkpoint:
+#### From a local checkpoint:
 To evaluate a model using a local checkpoint, use the local_weights_path to specify the path to the model checkpoint 
 and set train to `False`.
 ```shell script

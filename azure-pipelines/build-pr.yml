@@ -12,6 +12,9 @@ variables:
   tag: ''
   number_of_cross_validation_splits: 0
   cluster: 'training-nc12'
+  # Disable a spurious warning
+  # https://stackoverflow.com/questions/56859264/publishing-code-coverage-results-from-reportgenerator-not-working
+  disable.coverage.autogenerate: 'true'
 
 jobs:
   - job: Windows
@@ -99,3 +102,25 @@ jobs:
         parameters:
           pytest_mark: after_training_ensemble_run
           test_run_title: tests_after_training_ensemble_run
+
+  # Train a model on 2 nodes
+  - job: Train2Nodes
+    variables:
+      - name: model
+        value: 'BasicModel2EpochsMoreData'
+      - name: tag
+        value: 'Train2Nodes'
+      - name: more_switches
+        value: '--log_level=DEBUG --num_nodes=2'
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          pytest_mark: ''
+          max_run_duration: '1h'
+      - template: tests_after_training.yml
+        parameters:
+          pytest_mark: after_training_2node
+          test_run_title: tests_after_training_2node_run
