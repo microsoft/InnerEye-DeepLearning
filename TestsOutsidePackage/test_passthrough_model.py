@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from typing import List, Tuple
 import pytest
 import numpy as np
-from passthrough_model import make_distance_range, make_stroke_rectangle, \
+
+from InnerEye.ML.configs.unit_testing.passthrough_model import make_distance_range, make_stroke_rectangle, \
     make_fill_rectangle, make_nesting_rectangles
 from score import convert_rgb_colour_to_hex
 
