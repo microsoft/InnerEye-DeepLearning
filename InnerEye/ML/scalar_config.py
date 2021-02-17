@@ -397,6 +397,12 @@ class ScalarModelBase(ModelConfigBase):
         assert self._datasets_for_training is not None  # for mypy
         return self._datasets_for_training[ModelExecutionMode.TRAIN].get_class_counts()
 
+    def get_total_number_of_training_samples(self) -> int:
+        if self._datasets_for_training is None:
+            self.create_and_set_torch_datasets(for_inference=False)
+        assert self._datasets_for_training is not None  # for mypy
+        return len(self._datasets_for_training[ModelExecutionMode.TRAIN])
+
     def create_model(self) -> Any:
         pass
 

@@ -507,6 +507,8 @@ def test_load_single_item_7() -> None:
                              ("nO", True, 1, True, [0]),
                              ("Yes", True, 1, True, [1.0]),
                              ("1.23", True, 1, True, [1.23]),
+                             (1, True, 3, False, [0.0, 1.0, 0.0]),
+                             ("1", True, 3, False, [0.0, 1.0, 0.0]),
                              ("1|2", True, 3, False, [0.0, 1.0, 1.0]),
                              ("1|2", True, 3, True, None),
                              ("3.45", False, 1, True, [3.45]),

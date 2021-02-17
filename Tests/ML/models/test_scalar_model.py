@@ -200,9 +200,7 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
                                      val_metrics=path_to_best_epoch_val,
                                      test_metrics=path_to_best_epoch_test,
                                      dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
-                                     if config.local_dataset else None,
-                                     dataset_subject_column=config.subject_column,
-                                     dataset_file_column=config.image_file_column)
+                                     if config.local_dataset else None)
     assert (config.outputs_folder / REPORT_HTML).exists()
 
 
@@ -272,9 +270,7 @@ def test_train_classification_multilabel_model_exclusive_labels(test_output_dirs
                                      val_metrics=path_to_best_epoch_val,
                                      test_metrics=path_to_best_epoch_test,
                                      dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
-                                     if config.local_dataset else None,
-                                     dataset_subject_column=config.subject_column,
-                                     dataset_file_column=config.image_file_column)
+                                     if config.local_dataset else None)
     assert (config.outputs_folder / REPORT_HTML).exists()
 
 

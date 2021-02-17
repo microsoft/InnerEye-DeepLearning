@@ -111,7 +111,8 @@ def create_scalar_loss_function(config: ScalarModelBase) -> torch.nn.Module:
         return BinaryCrossEntropyWithLogitsLoss(
             num_classes=len(config.class_names),
             smoothing_eps=config.label_smoothing_eps,
-            class_counts=config.get_training_class_counts())
+            class_counts=config.get_training_class_counts(),
+            num_train_samples=config.get_total_number_of_training_samples())
     elif config.loss_type == ScalarLoss.MeanSquaredError:
         return MSELoss()
     else:

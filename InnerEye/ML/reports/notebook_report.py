@@ -96,9 +96,7 @@ def generate_classification_notebook(result_notebook: Path,
                                      train_metrics: Optional[Path] = None,
                                      val_metrics: Optional[Path] = None,
                                      test_metrics: Optional[Path] = None,
-                                     dataset_csv_path: Optional[Path] = None,
-                                     dataset_subject_column: Optional[str] = None,
-                                     dataset_file_column: Optional[str] = None) -> Path:
+                                     dataset_csv_path: Optional[Path] = None) -> Path:
     """
     Creates a reporting notebook for a classification model, using the given training, validation, and test set metrics.
     Returns the report file after HTML conversion.
@@ -111,8 +109,6 @@ def generate_classification_notebook(result_notebook: Path,
             'val_metrics_csv': str_or_empty(val_metrics),
             'test_metrics_csv': str_or_empty(test_metrics),
             'dataset_csv_path': str_or_empty(dataset_csv_path),
-            "dataset_subject_column": str_or_empty(dataset_subject_column),
-            "dataset_file_column": str_or_empty(dataset_file_column),
             "config": codecs.encode(pickle.dumps(config), "base64").decode()
         }
     template = Path(__file__).absolute().parent / "classification_report.ipynb"

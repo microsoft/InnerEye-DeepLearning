@@ -70,6 +70,11 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
         except ValueError:
             raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
 
+    if isinstance(label_string, (int, np.integer)):
+        one_hot_array = np.zeros(num_classes, dtype=np.float)
+        one_hot_array[label_string] = 1.0
+        return one_hot_array.tolist()
+
     if '|' in label_string or label_string.isdigit():
         classes = [int(a) for a in label_string.split('|')]
         if len(classes) > 1 and labels_exclusive:
