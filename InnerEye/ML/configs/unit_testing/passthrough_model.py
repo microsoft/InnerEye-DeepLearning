@@ -5,14 +5,18 @@
 import random
 from typing import Any, List
 import numpy as np
+import pandas as pd
 import torch
 from torch.nn.parameter import Parameter
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.config import equally_weighted_classes, SegmentationModelBase
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME
+from InnerEye.ML.config import equally_weighted_classes, get_center_size, ModelArchitectureConfig, SegmentationModelBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
+from InnerEye.ML.utils.io_util import reverse_tuple_float3, store_as_nifti, ImageHeader
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
+from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 
 RANDOM_COLOUR_GENERATOR = random.Random(0)
@@ -24,35 +28,66 @@ class PassThroughModel(SegmentationModelBase):
     """
     def __init__(self, **kwargs: Any) -> None:
         random_seed = 42
+        crop_size = (64, 192, 160)
         number_of_image_channels = 1
+        image_channels = [f"channel{i + 1}" for i in range(number_of_image_channels)]
         number_of_classes = 5
         class_names = [f"structure_{i}" for i in range(number_of_classes)]
+
+        local_dataset = full_ml_test_data_path("passthrough_data")
+        local_dataset.mkdir(exist_ok=True)
+        dataset_csv_file = local_dataset / DATASET_CSV_FILE_NAME
+        dummy_image_file = "dummy_image.nii.gz"
+
+        with dataset_csv_file.open('w') as f:
+            f.write("subject,filePath,channel,institutionId\n")
+            for subject in range(1, 4):
+                for image_channel in image_channels:
+                    f.write(f"{subject},{dummy_image_file},{image_channel},1\n")
+                for class_name in class_names:
+                    f.write(f"{subject},{dummy_image_file},{class_name},1\n")
+
+        dataset_expected_spacing_xyz = (1.269531011581421, 1.269531011581421, 2.5)
+        image = np.random.random_sample(crop_size)
+        spacingzyx = reverse_tuple_float3(dataset_expected_spacing_xyz)
+        path_image = local_dataset / dummy_image_file
+        header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=spacingzyx)
+        store_as_nifti(image, header, path_image, np.float32)
 
         super().__init__(
             should_validate=False,
             random_seed=random_seed,
-            local_dataset=full_ml_test_data_path(),
-            crop_size=(64, 192, 160),
+            local_dataset=local_dataset,
+            crop_size=crop_size,
             # This speeds up loading dramatically. Multi-process data loading is tested via BasicModel2Epochs
             num_dataload_workers=0,
             # Disable monitoring so that we can use VS Code remote debugging
             monitoring_interval_seconds=0,
-            image_channels=[f"image_{i}" for i in range(number_of_image_channels)],
+            image_channels=image_channels,
             ground_truth_ids=class_names,
             ground_truth_ids_display_names=class_names,
             colours=generate_random_colours_list(RANDOM_COLOUR_GENERATOR, number_of_classes),
             fill_holes=[False] * number_of_classes,
             # mask_id="mask",
-            dataset_expected_spacing_xyz=(1.269531011581421, 1.269531011581421, 2.5),
+            dataset_expected_spacing_xyz=dataset_expected_spacing_xyz,
             inference_batch_size=1,
             class_weights=equally_weighted_classes(class_names),
-            feature_channels=[1]
+            feature_channels=[1],
+            start_epoch=0,
+            num_epochs=2
         )
         self.add_and_validate(kwargs)
 
     def create_model(self) -> torch.nn.Module:
-        return PyTorchPassthroughModel(self.number_of_image_channels, self.number_of_classes,
-                                       self.crop_size)
+        return PyTorchPassthroughModel(self)
+
+    def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
+        return DatasetSplits.from_subject_ids(
+            df=dataset_df,
+            train_ids=['1'],
+            test_ids=['2'],
+            val_ids=['3']
+        )
 
 
 class PyTorchPassthroughModel(BaseSegmentationModel):
@@ -60,33 +95,35 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
     Defines a model that returns a fixed segmentation, explained in make_nesting_rectangles.
     """
 
-    def __init__(self, input_channels: int, number_of_classes: int, crop_size: TupleInt3):
+    def __init__(self, config: SegmentationModelBase):
         """
         Creates a new instance of the class.
 
-        :param input_channels: Number of image channels.
-        :param number_of_classes: Number of segmentation classes.
-        :param crop_size: Crop size.
+        :param config: Model config.
         """
-        super().__init__(input_channels=input_channels, name='PassthroughModel')
+        super().__init__(input_channels=config.number_of_image_channels, name='PassthroughModel')
         # Create a fake parameter so that we can instantiate an optimizer easily
         self.foo = Parameter(requires_grad=True)
-        self.number_of_classes = number_of_classes
+        self.config = config
         # Cache the fixed segmentation.
-        self.cached_patch = self.make_nest(crop_size)
+        self.cached_patch = self.make_nest(config.crop_size)
 
     def forward(self, patches: torch.Tensor) -> torch.Tensor:
         """
         Ignore the actual patches and return a fixed segmentation, explained in make_nesting_rectangles.
 
+        The output tensor is shrunk by the amount basic_size_shrinkage in config.py.
+
         :param patches: Set of patches, of shape (#patches, #image_channels, Z, Y, X). Only the shape
         is used.
-        :return: Fixed tensor of shape (#patches, number_of_classes, Z, Y, Z).
+        :return: Fixed tensor of shape (#patches, number_of_classes, Z', Y', Z') where Z' = Z - basic_size_shrinkage,
+        etc.
         """
-        if self.cached_patch.shape[2:] == patches.shape[2:]:
+        output_size: TupleInt3 = patches.shape[2:]
+        if self.config.crop_size == output_size:
             patch = self.cached_patch
         else:
-            patch = self.make_nest((patches.shape[2], patches.shape[3], patches.shape[4]))
+            patch = self.make_nest(output_size)
         if patches.shape[0] == 1:
             np_predictions = patch
         else:
@@ -98,14 +135,15 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
 
     def make_nest(self, output_size: TupleInt3) -> np.ndarray:
         """
-        Given a patch shaped (Z, Y, X) return a fixed segmentation shaped to (1, number_of_classes, Z, Y, X).
+        Given a patch shaped (Z, Y, X) return a fixed segmentation shaped to (1, number_of_classes, Z', Y', X').
 
-        :param output_size: Target output size.
+        :param output_size: Target output size before reduction by basic_size_shrinkage.
         :return: 5d tensor.
         """
-        nest = make_nesting_rectangles(self.number_of_classes, output_size[1], output_size[2], 3)
-        project_nest = nest.reshape(1, self.number_of_classes, 1, output_size[1], output_size[2])
-        return np.broadcast_to(project_nest, (1, self.number_of_classes) + output_size)
+        output_size = get_center_size(self.config.architecture, output_size)
+        nest = make_nesting_rectangles(self.config.number_of_classes, output_size[1], output_size[2], 3)
+        project_nest = nest.reshape(1, self.config.number_of_classes, 1, output_size[1], output_size[2])
+        return np.broadcast_to(project_nest, (1, self.config.number_of_classes) + output_size)
 
 
 def make_distance_range(length: int) -> np.ndarray:
