@@ -33,7 +33,7 @@ THIS_DIR: Path = Path(__file__).parent.resolve()
 # The TestData directory.
 TEST_DATA_DIR: Path = THIS_DIR / "TestData"
 # Filenames of dcm files in flat test zip.
-TEST_FLAT_ZIP_FILENAMES = ['2.dcm', '3.dcm', '4.dcm']
+TEST_FLAT_ZIP_FILENAMES = ['1.txt', '2.dcm', '3.dcm', '4.dcm', '5.txt']
 # Flat test zip file.
 TEST_FLAT_ZIP_FILE: Path = TEST_DATA_DIR / "test_flat.zip"
 # As test_flat but everything in "folder1"
@@ -41,7 +41,7 @@ TEST_FLAT_NESTED_ZIP_FILE: Path = TEST_DATA_DIR / "test_flat_nested.zip"
 # As test_flat_nested but everything in "folder2"
 TEST_FLAT_NESTED_TWICE_ZIP_FILE: Path = TEST_DATA_DIR / "test_flat_nested_twice.zip"
 # Filenames of dcm files in test two zip.
-TEST_TWO_ZIP_FILENAMES = ['2.dcm', '3.dcm', '4.dcm', '6.dcm', '7.dcm', '8.dcm']
+TEST_TWO_ZIP_FILENAMES = ['1.txt', '2.dcm', '3.dcm', '4.dcm', '5.txt', '6.dcm', '7.dcm', '8.dcm', '9.txt']
 # Two folders containing dcm files
 TEST_TWO_ZIP_FILE: Path = TEST_DATA_DIR / "test_two.zip"
 # Two folders each containing a folder containing dcm files
@@ -98,8 +98,9 @@ def test_run_scoring(test_output_dirs: OutputFolderForTests, is_ensemble: bool) 
 @pytest.mark.parametrize("zip_filename", [TEST_FLAT_ZIP_FILE, TEST_FLAT_NESTED_ZIP_FILE, TEST_FLAT_NESTED_TWICE_ZIP_FILE])
 def test_unpack_flat_zip(zip_filename: Path, test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test that a zip file containing just files: 1.txt, 2.dcm, 3.dcm, 4.dcm and 5.txt
-    can be extracted into a folder containing only the .dcm files.
+    Test that a zip file containing files: 1.txt, 2.dcm, 3.dcm, 4.dcm and 5.txt all together but possibly
+    in a folder (TEST_FLAT_NESTED_ZIP_FILE) or in a folder in a folder (TEST_FLAT_NESTED_TWICE_ZIP_FILE)
+    can be extracted into a folder containing only the files.
 
     :param zip_filename: Path to test zip file.
     :param test_output_dirs: Test output directories.
@@ -111,8 +112,8 @@ def test_unpack_flat_zip(zip_filename: Path, test_output_dirs: OutputFolderForTe
 def test_unpack_two_zip(zip_filename: Path, test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that a zip file containing files: 1.txt, 2.dcm, 3.dcm, 4.dcm and 5.txt in one folder
-    and 5.txt, 6.dcm, 7.dcm, 8.dcm, 9.txt in another folder
-    can be extracted into a folder containing only the .dcm files.
+    and 5.txt, 6.dcm, 7.dcm, 8.dcm, 9.txt in another folder (these folders may be in other folders)
+    can be extracted into a folder containing only the files.
 
     :param zip_filename: Path to test zip file.
     :param test_output_dirs: Test output directories.
