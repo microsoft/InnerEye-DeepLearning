@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
+import shutil
 from typing import List
 from unittest import mock
 import zipfile
@@ -32,22 +33,6 @@ img_nii_path = full_ml_test_data_path("test_img.nii.gz")
 THIS_DIR: Path = Path(__file__).parent.resolve()
 # The TestData directory.
 TEST_DATA_DIR: Path = THIS_DIR / "TestData"
-# Filenames of dcm files in flat test zip.
-TEST_FLAT_ZIP_FILENAMES = ['1.txt', '2.dcm', '3.dcm', '4.dcm', '5.txt']
-# Flat test zip file.
-TEST_FLAT_ZIP_FILE: Path = TEST_DATA_DIR / "test_flat.zip"
-# As test_flat but everything in "folder1"
-TEST_FLAT_NESTED_ZIP_FILE: Path = TEST_DATA_DIR / "test_flat_nested.zip"
-# As test_flat_nested but everything in "folder2"
-TEST_FLAT_NESTED_TWICE_ZIP_FILE: Path = TEST_DATA_DIR / "test_flat_nested_twice.zip"
-# Filenames of dcm files in test two zip.
-TEST_TWO_ZIP_FILENAMES = ['1.txt', '2.dcm', '3.dcm', '4.dcm', '5.txt', '6.dcm', '7.dcm', '8.dcm', '9.txt']
-# Two folders containing dcm files
-TEST_TWO_ZIP_FILE: Path = TEST_DATA_DIR / "test_two.zip"
-# Two folders each containing a folder containing dcm files
-TEST_TWO_NESTED_ZIP_FILE: Path = TEST_DATA_DIR / "test_two_nested.zip"
-# As above, but all in another folder.
-TEST_TWO_NESTED_TWICE_ZIP_FILE: Path = TEST_DATA_DIR / "test_two_nested_twice.zip"
 
 # A sample H&N segmentation
 HNSEGMENTATION_FILE = TEST_DATA_DIR / "hnsegmentation.nii.gz"
@@ -95,43 +80,75 @@ def test_run_scoring(test_output_dirs: OutputFolderForTests, is_ensemble: bool) 
     assert np.all(result == 1)
 
 
-@pytest.mark.parametrize("zip_filename", [TEST_FLAT_ZIP_FILE, TEST_FLAT_NESTED_ZIP_FILE, TEST_FLAT_NESTED_TWICE_ZIP_FILE])
-def test_unpack_flat_zip(zip_filename: Path, test_output_dirs: OutputFolderForTests) -> None:
+# Filenames of dcm files in flat test zip.
+TEST_FLAT_ZIP_FILENAMES = ['1.txt', '2.dcm', '3.dcm', '4.dcm', '5.txt']
+# Filenames of dcm files in test two zip.
+TEST_TWO_ZIP_FILENAMES = ['5.txt', '6.dcm', '7.dcm', '8.dcm', '9.txt']
+
+# Flat test zip file.
+TEST_FLAT_ZIP_FILE: List[Path] = [Path(f) for f in TEST_FLAT_ZIP_FILENAMES]
+# As test_flat but everything in "folder1"
+TEST_FLAT_NESTED_ZIP_FILE: List[Path] = [Path("folder1") / f for f in TEST_FLAT_ZIP_FILENAMES]
+# As test_flat_nested but everything in "folder2"
+TEST_FLAT_NESTED_TWICE_ZIP_FILE: List[Path] = [Path("folder2") / "folder1" / f for f in TEST_FLAT_ZIP_FILENAMES]
+# Two folders containing dcm files
+TEST_TWO_ZIP_FILE: List[Path] = TEST_FLAT_NESTED_ZIP_FILE + \
+                                  [Path("folder3") / f for f in TEST_TWO_ZIP_FILENAMES]
+# Two folders each containing a folder containing dcm files
+TEST_TWO_NESTED_ZIP_FILE: List[Path] = TEST_FLAT_NESTED_TWICE_ZIP_FILE + \
+                                         [Path("folder4") / "folder3" / f for f in TEST_TWO_ZIP_FILENAMES]
+# As above, but all in another folder.
+TEST_TWO_NESTED_TWICE_ZIP_FILE: List[Path] = [Path("folder5") / "folder2" / "folder1" / f for f in TEST_FLAT_ZIP_FILENAMES] + \
+                                                [Path("folder5") / "folder3" / f for f in TEST_TWO_ZIP_FILENAMES]
+
+
+@pytest.mark.parametrize("zip_file_contents", [TEST_FLAT_ZIP_FILE, TEST_FLAT_NESTED_ZIP_FILE, TEST_FLAT_NESTED_TWICE_ZIP_FILE])
+def test_unpack_flat_zip(zip_file_contents: List[Path], test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that a zip file containing files: 1.txt, 2.dcm, 3.dcm, 4.dcm and 5.txt all together but possibly
     in a folder (TEST_FLAT_NESTED_ZIP_FILE) or in a folder in a folder (TEST_FLAT_NESTED_TWICE_ZIP_FILE)
     can be extracted into a folder containing only the files.
 
-    :param zip_filename: Path to test zip file.
+    :param zip_file_contents: List of relative file paths to create and test.
     :param test_output_dirs: Test output directories.
     """
-    _common_test_unpack_dicom_zip(zip_filename, TEST_FLAT_ZIP_FILENAMES, test_output_dirs)
+    _common_test_unpack_dicom_zip(zip_file_contents, TEST_FLAT_ZIP_FILENAMES, test_output_dirs)
 
 
-@pytest.mark.parametrize("zip_filename", [TEST_TWO_ZIP_FILE, TEST_TWO_NESTED_ZIP_FILE, TEST_TWO_NESTED_TWICE_ZIP_FILE])
-def test_unpack_two_zip(zip_filename: Path, test_output_dirs: OutputFolderForTests) -> None:
+@pytest.mark.parametrize("zip_file_contents", [TEST_TWO_ZIP_FILE, TEST_TWO_NESTED_ZIP_FILE, TEST_TWO_NESTED_TWICE_ZIP_FILE])
+def test_unpack_two_zip(zip_file_contents: List[Path], test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that a zip file containing files: 1.txt, 2.dcm, 3.dcm, 4.dcm and 5.txt in one folder
     and 5.txt, 6.dcm, 7.dcm, 8.dcm, 9.txt in another folder (these folders may be in other folders)
     can be extracted into a folder containing only the files.
 
-    :param zip_filename: Path to test zip file.
+    :param zip_file_contents: List of relative file paths to create and test.
     :param test_output_dirs: Test output directories.
     """
-    _common_test_unpack_dicom_zip(zip_filename, TEST_TWO_ZIP_FILENAMES, test_output_dirs)
+    all_filenames = TEST_FLAT_ZIP_FILENAMES + TEST_TWO_ZIP_FILENAMES
+    all_unique_filenames = sorted(list(set(all_filenames)))
+    _common_test_unpack_dicom_zip(zip_file_contents, all_unique_filenames, test_output_dirs)
 
 
-def _common_test_unpack_dicom_zip(zip_filename: Path, expected_filenames: List[str],
+def _common_test_unpack_dicom_zip(zip_file_contents: List[Path], expected_filenames: List[str],
                                   test_output_dirs: OutputFolderForTests) -> None:
     """
     Test the zip file contains expected .dcm files not in a folder.
 
-    :param zip_filename: Path to test zip file.
+    :param zip_file_contents: List of relative file paths to create and test.
     :param expected_filenames: List of expected filenames.
     :param test_output_dirs: Test output directories.
     """
-    model_folder = test_output_dirs.root_dir / "unpack"
-    extraction_folder = model_folder / "temp_zipped_dicom_extraction"
+    pack_folder = test_output_dirs.root_dir / "pack"
+    for zip_file_item in zip_file_contents:
+        dummy_file = pack_folder / zip_file_item
+        dummy_file.parent.mkdir(parents=True, exist_ok=True)
+        dummy_file.touch()
+
+    zip_filename = test_output_dirs.root_dir / "test.zip"
+    shutil.make_archive(str(zip_filename.with_suffix('')), 'zip', str(pack_folder))
+
+    extraction_folder = test_output_dirs.root_dir / "unpack"
     extract_zipped_files_and_flatten(zip_filename, extraction_folder)
     _common_test_unpack_zip(extraction_folder, expected_filenames)
 
