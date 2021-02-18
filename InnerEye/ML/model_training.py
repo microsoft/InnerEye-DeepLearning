@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 from typing import Optional, Tuple, TypeVar
 
-import pandas as pd
 import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
