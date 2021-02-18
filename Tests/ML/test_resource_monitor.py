@@ -23,18 +23,19 @@ def test_utilization_enumerate() -> None:
         mem_reserved_gb=40,
         count=1
     )
+    assert u1.name == "GPU1"
     metrics1 = u1.enumerate()
     assert len(metrics1) == 4
     assert metrics1 == [
         # Utilization should be multiplied by 100 to get per-cent
-        ('GPU1/MemUtil_Percent', 20.0),
-        ('GPU1/Load_Percent', 10.0),
-        ('GPU1/MemReserved_GB', 40),
-        ('GPU1/MemAllocated_GB', 30),
+        ('MemUtil_Percent', 20.0),
+        ('Load_Percent', 10.0),
+        ('MemReserved_GB', 40),
+        ('MemAllocated_GB', 30),
     ]
     metrics2 = u1.enumerate(prefix="Foo")
     assert len(metrics2) == 4
-    assert metrics2[0] == ('GPU1/FooMemUtil_Percent', 20.0)
+    assert metrics2[0] == ('FooMemUtil_Percent', 20.0)
 
 
 def test_utilization_add() -> None:
@@ -125,8 +126,8 @@ def test_resource_monitor(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if metrics are correctly updated in the ResourceMonitor class.
     """
-    tensorboard_folder = test_output_dirs.root_dir
-    r = ResourceMonitor(interval_seconds=5, tensorboard_folder=tensorboard_folder)
+    results_folder = test_output_dirs.root_dir
+    r = ResourceMonitor(interval_seconds=5, tensorboard_folder=results_folder, csv_results_folder=results_folder)
 
     def create_gpu(id: int, load: float, mem_total: float, mem_used: float) -> GPU:
         return GPU(ID=id, uuid=None, load=load, memoryTotal=mem_total, memoryUsed=mem_used,
@@ -156,12 +157,16 @@ def test_resource_monitor(test_output_dirs: OutputFolderForTests) -> None:
     }
     r.writer.flush()
     r.store_to_file()
-    tb_file = list(tensorboard_folder.rglob("*tfevents*"))[0]
+    tb_file = list(results_folder.rglob("*tfevents*"))[0]
     assert os.path.getsize(str(tb_file)) > 100
     assert r.aggregate_metrics_file.is_file
     assert len(r.aggregate_metrics_file.read_text().splitlines()) == 17
     parsed_metrics = r.read_aggregate_metrics()
-    assert len(parsed_metrics) == 16
+    # There should be one entry per GPU
+    assert len(parsed_metrics) == 2
+    # Each GPU has 4 averages, 4 max.
+    assert len(parsed_metrics["GPU1"]) == 8
+    assert len(parsed_metrics["GPU2"]) == 8
 
 
 def test_resource_monitor_store_to_file(test_output_dirs: OutputFolderForTests) -> None:
@@ -169,7 +174,9 @@ def test_resource_monitor_store_to_file(test_output_dirs: OutputFolderForTests) 
     Test if storing metrics to a file works correctly.
     """
     tensorboard_folder = test_output_dirs.root_dir
-    r = ResourceMonitor(interval_seconds=5, tensorboard_folder=tensorboard_folder)
+    r = ResourceMonitor(interval_seconds=5,
+                        tensorboard_folder=tensorboard_folder,
+                        csv_results_folder=tensorboard_folder)
     r.gpu_aggregates = {
         1: GpuUtilization(id=1, mem_util=1, load=2, mem_reserved_gb=30.0, mem_allocated_gb=40.0, count=10),
     }
@@ -180,13 +187,14 @@ def test_resource_monitor_store_to_file(test_output_dirs: OutputFolderForTests) 
     # Write a second time - we expect that to overwrite and only produce one set of metrics
     r.store_to_file()
     parsed_metrics = r.read_aggregate_metrics()
-    assert parsed_metrics == [
-        ("GPU1/MemUtil_Percent", 10.0),
-        ("GPU1/Load_Percent", 20.0),
-        ("GPU1/MemReserved_GB", 3.0),
-        ("GPU1/MemAllocated_GB", 4.0),
-        ("GPU1/MaxMemUtil_Percent", 40.0),
-        ("GPU1/MaxLoad_Percent", 50.0),
-        ("GPU1/MaxMemReserved_GB", 6.0),
-        ("GPU1/MaxMemAllocated_GB", 7.0),
-    ]
+    assert parsed_metrics == {
+        "GPU1": {
+            "MemUtil_Percent": 10.0,
+            "Load_Percent": 20.0,
+            "MemReserved_GB": 3.0,
+            "MemAllocated_GB": 4.0,
+            "MaxMemUtil_Percent": 40.0,
+            "MaxLoad_Percent": 50.0,
+            "MaxMemReserved_GB": 6.0,
+            "MaxMemAllocated_GB": 7.0,
+        }}

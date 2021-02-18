@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Optional, Tuple, TypeVar
 
+import pandas as pd
 import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -194,10 +195,16 @@ def model_train(config: ModelConfigBase,
 
         if config.monitoring_interval_seconds > 0:
             # initialize and start GPU monitoring
-            diagnostics_events = config.logs_folder / "diagnostics"
-            logging.info(f"Starting resource monitor, outputting to {diagnostics_events}")
+            gpu_tensorboard = config.logs_folder / "gpu_utilization"
+            # Result file in CSV format should NOT live in the logs folder, the streaming upload that is
+            # used for this folder might corrupt the file.
+            gpu_csv = config.outputs_folder / "gpu_utilization"
+            gpu_csv.mkdir(parents=True, exist_ok=True)
+            logging.info(f"Starting resource monitor. GPU utilization will be written to Tensorboard in "
+                         f"{gpu_tensorboard}, aggregate metrics to {gpu_csv}")
             resource_monitor = ResourceMonitor(interval_seconds=config.monitoring_interval_seconds,
-                                               tensorboard_folder=diagnostics_events)
+                                               tensorboard_folder=gpu_tensorboard,
+                                               csv_results_folder=gpu_csv)
             resource_monitor.start()
 
     # Training loop
@@ -274,12 +281,11 @@ def model_train(config: ModelConfigBase,
         RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(config.visualization_folder))
 
     if resource_monitor:
-        # stop the resource monitoring process
-        logging.info("Shutting down the resource monitor process. Aggregate resource utilization:")
-        for name, value in resource_monitor.read_aggregate_metrics():
-            logging.info(f"{name}: {value}")
-            if not config.is_offline_run:
-                RUN_CONTEXT.log(name, value)
+        logging.info("Shutting down the resource monitor process.")
+        if not config.is_offline_run:
+            for gpu_name, metrics_per_gpu in resource_monitor.read_aggregate_metrics().items():
+                # Log as a table, with GPU being the first column
+                RUN_CONTEXT.log_row("GPU utilization", GPU=gpu_name, **metrics_per_gpu)
         resource_monitor.kill()
 
     return model_training_results
