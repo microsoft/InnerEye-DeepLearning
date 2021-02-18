@@ -12,12 +12,17 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 import GPUtil
+import pandas as pd
 import psutil
 import tensorboardX
 import torch
 from GPUtil import GPU
 
 from InnerEye.ML.utils.ml_util import is_gpu_available
+
+COL_GPU = "gpu"
+COL_METRIC = "metric"
+COL_VALUE = "value"
 
 
 def memory_in_gb(bytes: int) -> float:
@@ -87,19 +92,26 @@ class GpuUtilization:
             count=1
         )
 
+    @property
+    def name(self) -> str:
+        """
+        Gets a string name for the GPU that the present objet describes, "GPU1" for GPU with id == 1.
+        """
+        return f"GPU{self.id}"
+
     def enumerate(self, prefix: str = "") -> List[Tuple[str, float]]:
         """
         Lists all metrics stored in the present object, as (metric_name, value) pairs suitable for logging in
-        Tensorboard. All metrics have a prefix like "GPU2/" for GPU ID 2.
+        Tensorboard.
         :param prefix: If provided, this string as used as an additional prefix for the metric name itself. If prefix
-        is "max", the metric would look like "GPU2/maxLoad_Percent"
+        is "max", the metric would look like "maxLoad_Percent"
         :return: A list of (name, value) tuples.
         """
         return [
-            (f'GPU{self.id}/{prefix}MemUtil_Percent', round(self.mem_util * 100, 2)),
-            (f'GPU{self.id}/{prefix}Load_Percent', round(self.load * 100, 2)),
-            (f'GPU{self.id}/{prefix}MemReserved_GB', round(self.mem_reserved_gb, 4)),
-            (f'GPU{self.id}/{prefix}MemAllocated_GB', round(self.mem_allocated_gb, 4))
+            (f'{prefix}MemUtil_Percent', round(self.mem_util * 100, 2)),
+            (f'{prefix}Load_Percent', round(self.load * 100, 2)),
+            (f'{prefix}MemReserved_GB', round(self.mem_reserved_gb, 4)),
+            (f'{prefix}MemAllocated_GB', round(self.mem_allocated_gb, 4))
         ]
 
     @staticmethod
@@ -127,11 +139,16 @@ class ResourceMonitor(Process):
     Monitor and log GPU and CPU stats in TensorBoard in a separate process.
     """
 
-    def __init__(self, interval_seconds: int, tensorboard_folder: Path):
+    def __init__(self,
+                 interval_seconds: int,
+                 tensorboard_folder: Path,
+                 csv_results_folder: Path):
         """
         Creates a process that will monitor CPU and GPU utilization.
         :param interval_seconds: The interval in seconds at which usage statistics should be written.
         :param tensorboard_folder: The path in which to create a tensorboard logfile.
+        :param csv_results_folder: The path in which the CSV file with aggregate metrics will be created.
+        When running in AzureML, this should NOT reside inside the /logs folder.
         """
         super().__init__(name="Resource Monitor", daemon=True)
         self._interval_seconds = interval_seconds
@@ -141,7 +158,7 @@ class ResourceMonitor(Process):
         self.writer = tensorboardX.SummaryWriter(str(self.tensorboard_folder))
         self.step = 0
         self.aggregate_metrics: List[str] = []
-        self.aggregate_metrics_file = self.tensorboard_folder / RESOURCE_MONITOR_AGGREGATE_METRICS
+        self.aggregate_metrics_file = csv_results_folder / RESOURCE_MONITOR_AGGREGATE_METRICS
 
     def log_to_tensorboard(self, label: str, value: float) -> None:
         """
@@ -159,8 +176,8 @@ class ResourceMonitor(Process):
         """
         for gpu in gpus:
             gpu_util = GpuUtilization.from_gpu(gpu)
-            for (name, value) in gpu_util.enumerate():
-                self.log_to_tensorboard(name, value)
+            for (metric_name, value) in gpu_util.enumerate():
+                self.log_to_tensorboard(f"{gpu_util.name}/{metric_name}", value)
             id = gpu_util.id
             # Update the total utilization
             if id in self.gpu_aggregates:
@@ -193,27 +210,25 @@ class ResourceMonitor(Process):
 
     def store_to_file(self) -> None:
         """
-        Writes the current aggregate metrics (average and maximum) to a file inside the self.tensorboard_folder
+        Writes the current aggregate metrics (average and maximum) to a file inside the csv_results_folder.
         """
-        aggregate_metrics: List[str] = ["metric,value"]
+        aggregate_metrics: List[str] = [f"{COL_GPU},{COL_METRIC},{COL_VALUE}"]
         for util in self.gpu_aggregates.values():
-            for (name, value) in util.average().enumerate():
-                aggregate_metrics.append(f"{name},{value}")
+            for (metric, value) in util.average().enumerate():
+                aggregate_metrics.append(f"{util.name},{metric},{value}")
         for util in self.gpu_max.values():
-            for (name, value) in util.enumerate(prefix="Max"):
-                aggregate_metrics.append(f"{name},{value}")
+            for (metric, value) in util.enumerate(prefix="Max"):
+                aggregate_metrics.append(f"{util.name},{metric},{value}")
         self.aggregate_metrics_file.write_text("\n".join(aggregate_metrics))
 
-    def read_aggregate_metrics(self) -> List[Tuple[str, float]]:
+    def read_aggregate_metrics(self) -> Dict[str, Dict[str, float]]:
         """
         Reads the file containing aggregate metrics, and returns them parsed
-        as (metric_name, value) tuples.
+        as nested dictionaries mapping from GPU name to metric name to value.
         """
         if not self.aggregate_metrics_file.is_file():
-            return []
-        lines = self.aggregate_metrics_file.read_text().splitlines()[1:]
-        result: List[Tuple[str, float]] = []
-        for line in lines:
-            split = line.split(sep=",")
-            result.append((split[0], float(split[1])))
+            return dict()
+        df = pd.read_csv(self.aggregate_metrics_file)
+        pivot = df.pivot(index=COL_GPU, columns=COL_METRIC, values=COL_VALUE)
+        result = {index: series.to_dict() for index, series in pivot.iterrows()}
         return result
