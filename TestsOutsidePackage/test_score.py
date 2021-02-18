@@ -20,7 +20,7 @@ from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 from score import create_inference_pipeline, is_spacing_valid, run_inference, score_image, ScorePipelineConfig, \
-    extract_zipped_dicom_series, convert_zipped_dicom_to_nifti, \
+    extract_zipped_files_and_flatten, convert_zipped_dicom_to_nifti, \
     convert_nifti_to_zipped_dicom_rt
 
 
@@ -132,7 +132,7 @@ def _common_test_unpack_dicom_zip(zip_filename: Path, expected_filenames: List[s
     """
     model_folder = test_output_dirs.root_dir / "unpack"
     extraction_folder = model_folder / "temp_zipped_dicom_extraction"
-    extract_zipped_dicom_series(zip_filename, extraction_folder)
+    extract_zipped_files_and_flatten(zip_filename, extraction_folder)
     _common_test_unpack_zip(extraction_folder, expected_filenames)
 
 

@@ -134,11 +134,9 @@ def run_inference(images_with_header: List[ImageWithHeader],
     return segmentation
 
 
-def extract_zipped_dicom_series(zip_file_path: Path, extraction_folder: Path) -> None:
+def extract_zipped_files_and_flatten(zip_file_path: Path, extraction_folder: Path) -> None:
     """
-    Unzip a zip file assumed to contain a single DICOM series.
-
-    All files are extracted directly into the extraction folder discarding any folders they
+    Unzip a zip file and extract all the files discarding any folders they
     may have in the zip file.
 
     :param zip_file_path: Path to zip file.
@@ -168,7 +166,7 @@ def convert_zipped_dicom_to_nifti(zip_file_path: Path, scratch_folder: Path) -> 
     :return: Pair of path to Nifti file and path to the folder of the DICOM series.
     """
     reference_series_folder = scratch_folder / "temp_extraction"
-    extract_zipped_dicom_series(zip_file_path, reference_series_folder)
+    extract_zipped_files_and_flatten(zip_file_path, reference_series_folder)
     nifti_filename = scratch_folder / "temp_nifti.nii.gz"
     load_dicom_series_and_save(reference_series_folder, nifti_filename)
     return nifti_filename, reference_series_folder

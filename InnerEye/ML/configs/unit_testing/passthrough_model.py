@@ -161,7 +161,7 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
         if patches.shape[0] == 1:
             np_predictions = patch
         else:
-            np_predictions = np.broadcast_to(patch, (patches.shape[0],) + patch.shape[1:])
+            np_predictions = np.broadcast_to(patch, (patches.shape[0], *patch.shape[1:]))
         return torch.tensor(np_predictions, requires_grad=True)
 
     def get_all_child_layers(self) -> List[torch.nn.Module]:
