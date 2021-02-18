@@ -12,14 +12,16 @@ from torch.nn.parameter import Parameter
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
-from InnerEye.ML.config import equally_weighted_classes, get_center_size, ModelArchitectureConfig, SegmentationModelBase
+from InnerEye.ML.config import equally_weighted_classes, get_center_size, SegmentationModelBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
+from InnerEye.ML.utils.csv_util import CSV_SUBJECT_HEADER, CSV_PATH_HEADER, CSV_CHANNEL_HEADER
 from InnerEye.ML.utils.io_util import reverse_tuple_float3, store_as_nifti, ImageHeader
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 
 RANDOM_COLOUR_GENERATOR = random.Random(0)
+RECTANGLE_STROKE_THICKNESS = 3
 
 
 class PassThroughModel(SegmentationModelBase):
@@ -28,31 +30,17 @@ class PassThroughModel(SegmentationModelBase):
     """
     def __init__(self, **kwargs: Any) -> None:
         random_seed = 42
-        crop_size = (64, 192, 160)
-        number_of_image_channels = 1
-        image_channels = [f"channel{i + 1}" for i in range(number_of_image_channels)]
-        number_of_classes = 5
-        class_names = [f"structure_{i}" for i in range(number_of_classes)]
-
         local_dataset = full_ml_test_data_path("passthrough_data")
         local_dataset.mkdir(exist_ok=True)
-        dataset_csv_file = local_dataset / DATASET_CSV_FILE_NAME
-        dummy_image_file = "dummy_image.nii.gz"
-
-        with dataset_csv_file.open('w') as f:
-            f.write("subject,filePath,channel,institutionId\n")
-            for subject in range(1, 4):
-                for image_channel in image_channels:
-                    f.write(f"{subject},{dummy_image_file},{image_channel},1\n")
-                for class_name in class_names:
-                    f.write(f"{subject},{dummy_image_file},{class_name},1\n")
-
+        crop_size = (64, 192, 160)
         dataset_expected_spacing_xyz = (1.269531011581421, 1.269531011581421, 2.5)
-        image = np.random.random_sample(crop_size)
-        spacingzyx = reverse_tuple_float3(dataset_expected_spacing_xyz)
-        path_image = local_dataset / dummy_image_file
-        header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=spacingzyx)
-        store_as_nifti(image, header, path_image, np.float32)
+        # Need at least 3 subjects, 1 each for train, validate, test.
+        number_of_subjects = 3
+        self.subjects = list(map(str, range(1, number_of_subjects + 1)))
+        number_of_image_channels = 1
+        image_channels = [f"channel_{i}" for i in range(1, number_of_image_channels + 1)]
+        number_of_classes = 5
+        class_names = [f"structure_{i}" for i in range(1, number_of_classes + 1)]
 
         super().__init__(
             should_validate=False,
@@ -68,15 +56,15 @@ class PassThroughModel(SegmentationModelBase):
             ground_truth_ids_display_names=class_names,
             colours=generate_random_colours_list(RANDOM_COLOUR_GENERATOR, number_of_classes),
             fill_holes=[False] * number_of_classes,
-            # mask_id="mask",
             dataset_expected_spacing_xyz=dataset_expected_spacing_xyz,
             inference_batch_size=1,
             class_weights=equally_weighted_classes(class_names),
             feature_channels=[1],
             start_epoch=0,
-            num_epochs=2
+            num_epochs=1
         )
         self.add_and_validate(kwargs)
+        self.create_passthrough_dataset()
 
     def create_model(self) -> torch.nn.Module:
         return PyTorchPassthroughModel(self)
@@ -84,10 +72,52 @@ class PassThroughModel(SegmentationModelBase):
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits.from_subject_ids(
             df=dataset_df,
-            train_ids=['1'],
-            test_ids=['2'],
-            val_ids=['3']
+            train_ids=[self.subjects[0]],
+            test_ids=[self.subjects[1]],
+            val_ids=[self.subjects[2]]
         )
+
+    def create_passthrough_dataset(self) -> None:
+        """
+        Create all the files expected for training.
+
+        Training expects a data folder containing:
+        1) A CSV file, DATASET_CSV_FILE_NAME, describing the data set.
+        2) A set of image files, one for each combination of image channel/subject.
+        3) A set of binary mask image files, for ground truths. One for each class_name.
+        """
+        dataset_csv_file_path = self.local_dataset / DATASET_CSV_FILE_NAME
+        # Use the same image file for each subject/image channel.
+        image_file_name = "dummy_image.nii.gz"
+        # Need a different file for each class.
+        ground_truth_file_names = {class_name: f"dummy_ground_truth_{class_name}.nii.gz"
+                                   for class_name in self.ground_truth_ids}
+
+        with dataset_csv_file_path.open('w') as f:
+            f.write(f"{CSV_SUBJECT_HEADER},{CSV_PATH_HEADER},{CSV_CHANNEL_HEADER}\n")
+            for subject in self.subjects:
+                for image_channel in self.image_channels:
+                    f.write(f"{subject},{image_file_name},{image_channel}\n")
+                for class_name in self.ground_truth_ids:
+                    f.write(f"{subject},{ground_truth_file_names[class_name]},{class_name}\n")
+
+        # Create a shared, random, nifti image file.
+        image = np.random.random_sample(self.crop_size)
+        spacingzyx = reverse_tuple_float3(self.dataset_expected_spacing_xyz)
+        image_file_path = self.local_dataset / image_file_name
+        header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=spacingzyx)
+        store_as_nifti(image, header, image_file_path, np.float32)
+
+        # For ground truths, use the same data as in make_nesting_rectangles.
+        ground_truths = make_nesting_rectangles(self.number_of_classes, self.crop_size[1], self.crop_size[2],
+                                                RECTANGLE_STROKE_THICKNESS)
+        for i, class_name in enumerate(self.ground_truth_ids):
+            ground_truth_file_path = self.local_dataset / ground_truth_file_names[class_name]
+            # Skip the background slice.
+            ground_truth = ground_truths[i + 1].reshape(1, self.crop_size[1], self.crop_size[2])
+            # Extrude to image_size[0]
+            project_ground_truth = np.broadcast_to(ground_truth, self.crop_size)
+            store_as_nifti(project_ground_truth, header, ground_truth_file_path, np.ubyte)
 
 
 class PyTorchPassthroughModel(BaseSegmentationModel):
@@ -106,6 +136,7 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
         self.foo = Parameter(requires_grad=True)
         self.config = config
         # Cache the fixed segmentation.
+        self.cached_patch_size = config.crop_size
         self.cached_patch = self.make_nest(config.crop_size)
 
     def forward(self, patches: torch.Tensor) -> torch.Tensor:
@@ -120,7 +151,7 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
         etc.
         """
         output_size: TupleInt3 = patches.shape[2:]
-        if self.config.crop_size == output_size:
+        if self.cached_patch_size == output_size:
             patch = self.cached_patch
         else:
             patch = self.make_nest(output_size)
@@ -128,7 +159,7 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
             np_predictions = patch
         else:
             np_predictions = np.broadcast_to(patch, (patches.shape[0],) + patch.shape[1:])
-        return torch.from_numpy(np_predictions)
+        return torch.tensor(np_predictions, requires_grad=True)
 
     def get_all_child_layers(self) -> List[torch.nn.Module]:
         return list()
@@ -141,7 +172,8 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
         :return: 5d tensor.
         """
         output_size = get_center_size(self.config.architecture, output_size)
-        nest = make_nesting_rectangles(self.config.number_of_classes, output_size[1], output_size[2], 3)
+        nest = make_nesting_rectangles(self.config.number_of_classes, output_size[1], output_size[2],
+                                       RECTANGLE_STROKE_THICKNESS)
         project_nest = nest.reshape(1, self.config.number_of_classes, 1, output_size[1], output_size[2])
         return np.broadcast_to(project_nest, (1, self.config.number_of_classes) + output_size)
 
