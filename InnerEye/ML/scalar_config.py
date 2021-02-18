@@ -42,7 +42,6 @@ class EnsembleAggregationType(Enum):
 @unique
 class ScalarLoss(Enum):
     BinaryCrossEntropyWithLogits = "BinaryCrossEntropyWithLogits"
-    # WeightedCrossEntropyWithLogits does not work with 1 class_names, use 2 class_names and 2 outputs to allow weights
     WeightedCrossEntropyWithLogits = "WeightedCrossEntropyWithLogits"
     MeanSquaredError = "MeanSquaredError"
 
