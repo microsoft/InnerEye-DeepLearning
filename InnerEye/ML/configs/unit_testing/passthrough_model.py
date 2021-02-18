@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from pathlib import Path
 import random
 from typing import Any, List
 import numpy as np
@@ -10,9 +11,9 @@ import torch
 from torch.nn.parameter import Parameter
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
-from InnerEye.Common.type_annotations import TupleInt3
+from InnerEye.Common.type_annotations import TupleFloat3, TupleInt3
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
-from InnerEye.ML.config import equally_weighted_classes, get_center_size, SegmentationModelBase
+from InnerEye.ML.config import equally_weighted_classes, ModelArchitectureConfig, SegmentationModelBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.utils.csv_util import CSV_SUBJECT_HEADER, CSV_PATH_HEADER, CSV_CHANNEL_HEADER
 from InnerEye.ML.utils.io_util import reverse_tuple_float3, store_as_nifti, ImageHeader
@@ -33,7 +34,6 @@ class PassThroughModel(SegmentationModelBase):
         local_dataset = full_ml_test_data_path("passthrough_data")
         local_dataset.mkdir(exist_ok=True)
         crop_size = (64, 192, 160)
-        dataset_expected_spacing_xyz = (1.269531011581421, 1.269531011581421, 2.5)
         # Need at least 3 subjects, 1 each for train, validate, test.
         number_of_subjects = 3
         self.subjects = list(map(str, range(1, number_of_subjects + 1)))
@@ -41,9 +41,12 @@ class PassThroughModel(SegmentationModelBase):
         image_channels = [f"channel_{i}" for i in range(1, number_of_image_channels + 1)]
         number_of_classes = 5
         class_names = [f"structure_{i}" for i in range(1, number_of_classes + 1)]
+        dataset_expected_spacing_xyz = (1.269531011581421, 1.269531011581421, 2.5)
 
         super().__init__(
             should_validate=False,
+            # Set as UNet3D only because this does not shrink patches in the forward pass.
+            architecture=ModelArchitectureConfig.UNet3D,
             random_seed=random_seed,
             local_dataset=local_dataset,
             crop_size=crop_size,
@@ -64,7 +67,7 @@ class PassThroughModel(SegmentationModelBase):
             num_epochs=1
         )
         self.add_and_validate(kwargs)
-        self.create_passthrough_dataset()
+        self.create_passthrough_dataset(local_dataset, dataset_expected_spacing_xyz)
 
     def create_model(self) -> torch.nn.Module:
         return PyTorchPassthroughModel(self)
@@ -77,7 +80,7 @@ class PassThroughModel(SegmentationModelBase):
             val_ids=[self.subjects[2]]
         )
 
-    def create_passthrough_dataset(self) -> None:
+    def create_passthrough_dataset(self, dataset_path: Path, dataset_expected_spacing_xyz: TupleFloat3) -> None:
         """
         Create all the files expected for training.
 
@@ -85,8 +88,11 @@ class PassThroughModel(SegmentationModelBase):
         1) A CSV file, DATASET_CSV_FILE_NAME, describing the data set.
         2) A set of image files, one for each combination of image channel/subject.
         3) A set of binary mask image files, for ground truths. One for each class_name.
+
+        :param dataset_path: Path to folder to store files in.
+        :param dataset_expected_spacing_xyz: Expected image spacing.
         """
-        dataset_csv_file_path = self.local_dataset / DATASET_CSV_FILE_NAME
+        dataset_csv_file_path = dataset_path / DATASET_CSV_FILE_NAME
         # Use the same image file for each subject/image channel.
         image_file_name = "dummy_image.nii.gz"
         # Need a different file for each class.
@@ -103,8 +109,8 @@ class PassThroughModel(SegmentationModelBase):
 
         # Create a shared, random, nifti image file.
         image = np.random.random_sample(self.crop_size)
-        spacingzyx = reverse_tuple_float3(self.dataset_expected_spacing_xyz)
-        image_file_path = self.local_dataset / image_file_name
+        spacingzyx = reverse_tuple_float3(dataset_expected_spacing_xyz)
+        image_file_path = dataset_path / image_file_name
         header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=spacingzyx)
         store_as_nifti(image, header, image_file_path, np.float32)
 
@@ -112,7 +118,7 @@ class PassThroughModel(SegmentationModelBase):
         ground_truths = make_nesting_rectangles(self.number_of_classes, self.crop_size[1], self.crop_size[2],
                                                 RECTANGLE_STROKE_THICKNESS)
         for i, class_name in enumerate(self.ground_truth_ids):
-            ground_truth_file_path = self.local_dataset / ground_truth_file_names[class_name]
+            ground_truth_file_path = dataset_path / ground_truth_file_names[class_name]
             # Skip the background slice.
             ground_truth = ground_truths[i + 1].reshape(1, self.crop_size[1], self.crop_size[2])
             # Extrude to image_size[0]
@@ -143,14 +149,11 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
         """
         Ignore the actual patches and return a fixed segmentation, explained in make_nesting_rectangles.
 
-        The output tensor is shrunk by the amount basic_size_shrinkage in config.py.
-
         :param patches: Set of patches, of shape (#patches, #image_channels, Z, Y, X). Only the shape
         is used.
-        :return: Fixed tensor of shape (#patches, number_of_classes, Z', Y', Z') where Z' = Z - basic_size_shrinkage,
-        etc.
+        :return: Fixed tensor of shape (#patches, number_of_classes, Z, Y, Z).
         """
-        output_size: TupleInt3 = patches.shape[2:]
+        output_size: TupleInt3 = (patches.shape[2], patches.shape[3], patches.shape[4])
         if self.cached_patch_size == output_size:
             patch = self.cached_patch
         else:
@@ -166,12 +169,11 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
 
     def make_nest(self, output_size: TupleInt3) -> np.ndarray:
         """
-        Given a patch shaped (Z, Y, X) return a fixed segmentation shaped to (1, number_of_classes, Z', Y', X').
+        Given a patch shaped (Z, Y, X) return a fixed segmentation shaped to (1, number_of_classes, Z, Y, X).
 
-        :param output_size: Target output size before reduction by basic_size_shrinkage.
+        :param output_size: Target output size.
         :return: 5d tensor.
         """
-        output_size = get_center_size(self.config.architecture, output_size)
         nest = make_nesting_rectangles(self.config.number_of_classes, output_size[1], output_size[2],
                                        RECTANGLE_STROKE_THICKNESS)
         project_nest = nest.reshape(1, self.config.number_of_classes, 1, output_size[1], output_size[2])
