@@ -19,6 +19,7 @@ from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from Tests.ML.configs.DummyModel import DummyModel
+from Tests.ML.utils.test_io_util import dicom_series_folder, HNSEGMENTATION_FILE
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 from score import create_inference_pipeline, is_spacing_valid, run_inference, score_image, ScorePipelineConfig, \
     extract_zipped_files_and_flatten, convert_zipped_dicom_to_nifti, \
@@ -27,17 +28,6 @@ from score import create_inference_pipeline, is_spacing_valid, run_inference, sc
 
 test_image = full_ml_test_data_path("train_and_test_data") / "id1_channel1.nii.gz"
 img_nii_path = full_ml_test_data_path("test_img.nii.gz")
-
-
-# The directory containing this file.
-THIS_DIR: Path = Path(__file__).parent.resolve()
-# The TestData directory.
-TEST_DATA_DIR: Path = THIS_DIR / "TestData"
-
-# A sample H&N segmentation
-HNSEGMENTATION_FILE = TEST_DATA_DIR / "hnsegmentation.nii.gz"
-# A sample H&N DICOM series, zipped
-HN_DICOM_SERIES_ZIP = TEST_DATA_DIR / "HN.zip"
 # Expected zipped DICOM-RT file contents
 HN_DICOM_RT_ZIPPED = ["hnsegmentation.nii.dcm"]
 
@@ -189,6 +179,24 @@ def assert_zip_file_contents(zip_filename: Path, expected_filenames: List[str],
     _common_test_unpack_zip(extraction_folder, expected_filenames)
 
 
+def zip_dicom_series(scratch_folder: Path) -> Path:
+    """
+    Create a zipped reference DICOM series.
+
+    1. Copy the reference DICOM series from test_data into the scratch folder.
+    2. Zip it there and return a path to the zip.
+
+    :param scratch_folder: Scratch folder.
+    :return: Path to zipped DICOM series.
+    """
+    pack_folder = scratch_folder / "temp_pack_dicom_series" / "pack_dicom_series"
+    # pack_folder.mkdir(parents=True)
+    shutil.copytree(dicom_series_folder, pack_folder)
+    zip_filename = scratch_folder / "temp_pack_dicom_series" / "dicom_series.zip"
+    shutil.make_archive(str(zip_filename.with_suffix('')), 'zip', str(pack_folder))
+    return zip_filename
+
+
 def test_convert_nifti_to_zipped_dicom_rt(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test calling convert_nifti_to_zipped_dicom_rt.
@@ -198,7 +206,8 @@ def test_convert_nifti_to_zipped_dicom_rt(test_output_dirs: OutputFolderForTests
     model_folder = test_output_dirs.root_dir / "final"
     model_folder.mkdir()
 
-    nifti_filename, reference_series_folder = convert_zipped_dicom_to_nifti(HN_DICOM_SERIES_ZIP,
+    zipped_dicom_series_path = zip_dicom_series(model_folder)
+    nifti_filename, reference_series_folder = convert_zipped_dicom_to_nifti(zipped_dicom_series_path,
                                                                             model_folder)
     model_config = PassThroughModel()
     result_dst = convert_nifti_to_zipped_dicom_rt(HNSEGMENTATION_FILE, reference_series_folder, model_folder,
@@ -213,11 +222,12 @@ def test_score_image_dicom_two_inputs(test_output_dirs: OutputFolderForTests) ->
     :param test_output_dirs: Test output directories.
     """
     model_folder = test_output_dirs.root_dir / "final"
+    zipped_dicom_series_path = zip_dicom_series(model_folder)
 
     score_pipeline_config = ScorePipelineConfig(
-        data_folder=TEST_DATA_DIR,
+        data_folder=zipped_dicom_series_path.parent,
         model_folder=str(model_folder),
-        image_files=[str(HN_DICOM_SERIES_ZIP), str(HN_DICOM_SERIES_ZIP)],
+        image_files=[str(zipped_dicom_series_path), str(zipped_dicom_series_path)],
         result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
         use_dicom=True)
@@ -234,11 +244,15 @@ def test_score_image_dicom_not_zip_input(test_output_dirs: OutputFolderForTests)
     :param test_output_dirs: Test output directories.
     """
     model_folder = test_output_dirs.root_dir / "final"
+    model_folder.mkdir()
+    test_file = model_folder / "test.txt"
+    with test_file.open('w') as f:
+        f.write("")
 
     score_pipeline_config = ScorePipelineConfig(
-        data_folder=TEST_DATA_DIR,
+        data_folder=model_folder,
         model_folder=str(model_folder),
-        image_files=[str(HNSEGMENTATION_FILE)],
+        image_files=[str(test_file)],
         result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
         use_dicom=True)
@@ -263,10 +277,12 @@ def test_score_image_dicom_mock_all(test_output_dirs: OutputFolderForTests) -> N
     model_folder = test_output_dirs.root_dir / "final"
     model_folder.mkdir()
 
+    zipped_dicom_series_path = zip_dicom_series(model_folder)
+
     score_pipeline_config = ScorePipelineConfig(
-        data_folder=TEST_DATA_DIR,
+        data_folder=zipped_dicom_series_path.parent,
         model_folder=str(model_folder),
-        image_files=[str(HN_DICOM_SERIES_ZIP)],
+        image_files=[str(zipped_dicom_series_path)],
         result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
         use_dicom=True)
@@ -307,10 +323,12 @@ def test_score_image_dicom_mock_run_store(test_output_dirs: OutputFolderForTests
     model_folder = test_output_dirs.root_dir / "final"
     ml_runner.copy_child_paths_to_folder(model_folder=model_folder, checkpoint_paths=[checkpoint_path])
 
+    zipped_dicom_series_path = zip_dicom_series(model_folder)
+
     score_pipeline_config = ScorePipelineConfig(
-        data_folder=TEST_DATA_DIR,
+        data_folder=zipped_dicom_series_path.parent,
         model_folder=str(model_folder),
-        image_files=[str(HN_DICOM_SERIES_ZIP)],
+        image_files=[str(zipped_dicom_series_path)],
         result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
         use_dicom=True)
@@ -346,10 +364,12 @@ def test_score_image_dicom_mock_run(test_output_dirs: OutputFolderForTests) -> N
     model_folder = test_output_dirs.root_dir / "final"
     ml_runner.copy_child_paths_to_folder(model_folder=model_folder, checkpoint_paths=[checkpoint_path])
 
+    zipped_dicom_series_path = zip_dicom_series(model_folder)
+
     score_pipeline_config = ScorePipelineConfig(
-        data_folder=TEST_DATA_DIR,
+        data_folder=zipped_dicom_series_path.parent,
         model_folder=str(model_folder),
-        image_files=[str(HN_DICOM_SERIES_ZIP)],
+        image_files=[str(zipped_dicom_series_path)],
         result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
         use_dicom=True)
@@ -383,10 +403,12 @@ def test_score_image_dicom_mock_none(test_output_dirs: OutputFolderForTests) -> 
     model_folder = test_output_dirs.root_dir / "final"
     ml_runner.copy_child_paths_to_folder(model_folder=model_folder, checkpoint_paths=[checkpoint_path])
 
+    zipped_dicom_series_path = zip_dicom_series(model_folder)
+
     score_pipeline_config = ScorePipelineConfig(
-        data_folder=TEST_DATA_DIR,
+        data_folder=zipped_dicom_series_path.parent,
         model_folder=str(model_folder),
-        image_files=[str(HN_DICOM_SERIES_ZIP)],
+        image_files=[str(zipped_dicom_series_path)],
         result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
         use_dicom=True)

@@ -28,7 +28,10 @@ known_array = np.ones((128, 128, 128))
 bad_nii_path = full_ml_test_data_path("test_bad.nii.gz")
 good_npy_path = full_ml_test_data_path("test_good.npz")
 good_h5_path = full_ml_test_data_path("data.h5")
+# A sample H&N DICOM series,
 dicom_series_folder = full_ml_test_data_path() / "dicom_series_data" / "HN"
+# A sample H&N segmentation
+HNSEGMENTATION_FILE = full_ml_test_data_path() / "dicom_series_data" / "hnsegmentation.nii.gz"
 
 
 @pytest.mark.parametrize("path", ["", " ", None, "not_exists", ".", "tests/test_io_util.py"])
