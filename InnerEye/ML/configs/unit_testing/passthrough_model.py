@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from pathlib import Path
 import random
 from typing import Any, List
 import numpy as np
@@ -10,13 +9,10 @@ import pandas as pd
 import torch
 from torch.nn.parameter import Parameter
 
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
-from InnerEye.Common.type_annotations import TupleFloat3, TupleInt3
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME
+from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import equally_weighted_classes, ModelArchitectureConfig, SegmentationModelBase
+from InnerEye.ML.configs.segmentation.Lung import AZURE_DATASET_ID
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
-from InnerEye.ML.utils.csv_util import CSV_SUBJECT_HEADER, CSV_PATH_HEADER, CSV_CHANNEL_HEADER
-from InnerEye.ML.utils.io_util import reverse_tuple_float3, store_as_nifti, ImageHeader
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
@@ -30,44 +26,31 @@ class PassThroughModel(SegmentationModelBase):
     Dummy model that returns a fixed segmentation, explained in make_nesting_rectangles.
     """
     def __init__(self, **kwargs: Any) -> None:
-        random_seed = 42
-        local_dataset = full_ml_test_data_path("passthrough_data")
-        local_dataset.mkdir(exist_ok=True)
-        crop_size = (64, 192, 160)
-        # Need at least 3 subjects, 1 each for train, validate, test.
-        number_of_subjects = 3
-        self.subjects = list(map(str, range(1, number_of_subjects + 1)))
-        number_of_image_channels = 1
-        image_channels = [f"channel_{i}" for i in range(1, number_of_image_channels + 1)]
-        number_of_classes = 5
-        class_names = [f"structure_{i}" for i in range(1, number_of_classes + 1)]
-        dataset_expected_spacing_xyz = (1.269531011581421, 1.269531011581421, 2.5)
+        fg_classes = ["spinalcord", "lung_r", "lung_l", "heart", "esophagus"]
+        fg_display_names = ["SpinalCord", "Lung_R", "Lung_L", "Heart", "Esophagus"]
 
         super().__init__(
             should_validate=False,
             # Set as UNet3D only because this does not shrink patches in the forward pass.
             architecture=ModelArchitectureConfig.UNet3D,
-            random_seed=random_seed,
-            local_dataset=local_dataset,
-            crop_size=crop_size,
-            # This speeds up loading dramatically. Multi-process data loading is tested via BasicModel2Epochs
+            azure_dataset_id=AZURE_DATASET_ID,
+            crop_size=(64, 224, 224),
+            # This speeds up loading dramatically.
             num_dataload_workers=0,
             # Disable monitoring so that we can use VS Code remote debugging
             monitoring_interval_seconds=0,
-            image_channels=image_channels,
-            ground_truth_ids=class_names,
-            ground_truth_ids_display_names=class_names,
-            colours=generate_random_colours_list(RANDOM_COLOUR_GENERATOR, number_of_classes),
-            fill_holes=[False] * number_of_classes,
-            dataset_expected_spacing_xyz=dataset_expected_spacing_xyz,
+            image_channels=["ct"],
+            ground_truth_ids=fg_classes,
+            ground_truth_ids_display_names=fg_display_names,
+            colours=generate_random_colours_list(RANDOM_COLOUR_GENERATOR, len(fg_classes)),
+            fill_holes=[False] * len(fg_classes),
             inference_batch_size=1,
-            class_weights=equally_weighted_classes(class_names),
+            class_weights=equally_weighted_classes(fg_classes, background_weight=0.02),
             feature_channels=[1],
             start_epoch=0,
             num_epochs=1
         )
         self.add_and_validate(kwargs)
-        self.create_passthrough_dataset(local_dataset, dataset_expected_spacing_xyz)
 
     def create_model(self) -> torch.nn.Module:
         return PyTorchPassthroughModel(self)
@@ -75,55 +58,10 @@ class PassThroughModel(SegmentationModelBase):
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits.from_subject_ids(
             df=dataset_df,
-            train_ids=[self.subjects[0]],
-            test_ids=[self.subjects[1]],
-            val_ids=[self.subjects[2]]
+            train_ids=['1'],
+            test_ids=['2'],
+            val_ids=['3']
         )
-
-    def create_passthrough_dataset(self, dataset_path: Path, dataset_expected_spacing_xyz: TupleFloat3) -> None:
-        """
-        Create all the files expected for training.
-
-        Training expects a data folder containing:
-        1) A CSV file, DATASET_CSV_FILE_NAME, describing the data set.
-        2) A set of image files, one for each combination of image channel/subject.
-        3) A set of binary mask image files, for ground truths. One for each class_name.
-
-        :param dataset_path: Path to folder to store files in.
-        :param dataset_expected_spacing_xyz: Expected image spacing.
-        """
-        dataset_csv_file_path = dataset_path / DATASET_CSV_FILE_NAME
-        # Use the same image file for each subject/image channel.
-        image_file_name = "dummy_image.nii.gz"
-        # Need a different file for each class.
-        ground_truth_file_names = {class_name: f"dummy_ground_truth_{class_name}.nii.gz"
-                                   for class_name in self.ground_truth_ids}
-
-        with dataset_csv_file_path.open('w') as f:
-            f.write(f"{CSV_SUBJECT_HEADER},{CSV_PATH_HEADER},{CSV_CHANNEL_HEADER}\n")
-            for subject in self.subjects:
-                for image_channel in self.image_channels:
-                    f.write(f"{subject},{image_file_name},{image_channel}\n")
-                for class_name in self.ground_truth_ids:
-                    f.write(f"{subject},{ground_truth_file_names[class_name]},{class_name}\n")
-
-        # Create a shared, random, nifti image file.
-        image = np.random.random_sample(self.crop_size)
-        spacingzyx = reverse_tuple_float3(dataset_expected_spacing_xyz)
-        image_file_path = dataset_path / image_file_name
-        header = ImageHeader(origin=(1, 1, 1), direction=(1, 0, 0, 0, 1, 0, 0, 0, 1), spacing=spacingzyx)
-        store_as_nifti(image, header, image_file_path, np.float32)
-
-        # For ground truths, use the same data as in make_nesting_rectangles.
-        ground_truths = make_nesting_rectangles(self.number_of_classes, self.crop_size[1], self.crop_size[2],
-                                                RECTANGLE_STROKE_THICKNESS)
-        for i, class_name in enumerate(self.ground_truth_ids):
-            ground_truth_file_path = dataset_path / ground_truth_file_names[class_name]
-            # Skip the background slice.
-            ground_truth = ground_truths[i + 1].reshape(1, self.crop_size[1], self.crop_size[2])
-            # Extrude to image_size[0]
-            project_ground_truth = np.broadcast_to(ground_truth, self.crop_size)
-            store_as_nifti(project_ground_truth, header, ground_truth_file_path, np.ubyte)
 
 
 class PyTorchPassthroughModel(BaseSegmentationModel):
