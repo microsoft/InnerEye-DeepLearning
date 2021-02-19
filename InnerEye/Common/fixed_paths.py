@@ -71,6 +71,7 @@ RUN_SCORING_SCRIPT = f"{INNEREYE_PACKAGE_NAME}/Scripts/download_model_and_run_sc
 # Constants needed for the score.py script
 DEFAULT_DATA_FOLDER = "data"
 DEFAULT_TEST_IMAGE_NAME = "test.nii.gz"
+DEFAULT_TEST_ZIP_NAME = "test.zip"
 
 # The property in the model registry that holds the name of the Python environment
 PYTHON_ENVIRONMENT_NAME = "python_environment_name"
