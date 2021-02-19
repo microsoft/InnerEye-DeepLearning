@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
+from collections import defaultdict
 import logging
 import os
 import sys
@@ -143,11 +143,23 @@ def extract_zipped_files_and_flatten(zip_file_path: Path, extraction_folder: Pat
     :param extraction_folder: Path to extraction folder.
     """
     with zipfile.ZipFile(zip_file_path, 'r') as zip_file:
+        zipinfos_by_name = defaultdict(list)
         for zipped_file in zip_file.infolist():
             if not zipped_file.is_dir():
                 # discard the path, if any, to just get the filename and suffix
-                zipped_file.filename = os.path.basename(zipped_file.filename)
-                zip_file.extract(zipped_file, str(extraction_folder))
+                name = os.path.basename(zipped_file.filename)
+                zipinfos_by_name[name].append(zipped_file)
+        duplicates = {name: zipinfos for name, zipinfos in zipinfos_by_name.items() if len(zipinfos) > 1}
+        if len(duplicates) > 0:
+            warnings = ""
+            for name, zipinfos in duplicates.items():
+                joint_paths = ", ".join([os.path.dirname(zipinfo.filename) for zipinfo in zipinfos])
+                warnings += f"File {name} is duplicated in folders {joint_paths}.\n"
+            raise ValueError("Zip file contains duplicates.\n" + warnings)
+        for name, zipinfos in zipinfos_by_name.items():
+            zipinfo = zipinfos[0]
+            zipinfo.filename = name
+            zip_file.extract(zipinfo, str(extraction_folder))
 
 
 def convert_zipped_dicom_to_nifti(zip_file_path: Path, scratch_folder: Path) -> Tuple[Path, Path]:

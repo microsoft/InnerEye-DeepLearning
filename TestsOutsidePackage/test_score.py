@@ -70,54 +70,90 @@ def test_run_scoring(test_output_dirs: OutputFolderForTests, is_ensemble: bool) 
     assert np.all(result == 1)
 
 
-# Filenames of dcm files in flat test zip.
-TEST_FLAT_ZIP_FILENAMES = ['1.txt', '2.dcm', '3.dcm', '4.dcm', '5.txt']
-# Filenames of dcm files in test two zip.
-TEST_TWO_ZIP_FILENAMES = ['5.txt', '6.dcm', '7.dcm', '8.dcm', '9.txt']
+# First set of dummy filenames for testing zips.
+TEST_ZIP_FILENAMES_1: List[str] = [f"{i}.txt" for i in range(1, 6)]
+# Second set of dummy filenames for testing zips, distinct from TEST_ZIP_FILENAMES_1.
+TEST_ZIP_FILENAMES_2: List[str] = [f"{i}.txt" for i in range(6, 11)]
+# Third set of dummy filenames for testing zips, distinct again.
+TEST_ZIP_FILENAMES_3: List[str] = [f"{i}.txt" for i in range(11, 13)]
 
-# Flat test zip file.
-TEST_FLAT_ZIP_FILE: List[Path] = [Path(f) for f in TEST_FLAT_ZIP_FILENAMES]
-# As test_flat but everything in "folder1"
-TEST_FLAT_NESTED_ZIP_FILE: List[Path] = [Path("folder1") / f for f in TEST_FLAT_ZIP_FILENAMES]
-# As test_flat_nested but everything in "folder2"
-TEST_FLAT_NESTED_TWICE_ZIP_FILE: List[Path] = [Path("folder2") / "folder1" / f for f in TEST_FLAT_ZIP_FILENAMES]
-# Two folders containing dcm files
-TEST_TWO_ZIP_FILE: List[Path] = TEST_FLAT_NESTED_ZIP_FILE + \
-                                  [Path("folder3") / f for f in TEST_TWO_ZIP_FILENAMES]
-# Two folders each containing a folder containing dcm files
-TEST_TWO_NESTED_ZIP_FILE: List[Path] = TEST_FLAT_NESTED_TWICE_ZIP_FILE + \
-                                         [Path("folder4") / "folder3" / f for f in TEST_TWO_ZIP_FILENAMES]
-# As above, but all in another folder.
-TEST_TWO_NESTED_TWICE_ZIP_FILE: List[Path] = [Path("folder5") / "folder2" / "folder1" / f for f in TEST_FLAT_ZIP_FILENAMES] + \
-                                                [Path("folder5") / "folder3" / f for f in TEST_TWO_ZIP_FILENAMES]
+# Test set for all files in a single folder.
+TEST_ZIP_FILE_PATHS_ALL: List[List[Path]] = [
+    # Simplest test zip file, just a list of files.
+    [Path(f) for f in TEST_ZIP_FILENAMES_1],
+    # As above but everything in "folder1"
+    [Path("folder1") / f for f in TEST_ZIP_FILENAMES_1],
+    # As above but everything in "folder2"
+    [Path("folder2") / "folder1" / f for f in TEST_ZIP_FILENAMES_1]
+]
 
 
-@pytest.mark.parametrize("zip_file_contents", [TEST_FLAT_ZIP_FILE, TEST_FLAT_NESTED_ZIP_FILE, TEST_FLAT_NESTED_TWICE_ZIP_FILE])
-def test_unpack_flat_zip(zip_file_contents: List[Path], test_output_dirs: OutputFolderForTests) -> None:
+@pytest.mark.parametrize("zip_file_contents", TEST_ZIP_FILE_PATHS_ALL)
+def test_unpack_one_set_zip(zip_file_contents: List[Path], test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test that a zip file containing files: 1.txt, 2.dcm, 3.dcm, 4.dcm and 5.txt all together but possibly
-    in a folder (TEST_FLAT_NESTED_ZIP_FILE) or in a folder in a folder (TEST_FLAT_NESTED_TWICE_ZIP_FILE)
+    Test that a zip file containing a set of files in one folder, but possibly in a series of nesting folders,
     can be extracted into a folder containing only the files.
 
     :param zip_file_contents: List of relative file paths to create and test.
     :param test_output_dirs: Test output directories.
     """
-    _common_test_unpack_dicom_zip(zip_file_contents, TEST_FLAT_ZIP_FILENAMES, test_output_dirs)
+    _common_test_unpack_dicom_zip(zip_file_contents, TEST_ZIP_FILENAMES_1, test_output_dirs)
 
 
-@pytest.mark.parametrize("zip_file_contents", [TEST_TWO_ZIP_FILE, TEST_TWO_NESTED_ZIP_FILE, TEST_TWO_NESTED_TWICE_ZIP_FILE])
-def test_unpack_two_zip(zip_file_contents: List[Path], test_output_dirs: OutputFolderForTests) -> None:
+# Test set for all files in a two folders.
+TEST_ZIP_FILE_PATHS_ALL2: List[List[Path]] = [
+    # Two folders containing dcm files
+    [Path("folder1") / f for f in TEST_ZIP_FILENAMES_1] + \
+    [Path("folder3") / f for f in TEST_ZIP_FILENAMES_2],
+    # Two folders each containing a folder containing dcm files
+    [Path("folder2") / "folder1" / f for f in TEST_ZIP_FILENAMES_1] + \
+    [Path("folder4") / "folder3" / f for f in TEST_ZIP_FILENAMES_2],
+    # As above, but all in another folder.
+    [Path("folder5") / "folder2" / "folder1" / f for f in TEST_ZIP_FILENAMES_1] + \
+    [Path("folder5") / "folder3" / f for f in TEST_ZIP_FILENAMES_2]
+]
+
+
+@pytest.mark.parametrize("zip_file_contents", TEST_ZIP_FILE_PATHS_ALL2)
+def test_unpack_two_distinct_sets_zip(zip_file_contents: List[Path], test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test that a zip file containing files: 1.txt, 2.dcm, 3.dcm, 4.dcm and 5.txt in one folder
-    and 5.txt, 6.dcm, 7.dcm, 8.dcm, 9.txt in another folder (these folders may be in other folders)
+    Test that a zip file containing two distinct set of files in two folders, but possibly in a series of nesting folders,
     can be extracted into a folder containing only the files.
 
     :param zip_file_contents: List of relative file paths to create and test.
     :param test_output_dirs: Test output directories.
     """
-    all_filenames = TEST_FLAT_ZIP_FILENAMES + TEST_TWO_ZIP_FILENAMES
-    all_unique_filenames = sorted(list(set(all_filenames)))
-    _common_test_unpack_dicom_zip(zip_file_contents, all_unique_filenames, test_output_dirs)
+    all_zip_filenames = TEST_ZIP_FILENAMES_1 + TEST_ZIP_FILENAMES_2
+    _common_test_unpack_dicom_zip(zip_file_contents, all_zip_filenames, test_output_dirs)
+
+
+# Test set for all files in a two folders with duplicates.
+TEST_ZIP_FILE_PATHS_ALL3: List[List[Path]] = [
+    # Two folders containing dcm files
+    [Path("folder1") / f for f in TEST_ZIP_FILENAMES_1 + TEST_ZIP_FILENAMES_3] + \
+    [Path("folder3") / f for f in TEST_ZIP_FILENAMES_2 + TEST_ZIP_FILENAMES_3],
+    # Two folders each containing a folder containing dcm files
+    [Path("folder2") / "folder1" / f for f in TEST_ZIP_FILENAMES_1 + TEST_ZIP_FILENAMES_3] + \
+    [Path("folder4") / "folder3" / f for f in TEST_ZIP_FILENAMES_2 + TEST_ZIP_FILENAMES_3],
+    # As above, but all in another folder.
+    [Path("folder5") / "folder2" / "folder1" / f for f in TEST_ZIP_FILENAMES_1 + TEST_ZIP_FILENAMES_3] + \
+    [Path("folder5") / "folder3" / f for f in TEST_ZIP_FILENAMES_2 + TEST_ZIP_FILENAMES_3]
+]
+
+
+@pytest.mark.parametrize("zip_file_contents", TEST_ZIP_FILE_PATHS_ALL3)
+def test_unpack_two_overlapping_sets_zip(zip_file_contents: List[Path], test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that a zip file containing two set of files in two folders, but possibly in a series of nesting folders,
+    cannot be extracted if the sets are not distinct.
+
+    :param zip_file_contents: List of relative file paths to create and test.
+    :param test_output_dirs: Test output directories.
+    """
+    all_zip_filenames = list(set(TEST_ZIP_FILENAMES_1 + TEST_ZIP_FILENAMES_2 + TEST_ZIP_FILENAMES_3))
+    with pytest.raises(ValueError) as e:
+        _common_test_unpack_dicom_zip(zip_file_contents, all_zip_filenames, test_output_dirs)
+    assert str(e.value).startswith("Zip file contains duplicates.\n")
 
 
 def _common_test_unpack_dicom_zip(zip_file_contents: List[Path], expected_filenames: List[str],
@@ -157,9 +193,9 @@ def _common_test_unpack_zip(extraction_folder: Path, expected_filenames: List[st
         assert extracted_file.is_file()
         relative_path = extracted_file.relative_to(extraction_folder)
         assert str(relative_path.parent) == '.'
-    extracted_file_names = sorted([extracted_file.name for extracted_file in extracted_files])
+    extracted_file_names = [extracted_file.name for extracted_file in extracted_files]
     # Check names are as expected
-    assert extracted_file_names == expected_filenames
+    assert sorted(extracted_file_names) == sorted(expected_filenames)
 
 
 def assert_zip_file_contents(zip_filename: Path, expected_filenames: List[str],
