@@ -13,6 +13,7 @@ from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import equally_weighted_classes, ModelArchitectureConfig, SegmentationModelBase
 from InnerEye.ML.configs.segmentation.Lung import AZURE_DATASET_ID
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
+from InnerEye.ML.models.parallel.model_parallel import get_device_from_parameters, move_to_device
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
@@ -35,8 +36,7 @@ class PassThroughModel(SegmentationModelBase):
             architecture=ModelArchitectureConfig.UNet3D,
             azure_dataset_id=AZURE_DATASET_ID,
             crop_size=(64, 224, 224),
-            # This speeds up loading dramatically.
-            num_dataload_workers=0,
+            num_dataload_workers=1,
             # Disable monitoring so that we can use VS Code remote debugging
             monitoring_interval_seconds=0,
             image_channels=["ct"],
@@ -48,7 +48,9 @@ class PassThroughModel(SegmentationModelBase):
             class_weights=equally_weighted_classes(fg_classes, background_weight=0.02),
             feature_channels=[1],
             start_epoch=0,
-            num_epochs=1
+            num_epochs=1,
+            # Necessary to avoid https://github.com/pytorch/pytorch/issues/45324
+            max_num_gpus=1,
         )
         self.add_and_validate(kwargs)
 
@@ -100,7 +102,10 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
             np_predictions = patch
         else:
             np_predictions = np.broadcast_to(patch, (patches.shape[0], *patch.shape[1:]))
-        return torch.tensor(np_predictions, requires_grad=True)
+        x = torch.tensor(np_predictions, requires_grad=True)
+        [x] = move_to_device(input_tensors=[x],
+                             target_device=get_device_from_parameters(self))
+        return x
 
     def get_all_child_layers(self) -> List[torch.nn.Module]:
         return list()
