@@ -16,7 +16,7 @@ from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.lightning_base import InnerEyeLightning
 from InnerEye.ML.lightning_metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
-    AreaUnderRocCurve, BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
+    AreaUnderRocCurve, BinaryCrossEntropyWithLogits, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
     FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, MetricForMultipleStructures, \
     OptimalThreshold
 from InnerEye.ML.metrics import compute_dice_across_patches
@@ -222,7 +222,7 @@ class ScalarLightning(InnerEyeLightning):
                                FalseNegativeRateOptimalThreshold(),
                                AreaUnderRocCurve(),
                                AreaUnderPrecisionRecallCurve(),
-                               BinaryCrossEntropy()])
+                               BinaryCrossEntropyWithLogits()])
         else:
             return ModuleList([MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()])
 

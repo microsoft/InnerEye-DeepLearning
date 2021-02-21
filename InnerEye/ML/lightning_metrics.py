@@ -248,7 +248,7 @@ class AreaUnderPrecisionRecallCurve(ScalarMetricsBase):
         return auc(recall, prec)
 
 
-class BinaryCrossEntropy(ScalarMetricsBase):
+class BinaryCrossEntropyWithLogits(ScalarMetricsBase):
     """
     Computes the cross entropy for binary classification.
     """
@@ -258,7 +258,7 @@ class BinaryCrossEntropy(ScalarMetricsBase):
 
     def compute(self) -> torch.Tensor:
         preds, targets = self._get_preds_and_targets()
-        return F.binary_cross_entropy(input=preds, target=targets)
+        return F.binary_cross_entropy_with_logits(input=preds, target=targets)
 
 
 class MetricForMultipleStructures(torch.nn.Module):
