@@ -8,7 +8,6 @@ from typing import List, Optional
 import numpy as np
 import pytest
 import torch
-import torch.nn.functional as F
 from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_curve
 from scipy.special import expit
 
