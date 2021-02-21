@@ -8,7 +8,9 @@ from typing import List, Optional
 import numpy as np
 import pytest
 import torch
+import torch.nn.functional as F
 from sklearn.metrics import auc, log_loss, precision_recall_curve, roc_curve
+from scipy.special import expit
 
 from InnerEye.Common.metrics_constants import AVERAGE_DICE_SUFFIX, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricType, \
     TRAIN_PREFIX, \
@@ -171,12 +173,12 @@ def test_classification_metrics() -> None:
     for output, label in zip(outputs, labels):
         for metric in metrics:
             metric.update(output, label)
-    accuracy_05, accuracy_opt, threshold, fpr, fnr, roc_auc, pr_auc, cross_entropy = [metric.compute() for metric in
+    accuracy_05, accuracy_opt, threshold, fpr, fnr, roc_auc, pr_auc, cross_entropy_with_logits = [metric.compute() for metric in
                                                                                       metrics]
     all_labels = torch.cat(labels).numpy()
     all_outputs = torch.cat(outputs).numpy()
     expected_accuracy_at_05 = np.mean((all_outputs > 0.5) == all_labels)
-    expected_binary_cross_entropy = log_loss(y_true=all_labels, y_pred=all_outputs)
+    expected_binary_cross_entropy_with_logits = log_loss(y_true=all_labels, y_pred=expit(all_outputs))
     expected_fpr, expected_tpr, expected_thresholds = roc_curve(y_true=all_labels, y_score=all_outputs)
     expected_roc_auc = auc(expected_fpr, expected_tpr)
     expected_optimal_idx = np.argmax(expected_tpr - expected_fpr)
@@ -192,7 +194,7 @@ def test_classification_metrics() -> None:
     assert fnr == expected_optimal_fnr
     assert roc_auc == expected_roc_auc
     assert pr_auc == expected_pr_auc
-    assert cross_entropy == expected_binary_cross_entropy
+    assert cross_entropy_with_logits == expected_binary_cross_entropy_with_logits
     assert accuracy_05 == expected_accuracy_at_05
 
 
