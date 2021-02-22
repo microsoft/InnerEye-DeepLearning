@@ -8,7 +8,6 @@ from typing import List
 from dataclasses_json import dataclass_json
 
 from InnerEye.Common.common_util import MAX_PATH_LENGTH, check_properties_are_not_none, is_long_path
-from InnerEye.Common.type_annotations import TupleInt3
 
 
 @dataclass_json
@@ -16,9 +15,6 @@ from InnerEye.Common.type_annotations import TupleInt3
 class ModelInferenceConfig:
     """Class for configuring a model for inference"""
     model_name: str
-    structure_names: List[str]
-    fill_holes: List[bool]
-    colours: List[TupleInt3]
     checkpoint_paths: List[str]
     model_configs_namespace: str = ''
 

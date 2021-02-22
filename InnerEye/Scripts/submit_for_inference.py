@@ -17,8 +17,8 @@ from InnerEye.Azure.azure_config import AzureConfig, SourceConfig
 from InnerEye.Azure.azure_runner import create_run_config
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_DATA_FOLDER, DEFAULT_RESULT_IMAGE_NAME, DEFAULT_TEST_IMAGE_NAME, \
-    ENVIRONMENT_YAML_FILE_NAME, RUN_SCORING_SCRIPT, SCORE_SCRIPT, SETTINGS_YAML_FILE, repository_root_directory, \
-    PYTHON_ENVIRONMENT_NAME
+    DEFAULT_TEST_ZIP_NAME, ENVIRONMENT_YAML_FILE_NAME, RUN_SCORING_SCRIPT, SCORE_SCRIPT, SETTINGS_YAML_FILE, \
+    repository_root_directory, PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 
 
@@ -29,7 +29,8 @@ class SubmitForInferenceConfig(GenericConfig):
     experiment_name: str = param.String(default="model_inference",
                                         doc="Name of experiment the run should belong to")
     model_id: str = param.String(doc="Id of model, e.g. Prostate:123. Mandatory.")
-    image_file: Path = param.ClassSelector(class_=Path, doc="Image file to segment, ending in .nii.gz. Mandatory.")
+    image_file: Path = param.ClassSelector(class_=Path, doc="Image file to segment, ending in .nii.gz if use_dicom=False, "
+                                                            "or zip of a DICOM series otherwise. Mandatory.")
     settings: Path = param.ClassSelector(class_=Path,
                                          doc="File containing Azure settings (typically your settings.yml). If not "
                                              "provided, use the default settings file.")
@@ -41,17 +42,20 @@ class SubmitForInferenceConfig(GenericConfig):
         default=False, doc="Whether to keep the temporary upload folder after the inference run is submitted")
     cluster: str = param.String(doc="The name of the GPU cluster in which to run the experiment. If not provided, use "
                                     "the cluster in the settings.yml file")
+    use_dicom: bool = param.Boolean(False, doc="If image to be segmented is a DICOM series and output to be DICOM-RT. "
+                                               "If this is set then image_file should be a zip file "
+                                               "containing a set of DICOM files.")
 
     def validate(self) -> None:
         # The image file must be specified, must exist, and must end in .nii.gz, i.e. be
-        # a compressed Nifti file.
+        # a compressed Nifti file if use_dicom=False, or end in .zip otherwise.
         assert self.image_file
         if not self.image_file.is_file():
             raise FileNotFoundError(self.image_file)
         basename = str(self.image_file.name)
         # Do not import the pre-defined constants from io_util here, so that we can keep the Conda environment for
         # running tests_after_training.py small.
-        extension = ".nii.gz"
+        extension = ".nii.gz" if not self.use_dicom else ".zip"
         if not basename.endswith(extension):
             raise ValueError(f"Bad image file name, does not end with {extension}: {self.image_file.name}")
         # If the user wants the result downloaded, the download folder must already exist
@@ -59,15 +63,16 @@ class SubmitForInferenceConfig(GenericConfig):
             assert self.download_folder.exists()
 
 
-def copy_image_file(image: Path, destination_folder: Path) -> Path:
+def copy_image_file(image: Path, destination_folder: Path, use_dicom: bool) -> Path:
     """
     Copy the source image file into the given folder destination_folder.
-    :param image: image file, must be Gzipped Nifti format with name ending .nii.gz
-    :param destination_folder: top-level directory to copy image into (as test.nii.gz)
+    :param image: image file, must be Gzipped Nifti format with name ending .nii.gz if use_dicom=False or .zip otherwise.
+    :param destination_folder: top-level directory to copy image into (as test.nii.gz or test.zip)
+    :param use_dicom: True to treat as a zip file.
     :return: The full path of the image in the destination_folder
     """
     destination_folder.mkdir(parents=True, exist_ok=True)
-    destination = destination_folder / DEFAULT_TEST_IMAGE_NAME
+    destination = destination_folder / (DEFAULT_TEST_IMAGE_NAME if not use_dicom else DEFAULT_TEST_ZIP_NAME)
     logging.info(f"Copying {image} to {destination}")
     shutil.copyfile(str(image), str(destination))
     return destination
@@ -105,7 +110,7 @@ def choose_download_path(download_folder: Path) -> Path:
     """
     Returns the path of a file in download_folder that does already exist. The first path tried is
     download_folder/segmentation.nii.gz, but if that does not exist, the names segmentation_001.nii.gz,
-    segmentation_002.nii.gz etc are tried.
+    segmentation_002.nii.gz etc are tried (or .zip file endings if use_dicom=True).
     """
     index = 0
     base = DEFAULT_RESULT_IMAGE_NAME
@@ -136,7 +141,7 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
     source_directory_path = Path(source_directory.name)
     logging.info(f"Building inference run submission in {source_directory_path}")
     image_folder = source_directory_path / DEFAULT_DATA_FOLDER
-    image = copy_image_file(args.image_file, image_folder)
+    image = copy_image_file(args.image_file, image_folder, args.use_dicom)
     model_sas_urls = model.get_sas_urls()
     # Identifies all the files with basename "environment.yml" in the model and downloads them.
     # These downloads should go into a temp folder that will most likely not be included in the model itself,
@@ -163,7 +168,8 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
                        # The data folder must be relative to the root folder of the AzureML job. test_image_files
                        # is then just the file relative to the data_folder
                        "--data_folder", image.parent.name,
-                       "--image_files", image.name],
+                       "--image_files", image.name,
+                       "--use_dicom", str(args.use_dicom)],
         conda_dependencies_files=conda_files,
     )
     run_config = create_run_config(azure_config, source_config, environment_name=python_environment_name)
