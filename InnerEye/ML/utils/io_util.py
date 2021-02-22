@@ -651,3 +651,28 @@ def tabulate_dataframe(df: pd.DataFrame, pefix_newline: bool = True) -> str:
     Helper function to print a pandas Dataframe in a nicely readable table.
     """
     return ("\n" if pefix_newline else "") + tabulate(df, tablefmt="fancy_grid", headers="keys", showindex="never")
+
+
+def load_dicom_series_and_save(folder: Path, file_name: Path) -> None:
+    """
+    Load a DICOM series into a 3d image and save as file_name.
+
+    If the folder contains more than one series then the first will be loaded.
+    The file format type is determined by SimpleITK based on the file name's suffix.
+    List of supported file types is here:
+    https://simpleitk.readthedocs.io/en/master/IO.html
+
+    :param folder: Path to folder containing DICOM series.
+    :param file_name: Path to save image.
+    """
+    reader = sitk.ImageSeriesReader()
+    series_found = reader.GetGDCMSeriesIDs(str(folder))
+
+    if not series_found:
+        raise ValueError("Folder does not contain any DICOM series: {}".format(str(folder)))
+
+    dicom_names = reader.GetGDCMSeriesFileNames(str(folder), series_found[0])
+    reader.SetFileNames(dicom_names)
+
+    image = reader.Execute()
+    sitk.WriteImage(image, str(file_name))
