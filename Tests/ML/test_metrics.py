@@ -166,7 +166,7 @@ def test_get_column_name_for_logging() -> None:
 def test_classification_metrics() -> None:
     classification_module = ScalarLightning(DummyClassification())
     metrics = classification_module._get_metrics_computers()
-    logits = [torch.tensor([2.1972, 1.3863, 0.4055]), torch.tensor([-0.8473,  2.1972, -0.4055])]
+    logits = [torch.tensor([2.1972, 1.3863, 0.4055]), torch.tensor([-0.8473, 2.1972, -0.4055])]
     posteriors = [torch.sigmoid(logit) for logit in logits]
     labels = [torch.tensor([1., 1., 0.]), torch.tensor([0., 0., 0.])]
     for logit, posterior, label in zip(logits, posteriors, labels):
