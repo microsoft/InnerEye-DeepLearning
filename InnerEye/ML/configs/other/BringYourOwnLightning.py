@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterator, List
 
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
@@ -30,41 +30,6 @@ from InnerEye.ML.deep_learning_config import DeepLearningConfig
 
 # Do we want to support ensembles at inference time? Not now
 
-class Container(DeepLearningConfig):
-
-    def get_lightning_module(self) -> LightningModule:
-        pass
-
-    def get_training_data_module(self, cross_validation_split_index: int, crossval_count: int) -> LightningDataModule:
-        """
-        Gets the data that is used for the training and validation steps.
-        This must take the cross validation fold
-        into account. Should those be arguments maybe? somewhat obsolete, but makes it visible. YES.
-        :return:
-        """
-        split = self.cross_validation_split_index
-        pass
-
-    def get_inference_data_module(self, cross_validation_split_index: int, crossval_count: int) -> LightningDataModule:
-        """
-        Gets the data that is used for the inference after training. By default, this returns the value
-        of get_training_data_module, but you can override this to get for example full image datasets for
-        segmentation models.
-        This must take the cross validation fold
-        into account. Should those be arguments maybe? somewhat obsolete, but makes it visible. YES
-        :return:
-        """
-        # You can override this if inference uses different data, for image full images
-        return self.get_training_data_module(cross_validation_split_index=cross_validation_split_index,
-                                             crossval_count=crossval_count)
-
-    def get_trainer_arguments(self) -> Dict[str, Any]:
-        """
-        Gets additional parameters that will be passed on to the trainer.
-        :return:
-        """
-
-
 class BringYourOwnLightning(LightningModule, DeepLearningConfig):
     """
     Double inheritance. All files should be written to config.outputs_folder or config.logs_folder
@@ -91,24 +56,20 @@ class BringYourOwnLightning(LightningModule, DeepLearningConfig):
         """
         pass
 
-    def inference_metrics(self) -> List[Metric]:
-        # Get metrics to compute on test set. This could be obsolete if we for example enforce that everything
-        # encapsulated in inference_step
-        # How do we write them to disk? They don't have a name field. Fall back to class name?
-        pass
-
     def inference_start(self) -> None:
         """
         Runs initialization for everything that inference might require: Creating output files, for example.
         """
-        pass
+        self.metrics = whatever_list_of_metrics()
 
-    # model.inference_start()
-    # for item in dataloader:
-    #     model_output = model.forward(item)
-    #     model.inference_step(item, model_output, mode)
-    # model.inference_end()
-    def inference_step(self, item: Any, model_output: Any, mode: ModelExecutionMode) -> None:
+    # for dataset_split in [Train, Val, Test]
+    #   model.inference_start()
+    #   for item in dataloader[dataset_split]:
+    #       for fold in (range(5) if is_ensemble or range(1)):
+    #           model_outputs[fold] = model.forward(item)
+    #       model.inference_step(item, model_outputs, dataset_split)
+    #   model.inference_end()
+    def inference_step(self, item: Any, model_outputs: Iterator[Any], dataset_split: ModelExecutionMode, is_ensemble_result: bool) -> None:
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
         or compute metrics and store them.
@@ -117,22 +78,18 @@ class BringYourOwnLightning(LightningModule, DeepLearningConfig):
         :param mode: Indicates whether the item comes from the training, validation or test set.
         :return:
         """
-        # Need to make sure that both data and more are on the GPU
+        aggregate_output = None
+        # Everyone has to do this. Alternative: Have a separate aggregation method
+        for m in model_outputs:
+            if aggregate_output is None:
+                aggregate_output = m
+            else:
+                aggregate_output = aggregate_output + m
 
-        pass
-
-    def inference_step(self, item: Any, mode: ModelExecutionMode) -> None:
-        """
-        This hook is called when the model has finished making a prediction. It can write the results to a file,
-        or compute metrics and store them.
-        :param item: The item for which the model made a prediction.
-        :param model_output: The model output. This would usually be a torch.Tensor, but can be any datatype.
-        :param mode: Indicates whether the item comes from the training, validation or test set.
-        :return:
-        """
         # Need to make sure that both data and more are on the GPU
         model_output = self.forward(item)
         metrics = whatever(model_output, item.labels)
+        # This
         self.write_output(model_output)
         pass
 
@@ -143,3 +100,40 @@ class BringYourOwnLightning(LightningModule, DeepLearningConfig):
         """
         self.metrics.write_to_disk()
         pass
+
+
+class Container(DeepLearningConfig):
+
+    def get_lightning_module(self) -> BringYourOwnLightning:
+        pass
+
+    def get_training_data_module(self, cross_validation_split_index: int, crossval_count: int) -> LightningDataModule:
+        """
+        Gets the data that is used for the training and validation steps.
+        This should read a dataset from the self.local_dataset folder, but its format is up to this method here.
+        This must take the cross validation fold into account.
+        Should those be arguments maybe? somewhat obsolete, but makes it visible. YES.
+        :return:
+        """
+        split = self.cross_validation_split_index
+        pass
+
+    def get_inference_data_module(self, cross_validation_split_index: int, crossval_count: int) -> LightningDataModule:
+        """
+        Gets the data that is used for the inference after training. By default, this returns the value
+        of get_training_data_module, but you can override this to get for example full image datasets for
+        segmentation models.
+        This must take the cross validation fold
+        into account. Should those be arguments maybe? somewhat obsolete, but makes it visible. YES
+        :return:
+        """
+        # You can override this if inference uses different data, for image full images
+        return self.get_training_data_module(cross_validation_split_index=cross_validation_split_index,
+                                             crossval_count=crossval_count)
+
+    def get_trainer_arguments(self) -> Dict[str, Any]:
+        """
+        Gets additional parameters that will be passed on to the trainer.
+        :return:
+        """
+
