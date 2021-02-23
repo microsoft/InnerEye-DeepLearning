@@ -13,6 +13,8 @@ created.
 ### Added
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Add the ability to train a model on multiple
 nodes in AzureML. Example: Add `--num_nodes=2` to the commandline arguments to train on 2 nodes.
+- ([#405](https://github.com/microsoft/InnerEye-DeepLearning/pull/405)) Add first version of cross-validation report
+for classification models.
 
 ### Changed
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Starting an AzureML run now uses the
