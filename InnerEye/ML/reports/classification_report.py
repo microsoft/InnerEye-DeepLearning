@@ -66,7 +66,7 @@ def get_results(csv: Path) -> LabelsAndPredictions:
 
 
 def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, print_coords: bool = False,
-             **plot_kwargs) -> None:
+             **plot_kwargs: Any) -> None:
     """
     Plot a curve given the x and y values of each point.
     :param x_values: x coordinate of each data point to be plotted
