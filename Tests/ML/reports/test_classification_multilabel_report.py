@@ -24,7 +24,6 @@ def test_generate_classification_report(test_output_dirs: OutputFolderForTests) 
 
     config = ScalarModelBase()
     config.class_names = hues
-    config.labels_exclusive = False
     config.label_value_column = "label"
     config.image_file_column = "filePath"
 

@@ -314,7 +314,6 @@ def get_image_labels_from_subject_id(subject_id: str,
     labels = np.array(extract_label_classification(label_string=labels[0],
                                                    sample_id=subject_id,
                                                    num_classes=len(config.class_names),
-                                                   labels_exclusive=config.labels_exclusive,
                                                    is_classification_dataset=config.is_classification_model)
                       ).nonzero()[0]
 

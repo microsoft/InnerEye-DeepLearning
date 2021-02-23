@@ -496,33 +496,32 @@ def test_load_single_item_7() -> None:
     assert torch.all(torch.isnan(item.categorical_non_image_features[4:6]))
 
 
-@pytest.mark.parametrize(["text", "is_classification", "num_classes", "labels_exclusive", "expected_label"],
+@pytest.mark.parametrize(["text", "is_classification", "num_classes", "expected_label"],
                          [
-                             ("true", True, 1, True, [1]),
-                             ("tRuE", True, 1, True, [1]),
-                             ("false", True, 1, True, [0]),
-                             ("false", True, 0, True, None),
-                             ("false", False, 0, True, None),
-                             ("False", True, 1, True, [0]),
-                             ("nO", True, 1, True, [0]),
-                             ("Yes", True, 1, True, [1.0]),
-                             ("1.23", True, 1, True, [1.23]),
-                             ("1", True, 3, False, [0.0, 1.0, 0.0]),
-                             ("1|2", True, 3, False, [0.0, 1.0, 1.0]),
-                             ("1|2", True, 3, True, None),
-                             ("3.45", False, 1, True, [3.45]),
-                             (math.nan, True, 1, True, [math.nan]),
-                             ("", True, 1, True, [math.nan]),
-                             ("abc", True, 1, True, None)
+                             ("true", True, 1, [1]),
+                             ("tRuE", True, 1, [1]),
+                             ("false", True, 1, [0]),
+                             ("false", True, 0, None),
+                             ("false", False, 0, None),
+                             ("False", True, 1, [0]),
+                             ("nO", True, 1, [0]),
+                             ("Yes", True, 1, [1.0]),
+                             ("1.23", True, 1, [1.23]),
+                             ("1", True, 3, [0.0, 1.0, 0.0]),
+                             ("1|2", True, 3, [0.0, 1.0, 1.0]),
+                             ("3.45", False, 1, [3.45]),
+                             (math.nan, True, 1, [math.nan]),
+                             ("", True, 1, [math.nan]),
+                             ("abc", True, 1, None)
                          ])
-def test_extract_label(text: str, is_classification: bool, num_classes: int, labels_exclusive: int,
+def test_extract_label(text: str, is_classification: bool, num_classes: int,
                        expected_label: List[float], ) -> None:
     if expected_label is None:
         with pytest.raises(ValueError) as ex:
-            extract_label_classification(text, "subject1", num_classes, labels_exclusive, is_classification)
+            extract_label_classification(text, "subject1", num_classes, is_classification)
         assert "Subject subject1:" in str(ex)
     else:
-        actual = extract_label_classification(text, "subject1", num_classes, labels_exclusive, is_classification)
+        actual = extract_label_classification(text, "subject1", num_classes, is_classification)
         assert isinstance(actual, type(expected_label))
         if expected_label == [math.nan]:
             assert math.isnan(actual[0])

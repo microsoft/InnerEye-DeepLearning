@@ -22,7 +22,6 @@ class DummyMulticlassClassification(ScalarModelBase):
             image_file_column="path",
             label_channels=["blue"],
             class_names=["class0", "class1", "class2", "class3", "class4"],
-            labels_exclusive=False,
             label_value_column="label",
             loss_type=ScalarLoss.WeightedCrossEntropyWithLogits,
             num_epochs=num_epochs,

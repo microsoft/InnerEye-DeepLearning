@@ -103,15 +103,10 @@ class LabelTransformation(Enum):
 
 
 class ScalarModelBase(ModelConfigBase):
-    labels_exclusive: bool = param.Boolean(
-        doc="If True we check that labels have a single class."
-            "If False allow labels to have multiple classes")
     class_names: List[str] = param.List(class_=str,
                                         default=[MetricsDict.DEFAULT_HUE_KEY],
                                         bounds=(1, None),
-                                        doc="Class names is the name of the outputs of the model."
-                                            "You can model a 2 class problem with 1 model output or with 2 model "
-                                            "outputs that are exclusive (using labels_exclusive=True)")
+                                        doc="Class names is the name of the outputs of the model.")
     aggregation_type: AggregationType = param.ClassSelector(default=AggregationType.Average, class_=AggregationType,
                                                             doc="The type of global pooling aggregation to use between"
                                                                 " the encoder and the classifier.")
@@ -411,10 +406,8 @@ class ScalarModelBase(ModelConfigBase):
         :return:
         """
         import torch
-        if self.loss_type.is_classification_loss() and (len(self.class_names) == 1 or not self.labels_exclusive):
+        if self.loss_type.is_classification_loss():
             return torch.nn.Sigmoid()
-        if self.loss_type.is_classification_loss() and self.labels_exclusive:
-            return torch.nn.Softmax()
         elif self.loss_type.is_regression_loss():
             return torch.nn.Identity()  # type: ignore
         else:

@@ -27,7 +27,6 @@ def get_unique_label_combinations(dataset_csv: Path, config: ScalarModelBase) ->
                 for i in np.array(extract_label_classification(label_string=label,
                                                                sample_id="",
                                                                num_classes=len(config.class_names),
-                                                               labels_exclusive=config.labels_exclusive,
                                                                is_classification_dataset=config.is_classification_model))
                                                                .nonzero()[0]]
               for label in labels if not isinstance(label, float) or not math.isnan(label)]

@@ -739,7 +739,8 @@ class MLRunner:
                                                      test_metrics=path_to_best_epoch_test,
                                                      dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
                                                      if config.local_dataset else None)
-                    if not config.labels_exclusive:
+
+                    if len(config.class_names) > 1:
                         generate_classification_multilabel_notebook(result_notebook=reports_dir / get_ipynb_report_name(f"{config.model_category.value}_multilabel"),
                                                                     config=config,
                                                                     train_metrics=path_to_best_epoch_train,
