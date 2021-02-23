@@ -40,9 +40,10 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.reports.notebook_report import generate_classification_notebook, generate_segmentation_notebook
-from InnerEye.ML.runner import ModelDeploymentHookSignature, PostCrossValidationHookSignature, REPORT_HTML, \
-    REPORT_IPYNB, get_all_environment_files
+from InnerEye.ML.reports.notebook_report import get_ipynb_report_name, generate_classification_notebook, \
+    generate_segmentation_notebook, \
+    generate_classification_multilabel_notebook, reports_folder
+from InnerEye.ML.runner import ModelDeploymentHookSignature, PostCrossValidationHookSignature, get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import ml_util
@@ -661,7 +662,8 @@ class MLRunner:
                                               model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
         crossval_dir = self.plot_cross_validation_and_upload_results()
-        self.generate_report(ModelProcessing.ENSEMBLE_CREATION)
+        if self.model_config.generate_report:
+            self.generate_report(ModelProcessing.ENSEMBLE_CREATION)
         # CrossValResults should have been uploaded to the parent run, so we don't need it here.
         remove_file_or_directory(crossval_dir)
         # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files
@@ -674,8 +676,7 @@ class MLRunner:
                 for subdir in other_runs_ensemble_dir.glob("*"):
                     if subdir.name not in [BASELINE_WILCOXON_RESULTS_FILE,
                                            SCATTERPLOTS_SUBDIR_NAME,
-                                           REPORT_HTML,
-                                           REPORT_IPYNB]:
+                                           reports_folder]:
                         remove_file_or_directory(subdir)
                 PARENT_RUN_CONTEXT.upload_folder(name=BASELINE_COMPARISONS_FOLDER, path=str(other_runs_ensemble_dir))
             else:
@@ -722,20 +723,33 @@ class MLRunner:
 
             output_dir = config.outputs_folder / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME \
                 if model_proc == ModelProcessing.ENSEMBLE_CREATION else config.outputs_folder
+
+            reports_dir = output_dir / reports_folder
+            if not  reports_dir.exists():
+                reports_dir.mkdir(exist_ok=False)
+
             if config.model_category == ModelCategory.Segmentation:
-                generate_segmentation_notebook(result_notebook=output_dir / REPORT_IPYNB,
+                generate_segmentation_notebook(result_notebook=reports_dir / get_ipynb_report_name(config.model_category.value),
                                                train_metrics=path_to_best_epoch_train,
                                                val_metrics=path_to_best_epoch_val,
                                                test_metrics=path_to_best_epoch_test)
             else:
                 if isinstance(config, ScalarModelBase) and not isinstance(config, SequenceModelBase):
-                    generate_classification_notebook(result_notebook=output_dir / REPORT_IPYNB,
+                    generate_classification_notebook(result_notebook=reports_dir / get_ipynb_report_name(config.model_category.value),
                                                      config=config,
                                                      train_metrics=path_to_best_epoch_train,
                                                      val_metrics=path_to_best_epoch_val,
                                                      test_metrics=path_to_best_epoch_test,
                                                      dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
                                                      if config.local_dataset else None)
+                    if not config.labels_exclusive:
+                        generate_classification_multilabel_notebook(result_notebook=reports_dir / get_ipynb_report_name(f"{config.model_category.value}_multilabel"),
+                                                                    config=config,
+                                                                    train_metrics=path_to_best_epoch_train,
+                                                                    val_metrics=path_to_best_epoch_val,
+                                                                    test_metrics=path_to_best_epoch_test,
+                                                                    dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
+                                                                    if config.local_dataset else None)
                 else:
                     logging.info(f"Cannot create report for config of type {type(config)}.")
         except Exception as ex:

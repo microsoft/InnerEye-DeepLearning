@@ -9,17 +9,16 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from io import StringIO
 
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.reports.classification_report import ReportedMetrics, get_correct_and_misclassified_examples, \
-    get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_results, \
-    plot_image_from_filepath, get_unique_label_combinations, generate_psuedo_labels, get_image_labels_from_subject_id
+    get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_labels_and_predictions, \
+    plot_image_from_filepath, get_image_labels_from_subject_id
 from InnerEye.ML.reports.notebook_report import generate_classification_notebook
 from InnerEye.ML.scalar_config import ScalarModelBase
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
+from InnerEye.ML.metrics_dict import MetricsDict
 
 
 def test_generate_classification_report(test_output_dirs: OutputFolderForTests) -> None:
@@ -28,9 +27,10 @@ def test_generate_classification_report(test_output_dirs: OutputFolderForTests) 
     val_metrics_file = reports_folder / "val_metrics_classification.csv"
     dataset_csv_path = reports_folder / 'dataset.csv'
 
-    current_dir = test_output_dirs.make_sub_dir("test_classification_report")
-    result_file = current_dir / "report.ipynb"
+    result_file = test_output_dirs.root_dir / "report.ipynb"
     config = ScalarModelBase()
+    config.label_value_column = "label"
+    config.image_file_column = "filePath"
     result_html = generate_classification_notebook(result_notebook=result_file,
                                                    config=config,
                                                    val_metrics=val_metrics_file,
@@ -41,75 +41,13 @@ def test_generate_classification_report(test_output_dirs: OutputFolderForTests) 
     assert result_html.suffix == ".html"
 
 
-def test_get_results() -> None:
+def test_get_labels_and_predictions() -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
-    hues = ["Default"]
-    results = get_results(test_metrics_file, hues)
+    results = get_labels_and_predictions(test_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
     assert all([results.subject_ids[i] == i for i in range(12)])
     assert all([results.labels[i] == label for i, label in enumerate([1] * 6 + [0] * 6)])
     assert all([results.model_outputs[i] == op for i, op in enumerate([0.0, 0.2, 0.4, 0.6, 0.8, 1.0] * 2)])
-
-
-def test_get_results_multiple_hues(test_output_dirs: OutputFolderForTests) -> None:
-    reports_folder = Path(__file__).parent
-    test_metrics_file = reports_folder / "test_metrics_classification.csv"
-
-    # Write a new metrics file with 2 hues, label is only associated with one hue
-    csv = pd.read_csv(test_metrics_file)
-    hues = ["Hue1", "Hue2"]
-    csv.loc[::2, LoggingColumns.Hue.value] = hues[0]
-    csv.loc[1::2, LoggingColumns.Hue.value] = hues[1]
-    csv.loc[::2, LoggingColumns.Patient.value] = list(range(len(csv)//2))
-    csv.loc[1::2, LoggingColumns.Patient.value] = list(range(len(csv)//2))
-    metrics_csv_multi_hue = test_output_dirs.root_dir / "metrics.csv"
-    csv.to_csv(metrics_csv_multi_hue, index=False)
-
-    for h, hue in enumerate(hues):
-        results = get_results(metrics_csv_multi_hue, [hue])
-        assert all([results.subject_ids[i] == i for i in range(6)])
-        assert all([results.labels[i] == label for i, label in enumerate([1] * 3 + [0] * 3)])
-        assert all([results.model_outputs[i] == round(op, 2) for i, op in enumerate(list(np.linspace(0.2*h, 0.8 + 0.2*h, 3)) * 2)])
-
-
-def test_get_unique_label_combinations():
-    dataset_csv = full_ml_test_data_path("classification_data_multiclass") / "dataset.csv"
-    config = DummyMulticlassClassification()
-    unique_labels = get_unique_label_combinations(dataset_csv, config)
-    class_names = config.class_names
-    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels) for labels in [[1, 2, 3], [2, 3], [3]]])
-
-
-def test_generate_psuedo_labels():
-
-    csv = StringIO("prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split\n"
-                   "Hue1,0,0,0.5,1,-1,Test\n"
-                   "Hue2,0,0,0.6,1,-1,Test\n"
-                   "Hue3,0,0,0.3,0,-1,Test\n"
-                   "Hue1,0,1,0.5,1,-1,Test\n"
-                   "Hue2,0,1,0.6,1,-1,Test\n"
-                   "Hue3,0,1,0.5,1,-1,Test\n"
-                   "Hue1,0,2,0.5,1,-1,Test\n"
-                   "Hue2,0,2,0.6,1,-1,Test\n"
-                   "Hue3,0,2,0.5,0,-1,Test\n"
-                   "Hue1,0,3,0.5,1,-1,Test\n"
-                   "Hue2,0,3,0.6,1,-1,Test\n"
-                   "Hue3,0,3,0.3,1,-1,Test\n"
-                   )
-
-    expected_csv = StringIO("prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split\n"
-                            "Hue1|Hue2,0,0,1,1,-1,Test\n"
-                            "Hue1|Hue2,0,1,0,0,-1,Test\n"
-                            "Hue1|Hue2,0,2,0,1,-1,Test\n"
-                            "Hue1|Hue2,0,3,1,0,-1,Test\n"
-                            )
-
-    df = generate_psuedo_labels(csv=csv,
-                                hues=["Hue1", "Hue2"],
-                                all_hues=["Hue1", "Hue2", "Hue3"],
-                                per_class_thresholds=[0.4, 0.5, 0.4])
-    expected_df = pd.read_csv(expected_csv)
-    assert expected_df.equals(df)
 
 
 def test_functions_with_invalid_csv(test_output_dirs: OutputFolderForTests) -> None:
@@ -120,16 +58,18 @@ def test_functions_with_invalid_csv(test_output_dirs: OutputFolderForTests) -> N
     shutil.copyfile(test_metrics_file, invalid_metrics_file)
     # Duplicate a subject
     with open(invalid_metrics_file, "a") as file:
-        file.write("Default,1,5,1.0,1,-1,Test")
-    hue = "Default"
-    with pytest.raises(ValueError):
-        get_results(invalid_metrics_file, [hue])
+        file.write(f"{MetricsDict.DEFAULT_HUE_KEY},1,5,1.0,1,-1,Test")
+    with pytest.raises(ValueError) as ex:
+        get_labels_and_predictions(invalid_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
+    assert "Subject IDs should be unique" in str(ex)
 
-    with pytest.raises(ValueError):
-        get_correct_and_misclassified_examples(invalid_metrics_file, test_metrics_file, hue)
+    with pytest.raises(ValueError) as ex:
+        get_correct_and_misclassified_examples(invalid_metrics_file, test_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
+    assert "Subject IDs should be unique" in str(ex)
 
-    with pytest.raises(ValueError):
-        get_correct_and_misclassified_examples(val_metrics_file, invalid_metrics_file, hue)
+    with pytest.raises(ValueError) as ex:
+        get_correct_and_misclassified_examples(val_metrics_file, invalid_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
+    assert "Subject IDs should be unique" in str(ex)
 
 
 def test_get_metric() -> None:
@@ -137,46 +77,71 @@ def test_get_metric() -> None:
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
     val_metrics_file = reports_folder / "val_metrics_classification.csv"
 
-    optimal_threshold = get_metric(test_metrics_csv=test_metrics_file,
-                                   val_metrics_csv=val_metrics_file,
-                                   metric=ReportedMetrics.OptimalThreshold,
-                                   hues=["Default"])
+    val_metrics = get_labels_and_predictions(val_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
+    test_metrics = get_labels_and_predictions(test_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
+
+    optimal_threshold = get_metric(test_metrics=test_metrics,
+                                   val_metrics=val_metrics,
+                                   metric=ReportedMetrics.OptimalThreshold)
 
     assert optimal_threshold == 0.6
 
-    auc_roc = get_metric(test_metrics_csv=test_metrics_file,
-                         val_metrics_csv=val_metrics_file,
-                         metric=ReportedMetrics.AUC_ROC,
-                         hues=["Default"])
+    optimal_threshold = get_metric(test_metrics=test_metrics,
+                                   val_metrics=val_metrics,
+                                   metric=ReportedMetrics.OptimalThreshold,
+                                   optimal_threshold=0.3)
+
+    assert optimal_threshold == 0.3
+
+    auc_roc = get_metric(test_metrics=test_metrics,
+                         val_metrics=val_metrics,
+                         metric=ReportedMetrics.AUC_ROC)
     assert auc_roc == 0.5
 
-    auc_pr = get_metric(test_metrics_csv=test_metrics_file,
-                        val_metrics_csv=val_metrics_file,
-                        metric=ReportedMetrics.AUC_PR,
-                        hues=["Default"])
+    auc_pr = get_metric(test_metrics=test_metrics,
+                        val_metrics=val_metrics,
+                        metric=ReportedMetrics.AUC_PR)
 
     assert math.isclose(auc_pr, 13 / 24, abs_tol=1e-15)
 
-    accuracy = get_metric(test_metrics_csv=test_metrics_file,
-                          val_metrics_csv=val_metrics_file,
-                          metric=ReportedMetrics.Accuracy,
-                          hues=["Default"])
+    accuracy = get_metric(test_metrics=test_metrics,
+                          val_metrics=val_metrics,
+                          metric=ReportedMetrics.Accuracy)
 
     assert accuracy == 0.5
 
-    fpr = get_metric(test_metrics_csv=test_metrics_file,
-                     val_metrics_csv=val_metrics_file,
-                     metric=ReportedMetrics.FalsePositiveRate,
-                     hues=["Default"])
+    accuracy = get_metric(test_metrics=test_metrics,
+                          val_metrics=val_metrics,
+                          metric=ReportedMetrics.Accuracy,
+                          optimal_threshold=0.1)
+
+    assert accuracy == 0.5
+
+    fpr = get_metric(test_metrics=test_metrics,
+                     val_metrics=val_metrics,
+                     metric=ReportedMetrics.FalsePositiveRate)
 
     assert fpr == 0.5
 
-    fnr = get_metric(test_metrics_csv=test_metrics_file,
-                     val_metrics_csv=val_metrics_file,
-                     metric=ReportedMetrics.FalseNegativeRate,
-                     hues=["Default"])
+    fpr = get_metric(test_metrics=test_metrics,
+                     val_metrics=val_metrics,
+                     metric=ReportedMetrics.FalsePositiveRate,
+                     optimal_threshold=0.1)
+
+    assert fpr == 5 / 6
+
+    fnr = get_metric(test_metrics=test_metrics,
+                     val_metrics=val_metrics,
+                     metric=ReportedMetrics.FalseNegativeRate)
 
     assert fnr == 0.5
+
+    fnr = get_metric(test_metrics=test_metrics,
+                     val_metrics=val_metrics,
+                     metric=ReportedMetrics.FalseNegativeRate,
+                     optimal_threshold=0.1)
+
+    assert math.isclose(fnr, 1 / 6, abs_tol=1e-15)
 
 
 def test_get_correct_and_misclassified_examples() -> None:
@@ -225,7 +190,7 @@ def test_get_k_best_and_worst_performing() -> None:
 def test_get_image_filepath_from_subject_id_single() -> None:
     reports_folder = Path(__file__).parent
     dataset_csv_file = reports_folder / "dataset.csv"
-    dataset_df = pd.read_csv(dataset_csv_file)
+    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
 
     config = DummyMulticlassClassification()
     config.subject_column = "subject"
@@ -245,14 +210,14 @@ def test_get_image_filepath_from_subject_id_single() -> None:
 def test_get_image_filepath_from_subject_id_multiple() -> None:
     reports_folder = Path(__file__).parent
     dataset_csv_file = reports_folder / "dataset.csv"
-    dataset_df = pd.read_csv(dataset_csv_file)
+    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
     config = DummyMulticlassClassification()
     config.subject_column = "subject"
     config.image_file_column = "filePath"
 
     # duplicate subject entries
-    dataset_df.loc[::2, config.subject_column] = list(range(len(dataset_df)//2))
-    dataset_df.loc[1::2, config.subject_column] = list(range(len(dataset_df)//2))
+    dataset_df.loc[::2, config.subject_column] = [str(i) for i in list(range(len(dataset_df)//2))]
+    dataset_df.loc[1::2, config.subject_column] = [str(i) for i in list(range(len(dataset_df)//2))]
 
     filepath = get_image_filepath_from_subject_id(subject_id="1",
                                                   dataset_df=dataset_df,
@@ -270,7 +235,7 @@ def test_get_image_filepath_from_subject_id_multiple() -> None:
 def test_get_image_filepath_from_subject_id_invalid_id() -> None:
     reports_folder = Path(__file__).parent
     dataset_csv_file = reports_folder / "dataset.csv"
-    dataset_df = pd.read_csv(dataset_csv_file)
+    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
     config = DummyMulticlassClassification()
     config.subject_column = "subject"
     config.image_file_column = "filePath"
@@ -286,14 +251,14 @@ def test_get_image_filepath_from_subject_id_invalid_id() -> None:
 def test_image_labels_from_subject_id_single() -> None:
     reports_folder = Path(__file__).parent
     dataset_csv_file = reports_folder / "dataset.csv"
-    dataset_df = pd.read_csv(dataset_csv_file)
+    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
 
     config = DummyMulticlassClassification()
     config.subject_column = "subject"
 
     labels = get_image_labels_from_subject_id(subject_id="1",
-                                                  dataset_df=dataset_df,
-                                                  config=config)
+                                              dataset_df=dataset_df,
+                                              config=config)
     assert labels
     assert len(labels) == 1
     assert labels[0] == "class0"
@@ -302,7 +267,7 @@ def test_image_labels_from_subject_id_single() -> None:
 def test_image_labels_from_subject_id_multiple() -> None:
     reports_folder = Path(__file__).parent
     dataset_csv_file = reports_folder / "dataset.csv"
-    dataset_df = pd.read_csv(dataset_csv_file)
+    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
 
     config = DummyMulticlassClassification()
     config.subject_column = "subject"

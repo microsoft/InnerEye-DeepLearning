@@ -52,6 +52,10 @@ class ReportedMetrics(Enum):
 
 
 def read_csv_and_filter_hue(csv: Path, hue: str):
+    """
+    Given a csv file, read it and select only those rows which belong to the given hue. Also check that there is
+    only a single entry per hue per subject in the metrics file.
+    """
     df = pd.read_csv(csv)
     df = df[df[LoggingColumns.Hue.value] == hue]  # Filter Hue
     if not df[LoggingColumns.Patient.value].is_unique:
@@ -60,75 +64,13 @@ def read_csv_and_filter_hue(csv: Path, hue: str):
     return df
 
 
-def generate_psuedo_labels(csv: Path,
-                           hues: List[str],
-                           all_hues: List[str],
-                           per_class_thresholds: List[float]) -> pd.DataFrame:
-
-    def get_pseudo_label(df: pd.DataFrame):
-        df_to_return = df.iloc[0]
-
-        pred_positives = df[df[LoggingColumns.Hue.value].isin(hues)][LoggingColumns.ModelOutput.value].values
-        pred_negatives = df[~df[LoggingColumns.Hue.value].isin(hues)][LoggingColumns.ModelOutput.value].values
-
-        if all(pred_positives) and not any(pred_negatives):
-            df_to_return[LoggingColumns.ModelOutput.value] = 1
-        else:
-            df_to_return[LoggingColumns.ModelOutput.value] = 0
-
-        true_positives = df[df[LoggingColumns.Hue.value].isin(hues)][LoggingColumns.Label.value].values
-        true_negatives = df[~df[LoggingColumns.Hue.value].isin(hues)][LoggingColumns.Label.value].values
-
-        if all(true_positives) and not any(true_negatives):
-            df_to_return[LoggingColumns.Label.value] = 1
-        else:
-            df_to_return[LoggingColumns.Label.value] = 0
-
-        return df_to_return
-
-    if not hues:
-        print_header("Empty hue list", level=0)
-
-    df = pd.read_csv(csv)
-    for i in range(len(per_class_thresholds)):
-        hue_rows = df[LoggingColumns.Hue.value] == all_hues[i]
-        df.loc[hue_rows, LoggingColumns.ModelOutput.value] = \
-            df.loc[hue_rows, LoggingColumns.ModelOutput.value] > per_class_thresholds[i]
-
-    df = df.groupby(LoggingColumns.Patient.value).apply(get_pseudo_label)
-    df[LoggingColumns.Hue.value] = "|".join(hues)
-    return df
-
-
-def get_unique_label_combinations(dataset_csv: Path, config: ScalarModelBase) -> List[List[str]]:
-    df = pd.read_csv(dataset_csv)
-    labels = list(set(df[config.label_value_column].values))
-
-    labels = [[config.class_names[int(i)]
-                for i in np.array(extract_label_classification(label_string=label,
-                                                               sample_id="",
-                                                               num_classes=len(config.class_names),
-                                                               labels_exclusive=config.labels_exclusive,
-                                                               is_classification_dataset=config.is_classification_model))
-                                                               .nonzero()[0]]
-              for label in labels if not isinstance(label, float) or not math.isnan(label)]
-    return labels
-
-
-def get_results(csv: Path, hues: List[str],
-                all_hues: Optional[List[str]] = None,
-                thresholds: Optional[List[float]] = None,
-                exclusive: bool = False) -> LabelsAndPredictions:
+def get_labels_and_predictions(csv: Path, hue: str) -> LabelsAndPredictions:
     """
     Given a CSV file, reads the subject IDs, ground truth labels and model outputs for each subject.
     NOTE: This CSV file should have results from a single epoch, as in the metrics files written during inference, not
     like the ones written while training.
     """
-    if len(hues) == 1 and not exclusive:
-        df = read_csv_and_filter_hue(csv, hues[0])
-    else:
-        df = generate_psuedo_labels(csv=csv, hues=hues, all_hues=all_hues, per_class_thresholds=thresholds)
-
+    df = read_csv_and_filter_hue(csv, hue)
     labels = df[LoggingColumns.Label.value].to_numpy()
     model_outputs = df[LoggingColumns.ModelOutput.value].to_numpy()
     subjects = df[LoggingColumns.Patient.value].to_numpy()
@@ -155,130 +97,100 @@ def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, p
             ax.annotate(f"{x:0.3f}, {y:0.3f}", xy=(x, y), xytext=(15, 0), textcoords='offset points')
 
 
-def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, hue: str) -> None:
+def plot_pr_and_roc_curves_from_csv(metrics: LabelsAndPredictions) -> None:
     """
-    Given a csv file, read the predicted values and ground truth labels and plot the ROC and PR curves.
+    Given a LabelsAndPredictions object, plot the ROC and PR curves.
     """
     print_header("ROC and PR curves", level=3)
-    results = get_results(metrics_csv, [hue])
-
     _, ax = plt.subplots(1, 2)
 
-    fpr, tpr, thresholds = roc_curve(results.labels, results.model_outputs)
+    fpr, tpr, thresholds = roc_curve(metrics.labels, metrics.model_outputs)
 
     plot_auc(fpr, tpr, "ROC Curve", ax[0])
-    precision, recall, thresholds = precision_recall_curve(results.labels, results.model_outputs)
+    precision, recall, thresholds = precision_recall_curve(metrics.labels, metrics.model_outputs)
     plot_auc(recall, precision, "PR Curve", ax[1])
 
     plt.show()
 
 
-def get_metric(val_metrics_csv: Path,
-               test_metrics_csv: Path,
+def get_metric(val_metrics: LabelsAndPredictions,
+               test_metrics: LabelsAndPredictions,
                metric: ReportedMetrics,
-               hues: List[str],
-               all_hues: Optional[List[str]] = None,
-               thresholds: Optional[List[float]] = None,
-               exclusive: bool = False) -> float:
+               optimal_threshold: Optional[float] = None) -> float:
     """
-    Given a csv file, read the predicted values and ground truth labels and return the specified metric.
+    Given LabelsAndPredictions objects for the validation and test sets, return the specified metric.
     """
-    if len(hues) == 1 and not exclusive:
-        results_val = get_results(val_metrics_csv, hues, all_hues, thresholds, exclusive)
-        fpr, tpr, thresholds = roc_curve(results_val.labels, results_val.model_outputs)
+    if not optimal_threshold:
+        fpr, tpr, thresholds = roc_curve(val_metrics.labels, val_metrics.model_outputs)
         optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
         optimal_threshold = thresholds[optimal_idx]
-    else:
-        optimal_threshold = 0.5
 
     if metric is ReportedMetrics.OptimalThreshold:
         return optimal_threshold
 
-    results_test = get_results(test_metrics_csv, hues, all_hues, thresholds, exclusive)
-    only_one_class_present = len(set(results_test.labels)) < 2
+    only_one_class_present = len(set(test_metrics.labels)) < 2
 
     if metric is ReportedMetrics.AUC_ROC:
-        return math.nan if only_one_class_present else roc_auc_score(results_test.labels, results_test.model_outputs)
+        return math.nan if only_one_class_present else roc_auc_score(test_metrics.labels, test_metrics.model_outputs)
     elif metric is ReportedMetrics.AUC_PR:
         if only_one_class_present:
             return math.nan
-        precision, recall, _ = precision_recall_curve(results_test.labels, results_test.model_outputs)
+        precision, recall, _ = precision_recall_curve(test_metrics.labels, test_metrics.model_outputs)
         return auc(recall, precision)
     elif metric is ReportedMetrics.Accuracy:
-        return binary_classification_accuracy(model_output=results_test.model_outputs,
-                                              label=results_test.labels,
+        return binary_classification_accuracy(model_output=test_metrics.model_outputs,
+                                              label=test_metrics.labels,
                                               threshold=optimal_threshold)
     elif metric is ReportedMetrics.FalsePositiveRate:
-        tnr = recall_score(results_test.labels, results_test.model_outputs >= optimal_threshold, pos_label=0)
+        tnr = recall_score(test_metrics.labels, test_metrics.model_outputs >= optimal_threshold, pos_label=0)
         return 1 - tnr
     elif metric is ReportedMetrics.FalseNegativeRate:
-        return 1 - recall_score(results_test.labels, results_test.model_outputs >= optimal_threshold)
+        return 1 - recall_score(test_metrics.labels, test_metrics.model_outputs >= optimal_threshold)
     else:
         raise ValueError("Unknown metric")
 
 
-def print_metrics(val_metrics_csv: Path, test_metrics_csv: Path,
-                  hues: List[str],
-                  all_hues,
-                  thresholds,
+def print_metrics(val_metrics: LabelsAndPredictions, test_metrics: LabelsAndPredictions,
                   exclusive: bool = False) -> None:
     """
-    Given a csv file, read the predicted values and ground truth labels and print out some metrics.
+    Given a LabelsAndPredictions objects for the validation and test sets, print out some metrics.
     """
-    if not exclusive and len(hues) == 1:
-        roc_auc = get_metric(val_metrics_csv=val_metrics_csv,
-                             test_metrics_csv=test_metrics_csv,
-                             metric=ReportedMetrics.AUC_ROC,
-                             hues=hues,
-                             all_hues=all_hues,
-                             thresholds=thresholds,
-                             exclusive=exclusive)
+
+    optimal_threshold = 0.5 if exclusive else None
+
+    if not exclusive:
+        roc_auc = get_metric(val_metrics=val_metrics,
+                             test_metrics=test_metrics,
+                             metric=ReportedMetrics.AUC_ROC)
         print_header(f"Area under ROC Curve: {roc_auc:.4f}", level=4)
 
-        pr_auc = get_metric(val_metrics_csv=val_metrics_csv,
-                            test_metrics_csv=test_metrics_csv,
-                            metric=ReportedMetrics.AUC_PR,
-                            hues=hues,
-                            all_hues=all_hues,
-                            thresholds=thresholds,
-                            exclusive=exclusive)
+        pr_auc = get_metric(val_metrics=val_metrics,
+                            test_metrics=test_metrics,
+                            metric=ReportedMetrics.AUC_PR)
         print_header(f"Area under PR Curve: {pr_auc:.4f}", level=4)
 
-        optimal_threshold = get_metric(val_metrics_csv=val_metrics_csv,
-                                       test_metrics_csv=test_metrics_csv,
-                                       metric=ReportedMetrics.OptimalThreshold,
-                                       hues=hues,
-                                       all_hues=all_hues,
-                                       thresholds=thresholds,
-                                       exclusive=exclusive)
+        optimal_threshold = get_metric(val_metrics=val_metrics,
+                                       test_metrics=test_metrics,
+                                       metric=ReportedMetrics.OptimalThreshold)
 
         print_header(f"Optimal threshold: {optimal_threshold: .4f}", level=4)
 
-    accuracy = get_metric(val_metrics_csv=val_metrics_csv,
-                          test_metrics_csv=test_metrics_csv,
+    accuracy = get_metric(val_metrics=val_metrics,
+                          test_metrics=test_metrics,
                           metric=ReportedMetrics.Accuracy,
-                          hues=hues,
-                          all_hues=all_hues,
-                          thresholds=thresholds,
-                          exclusive=exclusive)
+                          optimal_threshold=optimal_threshold)
     print_header(f"Accuracy at optimal threshold: {accuracy:.4f}", level=4)
 
-    fpr = get_metric(val_metrics_csv=val_metrics_csv,
-                     test_metrics_csv=test_metrics_csv,
+    fpr = get_metric(val_metrics=val_metrics,
+                     test_metrics=test_metrics,
                      metric=ReportedMetrics.FalsePositiveRate,
-                     hues=hues,
-                     all_hues=all_hues,
-                     thresholds=thresholds,
-                     exclusive=exclusive)
+                     optimal_threshold=optimal_threshold)
     print_header(f"Specificity at optimal threshold: {1 - fpr:.4f}", level=4)
 
-    fnr = get_metric(val_metrics_csv=val_metrics_csv,
-                     test_metrics_csv=test_metrics_csv,
+    fnr = get_metric(val_metrics=val_metrics,
+                     test_metrics=test_metrics,
                      metric=ReportedMetrics.FalseNegativeRate,
-                     hues=hues,
-                     all_hues=all_hues,
-                     thresholds=thresholds,
-                     exclusive=exclusive)
+                     optimal_threshold=optimal_threshold)
     print_header(f"Sensitivity at optimal threshold: {1 - fnr:.4f}", level=4)
     print_header("", level=4)
 
@@ -380,7 +292,6 @@ def get_image_filepath_from_subject_id(subject_id: str,
     :return: path to the image file for the patient or None if it is not found.
     """
 
-    dataset_df[config.subject_column] = dataset_df.apply(lambda x: str(x[config.subject_column]), axis=1)
     filtered = dataset_df[dataset_df[config.subject_column] == subject_id]
     filepaths = filtered[config.image_file_column].values
 
@@ -388,12 +299,13 @@ def get_image_filepath_from_subject_id(subject_id: str,
 
 
 def get_image_labels_from_subject_id(subject_id: str,
-                                    dataset_df: pd.DataFrame,
-                                    config: ScalarModelBase) -> List[str]:
-
-    dataset_df[config.subject_column] = dataset_df.apply(lambda x: str(x[config.subject_column]), axis=1)
+                                     dataset_df: pd.DataFrame,
+                                     config: ScalarModelBase) -> List[str]:
     filtered = dataset_df[dataset_df[config.subject_column] == subject_id]
     labels = list(set(filtered[config.label_value_column].values))
+
+    if not labels:
+        return []
 
     if len(labels) > 1:
         raise ValueError(f"Labels inconsistent, expect the same set of labels for all hues per subject. "
@@ -495,7 +407,7 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                               k=k,
                                               hue=hue)
 
-    dataset_df = pd.read_csv(dataset_csv_path)
+    dataset_df = pd.read_csv(dataset_csv_path, dtype=str)
     dataset_dir = dataset_csv_path.parent
 
     im_width = 800

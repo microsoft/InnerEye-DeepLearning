@@ -26,9 +26,9 @@ from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
 from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
-from InnerEye.ML.reports.notebook_report import generate_classification_notebook
+from InnerEye.ML.reports.notebook_report import get_ipynb_report_name, get_html_report_name, \
+    generate_classification_notebook, generate_classification_multilabel_notebook
 from InnerEye.ML.run_ml import MLRunner
-from InnerEye.ML.runner import REPORT_HTML, REPORT_IPYNB
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get_config_and_results_for_offline_runs, \
@@ -194,14 +194,24 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
     path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
     path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
-    generate_classification_notebook(result_notebook=config.outputs_folder / REPORT_IPYNB,
+    generate_classification_notebook(result_notebook=config.outputs_folder / get_ipynb_report_name(config.model_category.value),
                                      config=config,
                                      train_metrics=path_to_best_epoch_train,
                                      val_metrics=path_to_best_epoch_val,
                                      test_metrics=path_to_best_epoch_test,
                                      dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
                                      if config.local_dataset else None)
-    assert (config.outputs_folder / REPORT_HTML).exists()
+    assert (config.outputs_folder / get_html_report_name(config.model_category.value)).exists()
+
+    report_name_multilabel = f"{config.model_category.value}_multilabel"
+    generate_classification_multilabel_notebook(result_notebook=config.outputs_folder / get_ipynb_report_name(report_name_multilabel),
+                                                config=config,
+                                                train_metrics=path_to_best_epoch_train,
+                                                val_metrics=path_to_best_epoch_val,
+                                                test_metrics=path_to_best_epoch_test,
+                                                dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
+                                                if config.local_dataset else None)
+    assert (config.outputs_folder / get_html_report_name(report_name_multilabel)).exists()
 
 
 @pytest.mark.cpu_and_gpu
@@ -264,14 +274,14 @@ def test_train_classification_multilabel_model_exclusive_labels(test_output_dirs
     path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
     path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
     path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
-    generate_classification_notebook(result_notebook=config.outputs_folder / REPORT_IPYNB,
+    generate_classification_notebook(result_notebook=config.outputs_folder / get_ipynb_report_name(config.model_category.value),
                                      config=config,
                                      train_metrics=path_to_best_epoch_train,
                                      val_metrics=path_to_best_epoch_val,
                                      test_metrics=path_to_best_epoch_test,
                                      dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
                                      if config.local_dataset else None)
-    assert (config.outputs_folder / REPORT_HTML).exists()
+    assert (config.outputs_folder / get_html_report_name(config.model_category.value)).exists()
 
 
 def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> None:

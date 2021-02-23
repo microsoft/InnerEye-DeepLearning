@@ -81,7 +81,7 @@ class BinaryCrossEntropyWithLogitsLoss(SupervisedLearningCriterion):
         :return: a list of weights to use for the positive class for each target position.
         """
         assert self._class_counts is not None
-        weights = [(self._num_train_samples - value) / value for (key, value) in
+        weights = [(self._num_train_samples - value) / value if value != 0 else 1.0 for (key, value) in
                    sorted(self._class_counts.items())]  # Uses the first number on the tuple to compare
         return torch.tensor(weights, dtype=torch.float32)
 
