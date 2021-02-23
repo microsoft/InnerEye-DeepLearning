@@ -101,6 +101,13 @@ class BringYourOwnLightning(LightningModule, DeepLearningConfig):
         self.metrics.write_to_disk()
         pass
 
+    def create_report(self) -> None:
+        """
+        This method should look through all files that training and inference wrote, and cook that into a
+        nice human readable report. Report should go into self.outputs folder.
+        """
+        pass
+
 
 class Container(DeepLearningConfig):
 
