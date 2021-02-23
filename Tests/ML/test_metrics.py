@@ -198,7 +198,7 @@ def test_classification_metrics() -> None:
     assert pr_auc == expected_pr_auc
     print(pr_auc, expected_pr_auc)
     # Use default relative tolerance of one part in a million due to floating point arithmetic
-    assert cross_entropy_with_logits == expected_binary_cross_entropy
+    assert cross_entropy_with_logits == pytest.approx(expected_binary_cross_entropy)
     assert accuracy_05 == expected_accuracy_at_05
 
 
