@@ -12,6 +12,7 @@ import pytest
 from pytorch_lightning import seed_everything
 
 from InnerEye.Azure.azure_config import AzureConfig
+from InnerEye.Common.fixed_paths import DEFAULT_RESULT_ZIP_DICOM_NAME
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.configs.unit_testing.passthrough_model import PassThroughModel
@@ -28,8 +29,8 @@ from score import create_inference_pipeline, is_spacing_valid, run_inference, sc
 
 test_image = full_ml_test_data_path("train_and_test_data") / "id1_channel1.nii.gz"
 img_nii_path = full_ml_test_data_path("test_img.nii.gz")
-# Expected zipped DICOM-RT file contents
-HN_DICOM_RT_ZIPPED = ["hnsegmentation.nii.dcm"]
+# Expected zipped DICOM-RT file contents, just DEFAULT_RESULT_ZIP_DICOM_NAME without the final suffix.
+HN_DICOM_RT_ZIPPED = ["segmentation.dcm"]
 
 
 def test_score_check_spacing() -> None:
@@ -247,7 +248,7 @@ def test_convert_nifti_to_zipped_dicom_rt(test_output_dirs: OutputFolderForTests
                                                                             model_folder)
     model_config = PassThroughModel()
     result_dst = convert_nifti_to_zipped_dicom_rt(HNSEGMENTATION_FILE, reference_series_folder, model_folder,
-                                                  model_config)
+                                                  model_config, DEFAULT_RESULT_ZIP_DICOM_NAME)
     assert_zip_file_contents(result_dst, HN_DICOM_RT_ZIPPED, model_folder)
 
 
