@@ -118,7 +118,7 @@ def generate_classification_notebook(result_notebook: Path,
 
 def generate_classification_cross_validation_notebook(result_notebook: Path, full_csv_file: Path) -> Path:
     """
-    Creates a reporting notebook for a classification model, using the given training, validation, and test set metrics.
+    Creates a reporting notebook for cross-validation metrics of a classification model.
     Returns the report file after HTML conversion.
     """
     notebook_params = {
