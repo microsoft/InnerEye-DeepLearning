@@ -308,7 +308,10 @@ class ScalarLightning(InnerEyeLightning):
                 _subject_ids = masked.subject_ids
                 assert _subject_ids is not None
                 for metric in metric_list:
-                    metric(_logits, _labels) if (isinstance(metric, ScalarMetricsBase) and metric.compute_from_logits is True) else metric(_posteriors, _labels)
+                    if isinstance(metric, ScalarMetricsBase) and metric.compute_from_logits:
+                        metric(_logits, _labels)
+                    else:
+                        metric(_posteriors, _labels)
                 per_subject_outputs.extend(
                     zip(_subject_ids, [prediction_target] * len(_subject_ids), _posteriors.tolist(), _labels.tolist()))
         # Write a full breakdown of per-subject predictions and labels to a file. These files are local to the current

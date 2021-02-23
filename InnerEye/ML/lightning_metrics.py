@@ -252,6 +252,7 @@ class AreaUnderPrecisionRecallCurve(ScalarMetricsBase):
 class BinaryCrossEntropyWithLogits(ScalarMetricsBase):
     """
     Computes the cross entropy for binary classification.
+    This metric must be computed off the output logits
     """
 
     def __init__(self) -> None:
