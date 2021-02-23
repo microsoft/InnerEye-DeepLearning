@@ -544,9 +544,6 @@ class MLRunner:
                 raise ValueError(f"Expected an absolute path to a checkpoint file, but got: {checkpoint}")
         model_folder.mkdir(parents=True, exist_ok=True)
         model_inference_config = ModelInferenceConfig(model_name=self.model_config.model_name,
-                                                      structure_names=self.model_config.ground_truth_ids_display_names,
-                                                      colours=self.model_config.colours,
-                                                      fill_holes=self.model_config.fill_holes,
                                                       model_configs_namespace=self.model_config.__class__.__module__,
                                                       checkpoint_paths=relative_checkpoint_paths)
         # Inference configuration must live in the root folder of the registered model
