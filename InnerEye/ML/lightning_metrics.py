@@ -119,11 +119,12 @@ class ScalarMetricsBase(Metric):
     and labels (field `targets`). Derived classes need to override the `compute` method.
     """
 
-    def __init__(self, name: str = ""):
+    def __init__(self, name: str = "", compute_from_logits: bool = False):
         super().__init__(dist_sync_on_step=False)
         self.add_state("preds", default=[], dist_reduce_fx=None)
         self.add_state("targets", default=[], dist_reduce_fx=None)
         self.name = name
+        self.compute_from_logits = compute_from_logits
 
     def update(self, preds: torch.Tensor, targets: torch.Tensor) -> None:  # type: ignore
         self.preds.append(preds)  # type: ignore
@@ -248,17 +249,18 @@ class AreaUnderPrecisionRecallCurve(ScalarMetricsBase):
         return auc(recall, prec)
 
 
-class BinaryCrossEntropy(ScalarMetricsBase):
+class BinaryCrossEntropyWithLogits(ScalarMetricsBase):
     """
     Computes the cross entropy for binary classification.
+    This metric must be computed off the output logits
     """
 
     def __init__(self) -> None:
-        super().__init__(name=MetricType.CROSS_ENTROPY.value)
+        super().__init__(name=MetricType.CROSS_ENTROPY.value, compute_from_logits=True)
 
     def compute(self) -> torch.Tensor:
         preds, targets = self._get_preds_and_targets()
-        return F.binary_cross_entropy(input=preds, target=targets)
+        return F.binary_cross_entropy_with_logits(input=preds, target=targets)
 
 
 class MetricForMultipleStructures(torch.nn.Module):

@@ -16,9 +16,9 @@ from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.lightning_base import InnerEyeLightning
 from InnerEye.ML.lightning_metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
-    AreaUnderRocCurve, BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
+    AreaUnderRocCurve, BinaryCrossEntropyWithLogits, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
     FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, MetricForMultipleStructures, \
-    OptimalThreshold
+    OptimalThreshold, ScalarMetricsBase
 from InnerEye.ML.metrics import compute_dice_across_patches
 from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, SequenceMetricsDict
 from InnerEye.ML.scalar_config import ScalarModelBase
@@ -222,7 +222,7 @@ class ScalarLightning(InnerEyeLightning):
                                FalseNegativeRateOptimalThreshold(),
                                AreaUnderRocCurve(),
                                AreaUnderPrecisionRecallCurve(),
-                               BinaryCrossEntropy()])
+                               BinaryCrossEntropyWithLogits()])
         else:
             return ModuleList([MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()])
 
@@ -301,13 +301,17 @@ class ScalarLightning(InnerEyeLightning):
                 logits[:, i, ...], targets[:, i, ...], subject_ids)
             # compute metrics on valid masked tensors only
             if masked is not None:
-                _posteriors = self.logits_to_posterior(masked.model_outputs.data)
+                _logits = masked.model_outputs.data
+                _posteriors = self.logits_to_posterior(_logits)
                 # Image encoders already prepare images in float16, but the labels are not yet in that dtype
                 _labels = masked.labels.data.to(dtype=_posteriors.dtype)
                 _subject_ids = masked.subject_ids
                 assert _subject_ids is not None
                 for metric in metric_list:
-                    metric(_posteriors, _labels)
+                    if isinstance(metric, ScalarMetricsBase) and metric.compute_from_logits:
+                        metric(_logits, _labels)
+                    else:
+                        metric(_posteriors, _labels)
                 per_subject_outputs.extend(
                     zip(_subject_ids, [prediction_target] * len(_subject_ids), _posteriors.tolist(), _labels.tolist()))
         # Write a full breakdown of per-subject predictions and labels to a file. These files are local to the current
