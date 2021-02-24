@@ -165,26 +165,22 @@ def extract_zipped_files_and_flatten(zip_file_path: Path, extraction_folder: Pat
             zip_file.extract(zipinfo, str(extraction_folder))
 
 
-def convert_zipped_dicom_to_nifti(zip_file_path: Path, scratch_folder: Path) -> Tuple[Path, Path]:
+def convert_zipped_dicom_to_nifti(zip_file_path: Path, reference_series_folder: Path,
+                                  nifti_file_path: Path) -> None:
     """
     Given a zip file, extract DICOM series and convert to Nifti format.
 
     This function:
-    1) Unzips the file at zip_file_path into a subfolder of the scratch_folder,
+    1) Unzips the file at zip_file_path into reference_series_folder,
     assumed to contain a DICOM series.
-    2) Creates a Nifti file from the DICOM series, also in the scratch folder.
-    3) Returns a pair containing the path to the Nifti file and the path to the
-    folder containing the DICOM series.
+    2) Creates a Nifti file from the DICOM series.
 
     :param zip_file_path: Path to a zip file.
-    :param scratch_folder: Scratch folder to extract files into.
-    :return: Pair of path to Nifti file and path to the folder of the DICOM series.
+    :param reference_series_folder: Folder to unzip DICOM series into.
+    :param nifti_file_path: Path to target Nifti file.
     """
-    reference_series_folder = scratch_folder / "temp_extraction"
     extract_zipped_files_and_flatten(zip_file_path, reference_series_folder)
-    nifti_filename = scratch_folder / "temp_nifti.nii.gz"
-    load_dicom_series_and_save(reference_series_folder, nifti_filename)
-    return nifti_filename, reference_series_folder
+    load_dicom_series_and_save(reference_series_folder, nifti_file_path)
 
 
 def convert_rgb_colour_to_hex(colour: TupleInt3) -> str:
@@ -273,7 +269,9 @@ def score_image(args: ScorePipelineConfig) -> Path:
         if len(args.image_files) > 1:
             raise ValueError("Supply exactly one zip file in args.images.")
         input_zip_file = check_input_file(args.data_folder, args.image_files[0])
-        nifti_filename, reference_series_folder = convert_zipped_dicom_to_nifti(input_zip_file, model_folder)
+        reference_series_folder = model_folder / "temp_extraction"
+        nifti_filename = model_folder / "temp_nifti.nii.gz"
+        convert_zipped_dicom_to_nifti(input_zip_file, reference_series_folder, nifti_filename)
         test_images = [nifti_filename]
     else:
         test_images = [check_input_file(args.data_folder, file) for file in args.image_files]

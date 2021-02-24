@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import os
 from pathlib import Path
+import shutil
 from typing import Any, Callable, Optional, Tuple
 from unittest import mock
 
@@ -625,3 +626,15 @@ def test_load_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
     assert image_header.image.shape == expected_shape
     assert image_header.header.spacing is not None
     np.testing.assert_allclose(image_header.header.spacing, (2.5, 1.269531, 1.269531), rtol=0.1)
+
+
+def zip_dicom_series(zip_file_path: Path) -> None:
+    """
+    Create a zipped reference DICOM series.
+
+    Zip the reference DICOM series from test_data into zip_file_path.
+
+    :param zip_file_path: Target zip file.
+    """
+    zip_file_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.make_archive(str(zip_file_path.with_suffix('')), 'zip', str(dicom_series_folder))
