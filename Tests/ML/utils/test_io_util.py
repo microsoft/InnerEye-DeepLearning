@@ -638,3 +638,27 @@ def zip_dicom_series(zip_file_path: Path) -> None:
     """
     zip_file_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.make_archive(str(zip_file_path.with_suffix('')), 'zip', str(dicom_series_folder))
+
+
+def test_create_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that a DICOM series can be created.
+        :param test_output_dirs: Test output directories.
+    :return: None.
+    """
+    test_shape = (24, 36, 48)  # (#slices, #rows, #columns)
+    test_spacing = (1.5, 2.5, 3.5)
+    series_folder = test_output_dirs.root_dir / "series"
+    series_folder.mkdir()
+    # Create the series
+    image_data = io_util.create_dicom_series(series_folder, test_shape, test_spacing)
+    # Load it in
+    loaded_image = io_util.load_dicom_series(series_folder)
+    # GetSize returns (width, height, depth)
+    assert loaded_image.GetSize() == reverse_tuple_float3(test_shape)
+    assert loaded_image.GetSpacing() == test_spacing
+    # Get the data from the loaded series and compare it.
+    loaded_image_data = sitk.GetArrayFromImage(loaded_image).astype(np.float)
+    assert loaded_image_data.shape == test_shape
+    # Data is saved 16 bit, so need a generous tolerance.
+    assert np.allclose(loaded_image_data, image_data, atol=1e-1)

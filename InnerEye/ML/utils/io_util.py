@@ -6,6 +6,7 @@ from copy import copy
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+import time
 from typing import Generic, Iterable, List, Optional, Tuple, Type, TypeVar, Union
 
 import h5py
@@ -653,6 +654,27 @@ def tabulate_dataframe(df: pd.DataFrame, pefix_newline: bool = True) -> str:
     return ("\n" if pefix_newline else "") + tabulate(df, tablefmt="fancy_grid", headers="keys", showindex="never")
 
 
+def load_dicom_series(folder: Path) -> sitk.Image:
+    """
+    Load a DICOM series into a 3d sitk image.
+
+    If the folder contains more than one series then the first will be loaded.
+
+    :param folder: Path to folder containing DICOM series.
+    :return: sitk.Image of the DICOM series.
+    """
+    reader = sitk.ImageSeriesReader()
+    series_found = reader.GetGDCMSeriesIDs(str(folder))
+
+    if not series_found:
+        raise ValueError("Folder does not contain any DICOM series: {}".format(str(folder)))
+
+    dicom_names = reader.GetGDCMSeriesFileNames(str(folder), series_found[0])
+    reader.SetFileNames(dicom_names)
+
+    return reader.Execute()
+
+
 def load_dicom_series_and_save(folder: Path, file_name: Path) -> None:
     """
     Load a DICOM series into a 3d image and save as file_name.
@@ -665,14 +687,79 @@ def load_dicom_series_and_save(folder: Path, file_name: Path) -> None:
     :param folder: Path to folder containing DICOM series.
     :param file_name: Path to save image.
     """
-    reader = sitk.ImageSeriesReader()
-    series_found = reader.GetGDCMSeriesIDs(str(folder))
-
-    if not series_found:
-        raise ValueError("Folder does not contain any DICOM series: {}".format(str(folder)))
-
-    dicom_names = reader.GetGDCMSeriesFileNames(str(folder), series_found[0])
-    reader.SetFileNames(dicom_names)
-
-    image = reader.Execute()
+    image = load_dicom_series(folder)
     sitk.WriteImage(image, str(file_name))
+
+
+def create_dicom_series(folder: Path, size: TupleInt3, spacing: TupleFloat3) -> np.ndarray:
+    """
+    Create a random DICOM series and save as a set of files in folder.
+
+    :param folder: Path to folder to save DICOM series.
+    :param size: Final image size.
+    :param spacing: Final image spacing.
+    :return: The test data, floats in range [0, 1000.0).
+    """
+    data = np.random.uniform(high=1000, size=size).astype(np.float)
+    image = sitk.GetImageFromArray(data)
+    image.SetSpacing(spacing)
+
+    writer = sitk.ImageFileWriter()
+    writer.KeepOriginalImageUIDOn()
+
+    modification_time = time.strftime("%H%M%S")
+    modification_date = time.strftime("%Y%m%d")
+
+    series_tag_values: List[Tuple[str, str]] = [
+        ("0008|0008", "ORIGINAL\\PRIMARY\\AXIAL"),  # ImageType
+        ("0008|0012", modification_date),  # InstanceCreationDate
+        ("0008|0013", modification_time),  # InstanceCreationTime
+        ("0008|0020", "00000000"),  # StudyDate
+        ("0008|0021", "00000000"),  # SeriesDate
+        ("0008|0022", "00000000"),  # AcquisitionDate
+        ("0008|0023", "00000000"),  # ContentDate
+        ("0008|0031", modification_time),  # SeriesTime
+        ("0008|0060", "CT"),  # Modality
+        ("0008|103e", "CT-Head & Neck"),  # SeriesDescription
+        ("0018|0050", str(spacing[0])),  # SliceThickness
+        ("0018|5100", "HFS"),  # PatientPosition
+        ("0020|000e", "1.2.826.0.1.3680043.2.1125." \
+            + modification_date + ".1" + modification_time),  # Series Instance UID
+        ("0020|0037", "1\\0\\0\\0\\1\\0"),  # ImageOrientationPatient
+        ("0028|0100", '16'),  # BitsAllocated
+        ("0028|0101", '16'),  # BitsStored
+        ("0028|0102", '15'),  # HighBit
+        ("0028|0103", '0'),  # PixelRepresentation
+        ("0028|1052", '0'),  # RescaleIntercept
+        ("0028|1053", '0.1'),  # RescaleSlope
+    ]
+
+    # Write slices to output directory
+    for i in range(image.GetDepth()):
+        _write_dicom_slice(writer, series_tag_values, image, folder, i)
+    return data
+
+
+def _write_dicom_slice(writer: sitk.ImageFileWriter, series_tag_values: List[Tuple[str, str]],
+                       image: sitk.Image, folder: Path, i: int) -> None:
+    """
+    Write a DICOM slice as a single file.
+
+    :param writer: sitk ImageFileWriter.
+    :param series_tag_values: DICOM tags.
+    :param image: Image to slice.
+    :param folder: Folder to store slice in.
+    :param i: Slice number.
+    """
+    image_slice = image[:, :, i]
+
+    for tag_value in series_tag_values:
+        image_slice.SetMetaData(tag_value[0], tag_value[1])
+
+    image_slice.SetMetaData("0020|0013", str(i))  # InstanceNumber
+    image_slice.SetMetaData("0020|0032", '\\'.join(
+        map(str, image.TransformIndexToPhysicalPoint((0, 0, i)))))  # ImagePositionPatient
+
+    slice_filename = folder / (str(i) + '.dcm')
+    writer.SetFileName(str(slice_filename))
+    writer.Execute(image_slice)
