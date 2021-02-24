@@ -14,11 +14,12 @@ from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.reports.classification_report import ReportedMetrics, get_correct_and_misclassified_examples, \
     get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_labels_and_predictions, \
-    plot_image_from_filepath, get_image_labels_from_subject_id
+    plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id
 from InnerEye.ML.reports.notebook_report import generate_classification_notebook
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.metrics_dict import MetricsDict
+from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 
 
 def test_generate_classification_report(test_output_dirs: OutputFolderForTests) -> None:
@@ -297,3 +298,27 @@ def test_plot_image_from_filepath(test_output_dirs: OutputFolderForTests) -> Non
     np.save(invalid_file, array)
     res = plot_image_from_filepath(invalid_file, im_width)
     assert not res
+
+
+def test_get_image_outputs_from_subject_id(test_output_dirs: OutputFolderForTests) -> None:
+    hues = ["Hue1", "Hue2"]
+
+    metrics_df = pd.DataFrame.from_dict({LoggingColumns.Hue.value: [hues[0], hues[1]] * 6,
+                                         LoggingColumns.Epoch.value: [0] * 12,
+                                         LoggingColumns.Patient.value: [s for s in range(6) for _ in range(2)],
+                                         LoggingColumns.ModelOutput.value: [0.1, 0.1, 0.1, 0.9, 0.1, 0.9,
+                                                                            0.9, 0.9, 0.9, 0.9, 0.9, 0.1],
+                                         LoggingColumns.Label.value: [0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0],
+                                         LoggingColumns.CrossValidationSplitIndex: [DEFAULT_CROSS_VALIDATION_SPLIT_INDEX] * 12,
+                                         LoggingColumns.DataSplit.value: [0] * 12,
+                                         }, dtype=str)
+
+    config = DummyMulticlassClassification()
+    config.class_names = hues
+    config.subject_column = "subject"
+
+    model_output = get_image_outputs_from_subject_id(subject_id="1",
+                                                     metrics_df=metrics_df)
+    assert model_output
+    assert len(model_output) == 2
+    assert all([m == e for m, e in zip(model_output, [(hues[0], 0.1), (hues[1], 0.9)])])

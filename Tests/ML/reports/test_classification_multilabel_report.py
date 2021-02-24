@@ -11,6 +11,7 @@ from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
+from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.metrics_dict import MetricsDict
 from InnerEye.ML.reports.classification_multilabel_report import generate_psuedo_labels, \
     get_psuedo_labels_and_predictions, get_unique_label_combinations
@@ -58,8 +59,7 @@ def test_generate_classification_report(test_output_dirs: OutputFolderForTests) 
                             config.label_value_column: ["", "", "1", "1", "1", "1", "0|1", "0|1", "0|1", "0|1", "0", "0"]
                             }).to_csv(dataset_csv_path, index=False)
 
-    current_dir = test_output_dirs.make_sub_dir("test_classification_report")
-    result_file = current_dir / "report.ipynb"
+    result_file = test_output_dirs.root_dir / "report.ipynb"
     result_html = generate_classification_multilabel_notebook(result_notebook=result_file,
                                                               config=config,
                                                               val_metrics=val_metrics_file,
@@ -145,9 +145,75 @@ def test_generate_psuedo_labels():
     assert expected_df.equals(df)
 
 
-def test_get_unique_label_combinations():
-    dataset_csv = full_ml_test_data_path("classification_data_multiclass") / "dataset.csv"
+def test_generate_psuedo_labels_negative_class():
+
+    csv = StringIO("prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split\n"
+                   "Hue1,0,0,0.2,0,-1,Test\n"
+                   "Hue2,0,0,0.3,0,-1,Test\n"
+                   "Hue3,0,0,0.2,0,-1,Test\n"
+                   "Hue1,0,1,0.5,0,-1,Test\n"
+                   "Hue2,0,1,0.6,0,-1,Test\n"
+                   "Hue3,0,1,0.5,0,-1,Test\n"
+                   "Hue1,0,2,0.5,1,-1,Test\n"
+                   "Hue2,0,2,0.6,1,-1,Test\n"
+                   "Hue3,0,2,0.5,0,-1,Test\n"
+                   "Hue1,0,3,0.2,1,-1,Test\n"
+                   "Hue2,0,3,0.3,1,-1,Test\n"
+                   "Hue3,0,3,0.2,1,-1,Test\n"
+                   )
+
+    expected_csv = StringIO("prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split\n"
+                            ",0,0,1,1,-1,Test\n"
+                            ",0,1,0,1,-1,Test\n"
+                            ",0,2,0,0,-1,Test\n"
+                            ",0,3,1,0,-1,Test\n"
+                            )
+
+    df = generate_psuedo_labels(csv=csv,
+                                hues=[],
+                                all_hues=["Hue1", "Hue2", "Hue3"],
+                                per_class_thresholds=[0.4, 0.5, 0.4])
+    expected_df = pd.read_csv(expected_csv, keep_default_na=False)
+    assert expected_df.equals(df)
+
+
+def test_get_unique_label_combinations_single_label():
+    config = DummyClassification()
+    class_names = config.class_names
+
+    dataset_csv = StringIO("subjectID,channel,path,value\n"
+                           "S1,label,random,1\n"
+                           "S1,random,random,\n"
+                           "S2,label,random,0\n"
+                           "S2,random,random,\n"
+                           "S3,label,random,1\n"
+                           "S3,random,random,\n")
+    unique_labels = get_unique_label_combinations(dataset_csv, config)
+    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels)
+                                                  for labels in [[], [0]]])
+
+    dataset_csv = StringIO("subjectID,channel,path,value\n"
+                           "S1,label,random,1\n"
+                           "S1,random,random,\n"
+                           "S2,label,random,\n"
+                           "S2,random,random,\n")
+    unique_labels = get_unique_label_combinations(dataset_csv, config)
+    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels)
+                                                  for labels in [[0]]])
+
+
+def test_get_unique_label_combinations_multi_label():
+    dataset_csv = StringIO("ID,channel,path,label\n"
+                           "S1,blue,random,1|2|3\n"
+                           "S1,green,random,\n"
+                           "S2,blue,random,2|3\n"
+                           "S2,green,random,\n"
+                           "S3,blue,random,3\n"
+                           "S3,green,random,\n"
+                           "S4,blue,random,\n"
+                           "S4,green,random,\n")
     config = DummyMulticlassClassification()
     unique_labels = get_unique_label_combinations(dataset_csv, config)
     class_names = config.class_names
-    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels) for labels in [[1, 2, 3], [2, 3], [3]]])
+    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels)
+                                                  for labels in [[1, 2, 3], [2, 3], [3], []]])

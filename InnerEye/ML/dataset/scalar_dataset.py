@@ -49,32 +49,42 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
         raise ValueError(f"Subject {sample_id}: Invalid number of classes: '{num_classes}'")
 
     # Pandas special case: When loading a dataframe with dtype=str, missing values can be encoded as NaN
-    if isinstance(label_string, float) and math.isnan(label_string):
-        return [label_string]
+    if isinstance(label_string, float):
+        if math.isnan(label_string):
+            if num_classes == 1:
+                return [label_string]
+            else:
+                return [0] * num_classes
+        else:
+            raise ValueError(f"Subject {sample_id}: Label string not recognized: expected string got float")
 
-    if num_classes == 1 and is_classification_dataset:
-        label_lower = label_string.lower()
-        if label_lower in ["true", "yes"]:
-            return [1.0]
-        if label_lower in ["false", "no"]:
-            return [0.0]
-        if label_string in ["0", "1"]:
-            return [float(label_string)]
-        if label_string == "":
+    if not label_string:
+        if not is_classification_dataset or num_classes == 1:
             return [math.nan]
+        else:
+            return [0] * num_classes
 
-    if num_classes == 1:
+    if is_classification_dataset:
+        if num_classes == 1:
+            label_lower = label_string.lower()
+            if label_lower in ["true", "yes"]:
+                return [1.0]
+            if label_lower in ["false", "no"]:
+                return [0.0]
+            if label_string in ["0", "1"]:
+                return [float(label_string)]
+
+        if '|' in label_string or label_string.isdigit():
+            classes = [int(a) for a in label_string.split('|')]
+
+            one_hot_array = np.zeros(num_classes, dtype=np.float)
+            one_hot_array[classes] = 1.0
+            return one_hot_array.tolist()
+    else:
         try:
             return [float(label_string)]
         except ValueError:
             raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
-
-    if '|' in label_string or label_string.isdigit():
-        classes = [int(a) for a in label_string.split('|')]
-
-        one_hot_array = np.zeros(num_classes, dtype=np.float)
-        one_hot_array[classes] = 1.0
-        return one_hot_array.tolist()
 
     raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
 

@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -321,6 +321,18 @@ def get_image_labels_from_subject_id(subject_id: str,
             if not isinstance(labels, float) or not math.isnan(label)]
 
 
+def get_image_outputs_from_subject_id(subject_id: str,
+                                      metrics_df: pd.DataFrame) -> List[Tuple[str, int]]:
+    """
+    Return a list of tuples (Label class name, model output for the class) for a single subject.
+    """
+
+    filtered = metrics_df[metrics_df[LoggingColumns.Patient.value] == subject_id]
+    outputs = list(zip(filtered[LoggingColumns.Hue.value].values.tolist(),
+                       filtered[LoggingColumns.ModelOutput.value].values.astype(float).tolist()))
+    return outputs
+
+
 def plot_image_from_filepath(filepath: Path, im_width: int) -> bool:
     """
     Plots a 2D image given the filepath. Returns false if the image could not be plotted (for example, if it was 3D).
@@ -357,7 +369,8 @@ def plot_image_for_subject(subject_id: str,
                            im_width: int,
                            model_output: float,
                            header: Optional[str],
-                           config: ScalarModelBase) -> None:
+                           config: ScalarModelBase,
+                           metrics_df: Optional[pd.DataFrame] = None) -> None:
     """
     Given a subject ID, plots the corresponding image.
     :param subject_id: Subject to plot image for
@@ -375,8 +388,16 @@ def plot_image_for_subject(subject_id: str,
                                               dataset_df=dataset_df,
                                               config=config)
 
-    print_header(f"ID: {subject_id} Score: {model_output}", level=4)
     print_header(f"True labels: {', '.join(labels)}", level=4)
+
+    if metrics_df:
+        all_model_outputs = get_image_outputs_from_subject_id(subject_id=subject_id,
+                                                              metrics_df=metrics_df)
+        print_header(f"ID: {subject_id}", level=4)
+        print_header(f"Model output: {', '.join([':'.join([str(x) for x in output]) for output in all_model_outputs])}",
+                     level=4)
+    else:
+        print_header(f"ID: {subject_id} Score: {model_output}", level=4)
 
     filepaths = get_image_filepath_from_subject_id(subject_id=str(subject_id),
                                                    dataset_df=dataset_df,
@@ -406,6 +427,8 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                               k=k,
                                               hue=hue)
 
+    test_metrics = pd.read_csv(test_metrics_csv, dtype=str)
+
     dataset_df = pd.read_csv(dataset_csv_path, dtype=str)
     dataset_dir = dataset_csv_path.parent
 
@@ -421,7 +444,8 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                im_width=im_width,
                                model_output=model_output,
                                header="False Positive",
-                               config=config)
+                               config=config,
+                               metrics_df=test_metrics)
 
     print_header(f"Top {k} false negatives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.false_negatives[LoggingColumns.Patient.value],
@@ -432,7 +456,8 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                im_width=im_width,
                                model_output=model_output,
                                header="False Negative",
-                               config=config)
+                               config=config,
+                               metrics_df=test_metrics)
 
     print_header(f"Top {k} true positives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.true_positives[LoggingColumns.Patient.value],
@@ -443,7 +468,8 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                im_width=im_width,
                                model_output=model_output,
                                header="True Positive",
-                               config=config)
+                               config=config,
+                               metrics_df=test_metrics)
 
     print_header(f"Top {k} true negatives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.true_negatives[LoggingColumns.Patient.value],
@@ -454,4 +480,5 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                im_width=im_width,
                                model_output=model_output,
                                header="True Negative",
-                               config=config)
+                               config=config,
+                               metrics_df=test_metrics)

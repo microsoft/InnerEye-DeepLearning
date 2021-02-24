@@ -498,21 +498,32 @@ def test_load_single_item_7() -> None:
 
 @pytest.mark.parametrize(["text", "is_classification", "num_classes", "expected_label"],
                          [
+                             ("false", True, 0, None),
+                             ("false", False, 0, None),
                              ("true", True, 1, [1]),
                              ("tRuE", True, 1, [1]),
                              ("false", True, 1, [0]),
-                             ("false", True, 0, None),
-                             ("false", False, 0, None),
                              ("False", True, 1, [0]),
                              ("nO", True, 1, [0]),
                              ("Yes", True, 1, [1.0]),
-                             ("1.23", True, 1, [1.23]),
-                             ("1", True, 3, [0.0, 1.0, 0.0]),
-                             ("1|2", True, 3, [0.0, 1.0, 1.0]),
+                             ("1.23", False, 1, [1.23]),
+                             (3.45, True, 1, None),
+                             (3.45, False, 1, None),
                              ("3.45", False, 1, [3.45]),
                              (math.nan, True, 1, [math.nan]),
+                             (math.nan, True, 3, [0.0, 0.0, 0.0]),
+                             (math.nan, False, 1, [math.nan]),
                              ("", True, 1, [math.nan]),
-                             ("abc", True, 1, None)
+                             ("", True, 3, [0.0, 0.0, 0.0]),
+                             ("", False, 1, [math.nan]),
+                             ("abc", True, 1, None),
+                             ("abc", True, 3, None),
+                             ("abc", False, 1, None),
+                             ("1", True, 1, [1.0]),
+                             ("1", True, 3, [0.0, 1.0, 0.0]),
+                             ("1", False, 1, [1.0]),
+                             ("-1", False, 1, [-1.0]),
+                             ("1|2", True, 3, [0.0, 1.0, 1.0])
                          ])
 def test_extract_label(text: str, is_classification: bool, num_classes: int,
                        expected_label: List[float], ) -> None:

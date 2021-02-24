@@ -20,17 +20,28 @@ def get_unique_label_combinations(dataset_csv: Path, config: ScalarModelBase) ->
     """
     Get a list of all the combinations of labels that exist in the dataset.
     """
+    if config.label_channels and len(config.label_channels) > 1:
+        raise ValueError(f"Single label channel expected in multilabel datasets, "
+                         f"got {len(config.label_channels)} channels.")
     df = pd.read_csv(dataset_csv, dtype=str)
-    labels = list(set(df[config.label_value_column].values))
+    if config.label_channels:
+        df = df.loc[df[config.channel_column] == config.label_channels[0]]
+    combined_labels = list(set(df[config.label_value_column].values))
 
-    labels = [[config.class_names[int(i)]
-                for i in np.array(extract_label_classification(label_string=label,
-                                                               sample_id="",
-                                                               num_classes=len(config.class_names),
-                                                               is_classification_dataset=config.is_classification_model))
-                                                               .nonzero()[0]]
-              for label in labels if not isinstance(label, float) or not math.isnan(label)]
-    return labels
+    label_set = []
+    for labels in combined_labels:
+        labels = extract_label_classification(label_string=labels,
+                                              sample_id="",
+                                              num_classes=len(config.class_names),
+                                              is_classification_dataset=config.is_classification_model)
+        labels = np.array(labels)
+        labels = labels[~np.isnan(labels)]
+        if len(labels) == 0:
+            continue
+        labels = labels.nonzero()[0]
+        label_set.append([config.class_names[int(i)] for i in labels])
+
+    return label_set
 
 
 def generate_psuedo_labels(csv: Path,
@@ -71,9 +82,6 @@ def generate_psuedo_labels(csv: Path,
             df_to_return[LoggingColumns.Label.value] = 0
 
         return df_to_return
-
-    if not hues:
-        print_header("Empty hue list", level=0)
 
     df = pd.read_csv(csv)
     for i in range(len(per_class_thresholds)):
