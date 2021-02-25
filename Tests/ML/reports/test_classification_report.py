@@ -5,6 +5,7 @@
 import math
 import shutil
 from pathlib import Path
+from io import StringIO
 
 import numpy as np
 import pandas as pd
@@ -193,9 +194,7 @@ def test_get_image_filepath_from_subject_id_single() -> None:
     dataset_csv_file = reports_folder / "dataset.csv"
     dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
 
-    config = DummyMulticlassClassification()
-    config.subject_column = "subject"
-    config.image_file_column = "filePath"
+    config = ScalarModelBase(image_file_column="filePath")
 
     filepath = get_image_filepath_from_subject_id(subject_id="1",
                                                   dataset_df=dataset_df,
@@ -206,6 +205,28 @@ def test_get_image_filepath_from_subject_id_single() -> None:
     assert filepath
     assert len(filepath) == 1
     assert expected_path.samefile(filepath[0])
+
+
+def test_get_image_filepath_from_subject_id_with_image_channels(test_output_dirs: OutputFolderForTests) -> None:
+    image_file_name = "image.npy"
+    dataset_csv_file = StringIO(f"subject,channel,filePath\n"
+                                f"0,channel1,{image_file_name}\n"
+                                f"0,channel2,\n"
+                                f"1,channel1,{image_file_name}\n"
+                                f"1,channel2,\n")
+
+    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
+
+    config = ScalarModelBase(image_channels=["channel1"],
+                             image_file_column="filePath")
+    filepath = get_image_filepath_from_subject_id(subject_id="1",
+                                                  dataset_df=dataset_df,
+                                                  config=config,
+                                                  dataset_dir=test_output_dirs.root_dir)
+
+    assert filepath
+    assert len(filepath) == 1
+    assert filepath[0] == test_output_dirs.root_dir / image_file_name
 
 
 def test_get_image_filepath_from_subject_id_multiple() -> None:
@@ -254,15 +275,31 @@ def test_image_labels_from_subject_id_single() -> None:
     dataset_csv_file = reports_folder / "dataset.csv"
     dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
 
-    config = DummyMulticlassClassification()
-    config.subject_column = "subject"
+    config = ScalarModelBase(label_value_column="label")
 
+    labels = get_image_labels_from_subject_id(subject_id="1",
+                                              dataset_df=dataset_df,
+                                              config=config)
+    assert not labels
+
+
+def test_image_labels_from_subject_id_with_label_channels() -> None:
+    dataset_csv_file = StringIO("subject,channel,label\n"
+                                "0,channel1,0\n"
+                                "0,channel2,\n"
+                                "1,channel1,1\n"
+                                "1,channel2,\n")
+
+    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
+
+    config = ScalarModelBase(label_channels=["channel1"],
+                             label_value_column="label")
     labels = get_image_labels_from_subject_id(subject_id="1",
                                               dataset_df=dataset_df,
                                               config=config)
     assert labels
     assert len(labels) == 1
-    assert labels[0] == "class0"
+    assert labels[0] == MetricsDict.DEFAULT_HUE_KEY
 
 
 def test_image_labels_from_subject_id_multiple() -> None:

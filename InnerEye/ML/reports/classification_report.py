@@ -293,9 +293,11 @@ def get_image_filepath_from_subject_id(subject_id: str,
     :param dataset_dir: Path to the dataset
     :return: path to the image file for the patient or None if it is not found.
     """
+    if config.image_channels and config.channel_column in dataset_df:
+        dataset_df = dataset_df.loc[dataset_df[config.channel_column].isin(config.image_channels)]
 
-    filtered = dataset_df[dataset_df[config.subject_column] == subject_id]
-    filepaths = filtered[config.image_file_column].values
+    dataset_df = dataset_df[dataset_df[config.subject_column] == subject_id]
+    filepaths = dataset_df[config.image_file_column].values
 
     return [dataset_dir / Path(filepath) for filepath in filepaths]
 
@@ -303,8 +305,14 @@ def get_image_filepath_from_subject_id(subject_id: str,
 def get_image_labels_from_subject_id(subject_id: str,
                                      dataset_df: pd.DataFrame,
                                      config: ScalarModelBase) -> List[str]:
-    filtered = dataset_df[dataset_df[config.subject_column] == subject_id]
-    labels = list(set(filtered[config.label_value_column].values))
+    if config.label_channels and config.channel_column in dataset_df:
+        if len(config.label_channels) > 1:
+            raise ValueError(f"Single label channel expected in multilabel datasets, "
+                             f"got {len(config.label_channels)} channels.")
+
+        dataset_df = dataset_df.loc[dataset_df[config.channel_column] == config.label_channels[0]]
+    dataset_df = dataset_df[dataset_df[config.subject_column] == subject_id]
+    labels = list(set(dataset_df[config.label_value_column].values))
 
     if not labels:
         return []
@@ -390,7 +398,7 @@ def plot_image_for_subject(subject_id: str,
                                               dataset_df=dataset_df,
                                               config=config)
 
-    print_header(f"True labels: {', '.join(labels)}", level=4)
+    print_header(f"True labels: {', '.join(labels) if labels else 'Negative'}", level=4)
 
     if metrics_df is not None:
         all_model_outputs = get_image_outputs_from_subject_id(subject_id=subject_id,
