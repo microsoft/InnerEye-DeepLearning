@@ -108,6 +108,8 @@ class ScalarModelBase(ModelConfigBase):
                                         bounds=(1, None),
                                         doc="The label names for each label class in the dataset and model output "
                                             "in the case of binary and multi-label classification tasks."
+                                            "The order of the names should match the order of label class indices "
+                                            "in dataset.csv"
                                             "For multi-label classification, this field is required. "
                                             "For binary classification, this field defaults to the string 'Default'.")
     aggregation_type: AggregationType = param.ClassSelector(default=AggregationType.Average, class_=AggregationType,

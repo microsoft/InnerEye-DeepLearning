@@ -13,6 +13,12 @@ created.
 ### Added
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Add the ability to train a model on multiple
 nodes in AzureML. Example: Add `--num_nodes=2` to the commandline arguments to train on 2 nodes.
+- ([#391](https://github.com/microsoft/InnerEye-DeepLearning/pull/391)) Support for multilabel classification tasks. 
+  Multilabel models can be trained by adding the parameter `class_names` to the config for classification models. 
+  `class_names` should contain the name of each label class in the dataset, and the order of names should match the 
+  order of class label indices in `dataset.csv`.
+  `dataset.csv` supports multiple labels (indices corresponding to `class_names`) per subject in the label column. 
+  Multiple labels should be encoded as a string with labels separated by a `|`, for example "0|2|4".
 
 ### Changed
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Starting an AzureML run now uses the
