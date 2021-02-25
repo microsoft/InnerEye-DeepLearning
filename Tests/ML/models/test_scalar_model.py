@@ -187,8 +187,16 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
                                             checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
 
-    for metric in [MetricType.ACCURACY_AT_THRESHOLD_05, MetricType.CROSS_ENTROPY]:
-        assert metric.value in test_results.metrics.values().keys()
+    expected_metrics = {MetricType.CROSS_ENTROPY: [1.3996, 5.2966, 1.4020, 0.3553, 0.6908],
+                        MetricType.ACCURACY_AT_THRESHOLD_05: [0.0000, 0.0000, 0.0000, 1.0000, 1.0000]
+                        }
+
+    for i, class_name in enumerate(config.class_names):
+        for metric in expected_metrics.keys():
+            assert expected_metrics[metric][i] == pytest.approx(
+                                                        test_results.metrics.get_single_metric(
+                                                            metric_name=metric,
+                                                            hue=class_name), 1e-4)
 
     def get_epoch_path(mode: ModelExecutionMode) -> Path:
         p = get_epoch_results_path(mode=mode)
