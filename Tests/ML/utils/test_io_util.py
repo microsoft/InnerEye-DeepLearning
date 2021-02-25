@@ -647,7 +647,7 @@ def test_create_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
     :return: None.
     """
     test_shape = (24, 36, 48)  # (#slices, #rows, #columns)
-    test_spacing = (1.5, 2.5, 3.5)
+    test_spacing = (1.0, 1.0, 2.5)  # (column spacing, row spacing, slice spacing)
     series_folder = test_output_dirs.root_dir / "series"
     series_folder.mkdir()
     # Create the series
