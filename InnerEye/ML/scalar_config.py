@@ -106,7 +106,10 @@ class ScalarModelBase(ModelConfigBase):
     class_names: List[str] = param.List(class_=str,
                                         default=[MetricsDict.DEFAULT_HUE_KEY],
                                         bounds=(1, None),
-                                        doc="Class names is the name of the outputs of the model.")
+                                        doc="The label names for each label class in the dataset and model output "
+                                            "in the case of binary and multi-label classification tasks."
+                                            "For multi-label classification, this field is required. "
+                                            "For binary classification, this field defaults to the string 'Default'.")
     aggregation_type: AggregationType = param.ClassSelector(default=AggregationType.Average, class_=AggregationType,
                                                             doc="The type of global pooling aggregation to use between"
                                                                 " the encoder and the classifier.")
