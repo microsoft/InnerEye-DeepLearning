@@ -155,7 +155,7 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     expected_train_loss = [0.699870228767395, 0.6239662170410156, 0.551329493522644, 0.4825132489204407]
-    expected_val_loss = [0.7522633671760559, 0.6747795343399048, 0.6028474569320679, 0.5367878079414368]
+    expected_val_loss = [0.6299371719360352, 0.5546272993087769, 0.4843321740627289, 0.41909298300743103]
     # Ensure that all metrics are computed on both training and validation set
     assert len(model_training_result.train_results_per_epoch) == config.num_epochs
     assert len(model_training_result.val_results_per_epoch) == config.num_epochs
@@ -186,6 +186,9 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
                                             checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
+
+    for metric in [MetricType.ACCURACY_AT_THRESHOLD_05, MetricType.CROSS_ENTROPY]:
+        assert metric.value in test_results.metrics.values().keys()
 
     def get_epoch_path(mode: ModelExecutionMode) -> Path:
         p = get_epoch_results_path(mode=mode)
