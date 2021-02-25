@@ -5,6 +5,7 @@
 import pytest
 import torch
 import torch.optim as optim
+from typing import Dict
 
 from InnerEye.ML.models.losses.cross_entropy import CrossEntropyLoss
 # Set random seed
@@ -171,17 +172,17 @@ def test_weighted_binary_cross_entropy_loss_multi_label() -> None:
     smoothed_target = torch.tensor([[0.9, 0.1], [0.9, 0.1], [0.1, 0.1]], dtype=torch.float32)
     logits = torch.tensor([[-10, 1], [-10, 1], [10, 0]], dtype=torch.float32)
     weighted_non_smoothed_loss_fn: SupervisedLearningCriterion = \
-        BinaryCrossEntropyWithLogitsLoss(num_classes=1,
+        BinaryCrossEntropyWithLogitsLoss(num_classes=2,
                                          smoothing_eps=0,
                                          class_counts={1.0: 0, 0.0: 2},
                                          num_train_samples=target.shape[0])
     weighted_smoothed_loss_fn: SupervisedLearningCriterion = \
-        BinaryCrossEntropyWithLogitsLoss(num_classes=1,
+        BinaryCrossEntropyWithLogitsLoss(num_classes=2,
                                          smoothing_eps=0.1,
                                          class_counts={1.0: 0, 0.0: 2},
                                          num_train_samples=target.shape[0])
     non_weighted_smoothed_loss_fn: SupervisedLearningCriterion = \
-        BinaryCrossEntropyWithLogitsLoss(num_classes=1,
+        BinaryCrossEntropyWithLogitsLoss(num_classes=2,
                                          smoothing_eps=0.1,
                                          class_counts=None)
     w_loss1 = weighted_non_smoothed_loss_fn(logits, smoothed_target)
@@ -191,6 +192,18 @@ def test_weighted_binary_cross_entropy_loss_multi_label() -> None:
     assert torch.isclose(w_loss1, w_loss2)
     assert not torch.isclose(w_loss2, w_loss3)
     assert torch.equal(positive_class_weights, torch.tensor([0.5, 1]))
+
+
+@pytest.mark.parametrize("num_classes, class_counts", [(1, {1.0: 0, 0.0: 2}),
+                                                      (3, {1.0: 0, 0.0: 2})])
+def test_invalid_initialization(num_classes: int,
+                                class_counts: Dict[float, int]) -> None:
+    with pytest.raises(ValueError) as ex:
+        BinaryCrossEntropyWithLogitsLoss(num_classes=num_classes,
+                                         smoothing_eps=0,
+                                         class_counts=class_counts,
+                                         num_train_samples=10)
+    assert f"Have {num_classes} classes but got counts for {len(class_counts)} classes" in str(ex)
 
 
 class ToyNet(torch.nn.Module):

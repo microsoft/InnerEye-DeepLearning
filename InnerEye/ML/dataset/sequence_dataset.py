@@ -280,14 +280,13 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
 
     def get_class_counts(self) -> Dict:
         """
-        Return class weights that are proportional to the inverse frequency of label counts (summed
-        over all target indices).
+        Return the label counts (summed over all target indices).
         :return: Dictionary of {"label": count}
         """
         all_labels_per_target = torch.stack([seq.get_labels_at_target_indices(self.args.get_target_indices())
                                              for seq in self.items])  # [N, T, 1]
-        non_nan_labels = list(filter(lambda x: not np.isnan(x), all_labels_per_target.flatten().tolist()))
-        return dict(Counter(non_nan_labels))
+        non_nan_and_nonzero_labels = list(filter(lambda x: not np.isnan(x) and x != 0, all_labels_per_target.flatten().tolist()))
+        return dict(Counter(non_nan_and_nonzero_labels))
 
     def __len__(self) -> int:
         return len(self.items)

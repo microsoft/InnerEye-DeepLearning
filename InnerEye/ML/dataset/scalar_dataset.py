@@ -773,7 +773,7 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
         :return: Dictionary of {"label": count}
         """
         if len(self.args.class_names) == 1:
-            return dict(Counter([item.label.item() for item in self.items]))
+            return dict(Counter([item.label.item() for item in self.items if item.label.item() != 0]))
         else:
             all_labels = [torch.flatten(torch.nonzero(item.label)).tolist() for item in self.items]  # [N, 1]
             flat_list = list(flatten(all_labels))

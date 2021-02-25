@@ -615,7 +615,7 @@ def test_get_class_weights_dataset(test_output_dirs: OutputFolderForTests) -> No
     splits = config.get_dataset_splits()
     train_dataset = config.create_torch_datasets(splits)[ModelExecutionMode.TRAIN]
     class_counts = train_dataset.get_class_counts()
-    assert class_counts == {0.0: 9, 1.0: 2}
+    assert class_counts == {1.0: 2}
 
 
 def test_get_labels_at_target_indices() -> None:
