@@ -36,27 +36,34 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
         -> List[float]:
     """
     Converts a string from a dataset.csv file that contains a model's label to a scalar.
+
+    For classification datasets:
     The function maps ["1", "true", "yes"] to 1, ["0", "false", "no"] to 0.
+    For regression dataset:
+    The function casts a string label to float. Raises an exception if the conversion is
+    not possible.
+
     If the entry in the CSV file was missing (no string given at all), it returns math.nan.
-    :param is_classification_dataset: If the model is a classification model
     :param label_string: The value of the label as read from CSV via a DataFrame.
     :param sample_id: The sample ID where this label was read from. This is only used for creating error messages.
     :param num_classes: Number of classes. This should be equal the size of the model output
+    :param is_classification_dataset: If the model is a classification model
     :return: A list of floats with the same size as num_classes
     """
 
     if num_classes < 1:
         raise ValueError(f"Subject {sample_id}: Invalid number of classes: '{num_classes}'")
 
-    # Pandas special case: When loading a dataframe with dtype=str, missing values can be encoded as NaN
     if isinstance(label_string, float):
         if math.isnan(label_string):
             if num_classes == 1:
+                # Pandas special case: When loading a dataframe with dtype=str, missing values can be encoded as NaN, and get into here.
                 return [label_string]
             else:
                 return [0] * num_classes
         else:
-            raise ValueError(f"Subject {sample_id}: Label string not recognized: expected string got float")
+            raise ValueError(f"Subject {sample_id}: Unexpected float input {label_string} - did you read the "	
+                             f"dataframe column as a string?")
 
     if not label_string:
         if not is_classification_dataset or num_classes == 1:

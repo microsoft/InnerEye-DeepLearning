@@ -144,9 +144,15 @@ def test_weighted_binary_cross_entropy_loss_forward_smoothing() -> None:
     smoothed_target = torch.tensor([[0.9], [0.9], [0.9], [0.9], [0.9], [0.1]], dtype=torch.float32)
     logits = torch.tensor([[-10], [-10], [0], [0], [0], [0]], dtype=torch.float32)
     weighted_non_smoothed_loss_fn: SupervisedLearningCriterion = \
-        BinaryCrossEntropyWithLogitsLoss(num_classes=1, smoothing_eps=0, class_counts={0.0: 1.0, 1.0: 5.0})
+        BinaryCrossEntropyWithLogitsLoss(num_classes=1,
+                                         smoothing_eps=0,
+                                         class_counts={1.0: 5.0},
+                                         num_train_samples=target.shape[0])
     weighted_smoothed_loss_fn: SupervisedLearningCriterion = \
-        BinaryCrossEntropyWithLogitsLoss(num_classes=1, smoothing_eps=0.1, class_counts={0.0: 1.0, 1.0: 5.0})
+        BinaryCrossEntropyWithLogitsLoss(num_classes=1,
+                                         smoothing_eps=0.1,
+                                         class_counts={1.0: 5.0},
+                                         num_train_samples=target.shape[0])
     non_weighted_smoothed_loss_fn: SupervisedLearningCriterion = BinaryCrossEntropyWithLogitsLoss(num_classes=1,
                                                                                                   smoothing_eps=0.1,
                                                                                                   class_counts=None)
@@ -159,23 +165,32 @@ def test_weighted_binary_cross_entropy_loss_forward_smoothing() -> None:
     assert torch.all(positive_class_weights == torch.tensor([[0.2]]))
 
 
-def test_weighted_binary_cross_entropy_loss_multi_target() -> None:
-    target = torch.tensor([[[1], [0]], [[1], [0]], [[0], [0]]], dtype=torch.float32)
-    smoothed_target = torch.tensor([[[0.9], [0.1]], [[0.9], [0.1]], [[0.1], [0.1]]], dtype=torch.float32)
-    logits = torch.tensor([[[-10], [1]], [[-10], [1]], [[10], [0]]], dtype=torch.float32)
+def test_weighted_binary_cross_entropy_loss_multi_label() -> None:
+    # Class 0 has 2 positive examples, class 1 has none
+    target = torch.tensor([[1, 0], [1, 0], [0, 0]], dtype=torch.float32)
+    smoothed_target = torch.tensor([[0.9, 0.1], [0.9, 0.1], [0.1, 0.1]], dtype=torch.float32)
+    logits = torch.tensor([[-10, 1], [-10, 1], [10, 0]], dtype=torch.float32)
     weighted_non_smoothed_loss_fn: SupervisedLearningCriterion = \
-        BinaryCrossEntropyWithLogitsLoss(num_classes=1, smoothing_eps=0, class_counts={1.0: 2, 0.0: 4})
+        BinaryCrossEntropyWithLogitsLoss(num_classes=1,
+                                         smoothing_eps=0,
+                                         class_counts={1.0: 0, 0.0: 2},
+                                         num_train_samples=target.shape[0])
     weighted_smoothed_loss_fn: SupervisedLearningCriterion = \
-        BinaryCrossEntropyWithLogitsLoss(num_classes=1, smoothing_eps=0.1, class_counts={1.0: 2, 0.0: 4})
+        BinaryCrossEntropyWithLogitsLoss(num_classes=1,
+                                         smoothing_eps=0.1,
+                                         class_counts={1.0: 0, 0.0: 2},
+                                         num_train_samples=target.shape[0])
     non_weighted_smoothed_loss_fn: SupervisedLearningCriterion = \
-        BinaryCrossEntropyWithLogitsLoss(num_classes=1, smoothing_eps=0.1, class_counts=None)
+        BinaryCrossEntropyWithLogitsLoss(num_classes=1,
+                                         smoothing_eps=0.1,
+                                         class_counts=None)
     w_loss1 = weighted_non_smoothed_loss_fn(logits, smoothed_target)
     w_loss2 = weighted_smoothed_loss_fn(logits, target)
     w_loss3 = non_weighted_smoothed_loss_fn(logits, target)
     positive_class_weights = weighted_smoothed_loss_fn.get_positive_class_weights()  # type: ignore
     assert torch.isclose(w_loss1, w_loss2)
     assert not torch.isclose(w_loss2, w_loss3)
-    assert torch.all(positive_class_weights == torch.tensor(2))
+    assert torch.equal(positive_class_weights, torch.tensor([0.5, 1]))
 
 
 class ToyNet(torch.nn.Module):
