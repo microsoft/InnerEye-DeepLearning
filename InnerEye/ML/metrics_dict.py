@@ -193,7 +193,7 @@ class MetricsDict:
         :param is_classification_metrics: If this is a classification metrics dict
         """
 
-        _hues = hues.copy()
+        _hues = hues.copy() if hues else None
         if _hues and MetricsDict.DEFAULT_HUE_KEY in _hues:
             _hues.remove(MetricsDict.DEFAULT_HUE_KEY)
         self.hues_without_default = _hues or []
