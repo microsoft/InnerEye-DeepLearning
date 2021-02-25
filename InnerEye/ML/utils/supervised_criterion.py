@@ -57,7 +57,7 @@ class BinaryCrossEntropyWithLogitsLoss(SupervisedLearningCriterion):
     """A wrapper function for torch.nn.BCEWithLogitsLoss to enable label smoothing"""
 
     def __init__(self, num_classes: int,
-                 class_counts: Optional[Dict[float, float]] = None,
+                 class_counts: Optional[Dict[float, int]] = None,
                  num_train_samples: Optional[int] = None,
                  **kwargs: Any):
         super().__init__(is_binary_classification=True, **kwargs)
@@ -81,7 +81,7 @@ class BinaryCrossEntropyWithLogitsLoss(SupervisedLearningCriterion):
         :return: a list of weights to use for the positive class for each target position.
         """
         assert self._class_counts and self._num_train_samples
-        if len(self._class_counts) !=  self.num_classes:
+        if len(self._class_counts) != self.num_classes:
             raise ValueError(f"Have {self.num_classes} classes but got counts for {len(self._class_counts)} classes "
                              f"Note: If this is a binary classification task, there should be a single class count "
                              f"corresponding to the positive class.")

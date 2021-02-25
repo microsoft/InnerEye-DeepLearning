@@ -278,7 +278,7 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
         return [seq.get_labels_at_target_indices(self.args.get_target_indices())[-1].item()
                 for seq in self.items]
 
-    def get_class_counts(self) -> Dict:
+    def get_class_counts(self) -> Dict[float, int]:
         """
         Return the label counts (summed over all target indices).
         :return: Dictionary of {"label": count}

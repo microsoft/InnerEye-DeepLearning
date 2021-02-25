@@ -767,9 +767,9 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
         """
         return [item.label.item() for item in self.items]
 
-    def get_class_counts(self) -> Dict:
+    def get_class_counts(self) -> Dict[float, int]:
         """
-        Return class weights that are proportional to the inverse frequency of label counts.
+        Return the label counts.
         :return: Dictionary of {"label": count}
         """
         if len(self.args.class_names) == 1:
