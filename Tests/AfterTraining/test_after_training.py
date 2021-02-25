@@ -34,9 +34,9 @@ from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.utils.image_util import get_unit_image_header
+from InnerEye.ML.utils.io_util import zip_random_dicom_series
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape
-from Tests.ML.utils.test_io_util import zip_dicom_series
 
 
 FALLBACK_ENSEMBLE_RUN = "refs_pull_385_merge:HD_2850254e-4ecf-4425-9245-70fa98f50d81"
@@ -152,8 +152,11 @@ def test_submit_for_inference(use_dicom: bool, test_output_dirs: OutputFolderFor
     model = get_most_recent_model(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
     assert PYTHON_ENVIRONMENT_NAME in model.tags, "Environment name not present in model properties"
     if use_dicom:
+        size = (64, 64, 64)
+        spacing = (1., 1., 2.5)
         image_file = test_output_dirs.root_dir / "temp_pack_dicom_series" / "dicom_series.zip"
-        zip_dicom_series(image_file)
+        scratch_folder = test_output_dirs.root_dir / "temp_dicom_series"
+        zip_random_dicom_series(size, spacing, image_file, scratch_folder)
     else:
         image_file = fixed_paths_for_tests.full_ml_test_data_path() / "train_and_test_data" / "id1_channel1.nii.gz"
     assert image_file.exists(), f"Image file not found: {image_file}"

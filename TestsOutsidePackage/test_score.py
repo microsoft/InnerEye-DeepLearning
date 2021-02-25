@@ -20,7 +20,8 @@ from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.utils.test_io_util import HNSEGMENTATION_FILE, zip_dicom_series
+from Tests.ML.utils.test_io_util import HNSEGMENTATION_FILE, zip_known_dicom_series
+
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 from score import create_inference_pipeline, is_spacing_valid, run_inference, score_image, ScorePipelineConfig, \
     extract_zipped_files_and_flatten, convert_zipped_dicom_to_nifti, \
@@ -177,32 +178,32 @@ def _common_test_unpack_dicom_zip(zip_file_contents: List[Path], expected_filena
 
     extraction_folder = test_output_dirs.root_dir / "unpack"
     extract_zipped_files_and_flatten(zip_filename, extraction_folder)
-    _common_test_unpack_zip(extraction_folder, expected_filenames)
+    assert_folder_contents(extraction_folder, expected_filenames)
 
 
-def _common_test_unpack_zip(extraction_folder: Path, expected_filenames: List[str]) -> None:
+def assert_folder_contents(folder: Path, expected_filenames: List[str]) -> None:
     """
-    Test the extraction folder contains expected files, not in a folder.
+    Test the folder contains only expected files and there are no subfolders.
 
-    :param extraction_folder: Path to extracted zip file.
+    :param folder: Path to folder to test.
     :param expected_filenames: List of expected filenames.
     """
     # Get all files/folders in this series
-    extracted_files = list(extraction_folder.glob('**/*'))
-    # Check they are all files (no folders) and in the extraction_folder (not a subdirectory)
-    for extracted_file in extracted_files:
-        assert extracted_file.is_file()
-        relative_path = extracted_file.relative_to(extraction_folder)
+    folder_files = list(folder.glob('**/*'))
+    # Check they are all files (no folders) and in the folder (not a subdirectory)
+    for folder_file in folder_files:
+        assert folder_file.is_file()
+        relative_path = folder_file.relative_to(folder)
         assert str(relative_path.parent) == '.'
-    extracted_file_names = [extracted_file.name for extracted_file in extracted_files]
+    folder_file_names = [folder_file.name for folder_file in folder_files]
     # Check names are as expected
-    assert sorted(extracted_file_names) == sorted(expected_filenames)
+    assert sorted(folder_file_names) == sorted(expected_filenames)
 
 
 def assert_zip_file_contents(zip_filename: Path, expected_filenames: List[str],
                              scratch_folder: Path) -> None:
     """
-    Check that a zip file contains exactly the expected_filenames and that the zip file
+    Check that a zip file contains exactly expected_filenames and that the zip file
     has no folders.
 
     :param zip_filename: Path to zip file.
@@ -213,7 +214,7 @@ def assert_zip_file_contents(zip_filename: Path, expected_filenames: List[str],
     extraction_folder = scratch_folder / "temp_zip_extraction"
     with zipfile.ZipFile(zip_filename, 'r') as zip_file:
         zip_file.extractall(extraction_folder)
-    _common_test_unpack_zip(extraction_folder, expected_filenames)
+    assert_folder_contents(extraction_folder, expected_filenames)
 
 
 def test_convert_nifti_to_zipped_dicom_rt(test_output_dirs: OutputFolderForTests) -> None:
@@ -226,7 +227,7 @@ def test_convert_nifti_to_zipped_dicom_rt(test_output_dirs: OutputFolderForTests
     model_folder.mkdir()
 
     zipped_dicom_series_path = test_output_dirs.root_dir / "temp_pack_dicom_series" / "dicom_series.zip"
-    zip_dicom_series(zipped_dicom_series_path)
+    zip_known_dicom_series(zipped_dicom_series_path)
     reference_series_folder = model_folder / "temp_extraction"
     nifti_filename = model_folder / "temp_nifti.nii.gz"
     convert_zipped_dicom_to_nifti(zipped_dicom_series_path, reference_series_folder, nifti_filename)
@@ -244,7 +245,7 @@ def test_score_image_dicom_two_inputs(test_output_dirs: OutputFolderForTests) ->
     """
     model_folder = test_output_dirs.root_dir / "final"
     zipped_dicom_series_path = test_output_dirs.root_dir / "temp_pack_dicom_series" / "dicom_series.zip"
-    zip_dicom_series(zipped_dicom_series_path)
+    zip_known_dicom_series(zipped_dicom_series_path)
 
     score_pipeline_config = ScorePipelineConfig(
         data_folder=zipped_dicom_series_path.parent,
@@ -300,7 +301,7 @@ def test_score_image_dicom_mock_all(test_output_dirs: OutputFolderForTests) -> N
     model_folder.mkdir()
 
     zipped_dicom_series_path = test_output_dirs.root_dir / "temp_pack_dicom_series" / "dicom_series.zip"
-    zip_dicom_series(zipped_dicom_series_path)
+    zip_known_dicom_series(zipped_dicom_series_path)
 
     score_pipeline_config = ScorePipelineConfig(
         data_folder=zipped_dicom_series_path.parent,
@@ -347,7 +348,7 @@ def test_score_image_dicom_mock_run_store(test_output_dirs: OutputFolderForTests
     ml_runner.copy_child_paths_to_folder(model_folder=model_folder, checkpoint_paths=[checkpoint_path])
 
     zipped_dicom_series_path = test_output_dirs.root_dir / "temp_pack_dicom_series" / "dicom_series.zip"
-    zip_dicom_series(zipped_dicom_series_path)
+    zip_known_dicom_series(zipped_dicom_series_path)
 
     score_pipeline_config = ScorePipelineConfig(
         data_folder=zipped_dicom_series_path.parent,
@@ -389,7 +390,7 @@ def test_score_image_dicom_mock_run(test_output_dirs: OutputFolderForTests) -> N
     ml_runner.copy_child_paths_to_folder(model_folder=model_folder, checkpoint_paths=[checkpoint_path])
 
     zipped_dicom_series_path = test_output_dirs.root_dir / "temp_pack_dicom_series" / "dicom_series.zip"
-    zip_dicom_series(zipped_dicom_series_path)
+    zip_known_dicom_series(zipped_dicom_series_path)
 
     score_pipeline_config = ScorePipelineConfig(
         data_folder=zipped_dicom_series_path.parent,
@@ -429,7 +430,7 @@ def test_score_image_dicom_mock_none(test_output_dirs: OutputFolderForTests) -> 
     ml_runner.copy_child_paths_to_folder(model_folder=model_folder, checkpoint_paths=[checkpoint_path])
 
     zipped_dicom_series_path = test_output_dirs.root_dir / "temp_pack_dicom_series" / "dicom_series.zip"
-    zip_dicom_series(zipped_dicom_series_path)
+    zip_known_dicom_series(zipped_dicom_series_path)
 
     score_pipeline_config = ScorePipelineConfig(
         data_folder=zipped_dicom_series_path.parent,

@@ -6,7 +6,7 @@ from copy import copy
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-import time
+import shutil
 from typing import Dict, Generic, Iterable, List, Optional, Tuple, Type, TypeVar, Union
 import uuid
 
@@ -753,6 +753,7 @@ def create_dicom_series(folder: Path, size: TupleInt3, spacing: TupleFloat3) -> 
     }
 
     # Write slices to output directory
+    folder.mkdir(parents=True, exist_ok=True)
     for i in range(image.GetDepth()):
         _write_dicom_slice(writer, series_tag_values, image, folder, i)
     return data
@@ -798,3 +799,18 @@ def _create_dicom_uid() -> str:
     """
     guid = uuid.uuid4()
     return "2.25." + str(guid.int)
+
+
+def zip_random_dicom_series(size: TupleInt3, spacing: TupleFloat3,
+                            zip_file_path: Path, scratch_folder: Path) -> None:
+    """
+    Create a zipped random reference DICOM series.
+
+    :param size: Final image size, as (#slices, #rows, #columns).
+    :param spacing: Final image spacing, as (column spacing, row spacing, slice spacing) (in mm).
+    :param zip_file_path: Target zip file.
+    :param scratch_folder: Scratch folder.
+    """
+    zip_file_path.parent.mkdir(parents=True, exist_ok=True)
+    create_dicom_series(scratch_folder, size, spacing)
+    shutil.make_archive(str(zip_file_path.with_suffix('')), 'zip', str(scratch_folder))
