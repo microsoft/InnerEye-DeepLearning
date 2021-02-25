@@ -192,9 +192,11 @@ class MetricsDict:
         default hue.
         :param is_classification_metrics: If this is a classification metrics dict
         """
-        if hues and MetricsDict.DEFAULT_HUE_KEY in hues:
-            hues.remove(MetricsDict.DEFAULT_HUE_KEY)
-        self.hues_without_default = hues or []
+
+        _hues = hues.copy()
+        if _hues and MetricsDict.DEFAULT_HUE_KEY in _hues:
+            _hues.remove(MetricsDict.DEFAULT_HUE_KEY)
+        self.hues_without_default = _hues or []
         _hue_keys = self.hues_without_default + [MetricsDict.DEFAULT_HUE_KEY]
         self.hues: OrderedDict[str, Hue] = OrderedDict([(x, Hue(name=x)) for x in _hue_keys])
         self.skip_nan_when_averaging: Dict[str, bool] = dict()

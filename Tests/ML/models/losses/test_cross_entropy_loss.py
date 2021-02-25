@@ -147,12 +147,12 @@ def test_weighted_binary_cross_entropy_loss_forward_smoothing() -> None:
     weighted_non_smoothed_loss_fn: SupervisedLearningCriterion = \
         BinaryCrossEntropyWithLogitsLoss(num_classes=1,
                                          smoothing_eps=0,
-                                         class_counts={1.0: 5.0},
+                                         class_counts={1.0: 5},
                                          num_train_samples=target.shape[0])
     weighted_smoothed_loss_fn: SupervisedLearningCriterion = \
         BinaryCrossEntropyWithLogitsLoss(num_classes=1,
                                          smoothing_eps=0.1,
-                                         class_counts={1.0: 5.0},
+                                         class_counts={1.0: 5},
                                          num_train_samples=target.shape[0])
     non_weighted_smoothed_loss_fn: SupervisedLearningCriterion = BinaryCrossEntropyWithLogitsLoss(num_classes=1,
                                                                                                   smoothing_eps=0.1,
