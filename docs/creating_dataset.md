@@ -152,7 +152,11 @@ Classification datasets should have a `dataset.csv` and a folder containing the 
 have at least the following fields:
  * subject: The subject ID, a unique positive integer assigned to every image
  * path: Path to the image file for this subject
- * value: For classification, a (binary) ground truth label. For regression, a scalar value.
+ * value: 
+   * For binary classification, a (binary) ground truth label. This can be "true" and "false" or "0" and "1".
+   * For multi-label classification, the set of all positive labels for the image, separated by a `|` character.
+     Ex: "0|2|4" for a sample with true labels 0, 2 and 4.
+   * For regression, a scalar value.
 
 These, and other fields which can be added to dataset.csv are described in the examples below.
 

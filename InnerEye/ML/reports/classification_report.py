@@ -51,7 +51,7 @@ class ReportedMetrics(Enum):
     FalseNegativeRate = "false_negative_rate"
 
 
-def read_csv_and_filter_hue(csv: Path, hue: str):
+def read_csv_and_filter_hue(csv: Path, hue: str) -> pd.DataFrame:
     """
     Given a csv file, read it and select only those rows which belong to the given hue. Also check that there is
     only a single entry per hue per subject in the metrics file.
@@ -124,6 +124,8 @@ def get_metric(val_metrics: LabelsAndPredictions,
         fpr, tpr, thresholds = roc_curve(val_metrics.labels, val_metrics.model_outputs)
         optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
         optimal_threshold = thresholds[optimal_idx]
+
+    assert optimal_threshold  # for mypy, we have already calculated optimal threshold if it was set to None
 
     if metric is ReportedMetrics.OptimalThreshold:
         return optimal_threshold

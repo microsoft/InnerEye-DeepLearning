@@ -23,7 +23,7 @@ REPORT_HTML_SUFFIX = ".html"
 reports_folder = "reports"
 
 
-def get_ipynb_report_name(report_type: str):
+def get_ipynb_report_name(report_type: str) -> str:
     """
     Constructs the name of the report (as an ipython notebook).
     :param report_type: suffix describing the report, added to the filename
@@ -32,7 +32,7 @@ def get_ipynb_report_name(report_type: str):
     return f"{REPORT_PREFIX}_{report_type}{REPORT_IPYNB_SUFFIX}"
 
 
-def get_html_report_name(report_type: str):
+def get_html_report_name(report_type: str) -> str:
     """
     Constructs the name of the report (as an html file).
     :param report_type: suffix describing the report, added to the filename

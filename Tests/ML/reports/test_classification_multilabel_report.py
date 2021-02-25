@@ -113,7 +113,7 @@ def test_get_psuedo_labels_and_predictions_multiple_hues(test_output_dirs: Outpu
                     for i, op in enumerate([0, 0, 0, 0, 0, 1] if h == 0 else [0, 1, 1, 0, 0, 0])])
 
 
-def test_generate_psuedo_labels():
+def test_generate_psuedo_labels() -> None:
 
     csv = StringIO("prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split\n"
                    "Hue1,0,0,0.5,1,-1,Test\n"
@@ -137,7 +137,7 @@ def test_generate_psuedo_labels():
                             "Hue1|Hue2,0,3,1,0,-1,Test\n"
                             )
 
-    df = generate_psuedo_labels(csv=csv,
+    df = generate_psuedo_labels(csv=csv,  # type: ignore
                                 hues=["Hue1", "Hue2"],
                                 all_hues=["Hue1", "Hue2", "Hue3"],
                                 per_class_thresholds=[0.4, 0.5, 0.4])
@@ -145,7 +145,7 @@ def test_generate_psuedo_labels():
     assert expected_df.equals(df)
 
 
-def test_generate_psuedo_labels_negative_class():
+def test_generate_psuedo_labels_negative_class() -> None:
 
     csv = StringIO("prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split\n"
                    "Hue1,0,0,0.2,0,-1,Test\n"
@@ -169,7 +169,7 @@ def test_generate_psuedo_labels_negative_class():
                             ",0,3,1,0,-1,Test\n"
                             )
 
-    df = generate_psuedo_labels(csv=csv,
+    df = generate_psuedo_labels(csv=csv,  # type: ignore
                                 hues=[],
                                 all_hues=["Hue1", "Hue2", "Hue3"],
                                 per_class_thresholds=[0.4, 0.5, 0.4])
@@ -177,7 +177,7 @@ def test_generate_psuedo_labels_negative_class():
     assert expected_df.equals(df)
 
 
-def test_get_unique_label_combinations_single_label():
+def test_get_unique_label_combinations_single_label() -> None:
     config = DummyClassification()
     class_names = config.class_names
 
@@ -188,8 +188,8 @@ def test_get_unique_label_combinations_single_label():
                            "S2,random,random,\n"
                            "S3,label,random,1\n"
                            "S3,random,random,\n")
-    unique_labels = get_unique_label_combinations(dataset_csv, config)
-    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels)
+    unique_labels = get_unique_label_combinations(dataset_csv, config)  # type: ignore
+    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels)  # type: ignore
                                                   for labels in [[], [0]]])
 
     dataset_csv = StringIO("subjectID,channel,path,value\n"
@@ -197,12 +197,12 @@ def test_get_unique_label_combinations_single_label():
                            "S1,random,random,\n"
                            "S2,label,random,\n"
                            "S2,random,random,\n")
-    unique_labels = get_unique_label_combinations(dataset_csv, config)
-    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels)
+    unique_labels = get_unique_label_combinations(dataset_csv, config)  # type: ignore
+    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels)  # type: ignore
                                                   for labels in [[0]]])
 
 
-def test_get_unique_label_combinations_multi_label():
+def test_get_unique_label_combinations_multi_label() -> None:
     dataset_csv = StringIO("ID,channel,path,label\n"
                            "S1,blue,random,1|2|3\n"
                            "S1,green,random,\n"
@@ -213,7 +213,7 @@ def test_get_unique_label_combinations_multi_label():
                            "S4,blue,random,\n"
                            "S4,green,random,\n")
     config = DummyMulticlassClassification()
-    unique_labels = get_unique_label_combinations(dataset_csv, config)
+    unique_labels = get_unique_label_combinations(dataset_csv, config)  # type: ignore
     class_names = config.class_names
-    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels)
+    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels)  # type: ignore
                                                   for labels in [[1, 2, 3], [2, 3], [3], []]])

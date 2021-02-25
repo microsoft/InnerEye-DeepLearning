@@ -5,6 +5,7 @@
 import logging
 import math
 import sys
+import typing
 from abc import abstractmethod
 from collections import Counter, defaultdict
 from multiprocessing import cpu_count
@@ -772,13 +773,11 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
         :return: Dictionary of {"label": count}
         """
         if len(self.args.class_names) == 1:
-            all_labels = [item.label.item() for item in
-                          self.items]
-            return dict(Counter(all_labels))
+            return dict(Counter([item.label.item() for item in self.items]))
         else:
-            all_labels = [torch.flatten(item.label.nonzero()).tolist() for item in self.items]  # [N, 1]
+            all_labels = [torch.flatten(torch.nonzero(item.label)).tolist() for item in self.items]  # [N, 1]
             flat_list = list(flatten(all_labels))
-            freq_iter = Counter()
+            freq_iter: typing.Counter = Counter()
             freq_iter.update({x: 0 for x in range(len(self.args.class_names))})
             freq_iter.update(flat_list)
             result = dict(freq_iter)

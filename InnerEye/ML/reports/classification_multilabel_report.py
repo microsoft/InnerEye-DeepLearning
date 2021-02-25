@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import math
 from pathlib import Path
 from typing import List
 
@@ -11,7 +10,6 @@ import pandas as pd
 
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.ML.dataset.scalar_dataset import extract_label_classification
-from InnerEye.ML.reports.notebook_report import print_header
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.reports.classification_report import LabelsAndPredictions
 
@@ -62,7 +60,7 @@ def generate_psuedo_labels(csv: Path,
     :return: Dataframe with generated ground truth and model outputs per sample
     """
 
-    def get_pseudo_label(df: pd.DataFrame):
+    def get_pseudo_label(df: pd.DataFrame) -> pd.DataFrame:
         df_to_return = df.iloc[0]
 
         pred_positives = df[df[LoggingColumns.Hue.value].isin(hues)][LoggingColumns.ModelOutput.value].values
