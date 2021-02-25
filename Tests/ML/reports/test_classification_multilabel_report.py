@@ -20,7 +20,7 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 
 
-def test_generate_classification_report(test_output_dirs: OutputFolderForTests) -> None:
+def test_generate_classification_multilabel_report(test_output_dirs: OutputFolderForTests) -> None:
     hues = ["Hue1", "Hue2"]
 
     config = ScalarModelBase()

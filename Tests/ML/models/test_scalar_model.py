@@ -154,7 +154,7 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
-    expected_train_loss = [1.0212818384170532, 0.9808608889579773, 0.9444588422775269, 0.912279486656189]
+    expected_train_loss = [0.699870228767395, 0.6239662170410156, 0.551329493522644, 0.4825132489204407]
     expected_val_loss = [0.7522633671760559, 0.6747795343399048, 0.6028474569320679, 0.5367878079414368]
     # Ensure that all metrics are computed on both training and validation set
     assert len(model_training_result.train_results_per_epoch) == config.num_epochs

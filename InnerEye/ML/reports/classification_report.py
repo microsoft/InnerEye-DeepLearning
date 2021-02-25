@@ -392,7 +392,7 @@ def plot_image_for_subject(subject_id: str,
 
     print_header(f"True labels: {', '.join(labels)}", level=4)
 
-    if metrics_df:
+    if metrics_df is not None:
         all_model_outputs = get_image_outputs_from_subject_id(subject_id=subject_id,
                                                               metrics_df=metrics_df)
         print_header(f"ID: {subject_id}", level=4)
