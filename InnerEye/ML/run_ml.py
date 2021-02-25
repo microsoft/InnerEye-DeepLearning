@@ -726,24 +726,25 @@ class MLRunner:
                 reports_dir.mkdir(exist_ok=False)
 
             if config.model_category == ModelCategory.Segmentation:
-                generate_segmentation_notebook(result_notebook=reports_dir / get_ipynb_report_name(config.model_category.value),
-                                               train_metrics=path_to_best_epoch_train,
-                                               val_metrics=path_to_best_epoch_val,
-                                               test_metrics=path_to_best_epoch_test)
+                generate_segmentation_notebook(
+                    result_notebook=reports_dir / get_ipynb_report_name(config.model_category.value),
+                    train_metrics=path_to_best_epoch_train,
+                    val_metrics=path_to_best_epoch_val,
+                    test_metrics=path_to_best_epoch_test)
             else:
                 if isinstance(config, ScalarModelBase) and not isinstance(config, SequenceModelBase):
-                    generate_classification_notebook(result_notebook=reports_dir / get_ipynb_report_name(config.model_category.value),
-                                                     config=config,
-                                                     train_metrics=path_to_best_epoch_train,
-                                                     val_metrics=path_to_best_epoch_val,
-                                                     test_metrics=path_to_best_epoch_test,
-                                                     dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
-                                                     if config.local_dataset else None)
+                    generate_classification_notebook(
+                        result_notebook=reports_dir / get_ipynb_report_name(config.model_category.value),
+                        config=config,
+                        train_metrics=path_to_best_epoch_train,
+                        val_metrics=path_to_best_epoch_val,
+                        test_metrics=path_to_best_epoch_test,
+                        dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
+                        if config.local_dataset else None)
 
                     if len(config.class_names) > 1:
                         generate_classification_multilabel_notebook(
-                            result_notebook=reports_dir /
-                                            get_ipynb_report_name(f"{config.model_category.value}_multilabel"),
+                            result_notebook=reports_dir / get_ipynb_report_name(f"{config.model_category.value}_multilabel"),
                             config=config,
                             train_metrics=path_to_best_epoch_train,
                             val_metrics=path_to_best_epoch_val,
