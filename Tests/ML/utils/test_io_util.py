@@ -4,8 +4,10 @@
 #  ------------------------------------------------------------------------------------------
 import os
 from pathlib import Path
+import shutil
 from typing import Any, Callable, Optional, Tuple
 from unittest import mock
+import zipfile
 
 import SimpleITK as sitk
 import numpy as np
@@ -625,3 +627,63 @@ def test_load_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
     assert image_header.image.shape == expected_shape
     assert image_header.header.spacing is not None
     np.testing.assert_allclose(image_header.header.spacing, (2.5, 1.269531, 1.269531), rtol=0.1)
+
+
+def zip_known_dicom_series(zip_file_path: Path) -> None:
+    """
+    Create a zipped reference DICOM series.
+
+    Zip the reference DICOM series from test_data into zip_file_path.
+
+    :param zip_file_path: Target zip file.
+    """
+    zip_file_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.make_archive(str(zip_file_path.with_suffix('')), 'zip', str(dicom_series_folder))
+
+
+def test_create_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that a DICOM series can be created.
+
+    :param test_output_dirs: Test output directories.
+    :return: None.
+    """
+    test_shape = (24, 36, 48)  # (#slices, #rows, #columns)
+    test_spacing = (1.0, 1.0, 2.5)  # (column spacing, row spacing, slice spacing)
+    series_folder = test_output_dirs.root_dir / "series"
+    series_folder.mkdir()
+    # Create the series
+    image_data = io_util.create_dicom_series(series_folder, test_shape, test_spacing)
+    # Load it in
+    loaded_image = io_util.load_dicom_series(series_folder)
+    # GetSize returns (width, height, depth)
+    assert loaded_image.GetSize() == reverse_tuple_float3(test_shape)
+    assert loaded_image.GetSpacing() == test_spacing
+    # Get the data from the loaded series and compare it.
+    loaded_image_data = sitk.GetArrayFromImage(loaded_image).astype(np.float)
+    assert loaded_image_data.shape == test_shape
+    # Data is saved 16 bit, so need a generous tolerance.
+    assert np.allclose(loaded_image_data, image_data, atol=1e-1)
+
+
+def test_zip_random_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that a DICOM series can be created.
+        :param test_output_dirs: Test output directories.
+    :return: None.
+    """
+    test_shape = (24, 36, 48)  # (#slices, #rows, #columns)
+    test_spacing = (1.0, 1.0, 2.5)  # (column spacing, row spacing, slice spacing)
+    zip_file_path = test_output_dirs.root_dir / "pack" / "random.zip"
+    scratch_folder = test_output_dirs.root_dir / "scratch"
+    io_util.zip_random_dicom_series(test_shape, test_spacing, zip_file_path, scratch_folder)
+
+    assert zip_file_path.is_file()
+    series_folder = test_output_dirs.root_dir / "unpack"
+    with zipfile.ZipFile(zip_file_path, 'r') as zip_file:
+        zip_file.extractall(series_folder)
+    # Load it in
+    loaded_image = io_util.load_dicom_series(series_folder)
+    # GetSize returns (width, height, depth)
+    assert loaded_image.GetSize() == reverse_tuple_float3(test_shape)
+    assert loaded_image.GetSpacing() == test_spacing

@@ -17,6 +17,7 @@ from InnerEye_DICOM_RT.nifti_to_dicom_rt_converter import rtconvert
 
 from InnerEye.Azure.azure_util import is_offline_run_context
 from InnerEye.Common import fixed_paths
+from InnerEye.Common.fixed_paths import DEFAULT_RESULT_ZIP_DICOM_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.type_annotations import TupleFloat3, TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
@@ -46,6 +47,8 @@ class ScorePipelineConfig(GenericConfig):
     use_dicom: bool = param.Boolean(False, doc="If images to be scored are DICOM and output to be DICOM-RT. "
                                                "If this is set then image_files should contain a single zip file "
                                                "containing a set of DICOM files.")
+    result_zip_dicom_name: str = param.String(DEFAULT_RESULT_ZIP_DICOM_NAME,
+                                              doc="The name of the zipped DICOM-RT file if use_dicom set.")
 
 
 def init_from_model_inference_json(model_folder: Path, use_gpu: bool = True) -> Tuple[FullImageInferencePipelineBase,
@@ -156,26 +159,22 @@ def extract_zipped_files_and_flatten(zip_file_path: Path, extraction_folder: Pat
             zip_file.extract(zipinfo, str(extraction_folder))
 
 
-def convert_zipped_dicom_to_nifti(zip_file_path: Path, scratch_folder: Path) -> Tuple[Path, Path]:
+def convert_zipped_dicom_to_nifti(zip_file_path: Path, reference_series_folder: Path,
+                                  nifti_file_path: Path) -> None:
     """
     Given a zip file, extract DICOM series and convert to Nifti format.
 
     This function:
-    1) Unzips the file at zip_file_path into a subfolder of the scratch_folder,
+    1) Unzips the file at zip_file_path into reference_series_folder,
     assumed to contain a DICOM series.
-    2) Creates a Nifti file from the DICOM series, also in the scratch folder.
-    3) Returns a pair containing the path to the Nifti file and the path to the
-    folder containing the DICOM series.
+    2) Creates a Nifti file from the DICOM series.
 
     :param zip_file_path: Path to a zip file.
-    :param scratch_folder: Scratch folder to extract files into.
-    :return: Pair of path to Nifti file and path to the folder of the DICOM series.
+    :param reference_series_folder: Folder to unzip DICOM series into.
+    :param nifti_file_path: Path to target Nifti file.
     """
-    reference_series_folder = scratch_folder / "temp_extraction"
     extract_zipped_files_and_flatten(zip_file_path, reference_series_folder)
-    nifti_filename = scratch_folder / "temp_nifti.nii.gz"
-    load_dicom_series_and_save(reference_series_folder, nifti_filename)
-    return nifti_filename, reference_series_folder
+    load_dicom_series_and_save(reference_series_folder, nifti_file_path)
 
 
 def convert_rgb_colour_to_hex(colour: TupleInt3) -> str:
@@ -191,7 +190,7 @@ def convert_rgb_colour_to_hex(colour: TupleInt3) -> str:
 
 
 def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, scratch_folder: Path,
-                                     config: SegmentationModelBase) -> Path:
+                                     config: SegmentationModelBase, dicom_rt_zip_file_name: str) -> Path:
     """
     Given a Nifti file and a reference DICOM series, create zip file containing a DICOM-RT file.
 
@@ -203,23 +202,24 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, s
     :param reference_series: Path to folder containing reference DICOM series.
     :param scratch_folder: Scratch folder to extract files into.
     :param config: Model config.
+    :param dicom_rt_zip_file_name: Target DICOM-RT zip file name, ending in .dcm.zip.
     :return: Path to DICOM-RT file.
     """
-    dicom_rt_file = scratch_folder / nifti_file.with_suffix(".dcm").name
+    dicom_rt_file_path = scratch_folder / Path(dicom_rt_zip_file_name).with_suffix("")
     (stdout, stderr) = rtconvert(
         in_file=nifti_file,
         reference_series=reference_series,
-        out_file=dicom_rt_file,
+        out_file=dicom_rt_file_path,
         struct_names=config.ground_truth_ids_display_names,
         struct_colors=[convert_rgb_colour_to_hex(rgb) for rgb in config.colours],
         fill_holes=config.fill_holes)
     # Log stdout, stderr from DICOM-RT conversion.
     logging.debug("stdout: %s", stdout)
     logging.debug("stderr: %s", stderr)
-    dicom_rt_zip_file = dicom_rt_file.with_suffix(dicom_rt_file.suffix + '.zip')
-    with zipfile.ZipFile(dicom_rt_zip_file, 'w') as dicom_rt_zip:
-        dicom_rt_zip.write(dicom_rt_file, dicom_rt_file.name)
-    return dicom_rt_zip_file
+    dicom_rt_zip_file_path = scratch_folder / dicom_rt_zip_file_name
+    with zipfile.ZipFile(dicom_rt_zip_file_path, 'w') as dicom_rt_zip:
+        dicom_rt_zip.write(dicom_rt_file_path, dicom_rt_file_path.name)
+    return dicom_rt_zip_file_path
 
 
 def check_input_file(data_folder: Path, filename: str) -> Path:
@@ -263,7 +263,9 @@ def score_image(args: ScorePipelineConfig) -> Path:
         if len(args.image_files) > 1:
             raise ValueError("Supply exactly one zip file in args.images.")
         input_zip_file = check_input_file(args.data_folder, args.image_files[0])
-        nifti_filename, reference_series_folder = convert_zipped_dicom_to_nifti(input_zip_file, model_folder)
+        reference_series_folder = model_folder / "temp_extraction"
+        nifti_filename = model_folder / "temp_nifti.nii.gz"
+        convert_zipped_dicom_to_nifti(input_zip_file, reference_series_folder, nifti_filename)
         test_images = [nifti_filename]
     else:
         test_images = [check_input_file(args.data_folder, file) for file in args.image_files]
@@ -278,10 +280,11 @@ def score_image(args: ScorePipelineConfig) -> Path:
 
     if args.use_dicom:
         result_dst = convert_nifti_to_zipped_dicom_rt(result_dst, reference_series_folder, model_folder,
-                                                      config)
+                                                      config, args.result_zip_dicom_name)
 
     if not is_offline_run_context(run_context):
-        run_context.upload_file(args.result_image_name, str(result_dst))
+        upload_file_name = args.result_zip_dicom_name if args.use_dicom else args.result_image_name
+        run_context.upload_file(upload_file_name, str(result_dst))
     logging.info(f"Segmentation completed: {result_dst}")
     return result_dst
 

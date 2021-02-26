@@ -26,18 +26,21 @@ from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, get_comparison_baseline
     is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import get_epoch_results_path
-from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, PYTHON_ENVIRONMENT_NAME
+from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME, \
+    PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.utils.image_util import get_unit_image_header
+from InnerEye.ML.utils.io_util import zip_random_dicom_series
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape
 
+
 FALLBACK_ENSEMBLE_RUN = "refs_pull_385_merge:HD_2850254e-4ecf-4425-9245-70fa98f50d81"
-FALLBACK_SINGLE_RUN = "refs_pull_385_merge:refs_pull_385_merge_1612421372_b8070506"
+FALLBACK_SINGLE_RUN = "refs_pull_407_merge_1614271518_cdbeb28e"
 FALLBACK_2NODE_RUN = "refs_pull_385_merge:refs_pull_385_merge_1612421371_ba12a007"
 
 
@@ -137,15 +140,25 @@ def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
 
 
 @pytest.mark.inference
-def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
+@pytest.mark.parametrize("use_dicom", [False, True])
+def test_submit_for_inference(use_dicom: bool, test_output_dirs: OutputFolderForTests) -> None:
     """
     Execute the submit_for_inference script on the model that was recently trained. This starts an AzureML job,
     and downloads the segmentation. Then check if the segmentation was actually produced.
-    :return:
+
+    :param use_dicom: True to test DICOM in/out, False otherwise.
+    :param test_output_dirs: Test output directories.
     """
     model = get_most_recent_model(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
     assert PYTHON_ENVIRONMENT_NAME in model.tags, "Environment name not present in model properties"
-    image_file = fixed_paths_for_tests.full_ml_test_data_path() / "train_and_test_data" / "id1_channel1.nii.gz"
+    if use_dicom:
+        size = (64, 64, 64)
+        spacing = (1., 1., 2.5)
+        image_file = test_output_dirs.root_dir / "temp_pack_dicom_series" / "dicom_series.zip"
+        scratch_folder = test_output_dirs.root_dir / "temp_dicom_series"
+        zip_random_dicom_series(size, spacing, image_file, scratch_folder)
+    else:
+        image_file = fixed_paths_for_tests.full_ml_test_data_path() / "train_and_test_data" / "id1_channel1.nii.gz"
     assert image_file.exists(), f"Image file not found: {image_file}"
     settings_file = fixed_paths.SETTINGS_YAML_FILE
     assert settings_file.exists(), f"Settings file not found: {settings_file}"
@@ -158,8 +171,10 @@ def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
             "--settings", str(settings_file),
             "--download_folder", str(test_output_dirs.root_dir),
             "--cluster", "training-nc12",
-            "--experiment", experiment_name]
-    seg_path = test_output_dirs.root_dir / DEFAULT_RESULT_IMAGE_NAME
+            "--experiment", experiment_name,
+            "--use_dicom", str(use_dicom)]
+    download_file = DEFAULT_RESULT_ZIP_DICOM_NAME if use_dicom else DEFAULT_RESULT_IMAGE_NAME
+    seg_path = test_output_dirs.root_dir / download_file
     assert not seg_path.exists(), f"Result file {seg_path} should not yet exist"
     submit_for_inference.main(args, project_root=fixed_paths.repository_root_directory())
     assert seg_path.exists(), f"Result file {seg_path} was not created"
