@@ -16,9 +16,9 @@ from azureml.core import Experiment, Model
 from InnerEye.Azure.azure_config import AzureConfig, SourceConfig
 from InnerEye.Azure.azure_runner import create_run_config
 from InnerEye.Common.common_util import logging_to_stdout
-from InnerEye.Common.fixed_paths import DEFAULT_DATA_FOLDER, DEFAULT_RESULT_IMAGE_NAME, DEFAULT_TEST_IMAGE_NAME, \
-    DEFAULT_TEST_ZIP_NAME, ENVIRONMENT_YAML_FILE_NAME, RUN_SCORING_SCRIPT, SCORE_SCRIPT, SETTINGS_YAML_FILE, \
-    repository_root_directory, PYTHON_ENVIRONMENT_NAME
+from InnerEye.Common.fixed_paths import DEFAULT_DATA_FOLDER, DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME, \
+    DEFAULT_TEST_IMAGE_NAME, DEFAULT_TEST_ZIP_NAME, ENVIRONMENT_YAML_FILE_NAME, RUN_SCORING_SCRIPT, SCORE_SCRIPT, \
+    SETTINGS_YAML_FILE, repository_root_directory, PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 
 
@@ -55,7 +55,7 @@ class SubmitForInferenceConfig(GenericConfig):
         basename = str(self.image_file.name)
         # Do not import the pre-defined constants from io_util here, so that we can keep the Conda environment for
         # running tests_after_training.py small.
-        extension = ".nii.gz" if not self.use_dicom else ".zip"
+        extension = ".zip" if self.use_dicom else ".nii.gz"
         if not basename.endswith(extension):
             raise ValueError(f"Bad image file name, does not end with {extension}: {self.image_file.name}")
         # If the user wants the result downloaded, the download folder must already exist
@@ -72,7 +72,7 @@ def copy_image_file(image: Path, destination_folder: Path, use_dicom: bool) -> P
     :return: The full path of the image in the destination_folder
     """
     destination_folder.mkdir(parents=True, exist_ok=True)
-    destination = destination_folder / (DEFAULT_TEST_IMAGE_NAME if not use_dicom else DEFAULT_TEST_ZIP_NAME)
+    destination = destination_folder / (DEFAULT_TEST_ZIP_NAME if use_dicom else DEFAULT_TEST_IMAGE_NAME)
     logging.info(f"Copying {image} to {destination}")
     shutil.copyfile(str(image), str(destination))
     return destination
@@ -106,20 +106,25 @@ def download_files_from_model(model_sas_urls: Dict[str, str], base_name: str, di
     return downloaded
 
 
-def choose_download_path(download_folder: Path) -> Path:
+def choose_download_path(result_image_name: str, download_folder: Path) -> Path:
     """
-    Returns the path of a file in download_folder that does already exist. The first path tried is
-    download_folder/segmentation.nii.gz, but if that does not exist, the names segmentation_001.nii.gz,
-    segmentation_002.nii.gz etc are tried (or .zip file endings if use_dicom=True).
+    Find a path to a file similiar to result_image_name that does not already exist in download_folder.
+
+    The first path tried is download_folder/result_image_name, but if that exists, try appending
+    _001, _002, etc to the file name until a new filename is found.
+
+    :param result_image_name: Target filename.
+    :param download_folder: Target folder.
+    :return: Path to a file in download_folder that does not exist.
     """
     index = 0
-    base = DEFAULT_RESULT_IMAGE_NAME
+    base = result_image_name
     while True:
         path = download_folder / base
         if not path.exists():
             return path
         index += 1
-        components = DEFAULT_RESULT_IMAGE_NAME.split(".")
+        components = result_image_name.split(".")
         base = ".".join([f"{components[0]}_{index:03d}"] + components[1:])
 
 
@@ -185,9 +190,10 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
     logging.info("Awaiting run completion")
     run.wait_for_completion()
     logging.info(f"Run has completed with status {run.get_status()}")
-    download_path = choose_download_path(args.download_folder)
+    download_file = DEFAULT_RESULT_ZIP_DICOM_NAME if args.use_dicom else DEFAULT_RESULT_IMAGE_NAME
+    download_path = choose_download_path(download_file, args.download_folder)
     logging.info(f"Attempting to download segmentation to {download_path}")
-    run.download_file(DEFAULT_RESULT_IMAGE_NAME, str(download_path))
+    run.download_file(download_file, str(download_path))
     if download_path.exists():
         logging.info(f"Downloaded segmentation to {download_path}")
     else:
