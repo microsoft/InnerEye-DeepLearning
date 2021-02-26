@@ -19,6 +19,8 @@ nodes in AzureML. Example: Add `--num_nodes=2` to the commandline arguments to t
   order of class label indices in `dataset.csv`.
   `dataset.csv` supports multiple labels (indices corresponding to `class_names`) per subject in the label column. 
   Multiple labels should be encoded as a string with labels separated by a `|`, for example "0|2|4".
+  
+  Note: This PR does not add support for multiclass models, where the labels are mutually exclusive.
 
 ### Changed
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Starting an AzureML run now uses the
