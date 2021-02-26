@@ -20,7 +20,7 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.type_annotations import TupleFloat3, TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.model_inference_config import ModelInferenceConfig
+from InnerEye.ML.model_inference_config import read_model_inference_config
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
@@ -93,12 +93,6 @@ def create_inference_pipeline(model_config: SegmentationModelBase,
         raise ValueError("Cannot create inference pipeline")
 
     return inference_pipeline, model_config
-
-
-def read_model_inference_config(path_to_model_inference_config: str) -> ModelInferenceConfig:
-    with open(path_to_model_inference_config, 'r', encoding='utf-8') as file:
-        model_inference_config = ModelInferenceConfig.from_json(file.read())  # type: ignore
-    return model_inference_config
 
 
 def is_spacing_valid(spacing: TupleFloat3, dataset_expected_spacing_xyz: TupleFloat3) -> bool:

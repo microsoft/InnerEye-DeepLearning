@@ -65,29 +65,33 @@ def model_test(config: ModelConfigBase,
         logging.warning("Not performing any inference because avoid_process_spawn_in_data_loaders is set "
                         "and additional data loaders are likely to block.")
         return None
+
+    checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
+
+    if not checkpoints_to_test:
+        raise ValueError("There were no checkpoints available for model testing.")
+
     with logging_section(f"Running {model_proc.value} model on {data_split.name.lower()} set"):
         if isinstance(config, SegmentationModelBase):
-            return segmentation_model_test(config, data_split, checkpoint_handler, model_proc)
+            return segmentation_model_test(config, data_split, checkpoints_to_test, model_proc)
         if isinstance(config, ScalarModelBase):
-            return classification_model_test(config, data_split, checkpoint_handler, model_proc)
+            return classification_model_test(config, data_split, checkpoints_to_test, model_proc)
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 
 def segmentation_model_test(config: SegmentationModelBase,
                             data_split: ModelExecutionMode,
-                            checkpoint_handler: CheckpointHandler,
+                            checkpoints_to_test: List[Path],
                             model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> InferenceMetricsForSegmentation:
     """
     The main testing loop for segmentation models.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
     :param config: The arguments object which has a valid random seed attribute.
     :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
+    :param checkpoints_to_test: Checkpoint paths for model initialization
     :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetric object that contains metrics related for all of the checkpoint epochs.
     """
-    checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
-
     if not checkpoints_to_test:
         raise ValueError("There were no checkpoints available for model testing.")
 
@@ -392,7 +396,7 @@ def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> \
 
 def classification_model_test(config: ScalarModelBase,
                               data_split: ModelExecutionMode,
-                              checkpoint_handler: CheckpointHandler,
+                              checkpoints_to_test: List[Path],
                               model_proc: ModelProcessing) -> InferenceMetricsForClassification:
     """
     The main testing loop for classification models. It runs a loop over all epochs for which testing should be done.
@@ -400,7 +404,7 @@ def classification_model_test(config: ScalarModelBase,
     :param config: The model configuration.
     :param data_split: The name of the folder to store the results inside each epoch folder in the outputs_dir,
                        used mainly in model evaluation using different dataset splits.
-    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
+    :param checkpoints_to_test: Checkpoint paths for model initialization
     :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
@@ -440,8 +444,6 @@ def classification_model_test(config: ScalarModelBase,
         logging.info(average.to_string())
 
         return metrics_dict
-
-    checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
 
     if not checkpoints_to_test:
         raise ValueError("There were no checkpoints available for model testing.")

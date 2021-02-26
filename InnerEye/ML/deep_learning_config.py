@@ -31,7 +31,6 @@ FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
 # them before registration.
 CHECKPOINT_FOLDER = "checkpoints"
 ARGS_TXT = "args.txt"
-WEIGHTS_FILE = "weights.pth"
 
 
 @unique
@@ -355,14 +354,12 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "weights are updated using mean_teacher_"
                                                  "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
-    weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
-                                        "initialization.")
-    local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
-                                                             default=None,
-                                                             allow_None=True,
-                                                             doc="The path to the weights to use for model "
-                                                                 "initialization, "
-                                                                 "when training is running outside Azure.")
+    checkpoint_urls: List[str] = param.String(class_=str,
+                                              doc="If provided, a set of urls from which checkpoints will be downloaded"
+                                                  "and used for inference.")
+    local_checkpoint_paths: List[Path] = param.ClassSelector(class_=Path,
+                                                             doc="A list of checkpoints paths to use during inference, "
+                                                             "when training is running outside Azure.")
     max_num_gpus: int = param.Integer(default=-1, doc="The maximum number of GPUS to use. If set to a value < 0, use"
                                                       "all available GPUs.")
     generate_report: bool = param.Boolean(default=True,
@@ -398,7 +395,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         if self.azure_dataset_id is None and self.local_dataset is None:
             raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
 
-        if self.weights_url and self.local_weights_path:
+        if self.checkpoint_urls and self.local_checkpoint_paths:
             raise ValueError("Cannot specify both local_weights_path and weights_url.")
 
         if self.number_of_cross_validation_splits == 1:

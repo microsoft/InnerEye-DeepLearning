@@ -74,7 +74,7 @@ class AzureConfig(GenericConfig):
                                         "run the tests that have the mark given in this argument "
                                         "('--pytest_mark gpu' will run all tests marked with 'pytest.mark.gpu')")
     run_recovery_id: str = param.String(doc="A run recovery id string in the form 'experiment name:run id'"
-                                            " to use for inference or recovering a model training run.")
+                                            " to use for recovering a model training run or to register a model.")
     experiment_name: str = param.String(doc="If provided, use this string as the name of the AzureML experiment. "
                                             "If not provided, create the experiment off the git branch name.")
     build_number: int = param.Integer(0, doc="The numeric ID of the Azure pipeline that triggered this training run.")
@@ -112,6 +112,8 @@ class AzureConfig(GenericConfig):
     _workspace: Workspace = param.ClassSelector(class_=Workspace,
                                                 doc="The cached workspace object that has been created in the first"
                                                     "call to get_workspace")
+    model_id: str = param.String(doc="A model id string in the form 'model name:version' "
+                                     "to use a registered model for inference.")
 
     def __init__(self, **params: Any) -> None:
         super().__init__(**params)
@@ -120,6 +122,8 @@ class AzureConfig(GenericConfig):
     def validate(self) -> None:
         if self.only_register_model and not self.run_recovery_id:
             raise ValueError("If only_register_model is set, must also provide a valid run_recovery_id")
+        if self.model_id and self.train:
+            raise ValueError("model_id can only be set on an inference run.")
 
     def get_git_information(self) -> GitInformation:
         """
