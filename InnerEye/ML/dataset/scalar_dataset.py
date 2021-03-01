@@ -17,7 +17,6 @@ import pandas as pd
 import torch
 from joblib import Parallel, delayed
 from more_itertools import flatten
-from rich.progress import track
 
 from InnerEye.ML.dataset.full_image_dataset import GeneralDataset
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
@@ -478,7 +477,7 @@ class DataSourceReader(Generic[T]):
             _n_jobs = max(1, num_dataset_reader_workers)
 
         results = Parallel(n_jobs=_n_jobs, backend=_backend)(
-            delayed(self.load_datasources_for_subject)(subject_id) for subject_id in track(subject_ids))
+            delayed(self.load_datasources_for_subject)(subject_id) for subject_id in subject_ids)
 
         return list(flatten(filter(None, results)))
 
