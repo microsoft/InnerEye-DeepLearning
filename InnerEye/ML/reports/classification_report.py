@@ -161,7 +161,8 @@ def get_metric(val_labels_and_predictions: LabelsAndPredictions,
         raise ValueError("Unknown metric")
 
 
-def print_metrics(val_metrics: LabelsAndPredictions, test_metrics: LabelsAndPredictions,
+def print_metrics(val_labels_and_predictions: LabelsAndPredictions,
+                  test_labels_and_predictions: LabelsAndPredictions,
                   exclusive: bool = False) -> None:
     """
     Given a LabelsAndPredictions objects for the validation and test sets, print out some metrics.
@@ -170,36 +171,36 @@ def print_metrics(val_metrics: LabelsAndPredictions, test_metrics: LabelsAndPred
     optimal_threshold = 0.5 if exclusive else None
 
     if not exclusive:
-        roc_auc = get_metric(val_labels_and_predictions=val_metrics,
-                             test_labels_and_predictions=test_metrics,
+        roc_auc = get_metric(val_labels_and_predictions=val_labels_and_predictions,
+                             test_labels_and_predictions=test_labels_and_predictions,
                              metric=ReportedMetrics.AUC_ROC)
         print_header(f"Area under ROC Curve: {roc_auc:.4f}", level=4)
 
-        pr_auc = get_metric(val_labels_and_predictions=val_metrics,
-                            test_labels_and_predictions=test_metrics,
+        pr_auc = get_metric(val_labels_and_predictions=val_labels_and_predictions,
+                            test_labels_and_predictions=test_labels_and_predictions,
                             metric=ReportedMetrics.AUC_PR)
         print_header(f"Area under PR Curve: {pr_auc:.4f}", level=4)
 
-        optimal_threshold = get_metric(val_labels_and_predictions=val_metrics,
-                                       test_labels_and_predictions=test_metrics,
+        optimal_threshold = get_metric(val_labels_and_predictions=val_labels_and_predictions,
+                                       test_labels_and_predictions=test_labels_and_predictions,
                                        metric=ReportedMetrics.OptimalThreshold)
 
         print_header(f"Optimal threshold: {optimal_threshold: .4f}", level=4)
 
-    accuracy = get_metric(val_labels_and_predictions=val_metrics,
-                          test_labels_and_predictions=test_metrics,
+    accuracy = get_metric(val_labels_and_predictions=val_labels_and_predictions,
+                          test_labels_and_predictions=test_labels_and_predictions,
                           metric=ReportedMetrics.Accuracy,
                           optimal_threshold=optimal_threshold)
     print_header(f"Accuracy at optimal threshold: {accuracy:.4f}", level=4)
 
-    fpr = get_metric(val_labels_and_predictions=val_metrics,
-                     test_labels_and_predictions=test_metrics,
+    fpr = get_metric(val_labels_and_predictions=val_labels_and_predictions,
+                     test_labels_and_predictions=test_labels_and_predictions,
                      metric=ReportedMetrics.FalsePositiveRate,
                      optimal_threshold=optimal_threshold)
     print_header(f"Specificity at optimal threshold: {1 - fpr:.4f}", level=4)
 
-    fnr = get_metric(val_labels_and_predictions=val_metrics,
-                     test_labels_and_predictions=test_metrics,
+    fnr = get_metric(val_labels_and_predictions=val_labels_and_predictions,
+                     test_labels_and_predictions=test_labels_and_predictions,
                      metric=ReportedMetrics.FalseNegativeRate,
                      optimal_threshold=optimal_threshold)
     print_header(f"Sensitivity at optimal threshold: {1 - fnr:.4f}", level=4)
