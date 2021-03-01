@@ -110,8 +110,10 @@ class ScalarModelBase(ModelConfigBase):
                                             "in the case of binary and multi-label classification tasks."
                                             "The order of the names should match the order of label class indices "
                                             "in dataset.csv"
-                                            "For multi-label classification, this field is required. "
-                                            "For binary classification, this field defaults to the string 'Default'.")
+                                            "For multi-label classification, this field is required."
+                                            "For binary classification, this field must be a list of size 1, and "
+                                            "is by default ['Default'], but can optionally be set to a more descriptive "
+                                            "name for the positive class.")
     aggregation_type: AggregationType = param.ClassSelector(default=AggregationType.Average, class_=AggregationType,
                                                             doc="The type of global pooling aggregation to use between"
                                                                 " the encoder and the classifier.")

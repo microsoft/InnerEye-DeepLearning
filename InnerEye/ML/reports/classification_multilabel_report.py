@@ -18,6 +18,21 @@ from InnerEye.ML.reports.classification_report import LabelsAndPredictions
 def get_unique_label_combinations(config: ScalarModelBase) -> Set[FrozenSet[str]]:
     """
     Get a list of all the combinations of labels that exist in the dataset.
+
+    For multilabel classification tasks, this function will return all unique combinations of labels that
+    occur in the dataset csv.
+    For example, if there are 6 samples in the dataset with the following ground truth labels
+    Sample1: class1, class2
+    Sample2: class0
+    Sample3: class1
+    Sample4: class2, class3
+    Sample5: (all label classes are negative in Sample 5)
+    Sample6: class1, class2
+    This function will return {{"class1", "class2"}, {"class0"}, {"class1"},  {"class2", "class3"}, {}}
+
+    For binary classification tasks (assume class_names has not been changed from ["Default"]):
+    This function will return a set with two members - {{"Default"}, {}} if there is at least one positive example
+    in the dataset. If there are no positive examples, it returns {{}}.
     """
     df = config.read_dataset_if_needed()
     dataset = ScalarDataset(args=config, data_frame=df)
