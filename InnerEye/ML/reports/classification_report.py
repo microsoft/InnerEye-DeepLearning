@@ -54,8 +54,10 @@ class ReportedMetrics(Enum):
 
 def read_csv_and_filter_hue(csv: Path, hue: str) -> pd.DataFrame:
     """
-    Given a csv file, read it and select only those rows which belong to the given hue. Also check that there is
-    only a single entry per hue per subject in the metrics file.
+    Given one of the csv files written during inference time, read it and select only those rows which belong to the
+    given hue. Also check that there is only a single entry per hue per subject in the file.
+    The csv must have at least the following columns (defined in the LoggingColumns enum):
+    LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
     """
     df = pd.read_csv(csv)
     df = df[df[LoggingColumns.Hue.value] == hue]  # Filter Hue
@@ -98,31 +100,37 @@ def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, p
             ax.annotate(f"{x:0.3f}, {y:0.3f}", xy=(x, y), xytext=(15, 0), textcoords='offset points')
 
 
-def plot_pr_and_roc_curves_from_csv(metrics: LabelsAndPredictions) -> None:
+def plot_pr_and_roc_curves_from_csv(labels_and_model_outputs: LabelsAndPredictions) -> None:
     """
     Given a LabelsAndPredictions object, plot the ROC and PR curves.
     """
     print_header("ROC and PR curves", level=3)
     _, ax = plt.subplots(1, 2)
 
-    fpr, tpr, thresholds = roc_curve(metrics.labels, metrics.model_outputs)
+    fpr, tpr, thresholds = roc_curve(labels_and_model_outputs.labels, labels_and_model_outputs.model_outputs)
 
     plot_auc(fpr, tpr, "ROC Curve", ax[0])
-    precision, recall, thresholds = precision_recall_curve(metrics.labels, metrics.model_outputs)
+    precision, recall, thresholds = precision_recall_curve(labels_and_model_outputs.labels,
+                                                           labels_and_model_outputs.model_outputs)
     plot_auc(recall, precision, "PR Curve", ax[1])
 
     plt.show()
 
 
-def get_metric(val_metrics: LabelsAndPredictions,
-               test_metrics: LabelsAndPredictions,
+def get_metric(val_labels_and_predictions: LabelsAndPredictions,
+               test_labels_and_predictions: LabelsAndPredictions,
                metric: ReportedMetrics,
                optimal_threshold: Optional[float] = None) -> float:
     """
     Given LabelsAndPredictions objects for the validation and test sets, return the specified metric.
+    :param val_labels_and_predictions: This set of ground truth labels and model predictions is used to determine the
+    optimal threshold for classification.
+    :param test_labels_and_predictions: The set of labels and model outputs to calculate metrics for.
+    :param metric: The name of the metric to calculate.
+    :param optimal_threshold: If provided, use this threshold instead of calculating an optimal threshold.
     """
     if not optimal_threshold:
-        fpr, tpr, thresholds = roc_curve(val_metrics.labels, val_metrics.model_outputs)
+        fpr, tpr, thresholds = roc_curve(val_labels_and_predictions.labels, val_labels_and_predictions.model_outputs)
         optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
         optimal_threshold = thresholds[optimal_idx]
 
@@ -131,24 +139,24 @@ def get_metric(val_metrics: LabelsAndPredictions,
     if metric is ReportedMetrics.OptimalThreshold:
         return optimal_threshold
 
-    only_one_class_present = len(set(test_metrics.labels)) < 2
+    only_one_class_present = len(set(test_labels_and_predictions.labels)) < 2
 
     if metric is ReportedMetrics.AUC_ROC:
-        return math.nan if only_one_class_present else roc_auc_score(test_metrics.labels, test_metrics.model_outputs)
+        return math.nan if only_one_class_present else roc_auc_score(test_labels_and_predictions.labels, test_labels_and_predictions.model_outputs)
     elif metric is ReportedMetrics.AUC_PR:
         if only_one_class_present:
             return math.nan
-        precision, recall, _ = precision_recall_curve(test_metrics.labels, test_metrics.model_outputs)
+        precision, recall, _ = precision_recall_curve(test_labels_and_predictions.labels, test_labels_and_predictions.model_outputs)
         return auc(recall, precision)
     elif metric is ReportedMetrics.Accuracy:
-        return binary_classification_accuracy(model_output=test_metrics.model_outputs,
-                                              label=test_metrics.labels,
+        return binary_classification_accuracy(model_output=test_labels_and_predictions.model_outputs,
+                                              label=test_labels_and_predictions.labels,
                                               threshold=optimal_threshold)
     elif metric is ReportedMetrics.FalsePositiveRate:
-        tnr = recall_score(test_metrics.labels, test_metrics.model_outputs >= optimal_threshold, pos_label=0)
+        tnr = recall_score(test_labels_and_predictions.labels, test_labels_and_predictions.model_outputs >= optimal_threshold, pos_label=0)
         return 1 - tnr
     elif metric is ReportedMetrics.FalseNegativeRate:
-        return 1 - recall_score(test_metrics.labels, test_metrics.model_outputs >= optimal_threshold)
+        return 1 - recall_score(test_labels_and_predictions.labels, test_labels_and_predictions.model_outputs >= optimal_threshold)
     else:
         raise ValueError("Unknown metric")
 
@@ -162,36 +170,36 @@ def print_metrics(val_metrics: LabelsAndPredictions, test_metrics: LabelsAndPred
     optimal_threshold = 0.5 if exclusive else None
 
     if not exclusive:
-        roc_auc = get_metric(val_metrics=val_metrics,
-                             test_metrics=test_metrics,
+        roc_auc = get_metric(val_labels_and_predictions=val_metrics,
+                             test_labels_and_predictions=test_metrics,
                              metric=ReportedMetrics.AUC_ROC)
         print_header(f"Area under ROC Curve: {roc_auc:.4f}", level=4)
 
-        pr_auc = get_metric(val_metrics=val_metrics,
-                            test_metrics=test_metrics,
+        pr_auc = get_metric(val_labels_and_predictions=val_metrics,
+                            test_labels_and_predictions=test_metrics,
                             metric=ReportedMetrics.AUC_PR)
         print_header(f"Area under PR Curve: {pr_auc:.4f}", level=4)
 
-        optimal_threshold = get_metric(val_metrics=val_metrics,
-                                       test_metrics=test_metrics,
+        optimal_threshold = get_metric(val_labels_and_predictions=val_metrics,
+                                       test_labels_and_predictions=test_metrics,
                                        metric=ReportedMetrics.OptimalThreshold)
 
         print_header(f"Optimal threshold: {optimal_threshold: .4f}", level=4)
 
-    accuracy = get_metric(val_metrics=val_metrics,
-                          test_metrics=test_metrics,
+    accuracy = get_metric(val_labels_and_predictions=val_metrics,
+                          test_labels_and_predictions=test_metrics,
                           metric=ReportedMetrics.Accuracy,
                           optimal_threshold=optimal_threshold)
     print_header(f"Accuracy at optimal threshold: {accuracy:.4f}", level=4)
 
-    fpr = get_metric(val_metrics=val_metrics,
-                     test_metrics=test_metrics,
+    fpr = get_metric(val_labels_and_predictions=val_metrics,
+                     test_labels_and_predictions=test_metrics,
                      metric=ReportedMetrics.FalsePositiveRate,
                      optimal_threshold=optimal_threshold)
     print_header(f"Specificity at optimal threshold: {1 - fpr:.4f}", level=4)
 
-    fnr = get_metric(val_metrics=val_metrics,
-                     test_metrics=test_metrics,
+    fnr = get_metric(val_labels_and_predictions=val_metrics,
+                     test_labels_and_predictions=test_metrics,
                      metric=ReportedMetrics.FalseNegativeRate,
                      optimal_threshold=optimal_threshold)
     print_header(f"Sensitivity at optimal threshold: {1 - fnr:.4f}", level=4)
@@ -229,7 +237,7 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
 
 
 def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int,
-                                    hue: str = "Default") -> Results:
+                                    hue: str = MetricsDict.DEFAULT_HUE_KEY) -> Results:
     """
     Get the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
     top "k" worst predictions (i.e. misclassifications where the model was the most confident).
@@ -254,6 +262,13 @@ def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: P
     """
     Print the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
     top "k" worst predictions (i.e. misclassifications where the model was the most confident).
+    :param val_metrics_csv: Path to one of the metrics csvs written during inference. This set of metrics will be
+                            used to determine the thresholds for predicting labels on the test set. The best and worst
+                            performing subjects will not be printed out for this csv.
+    :param test_metrics_csv: Path to one of the metrics csvs written during inference. This is the csv for which
+                            best and worst performing subjects will be printed out.
+   :param k: Number of subjects of each category to print out.
+   :param hue: The class label to filter on
     """
     results = get_k_best_and_worst_performing(val_metrics_csv=val_metrics_csv,
                                               test_metrics_csv=test_metrics_csv,
@@ -418,10 +433,19 @@ def plot_image_for_subject(subject_id: str,
 
 
 def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int,
-                                    hue: str, config: ScalarModelBase) -> None:
+                                     hue: str, config: ScalarModelBase) -> None:
     """
     Plot images for the top "k" best predictions (i.e. correct classifications where the model was the most certain)
     and the top "k" worst predictions (i.e. misclassifications where the model was the most confident).
+    :param val_metrics_csv: Path to one of the metrics csvs written during inference. This set of metrics will be
+                            used to determine the thresholds for predicting labels on the test set. The best and worst
+                            performing subjects will not be printed out for this csv.
+    :param test_metrics_csv: Path to one of the metrics csvs written during inference. This is the csv for which
+                            best and worst performing subjects will be printed out.
+    :param k: Number of subjects of each category to print out.
+    :param hue: The class label to filter on
+    :param config: scalar model config object
+
     """
     results = get_k_best_and_worst_performing(val_metrics_csv=val_metrics_csv,
                                               test_metrics_csv=test_metrics_csv,

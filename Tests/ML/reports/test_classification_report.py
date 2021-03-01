@@ -104,64 +104,64 @@ def test_get_metric() -> None:
     val_metrics = get_labels_and_predictions(val_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
     test_metrics = get_labels_and_predictions(test_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
 
-    optimal_threshold = get_metric(test_metrics=test_metrics,
-                                   val_metrics=val_metrics,
+    optimal_threshold = get_metric(test_labels_and_predictions=test_metrics,
+                                   val_labels_and_predictions=val_metrics,
                                    metric=ReportedMetrics.OptimalThreshold)
 
     assert optimal_threshold == 0.6
 
-    optimal_threshold = get_metric(test_metrics=test_metrics,
-                                   val_metrics=val_metrics,
+    optimal_threshold = get_metric(test_labels_and_predictions=test_metrics,
+                                   val_labels_and_predictions=val_metrics,
                                    metric=ReportedMetrics.OptimalThreshold,
                                    optimal_threshold=0.3)
 
     assert optimal_threshold == 0.3
 
-    auc_roc = get_metric(test_metrics=test_metrics,
-                         val_metrics=val_metrics,
+    auc_roc = get_metric(test_labels_and_predictions=test_metrics,
+                         val_labels_and_predictions=val_metrics,
                          metric=ReportedMetrics.AUC_ROC)
     assert auc_roc == 0.5
 
-    auc_pr = get_metric(test_metrics=test_metrics,
-                        val_metrics=val_metrics,
+    auc_pr = get_metric(test_labels_and_predictions=test_metrics,
+                        val_labels_and_predictions=val_metrics,
                         metric=ReportedMetrics.AUC_PR)
 
     assert math.isclose(auc_pr, 13 / 24, abs_tol=1e-15)
 
-    accuracy = get_metric(test_metrics=test_metrics,
-                          val_metrics=val_metrics,
+    accuracy = get_metric(test_labels_and_predictions=test_metrics,
+                          val_labels_and_predictions=val_metrics,
                           metric=ReportedMetrics.Accuracy)
 
     assert accuracy == 0.5
 
-    accuracy = get_metric(test_metrics=test_metrics,
-                          val_metrics=val_metrics,
+    accuracy = get_metric(test_labels_and_predictions=test_metrics,
+                          val_labels_and_predictions=val_metrics,
                           metric=ReportedMetrics.Accuracy,
                           optimal_threshold=0.1)
 
     assert accuracy == 0.5
 
-    fpr = get_metric(test_metrics=test_metrics,
-                     val_metrics=val_metrics,
+    fpr = get_metric(test_labels_and_predictions=test_metrics,
+                     val_labels_and_predictions=val_metrics,
                      metric=ReportedMetrics.FalsePositiveRate)
 
     assert fpr == 0.5
 
-    fpr = get_metric(test_metrics=test_metrics,
-                     val_metrics=val_metrics,
+    fpr = get_metric(test_labels_and_predictions=test_metrics,
+                     val_labels_and_predictions=val_metrics,
                      metric=ReportedMetrics.FalsePositiveRate,
                      optimal_threshold=0.1)
 
     assert fpr == 5 / 6
 
-    fnr = get_metric(test_metrics=test_metrics,
-                     val_metrics=val_metrics,
+    fnr = get_metric(test_labels_and_predictions=test_metrics,
+                     val_labels_and_predictions=val_metrics,
                      metric=ReportedMetrics.FalseNegativeRate)
 
     assert fnr == 0.5
 
-    fnr = get_metric(test_metrics=test_metrics,
-                     val_metrics=val_metrics,
+    fnr = get_metric(test_labels_and_predictions=test_metrics,
+                     val_labels_and_predictions=val_metrics,
                      metric=ReportedMetrics.FalseNegativeRate,
                      optimal_threshold=0.1)
 
