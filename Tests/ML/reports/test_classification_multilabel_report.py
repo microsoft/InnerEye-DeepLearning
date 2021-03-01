@@ -6,12 +6,12 @@ from io import StringIO
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
-from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.metrics_dict import MetricsDict
 from InnerEye.ML.reports.classification_multilabel_report import generate_psuedo_labels, \
     get_psuedo_labels_and_predictions, get_unique_label_combinations
@@ -23,14 +23,19 @@ from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 def test_generate_classification_multilabel_report(test_output_dirs: OutputFolderForTests) -> None:
     hues = ["Hue1", "Hue2"]
 
-    config = ScalarModelBase()
+    config = ScalarModelBase(label_value_column="label",
+                             image_file_column="filePath",
+                             image_channels=["image1", "image2"],
+                             label_channels=["image1"])
     config.class_names = hues
-    config.label_value_column = "label"
-    config.image_file_column = "filePath"
 
     test_metrics_file = test_output_dirs.root_dir / "test_metrics_classification.csv"
     val_metrics_file = test_output_dirs.root_dir / "val_metrics_classification.csv"
-    dataset_csv_path = test_output_dirs.root_dir / 'dataset.csv'
+
+    config.local_dataset = test_output_dirs.root_dir / "dataset"
+    config.local_dataset.mkdir()
+    dataset_csv_path = config.local_dataset / "dataset.csv"
+    image_file_name = "image.npy"
 
     pd.DataFrame.from_dict({LoggingColumns.Hue.value: [hues[0], hues[1]] * 6,
                             LoggingColumns.Epoch.value: [0] * 12,
@@ -53,18 +58,22 @@ def test_generate_classification_multilabel_report(test_output_dirs: OutputFolde
                             }).to_csv(val_metrics_file, index=False)
 
     pd.DataFrame.from_dict({config.subject_column: [s for s in range(6) for _ in range(2)],
-                            config.image_file_column: [f for f in [str(full_ml_test_data_path("classification_data_2d") / "im1.npy"),
-                                                                   str(full_ml_test_data_path("classification_data_2d") / "im2.npy")]
-                                                                  for _ in range(6)],
+                            config.channel_column: ["image1", "image2"] * 6,
+                            config.image_file_column: [f for f in [f"0_{image_file_name}", f"1_{image_file_name}"]
+                                                       for _ in range(6)],
                             config.label_value_column: ["", "", "1", "1", "1", "1", "0|1", "0|1", "0|1", "0|1", "0", "0"]
                             }).to_csv(dataset_csv_path, index=False)
+
+    np.save(str(Path(config.local_dataset / f"0_{image_file_name}")),
+            np.random.randint(0, 255, [5, 4]))
+    np.save(str(Path(config.local_dataset / f"1_{image_file_name}")),
+            np.random.randint(0, 255, [5, 4]))
 
     result_file = test_output_dirs.root_dir / "report.ipynb"
     result_html = generate_classification_multilabel_notebook(result_notebook=result_file,
                                                               config=config,
                                                               val_metrics=val_metrics_file,
-                                                              test_metrics=test_metrics_file,
-                                                              dataset_csv_path=dataset_csv_path)
+                                                              test_metrics=test_metrics_file)
     assert result_file.is_file()
     assert result_html.is_file()
     assert result_html.suffix == ".html"
@@ -177,33 +186,60 @@ def test_generate_psuedo_labels_negative_class() -> None:
     assert expected_df.equals(df)
 
 
-def test_get_unique_label_combinations_single_label() -> None:
-    config = DummyClassification()
+def test_get_unique_label_combinations_single_label(test_output_dirs: OutputFolderForTests) -> None:
+    config = ScalarModelBase(label_channels=["label"],
+                             label_value_column="value",
+                             image_channels=["image"],
+                             image_file_column="path",
+                             subject_column="subjectID")
     class_names = config.class_names
 
-    dataset_csv = StringIO("subjectID,channel,path,value\n"
+    config.local_dataset = test_output_dirs.root_dir / "dataset"
+    config.local_dataset.mkdir()
+    dataset_csv = config.local_dataset / "dataset.csv"
+    dataset_csv.write_text("subjectID,channel,path,value\n"
                            "S1,label,random,1\n"
-                           "S1,random,random,\n"
+                           "S1,image,random,\n"
                            "S2,label,random,0\n"
-                           "S2,random,random,\n"
+                           "S2,image,random,\n"
                            "S3,label,random,1\n"
-                           "S3,random,random,\n")
-    unique_labels = get_unique_label_combinations(dataset_csv, config)  # type: ignore
-    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels)  # type: ignore
-                                                  for labels in [[], [0]]])
+                           "S3,image,random,\n")
 
-    dataset_csv = StringIO("subjectID,channel,path,value\n"
+    unique_labels = get_unique_label_combinations(config)  # type: ignore
+    expected_label_combinations = set(frozenset(class_names[i] for i in labels)  # type: ignore
+                                      for labels in [[], [0]])
+    assert unique_labels == expected_label_combinations
+
+
+def test_get_unique_label_combinations_nan(test_output_dirs: OutputFolderForTests) -> None:
+    config = ScalarModelBase(label_channels=["label"],
+                             label_value_column="value",
+                             image_channels=["image"],
+                             image_file_column="path",
+                             subject_column="subjectID")
+    class_names = config.class_names
+
+    config.local_dataset = test_output_dirs.root_dir / "dataset"
+    config.local_dataset.mkdir()
+    dataset_csv = config.local_dataset / "dataset.csv"
+    dataset_csv.write_text("subjectID,channel,path,value\n"
                            "S1,label,random,1\n"
-                           "S1,random,random,\n"
+                           "S1,image,random,\n"
                            "S2,label,random,\n"
-                           "S2,random,random,\n")
-    unique_labels = get_unique_label_combinations(dataset_csv, config)  # type: ignore
-    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels)  # type: ignore
-                                                  for labels in [[0]]])
+                           "S2,image,random,\n")
+    unique_labels = get_unique_label_combinations(config)  # type: ignore
+    expected_label_combinations = set(frozenset(class_names[i] for i in labels)  # type: ignore
+                                      for labels in [[0]])
+    assert unique_labels == expected_label_combinations
 
 
-def test_get_unique_label_combinations_multi_label() -> None:
-    dataset_csv = StringIO("ID,channel,path,label\n"
+def test_get_unique_label_combinations_multi_label(test_output_dirs: OutputFolderForTests) -> None:
+    config = DummyMulticlassClassification()
+    class_names = config.class_names
+    config.local_dataset = test_output_dirs.root_dir / "dataset"
+    config.local_dataset.mkdir()
+    dataset_csv = config.local_dataset / "dataset.csv"
+    dataset_csv.write_text("ID,channel,path,label\n"
                            "S1,blue,random,1|2|3\n"
                            "S1,green,random,\n"
                            "S2,blue,random,2|3\n"
@@ -212,8 +248,8 @@ def test_get_unique_label_combinations_multi_label() -> None:
                            "S3,green,random,\n"
                            "S4,blue,random,\n"
                            "S4,green,random,\n")
-    config = DummyMulticlassClassification()
-    unique_labels = get_unique_label_combinations(dataset_csv, config)  # type: ignore
-    class_names = config.class_names
-    assert set(map(tuple, unique_labels)) == set([tuple(class_names[i] for i in labels)  # type: ignore
-                                                  for labels in [[1, 2, 3], [2, 3], [3], []]])
+    unique_labels = get_unique_label_combinations(config)  # type: ignore
+
+    expected_label_combinations = set(frozenset(class_names[i] for i in labels)  # type: ignore
+                                      for labels in [[1, 2, 3], [2, 3], [3], []])
+    assert unique_labels == expected_label_combinations

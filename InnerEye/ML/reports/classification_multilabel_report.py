@@ -3,41 +3,28 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import List
+from typing import List, Set, FrozenSet
 
-import numpy as np
 import pandas as pd
+import torch
+import math
 
 from InnerEye.Common.metrics_constants import LoggingColumns
-from InnerEye.ML.dataset.scalar_dataset import extract_label_classification
+from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.reports.classification_report import LabelsAndPredictions
 
 
-def get_unique_label_combinations(dataset_csv: Path, config: ScalarModelBase) -> List[List[str]]:
+def get_unique_label_combinations(config: ScalarModelBase) -> Set[FrozenSet[str]]:
     """
     Get a list of all the combinations of labels that exist in the dataset.
     """
-    if config.label_channels and len(config.label_channels) > 1:
-        raise ValueError(f"Single label channel expected in multilabel datasets, "
-                         f"got {len(config.label_channels)} channels.")
-    df = pd.read_csv(dataset_csv, dtype=str)
-    if config.label_channels:
-        df = df.loc[df[config.channel_column] == config.label_channels[0]]
-    combined_labels = list(set(df[config.label_value_column].values))
+    df = config.read_dataset_if_needed()
+    dataset = ScalarDataset(args=config, data_frame=df)
 
-    label_set = []
-    for labels in combined_labels:
-        labels = extract_label_classification(label_string=labels,
-                                              sample_id="",
-                                              num_classes=len(config.class_names),
-                                              is_classification_dataset=config.is_classification_model)
-        labels = np.array(labels)
-        labels = labels[~np.isnan(labels)]
-        if len(labels) == 0:
-            continue
-        labels = labels.nonzero()[0]
-        label_set.append([config.class_names[int(i)] for i in labels])
+    all_labels = [torch.flatten(torch.nonzero(item.label)).tolist() for item in dataset.items]
+    label_set = set(frozenset([config.class_names[i] for i in labels if not math.isnan(i)])
+                    for labels in all_labels)
 
     return label_set
 

@@ -738,9 +738,7 @@ class MLRunner:
                         config=config,
                         train_metrics=path_to_best_epoch_train,
                         val_metrics=path_to_best_epoch_val,
-                        test_metrics=path_to_best_epoch_test,
-                        dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
-                        if config.local_dataset else None)
+                        test_metrics=path_to_best_epoch_test)
 
                     if len(config.class_names) > 1:
                         generate_classification_multilabel_notebook(
@@ -748,9 +746,7 @@ class MLRunner:
                             config=config,
                             train_metrics=path_to_best_epoch_train,
                             val_metrics=path_to_best_epoch_val,
-                            test_metrics=path_to_best_epoch_test,
-                            dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
-                            if config.local_dataset else None)
+                            test_metrics=path_to_best_epoch_test)
                 else:
                     logging.info(f"Cannot create report for config of type {type(config)}.")
         except Exception as ex:

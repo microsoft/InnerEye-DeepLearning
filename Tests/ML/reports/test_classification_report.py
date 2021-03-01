@@ -21,23 +21,45 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.metrics_dict import MetricsDict
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
+from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 
 
 def test_generate_classification_report(test_output_dirs: OutputFolderForTests) -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
     val_metrics_file = reports_folder / "val_metrics_classification.csv"
-    dataset_csv_path = reports_folder / 'dataset.csv'
+
+    config = ScalarModelBase(label_value_column="label",
+                             image_file_column="filePath",
+                             subject_column="subject")
+    config.local_dataset = test_output_dirs.root_dir / "dataset"
+    config.local_dataset.mkdir()
+    dataset_csv = config.local_dataset / "dataset.csv"
+    image_file_name = "image.npy"
+    dataset_csv.write_text("subject,filePath,label\n"
+                           f"0,0_{image_file_name},0\n"
+                           f"1,1_{image_file_name},0\n"
+                           f"2,0_{image_file_name},0\n"
+                           f"3,1_{image_file_name},0\n"
+                           f"4,0_{image_file_name},0\n"
+                           f"5,1_{image_file_name},0\n"
+                           f"6,0_{image_file_name},0\n"
+                           f"7,1_{image_file_name},0\n"
+                           f"8,0_{image_file_name},0\n"
+                           f"9,1_{image_file_name},0\n"
+                           f"10,0_{image_file_name},0\n"
+                           f"11,1_{image_file_name},0\n")
+
+    np.save(str(Path(config.local_dataset / f"0_{image_file_name}")),
+            np.random.randint(0, 255, [5, 4]))
+    np.save(str(Path(config.local_dataset / f"1_{image_file_name}")),
+            np.random.randint(0, 255, [5, 4]))
 
     result_file = test_output_dirs.root_dir / "report.ipynb"
-    config = ScalarModelBase()
-    config.label_value_column = "label"
-    config.image_file_column = "filePath"
     result_html = generate_classification_notebook(result_notebook=result_file,
                                                    config=config,
                                                    val_metrics=val_metrics_file,
-                                                   test_metrics=test_metrics_file,
-                                                   dataset_csv_path=dataset_csv_path)
+                                                   test_metrics=test_metrics_file)
     assert result_file.is_file()
     assert result_html.is_file()
     assert result_html.suffix == ".html"
@@ -189,64 +211,107 @@ def test_get_k_best_and_worst_performing() -> None:
     assert worst_false_negatives == [0, 1]
 
 
-def test_get_image_filepath_from_subject_id_single() -> None:
-    reports_folder = Path(__file__).parent
-    dataset_csv_file = reports_folder / "dataset.csv"
-    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
+def test_get_image_filepath_from_subject_id_single(test_output_dirs: OutputFolderForTests) -> None:
+    config = ScalarModelBase(image_file_column="filePath",
+                             label_value_column="label",
+                             subject_column="subject")
 
-    config = ScalarModelBase(image_file_column="filePath")
+    config.local_dataset = test_output_dirs.root_dir / "dataset"
+    config.local_dataset.mkdir()
+    dataset_csv = config.local_dataset / "dataset.csv"
+    image_file_name = "image.npy"
+    dataset_csv.write_text(f"subject,filePath,label\n"
+                           f"0,0_{image_file_name},0\n"
+                           f"1,1_{image_file_name},1\n")
+
+    df = config.read_dataset_if_needed()
+    dataset = ScalarDataset(args=config, data_frame=df)
+
+    Path(config.local_dataset / f"0_{image_file_name}").touch()
+    Path(config.local_dataset / f"1_{image_file_name}").touch()
 
     filepath = get_image_filepath_from_subject_id(subject_id="1",
-                                                  dataset_df=dataset_df,
-                                                  config=config,
-                                                  dataset_dir=reports_folder)
-    expected_path = Path(reports_folder / "../test_data/classification_data_2d/im2.npy")
+                                                  dataset=dataset,
+                                                  config=config)
+    expected_path = Path(config.local_dataset / f"1_{image_file_name}")
 
     assert filepath
     assert len(filepath) == 1
     assert expected_path.samefile(filepath[0])
 
+    # Check error is raised if the subject does not exist
+    with pytest.raises(ValueError) as ex:
+        get_image_filepath_from_subject_id(subject_id="100",
+                                           dataset=dataset,
+                                           config=config)
+    assert "Could not find subject" in str(ex)
+
 
 def test_get_image_filepath_from_subject_id_with_image_channels(test_output_dirs: OutputFolderForTests) -> None:
+    config = ScalarModelBase(label_channels=["label"],
+                             image_file_column="filePath",
+                             label_value_column="label",
+                             image_channels=["image"],
+                             subject_column="subject")
+
+    config.local_dataset = test_output_dirs.root_dir / "dataset"
+    config.local_dataset.mkdir()
+    dataset_csv = config.local_dataset / "dataset.csv"
     image_file_name = "image.npy"
-    dataset_csv_file = StringIO(f"subject,channel,filePath\n"
-                                f"0,channel1,{image_file_name}\n"
-                                f"0,channel2,\n"
-                                f"1,channel1,{image_file_name}\n"
-                                f"1,channel2,\n")
+    dataset_csv.write_text(f"subject,channel,filePath,label\n"
+                           f"0,label,,0\n"
+                           f"0,image,0_{image_file_name},\n"
+                           f"1,label,,1\n"
+                           f"1,image,1_{image_file_name},\n")
 
-    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
+    df = config.read_dataset_if_needed()
+    dataset = ScalarDataset(args=config, data_frame=df)
 
-    config = ScalarModelBase(image_channels=["channel1"],
-                             image_file_column="filePath")
+    Path(config.local_dataset / f"0_{image_file_name}").touch()
+    Path(config.local_dataset / f"1_{image_file_name}").touch()
+
     filepath = get_image_filepath_from_subject_id(subject_id="1",
-                                                  dataset_df=dataset_df,
-                                                  config=config,
-                                                  dataset_dir=test_output_dirs.root_dir)
+                                                  dataset=dataset,
+                                                  config=config)
+    expected_path = Path(config.local_dataset / f"1_{image_file_name}")
 
     assert filepath
     assert len(filepath) == 1
-    assert filepath[0] == test_output_dirs.root_dir / image_file_name
+    assert filepath[0].samefile(expected_path)
 
 
-def test_get_image_filepath_from_subject_id_multiple() -> None:
-    reports_folder = Path(__file__).parent
-    dataset_csv_file = reports_folder / "dataset.csv"
-    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
-    config = DummyMulticlassClassification()
-    config.subject_column = "subject"
-    config.image_file_column = "filePath"
+def test_get_image_filepath_from_subject_id_multiple(test_output_dirs: OutputFolderForTests) -> None:
+    config = ScalarModelBase(label_channels=["label"],
+                             image_file_column="filePath",
+                             label_value_column="label",
+                             image_channels=["image1", "image2"],
+                             subject_column="subject")
 
-    # duplicate subject entries
-    dataset_df.loc[::2, config.subject_column] = [str(i) for i in list(range(len(dataset_df)//2))]
-    dataset_df.loc[1::2, config.subject_column] = [str(i) for i in list(range(len(dataset_df)//2))]
+    config.local_dataset = test_output_dirs.root_dir / "dataset"
+    config.local_dataset.mkdir()
+    dataset_csv = config.local_dataset / "dataset.csv"
+    image_file_name = "image.npy"
+    dataset_csv.write_text(f"subject,channel,filePath,label\n"
+                           f"0,label,,0\n"
+                           f"0,image1,00_{image_file_name},\n"
+                           f"0,image2,01_{image_file_name},\n"
+                           f"1,label,,1\n"
+                           f"1,image1,10_{image_file_name},\n"
+                           f"1,image2,11_{image_file_name},\n")
+
+    df = config.read_dataset_if_needed()
+    dataset = ScalarDataset(args=config, data_frame=df)
+
+    Path(config.local_dataset / f"00_{image_file_name}").touch()
+    Path(config.local_dataset / f"01_{image_file_name}").touch()
+    Path(config.local_dataset / f"10_{image_file_name}").touch()
+    Path(config.local_dataset / f"11_{image_file_name}").touch()
 
     filepath = get_image_filepath_from_subject_id(subject_id="1",
-                                                  dataset_df=dataset_df,
-                                                  config=config,
-                                                  dataset_dir=reports_folder)
-    expected_paths = [Path(reports_folder / "../test_data/classification_data_2d/im1.npy"),
-                      Path(reports_folder / "../test_data/classification_data_2d/im2.npy")]
+                                                  dataset=dataset,
+                                                  config=config)
+    expected_paths = [config.local_dataset / f"10_{image_file_name}",
+                      config.local_dataset / f"11_{image_file_name}"]
 
     assert filepath
     assert len(filepath) == 2
@@ -254,71 +319,80 @@ def test_get_image_filepath_from_subject_id_multiple() -> None:
     assert expected_paths[1].samefile(filepath[1])
 
 
-def test_get_image_filepath_from_subject_id_invalid_id() -> None:
-    reports_folder = Path(__file__).parent
-    dataset_csv_file = reports_folder / "dataset.csv"
-    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
-    config = DummyMulticlassClassification()
-    config.subject_column = "subject"
-    config.image_file_column = "filePath"
+def test_image_labels_from_subject_id_single(test_output_dirs: OutputFolderForTests) -> None:
+    config = ScalarModelBase(label_value_column="label",
+                             subject_column="subject")
 
-    filepath = get_image_filepath_from_subject_id(subject_id="100",
-                                                  dataset_df=dataset_df,
-                                                  config=config,
-                                                  dataset_dir=reports_folder)
+    config.local_dataset = test_output_dirs.root_dir / "dataset"
+    config.local_dataset.mkdir()
+    dataset_csv = config.local_dataset / "dataset.csv"
+    dataset_csv.write_text("subject,channel,label\n"
+                           "0,label,0\n"
+                           "1,label,1\n")
 
-    assert not filepath
+    df = config.read_dataset_if_needed()
+    dataset = ScalarDataset(args=config, data_frame=df)
 
-
-def test_image_labels_from_subject_id_single() -> None:
-    reports_folder = Path(__file__).parent
-    dataset_csv_file = reports_folder / "dataset.csv"
-    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
-
-    config = ScalarModelBase(label_value_column="label")
-
-    labels = get_image_labels_from_subject_id(subject_id="1",
-                                              dataset_df=dataset_df,
+    labels = get_image_labels_from_subject_id(subject_id="0",
+                                              dataset=dataset,
                                               config=config)
     assert not labels
 
-
-def test_image_labels_from_subject_id_with_label_channels() -> None:
-    dataset_csv_file = StringIO("subject,channel,label\n"
-                                "0,channel1,0\n"
-                                "0,channel2,\n"
-                                "1,channel1,1\n"
-                                "1,channel2,\n")
-
-    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
-
-    config = ScalarModelBase(label_channels=["channel1"],
-                             label_value_column="label")
     labels = get_image_labels_from_subject_id(subject_id="1",
-                                              dataset_df=dataset_df,
+                                              dataset=dataset,
                                               config=config)
     assert labels
     assert len(labels) == 1
     assert labels[0] == MetricsDict.DEFAULT_HUE_KEY
 
 
-def test_image_labels_from_subject_id_multiple() -> None:
-    reports_folder = Path(__file__).parent
-    dataset_csv_file = reports_folder / "dataset.csv"
-    dataset_df = pd.read_csv(dataset_csv_file, dtype=str)
+def test_image_labels_from_subject_id_with_label_channels(test_output_dirs: OutputFolderForTests) -> None:
+    config = ScalarModelBase(label_channels=["label"],
+                             label_value_column="label",
+                             subject_column="subject")
+    config.local_dataset = test_output_dirs.root_dir / "dataset"
+    config.local_dataset.mkdir()
+    dataset_csv = config.local_dataset / "dataset.csv"
+    dataset_csv.write_text("subject,channel,label\n"
+                           "0,label,0\n"
+                           "0,image,\n"
+                           "1,label,1\n"
+                           "1,image,\n")
 
-    config = DummyMulticlassClassification()
-    config.subject_column = "subject"
-
-    # Add multiple labels for a single subject
-    dataset_df.loc[:, config.label_value_column] = "1|2"
+    df = config.read_dataset_if_needed()
+    dataset = ScalarDataset(args=config, data_frame=df)
 
     labels = get_image_labels_from_subject_id(subject_id="1",
-                                                  dataset_df=dataset_df,
+                                              dataset=dataset,
+                                              config=config)
+    assert labels
+    assert len(labels) == 1
+    assert labels[0] == MetricsDict.DEFAULT_HUE_KEY
+
+
+def test_image_labels_from_subject_id_multiple(test_output_dirs: OutputFolderForTests) -> None:
+    config = ScalarModelBase(label_channels=["label"],
+                             label_value_column="label",
+                             subject_column="subject",
+                             class_names=["class1", "class2", "class3"])
+    config.local_dataset = test_output_dirs.root_dir / "dataset"
+    config.local_dataset.mkdir()
+    dataset_csv = config.local_dataset / "dataset.csv"
+    dataset_csv.write_text("subject,channel,label\n"
+                           "0,label,0\n"
+                           "0,image,\n"
+                           "1,label,1|2\n"
+                           "1,image,\n")
+
+    df = config.read_dataset_if_needed()
+    dataset = ScalarDataset(args=config, data_frame=df)
+
+    labels = get_image_labels_from_subject_id(subject_id="1",
+                                                  dataset=dataset,
                                                   config=config)
     assert labels
     assert len(labels) == 2
-    assert set(labels) == {"class1", "class2"}
+    assert set(labels) == {config.class_names[1], config.class_names[2]}
 
 
 def test_plot_image_from_filepath(test_output_dirs: OutputFolderForTests) -> None:

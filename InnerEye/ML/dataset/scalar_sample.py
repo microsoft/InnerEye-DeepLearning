@@ -135,19 +135,8 @@ class ScalarDataSource(ScalarItemBase):
         :return: An instance of ClassificationItem, with the same label and numerical_non_image_features fields,
         and all images loaded.
         """
-        full_channel_files: List[Path] = []
-        for f in self.channel_files:
-            if f is None:
-                raise ValueError("When loading images, channel_files should no longer contain None entries.")
-            elif file_mapping:
-                if f in file_mapping:
-                    full_channel_files.append(file_mapping[str(f)])
-                else:
-                    raise ValueError(f"File mapping does not contain an entry for {f}")
-            elif root_path:
-                full_channel_files.append(root_path / f)
-            else:
-                raise ValueError("One of the arguments 'file_mapping' or 'root_path' must be given.")
+        full_channel_files = self.get_all_image_filepaths(root_path=root_path,
+                                                          file_mapping=file_mapping)
 
         imaging_data = load_images_and_stack(files=full_channel_files,
                                              load_segmentation=load_segmentation,
@@ -174,6 +163,45 @@ class ScalarDataSource(ScalarItemBase):
 
     def files_valid(self) -> bool:
         return not any(f is None for f in self.channel_files)
+
+    def get_all_image_filepaths(self,
+                                root_path: Optional[Path],
+                                file_mapping: Optional[Dict[str, Path]]) -> List[Path]:
+        """
+        Get a list of image paths for the object. Either root_path or file_mapping must be specified.
+        :param root_path: The root path where all channel files for images are expected. This is ignored if
+        file_mapping is given.
+        :param file_mapping: A mapping from a file name stem (without extension) to its full path.
+        """
+        full_channel_files: List[Path] = []
+        for f in self.channel_files:
+            full_channel_files.append(self.get_full_image_filepath(f, root_path, file_mapping))
+
+        return full_channel_files
+
+    @staticmethod
+    def get_full_image_filepath(file: str,
+                                root_path: Optional[Path],
+                                file_mapping: Optional[Dict[str, Path]]) -> Path:
+        """
+        Get the full path of an image file given the path relative to the dataset folder and one of
+        root_path or file_mapping.
+        :param file: Image filepath relative to the dataset folder
+        :param root_path: The root path where all channel files for images are expected. This is ignored if
+        file_mapping is given.
+        :param file_mapping: A mapping from a file name stem (without extension) to its full path.
+        """
+        if file is None:
+            raise ValueError("When loading images, channel_files should no longer contain None entries.")
+        elif file_mapping:
+            if file in file_mapping:
+                return file_mapping[str(file)]
+            else:
+                raise ValueError(f"File mapping does not contain an entry for {file}")
+        elif root_path:
+            return root_path / file
+        else:
+            raise ValueError("One of the arguments 'file_mapping' or 'root_path' must be given.")
 
 
 @dataclass(frozen=True)

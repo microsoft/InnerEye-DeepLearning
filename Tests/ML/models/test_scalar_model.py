@@ -209,9 +209,7 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
                                      config=config,
                                      train_metrics=path_to_best_epoch_train,
                                      val_metrics=path_to_best_epoch_val,
-                                     test_metrics=path_to_best_epoch_test,
-                                     dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
-                                     if config.local_dataset else None)
+                                     test_metrics=path_to_best_epoch_test)
     assert (config.outputs_folder / get_html_report_name(config.model_category.value)).exists()
 
     report_name_multilabel = f"{config.model_category.value}_multilabel"
@@ -219,9 +217,7 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
                                                 config=config,
                                                 train_metrics=path_to_best_epoch_train,
                                                 val_metrics=path_to_best_epoch_val,
-                                                test_metrics=path_to_best_epoch_test,
-                                                dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
-                                                if config.local_dataset else None)
+                                                test_metrics=path_to_best_epoch_test)
     assert (config.outputs_folder / get_html_report_name(report_name_multilabel)).exists()
 
 

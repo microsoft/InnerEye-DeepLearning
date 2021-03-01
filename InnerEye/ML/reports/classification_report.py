@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import math
+import torch
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -21,7 +22,7 @@ from InnerEye.ML.metrics_dict import MetricsDict, binary_classification_accuracy
 from InnerEye.ML.reports.notebook_report import print_header
 from InnerEye.ML.utils.io_util import load_image_in_known_formats
 from InnerEye.ML.scalar_config import ScalarModelBase
-from InnerEye.ML.dataset.scalar_dataset import extract_label_classification
+from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 
 
 @dataclass
@@ -281,54 +282,45 @@ def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: P
 
 
 def get_image_filepath_from_subject_id(subject_id: str,
-                                       dataset_df: pd.DataFrame,
-                                       config: ScalarModelBase,
-                                       dataset_dir: Path) -> List[Path]:
+                                       dataset: ScalarDataset,
+                                       config: ScalarModelBase) -> List[Path]:
     """
-    Returns the filepath for the image associated with a subject. If the subject is not found, return None.
-    If the csv contains multiple entries per subject (which may happen if the csv uses the channels column) then
-    return None as we do not support these csv types yet.
+    Return the filepaths for images associated with a subject. If the subject is not found, raises a ValueError.
     :param subject_id: Subject to retrive image for
-    :param dataset_df: Dataset dataframe (from the datset.csv file)
-    :param dataset_dir: Path to the dataset
-    :return: path to the image file for the patient or None if it is not found.
+    :param dataset: scalar dataset object
+    :param config: model config
+    :return: List of paths to the image files for the patient.
     """
-    if config.image_channels and config.channel_column in dataset_df:
-        dataset_df = dataset_df.loc[dataset_df[config.channel_column].isin(config.image_channels)]
+    for item in dataset.items:
+        if item.metadata.id == subject_id:
+            return item.get_all_image_filepaths(root_path=config.local_dataset,
+                                                file_mapping=dataset.file_to_full_path)
 
-    dataset_df = dataset_df[dataset_df[config.subject_column] == subject_id]
-    filepaths = dataset_df[config.image_file_column].values
-
-    return [dataset_dir / Path(filepath) for filepath in filepaths]
+    raise ValueError(f"Could not find subject {subject_id} in the dataset.")
 
 
 def get_image_labels_from_subject_id(subject_id: str,
-                                     dataset_df: pd.DataFrame,
+                                     dataset: ScalarDataset,
                                      config: ScalarModelBase) -> List[str]:
-    if config.label_channels and config.channel_column in dataset_df:
-        if len(config.label_channels) > 1:
-            raise ValueError(f"Single label channel expected in multilabel datasets, "
-                             f"got {len(config.label_channels)} channels.")
+    """
+    Return the ground truth labels associated with a subject. If the subject is not found, raises a ValueError.
+    :param subject_id: Subject to retrive image for
+    :param dataset: scalar dataset object
+    :param config: model config
+    :return: List of labels for the patient.
+    """
+    labels = None
 
-        dataset_df = dataset_df.loc[dataset_df[config.channel_column] == config.label_channels[0]]
-    dataset_df = dataset_df[dataset_df[config.subject_column] == subject_id]
-    labels = list(set(dataset_df[config.label_value_column].values))
+    for item in dataset.items:
+        if item.metadata.id == subject_id:
+            labels = torch.flatten(torch.nonzero(item.label)).tolist()
+            break
 
-    if not labels:
-        return []
-
-    if len(labels) > 1:
-        raise ValueError(f"Labels inconsistent, expect the same set of labels for all hues per subject. "
-                         f"Got labels {labels}")
-
-    labels = np.array(extract_label_classification(label_string=labels[0],
-                                                   sample_id=subject_id,
-                                                   num_classes=len(config.class_names),
-                                                   is_classification_dataset=config.is_classification_model)
-                      ).nonzero()[0]
+    if labels is None:
+        raise ValueError(f"Could not find subject {subject_id} in the dataset.")
 
     return [config.class_names[int(label)] for label in labels
-            if not isinstance(labels, float) or not math.isnan(label)]
+            if not math.isnan(label)]
 
 
 def get_image_outputs_from_subject_id(subject_id: str,
@@ -374,8 +366,7 @@ def plot_image_from_filepath(filepath: Path, im_width: int) -> bool:
 
 
 def plot_image_for_subject(subject_id: str,
-                           dataset_df: pd.DataFrame,
-                           dataset_dir: Path,
+                           dataset: ScalarDataset,
                            im_width: int,
                            model_output: float,
                            header: Optional[str],
@@ -384,18 +375,19 @@ def plot_image_for_subject(subject_id: str,
     """
     Given a subject ID, plots the corresponding image.
     :param subject_id: Subject to plot image for
-    :param dataset_df: Dataset dataframe (from the datset.csv file)
-    :param dataset_dir: Path to the dataset
+    :param dataset: scalar dataset object
     :param im_width: Display width for image
     :param model_output: The predicted value for this image
     :param header: Optional header printed along with the subject ID and score for the image.
+    :param config: model config
+    :param metrics_df: dataframe with the metrics written out during inference time
     """
     print_header("", level=4)
     if header:
         print_header(header, level=4)
 
     labels = get_image_labels_from_subject_id(subject_id=subject_id,
-                                              dataset_df=dataset_df,
+                                              dataset=dataset,
                                               config=config)
 
     print_header(f"True labels: {', '.join(labels) if labels else 'Negative'}", level=4)
@@ -410,9 +402,8 @@ def plot_image_for_subject(subject_id: str,
         print_header(f"ID: {subject_id} Score: {model_output}", level=4)
 
     filepaths = get_image_filepath_from_subject_id(subject_id=str(subject_id),
-                                                   dataset_df=dataset_df,
-                                                   config=config,
-                                                   dataset_dir=dataset_dir)
+                                                   dataset=dataset,
+                                                   config=config)
 
     if not filepaths:
         print_header(f"Subject ID {subject_id} not found."
@@ -426,7 +417,7 @@ def plot_image_for_subject(subject_id: str,
             print_header("Unable to plot image: image must be 2D with shape [w, h] or [1, w, h].", level=0)
 
 
-def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int, dataset_csv_path: Path,
+def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int,
                                     hue: str, config: ScalarModelBase) -> None:
     """
     Plot images for the top "k" best predictions (i.e. correct classifications where the model was the most certain)
@@ -439,8 +430,8 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
 
     test_metrics = pd.read_csv(test_metrics_csv, dtype=str)
 
-    dataset_df = pd.read_csv(dataset_csv_path, dtype=str)
-    dataset_dir = dataset_csv_path.parent
+    df = config.read_dataset_if_needed()
+    dataset = ScalarDataset(args=config, data_frame=df)
 
     im_width = 800
 
@@ -449,8 +440,7 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
     for index, (subject, model_output) in enumerate(zip(results.false_positives[LoggingColumns.Patient.value],
                                                         results.false_positives[LoggingColumns.ModelOutput.value])):
         plot_image_for_subject(subject_id=str(subject),
-                               dataset_df=dataset_df,
-                               dataset_dir=dataset_dir,
+                               dataset=dataset,
                                im_width=im_width,
                                model_output=model_output,
                                header="False Positive",
@@ -461,8 +451,7 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
     for index, (subject, model_output) in enumerate(zip(results.false_negatives[LoggingColumns.Patient.value],
                                                         results.false_negatives[LoggingColumns.ModelOutput.value])):
         plot_image_for_subject(subject_id=str(subject),
-                               dataset_df=dataset_df,
-                               dataset_dir=dataset_dir,
+                               dataset=dataset,
                                im_width=im_width,
                                model_output=model_output,
                                header="False Negative",
@@ -473,8 +462,7 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
     for index, (subject, model_output) in enumerate(zip(results.true_positives[LoggingColumns.Patient.value],
                                                         results.true_positives[LoggingColumns.ModelOutput.value])):
         plot_image_for_subject(subject_id=str(subject),
-                               dataset_df=dataset_df,
-                               dataset_dir=dataset_dir,
+                               dataset=dataset,
                                im_width=im_width,
                                model_output=model_output,
                                header="True Positive",
@@ -485,8 +473,7 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
     for index, (subject, model_output) in enumerate(zip(results.true_negatives[LoggingColumns.Patient.value],
                                                         results.true_negatives[LoggingColumns.ModelOutput.value])):
         plot_image_for_subject(subject_id=str(subject),
-                               dataset_df=dataset_df,
-                               dataset_dir=dataset_dir,
+                               dataset=dataset,
                                im_width=im_width,
                                model_output=model_output,
                                header="True Negative",
