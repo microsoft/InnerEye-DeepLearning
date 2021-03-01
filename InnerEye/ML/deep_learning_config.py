@@ -29,7 +29,7 @@ FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
 # The checkpoints must be stored inside of the final model folder, if we want to avoid copying
 # them before registration.
 CHECKPOINT_FOLDER = "checkpoints"
-VISUALIZATION_FOLDER = "Visualizations"
+VISUALIZATION_FOLDER = "visualizations"
 
 ARGS_TXT = "args.txt"
 WEIGHTS_FILE = "weights.pth"

@@ -33,21 +33,31 @@ T = TypeVar('T', bound=ScalarDataSource)
 
 
 def extract_label_classification(label_string: str, sample_id: str, num_classes: int,
-                                 is_classification_dataset: bool) \
-        -> List[float]:
+                                 is_classification_dataset: bool) -> List[float]:
     """
     Converts a string from a dataset.csv file that contains a model's label to a scalar.
 
     For classification datasets:
-    The function maps ["1", "true", "yes"] to 1, ["0", "false", "no"] to 0.
-    For regression dataset:
+    If num_classes is 1 (binary classification tasks):
+        The function maps ["1", "true", "yes"] to [1], ["0", "false", "no"] to [0].
+        If the entry in the CSV file was missing (no string given at all) or an empty string, it returns math.nan.
+    If num_classes is greater than 1 (multilabel datasets):
+        The function maps a pipe-separated set of classes to a tensor with ones at the indices
+        of the positive classes and 0 elsewhere (for example if we have a task with 6 label classes,
+        map "1|3|4" to [0, 1, 0, 1, 1, 0]).
+        If the entry in the CSV file was missing (no string given at all) or an empty string,
+        this function returns an all-zero tensor (none of the label classes were positive for this sample).
+
+    For regression datasets:
     The function casts a string label to float. Raises an exception if the conversion is
     not possible.
+    If the entry in the CSV file was missing (no string given at all) or an empty string, it returns math.nan.
 
-    If the entry in the CSV file was missing (no string given at all), it returns math.nan.
     :param label_string: The value of the label as read from CSV via a DataFrame.
     :param sample_id: The sample ID where this label was read from. This is only used for creating error messages.
-    :param num_classes: Number of classes. This should be equal the size of the model output
+    :param num_classes: Number of classes. This should be equal the size of the model output.
+    For binary classification tasks, num_classes should be one. For multilabel classification tasks, num_classes should
+    correspond to the number of label classes in the problem.
     :param is_classification_dataset: If the model is a classification model
     :return: A list of floats with the same size as num_classes
     """
@@ -84,6 +94,11 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
 
         if '|' in label_string or label_string.isdigit():
             classes = [int(a) for a in label_string.split('|')]
+
+            out_of_range = [_class for _class in classes if _class >= num_classes]
+            if out_of_range:
+                raise ValueError(f"Subject {sample_id}: Indices {out_of_range} are out of range, for number of classes "
+                                 f"= {num_classes}")
 
             one_hot_array = np.zeros(num_classes, dtype=np.float)
             one_hot_array[classes] = 1.0

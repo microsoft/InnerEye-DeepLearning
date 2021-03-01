@@ -217,7 +217,7 @@ class ScalarModelBase(ModelConfigBase):
             self.num_dataset_reader_workers = num_dataset_reader_workers
 
     def validate(self) -> None:
-        if not self.is_classification_model and len(self.class_names) > 1:
+        if len(self.class_names) > 1 and not self.is_classification_model:
             raise ValueError("Multiple label classes supported only for classification tasks.")
 
     @property

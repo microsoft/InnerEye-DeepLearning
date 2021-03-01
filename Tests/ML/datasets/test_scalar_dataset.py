@@ -523,7 +523,8 @@ def test_load_single_item_7() -> None:
                              ("1", True, 3, [0.0, 1.0, 0.0]),
                              ("1", False, 1, [1.0]),
                              ("-1", False, 1, [-1.0]),
-                             ("1|2", True, 3, [0.0, 1.0, 1.0])
+                             ("1|2", True, 3, [0.0, 1.0, 1.0]),
+                             ("1|5", True, 3, None)
                          ])
 def test_extract_label(text: str, is_classification: bool, num_classes: int,
                        expected_label: List[float], ) -> None:
