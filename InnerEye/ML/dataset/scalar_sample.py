@@ -175,6 +175,8 @@ class ScalarDataSource(ScalarItemBase):
         """
         full_channel_files: List[Path] = []
         for f in self.channel_files:
+            if not f:
+                raise ValueError(f"Got invalid file path: {f}")
             full_channel_files.append(self.get_full_image_filepath(f, root_path, file_mapping))
 
         return full_channel_files
