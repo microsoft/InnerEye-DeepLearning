@@ -86,10 +86,13 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
             label_lower = label_string.lower()
             if label_lower in ["true", "yes"]:
                 return [1.0]
-            if label_lower in ["false", "no"]:
+            elif label_lower in ["false", "no"]:
                 return [0.0]
-            if label_string in ["0", "1"]:
+            elif label_string in ["0", "1"]:
                 return [float(label_string)]
+            else:
+                raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'. "
+                             f"Should be one of true/false, yes/no or 0/1.")
 
         if '|' in label_string or label_string.isdigit():
             classes = [int(a) for a in label_string.split('|')]
@@ -106,7 +109,7 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
         try:
             return [float(label_string)]
         except ValueError:
-            raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
+            pass
 
     raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
 
