@@ -44,7 +44,7 @@ def get_unique_label_combinations(config: ScalarModelBase) -> Set[FrozenSet[str]
     return label_set
 
 
-def generate_psuedo_labels(csv: Path,
+def generate_pseudo_labels(csv: Path,
                            hues: List[str],
                            all_hues: List[str],
                            per_class_thresholds: List[float]) -> pd.DataFrame:
@@ -94,7 +94,7 @@ def generate_psuedo_labels(csv: Path,
     return df
 
 
-def get_psuedo_labels_and_predictions(csv: Path,
+def get_pseudo_labels_and_predictions(csv: Path,
                                       hues: List[str],
                                       all_hues: List[str],
                                       thresholds: List[float]) -> LabelsAndPredictions:
@@ -103,7 +103,7 @@ def get_psuedo_labels_and_predictions(csv: Path,
     NOTE: This CSV file should have results from a single epoch, as in the metrics files written during inference, not
     like the ones written while training.
     """
-    df = generate_psuedo_labels(csv=csv, hues=hues, all_hues=all_hues, per_class_thresholds=thresholds)
+    df = generate_pseudo_labels(csv=csv, hues=hues, all_hues=all_hues, per_class_thresholds=thresholds)
 
     labels = df[LoggingColumns.Label.value].to_numpy()
     model_outputs = df[LoggingColumns.ModelOutput.value].to_numpy()

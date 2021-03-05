@@ -13,8 +13,8 @@ from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.metrics_dict import MetricsDict
-from InnerEye.ML.reports.classification_multilabel_report import generate_psuedo_labels, \
-    get_psuedo_labels_and_predictions, get_unique_label_combinations
+from InnerEye.ML.reports.classification_multilabel_report import generate_pseudo_labels, \
+    get_pseudo_labels_and_predictions, get_unique_label_combinations
 from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
@@ -79,11 +79,11 @@ def test_generate_classification_multilabel_report(test_output_dirs: OutputFolde
     assert result_html.suffix == ".html"
 
 
-def test_get_psuedo_labels_and_predictions() -> None:
+def test_get_pseudo_labels_and_predictions() -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
 
-    results = get_psuedo_labels_and_predictions(test_metrics_file,
+    results = get_pseudo_labels_and_predictions(test_metrics_file,
                                                 [MetricsDict.DEFAULT_HUE_KEY],
                                                 all_hues=[MetricsDict.DEFAULT_HUE_KEY],
                                                 thresholds=[0.5])
@@ -92,7 +92,7 @@ def test_get_psuedo_labels_and_predictions() -> None:
     assert all([results.model_outputs[i] == op for i, op in enumerate([0.0, 0.0, 0.0, 1.0, 1.0, 1.0] * 2)])
 
 
-def test_get_psuedo_labels_and_predictions_multiple_hues(test_output_dirs: OutputFolderForTests) -> None:
+def test_get_pseudo_labels_and_predictions_multiple_hues(test_output_dirs: OutputFolderForTests) -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
 
@@ -111,7 +111,7 @@ def test_get_psuedo_labels_and_predictions_multiple_hues(test_output_dirs: Outpu
     csv.to_csv(metrics_csv_multi_hue, index=False)
 
     for h, hue in enumerate(hues):
-        results = get_psuedo_labels_and_predictions(metrics_csv_multi_hue,
+        results = get_pseudo_labels_and_predictions(metrics_csv_multi_hue,
                                                     hues=[hue],
                                                     all_hues=hues,
                                                     thresholds=[0.5, 0.5])
@@ -122,7 +122,7 @@ def test_get_psuedo_labels_and_predictions_multiple_hues(test_output_dirs: Outpu
                     for i, op in enumerate([0, 0, 0, 0, 0, 1] if h == 0 else [0, 1, 1, 0, 0, 0])])
 
 
-def test_generate_psuedo_labels() -> None:
+def test_generate_pseudo_labels() -> None:
 
     csv = StringIO("prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split\n"
                    "Hue1,0,0,0.5,1,-1,Test\n"
@@ -146,7 +146,7 @@ def test_generate_psuedo_labels() -> None:
                             "Hue1|Hue2,0,3,1,0,-1,Test\n"
                             )
 
-    df = generate_psuedo_labels(csv=csv,  # type: ignore
+    df = generate_pseudo_labels(csv=csv,  # type: ignore
                                 hues=["Hue1", "Hue2"],
                                 all_hues=["Hue1", "Hue2", "Hue3"],
                                 per_class_thresholds=[0.4, 0.5, 0.4])
@@ -154,7 +154,7 @@ def test_generate_psuedo_labels() -> None:
     assert expected_df.equals(df)
 
 
-def test_generate_psuedo_labels_negative_class() -> None:
+def test_generate_pseudo_labels_negative_class() -> None:
 
     csv = StringIO("prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split\n"
                    "Hue1,0,0,0.2,0,-1,Test\n"
@@ -178,7 +178,7 @@ def test_generate_psuedo_labels_negative_class() -> None:
                             ",0,3,1,0,-1,Test\n"
                             )
 
-    df = generate_psuedo_labels(csv=csv,  # type: ignore
+    df = generate_pseudo_labels(csv=csv,  # type: ignore
                                 hues=[],
                                 all_hues=["Hue1", "Hue2", "Hue3"],
                                 per_class_thresholds=[0.4, 0.5, 0.4])
