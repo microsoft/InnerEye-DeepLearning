@@ -5,15 +5,15 @@ channels:
 dependencies:
   - pip=20.1.1
   - python=3.7.3
-  - pytorch=1.6.0
+  - pytorch=1.8.0
   - python-blosc==1.7.0
-  - torchvision=0.7.0
+  - torchvision=0.9.0
   - pip:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - azure-mgmt-resource==10.2.0
-      - azureml-mlflow==1.19.0
-      - azureml-sdk==1.19.0
-      - azureml-tensorboard==1.19.0
+      - azureml-mlflow==1.23.0
+      - azureml-sdk==1.23.0
+      - azureml-tensorboard==1.23.0
       - conda-merge==0.1.5
       - dataclasses-json==0.5.2
       - flake8==3.8.3
