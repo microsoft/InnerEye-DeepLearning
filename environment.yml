@@ -55,4 +55,4 @@ dependencies:
       - tabulate==0.8.7
       - tensorboard==2.3.0
       - tensorboardX==2.1
-      - torchprof==1.1.1
+      - torchprof==1.3.2
