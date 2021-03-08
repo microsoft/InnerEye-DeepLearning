@@ -105,6 +105,10 @@ class InnerEyeLightning(LightningModule):
         self.train_epoch_metrics_logger.flush()
         self.val_epoch_metrics_logger.flush()
 
+    @property
+    def use_ddp(self) -> bool:
+        return self.trainer.accelerator_connector.use_ddp
+
     def on_train_epoch_start(self) -> None:
         self.train_timers.reset()
 
