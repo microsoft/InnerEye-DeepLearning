@@ -75,19 +75,22 @@ def string_to_integer_list(csv_list: str, length: int) -> List[int]:
     return integer_list
 
 
-def validate_dataset_paths(dataset_path: Path = Path.cwd()) -> None:
+def validate_dataset_paths(
+        dataset_path: Path = Path.cwd(),
+        dataset_csv: str = DATASET_CSV_FILE_NAME) -> None:
     """
-    Validates that a dataset.csv file exists in the given path.
+    Validates that tdhe required dataset csv file exists in the given path.
 
     :param dataset_path: The base path
+    :param custom_dataset_csv : The name of the dataset csv file
     :raise ValueError if the dataset does not exist.
     """
     if not dataset_path.is_dir():
         raise ValueError("The dataset_path argument should be the path to the base directory of the data "
                          f"(dataset_path: {dataset_path})")
-    dataset_csv = dataset_path / DATASET_CSV_FILE_NAME
-    if not dataset_csv.is_file():
-        raise ValueError(f"The dataset file {DATASET_CSV_FILE_NAME} file is not present in {dataset_path}")
+    dataset_csv_path = dataset_path / dataset_csv
+    if not dataset_csv_path.is_file():
+        raise ValueError(f"The dataset file {dataset_csv} is not present in {dataset_path}")
 
 
 def check_size_matches(arg1: Union[np.ndarray, torch.Tensor],

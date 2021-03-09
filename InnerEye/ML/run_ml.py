@@ -246,7 +246,9 @@ class MLRunner:
             # loaded (typically only during tests)
             if self.model_config.dataset_data_frame is None:
                 assert self.model_config.local_dataset is not None
-                ml_util.validate_dataset_paths(self.model_config.local_dataset)
+                ml_util.validate_dataset_paths(
+                    self.model_config.local_dataset,
+                    self.model_config.dataset_csv)
 
             # train a new model if required
             if self.azure_config.train:

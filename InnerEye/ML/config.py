@@ -465,6 +465,13 @@ class SegmentationModelBase(ModelConfigBase):
                                                  "of the first N subjects in the training set will be "
                                                  "written to the outputs folder.")
 
+    #: Name of the csv file providing information on the dataset to be used.
+    dataset_csv: str = param.String(
+            DATASET_CSV_FILE_NAME,
+            doc="Name of the csv file providing information on the dataset "
+                "to be used, containing at least the fields: "
+                "subject, channel, filePath.")
+
     def __init__(self, center_size: Optional[TupleInt3] = None,
                  inference_stride_size: Optional[TupleInt3] = None,
                  min_l_rate: float = 0,
@@ -651,10 +658,10 @@ class SegmentationModelBase(ModelConfigBase):
 
     def read_dataset_into_dataframe_and_pre_process(self) -> None:
         """
-        Loads a dataset from the dataset.csv file, and stores it in the present object.
+        Loads a dataset from the dataset_csv file, and stores it in the present object.
         """
         assert self.local_dataset is not None  # for mypy
-        self.dataset_data_frame = pd.read_csv(self.local_dataset / DATASET_CSV_FILE_NAME,
+        self.dataset_data_frame = pd.read_csv(self.local_dataset / self.dataset_csv,
                                               dtype=str,
                                               converters=self.col_type_converters,
                                               low_memory=False)

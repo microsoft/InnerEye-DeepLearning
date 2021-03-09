@@ -2,14 +2,17 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import os
 from typing import List, Optional
 
 import pytest
 import torch
 
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
+from InnerEye.ML.utils import ml_util
 from Tests.ML.configs.DummyModel import DummyModel
 
 
@@ -120,3 +123,21 @@ def test_equally_weighted_classes_fails(num_fg_clases: int, background_weight: O
     classes = [""] * num_fg_clases
     with pytest.raises(ValueError):
         equally_weighted_classes(classes, background_weight)
+
+
+def test_custom_dataset_csv(test_output_dirs: OutputFolderForTests) -> None:
+    test_csv = "test_dataset.csv"
+    dataset_csv_path = test_output_dirs.root_dir / test_csv
+    dataset_csv_path.write_text("""subject,channel,filePath""")
+    model_config = SegmentationModelBase(should_validate=False)
+    model_config.local_dataset = test_output_dirs.root_dir
+    model_config.dataset_csv = test_csv
+    dataframe = model_config.read_dataset_if_needed()
+    assert dataframe is not None
+
+    ml_util.validate_dataset_paths(model_config.local_dataset,
+                                   model_config.dataset_csv)
+    os.remove(dataset_csv_path)
+    with pytest.raises(ValueError):
+        ml_util.validate_dataset_paths(model_config.local_dataset,
+                                       model_config.dataset_csv)
