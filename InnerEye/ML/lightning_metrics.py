@@ -162,9 +162,9 @@ class ScalarMetricsBase(Metric):
             return torch.tensor(np.nan), torch.tensor(np.nan), torch.tensor(np.nan), torch.tensor(np.nan)
         fpr, tpr, thresholds = roc(preds, targets)
         optimal_idx = torch.argmax(tpr - fpr)  # type: ignore
-        optimal_threshold = thresholds[optimal_idx]
+        optimal_threshold = thresholds[optimal_idx]  # type: ignore
         acc = accuracy(preds > optimal_threshold, targets)
-        false_negative_optimal = 1 - tpr[optimal_idx]
+        false_negative_optimal = 1 - tpr[optimal_idx]  # type: ignore
         false_positive_optimal = fpr[optimal_idx]
         return optimal_threshold, false_positive_optimal, false_negative_optimal, acc
 

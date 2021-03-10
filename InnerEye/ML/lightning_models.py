@@ -349,7 +349,7 @@ class ScalarLightning(InnerEyeLightning):
         logger.flush()
         super().training_or_validation_epoch_end(is_training)
 
-    def transfer_batch_to_device(self, batch: Any, device: Optional[torch.device]) -> Any:
+    def transfer_batch_to_device(self, batch: Any, device: torch.device) -> Any:  # type: ignore
         """
         For sequence models, transfer the nested lists of items to the given GPU device.
         For all other models, this relies on the superclass to move the batch of data to the GPU.
