@@ -133,6 +133,11 @@ Default,S4,0.5211275815963745,0.0,-1,Train
 def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> None:
     df_expected = pd.read_csv(StringIO(expected_csv))
     df_epoch_metrics_actual = pd.read_csv(path)
+    # Add a separate check for number of lines. Data frames with lines are exact duplicates are not caught
+    # as mismatches.
+    num_expected_lines = len(expected_csv.splitlines())
+    num_actual_lines = len(path.read_text().splitlines())
+    assert num_actual_lines == num_expected_lines, "Number of lines does not match"
     for ignore_column in ignore_columns:
         assert ignore_column in df_epoch_metrics_actual, f"Column {ignore_column} will be ignored, but must still be" \
                                                          f"present in the dataframe"

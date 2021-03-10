@@ -113,6 +113,9 @@ class InnerEyeLightning(LightningModule):
         self.train_timers.reset()
 
     def training_epoch_end(self, outputs: List[Any]) -> None:
+        # Write out all the metrics that have been accumulated in the StoringLogger in the previous epoch.
+        # Metrics for the very last epoch are written in on_train_end
+        self.read_epoch_results_from_logger_and_store(epoch=self.current_epoch - 1)
         self.training_or_validation_epoch_end(is_training=True)
 
     def on_validation_epoch_start(self) -> None:
@@ -146,14 +149,6 @@ class InnerEyeLightning(LightningModule):
         self.training_or_validation_epoch_end(is_training=False)
 
     @rank_zero_only
-    def on_epoch_end(self) -> None:
-        """
-        This hook is called once per epoch, before on_train_epoch_end. Use it to write out all the metrics
-        that have been accumulated in the StoringLogger in the previous epoch.
-        """
-        self.read_epoch_results_from_logger_and_store(epoch=self.current_epoch - 1)
-
-    @rank_zero_only
     def on_train_end(self) -> None:
         """
         This hook is called at the very end of training. Use that to write the very last set of training and
@@ -161,6 +156,7 @@ class InnerEyeLightning(LightningModule):
         """
         self.read_epoch_results_from_logger_and_store(epoch=self.current_epoch)
 
+    @rank_zero_only
     def read_epoch_results_from_logger_and_store(self, epoch: int) -> None:
         """
         Reads the metrics for the previous epoch from the StoringLogger, and writes them to disk, broken down by
