@@ -21,7 +21,7 @@ from pandas import DataFrame
 from InnerEye.Common.common_util import any_pairwise_larger, any_smaller_or_equal_than, check_is_any_of
 from InnerEye.Common.generic_parsing import IntTuple
 from InnerEye.Common.type_annotations import TupleFloat2, TupleFloat3, TupleInt3, TupleStringOptionalFloat
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.split_dataset import DatasetSplits
@@ -464,13 +464,6 @@ class SegmentationModelBase(ModelConfigBase):
                                                  "patch sampling will be shown. Nifti images and thumbnails for each"
                                                  "of the first N subjects in the training set will be "
                                                  "written to the outputs folder.")
-
-    #: Name of the csv file providing information on the dataset to be used.
-    dataset_csv: str = param.String(
-            DATASET_CSV_FILE_NAME,
-            doc="Name of the csv file providing information on the dataset "
-                "to be used, containing at least the fields: "
-                "subject, channel, filePath.")
 
     def __init__(self, center_size: Optional[TupleInt3] = None,
                  inference_stride_size: Optional[TupleInt3] = None,
