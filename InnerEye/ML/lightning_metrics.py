@@ -251,7 +251,7 @@ class AreaUnderPrecisionRecallCurve(ScalarMetricsBase):
 class BinaryCrossEntropyWithLogits(ScalarMetricsBase):
     """
     Computes the cross entropy for binary classification.
-    This metric must be computed off the output logits
+    This metric must be computed off the model output logits.
     """
 
     def __init__(self) -> None:
@@ -259,7 +259,8 @@ class BinaryCrossEntropyWithLogits(ScalarMetricsBase):
 
     def compute(self) -> torch.Tensor:
         preds, targets = self._get_preds_and_targets()
-        return F.binary_cross_entropy_with_logits(input=preds, target=targets)
+        # All classification metrics work with integer targets, but this one does not. Convert to float.
+        return F.binary_cross_entropy_with_logits(input=preds, target=targets.to(dtype=preds.dtype))
 
 
 class MetricForMultipleStructures(torch.nn.Module):
@@ -319,5 +320,12 @@ class MetricForMultipleStructures(torch.nn.Module):
         of (metric name, metric value) tuples. This will automatically also call .reset() on the metrics.
         The first returned metric is the average across all structures, then come the per-structure values.
         """
-        for d in iter(self):
+        for d in self:
             yield d.name, d.compute()  # type: ignore
+
+    def reset(self) -> None:
+        """
+        Calls the .reset() method on all the metrics that the present object holds.
+        """
+        for d in self:
+            d.reset()
