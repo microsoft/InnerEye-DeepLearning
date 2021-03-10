@@ -79,7 +79,7 @@ def validate_dataset_paths(
         dataset_path: Path = Path.cwd(),
         dataset_csv: str = DATASET_CSV_FILE_NAME) -> None:
     """
-    Validates that tdhe required dataset csv file exists in the given path.
+    Validates that the required dataset csv file exists in the given path.
 
     :param dataset_path: The base path
     :param custom_dataset_csv : The name of the dataset csv file
