@@ -339,8 +339,8 @@ def store_epoch_metrics(metrics: DictStrFloat,
     """
     logger_row = {}
     for key, value in metrics.items():
-        if key == MetricType.SECONDS_PER_BATCH or key == MetricType.SECONDS_PER_EPOCH:
-            pass
+        if key == MetricType.SECONDS_PER_BATCH.value or key == MetricType.SECONDS_PER_EPOCH.value:
+            continue
         if key in INTERNAL_TO_LOGGING_COLUMN_NAMES.keys():
             logger_row[INTERNAL_TO_LOGGING_COLUMN_NAMES[key].value] = value
         else:
