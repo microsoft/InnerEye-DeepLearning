@@ -65,8 +65,7 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
                    MetricType.AREA_UNDER_ROC_CURVE,
                    MetricType.CROSS_ENTROPY,
                    MetricType.LOSS,
-                   # For unknown reasons, we don't get seconds_per_batch for the training data.
-                   # MetricType.SECONDS_PER_BATCH,
+                   MetricType.SECONDS_PER_BATCH,
                    MetricType.SECONDS_PER_EPOCH,
                    MetricType.SUBJECT_COUNT,
                    ]:
@@ -92,19 +91,16 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
     epoch_metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME
     # Auto-format will break the long header line, hence the strange way of writing it!
     expected_epoch_metrics = \
-        "loss,cross_entropy,accuracy_at_threshold_05,seconds_per_epoch,learning_rate," + \
+        "loss,cross_entropy,accuracy_at_threshold_05,learning_rate," + \
         "area_under_roc_curve,area_under_pr_curve,accuracy_at_optimal_threshold," \
         "false_positive_rate_at_optimal_threshold,false_negative_rate_at_optimal_threshold," \
         "optimal_threshold,subject_count,epoch,cross_validation_split_index\n" + \
-        """0.6866141557693481,0.6866141557693481,0.5,0,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,0,-1	
-        0.6864652633666992,0.6864652633666992,0.5,0,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,1,-1	
-        0.6863163113594055,0.6863162517547607,0.5,0,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,2,-1	
-        0.6861673593521118,0.6861673593521118,0.5,0,9.998613801725043e-05,1.0,1.0,0.5,0.0,0.0,0.529399,2.0,3,-1	
+        """0.6866141557693481,0.6866141557693481,0.5,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,0,-1	
+        0.6864652633666992,0.6864652633666992,0.5,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,1,-1	
+        0.6863163113594055,0.6863162517547607,0.5,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,2,-1	
+        0.6861673593521118,0.6861673593521118,0.5,9.998613801725043e-05,1.0,1.0,0.5,0.0,0.0,0.529399,2.0,3,-1	
         """
-    # We cannot compare columns like "seconds_per_epoch" because timing will obviously vary between machines.
-    # Column must still be present, though.
-    check_log_file(epoch_metrics_path, expected_epoch_metrics,
-                   ignore_columns=[LoggingColumns.SecondsPerEpoch.value])
+    check_log_file(epoch_metrics_path, expected_epoch_metrics, ignore_columns=[])
     # Check metrics.csv: This contains the per-subject per-epoch model outputs
     # Randomization comes out slightly different on Windows, hence only execute the test on Linux
     if common_util.is_windows():
