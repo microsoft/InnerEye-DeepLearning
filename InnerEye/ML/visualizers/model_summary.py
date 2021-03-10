@@ -10,8 +10,8 @@ from typing import Any, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
-from InnerEye.ML.visualizers.torchprof.profile import Profile
 from torch.utils.hooks import RemovableHandle
+from torchprof.profile import Profile
 
 from InnerEye.Common.common_util import logging_only_to_file
 from InnerEye.Common.fixed_paths import DEFAULT_MODEL_SUMMARIES_DIR_PATH
@@ -189,7 +189,6 @@ class ModelSummary:
         # Register the forward-pass hooks, profile the model, and restore its state
         self.model.apply(self._register_hook)
         with Profile(self.model, use_cuda=self.use_gpu) as prof:
-        # with profiler.profile(profile_memory=True, record_shapes=True, use_cuda=self.use_gpu) as prof:
             forward_preserve_state(self.model, input_tensors)  # type: ignore
 
         # Log the model summary: tensor shapes, num of parameters, memory requirement, and forward pass time

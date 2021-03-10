@@ -8,18 +8,15 @@ from typing import Iterator, Set
 
 import pytest
 from azureml.core import Run
-from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.workspace import Workspace
 
 from InnerEye.Azure.azure_config import AzureConfig, SourceConfig
 from InnerEye.Azure.azure_runner import create_experiment_name, get_or_create_python_environment
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, fetch_child_runs, fetch_run, \
     get_cross_validation_split_index, is_cross_validation_child_run, is_run_and_child_runs_completed, \
-    merge_conda_dependencies, \
-    merge_conda_files, to_azure_friendly_container_path
-from InnerEye.Common import fixed_paths
+    merge_conda_dependencies, merge_conda_files, to_azure_friendly_container_path
 from InnerEye.Common.common_util import logging_to_stdout
-from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, PRIVATE_SETTINGS_FILE, PROJECT_SECRETS_FILE, \
+from InnerEye.Common.fixed_paths import PRIVATE_SETTINGS_FILE, PROJECT_SECRETS_FILE, \
     get_environment_yaml_file, repository_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, get_most_recent_run, get_most_recent_run_id

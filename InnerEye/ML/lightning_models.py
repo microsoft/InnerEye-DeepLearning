@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 from pytorch_lightning.utilities import move_data_to_device
@@ -349,7 +349,7 @@ class ScalarLightning(InnerEyeLightning):
         logger.flush()
         super().training_or_validation_epoch_end(is_training)
 
-    def transfer_batch_to_device(self, batch: Any, device: torch.device) -> Any:
+    def transfer_batch_to_device(self, batch: Any, device: Optional[torch.device]) -> Any:
         """
         For sequence models, transfer the nested lists of items to the given GPU device.
         For all other models, this relies on the superclass to move the batch of data to the GPU.

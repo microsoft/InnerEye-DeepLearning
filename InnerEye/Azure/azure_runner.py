@@ -15,12 +15,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from azureml.core import Dataset, Environment, Experiment, Run, ScriptRunConfig
-from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.datastore import Datastore
 from azureml.core.runconfig import MpiConfiguration, RunConfiguration
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
 from azureml.data import FileDataset
-from azureml.train.dnn import PyTorch
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
