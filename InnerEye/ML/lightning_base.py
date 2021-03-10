@@ -171,8 +171,6 @@ class InnerEyeLightning(LightningModule):
                 for is_training, prefix in [(True, TRAIN_PREFIX), (False, VALIDATION_PREFIX)]:
                     metrics = self.storing_logger.extract_by_prefix(epoch, prefix)
                     self.store_epoch_results(metrics, epoch, is_training)
-            else:
-                print(f"Skipping, no results for {epoch}")
 
     @rank_zero_only
     def training_or_validation_epoch_end(self, is_training: bool) -> None:
