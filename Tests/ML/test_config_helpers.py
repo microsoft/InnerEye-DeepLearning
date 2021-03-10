@@ -138,6 +138,9 @@ def test_custom_dataset_csv(test_output_dirs: OutputFolderForTests) -> None:
     ml_util.validate_dataset_paths(model_config.local_dataset,
                                    model_config.dataset_csv)
     os.remove(dataset_csv_path)
-    with pytest.raises(ValueError):
+
+    ex_message = f"ValueError: The dataset file {test_csv} is not present"
+    with pytest.raises(ValueError) as ex:
         ml_util.validate_dataset_paths(model_config.local_dataset,
                                        model_config.dataset_csv)
+        assert ex_message in str(ex)
