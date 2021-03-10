@@ -35,7 +35,7 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_checkpoint_handler
+from Tests.ML.util import get_default_checkpoint_handler, machine_has_gpu
 
 config_path = full_ml_test_data_path()
 base_path = full_ml_test_data_path()
@@ -101,8 +101,12 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.store_dataset_sample = True
     train_config.recovery_checkpoint_save_interval = 1
 
-    expected_train_losses = [0.4553468, 0.454904]
-    expected_val_losses = [0.4553881, 0.4553041]
+    if machine_has_gpu:
+        expected_train_losses = [0.4553468, 0.454904]
+        expected_val_losses = [0.4553881, 0.4553041]
+    else:
+        expected_train_losses = [0.4553469, 0.4548947]
+        expected_val_losses = [0.4553880, 0.4553041]
     loss_absolute_tolerance = 1e-6
     expected_learning_rates = [train_config.l_rate, 5.3589e-4]
 
@@ -147,17 +151,20 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     tracked_metric = TrackedMetrics.Val_Loss.value[len(VALIDATION_PREFIX):]
     for val_result in model_training_result.val_results_per_epoch:
         assert tracked_metric in val_result
-    # The following values are read off directly from the results of compute_dice_across_patches in the training loop
+
+    # The following values are read off directly from the results of compute_dice_across_patches in the
+    # training loop. Results are slightly different for CPU, hence use a larger tolerance there.
+    dice_tolerance = 1e-4 if machine_has_gpu else 3e-4
     train_dice_region = [[0.0, 0.0, 4.0282e-04], [0.0309, 0.0334, 0.0961]]
     train_dice_region1 = [[0.4806, 0.4800, 0.4832], [0.4812, 0.4842, 0.4663]]
     # There appears to be some amount of non-determinism here: When using a tolerance of 1e-4, we get occasional
     # test failures on Linux in the cloud (not on Windows, not on AzureML) Unclear where it comes from. Even when
     # failing here, the losses match up to the expected tolerance.
-    assert_all_close("Dice/region", _mean_list(train_dice_region), atol=1e-4)
-    assert_all_close("Dice/region_1", _mean_list(train_dice_region1), atol=1e-4)
+    assert_all_close("Dice/region", _mean_list(train_dice_region), atol=dice_tolerance)
+    assert_all_close("Dice/region_1", _mean_list(train_dice_region1), atol=dice_tolerance)
     expected_average_dice = [_mean(train_dice_region[i] + train_dice_region1[i])  # type: ignore
                              for i in range(len(train_dice_region))]
-    assert_all_close("Dice/AverageAcrossStructures", expected_average_dice, atol=1e-4)
+    assert_all_close("Dice/AverageAcrossStructures", expected_average_dice, atol=dice_tolerance)
 
     # check output files/directories
     assert train_config.outputs_folder.is_dir()
