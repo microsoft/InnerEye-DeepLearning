@@ -12,6 +12,11 @@ from pytorch_lightning import LightningDataModule, LightningModule
 # Could rely on only the class name when submitting to check that the model exists, skipping checks for
 # the commandline overrides. Or better: Try to instantiate the class. If we can, all good. If not, just check that
 # the python file exists, but proceed to submission. This will work fine for everyone working off the commandline.
+
+# Problem: We need to know
+# azure_dataset_id
+# model_config.get_hyperdrive_config
+# model_config.perform_crossvalidation
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 
