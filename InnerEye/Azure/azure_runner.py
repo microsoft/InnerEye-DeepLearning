@@ -44,15 +44,12 @@ ENVIRONMENT_VERSION = "1"
 
 def submit_to_azureml(azure_config: AzureConfig,
                       source_config: SourceConfig,
-                      model_config_overrides: str,
                       azure_dataset_id: str) -> Run:
     """
     The main entry point. It creates an AzureML workspace if needed, submits an experiment using the code
     as specified in source_config, and waits for completion if needed.
     :param azure_config: azure related configurations to setup valid workspace
     :param source_config: The information about which code should be submitted, and which arguments should be used.
-    :param model_config_overrides: A string that describes which model parameters were overwritten by commandline
-     arguments in the present run. This is only used for diagnostic purposes (it is set as a Tag on the run).
     :param azure_dataset_id: The name of the dataset on blob storage to be used for this run.
     """
     azure_run: Optional[Run] = None
@@ -70,8 +67,7 @@ def submit_to_azureml(azure_config: AzureConfig,
     for s in [signal.SIGINT, signal.SIGTERM]:
         signal.signal(s, interrupt_handler)
     # create train/test experiment
-    azure_run = create_and_submit_experiment(azure_config, source_config, model_config_overrides,
-                                             azure_dataset_id)
+    azure_run = create_and_submit_experiment(azure_config, source_config, azure_dataset_id)
 
     if azure_config.wait_for_completion:
         # We want the job output to be visible on the console, but the program should not exit if the
@@ -81,13 +77,12 @@ def submit_to_azureml(azure_config: AzureConfig,
     return azure_run
 
 
-def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: str) -> None:
+def set_run_tags(run: Run, azure_config: AzureConfig, commandline_args: str) -> None:
     """
     Set metadata for the run
     :param run: Run to set metadata for.
     :param azure_config: The configurations for the present AzureML job
-    :param model_config_overrides: A string that describes which model parameters were overwritten by commandline
-     arguments in the present run.
+    :param commandline_args: A string that holds all commandline arguments that were used for the present run.
     """
     git_information = azure_config.get_git_information()
     run.set_tags({
@@ -105,7 +100,7 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
         "source_message": git_information.commit_message,
         "source_author": git_information.commit_author,
         "source_dirty": str(git_information.is_dirty),
-        "overrides": model_config_overrides,
+        "commandline_args": commandline_args,
         CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: -1,
     })
 
@@ -127,14 +122,11 @@ def create_experiment_name(azure_config: AzureConfig) -> str:
 def create_and_submit_experiment(
         azure_config: AzureConfig,
         source_config: SourceConfig,
-        model_config_overrides: str,
         azure_dataset_id: str) -> Run:
     """
     Creates an AzureML experiment in the workspace and submits it for execution.
     :param azure_config: azure related configurations to setup valid workspace
     :param source_config: The information about which code should be submitted, and which arguments should be used.
-    :param model_config_overrides: A string that describes which model parameters were overwritten by commandline
-     arguments in the present run. This is only used for diagnostic purposes (it is set as a Tag on the run).
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
     :returns: Run object for the submitted AzureML run
     """
@@ -146,8 +138,8 @@ def create_and_submit_experiment(
     # submit a training/testing run associated with the experiment
     run: Run = exp.submit(script_run_config)
 
-    # set metadata for the run
-    set_run_tags(run, azure_config, model_config_overrides)
+    # Set metadata for the run.
+    set_run_tags(run, azure_config, commandline_args=(" ".join(source_config.script_params)))
 
     print("\n==============================================================================")
     print(f"Successfully queued new run {run.id} in experiment: {exp.name}")

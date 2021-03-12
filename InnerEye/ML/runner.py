@@ -211,7 +211,6 @@ class Runner:
         logging.getLogger('adal-python').setLevel(logging.WARNING)
         if not self.model_config.azure_dataset_id:
             raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
-        model_config_overrides = str(self.model_config.overrides)
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
@@ -222,8 +221,7 @@ class Runner:
         )
         source_config.set_script_params_except_submit_flag()
         assert self.model_config.azure_dataset_id is not None  # to stop mypy complaining about next line
-        azure_run = submit_to_azureml(self.azure_config, source_config, model_config_overrides,
-                                      self.model_config.azure_dataset_id)
+        azure_run = submit_to_azureml(self.azure_config, source_config, self.model_config.azure_dataset_id)
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.

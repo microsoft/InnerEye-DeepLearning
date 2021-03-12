@@ -23,9 +23,8 @@ from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, INPUT_DATA_KEY, get
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, \
     MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
-    RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, get_results_blob_path, merge_conda_files
+    RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, merge_conda_files
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
     OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
@@ -225,8 +224,6 @@ class MLRunner:
             logging.info("Setting tags from parent run.")
             self.set_run_tags_from_parent()
 
-        self.save_build_info_for_dotnet_consumers()
-
         # Set data loader start method
         self.set_multiprocessing_start_method()
 
@@ -351,21 +348,6 @@ class MLRunner:
         if not mounted:
             raise ValueError("Unable to mount or download input dataset.")
         return mounted
-
-    def save_build_info_for_dotnet_consumers(self) -> None:
-        results_container = get_results_blob_path(RUN_CONTEXT.id)
-        result_location = ExperimentResultLocation(
-            azure_job_name=RUN_CONTEXT.id,
-            dataset_folder=self.model_config.azure_dataset_id,
-            results_container_name=results_container,
-            commandline_overrides=str(self.model_config.overrides),
-            dataset_uri=self.model_config.azure_dataset_id,
-            results_uri="",
-        )
-        # Fill in the missing information in the build config (everything that is not available at the time
-        # of evoking the runner), and then save in the format needed for the .NET consumers
-        build_information_to_dot_net_json_file(
-            self.azure_config, result_location, folder=self.model_config.outputs_folder)
 
     def set_multiprocessing_start_method(self) -> None:
         """

@@ -30,6 +30,7 @@ is re-used.
 ### Fixed
 
 ### Removed
+- Removed an output file that only contains metadata for a legacy consumer ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417))
 
 ### Deprecated
 

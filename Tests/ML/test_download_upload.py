@@ -9,7 +9,6 @@ from typing import List
 import pytest
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import get_results_blob_path
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -33,10 +32,6 @@ def runner_config() -> AzureConfig:
     config.model = ""
     config.train = False
     return config
-
-
-def test_get_results_blob_path() -> None:
-    assert get_results_blob_path("some_run_id") == "azureml/ExperimentRun/dcid.some_run_id"
 
 
 def check_single_checkpoint(downloaded_checkpoints: List[Path]) -> None:

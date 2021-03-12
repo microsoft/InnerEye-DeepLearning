@@ -281,8 +281,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                                            instantiate=False,
                                                                            doc="File system related configs")
     pin_memory: bool = param.Boolean(True, doc="Value of pin_memory argument to DataLoader")
-    _overrides: Dict[str, Any] = param.Dict(instantiate=True,
-                                            doc="Model config properties that were overridden from the commandline")
     restrict_subjects: Optional[str] = \
         param.String(doc="Use at most this number of subjects for train, val, or test set (must be > 0 or None). "
                          "If None, do not modify the train, val, or test sets. If a string of the form 'i,j,k' where "
@@ -491,10 +489,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         :return:
         """
         return self.number_of_cross_validation_splits > 1
-
-    @property
-    def overrides(self) -> Optional[Dict[str, Any]]:
-        return self._overrides
 
     @property
     def dataset_data_frame(self) -> Optional[DataFrame]:
