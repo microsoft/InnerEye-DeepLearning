@@ -13,7 +13,7 @@ jobs:
         env:
           ado_token: "${{ secrets.ADO_PERSONAL_ACCESS_TOKEN }}"
           github_token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
-          ado_organization: "https://innereye.visualstudio.com"
+          ado_organization: "innereye"
           ado_project: "InnerEye"
           ado_area_path: "InnerEye\\OSS"
           ado_iteration_path: "InnerEye"
