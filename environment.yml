@@ -20,6 +20,7 @@ dependencies:
       - gitpython==3.1.7
       - gputil==1.4.0
       - h5py==2.10.0
+      - InnerEye-DICOM-RT==1.0.0
       - joblib==0.16.0
       - jupyter==1.0.0
       - jupyter-client==6.1.5
@@ -33,7 +34,7 @@ dependencies:
       - pandas==1.1.0
       - papermill==2.2.2
       - param==1.9.3
-      - pillow==7.2.0
+      - pillow==8.1.2
       - psutil==5.7.2
       - pyflakes==2.2.0
       - PyJWT==1.7.1

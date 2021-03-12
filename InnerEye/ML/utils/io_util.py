@@ -6,7 +6,9 @@ from copy import copy
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Generic, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+import shutil
+from typing import Dict, Generic, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+import uuid
 
 import h5py
 from numpy.lib.npyio import NpzFile
@@ -39,12 +41,36 @@ class PhotometricInterpretation(Enum):
 
 
 class DicomTags(Enum):
-    # DICOM TAG "PhotometricInterpretation"
+    # DICOM General Study Module Attributes
+    # http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.2.html#table_C.7-3
+    StudyInstanceUID = "0020|000D"
+    StudyID = "0020|0010"
+    # DICOM General Series Module Attributes
+    # http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.3.html#table_C.7-5a
+    Modality = "0008|0060"
+    SeriesInstanceUID = "0020|000E"
+    PatientPosition = "0018|5100"
+    # DICOM Frame of Reference Module Attributes
+    # http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.4.html#table_C.7-6
+    FrameOfReferenceUID = "0020|0052"
+    # DICOM General Image Module Attributes
+    # http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.6.html#table_C.7-9
+    ImageType = "0008|0008"
+    InstanceNumber = "0020|0013"
+    # DICOM Image Plane Module Attributes
+    # http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.6.2.html#table_C.7-10
+    ImagePositionPatient = "0020|0032"
+    # DICOM Image Pixel Description Macro Attributes
+    # http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.6.3.html#table_C.7-11c
     PhotometricInterpretation = "0028|0004"
-    # DICOM TAG "BitsStored"
+    BitsAllocated = "0028|0100"
     BitsStored = "0028|0101"
-    # DICOM TAG "PixelRepresentation"
+    HighBit = "0028|0102"
     PixelRepresentation = "0028|0103"
+    # DICOM CT Image Module Attributes
+    # See: http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.2.html#table_C.8-3
+    RescaleIntercept = "0028|1052"
+    RescaleSlope = "0028|1053"
 
 
 @dataclass
@@ -651,3 +677,140 @@ def tabulate_dataframe(df: pd.DataFrame, pefix_newline: bool = True) -> str:
     Helper function to print a pandas Dataframe in a nicely readable table.
     """
     return ("\n" if pefix_newline else "") + tabulate(df, tablefmt="fancy_grid", headers="keys", showindex="never")
+
+
+def load_dicom_series(folder: Path) -> sitk.Image:
+    """
+    Load a DICOM series into a 3d sitk image.
+
+    If the folder contains more than one series then the first will be loaded.
+
+    :param folder: Path to folder containing DICOM series.
+    :return: sitk.Image of the DICOM series.
+    """
+    reader = sitk.ImageSeriesReader()
+    series_found = reader.GetGDCMSeriesIDs(str(folder))
+
+    if not series_found:
+        raise ValueError("Folder does not contain any DICOM series: {}".format(str(folder)))
+
+    dicom_names = reader.GetGDCMSeriesFileNames(str(folder), series_found[0])
+    reader.SetFileNames(dicom_names)
+
+    return reader.Execute()
+
+
+def load_dicom_series_and_save(folder: Path, file_name: Path) -> None:
+    """
+    Load a DICOM series into a 3d image and save as file_name.
+
+    If the folder contains more than one series then the first will be loaded.
+    The file format type is determined by SimpleITK based on the file name's suffix.
+    List of supported file types is here:
+    https://simpleitk.readthedocs.io/en/master/IO.html
+
+    :param folder: Path to folder containing DICOM series.
+    :param file_name: Path to save image.
+    """
+    image = load_dicom_series(folder)
+    sitk.WriteImage(image, str(file_name))
+
+
+def create_dicom_series(folder: Path, size: TupleInt3, spacing: TupleFloat3) -> np.ndarray:
+    """
+    Create a random DICOM series and save as a set of files in folder.
+
+    :param folder: Path to folder to save DICOM series.
+    :param size: Final image size, as (#slices, #rows, #columns).
+    :param spacing: Final image spacing, as (column spacing, row spacing, slice spacing) (in mm).
+    :return: The test data, a 3d ndarray of floats in the range [0, 1000.0).
+    """
+    data = np.random.uniform(high=1000, size=size).astype(np.float)
+    image = sitk.GetImageFromArray(data)
+    image.SetSpacing(spacing)
+
+    writer = sitk.ImageFileWriter()
+    writer.KeepOriginalImageUIDOn()
+
+    study_instance_uid = _create_dicom_uid()
+    series_instance_uid = _create_dicom_uid()
+    frame_of_reference_uid = _create_dicom_uid()
+
+    series_tag_values: Dict[DicomTags, str] = {
+        DicomTags.ImageType: "ORIGINAL\\PRIMARY\\AXIAL",
+        DicomTags.Modality: "CT",
+        DicomTags.PatientPosition: "HFS",  # Head First-Supine
+        DicomTags.StudyID: "1",
+        DicomTags.StudyInstanceUID: study_instance_uid,
+        DicomTags.SeriesInstanceUID: series_instance_uid,
+        DicomTags.FrameOfReferenceUID: frame_of_reference_uid,
+        DicomTags.BitsAllocated: '16',
+        DicomTags.BitsStored: '16',
+        DicomTags.HighBit: '15',
+        DicomTags.PixelRepresentation: '0',
+        DicomTags.RescaleIntercept: '0',
+        DicomTags.RescaleSlope: '0.1',  # Make sure range of values fit in 16 bits without overflow.
+    }
+
+    # Write slices to output directory
+    folder.mkdir(parents=True, exist_ok=True)
+    for i in range(image.GetDepth()):
+        _write_dicom_slice(writer, series_tag_values, image, folder, i)
+    return data
+
+
+def _write_dicom_slice(writer: sitk.ImageFileWriter, series_tag_values: Dict[DicomTags, str],
+                       image: sitk.Image, folder: Path, i: int) -> None:
+    """
+    Write a DICOM slice as a single file.
+
+    :param writer: sitk ImageFileWriter.
+    :param series_tag_values: DICOM tags.
+    :param image: Image to slice.
+    :param folder: Folder to store slice in.
+    :param i: Slice number.
+    """
+    instance_number = str(i)
+    image_position_patient = '\\'.join(
+        map(str, image.TransformIndexToPhysicalPoint((0, 0, i))))
+
+    # Copy all series tags and add specific tags for this slice.
+    slice_tag_values = series_tag_values.copy()
+    slice_tag_values.update({
+        DicomTags.InstanceNumber: instance_number,
+        DicomTags.ImagePositionPatient: image_position_patient,
+    })
+
+    image_slice = image[:, :, i]
+
+    for tag, value in slice_tag_values.items():
+        image_slice.SetMetaData(tag.value, value)
+
+    slice_filename = folder / (str(i) + '.dcm')
+    writer.SetFileName(str(slice_filename))
+    writer.Execute(image_slice)
+
+
+def _create_dicom_uid() -> str:
+    """
+    Try to create a DICOM UID following:
+
+    http://dicom.nema.org/medical/dicom/current/output/chtml/part05/sect_B.2.html
+    """
+    guid = uuid.uuid4()
+    return "2.25." + str(guid.int)
+
+
+def zip_random_dicom_series(size: TupleInt3, spacing: TupleFloat3,
+                            zip_file_path: Path, scratch_folder: Path) -> None:
+    """
+    Create a zipped random reference DICOM series.
+
+    :param size: Final image size, as (#slices, #rows, #columns).
+    :param spacing: Final image spacing, as (column spacing, row spacing, slice spacing) (in mm).
+    :param zip_file_path: Target zip file.
+    :param scratch_folder: Scratch folder.
+    """
+    zip_file_path.parent.mkdir(parents=True, exist_ok=True)
+    create_dicom_series(scratch_folder, size, spacing)
+    shutil.make_archive(str(zip_file_path.with_suffix('')), 'zip', str(scratch_folder))
