@@ -2,17 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict, Iterator, List
+from typing import Any, Dict, Iterator
 
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
-
-# What do we want from InnerEye?
-# - datasets (optional - this means all dataset fields can potentially be left empty)
-# - Do we want ensembles?
-# - checkpoint recovery: checkpoints must be written to
-# We are inheriting from LightningModule here, this will fail in the smaller environment
-from pytorch_lightning.metrics import Metric
 
 # Biggest problem: We don't want to rely on torch being available when submitting a job.
 # A simple conda env costs 1min 30sec to create, the full one 4min 30sec in Linux.
@@ -21,6 +14,13 @@ from pytorch_lightning.metrics import Metric
 # the python file exists, but proceed to submission. This will work fine for everyone working off the commandline.
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+
+
+# What do we want from InnerEye?
+# - datasets (optional - this means all dataset fields can potentially be left empty)
+# - Do we want ensembles?
+# - checkpoint recovery: checkpoints must be written to
+# We are inheriting from LightningModule here, this will fail in the smaller environment
 
 
 # Goals:
@@ -34,71 +34,77 @@ class BringYourOwnLightning(LightningModule, DeepLearningConfig):
     """
     Double inheritance. All files should be written to config.outputs_folder or config.logs_folder
     """
+
     def __init__(self) -> None:
         super().__init__()
         pass
 
     def forward(self, *args, **kwargs):
         """
-        This is what is used at inference time.
+        Run an item through the model at prediction time. This overrides LightningModule.forward, and
+        has the same expected use.
         :param args:
         :param kwargs:
         :return:
         """
-        # Ideally we should also move full image inference to this setup.
+        raise NotImplementedError("This method must be overridden in a derived class.")
 
     def training_step(self, *args, **kwargs):
         """
-        Do whatever you like here.
-        :param args:
-        :param kwargs:
-        :return:
+        Implements the PyTorch Lightning training step. This overrides LightningModule.training_step, and
+        has the same expected use.
         """
-        pass
+        raise NotImplementedError("This method must be overridden in a derived class.")
 
     def inference_start(self) -> None:
         """
-        Runs initialization for everything that inference might require: Creating output files, for example.
+        Runs initialization for everything that the inference_step might require. This can initialize
+        output files, set up metric computation, etc.
         """
-        self.metrics = whatever_list_of_metrics()
+        pass
 
     # for dataset_split in [Train, Val, Test]
     #   model.inference_start()
     #   for item in dataloader[dataset_split]:
     #       for fold in (range(5) if is_ensemble or range(1)):
     #           model_outputs[fold] = model.forward(item)
-    #       model.inference_step(item, model_outputs, dataset_split)
+    #       model.inference_step(item, model_outputs, dataset_split, is_ensemble_result=is_ensemble_result)
     #   model.inference_end()
-    def inference_step(self, item: Any, model_outputs: Iterator[Any], dataset_split: ModelExecutionMode, is_ensemble_result: bool) -> None:
+    def inference_step(self, item: Any, model_outputs: Iterator[Any], dataset_split: ModelExecutionMode,
+                       is_ensemble_result: bool) -> None:
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
         or compute metrics and store them.
         :param item: The item for which the model made a prediction.
-        :param model_output: The model output. This would usually be a torch.Tensor, but can be any datatype.
-        :param mode: Indicates whether the item comes from the training, validation or test set.
-        :return:
+        :param model_outputs: The model output. This would usually be a torch.Tensor, but can be any datatype.
+        :param dataset_split: Indicates whether the item comes from the training, validation or test set.
+        :param is_ensemble_result: If False, the model_outputs come from an individual model If True, the model
+        outputs come from multiple models.
+        """
+        pass
+
+    def aggregate_model_outputs(self, model_outputs: Iterator[torch.Tensor]) -> torch.Tensor:
+        """
+        Aggregates the outputs of multiple models when using an ensemble model. In the default implementation,
+        this averages the tensors coming from all the models.
+        :param model_outputs: An iterator over the model outputs for all ensemble members.
+        :return: The aggregate model outputs.
         """
         aggregate_output = None
-        # Everyone has to do this. Alternative: Have a separate aggregation method
+        count = 0
         for m in model_outputs:
+            count += 1
             if aggregate_output is None:
                 aggregate_output = m
             else:
                 aggregate_output = aggregate_output + m
-
-        # Need to make sure that both data and more are on the GPU
-        model_output = self.forward(item)
-        metrics = whatever(model_output, item.labels)
-        # This
-        self.write_output(model_output)
-        pass
+        aggregate_output = aggregate_output / count
+        return aggregate_output
 
     def inference_end(self) -> None:
         """
-        Called when the model has made predictions on all. This should write all metrics to disk.
-        :return:
+        Called when the model has made predictions on all. This can write all metrics to disk, for example.
         """
-        self.metrics.write_to_disk()
         pass
 
     def create_report(self) -> None:
@@ -134,13 +140,13 @@ class Container(DeepLearningConfig):
         into account. Should those be arguments maybe? somewhat obsolete, but makes it visible. YES
         :return:
         """
-        # You can override this if inference uses different data, for image full images
+        # You can override this if inference uses different data, for example segmentation models use
+        # full images rather than equal sized crops.
         return self.get_training_data_module(cross_validation_split_index=cross_validation_split_index,
                                              crossval_count=crossval_count)
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
         """
-        Gets additional parameters that will be passed on to the trainer.
-        :return:
+        Gets additional parameters that will be passed on to the PL trainer.
         """
-
+        return dict()
