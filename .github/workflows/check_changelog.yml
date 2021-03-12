@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
       - name: Check the changelog
         run: |
-          set -xe
+          set -e
           git config --global core.whitespace cr-at-eol
           changed_files=$(git diff --name-only origin/main)
           if [[ "$changed_files" =~ CHANGELOG\.md ]]
