@@ -10,12 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog needed') == 0 }}
     steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
       - name: Get PR number
         run: |
           echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Check the changelog
         run: |
           set -xe
