@@ -10,13 +10,15 @@ created.
  
 ## Upcoming
 
-### Added
+### Added 
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Add the ability to train a model on multiple
 nodes in AzureML. Example: Add `--num_nodes=2` to the commandline arguments to train on 2 nodes.
 - ([#366](https://github.com/microsoft/InnerEye-DeepLearning/pull/366)) and
   ([#407](https://github.com/microsoft/InnerEye-DeepLearning/pull/407)) add new parameters to the `score.py` script of `use_dicom` and `result_zip_dicom_name`. If `use_dicom==True` then the input file should be
   a zip of a DICOM series. This will be unzipped and converted to Nifti format before processing. The 
   result will then be converted to a DICOM-RT file, zipped and stored as `result_zip_dicom_name`.
+- ([#1234](https://github.com/microsoft/InnerEye-DeepLearning/pull/1234)) Add a github action chat checks
+  if `CHANGELOG.md` has been modified.
 
 ### Changed
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Starting an AzureML run now uses the
