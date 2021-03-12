@@ -39,7 +39,7 @@ from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGG
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 
 REPORT_IPYNB = "report.ipynb"
 REPORT_HTML = "report.html"
@@ -154,9 +154,7 @@ class Runner:
             return None
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser1_result.args)
         # Create the model as per the "model" commandline option
-        model_config = model_config_loader.create_model_config_from_name(
-            model_name=azure_config.model
-        )
+        model_config = model_config_loader.create_model_config_from_name(model_name=azure_config.model)
         # This model will be either a classification model or a segmentation model. Those have different
         # fields that could be overridden on the command line. Create a parser that understands the fields we need
         # for the actual model type. We feed this parser will the YAML settings and commandline arguments that the

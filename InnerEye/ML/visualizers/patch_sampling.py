@@ -18,7 +18,7 @@ from InnerEye.ML.dataset.sample import Sample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
 from InnerEye.ML.utils import augmentation, io_util, ml_util
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 # The name of the folder inside the default outputs folder that will holds plots that show the effect of
 # sampling random patches
 from InnerEye.ML.utils.image_util import get_unit_image_header

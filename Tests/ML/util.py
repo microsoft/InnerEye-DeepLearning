@@ -23,7 +23,7 @@ from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.io_util import ImageHeader, ImageWithHeader
 from InnerEye.ML.utils.ml_util import is_gpu_available
 

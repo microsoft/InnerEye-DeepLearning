@@ -21,7 +21,7 @@ from InnerEye.ML.dataset.full_image_dataset import load_dataset_sources
 from InnerEye.ML.deep_learning_config import ARGS_TXT
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.run_ml import MLRunner
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.io_util import load_images_from_dataset_source
 
 

@@ -5,12 +5,12 @@
 import importlib
 import inspect
 import logging
-from importlib._bootstrap import ModuleSpec
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Any, Dict, Generic, List, Optional, TypeVar
 
 import param
+from importlib._bootstrap import ModuleSpec
 
 from InnerEye.Common.common_util import path_to_namespace
 from InnerEye.Common.generic_parsing import GenericConfig
@@ -43,13 +43,12 @@ class ModelConfigLoader(GenericConfig, Generic[C]):
         from InnerEye.ML import configs
         return configs.__name__
 
-    def create_model_config_from_name(self, model_name: str, overrides: Optional[Dict[str, Any]] = None) -> C:
+    def create_model_config_from_name(self, model_name: str) -> C:
         """
         Returns a segmentation or classification model configuration for a model of the given name.
         Searching for a class member called <model_name> in the search modules provided recursively.
 
         :param model_name: Name of the model for which to get the configs for.
-        :param overrides: Model properties to override.
         """
         if not model_name:
             raise ValueError("Unable to load a model configuration because the model name is missing.")
@@ -83,12 +82,6 @@ class ModelConfigLoader(GenericConfig, Generic[C]):
                     logging.warning(f"(from attempt to import module {module_spec.name}): {exception_text}")
                 return None
             model_config: ModelConfigBase = _class()
-
-            # apply the overrides to the model
-            if overrides is not None:
-                model_config.apply_overrides(overrides)
-                # The parameters have presumably changed, so we need to re-validate.
-                model_config.validate()
             return model_config
 
         def _search_recursively_and_store(module_search_spec: ModuleSpec) -> None:
