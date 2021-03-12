@@ -65,6 +65,7 @@ class ModelConfigLoader(GenericConfig, Generic[C]):
             """
             # noinspection PyBroadException
             try:
+                logging.debug(f"Importing {module_spec.name}")
                 target_module = importlib.import_module(module_spec.name)
                 # The "if" clause checks that obj is a class, of the desired name, that is
                 # defined in this module rather than being imported into it (and hence potentially

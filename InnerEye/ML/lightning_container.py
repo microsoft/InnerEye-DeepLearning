@@ -30,7 +30,12 @@ from InnerEye.ML.deep_learning_config import DeepLearningConfig
 
 # Do we want to support ensembles at inference time? Not now
 
-class BringYourOwnLightning(LightningModule, DeepLearningConfig):
+
+class BringYourOwnLightningMeta(type(DeepLearningConfig), type(LightningModule)):
+    pass
+
+
+class BringYourOwnLightning(LightningModule, DeepLearningConfig, metaclass=BringYourOwnLightningMeta):
     """
     Double inheritance. All files should be written to config.outputs_folder or config.logs_folder
     """
@@ -115,7 +120,7 @@ class BringYourOwnLightning(LightningModule, DeepLearningConfig):
         pass
 
 
-class Container(DeepLearningConfig):
+class LightningContainer(DeepLearningConfig):
 
     def get_lightning_module(self) -> BringYourOwnLightning:
         pass
