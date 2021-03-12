@@ -15,7 +15,7 @@ jobs:
           echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
       - uses: actions/checkout@v2
         with:
-          fetch-depth: '0'
+          fetch-depth: 0
   - name: Check the changelog
     run: |
       set -xe
