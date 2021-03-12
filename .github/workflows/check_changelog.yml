@@ -20,7 +20,7 @@ jobs:
         run: |
           set -xe
           git config --global core.whitespace cr-at-eol
-          changed_files=$(git diff --name-only main)
+          changed_files=$(git diff --name-only origin/main)
           if [[ "$changed_files" =~ CHANGELOG\.md ]]
           then
             changelog=$(cat ./CHANGELOG.md)
