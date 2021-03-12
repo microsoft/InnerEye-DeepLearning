@@ -106,8 +106,12 @@ class InnerEyeLightning(LightningModule):
         self.val_epoch_metrics_logger.flush()
 
     @property
-    def use_ddp(self) -> bool:
-        return self.trainer.accelerator_connector.use_ddp
+    def use_sync_dist(self) -> bool:
+        """
+        Returns True if metric logging should use sync_dist=True. This is read off from the use_ddp flag of the trainer.
+        """
+        # For PL from version 1.2.0 on: self.trainer.accelerator_connector.use_ddp
+        return self.trainer.use_ddp
 
     def on_train_epoch_start(self) -> None:
         self.train_timers.reset()
@@ -232,7 +236,7 @@ class InnerEyeLightning(LightningModule):
         if isinstance(value, numbers.Number):
             value = torch.tensor(value, dtype=torch.float, device=self.device)
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
-        sync_dist = self.use_ddp if sync_dist_override is None else sync_dist_override
+        sync_dist = self.use_sync_dist if sync_dist_override is None else sync_dist_override
         self.log(prefix + metric_name, value,
                  sync_dist=sync_dist,
                  on_step=False, on_epoch=True,
