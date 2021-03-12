@@ -27,7 +27,7 @@ nodes in AzureML. Example: Add `--num_nodes=2` to the commandline arguments to t
 Python execution environment is added as a tag. This tag is read when running inference, and the execution environment
 is re-used.
 - ([#411](https://github.com/microsoft/InnerEye-DeepLearning/pull/411)) Upgraded to PyTorch 1.8.0, PyTorch-Lightning 
-1.2.2 and AzureML SDK 1.23.0
+1.1.8 and AzureML SDK 1.23.0
 
 ### Fixed
 

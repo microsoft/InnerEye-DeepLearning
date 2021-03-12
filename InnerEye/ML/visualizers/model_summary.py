@@ -194,7 +194,6 @@ class ModelSummary:
         # Log the model summary: tensor shapes, num of parameters, memory requirement, and forward pass time
         logging.info(self.model)
         logging.info('\n' + prof.display(show_events=False))
-        # logging.info('\n' + prof.key_averages().table())
         print_summary()
 
         # Remove the hooks via handles
