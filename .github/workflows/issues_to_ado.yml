@@ -13,9 +13,9 @@ jobs:
         env:
           ado_token: "${{ secrets.ADO_PERSONAL_ACCESS_TOKEN }}"
           github_token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
-          ado_organization: "innereye.visualstudio.com"
+          ado_organization: "https://innereye.visualstudio.com"
           ado_project: "InnerEye"
-          ado_area_path: "InnerEye/OSS"
+          ado_area_path: "InnerEye\\OSS"
           ado_iteration_path: "InnerEye"
           ado_wit: "User Story"
           ado_new_state: "New"
