@@ -9,7 +9,6 @@ import pytest
 
 from InnerEye.Common.common_util import logging_to_stdout, namespace_to_path
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_training import generate_and_print_model_summary
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
@@ -110,12 +109,18 @@ def test_config_loader_as_in_registration() -> None:
     assert model2 is not None
 
 
+def test_create_lightning_container() -> None:
+    """
+    Test if we can instantiate the container object itself, without any issues with inheritance or metaclasses
+    """
+    from InnerEye.ML.lightning_container import LightningContainer
+    LightningContainer()
+
+
 def test_config_loader_on_lightning_container() -> None:
     """
     Test if the config loader can load an model that is neither classification nor segmentation.
     """
-    # Test if we can instantiate the container object itself, without any issues with inheritance or metaclasses
-    LightningContainer()
     logging_to_stdout(log_level=logging.DEBUG)
     loader_including_tests = get_model_loader(namespace="Tests.ML.configs")
     model = loader_including_tests.create_model_config_from_name("DummyLightningContainer")

@@ -16,6 +16,9 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 
 
+# flake8: noqa
+
+
 # What do we want from InnerEye?
 # - datasets (optional - this means all dataset fields can potentially be left empty)
 # - Do we want ensembles?
