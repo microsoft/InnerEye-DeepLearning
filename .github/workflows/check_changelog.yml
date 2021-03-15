@@ -31,11 +31,11 @@ jobs:
               echo "Changelog has been modified, but does not contain a hyperlink the present PR."
               echo "Make sure that there is a changelog entry that links to the present PR."
               echo "If no changelog entry is required for this PR, label the PR with 'no changelog needed'."
-              exit -1
+              exit 1
             fi
           else
             echo "Each PR needs to summarize the changes in CHANGELOG.md, but this PR does not make any"
             echo "changes to that file. The changelog entry must contain a hyperlink to the present PR."
             echo "If no changelog entry is required for this PR, label the PR with 'no changelog needed'."
-            exit -1
+            exit 1
           fi
