@@ -6,12 +6,14 @@ import os
 import sys
 from pathlib import Path
 
+# Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
+# the working directory is not correctly picked up in sys.path
+from InnerEye.ML.lightning_container import LightningContainer
+
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
 # flake8: noqa
 
-# Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
-# the working directory is not correctly picked up in sys.path
 print("Starting InnerEye runner.")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
@@ -155,22 +157,28 @@ class Runner:
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser1_result.args)
         # Create the model as per the "model" commandline option
         model_config = model_config_loader.create_model_config_from_name(model_name=azure_config.model)
-        # This model will be either a classification model or a segmentation model. Those have different
-        # fields that could be overridden on the command line. Create a parser that understands the fields we need
-        # for the actual model type. We feed this parser will the YAML settings and commandline arguments that the
-        # first parser did not recognize.
-        parser2 = type(model_config).create_argparser()
-        parser2_result = parse_arguments(parser2,
-                                         settings_from_yaml=parser1_result.unknown_settings_from_yaml,
-                                         args=parser1_result.unknown,
-                                         fail_on_unknown_args=True)
-        # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
-        model_config.apply_overrides(parser1_result.unknown_settings_from_yaml)
-        model_config.apply_overrides(parser2_result.overrides)
-        model_config.validate()
+        if isinstance(model_config, LightningContainer):
+            # TODO antonsc: How can we apply overrides for BYOL models?
+            parser2_result = None
+        else:
+            # This model will be either a classification model or a segmentation model. Those have different
+            # fields that could be overridden on the command line. Create a parser that understands the fields we need
+            # for the actual model type. We feed this parser will the YAML settings and commandline arguments that the
+            # first parser did not recognize.
+            parser2 = type(model_config).create_argparser()
+            parser2_result = parse_arguments(parser2,
+                                             settings_from_yaml=parser1_result.unknown_settings_from_yaml,
+                                             args=parser1_result.unknown,
+                                             fail_on_unknown_args=True)
+            # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
+            model_config.apply_overrides(parser1_result.unknown_settings_from_yaml)
+            model_config.apply_overrides(parser2_result.overrides)
+            model_config.validate()
+
         # Set the file system related configs, they might be affected by the overrides that were applied.
         logging.info("Creating the adjusted output folder structure.")
         model_config.create_filesystem(self.project_root)
+
         if azure_config.extra_code_directory:
             exist = "exists" if Path(azure_config.extra_code_directory).exists() else "does not exist"
             logging.info(f"extra_code_directory is {azure_config.extra_code_directory}, which {exist}")
@@ -192,6 +200,7 @@ class Runner:
         may_initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
+        # TODO antonsc: crossvalidation for BYOL. Need to move some fields into the container class?
         if self.model_config is not None and self.model_config.perform_cross_validation:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
@@ -216,7 +225,7 @@ class Runner:
             entry_script=Path(sys.argv[0]).resolve(),
             conda_dependencies_files=get_all_environment_files(self.project_root),
             hyperdrive_config_func=lambda run_config: self.model_config.get_hyperdrive_config(run_config),
-            # For large jobs, upload of results times out frequently because of large checkpoint files. Default is 600
+            # For large jobs, upload of results can time out because of large checkpoint files. Default is 600
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()

@@ -4,15 +4,20 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from typing import List
+from unittest import mock
 
 import pytest
+from azureml.core import Run
 
+from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout, namespace_to_path
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_training import generate_and_print_model_summary
+from InnerEye.ML.runner import Runner
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from Tests.ML.configs.DummyModel import DummyModel
+from Tests.ML.configs.lightning_container_123 import DummyLightningContainer
 from Tests.ML.util import get_model_loader
 
 
@@ -109,14 +114,6 @@ def test_config_loader_as_in_registration() -> None:
     assert model2 is not None
 
 
-def test_create_lightning_container() -> None:
-    """
-    Test if we can instantiate the container object itself, without any issues with inheritance or metaclasses
-    """
-    from InnerEye.ML.lightning_container import LightningContainer
-    LightningContainer()
-
-
 def test_config_loader_on_lightning_container() -> None:
     """
     Test if the config loader can load an model that is neither classification nor segmentation.
@@ -125,3 +122,20 @@ def test_config_loader_on_lightning_container() -> None:
     loader_including_tests = get_model_loader(namespace="Tests.ML.configs")
     model = loader_including_tests.create_model_config_from_name("DummyLightningContainer")
     assert model is not None
+
+
+def test_submit_container_to_azureml() -> None:
+    """
+    Test if we can take a LightningContainer object and get t
+    :return:
+    """
+    runner = Runner(project_root=fixed_paths.repository_root_directory(),
+                    yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
+    mock_run = Run.get_context()
+    args = ["", "--model=DummyLightningContainer", "--azureml=True", "--model_configs_namespace=Tests.ML.configs"]
+    with mock.patch("sys.argv", args):
+        with mock.patch("InnerEye.Azure.azure_runner.get_dataset_consumption", return_value=None):
+            with mock.patch("azureml.core.Experiment.submit", return_value=mock_run):
+                loaded_config, actual_run = runner.run()
+    assert actual_run == mock_run
+    assert isinstance(loaded_config, DummyLightningContainer)

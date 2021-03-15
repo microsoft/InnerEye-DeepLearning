@@ -74,7 +74,7 @@ class ModelConfigLoader(GenericConfig, Generic[C]):
                               if inspect.isclass(obj)
                               and name == model_name
                               and inspect.getmodule(obj) == target_module)
-                logging.info(f"Found class {_class.name} in file {module_spec.origin}")
+                logging.info(f"Found class {_class} in file {module_spec.origin}")
             # ignore the exception which will occur if the provided module cannot be loaded
             # or the loaded module does not have the required class as a member
             except Exception as e:

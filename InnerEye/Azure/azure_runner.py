@@ -20,13 +20,14 @@ from azureml.core.datastore import Datastore
 from azureml.core.runconfig import MpiConfiguration, RunConfiguration
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
 from azureml.data import FileDataset
+from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.dnn import PyTorch
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME, \
     RUN_RECOVERY_ID_KEY_NAME, \
-    merge_conda_dependencies
+    is_offline_run_context, merge_conda_dependencies
 from InnerEye.Azure.secrets_handling import read_all_settings
 from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
 from InnerEye.Common.generic_parsing import GenericConfig
@@ -137,6 +138,10 @@ def create_and_submit_experiment(
 
     # submit a training/testing run associated with the experiment
     run: Run = exp.submit(script_run_config)
+
+    if is_offline_run_context(run):
+        # This codepath will only be executed in unit tests, when exp.submit is mocked.
+        return run
 
     # Set metadata for the run.
     set_run_tags(run, azure_config, commandline_args=(" ".join(source_config.script_params)))
@@ -286,6 +291,21 @@ def get_or_create_python_environment(azure_config: AzureConfig,
     return env
 
 
+def get_dataset_consumption(azure_config: AzureConfig, azure_dataset_id: str) -> DatasetConsumptionConfig:
+    """
+    Creates a configuration for using an AzureML dataset inside of an AzureML run. This will make the AzureML
+    dataset with given name available as a named input, using INPUT_DATA_KEY as the key.
+    :param azure_config: azure related configurations to use for model scale-out behaviour
+    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run. This can be an empty
+    string to not use any datasets.
+    """
+    azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
+    if not azureml_dataset:
+        raise ValueError(f"AzureML dataset {azure_dataset_id} could not be found or created.")
+    named_input = azureml_dataset.as_named_input(INPUT_DATA_KEY)
+    return named_input.as_mount() if azure_config.use_dataset_mount else named_input.as_download()
+
+
 def create_run_config(azure_config: AzureConfig,
                       source_config: SourceConfig,
                       azure_dataset_id: str = "",
@@ -302,11 +322,7 @@ def create_run_config(azure_config: AzureConfig,
     :return: The configured script run.
     """
     if azure_dataset_id:
-        azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
-        if not azureml_dataset:
-            raise ValueError(f"AzureML dataset {azure_dataset_id} could not be found or created.")
-        named_input = azureml_dataset.as_named_input(INPUT_DATA_KEY)
-        dataset_consumption = named_input.as_mount() if azure_config.use_dataset_mount else named_input.as_download()
+        dataset_consumption = get_dataset_consumption(azure_config, azure_dataset_id)
     else:
         dataset_consumption = None
     # AzureML seems to sometimes expect the entry script path in Linux format, hence convert to posix path

@@ -2,16 +2,12 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
+from pathlib import Path
 from typing import Any, Dict, Iterator
 
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
-
-# Biggest problem: We don't want to rely on torch being available when submitting a job.
-# A simple conda env costs 1min 30sec to create, the full one 4min 30sec in Linux.
-# Could rely on only the class name when submitting to check that the model exists, skipping checks for
-# the commandline overrides. Or better: Try to instantiate the class. If we can, all good. If not, just check that
-# the python file exists, but proceed to submission. This will work fine for everyone working off the commandline.
 
 # Problem: We need to know
 # azure_dataset_id
@@ -19,6 +15,13 @@ from pytorch_lightning import LightningDataModule, LightningModule
 # model_config.perform_crossvalidation
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+
+
+# Biggest problem: We don't want to rely on torch being available when submitting a job.
+# A simple conda env costs 1min 30sec to create, the full one 4min 30sec in Linux.
+# Could rely on only the class name when submitting to check that the model exists, skipping checks for
+# the commandline overrides. Or better: Try to instantiate the class. If we can, all good. If not, just check that
+# the python file exists, but proceed to submission. This will work fine for everyone working off the commandline.
 
 
 # flake8: noqa
@@ -39,17 +42,18 @@ from InnerEye.ML.deep_learning_config import DeepLearningConfig
 # Do we want to support ensembles at inference time? Not now
 
 
-class BringYourOwnLightningMeta(type(DeepLearningConfig), type(LightningModule)):
+class LightningWithInferenceMeta(type(DeepLearningConfig), type(LightningModule)):
     pass
 
 
-class BringYourOwnLightning(LightningModule, DeepLearningConfig, metaclass=BringYourOwnLightningMeta):
+class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=LightningWithInferenceMeta):
     """
     Double inheritance. All files should be written to config.outputs_folder or config.logs_folder
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, *args, **kwargs) -> None:
+        DeepLearningConfig.__init__(self, *args, **kwargs)
+        LightningModule.__init__(self)
         pass
 
     def forward(self, *args, **kwargs):
@@ -128,9 +132,52 @@ class BringYourOwnLightning(LightningModule, DeepLearningConfig, metaclass=Bring
         pass
 
 
-class LightningContainer(DeepLearningConfig):
+class LightningContainer:
 
-    def get_lightning_module(self) -> BringYourOwnLightning:
+    def __init__(self):
+        super().__init__()
+        self._lightning_module = None
+
+    @property
+    def lightning_module(self) -> LightningWithInference:
+        """
+        Returns that PyTorch Lightning module that the present container object manages. When read first, the module
+        is created via `self.get_lightning_module`
+        :return: A PyTorch Lightning module
+        """
+        if self._lightning_module is None:
+            logging.debug("Creating the PyTorch Lightning module.")
+            self._lightning_module = self.create_lightning_module()
+        return self._lightning_module
+
+    @property
+    def azure_dataset_id(self) -> str:
+        return self.lightning_module.azure_dataset_id
+
+    @property
+    def crossval_count(self) -> int:
+        return self.lightning_module.number_of_cross_validation_splits
+
+    @property
+    def crossval_index(self) -> int:
+        return self.lightning_module.cross_validation_split_index
+
+    @property
+    def perform_cross_validation(self) -> bool:
+        """
+        True if cross validation will be be performed as part of the training procedure.
+        """
+        return self.lightning_module.perform_cross_validation
+
+    def create_filesystem(self, project_root: Path) -> None:
+        """
+        Creates new file system settings (outputs folder, logs folder) for the PyTorch Lightning module that the
+        present container manages.
+        :param project_root: The root folder for the codebase that triggers the training run.
+        """
+        self.lightning_module.create_filesystem(project_root)
+
+    def create_lightning_module(self) -> LightningWithInference:
         pass
 
     def get_training_data_module(self, cross_validation_split_index: int, crossval_count: int) -> LightningDataModule:
@@ -141,7 +188,6 @@ class LightningContainer(DeepLearningConfig):
         Should those be arguments maybe? somewhat obsolete, but makes it visible. YES.
         :return:
         """
-        split = self.cross_validation_split_index
         pass
 
     def get_inference_data_module(self, cross_validation_split_index: int, crossval_count: int) -> LightningDataModule:
@@ -149,8 +195,8 @@ class LightningContainer(DeepLearningConfig):
         Gets the data that is used for the inference after training. By default, this returns the value
         of get_training_data_module, but you can override this to get for example full image datasets for
         segmentation models.
-        This must take the cross validation fold
-        into account. Should those be arguments maybe? somewhat obsolete, but makes it visible. YES
+        This must take the cross validation fold into account.
+        Should those be arguments maybe? somewhat obsolete, but makes it visible. YES
         :return:
         """
         # You can override this if inference uses different data, for example segmentation models use
