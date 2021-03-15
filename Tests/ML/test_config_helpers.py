@@ -141,17 +141,16 @@ def create_dataset_csv(test_output_dirs: OutputFolderForTests) -> Path:
 def validate_dataset_paths(
         model_config: Union[ScalarModelBase, SegmentationModelBase]) -> None:
     """Check that validation of dataset paths is succeeds when csv file exists,
-    and fails when it's missing.""" 
-    ml_util.validate_dataset_paths(model_config.local_dataset,
-                                   model_config.dataset_csv)
+    and fails when it's missing."""
+    assert model_config.local_dataset is not None
+    ml_util.validate_dataset_paths(model_config.local_dataset, model_config.dataset_csv)
 
     dataset_csv_path = model_config.local_dataset / model_config.dataset_csv
     dataset_csv_path.unlink()
 
     ex_message = f"The dataset file {model_config.dataset_csv} is not present"
     with pytest.raises(ValueError) as ex:
-        ml_util.validate_dataset_paths(model_config.local_dataset,
-                                       model_config.dataset_csv)
+        ml_util.validate_dataset_paths(model_config.local_dataset, model_config.dataset_csv)
     assert ex_message in str(ex)
 
 
