@@ -154,7 +154,7 @@ def validate_dataset_paths(
     with pytest.raises(ValueError) as ex:
         ml_util.validate_dataset_paths(model_config.local_dataset,
                                        model_config.dataset_csv)
-        assert ex_message in str(ex)
+    assert ex_message in str(ex)
 
 
 def test_dataset_csv_with_SegmentationModelBase(
