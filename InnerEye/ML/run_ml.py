@@ -45,7 +45,6 @@ from InnerEye.ML.runner import ModelDeploymentHookSignature, PostCrossValidation
     REPORT_IPYNB, get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
-from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
@@ -119,8 +118,8 @@ class MLRunner:
 
     def __init__(self,
                  model_config: DeepLearningConfig,
-                 lightning_container: Optional[LightningContainer] = None,
                  azure_config: Optional[AzureConfig] = None,
+                 lightning_container: Optional[LightningContainer] = None,
                  project_root: Optional[Path] = None,
                  post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
                  model_deployment_hook: Optional[ModelDeploymentHookSignature] = None) -> None:
@@ -171,6 +170,7 @@ class MLRunner:
 
             logging.info(f"Running model train and test on cross validation split: {cross_val_split_index}")
             split_ml_runner = MLRunner(model_config=split_model_config,
+                                       lightning_container=self.lightning_container,
                                        azure_config=self.azure_config,
                                        project_root=self.project_root,
                                        post_cross_validation_hook=self.post_cross_validation_hook,
@@ -248,7 +248,7 @@ class MLRunner:
                 with logging_section("Model training"):
                     model_train(self.model_config,
                                 checkpoint_handler,
-                                lightning_container=self.li
+                                lightning_container=self.lightning_container,
                                 num_nodes=self.azure_config.num_nodes)
             else:
                 self.model_config.write_dataset_files()
@@ -314,7 +314,7 @@ class MLRunner:
             activation_maps.extract_activation_maps(self.model_config)
             logging.info("Successfully extracted and saved activation maps")
 
-    def mount_or_download_dataset(self) -> Path:
+    def mount_or_download_dataset(self) -> Optional[Path]:
         """
         Makes the dataset that the model uses available on the executing machine. If the present training run is outside
         of AzureML, it expects that either the model has a `local_dataset` field set, in which case no action will be
@@ -325,30 +325,38 @@ class MLRunner:
         Returns the path of the dataset on the executing machine.
         """
         azure_dataset_id = self.model_config.azure_dataset_id
-
+        local_dataset = self.model_config.local_dataset
+        # A dataset, either local or in Azure, is required for the built-in InnerEye models. When models are
+        # specified via a LightningContainer, these dataset fields are optional, because the container datasets
+        # could be downloaded even from the webno such requirement.
+        is_dataset_required = self.lightning_container is None
         if self.model_config.is_offline_run:
             # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
             # Otherwise, download the dataset specified by the azure_dataset_id
-            local_dataset = self.model_config.local_dataset
-            if (not azure_dataset_id) and (local_dataset is None):
-                raise ValueError("The model must contain either local_dataset or azure_dataset_id.")
+            if is_dataset_required:
+                if (not azure_dataset_id) and (local_dataset is None):
+                    raise ValueError("The model must contain either local_dataset or azure_dataset_id.")
             if local_dataset:
                 expected_dir = Path(local_dataset)
                 if not expected_dir.is_dir():
                     raise FileNotFoundError(f"The model uses a dataset in {expected_dir}, but that does not exist.")
                 logging.info(f"Model training will use the local dataset provided in {expected_dir}")
                 return expected_dir
-            return download_dataset(azure_dataset_id=azure_dataset_id,
-                                    target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
-                                    azure_config=self.azure_config)
+            if azure_dataset_id:
+                return download_dataset(azure_dataset_id=azure_dataset_id,
+                                        target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
+                                        azure_config=self.azure_config)
+            return None
 
         # Inside of AzureML, datasets can be either mounted or downloaded.
-        if not azure_dataset_id:
+        if is_dataset_required and not azure_dataset_id:
             raise ValueError("The model must contain azure_dataset_id for running on AML")
-        mounted = try_to_mount_input_dataset()
-        if not mounted:
-            raise ValueError("Unable to mount or download input dataset.")
-        return mounted
+        if azure_dataset_id:
+            mounted = try_to_mount_input_dataset()
+            if not mounted:
+                raise ValueError("Unable to mount or download input dataset.")
+            return mounted
+        return None
 
     def set_multiprocessing_start_method(self) -> None:
         """

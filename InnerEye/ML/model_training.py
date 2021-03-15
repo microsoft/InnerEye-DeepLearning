@@ -177,9 +177,11 @@ def model_train(config: DeepLearningConfig,
     """
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
-    # The core InnerEye models do not rely on the LightningContainer infrastructure. For simplicity of code, build a
-    # fake container
     if lightning_container is None:
+        # The core InnerEye models do not rely on the LightningContainer infrastructure. For simplicity of code, build a
+        # fake container
+        assert isinstance(config, ModelConfigBase), "When using a built-in InnerEye model, the configuration should " \
+                                                    "be an instance of ModelConfigBase"
         lightning_container = InnerEyeContainer(config)
         # When trying to store the config object in the constructor, it does not appear to get stored at all, later
         # reference of the object simply fail. Hence, have to set explicitly here.
@@ -187,6 +189,10 @@ def model_train(config: DeepLearningConfig,
         if is_rank_zero():
             # Save the dataset files for later use in cross validation analysis
             config.write_dataset_files()
+        lightning_model = create_lightning_model(config)
+    else:
+        lightning_model = lightning_container.lightning_module
+
     # This reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
     # for categorical features, that need to be available before creating the model.
 
@@ -199,7 +205,6 @@ def model_train(config: DeepLearningConfig,
     logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
                  f"trainer.global_rank: {trainer.global_rank}")
     logging.debug("Creating the PyTorch model.")
-    lightning_model = create_lightning_model(config)
     lightning_model.storing_logger = storing_logger
 
     resource_monitor = None
@@ -220,7 +225,7 @@ def model_train(config: DeepLearningConfig,
         if isinstance(config, ModelConfigBase):
             # Print out a detailed breakdown of layers, memory consumption and time.
             # TODO antonsc: Can we do better here, and print a model summary for all models? Read the first item
-            # of the dataset and do forward propagation.
+            # of the dataset and do forward propagation?
             generate_and_print_model_summary(config, lightning_model.model)
 
         if config.monitoring_interval_seconds > 0:

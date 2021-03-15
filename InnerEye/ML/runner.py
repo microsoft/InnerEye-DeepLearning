@@ -265,21 +265,17 @@ class Runner:
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(self.azure_config.log_level)
         suppress_logging_noise()
-        error_messages = []
         # For the PR build in AzureML, we can either pytest, or the training of the simple PR model. Running both
         # only works when using DDP_spawn, but that has as a side-effect that it messes up memory consumption of the
         # large models.
         if self.azure_config.pytest_mark:
-            try:
-                outputs_folder = Path.cwd() / fixed_paths.DEFAULT_AML_UPLOAD_DIR
-                pytest_passed, results_file_path = run_pytest(self.azure_config.pytest_mark, outputs_folder)
-                if not pytest_passed:
-                    pytest_failures = f"Not all PyTest tests passed. See {results_file_path}"
-                    logging.error(pytest_failures)
-                    error_messages.append(pytest_failures)
-            except Exception as ex:
-                print_exception(ex, "Unable to run PyTest.")
-                error_messages.append(f"Unable to run PyTest: {ex}")
+            outputs_folder = Path.cwd() / fixed_paths.DEFAULT_AML_UPLOAD_DIR
+            pytest_passed, results_file_path = run_pytest(self.azure_config.pytest_mark, outputs_folder)
+            if not pytest_passed:
+                # Terminate if pytest has failed. This makes the smoke test in
+                # PR builds fail if pytest fails.
+                pytest_failures = f"Not all PyTest tests passed. See {results_file_path}"
+                raise ValueError(pytest_failures)
         else:
             # Set environment variables for multi-node training if needed.
             # In particular, the multi-node environment variables should NOT be set in single node
@@ -287,20 +283,11 @@ class Runner:
             # (https://github.com/microsoft/InnerEye-DeepLearning/issues/395)
             if self.azure_config.num_nodes > 1:
                 set_environment_variables_for_multi_node()
+            logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
             try:
-                logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
-                try:
-                    self.create_ml_runner().run()
-                except Exception as ex:
-                    print_exception(ex, "Model training/testing failed.")
-                    error_messages.append(f"Training failed: {ex}")
+                self.create_ml_runner().run()
             finally:
                 disable_logging_to_file()
-        # Terminate if pytest or model training has failed. This makes the smoke test in
-        # PR builds fail if pytest fails.
-        if error_messages:
-            raise ValueError(
-                f"At least one component of the runner failed: {os.linesep} {os.linesep.join(error_messages)}")
 
     def create_ml_runner(self) -> Any:
         """
@@ -312,6 +299,7 @@ class Runner:
         from InnerEye.ML.run_ml import MLRunner
         return MLRunner(
             model_config=self.model_config,
+            lightning_container=self.lightning_container,
             azure_config=self.azure_config,
             project_root=self.project_root,
             post_cross_validation_hook=self.post_cross_validation_hook,

@@ -19,7 +19,7 @@ from InnerEye.ML.runner import Runner
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.configs.lightning_containers import DummyContainerWithLocalDataset
+from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
 from Tests.ML.util import get_model_loader
 
 
@@ -154,8 +154,8 @@ def test_run_container_in_situ() -> None:
     """
     runner = Runner(project_root=fixed_paths.repository_root_directory(),
                     yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
-    args = ["", "--model=DummyContainerWithLocalDataset", "--model_configs_namespace=Tests.ML.configs"]
+    args = ["", "--model=DummyContainerWithModel", "--model_configs_namespace=Tests.ML.configs"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = runner.run()
     assert actual_run is None
-    assert isinstance(runner.lightning_container, DummyContainerWithLocalDataset)
+    assert isinstance(runner.lightning_container, DummyContainerWithModel)

@@ -156,10 +156,11 @@ class LightningContainer:
     def get_training_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:
         """
         Gets the data that is used for the training and validation steps.
-        This should read a dataset from the self.local_dataset folder, but its format is up to this method here.
-        This must take the cross validation fold into account.
-        Should those be arguments maybe? somewhat obsolete, but makes it visible. YES.
-        :return:
+        This should read a dataset from the self.local_dataset folder or download from a web location.
+        The format of the data is not specified any further.
+        The method must take cross validation into account, and ensure that logic to create training and validation
+        sets takes cross validation with a given number of splits is correctly taken care of.
+        :return: A LightningDataModule
         """
         pass
 
@@ -168,9 +169,11 @@ class LightningContainer:
         Gets the data that is used for the inference after training. By default, this returns the value
         of get_training_data_module, but you can override this to get for example full image datasets for
         segmentation models.
-        This must take the cross validation fold into account.
-        Should those be arguments maybe? somewhat obsolete, but makes it visible. YES
-        :return:
+        This should read a dataset from the self.local_dataset folder or download from a web location.
+        The format of the data is not specified any further.
+        The method must take cross validation into account, and ensure that logic to create training and validation
+        sets takes cross validation with a given number of splits is correctly taken care of.
+        :return: A LightningDataModule
         """
         # You can override this if inference uses different data, for example segmentation models use
         # full images rather than equal sized crops.
