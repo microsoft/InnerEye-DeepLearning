@@ -79,8 +79,8 @@ class FixedDataset(Dataset):
         return len(self.inputs_and_targets)
 
     def __getitem__(self, item: int) -> Tuple[Tensor, Tensor]:
-        input = torch.tensor([self.inputs_and_targets[item][0]])
-        target = torch.tensor([self.inputs_and_targets[item][1]])
+        input = torch.tensor([float(self.inputs_and_targets[item][0])])
+        target = torch.tensor([float(self.inputs_and_targets[item][1])])
         return input, target
 
 

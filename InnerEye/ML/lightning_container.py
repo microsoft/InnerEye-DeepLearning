@@ -2,17 +2,22 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict, Iterator
+from typing import Any, Dict, Iterator, List, Tuple
 
 import torch
+from jinja2.optimizer import Optimizer
 from pytorch_lightning import LightningDataModule, LightningModule
-
 # Problem: We need to know
 # azure_dataset_id
 # model_config.get_hyperdrive_config
 # model_config.perform_crossvalidation
+from torch.optim.lr_scheduler import _LRScheduler
+
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+# Do we want to support ensembles at inference time? Not now
+from InnerEye.ML.utils import model_util
+from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 
 
 # Biggest problem: We don't want to rely on torch being available when submitting a job.
@@ -20,24 +25,16 @@ from InnerEye.ML.deep_learning_config import DeepLearningConfig
 # Could rely on only the class name when submitting to check that the model exists, skipping checks for
 # the commandline overrides. Or better: Try to instantiate the class. If we can, all good. If not, just check that
 # the python file exists, but proceed to submission. This will work fine for everyone working off the commandline.
-
-
 # flake8: noqa
-
-
 # What do we want from InnerEye?
 # - datasets (optional - this means all dataset fields can potentially be left empty)
 # - Do we want ensembles?
 # - checkpoint recovery: checkpoints must be written to
 # We are inheriting from LightningModule here, this will fail in the smaller environment
-
-
 # Goals:
 # run experiments by config name
 # AzureML submission framework
 # Consuming datasets from Azure blob storage
-
-# Do we want to support ensembles at inference time? Not now
 
 
 class LightningWithInferenceMeta(type(DeepLearningConfig), type(LightningModule)):
@@ -128,6 +125,38 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
         nice human readable report. Report should go into self.outputs folder.
         """
         pass
+
+    def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
+        """
+        This is the default implementation of the method that provides the optimizer and LR scheduler for
+        PyTorch Lightning. It reads out the optimizer and scheduler settings from the model fields,
+        and creates the two objects.
+        Override this method for full flexibility to define any optimizer and scheduler.
+        :return: A tuple of (optimizer, LR scheduler)
+        """
+        optimizer = model_util.create_optimizer(self, self.parameters())
+        l_rate_scheduler = SchedulerWithWarmUp(self, optimizer)
+        return [optimizer], [l_rate_scheduler]  # type: ignore
+
+    def close_all_loggers(self) -> None:
+        """
+        This method should close all objects that were used during training to write additional data.
+        """
+        pass
+
+    @property
+    def train_diagnostics(self) -> Any:
+        """
+        Gets additional diagnostic information that has been collected during training on the training data.
+        """
+        return None
+
+    @property
+    def val_diagnostics(self) -> Any:
+        """
+        Gets additional diagnostic information that has been collected during training on the validation data.
+        """
+        return None
 
 
 class LightningContainer:

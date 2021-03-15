@@ -238,7 +238,6 @@ def model_train(config: DeepLearningConfig,
                                                                   crossval_count=config.number_of_cross_validation_splits)
     trainer.fit(lightning_model, datamodule=lightning_data)
     trainer.logger.close()  # type: ignore
-    # TODO antonsc
     lightning_model.close_all_loggers()
     world_size = getattr(trainer, "world_size", 0)
     # TODO antonsc
