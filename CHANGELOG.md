@@ -24,6 +24,7 @@ created.
 - Starting an AzureML run now uses the `ScriptRunConfig` object, rather than the deprecated `Estimator` object ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385))
 - When registering a model, the name of the Python execution environment is added as a tag. This tag is read when running inference, and the execution environment
     is re-used. ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) 
+-  Upgraded to PyTorch 1.8.0, PyTorch-Lightning 1.1.8 and AzureML SDK 1.23.0 ([#411](https://github.com/microsoft/InnerEye-DeepLearning/pull/411))
 
 ### Fixed
 

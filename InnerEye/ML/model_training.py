@@ -18,6 +18,7 @@ from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_secti
 from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, cleanup_checkpoint_folder
+from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import TrainingAndValidationDataLightning
 from InnerEye.ML.lightning_helpers import create_lightning_model
@@ -188,8 +189,9 @@ def model_train(config: ModelConfigBase,
         ml_util.set_random_seed(config.get_effective_random_seed(), "Patch visualization")
         # Visualize how patches are sampled for segmentation models. This changes the random generator, but we don't
         # want training to depend on how many patients we visualized, and hence set the random seed again right after.
-        with logging_section("Visualizing the effect of sampling random crops for training"):
-            visualize_random_crops_for_dataset(config)
+        if isinstance(config, SegmentationModelBase):
+            with logging_section("Visualizing the effect of sampling random crops for training"):
+                visualize_random_crops_for_dataset(config)
 
         # Print out a detailed breakdown of layers, memory consumption and time.
         generate_and_print_model_summary(config, lightning_model.model)

@@ -15,13 +15,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from azureml.core import Dataset, Environment, Experiment, Run, ScriptRunConfig
-from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.datastore import Datastore
 from azureml.core.runconfig import MpiConfiguration, RunConfiguration
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
 from azureml.data import FileDataset
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-from azureml.train.dnn import PyTorch
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
@@ -214,22 +212,6 @@ def get_or_create_dataset(azure_config: AzureConfig,
         logging.info("Registering the dataset for future use.")
         azureml_dataset.register(workspace, name=azure_dataset_id)
     return azureml_dataset
-
-
-def pytorch_version_from_conda_dependencies(conda_dependencies: CondaDependencies) -> Optional[str]:
-    """
-    Given a CondaDependencies object, look for a spec of the form "pytorch=...", and return
-    whichever supported version is compatible with the value, or None if there isn't one.
-    """
-    supported_versions = PyTorch.get_supported_versions()
-    for spec in conda_dependencies.conda_packages:
-        components = spec.split("=")
-        if len(components) == 2 and components[0] == "pytorch":
-            version = components[1]
-            for supported in supported_versions:
-                if version.startswith(supported) or supported.startswith(version):
-                    return supported
-    return None
 
 
 def get_or_create_python_environment(azure_config: AzureConfig,
