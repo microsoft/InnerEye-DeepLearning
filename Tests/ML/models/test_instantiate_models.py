@@ -126,8 +126,8 @@ def test_config_loader_on_lightning_container() -> None:
 
 def test_submit_container_to_azureml() -> None:
     """
-    Test if we can take a LightningContainer object and get t
-    :return:
+    Test if we can get the config loader to load a Lightning container model, and get it through the AzureML
+    submission process.
     """
     runner = Runner(project_root=fixed_paths.repository_root_directory(),
                     yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
