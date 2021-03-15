@@ -65,8 +65,7 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
                    MetricType.AREA_UNDER_ROC_CURVE,
                    MetricType.CROSS_ENTROPY,
                    MetricType.LOSS,
-                   # For unknown reasons, we don't get seconds_per_batch for the training data.
-                   # MetricType.SECONDS_PER_BATCH,
+                   MetricType.SECONDS_PER_BATCH,
                    MetricType.SECONDS_PER_EPOCH,
                    MetricType.SUBJECT_COUNT,
                    ]:
@@ -92,34 +91,31 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
     epoch_metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME
     # Auto-format will break the long header line, hence the strange way of writing it!
     expected_epoch_metrics = \
-        "loss,cross_entropy,accuracy_at_threshold_05,seconds_per_epoch,learning_rate," + \
+        "loss,cross_entropy,accuracy_at_threshold_05,learning_rate," + \
         "area_under_roc_curve,area_under_pr_curve,accuracy_at_optimal_threshold," \
         "false_positive_rate_at_optimal_threshold,false_negative_rate_at_optimal_threshold," \
         "optimal_threshold,subject_count,epoch,cross_validation_split_index\n" + \
-        """0.6866141557693481,0.6866141557693481,0.5,0,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,0,-1	
-        0.6864652633666992,0.6864652633666992,0.5,0,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,1,-1	
-        0.6863163113594055,0.6863162517547607,0.5,0,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,2,-1	
-        0.6861673593521118,0.6861673593521118,0.5,0,9.998613801725043e-05,1.0,1.0,0.5,0.0,0.0,0.529399,2.0,3,-1	
+        """0.6866141557693481,0.6866141557693481,0.5,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,0,-1	
+        0.6864652633666992,0.6864652633666992,0.5,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,1,-1	
+        0.6863163113594055,0.6863162517547607,0.5,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,2,-1	
+        0.6861673593521118,0.6861673593521118,0.5,9.998613801725043e-05,1.0,1.0,0.5,0.0,0.0,0.529399,2.0,3,-1	
         """
-    # We cannot compare columns like "seconds_per_epoch" because timing will obviously vary between machines.
-    # Column must still be present, though.
-    check_log_file(epoch_metrics_path, expected_epoch_metrics,
-                   ignore_columns=[LoggingColumns.SecondsPerEpoch.value])
+    check_log_file(epoch_metrics_path, expected_epoch_metrics, ignore_columns=[])
     # Check metrics.csv: This contains the per-subject per-epoch model outputs
     # Randomization comes out slightly different on Windows, hence only execute the test on Linux
     if common_util.is_windows():
         return
     metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
     metrics_expected = \
-        """prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split
-Default,0,S2,0.5295137763023376,1.0,-1,Train
-Default,0,S4,0.5216594338417053,0.0,-1,Train
-Default,1,S4,0.5214819312095642,0.0,-1,Train
-Default,1,S2,0.5294750332832336,1.0,-1,Train
-Default,2,S2,0.5294366478919983,1.0,-1,Train
-Default,2,S4,0.5213046073913574,0.0,-1,Train
-Default,3,S2,0.5293986201286316,1.0,-1,Train
-Default,3,S4,0.5211275815963745,0.0,-1,Train
+        """epoch,subject,prediction_target,model_output,label,data_split,cross_validation_split_index
+0,S2,Default,0.529514,1,Train,-1
+0,S4,Default,0.521659,0,Train,-1
+1,S4,Default,0.521482,0,Train,-1
+1,S2,Default,0.529475,1,Train,-1
+2,S4,Default,0.521305,0,Train,-1
+2,S2,Default,0.529437,1,Train,-1
+3,S2,Default,0.529399,1,Train,-1
+3,S4,Default,0.521128,0,Train,-1
 """
     check_log_file(metrics_path, metrics_expected, ignore_columns=[])
     # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
@@ -134,9 +130,19 @@ Default,S4,0.5211275815963745,0.0,-1,Train
     check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
 
 
+def _count_lines(s: str) -> int:
+    lines = [line for line in s.splitlines() if line.strip()]
+    return len(lines)
+
+
 def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> None:
     df_expected = pd.read_csv(StringIO(expected_csv))
     df_epoch_metrics_actual = pd.read_csv(path)
+    # Add a separate check for number of lines. Data frames with lines are exact duplicates are not caught
+    # as mismatches.
+    num_expected_lines = _count_lines(expected_csv)
+    num_actual_lines = _count_lines(path.read_text())
+    assert num_actual_lines == num_expected_lines, "Number of lines does not match"
     for ignore_column in ignore_columns:
         assert ignore_column in df_epoch_metrics_actual, f"Column {ignore_column} will be ignored, but must still be" \
                                                          f"present in the dataframe"
