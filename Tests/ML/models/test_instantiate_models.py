@@ -139,3 +139,16 @@ def test_submit_container_to_azureml() -> None:
                 loaded_config, actual_run = runner.run()
     assert actual_run == mock_run
     assert isinstance(loaded_config, DummyLightningContainer)
+
+
+def test_run_container_in_situ() -> None:
+    """
+    Test if we can get the config loader to load a Lightning container model, and then train locally.
+    """
+    runner = Runner(project_root=fixed_paths.repository_root_directory(),
+                    yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
+    args = ["", "--model=DummyLightningContainer", "--model_configs_namespace=Tests.ML.configs"]
+    with mock.patch("sys.argv", args):
+        loaded_config, actual_run = runner.run()
+    assert actual_run is None
+    assert isinstance(loaded_config, DummyLightningContainer)
