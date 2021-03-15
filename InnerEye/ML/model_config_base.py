@@ -25,6 +25,7 @@ class ModelConfigBaseMeta(type(DeepLearningConfig), abc.ABCMeta):  # type: ignor
     """
     pass
 
+
 class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta):
 
     def __init__(self, **params: Any):

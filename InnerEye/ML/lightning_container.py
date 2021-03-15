@@ -141,41 +141,16 @@ class LightningContainer:
     @property
     def lightning_module(self) -> LightningWithInference:
         """
-        Returns that PyTorch Lightning module that the present container object manages. When read first, the module
-        is created via `self.get_lightning_module`
+        Returns that PyTorch Lightning module that the present container object manages.
         :return: A PyTorch Lightning module
         """
         if self._lightning_module is None:
-            logging.debug("Creating the PyTorch Lightning module.")
-            self._lightning_module = self.create_lightning_module()
+            raise ValueError("No Lightning module has been set yet.")
         return self._lightning_module
 
-    @property
-    def azure_dataset_id(self) -> str:
-        return self.lightning_module.azure_dataset_id
-
-    @property
-    def crossval_count(self) -> int:
-        return self.lightning_module.number_of_cross_validation_splits
-
-    @property
-    def crossval_index(self) -> int:
-        return self.lightning_module.cross_validation_split_index
-
-    @property
-    def perform_cross_validation(self) -> bool:
-        """
-        True if cross validation will be be performed as part of the training procedure.
-        """
-        return self.lightning_module.perform_cross_validation
-
-    def create_filesystem(self, project_root: Path) -> None:
-        """
-        Creates new file system settings (outputs folder, logs folder) for the PyTorch Lightning module that the
-        present container manages.
-        :param project_root: The root folder for the codebase that triggers the training run.
-        """
-        self.lightning_module.create_filesystem(project_root)
+    @lightning_module.setter
+    def lightning_module(self, value: LightningWithInference) -> None:
+        self._lightning_module = value
 
     def create_lightning_module(self) -> LightningWithInference:
         pass

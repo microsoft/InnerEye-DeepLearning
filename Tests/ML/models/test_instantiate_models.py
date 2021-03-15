@@ -12,6 +12,7 @@ from azureml.core import Run
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout, namespace_to_path
 from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_training import generate_and_print_model_summary
 from InnerEye.ML.runner import Runner
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
@@ -138,7 +139,8 @@ def test_submit_container_to_azureml() -> None:
             with mock.patch("azureml.core.Experiment.submit", return_value=mock_run):
                 loaded_config, actual_run = runner.run()
     assert actual_run == mock_run
-    assert isinstance(loaded_config, DummyLightningContainer)
+    assert isinstance(loaded_config, DeepLearningConfig)
+    assert isinstance(runner.lightning_container, DummyLightningContainer)
 
 
 def test_run_container_in_situ() -> None:

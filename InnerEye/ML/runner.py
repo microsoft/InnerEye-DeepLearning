@@ -6,14 +6,15 @@ import os
 import sys
 from pathlib import Path
 
-# Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
-# the working directory is not correctly picked up in sys.path
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.lightning_container import LightningContainer
 
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
 # flake8: noqa
 
+# Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
+# the working directory is not correctly picked up in sys.path
 print("Starting InnerEye runner.")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
@@ -107,6 +108,8 @@ def get_all_environment_files(project_root: Path) -> List[Path]:
 
 class Runner:
     """
+    This class contains the high-level logic to start a training run: choose a model configuration by name,
+    submit to AzureML if needed, or otherwise start the actual training and test loop.
     :param project_root: The root folder that contains all of the source code that should be executed.
     :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.
     :param post_cross_validation_hook: A function to call after waiting for completion of cross validation runs.
@@ -130,8 +133,9 @@ class Runner:
         self.command_line_args = command_line_args
         # model_config and azure_config are placeholders for now, and are set properly when command line args are
         # parsed.
-        self.model_config: ModelConfigBase = ModelConfigBase(azure_dataset_id="")
+        self.model_config: DeepLearningConfig = DeepLearningConfig(azure_dataset_id="")
         self.azure_config: AzureConfig = AzureConfig()
+        self.lightning_container: Optional[LightningContainer] = None
 
     def parse_and_load_model(self) -> Optional[ParserResult]:
         """
@@ -156,24 +160,29 @@ class Runner:
             return None
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser1_result.args)
         # Create the model as per the "model" commandline option
-        model_config = model_config_loader.create_model_config_from_name(model_name=azure_config.model)
-        if isinstance(model_config, LightningContainer):
-            # TODO antonsc: How can we apply overrides for BYOL models?
-            parser2_result = None
+        config_or_container = model_config_loader.create_model_config_from_name(model_name=azure_config.model)
+        if isinstance(config_or_container, LightningContainer):
+            # Create the actual Lightning module, and store it for later use in the container, too
+            lightning_module = config_or_container.create_lightning_module()
+            config_or_container.lightning_module = lightning_module
+            self.lightning_container = config_or_container
+            model_config = lightning_module
         else:
-            # This model will be either a classification model or a segmentation model. Those have different
-            # fields that could be overridden on the command line. Create a parser that understands the fields we need
-            # for the actual model type. We feed this parser will the YAML settings and commandline arguments that the
-            # first parser did not recognize.
-            parser2 = type(model_config).create_argparser()
-            parser2_result = parse_arguments(parser2,
-                                             settings_from_yaml=parser1_result.unknown_settings_from_yaml,
-                                             args=parser1_result.unknown,
-                                             fail_on_unknown_args=True)
-            # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
-            model_config.apply_overrides(parser1_result.unknown_settings_from_yaml)
-            model_config.apply_overrides(parser2_result.overrides)
-            model_config.validate()
+            model_config = config_or_container
+
+        # This model will be either a classification model or a segmentation model. Those have different
+        # fields that could be overridden on the command line. Create a parser that understands the fields we need
+        # for the actual model type. We feed this parser will the YAML settings and commandline arguments that the
+        # first parser did not recognize.
+        parser2 = type(model_config).create_argparser()
+        parser2_result = parse_arguments(parser2,
+                                         settings_from_yaml=parser1_result.unknown_settings_from_yaml,
+                                         args=parser1_result.unknown,
+                                         fail_on_unknown_args=True)
+        # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
+        model_config.apply_overrides(parser1_result.unknown_settings_from_yaml)
+        model_config.apply_overrides(parser2_result.overrides)
+        model_config.validate()
 
         # Set the file system related configs, they might be affected by the overrides that were applied.
         logging.info("Creating the adjusted output folder structure.")
@@ -187,7 +196,7 @@ class Runner:
         self.model_config = model_config
         return parser2_result
 
-    def run(self) -> Tuple[ModelConfigBase, Optional[Run]]:
+    def run(self) -> Tuple[DeepLearningConfig, Optional[Run]]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
         via a commandline argument, runs training or testing, and writes all required info to disk and logs.

@@ -14,12 +14,14 @@ from importlib._bootstrap import ModuleSpec
 
 from InnerEye.Common.common_util import path_to_namespace
 from InnerEye.Common.generic_parsing import GenericConfig
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
 
-C = TypeVar('C', bound=ModelConfigBase)
+ConfigOrContainer = TypeVar('ConfigOrContainer', DeepLearningConfig, LightningContainer)
 
 
-class ModelConfigLoader(GenericConfig, Generic[C]):
+class ModelConfigLoader(GenericConfig, Generic[ConfigOrContainer]):
     """
     Helper class to manage model config loading
     """
@@ -43,7 +45,7 @@ class ModelConfigLoader(GenericConfig, Generic[C]):
         from InnerEye.ML import configs
         return configs.__name__
 
-    def create_model_config_from_name(self, model_name: str) -> C:
+    def create_model_config_from_name(self, model_name: str) -> ConfigOrContainer:
         """
         Returns a segmentation or classification model configuration for a model of the given name.
         Searching for a class member called <model_name> in the search modules provided recursively.
@@ -53,9 +55,9 @@ class ModelConfigLoader(GenericConfig, Generic[C]):
         if not model_name:
             raise ValueError("Unable to load a model configuration because the model name is missing.")
 
-        configs: Dict[str, C] = {}
+        configs: Dict[str, ConfigOrContainer] = {}
 
-        def _get_model_config(module_spec: ModuleSpec) -> Optional[C]:
+        def _get_model_config(module_spec: ModuleSpec) -> Optional[ConfigOrContainer]:
             """
             Given a module specification check to see if it has a class property with
             the <model_name> provided, and instantiate that config class with the
@@ -82,7 +84,7 @@ class ModelConfigLoader(GenericConfig, Generic[C]):
                 if exception_text != "":
                     logging.warning(f"(from attempt to import module {module_spec.name}): {exception_text}")
                 return None
-            model_config: ModelConfigBase = _class()
+            model_config: ConfigOrContainer = _class()
             return model_config
 
         def _search_recursively_and_store(module_search_spec: ModuleSpec) -> None:

@@ -331,7 +331,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                               doc="Target smoothing value for label smoothing")
     log_to_parent_run: bool = param.Boolean(default=False, doc="If true, hyperdrive child runs will log their metrics"
                                                                "to their parent run.")
-
     use_imbalanced_sampler_for_training: bool = param.Boolean(default=False,
                                                               doc="If True, use an imbalanced sampler during training.")
     drop_last_batch_in_training: bool = param.Boolean(default=False,
