@@ -731,12 +731,12 @@ class MLRunner:
                                                test_metrics=path_to_best_epoch_test)
             else:
                 if isinstance(config, ScalarModelBase) and not isinstance(config, SequenceModelBase):
+                    dataset_csv_path = config.local_dataset / config.dataset_csv if config.local_dataset else None
                     generate_classification_notebook(result_notebook=output_dir / REPORT_IPYNB,
                                                      train_metrics=path_to_best_epoch_train,
                                                      val_metrics=path_to_best_epoch_val,
                                                      test_metrics=path_to_best_epoch_test,
-                                                     dataset_csv_path=config.local_dataset / config.dataset_csv,
-                                                     if config.local_dataset else None,
+                                                     dataset_csv_path=dataset_csv_path,
                                                      dataset_subject_column=config.subject_column,
                                                      dataset_file_column=config.image_file_column)
                 else:
