@@ -149,8 +149,7 @@ def validate_dataset_paths(
     dataset_csv_path = model_config.local_dataset / model_config.dataset_csv
     dataset_csv_path.unlink()
 
-    ex_message = f"ValueError: The dataset file {model_config.dataset_csv} "\
-                  "is not present"
+    ex_message = f"The dataset file {model_config.dataset_csv} is not present"
     with pytest.raises(ValueError) as ex:
         ml_util.validate_dataset_paths(model_config.local_dataset,
                                        model_config.dataset_csv)
