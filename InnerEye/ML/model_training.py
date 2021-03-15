@@ -19,8 +19,9 @@ from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, cleanup_checkpoint_folder
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_base import TrainingAndValidationDataLightning
+from InnerEye.ML.deep_learning_config import DeepLearningConfig, VISUALIZATION_FOLDER
+from InnerEye.ML.lightning_base import InnerEyeContainer, TrainingAndValidationDataLightning
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_helpers import create_lightning_model
 from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
@@ -62,7 +63,7 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
     RUN_CONTEXT.upload_file(upload_name, path_or_stream=str(file_path))
 
 
-def create_lightning_trainer(config: ModelConfigBase,
+def create_lightning_trainer(config: DeepLearningConfig,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
     """
@@ -146,8 +147,25 @@ def create_lightning_trainer(config: ModelConfigBase,
     return trainer, storing_logger
 
 
-def model_train(config: ModelConfigBase,
+def start_resource_monitor(config: DeepLearningConfig) -> ResourceMonitor:
+    # initialize and start GPU monitoring
+    gpu_tensorboard = config.logs_folder / "gpu_utilization"
+    # Result file in CSV format should NOT live in the logs folder, the streaming upload that is
+    # used for this folder might corrupt the file.
+    gpu_csv = config.outputs_folder / "gpu_utilization"
+    gpu_csv.mkdir(parents=True, exist_ok=True)
+    logging.info(f"Starting resource monitor. GPU utilization will be written to Tensorboard in "
+                 f"{gpu_tensorboard}, aggregate metrics to {gpu_csv}")
+    resource_monitor = ResourceMonitor(interval_seconds=config.monitoring_interval_seconds,
+                                       tensorboard_folder=gpu_tensorboard,
+                                       csv_results_folder=gpu_csv)
+    resource_monitor.start()
+    return resource_monitor
+
+
+def model_train(config: DeepLearningConfig,
                 checkpoint_handler: CheckpointHandler,
+                lightning_container: Optional[LightningContainer] = None,
                 num_nodes: int = 1) -> ModelTrainingResults:
     """
     The main training loop. It creates the Pytorch model based on the configuration options passed in,
@@ -159,10 +177,18 @@ def model_train(config: ModelConfigBase,
     """
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
+    # The core InnerEye models do not rely on the LightningContainer infrastructure. For simplicity of code, build a
+    # fake container
+    if lightning_container is None:
+        lightning_container = InnerEyeContainer(config)
+        # When trying to store the config object in the constructor, it does not appear to get stored at all, later
+        # reference of the object simply fail. Hence, have to set explicitly here.
+        lightning_container.setup()
+        if is_rank_zero():
+            # Save the dataset files for later use in cross validation analysis
+            config.write_dataset_files()
     # This reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
     # for categorical features, that need to be available before creating the model.
-    # TODO antonsc
-    config.read_dataset_if_needed()
 
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
     # training in the unit tests.d
@@ -181,8 +207,6 @@ def model_train(config: ModelConfigBase,
     if is_rank_zero():
         config.write_args_file()
         logging.info(str(config))
-        # Save the dataset files for later use in cross validation analysis
-        config.write_dataset_files()
         logging.info(f"Model checkpoints are saved at {config.checkpoint_folder}")
 
         # set the random seed for all libraries
@@ -193,30 +217,20 @@ def model_train(config: ModelConfigBase,
             with logging_section("Visualizing the effect of sampling random crops for training"):
                 visualize_random_crops_for_dataset(config)
 
-        # Print out a detailed breakdown of layers, memory consumption and time.
-        generate_and_print_model_summary(config, lightning_model.model)
+        if isinstance(config, ModelConfigBase):
+            # Print out a detailed breakdown of layers, memory consumption and time.
+            # TODO antonsc: Can we do better here, and print a model summary for all models? Read the first item
+            # of the dataset and do forward propagation.
+            generate_and_print_model_summary(config, lightning_model.model)
 
         if config.monitoring_interval_seconds > 0:
-            # initialize and start GPU monitoring
-            gpu_tensorboard = config.logs_folder / "gpu_utilization"
-            # Result file in CSV format should NOT live in the logs folder, the streaming upload that is
-            # used for this folder might corrupt the file.
-            gpu_csv = config.outputs_folder / "gpu_utilization"
-            gpu_csv.mkdir(parents=True, exist_ok=True)
-            logging.info(f"Starting resource monitor. GPU utilization will be written to Tensorboard in "
-                         f"{gpu_tensorboard}, aggregate metrics to {gpu_csv}")
-            resource_monitor = ResourceMonitor(interval_seconds=config.monitoring_interval_seconds,
-                                               tensorboard_folder=gpu_tensorboard,
-                                               csv_results_folder=gpu_csv)
-            resource_monitor.start()
+            resource_monitor = start_resource_monitor(config)
 
     # Training loop
     logging.info("Starting training")
 
-    lightning_data = TrainingAndValidationDataLightning(config)  # type: ignore
-    # When trying to store the config object in the constructor, it does not appear to get stored at all, later
-    # reference of the object simply fail. Hence, have to set explicitly here.
-    lightning_data.config = config
+    lightning_data = lightning_container.get_training_data_module(crossval_index=config.cross_validation_split_index,
+                                                                  crossval_count=config.number_of_cross_validation_splits)
     trainer.fit(lightning_model, datamodule=lightning_data)
     trainer.logger.close()  # type: ignore
     # TODO antonsc

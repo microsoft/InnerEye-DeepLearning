@@ -18,6 +18,7 @@ from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.metrics import EpochTimers, MAX_ITEM_LOAD_TIME_SEC, store_epoch_metrics
 from InnerEye.ML.metrics_dict import DataframeLogger
@@ -25,7 +26,7 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
-from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
+from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed, validate_dataset_paths
 
 
 class TrainingAndValidationDataLightning(LightningDataModule):
@@ -49,6 +50,30 @@ class TrainingAndValidationDataLightning(LightningDataModule):
 
     def test_dataloader(self) -> DataLoader:  # type: ignore
         raise NotImplementedError("For segmentation models, the test dataset should not be evaluated patch-wise.")
+
+
+class InnerEyeContainer(LightningContainer):
+    """
+    A container that wraps the creation of Lightning datasets.
+    """
+    def __init__(self, config: ModelConfigBase):
+        super().__init__()
+        self.config = config
+
+    def setup(self) -> None:
+        """
+        Reads the dataset files and anything else that needs to happen before the datasets can be read out.
+        """
+        # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
+        # loaded (typically only during tests)
+        if self.config.dataset_data_frame is None:
+            assert self.config.local_dataset is not None
+            validate_dataset_paths(self.config.local_dataset)
+        self.config.read_dataset_if_needed()
+
+    def get_training_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:
+        return TrainingAndValidationDataLightning(self.config)
+
 
 
 class InnerEyeLightning(LightningModule):

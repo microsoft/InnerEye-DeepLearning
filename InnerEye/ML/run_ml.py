@@ -35,6 +35,7 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
     FINAL_MODEL_FOLDER, \
     ModelCategory, MultiprocessingStartMethod
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
@@ -118,6 +119,7 @@ class MLRunner:
 
     def __init__(self,
                  model_config: DeepLearningConfig,
+                 lightning_container: Optional[LightningContainer] = None,
                  azure_config: Optional[AzureConfig] = None,
                  project_root: Optional[Path] = None,
                  post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
@@ -136,6 +138,7 @@ class MLRunner:
         Model as arguments, and return an optional Path and a further object of any type.
         """
         self.model_config = model_config
+        self.lightning_container = lightning_container
         self.azure_config: AzureConfig = azure_config or AzureConfig()
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.post_cross_validation_hook = post_cross_validation_hook
@@ -239,16 +242,14 @@ class MLRunner:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
             self.model_config.local_dataset = self.mount_or_download_dataset()
-            # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
-            # loaded (typically only during tests)
-            if self.model_config.dataset_data_frame is None:
-                assert self.model_config.local_dataset is not None
-                ml_util.validate_dataset_paths(self.model_config.local_dataset)
 
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    model_train(self.model_config, checkpoint_handler, num_nodes=self.azure_config.num_nodes)
+                    model_train(self.model_config,
+                                checkpoint_handler,
+                                lightning_container=self.li
+                                num_nodes=self.azure_config.num_nodes)
             else:
                 self.model_config.write_dataset_files()
                 self.create_activation_maps()

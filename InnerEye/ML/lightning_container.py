@@ -2,8 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
-from pathlib import Path
 from typing import Any, Dict, Iterator
 
 import torch
@@ -155,7 +153,7 @@ class LightningContainer:
     def create_lightning_module(self) -> LightningWithInference:
         pass
 
-    def get_training_data_module(self, cross_validation_split_index: int, crossval_count: int) -> LightningDataModule:
+    def get_training_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:
         """
         Gets the data that is used for the training and validation steps.
         This should read a dataset from the self.local_dataset folder, but its format is up to this method here.
@@ -165,7 +163,7 @@ class LightningContainer:
         """
         pass
 
-    def get_inference_data_module(self, cross_validation_split_index: int, crossval_count: int) -> LightningDataModule:
+    def get_inference_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:
         """
         Gets the data that is used for the inference after training. By default, this returns the value
         of get_training_data_module, but you can override this to get for example full image datasets for
@@ -176,8 +174,7 @@ class LightningContainer:
         """
         # You can override this if inference uses different data, for example segmentation models use
         # full images rather than equal sized crops.
-        return self.get_training_data_module(cross_validation_split_index=cross_validation_split_index,
-                                             crossval_count=crossval_count)
+        return self.get_training_data_module(crossval_index=crossval_index, crossval_count=crossval_count)
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
         """
