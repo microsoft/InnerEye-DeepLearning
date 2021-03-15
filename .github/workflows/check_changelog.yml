@@ -31,9 +31,15 @@ jobs:
               echo "Changelog has been modified, but does not contain a hyperlink the present PR."
               echo "Make sure that there is a changelog entry that links to the present PR."
               echo "If no changelog entry is required for this PR, label the PR with 'no changelog needed'."
+              echo "You will need to push another commit to disable this check after adding the label, "
+              echo "re-running the github action will simply cause it to fail again"
+              exit 1
             fi
           else
             echo "Each PR needs to summarize the changes in CHANGELOG.md, but this PR does not make any"
             echo "changes to that file. The changelog entry must contain a hyperlink to the present PR."
             echo "If no changelog entry is required for this PR, label the PR with 'no changelog needed'."
+            echo "You will need to push another commit to disable this check after adding the label, "
+            echo "re-running the github action will simply cause it to fail again"
+            exit 1
           fi
