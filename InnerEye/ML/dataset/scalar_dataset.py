@@ -28,7 +28,6 @@ from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.features_util import FeatureStatistics
 from InnerEye.ML.utils.transforms import Compose3D, Transform3D
 
-
 T = TypeVar('T', bound=ScalarDataSource)
 
 
@@ -167,8 +166,8 @@ def load_single_data_source(subject_rows: pd.DataFrame,
     additional scalar values should be read from. THe keys should map each feature to its channels.
     :param numerical_columns: The names of all columns where additional scalar values should be read from.
     :param categorical_data_encoder: Encoding scheme for categorical data.
-    :param is_classification_dataset: If the current dataset is classification or not.
-    from.
+    :param is_classification_dataset: If True, the dataset will be used in a classification model. If False,
+    assume that the dataset will be used in a regression model.
     :param transform_labels: a label transformation or a list of label transformation to apply to the labels.
     If a list is provided, the transformations are applied in order from left to right.
     :param sequence_position_numeric: Numeric position of the data source in a data sequence. Assumed to be
@@ -330,7 +329,7 @@ class DataSourceReader(Generic[T]):
         :param subject_column: The name of the column that contains the subject identifier
         :param channel_column: The name of the column that contains the row identifier ("channels")
         that are expected to be loaded from disk later because they are large images.
-        :param is_classification_dataset: If the current dataset is classification or not from.
+        :param is_classification_dataset: If the current dataset is classification or not.
         :param categorical_data_encoder: Encoding scheme for categorical data.
         """
         self.categorical_data_encoder = categorical_data_encoder

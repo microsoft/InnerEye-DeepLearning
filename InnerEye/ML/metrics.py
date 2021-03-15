@@ -331,13 +331,16 @@ def store_epoch_metrics(metrics: DictStrFloat,
                         epoch: int,
                         file_logger: DataframeLogger) -> None:
     """
-    Writes all metrics into a CSV file, with an additional columns for epoch number.
+    Writes all metrics (apart from ones that measure run time) into a CSV file,
+    with an additional columns for epoch number.
     :param file_logger: An instance of DataframeLogger, for logging results to csv.
     :param epoch: The epoch corresponding to the results.
     :param metrics: The metrics of the specified epoch, averaged along its batches.
     """
     logger_row = {}
     for key, value in metrics.items():
+        if key == MetricType.SECONDS_PER_BATCH.value or key == MetricType.SECONDS_PER_EPOCH.value:
+            continue
         if key in INTERNAL_TO_LOGGING_COLUMN_NAMES.keys():
             logger_row[INTERNAL_TO_LOGGING_COLUMN_NAMES[key].value] = value
         else:
