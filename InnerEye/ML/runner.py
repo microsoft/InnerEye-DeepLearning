@@ -227,8 +227,11 @@ class Runner:
         """
         # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
         logging.getLogger('adal-python').setLevel(logging.WARNING)
-        if not self.model_config.azure_dataset_id:
-            raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
+        if self.lightning_container is None:
+            # When bringing in Lightning modules, we want to be more flexible, and run them even without an
+            # Azure dataset, because they may come with their own dataset downloading code.
+            if not self.model_config.azure_dataset_id:
+                raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
@@ -238,7 +241,6 @@ class Runner:
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
-        assert self.model_config.azure_dataset_id is not None  # to stop mypy complaining about next line
         azure_run = submit_to_azureml(self.azure_config, source_config, self.model_config.azure_dataset_id)
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark:

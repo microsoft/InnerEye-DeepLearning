@@ -13,12 +13,13 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout, namespace_to_path
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_training import generate_and_print_model_summary
 from InnerEye.ML.runner import Runner
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.configs.lightning_container_123 import DummyLightningContainer
+from Tests.ML.configs.lightning_containers import DummyContainerWithLocalDataset
 from Tests.ML.util import get_model_loader
 
 
@@ -125,7 +126,11 @@ def test_config_loader_on_lightning_container() -> None:
     assert model is not None
 
 
-def test_submit_container_to_azureml() -> None:
+@pytest.mark.parametrize("container_name", ["DummyContainerWithAzureDataset",
+                                            "DummyContainerWithoutDataset",
+                                            "DummyContainerWithLocalDataset",
+                                            "DummyContainerWithAzureAndLocalDataset"])
+def test_submit_container_to_azureml(container_name: str) -> None:
     """
     Test if we can get the config loader to load a Lightning container model, and get it through the AzureML
     submission process.
@@ -133,14 +138,14 @@ def test_submit_container_to_azureml() -> None:
     runner = Runner(project_root=fixed_paths.repository_root_directory(),
                     yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
     mock_run = Run.get_context()
-    args = ["", "--model=DummyLightningContainer", "--azureml=True", "--model_configs_namespace=Tests.ML.configs"]
+    args = ["", f"--model={container_name}", "--azureml=True", "--model_configs_namespace=Tests.ML.configs"]
     with mock.patch("sys.argv", args):
         with mock.patch("InnerEye.Azure.azure_runner.get_dataset_consumption", return_value=None):
             with mock.patch("azureml.core.Experiment.submit", return_value=mock_run):
                 loaded_config, actual_run = runner.run()
     assert actual_run == mock_run
     assert isinstance(loaded_config, DeepLearningConfig)
-    assert isinstance(runner.lightning_container, DummyLightningContainer)
+    assert isinstance(runner.lightning_container, LightningContainer)
 
 
 def test_run_container_in_situ() -> None:
@@ -149,8 +154,8 @@ def test_run_container_in_situ() -> None:
     """
     runner = Runner(project_root=fixed_paths.repository_root_directory(),
                     yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
-    args = ["", "--model=DummyLightningContainer", "--model_configs_namespace=Tests.ML.configs"]
+    args = ["", "--model=DummyContainerWithLocalDataset", "--model_configs_namespace=Tests.ML.configs"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = runner.run()
     assert actual_run is None
-    assert isinstance(loaded_config, DummyLightningContainer)
+    assert isinstance(runner.lightning_container, DummyContainerWithLocalDataset)
