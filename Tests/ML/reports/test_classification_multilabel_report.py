@@ -16,6 +16,7 @@ from InnerEye.ML.reports.classification_multilabel_report import get_dataframe_w
     get_labels_and_predictions_for_prediction_target_set, get_unique_prediction_target_combinations
 from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook
 from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 
 
@@ -124,65 +125,47 @@ def test_get_pseudo_labels_and_predictions_multiple_hues(test_output_dirs: Outpu
 
 def test_generate_pseudo_labels() -> None:
 
-    csv = StringIO("prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split\n"
-                   "Hue1,0,0,0.5,1,-1,Test\n"
-                   "Hue2,0,0,0.6,1,-1,Test\n"
-                   "Hue3,0,0,0.3,0,-1,Test\n"
-                   "Hue1,0,1,0.5,1,-1,Test\n"
-                   "Hue2,0,1,0.6,1,-1,Test\n"
-                   "Hue3,0,1,0.5,1,-1,Test\n"
-                   "Hue1,0,2,0.5,1,-1,Test\n"
-                   "Hue2,0,2,0.6,1,-1,Test\n"
-                   "Hue3,0,2,0.5,0,-1,Test\n"
-                   "Hue1,0,3,0.5,1,-1,Test\n"
-                   "Hue2,0,3,0.6,1,-1,Test\n"
-                   "Hue3,0,3,0.3,1,-1,Test\n"
-                   )
+    metrics_df = pd.DataFrame.from_dict({"prediction_target": ["Hue1", "Hue2", "Hue3"] * 4,
+                                         "epoch": [0] * 12,
+                                         "subject": [i for i in range(4) for _ in range(3)],
+                                         "model_output": [0.5, 0.6, 0.3, 0.5, 0.6, 0.5, 0.5, 0.6, 0.5, 0.5, 0.6, 0.3],
+                                         "label": [1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+                                         "cross_validation_split_index": [DEFAULT_CROSS_VALIDATION_SPLIT_INDEX] * 12,
+                                         "data_split": [ModelExecutionMode.TEST.value] * 12
+                                         })
 
-    expected_csv = StringIO("prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split\n"
-                            "Hue1|Hue2,0,0,1,1,-1,Test\n"
-                            "Hue1|Hue2,0,1,0,0,-1,Test\n"
-                            "Hue1|Hue2,0,2,0,1,-1,Test\n"
-                            "Hue1|Hue2,0,3,1,0,-1,Test\n"
-                            )
+    expected_df = pd.DataFrame.from_dict({"subject": list(range(4)),
+                                          "model_output": [1, 0, 0, 1],
+                                          "label": [1, 0, 1, 0],
+                                          "prediction_target": ["Hue1|Hue2"] * 4})
 
-    df = get_dataframe_with_exact_label_matches(csv=csv,  # type: ignore
+    df = get_dataframe_with_exact_label_matches(metrics_df=metrics_df,
                                                 prediction_target_set_to_match=["Hue1", "Hue2"],
                                                 all_prediction_targets=["Hue1", "Hue2", "Hue3"],
                                                 thresholds_per_prediction_target=[0.4, 0.5, 0.4])
-    expected_df = pd.read_csv(expected_csv)
     assert expected_df.equals(df)
 
 
 def test_generate_pseudo_labels_negative_class() -> None:
 
-    csv = StringIO("prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split\n"
-                   "Hue1,0,0,0.2,0,-1,Test\n"
-                   "Hue2,0,0,0.3,0,-1,Test\n"
-                   "Hue3,0,0,0.2,0,-1,Test\n"
-                   "Hue1,0,1,0.5,0,-1,Test\n"
-                   "Hue2,0,1,0.6,0,-1,Test\n"
-                   "Hue3,0,1,0.5,0,-1,Test\n"
-                   "Hue1,0,2,0.5,1,-1,Test\n"
-                   "Hue2,0,2,0.6,1,-1,Test\n"
-                   "Hue3,0,2,0.5,0,-1,Test\n"
-                   "Hue1,0,3,0.2,1,-1,Test\n"
-                   "Hue2,0,3,0.3,1,-1,Test\n"
-                   "Hue3,0,3,0.2,1,-1,Test\n"
-                   )
+    metrics_df = pd.DataFrame.from_dict({"prediction_target": ["Hue1", "Hue2", "Hue3"] * 4,
+                                         "epoch": [0] * 12,
+                                         "subject": [i for i in range(4) for _ in range(3)],
+                                         "model_output": [0.2, 0.3, 0.2, 0.5, 0.6, 0.5, 0.5, 0.6, 0.5, 0.2, 0.3, 0.2],
+                                         "label": [0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1],
+                                         "cross_validation_split_index": [DEFAULT_CROSS_VALIDATION_SPLIT_INDEX] * 12,
+                                         "data_split": [ModelExecutionMode.TEST.value] * 12
+                                         })
 
-    expected_csv = StringIO("prediction_target,epoch,subject,model_output,label,cross_validation_split_index,data_split\n"
-                            ",0,0,1,1,-1,Test\n"
-                            ",0,1,0,1,-1,Test\n"
-                            ",0,2,0,0,-1,Test\n"
-                            ",0,3,1,0,-1,Test\n"
-                            )
+    expected_df = pd.DataFrame.from_dict({"subject": list(range(4)),
+                                          "model_output": [1, 0, 0, 1],
+                                          "label": [1, 1, 0, 0],
+                                          "prediction_target": [""] * 4})
 
-    df = get_dataframe_with_exact_label_matches(csv=csv,  # type: ignore
+    df = get_dataframe_with_exact_label_matches(metrics_df=metrics_df,
                                                 prediction_target_set_to_match=[],
                                                 all_prediction_targets=["Hue1", "Hue2", "Hue3"],
                                                 thresholds_per_prediction_target=[0.4, 0.5, 0.4])
-    expected_df = pd.read_csv(expected_csv, keep_default_na=False)
     assert expected_df.equals(df)
 
 
