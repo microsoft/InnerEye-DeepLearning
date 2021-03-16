@@ -7,7 +7,12 @@ import sys
 from pathlib import Path
 
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.lightning_container import LightningContainer
+
+try:
+    from InnerEye.ML.lightning_container import LightningContainer
+    has_torch = True
+except ModuleNotFoundError as ex:
+    has_torch = False
 
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
@@ -135,7 +140,8 @@ class Runner:
         # parsed.
         self.model_config: DeepLearningConfig = DeepLearningConfig(azure_dataset_id="")
         self.azure_config: AzureConfig = AzureConfig()
-        self.lightning_container: Optional[LightningContainer] = None
+        # This should be LightningContainer, but we don't always have that imported
+        self.lightning_container: Any = None
 
     def parse_and_load_model(self) -> Optional[ParserResult]:
         """
@@ -161,7 +167,7 @@ class Runner:
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser1_result.args)
         # Create the model as per the "model" commandline option
         config_or_container = model_config_loader.create_model_config_from_name(model_name=azure_config.model)
-        if isinstance(config_or_container, LightningContainer):
+        if has_torch and isinstance(config_or_container, LightningContainer):
             # Create the actual Lightning module, and store it for later use in the container, too
             lightning_module = config_or_container.create_lightning_module()
             config_or_container.lightning_module = lightning_module
