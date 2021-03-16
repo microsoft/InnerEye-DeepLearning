@@ -127,7 +127,6 @@ def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase) 
         plot_pr_and_roc_curves(metrics)
 
 
-
 def get_metric(val_labels_and_predictions: LabelsAndPredictions,
                test_labels_and_predictions: LabelsAndPredictions,
                metric: ReportedMetrics,
