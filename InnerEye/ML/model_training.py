@@ -6,7 +6,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional, Tuple, TypeVar
+from typing import Any, Dict, Optional, Tuple, TypeVar
 
 import torch
 from pytorch_lightning import Trainer, seed_everything
@@ -65,7 +65,9 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
 
 def create_lightning_trainer(config: DeepLearningConfig,
                              resume_from_checkpoint: Optional[Path] = None,
-                             num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
+                             num_nodes: int = 1,
+                             **kwargs: Dict[str, Any]) -> \
+        Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
     and loggers. That includes a diagnostic logger for use in unit tests, that is also returned as the second
@@ -73,6 +75,7 @@ def create_lightning_trainer(config: DeepLearningConfig,
     :param config: The model configuration.
     :param resume_from_checkpoint: If provided, training resumes from this checkpoint point.
     :param num_nodes: The number of nodes to use in distributed training.
+    :param kwargs: Any additional keyowrd arguments will be passed to the constructor of Trainer.
     :return: A tuple [Trainer object, diagnostic logger]
     """
     # For now, stick with the legacy behaviour of always saving only the last epoch checkpoint. For large segmentation
@@ -106,14 +109,6 @@ def create_lightning_trainer(config: DeepLearningConfig,
     storing_logger = StoringLogger()
     tensorboard_logger = TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")
     loggers = [storing_logger, tensorboard_logger, AzureMLLogger()]
-    # This leads to problems with run termination.
-    # if not is_offline_run_context(RUN_CONTEXT):
-    #     mlflow_logger = MLFlowLogger(experiment_name=RUN_CONTEXT.experiment.name,
-    #                                  tracking_uri=RUN_CONTEXT.experiment.workspace.get_mlflow_tracking_uri())
-    #     # The MLFlow logger needs to get its ID from the AzureML run context, otherwise there will be two sets of
-    #     # results for each run, one from native AzureML and one from the MLFlow logger.
-    #     mlflow_logger._run_id = RUN_CONTEXT.id
-    #     loggers.append(mlflow_logger)
     # Use 32bit precision when running on CPU. Otherwise, make it depend on use_mixed_precision flag.
     precision = 32 if num_gpus == 0 else 16 if config.use_mixed_precision else 32
     # The next two flags control the settings in torch.backends.cudnn.deterministic and torch.backends.cudnn.benchmark
@@ -142,8 +137,8 @@ def create_lightning_trainer(config: DeepLearningConfig,
                       precision=precision,
                       sync_batchnorm=True,
                       terminate_on_nan=config.detect_anomaly,
-                      resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None
-                      )
+                      resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
+                      **kwargs)
     return trainer, storing_logger
 
 
@@ -183,11 +178,11 @@ def model_train(config: DeepLearningConfig,
         assert isinstance(config, ModelConfigBase), "When using a built-in InnerEye model, the configuration should " \
                                                     "be an instance of ModelConfigBase"
         lightning_container = InnerEyeContainer(config)
-        # When trying to store the config object in the constructor, it does not appear to get stored at all, later
-        # reference of the object simply fail. Hence, have to set explicitly here.
         lightning_container.setup()
         if is_rank_zero():
             # Save the dataset files for later use in cross validation analysis
+            # TODO antonsc: Should we move that into TrainAndValidationDataLightning? The .prepare method
+            # of a data module is called only on rank zero
             config.write_dataset_files()
         lightning_model = create_lightning_model(config)
     else:
@@ -200,7 +195,10 @@ def model_train(config: DeepLearningConfig,
     # training in the unit tests.d
     old_environ = dict(os.environ)
     seed_everything(config.get_effective_random_seed())
-    trainer, storing_logger = create_lightning_trainer(config, checkpoint_path, num_nodes=num_nodes)
+    trainer, storing_logger = create_lightning_trainer(config,
+                                                       checkpoint_path,
+                                                       num_nodes=num_nodes,
+                                                       **lightning_container.get_trainer_arguments())
 
     logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
                  f"trainer.global_rank: {trainer.global_rank}")
@@ -240,7 +238,6 @@ def model_train(config: DeepLearningConfig,
     trainer.logger.close()  # type: ignore
     lightning_model.close_all_loggers()
     world_size = getattr(trainer, "world_size", 0)
-    # TODO antonsc
     is_azureml_run = not config.is_offline_run
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
     # Each thread per rank will come here, and upload its files to the run outputs. Rank 0 will later download them.

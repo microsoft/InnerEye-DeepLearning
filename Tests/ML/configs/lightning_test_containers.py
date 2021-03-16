@@ -14,39 +14,35 @@ from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 
 
-class DummyContainerWithAzureDataset(LightningContainer):
-    def __init__(self):
+class DummyContainerWithDatasets(LightningContainer):
+    def __init__(self, has_local_dataset: bool = False, has_azure_dataset: bool = False):
         super().__init__()
+        self.has_local_dataset = has_local_dataset
+        self.has_azure_dataset = has_azure_dataset
 
     def create_lightning_module(self) -> LightningWithInference:
-        local_dataset = full_ml_test_data_path("lightning_module_data")
-        return LightningWithInference(azure_dataset_id="azure_dataset", local_dataset=local_dataset)
+        local_dataset = full_ml_test_data_path("lightning_module_data") if self.has_local_dataset else None
+        azure_dataset = "azure_dataset" if self.has_local_dataset else ""
+        return LightningWithInference(azure_dataset_id=azure_dataset, local_dataset=local_dataset)
 
 
-class DummyContainerWithoutDataset(LightningContainer):
+class DummyContainerWithAzureDataset(DummyContainerWithDatasets):
     def __init__(self):
-        super().__init__()
-
-    def create_lightning_module(self) -> LightningWithInference:
-        return LightningWithInference()
+        super().__init__(has_azure_dataset=True)
 
 
-class DummyContainerWithLocalDataset(LightningContainer):
+class DummyContainerWithoutDataset(DummyContainerWithDatasets):
+    pass
+
+
+class DummyContainerWithLocalDataset(DummyContainerWithDatasets):
     def __init__(self):
-        super().__init__()
-
-    def create_lightning_module(self) -> LightningWithInference:
-        local_dataset = full_ml_test_data_path("lightning_module_data")
-        return LightningWithInference(local_dataset=local_dataset)
+        super().__init__(has_local_dataset=True)
 
 
-class DummyContainerWithAzureAndLocalDataset(LightningContainer):
+class DummyContainerWithAzureAndLocalDataset(DummyContainerWithDatasets):
     def __init__(self):
-        super().__init__()
-
-    def create_lightning_module(self) -> LightningWithInference:
-        local_dataset = full_ml_test_data_path("lightning_module_data")
-        return LightningWithInference(azure_dataset_id="azure_dataset", local_dataset=local_dataset)
+        super().__init__(has_local_dataset=True, has_azure_dataset=True)
 
 
 class DummyRegression(LightningWithInference):
@@ -102,11 +98,13 @@ class FixedRegressionData(LightningDataModule):
 
 
 class DummyContainerWithModel(LightningContainer):
-    def __init__(self):
-        super().__init__()
-
     def create_lightning_module(self) -> LightningWithInference:
         return DummyRegression()
 
     def get_training_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:
         return FixedRegressionData()
+
+
+class DummyContainerWithInvalidTrainerArguments(DummyContainerWithModel):
+    def get_trainer_arguments(self):
+        return {"no_such_argument": 1}

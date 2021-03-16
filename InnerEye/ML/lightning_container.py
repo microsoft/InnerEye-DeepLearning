@@ -158,6 +158,9 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
         """
         return None
 
+    def trainer_hook(self, trainer) -> None:
+        pass
+
 
 class LightningContainer:
 

@@ -34,7 +34,7 @@ class TrainingAndValidationDataLightning(LightningDataModule):
     A class that wraps training and validation data from an InnerEye model configuration to a Lightning data module.
     """
 
-    def _init__(self, config: ModelConfigBase) -> None:
+    def __init__(self, config: ModelConfigBase) -> None:
         super().__init__()
         self.config = config
         self.data_loaders: Dict[ModelExecutionMode, DataLoader] = {}
@@ -68,7 +68,7 @@ class InnerEyeContainer(LightningContainer):
         # loaded (typically only during tests)
         if self.config.dataset_data_frame is None:
             assert self.config.local_dataset is not None
-            validate_dataset_paths(self.config.local_dataset)
+            validate_dataset_paths(self.config.local_dataset, self.config.dataset_csv)
         self.config.read_dataset_if_needed()
 
     def get_training_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:

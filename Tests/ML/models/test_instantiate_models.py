@@ -11,16 +11,18 @@ from azureml.core import Run
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout, namespace_to_path
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.lightning_container import LightningContainer
-from InnerEye.ML.model_training import generate_and_print_model_summary
+from InnerEye.ML.model_training import generate_and_print_model_summary, model_train
 from InnerEye.ML.runner import Runner
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
-from Tests.ML.util import get_model_loader
+from Tests.ML.configs.lightning_test_containers import DummyContainerWithInvalidTrainerArguments, \
+    DummyContainerWithModel
+from Tests.ML.util import get_default_checkpoint_handler, get_model_loader
 
 
 def find_models() -> List[str]:
@@ -159,3 +161,14 @@ def test_run_container_in_situ() -> None:
         loaded_config, actual_run = runner.run()
     assert actual_run is None
     assert isinstance(runner.lightning_container, DummyContainerWithModel)
+
+
+def test_run_model_with_invalid_trainer_arguments(test_output_dirs: OutputFolderForTests) -> None:
+    container = DummyContainerWithInvalidTrainerArguments()
+    config = container.create_lightning_module()
+    container.lightning_module = config
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
+    with pytest.raises(Exception) as ex:
+        model_train(container.lightning_module, checkpoint_handler=checkpoint_handler, lightning_container=container)
+    assert "no_such_argument" in str(ex)
