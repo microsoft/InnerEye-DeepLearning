@@ -21,7 +21,7 @@ from pandas import DataFrame
 from InnerEye.Common.common_util import any_pairwise_larger, any_smaller_or_equal_than, check_is_any_of
 from InnerEye.Common.generic_parsing import IntTuple
 from InnerEye.Common.type_annotations import TupleFloat2, TupleFloat3, TupleInt3, TupleStringOptionalFloat
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.split_dataset import DatasetSplits
@@ -651,10 +651,10 @@ class SegmentationModelBase(ModelConfigBase):
 
     def read_dataset_into_dataframe_and_pre_process(self) -> None:
         """
-        Loads a dataset from the dataset.csv file, and stores it in the present object.
+        Loads a dataset from the dataset_csv file, and stores it in the present object.
         """
         assert self.local_dataset is not None  # for mypy
-        self.dataset_data_frame = pd.read_csv(self.local_dataset / DATASET_CSV_FILE_NAME,
+        self.dataset_data_frame = pd.read_csv(self.local_dataset / self.dataset_csv,
                                               dtype=str,
                                               converters=self.col_type_converters,
                                               low_memory=False)

@@ -168,15 +168,15 @@ def test_classification_metrics() -> None:
     metrics = classification_module._get_metrics_computers()
     logits = [torch.tensor([2.1972, 1.3863, 0.4055]), torch.tensor([-0.8473, 2.1972, -0.4055])]
     posteriors = [torch.sigmoid(logit) for logit in logits]
-    labels = [torch.tensor([1., 1., 0.]), torch.tensor([0., 0., 0.])]
+    labels = [torch.tensor([1, 1, 0]), torch.tensor([0, 0, 0])]
     for logit, posterior, label in zip(logits, posteriors, labels):
         for metric in metrics:
             if isinstance(metric, ScalarMetricsBase) and metric.compute_from_logits:
                 metric.update(logit, label)
             else:
                 metric.update(posterior, label)
-    accuracy_05, accuracy_opt, threshold, fpr, fnr, roc_auc, pr_auc, cross_entropy_with_logits = [metric.compute() for metric in
-                                                                                      metrics]
+    accuracy_05, accuracy_opt, threshold, fpr, fnr, roc_auc, pr_auc, cross_entropy_with_logits = \
+        [metric.compute() for metric in metrics]
     all_labels = torch.cat(labels).numpy()
     all_posteriors = torch.cat(posteriors).numpy()
     expected_accuracy_at_05 = np.mean((all_posteriors > 0.5) == all_labels)
@@ -237,8 +237,7 @@ def test_average_without_nan() -> None:
     # Return value is a scalar, but should be a tensor
     assert torch.is_tensor(actual1)
     assert actual1 == expected
-    # .compute() has a special wrapper that calls .reset() right after calling .compute(). Hence, now it seems
-    # that the average has not seen any values
+    average.reset()
     assert average.count == 0
     # Store the same set of values twice, we should still see the same mean
     average.update(torch.tensor(values))
@@ -252,6 +251,7 @@ def test_average_without_nan() -> None:
     # This is a weird side effect of Lightning's way of caching metric results. As long as we don't call
     # .update, the last computed value will be kept and returned, even though we have called .reset() already.
     assert average.compute() == expected
+    average.reset()
     # Update with a tensor that does not contain any values: Can't compute the average then.
     average.update(torch.zeros((0,)))
     with pytest.raises(ValueError) as ex:

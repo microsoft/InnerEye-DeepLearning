@@ -1,0 +1,45 @@
+name: Check Changelog
+
+# This check ensures that CHANGELOG.md is modified in each PR, and contains a hyperlink to the present PR.
+# To bypass this check, label the PR with "no changelog needed".
+
+on:
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog needed') == 0 }}
+    steps:
+      - name: Get PR number
+        run: |
+          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Check the changelog
+        run: |
+          set -e
+          git config --global core.whitespace cr-at-eol
+          changed_files=$(git diff --name-only origin/main)
+          if [[ "$changed_files" =~ CHANGELOG\.md ]]
+          then
+            changelog=$(cat ./CHANGELOG.md)
+            if [[ "$changelog" =~ https://github\.com/microsoft/InnerEye-DeepLearning/pull/$PR_NUMBER ]]
+            then
+              echo "Changelog has been updated and contains the PR number."
+            else
+              echo "Changelog has been modified, but does not contain a hyperlink the present PR."
+              echo "Make sure that there is a changelog entry that links to the present PR."
+              echo "If no changelog entry is required for this PR, label the PR with 'no changelog needed'."
+              echo "You will need to push another commit to disable this check after adding the label, "
+              echo "re-running the github action will simply cause it to fail again"
+              exit 1
+            fi
+          else
+            echo "Each PR needs to summarize the changes in CHANGELOG.md, but this PR does not make any"
+            echo "changes to that file. The changelog entry must contain a hyperlink to the present PR."
+            echo "If no changelog entry is required for this PR, label the PR with 'no changelog needed'."
+            echo "You will need to push another commit to disable this check after adding the label, "
+            echo "re-running the github action will simply cause it to fail again"
+            exit 1
+          fi

@@ -14,7 +14,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, OneHotEncoderBase
+from InnerEye.ML.common import ModelExecutionMode, OneHotEncoderBase
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.metrics_dict import MetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
@@ -124,8 +124,7 @@ class ScalarModelBase(ModelConfigBase):
     image_file_column: Optional[str] = param.String(default=None, allow_None=True,
                                                     doc="The column that contains the path to image files.")
     expected_column_values: List[Tuple[str, str]] = \
-        param.List(default=None, doc="List of tuples with column name and expected value to filter rows in the "
-                                     f"{DATASET_CSV_FILE_NAME}",
+        param.List(default=None, doc="List of tuples with column name and expected value to filter rows in the dataset csv file",
                    allow_None=True)
     label_channels: Optional[List[str]] = \
         param.List(default=None, allow_None=True,
@@ -343,7 +342,7 @@ class ScalarModelBase(ModelConfigBase):
 
     def read_dataset_into_dataframe_and_pre_process(self) -> None:
         assert self.local_dataset is not None
-        file_path = self.local_dataset / DATASET_CSV_FILE_NAME
+        file_path = self.local_dataset / self.dataset_csv
         self.dataset_data_frame = pd.read_csv(file_path, dtype=str, low_memory=False)
         self.pre_process_dataset_dataframe()
 
