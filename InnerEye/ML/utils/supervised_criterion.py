@@ -60,6 +60,17 @@ class BinaryCrossEntropyWithLogitsLoss(SupervisedLearningCriterion):
                  class_counts: Optional[Dict[float, int]] = None,
                  num_train_samples: Optional[int] = None,
                  **kwargs: Any):
+        """
+        :param num_classes: The number of classes the model predicts. For binary classification num_classes is one
+                            and for multi-label classification tasks num_classes will be greater than one.
+                            Note that in multi-label tasks, the negative class (all other ground truth classes being
+                            false for a sample) should not be considered a separate class.
+        :param class_counts: The number of positive samples for each class. class_counts is a dictionary with key-value
+                             pairs corresponding to each class and the positive sample count for the class.
+                             For binary classification tasks, class_counts should have a single key-value pair
+                             for the positive class.
+        :param num_train_samples: The total number of training samples in the dataset.
+        """
         super().__init__(is_binary_classification=True, **kwargs)
         if class_counts and not num_train_samples:
             raise ValueError("Need to specify the num_train_samples with class_counts")
@@ -85,6 +96,10 @@ class BinaryCrossEntropyWithLogitsLoss(SupervisedLearningCriterion):
             raise ValueError(f"Have {self.num_classes} classes but got counts for {len(self._class_counts)} classes "
                              f"Note: If this is a binary classification task, there should be a single class count "
                              f"corresponding to the positive class.")
+        # These weights are given to the pos_weight parameter of Pytorch's BCEWithLogitsLoss.
+        # Weights are calculated as (number of negative samples for class 'i')/(number of positive samples for class 'i')
+        # for every class 'i' in a binary/multi-label classification task.
+        # For a binary classification task, this reduces to (number of false samples / number of true samples).
         weights = [(self._num_train_samples - value) / value if value != 0 else 1.0 for (key, value) in
                    sorted(self._class_counts.items())]  # Uses the first number on the tuple to compare
         return torch.tensor(weights, dtype=torch.float32)
