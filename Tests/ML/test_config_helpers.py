@@ -2,16 +2,19 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import List, Optional
+from pathlib import Path
+from typing import List, Optional, Union
 
 import pytest
 import torch
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.utils import ml_util
 from Tests.ML.configs.DummyModel import DummyModel
 
 
@@ -151,3 +154,53 @@ def test_dataset_reader_workers() -> None:
         assert config.num_dataset_reader_workers == -1
     else:
         assert config.num_dataset_reader_workers == 0
+
+
+def create_dataset_csv(test_output_dirs: OutputFolderForTests) -> Path:
+    """Create dummy dataset csv file for tests,
+    deleting any pre-existing file."""
+    test_csv = "test_dataset.csv"
+    root_dir = test_output_dirs.root_dir
+    dataset_csv_path = root_dir / test_csv
+    if dataset_csv_path.exists():
+        dataset_csv_path.unlink()
+    dataset_csv_path.write_text("""subject,channel,filePath""")
+    return dataset_csv_path
+
+
+def validate_dataset_paths(
+        model_config: Union[ScalarModelBase, SegmentationModelBase]) -> None:
+    """Check that validation of dataset paths is succeeds when csv file exists,
+    and fails when it's missing."""
+    assert model_config.local_dataset is not None
+    ml_util.validate_dataset_paths(model_config.local_dataset, model_config.dataset_csv)
+
+    dataset_csv_path = model_config.local_dataset / model_config.dataset_csv
+    dataset_csv_path.unlink()
+
+    ex_message = f"The dataset file {model_config.dataset_csv} is not present"
+    with pytest.raises(ValueError) as ex:
+        ml_util.validate_dataset_paths(model_config.local_dataset, model_config.dataset_csv)
+    assert ex_message in str(ex)
+
+
+def test_dataset_csv_with_SegmentationModelBase(
+        test_output_dirs: OutputFolderForTests) -> None:
+    dataset_csv_path = create_dataset_csv(test_output_dirs)
+    model_config = SegmentationModelBase(should_validate=False)
+    model_config.local_dataset = dataset_csv_path.parent
+    model_config.dataset_csv = dataset_csv_path.name
+    dataframe = model_config.read_dataset_if_needed()
+    assert dataframe is not None
+    validate_dataset_paths(model_config)
+
+
+def test_dataset_csv_with_ScalarModelBase(
+        test_output_dirs: OutputFolderForTests) -> None:
+    dataset_csv_path = create_dataset_csv(test_output_dirs)
+    model_config = ScalarModelBase(should_validate=False)
+    model_config.local_dataset = dataset_csv_path.parent
+    model_config.dataset_csv = dataset_csv_path.name
+    model_config.read_dataset_into_dataframe_and_pre_process()
+    assert model_config.dataset_data_frame is not None
+    validate_dataset_paths(model_config)

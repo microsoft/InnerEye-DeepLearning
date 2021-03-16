@@ -19,6 +19,9 @@ created.
     result will then be converted to a DICOM-RT file, zipped and stored as `result_zip_dicom_name`. 
     ([#366](https://github.com/microsoft/InnerEye-DeepLearning/pull/366)) and ([#407](https://github.com/microsoft/InnerEye-DeepLearning/pull/407))
 - Add a github action chat checks if `CHANGELOG.md` has been modified ([#416](https://github.com/microsoft/InnerEye-DeepLearning/pull/416))
+- Dataset files can now have arbitrary names, and are no longer restricted to be called
+  `dataset.csv`, via the config field `dataset_csv`. This allows to have a single set of image files in a folder, but 
+  multiple datasets derived from it ([#412](https://github.com/microsoft/InnerEye-DeepLearning/pull/412))  
 
 ### Changed
 - Starting an AzureML run now uses the `ScriptRunConfig` object, rather than the deprecated `Estimator` object ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385))

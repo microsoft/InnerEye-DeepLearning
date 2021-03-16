@@ -30,7 +30,7 @@ from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WI
     OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
     get_epoch_results_path, is_windows, logging_section, print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
     FINAL_MODEL_FOLDER, \
@@ -66,15 +66,17 @@ def try_to_mount_input_dataset() -> Optional[Path]:
 
 def download_dataset(azure_dataset_id: str,
                      target_folder: Path,
+                     dataset_csv: str,
                      azure_config: AzureConfig) -> Path:
     """
     Downloads or checks for an existing dataset on the executing machine. If a local_dataset is supplied and the
     directory is present, return that. Otherwise, download the dataset specified by the azure_dataset_id from the
     AzureML dataset attached to the given AzureML workspace. The dataset is downloaded into the `target_folder`,
     in a subfolder that has the same name as the dataset. If there already appears to be such a folder, and the folder
-    contains a dataset.csv file, no download is started.
+    contains a dataset csv file, no download is started.
     :param azure_dataset_id: The name of a dataset that is registered in the AzureML workspace.
     :param target_folder: The folder in which to download the dataset from Azure.
+    :param dataset_csv: Name of the csv file describing the dataset.
     :param azure_config: All Azure-related configuration options.
     :return: A path on the local machine that contains the dataset.
     """
@@ -84,7 +86,7 @@ def download_dataset(azure_dataset_id: str,
         raise ValueError(f"Expected to get a FileDataset, but got {type(azure_dataset)}")
     # The downloaded dataset may already exist from a previous run.
     expected_dataset_path = target_folder / azure_dataset_id
-    expected_dataset_file = expected_dataset_path / DATASET_CSV_FILE_NAME
+    expected_dataset_file = expected_dataset_path / dataset_csv
     logging.info(f"Model training will use dataset '{azure_dataset_id}' in Azure.")
     if expected_dataset_path.is_dir() and expected_dataset_file.is_file():
         logging.info(f"The dataset appears to be downloaded already in {expected_dataset_path}. Skipping.")
@@ -345,7 +347,7 @@ class MLRunner:
             if azure_dataset_id:
                 return download_dataset(azure_dataset_id=azure_dataset_id,
                                         target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
-                                        azure_config=self.azure_config)
+                                        dataset_csv=self.model_config.dataset_csv,azure_config=self.azure_config)
             return None
 
         # Inside of AzureML, datasets can be either mounted or downloaded.
@@ -717,12 +719,12 @@ class MLRunner:
                                                test_metrics=path_to_best_epoch_test)
             else:
                 if isinstance(config, ScalarModelBase) and not isinstance(config, SequenceModelBase):
+                    dataset_csv_path = config.local_dataset / config.dataset_csv if config.local_dataset else None
                     generate_classification_notebook(result_notebook=output_dir / REPORT_IPYNB,
                                                      train_metrics=path_to_best_epoch_train,
                                                      val_metrics=path_to_best_epoch_val,
                                                      test_metrics=path_to_best_epoch_test,
-                                                     dataset_csv_path=config.local_dataset / DATASET_CSV_FILE_NAME
-                                                     if config.local_dataset else None,
+                                                     dataset_csv_path=dataset_csv_path,
                                                      dataset_subject_column=config.subject_column,
                                                      dataset_file_column=config.image_file_column)
                 else:
