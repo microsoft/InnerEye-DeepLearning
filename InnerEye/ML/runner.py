@@ -6,14 +6,6 @@ import os
 import sys
 from pathlib import Path
 
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
-
-try:
-    from InnerEye.ML.lightning_container import LightningContainer
-    has_torch = True
-except ModuleNotFoundError as ex:
-    has_torch = False
-
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
 # flake8: noqa
@@ -43,11 +35,21 @@ from InnerEye.Azure.azure_util import is_run_and_child_runs_completed
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    ModelProcessing, disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout, print_exception
+    ModelProcessing, disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
+
+try:
+    # This import can fail when the code runs inside the azure_runner.yml Conda environment, that we use
+    # for the PR builds
+    from InnerEye.ML.lightning_container import LightningContainer
+
+    has_torch = True
+except ModuleNotFoundError as ex:
+    has_torch = False
 
 REPORT_IPYNB = "report.ipynb"
 REPORT_HTML = "report.html"
