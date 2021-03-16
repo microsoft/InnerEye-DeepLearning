@@ -100,7 +100,7 @@ def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, p
             ax.annotate(f"{x:0.3f}, {y:0.3f}", xy=(x, y), xytext=(15, 0), textcoords='offset points')
 
 
-def plot_pr_and_roc_curves_from_csv(labels_and_model_outputs: LabelsAndPredictions) -> None:
+def plot_pr_and_roc_curves(labels_and_model_outputs: LabelsAndPredictions) -> None:
     """
     Given a LabelsAndPredictions object, plot the ROC and PR curves.
     """
@@ -115,6 +115,17 @@ def plot_pr_and_roc_curves_from_csv(labels_and_model_outputs: LabelsAndPredictio
     plot_auc(recall, precision, "PR Curve", ax[1])
 
     plt.show()
+
+
+def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase) -> None:
+    """
+    Given the csv written during inference time, plot the ROC and PR curves for all prediction targets.
+    """
+    for prediction_target in config.class_names:
+        print_header(f"Class {prediction_target}", level=3)
+        metrics = get_labels_and_predictions(metrics_csv, prediction_target)
+        plot_pr_and_roc_curves(metrics)
+
 
 
 def get_metric(val_labels_and_predictions: LabelsAndPredictions,
@@ -165,7 +176,7 @@ def print_metrics(val_labels_and_predictions: LabelsAndPredictions,
                   test_labels_and_predictions: LabelsAndPredictions,
                   exclusive: bool = False) -> None:
     """
-    Given a LabelsAndPredictions objects for the validation and test sets, print out some metrics.
+    Given LabelsAndPredictions objects for the validation and test sets, print out some metrics.
     """
 
     optimal_threshold = 0.5 if exclusive else None
@@ -205,6 +216,21 @@ def print_metrics(val_labels_and_predictions: LabelsAndPredictions,
                      optimal_threshold=optimal_threshold)
     print_header(f"Sensitivity at optimal threshold: {1 - fnr:.4f}", level=4)
     print_header("", level=4)
+
+
+def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
+                                             test_metrics_csv: Path,
+                                             config: ScalarModelBase,
+                                             exclusive: bool = False) -> None:
+    """
+    Given LabelsAndPredictions objects for the validation and test sets, print out metrics for every prediction target
+    in the config.
+    """
+    for prediction_target in config.class_names:
+        print_header(f"Class {prediction_target}", level=3)
+        val_metrics = get_labels_and_predictions(val_metrics_csv, prediction_target)
+        test_metrics = get_labels_and_predictions(test_metrics_csv, prediction_target)
+        print_metrics(val_labels_and_predictions=val_metrics, test_labels_and_predictions=test_metrics, exclusive=exclusive)
 
 
 def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path,
