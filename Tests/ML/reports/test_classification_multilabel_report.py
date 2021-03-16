@@ -13,7 +13,7 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.metrics_dict import MetricsDict
 from InnerEye.ML.reports.classification_multilabel_report import get_dataframe_with_exact_label_matches, \
-    get_labels_and_predictions_for_prediction_target_set, get_unique_label_combinations
+    get_labels_and_predictions_for_prediction_target_set, get_unique_prediction_target_combinations
 from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
@@ -205,7 +205,7 @@ def test_get_unique_label_combinations_single_label(test_output_dirs: OutputFold
                            "S3,label,random,1\n"
                            "S3,image,random,\n")
 
-    unique_labels = get_unique_label_combinations(config)  # type: ignore
+    unique_labels = get_unique_prediction_target_combinations(config)  # type: ignore
     expected_label_combinations = set(frozenset(class_names[i] for i in labels)  # type: ignore
                                       for labels in [[], [0]])
     assert unique_labels == expected_label_combinations
@@ -227,7 +227,7 @@ def test_get_unique_label_combinations_nan(test_output_dirs: OutputFolderForTest
                            "S1,image,random,\n"
                            "S2,label,random,\n"
                            "S2,image,random,\n")
-    unique_labels = get_unique_label_combinations(config)  # type: ignore
+    unique_labels = get_unique_prediction_target_combinations(config)  # type: ignore
     expected_label_combinations = set(frozenset(class_names[i] for i in labels)  # type: ignore
                                       for labels in [[0]])
     assert unique_labels == expected_label_combinations
@@ -248,7 +248,7 @@ def test_get_unique_label_combinations_multi_label(test_output_dirs: OutputFolde
                            "S3,green,random,\n"
                            "S4,blue,random,\n"
                            "S4,green,random,\n")
-    unique_labels = get_unique_label_combinations(config)  # type: ignore
+    unique_labels = get_unique_prediction_target_combinations(config)  # type: ignore
 
     expected_label_combinations = set(frozenset(class_names[i] for i in labels)  # type: ignore
                                       for labels in [[1, 2, 3], [2, 3], [3], []])

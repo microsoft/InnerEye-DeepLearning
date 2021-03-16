@@ -15,7 +15,7 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.reports.classification_report import LabelsAndPredictions
 
 
-def get_unique_label_combinations(config: ScalarModelBase) -> Set[FrozenSet[str]]:
+def get_unique_prediction_target_combinations(config: ScalarModelBase) -> Set[FrozenSet[str]]:
     """
     Get a list of all the combinations of labels that exist in the dataset.
 
