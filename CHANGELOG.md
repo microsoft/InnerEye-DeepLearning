@@ -19,6 +19,8 @@ nodes in AzureML. Example: Add `--num_nodes=2` to the commandline arguments to t
   result will then be converted to a DICOM-RT file, zipped and stored as `result_zip_dicom_name`.
 - ([#416](https://github.com/microsoft/InnerEye-DeepLearning/pull/416)) Add a github action chat checks
   if `CHANGELOG.md` has been modified.
+- ([#412](https://github.com/microsoft/InnerEye-DeepLearning/pull/412)) Dataset files can now have arbitrary names, and are no longer restricted to be called
+  `dataset.csv`, via the config field `dataset_csv`. This allows to have a single set of image files in a folder, but multiple datasets derived from it. 
 
 ### Changed
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Starting an AzureML run now uses the
