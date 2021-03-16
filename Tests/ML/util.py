@@ -15,17 +15,20 @@ from azureml.core import Workspace
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import PathOrString, TupleInt3
-from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import PatientDatasetSource
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.model_training import model_train
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.io_util import ImageHeader, ImageWithHeader
 from InnerEye.ML.utils.ml_util import is_gpu_available
+from InnerEye.ML.utils.training_util import ModelTrainingResults
 
 TEST_CHANNEL_IDS = ["channel1", "channel2"]
 TEST_MASK_ID = "mask"
@@ -216,3 +219,16 @@ def get_default_workspace() -> Workspace:
     :return:
     """
     return get_default_azure_config().get_workspace()
+
+
+def model_train_unittest(config: DeepLearningConfig, dirs: OutputFolderForTests,
+                         lightning_container: Optional[LightningContainer] = None) -> ModelTrainingResults:
+    """
+    A shortcut for running model training in the unit test suite. It runs training for the given config, with the
+    default checkpoint handler initialized to point to the test output folder specified in dirs.
+    :param config: The configuration of the model to train.
+    :param dirs: The test fixture that provides an output folder for the test.
+    :param lightning_container: An optional LightningContainer object that will be pass through to the training routine.
+    """
+    checkpoint_handler = get_default_checkpoint_handler(config, project_root=dirs.root_dir)
+    return model_train(config, checkpoint_handler=checkpoint_handler, lightning_container=lightning_container)

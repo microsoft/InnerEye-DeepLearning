@@ -16,7 +16,6 @@ from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp impo
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-
 from Tests.ML.util import get_default_checkpoint_handler
 
 
