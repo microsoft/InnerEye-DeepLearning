@@ -52,28 +52,28 @@ class ReportedMetrics(Enum):
     FalseNegativeRate = "false_negative_rate"
 
 
-def read_csv_and_filter_hue(csv: Path, hue: str) -> pd.DataFrame:
+def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str) -> pd.DataFrame:
     """
     Given one of the csv files written during inference time, read it and select only those rows which belong to the
-    given hue. Also check that there is only a single entry per hue per subject in the file.
+    given prediction_target. Also check that there is only a single entry per prediction_target per subject in the file.
     The csv must have at least the following columns (defined in the LoggingColumns enum):
     LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
     """
     df = pd.read_csv(csv)
-    df = df[df[LoggingColumns.Hue.value] == hue]  # Filter Hue
+    df = df[df[LoggingColumns.Hue.value] == prediction_target]  # Filter by prediction target
     if not df[LoggingColumns.Patient.value].is_unique:
         raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
                          f"in column {LoggingColumns.Patient.value} in the csv file.")
     return df
 
 
-def get_labels_and_predictions(csv: Path, hue: str) -> LabelsAndPredictions:
+def get_labels_and_predictions(csv: Path, prediction_target: str) -> LabelsAndPredictions:
     """
     Given a CSV file, reads the subject IDs, ground truth labels and model outputs for each subject.
     NOTE: This CSV file should have results from a single epoch, as in the metrics files written during inference, not
     like the ones written while training.
     """
-    df = read_csv_and_filter_hue(csv, hue)
+    df = read_csv_and_filter_prediction_target(csv, prediction_target)
     labels = df[LoggingColumns.Label.value].to_numpy()
     model_outputs = df[LoggingColumns.ModelOutput.value].to_numpy()
     subjects = df[LoggingColumns.Patient.value].to_numpy()
@@ -208,20 +208,20 @@ def print_metrics(val_labels_and_predictions: LabelsAndPredictions,
 
 
 def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path,
-                                           hue: str = "Default") -> Results:
+                                           prediction_target: str = "Default") -> Results:
     """
     Given the paths to the metrics files for the validation and test sets, get a list of true positives,
     false positives, false negatives and true negatives.
     The threshold for classification is obtained by looking at the validation file, and applied to the test set to get
     label predictions.
     """
-    df_val = read_csv_and_filter_hue(val_metrics_csv, hue)
+    df_val = read_csv_and_filter_prediction_target(val_metrics_csv, prediction_target)
 
     fpr, tpr, thresholds = roc_curve(df_val[LoggingColumns.Label.value], df_val[LoggingColumns.ModelOutput.value])
     optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
     optimal_threshold = thresholds[optimal_idx]
 
-    df_test = read_csv_and_filter_hue(test_metrics_csv, hue)
+    df_test = read_csv_and_filter_prediction_target(test_metrics_csv, prediction_target)
 
     df_test["predicted"] = df_test.apply(lambda x: int(x[LoggingColumns.ModelOutput.value] >= optimal_threshold),
                                          axis=1)
@@ -238,14 +238,14 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
 
 
 def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int,
-                                    hue: str = MetricsDict.DEFAULT_HUE_KEY) -> Results:
+                                    prediction_target: str = MetricsDict.DEFAULT_HUE_KEY) -> Results:
     """
     Get the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
     top "k" worst predictions (i.e. misclassifications where the model was the most confident).
     """
     results = get_correct_and_misclassified_examples(val_metrics_csv=val_metrics_csv,
                                                      test_metrics_csv=test_metrics_csv,
-                                                     hue=hue)
+                                                     prediction_target=prediction_target)
 
     # sort by model_output
     sorted = Results(true_positives=results.true_positives.sort_values(by=LoggingColumns.ModelOutput.value,
@@ -259,7 +259,7 @@ def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pat
     return sorted
 
 
-def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int, hue: str) -> None:
+def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int, prediction_target: str) -> None:
     """
     Print the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
     top "k" worst predictions (i.e. misclassifications where the model was the most confident).
@@ -269,12 +269,12 @@ def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: P
     :param test_metrics_csv: Path to one of the metrics csvs written during inference. This is the csv for which
                             best and worst performing subjects will be printed out.
    :param k: Number of subjects of each category to print out.
-   :param hue: The class label to filter on
+   :param prediction_target: The class label to filter on
     """
     results = get_k_best_and_worst_performing(val_metrics_csv=val_metrics_csv,
                                               test_metrics_csv=test_metrics_csv,
                                               k=k,
-                                              hue=hue)
+                                              prediction_target=prediction_target)
 
     print_header(f"Top {k} false positives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.false_positives[LoggingColumns.Patient.value],
@@ -434,7 +434,7 @@ def plot_image_for_subject(subject_id: str,
 
 
 def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int,
-                                     hue: str, config: ScalarModelBase) -> None:
+                                     prediction_target: str, config: ScalarModelBase) -> None:
     """
     Plot images for the top "k" best predictions (i.e. correct classifications where the model was the most certain)
     and the top "k" worst predictions (i.e. misclassifications where the model was the most confident).
@@ -444,14 +444,14 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
     :param test_metrics_csv: Path to one of the metrics csvs written during inference. This is the csv for which
                             best and worst performing subjects will be printed out.
     :param k: Number of subjects of each category to print out.
-    :param hue: The class label to filter on
+    :param prediction_target: The class label to filter on
     :param config: scalar model config object
 
     """
     results = get_k_best_and_worst_performing(val_metrics_csv=val_metrics_csv,
                                               test_metrics_csv=test_metrics_csv,
                                               k=k,
-                                              hue=hue)
+                                              prediction_target=prediction_target)
 
     test_metrics = pd.read_csv(test_metrics_csv, dtype=str)
 

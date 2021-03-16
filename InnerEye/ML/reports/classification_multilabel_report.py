@@ -44,10 +44,10 @@ def get_unique_label_combinations(config: ScalarModelBase) -> Set[FrozenSet[str]
     return label_set
 
 
-def generate_pseudo_labels(csv: Path,
-                           hues: List[str],
-                           all_hues: List[str],
-                           per_class_thresholds: List[float]) -> pd.DataFrame:
+def get_dataframe_with_exact_label_matches(csv: Path,
+                                           prediction_target_set_to_match: List[str],
+                                           all_prediction_targets: List[str],
+                                           thresholds_per_prediction_target: List[float]) -> pd.DataFrame:
     """
     Generate a pseudo dataset, which has the ground truth and model predictions for a particular combination of labels.
     The ground truth for a sample is set to True if the set of ground truth labels for the sample corresponds exactly
@@ -55,26 +55,27 @@ def generate_pseudo_labels(csv: Path,
     predicts a value exceeding the label threshold for every label in the given set and for no other labels, and False
     otherwise.
     :param csv: csv with the model predictions (written by the inference pipeline)
-    :param hues: A combination of labels to calculate the ground truth and model prediction for
-    :param all_hues: The entire set of labels on which the model is trained
-    :param per_class_thresholds: Thresholds per label class to decide if model has predicted True of False for the
-    specific label class
+    :param prediction_target_set_to_match: A combination of labels to calculate the ground truth and model prediction
+    for
+    :param all_prediction_targets: The entire set of labels on which the model is trained
+    :param thresholds_per_prediction_target: Thresholds per label class to decide if model has predicted True or
+    False for the specific label class
     :return: Dataframe with generated ground truth and model outputs per sample
     """
 
-    def get_pseudo_label(df: pd.DataFrame) -> pd.DataFrame:
+    def get_exact_label_match(df: pd.DataFrame) -> pd.DataFrame:
         df_to_return = df.iloc[0]
 
-        pred_positives = df[df[LoggingColumns.Hue.value].isin(hues)][LoggingColumns.ModelOutput.value].values
-        pred_negatives = df[~df[LoggingColumns.Hue.value].isin(hues)][LoggingColumns.ModelOutput.value].values
+        pred_positives = df[df[LoggingColumns.Hue.value].isin(prediction_target_set_to_match)][LoggingColumns.ModelOutput.value].values
+        pred_negatives = df[~df[LoggingColumns.Hue.value].isin(prediction_target_set_to_match)][LoggingColumns.ModelOutput.value].values
 
         if all(pred_positives) and not any(pred_negatives):
             df_to_return[LoggingColumns.ModelOutput.value] = 1
         else:
             df_to_return[LoggingColumns.ModelOutput.value] = 0
 
-        true_positives = df[df[LoggingColumns.Hue.value].isin(hues)][LoggingColumns.Label.value].values
-        true_negatives = df[~df[LoggingColumns.Hue.value].isin(hues)][LoggingColumns.Label.value].values
+        true_positives = df[df[LoggingColumns.Hue.value].isin(prediction_target_set_to_match)][LoggingColumns.Label.value].values
+        true_negatives = df[~df[LoggingColumns.Hue.value].isin(prediction_target_set_to_match)][LoggingColumns.Label.value].values
 
         if all(true_positives) and not any(true_negatives):
             df_to_return[LoggingColumns.Label.value] = 1
@@ -84,26 +85,29 @@ def generate_pseudo_labels(csv: Path,
         return df_to_return
 
     df = pd.read_csv(csv)
-    for i in range(len(per_class_thresholds)):
-        hue_rows = df[LoggingColumns.Hue.value] == all_hues[i]
-        df.loc[hue_rows, LoggingColumns.ModelOutput.value] = \
-            df.loc[hue_rows, LoggingColumns.ModelOutput.value] > per_class_thresholds[i]
+    for i in range(len(thresholds_per_prediction_target)):
+        df_for_prediction_target = df[LoggingColumns.Hue.value] == all_prediction_targets[i]
+        df.loc[df_for_prediction_target, LoggingColumns.ModelOutput.value] = \
+            df.loc[df_for_prediction_target, LoggingColumns.ModelOutput.value] > thresholds_per_prediction_target[i]
 
-    df = df.groupby(LoggingColumns.Patient.value).apply(get_pseudo_label)
-    df[LoggingColumns.Hue.value] = "|".join(hues)
+    df = df.groupby(LoggingColumns.Patient.value).apply(get_exact_label_match)
+    df[LoggingColumns.Hue.value] = "|".join(prediction_target_set_to_match)
     return df
 
 
-def get_pseudo_labels_and_predictions(csv: Path,
-                                      hues: List[str],
-                                      all_hues: List[str],
-                                      thresholds: List[float]) -> LabelsAndPredictions:
+def get_labels_and_predictions_for_prediction_target_set(csv: Path,
+                                                         prediction_target_set_to_match: List[str],
+                                                         all_prediction_targets: List[str],
+                                                         thresholds_per_prediction_target: List[float]) -> LabelsAndPredictions:
     """
-    Given a CSV file, generate a set of labels and model predictions for the combination of label classes.
+    Given a CSV file, generate a set of labels and model predictions for the combination of prediction targets.
     NOTE: This CSV file should have results from a single epoch, as in the metrics files written during inference, not
     like the ones written while training.
     """
-    df = generate_pseudo_labels(csv=csv, hues=hues, all_hues=all_hues, per_class_thresholds=thresholds)
+    df = get_dataframe_with_exact_label_matches(csv=csv,
+                                                prediction_target_set_to_match=prediction_target_set_to_match,
+                                                all_prediction_targets=all_prediction_targets,
+                                                thresholds_per_prediction_target=thresholds_per_prediction_target)
 
     labels = df[LoggingColumns.Label.value].to_numpy()
     model_outputs = df[LoggingColumns.ModelOutput.value].to_numpy()
