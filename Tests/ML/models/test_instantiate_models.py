@@ -57,7 +57,7 @@ def test_load_all_configs(model_name: str) -> None:
     """
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
-    config = ModelConfigLoader[SegmentationModelBase]().create_model_config_from_name(model_name)
+    config = ModelConfigLoader().create_model_config_from_name(model_name)
     assert config.model_name == model_name, "Mismatch between definition .py file and model name"
     if config.is_segmentation_model:
         # Reduce the feature channels to a minimum, to make tests run fast on CPU.
@@ -107,12 +107,12 @@ def test_config_loader_as_in_registration() -> None:
     During model registration, the model config namespace is read out from the present model. Ensure that we
     can create a config loader that has that value as an input.
     """
-    loader1 = ModelConfigLoader[SegmentationModelBase]()
+    loader1 = ModelConfigLoader()
     model_name = "BasicModel2Epochs"
     model = loader1.create_model_config_from_name(model_name)
     assert model is not None
     namespace = model.__module__
-    loader2 = ModelConfigLoader[SegmentationModelBase](model_configs_namespace=namespace)
+    loader2 = ModelConfigLoader(model_configs_namespace=namespace)
     assert len(loader2.module_search_specs) == 2
     model2 = loader2.create_model_config_from_name(model_name)
     assert model2 is not None

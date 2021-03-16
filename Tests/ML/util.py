@@ -185,12 +185,12 @@ def assert_binary_files_match(actual_file: Path, expected_file: Path) -> None:
 DummyPatientMetadata = PatientMetadata(patient_id='42')
 
 
-def get_model_loader(namespace: Optional[str] = None) -> ModelConfigLoader[SegmentationModelBase]:
+def get_model_loader(namespace: Optional[str] = None) -> ModelConfigLoader:
     """
     Returns a ModelConfigLoader for segmentation models, with the given non-default namespace (if not None)
     to search under.
     """
-    return ModelConfigLoader[SegmentationModelBase](model_configs_namespace=namespace)
+    return ModelConfigLoader(model_configs_namespace=namespace)
 
 
 def get_default_azure_config() -> AzureConfig:

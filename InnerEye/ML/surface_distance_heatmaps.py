@@ -105,7 +105,7 @@ def main() -> None:
     if config_model is None:
         raise ValueError("The name of the model to train must be given in the --model argument.")
 
-    model_config = ModelConfigLoader[SegmentationModelBase]().create_model_config_from_name(config_model)
+    model_config = ModelConfigLoader().create_model_config_from_name(config_model)
     model_config.apply_overrides(parser_result.overrides, should_validate=True)
     execution_mode = surface_distance_config.execution_mode
 

@@ -64,8 +64,7 @@ def init_from_model_inference_json(model_folder: Path, use_gpu: bool = True) -> 
     logging.info(f'model_inference_config: {model_inference_config}')
     full_path_to_checkpoints = [model_folder / x for x in model_inference_config.checkpoint_paths]
     logging.info(f'full_path_to_checkpoints: {full_path_to_checkpoints}')
-    loader = ModelConfigLoader[SegmentationModelBase](
-        model_configs_namespace=model_inference_config.model_configs_namespace)
+    loader = ModelConfigLoader(model_configs_namespace=model_inference_config.model_configs_namespace)
     model_config = loader.create_model_config_from_name(model_name=model_inference_config.model_name)
     return create_inference_pipeline(model_config, full_path_to_checkpoints, use_gpu)
 

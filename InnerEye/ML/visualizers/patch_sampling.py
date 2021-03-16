@@ -135,7 +135,7 @@ def main(args: CheckPatchSamplingConfig) -> None:
     output_folder.mkdir(parents=True, exist_ok=True)
 
     # Create a config file
-    config = ModelConfigLoader[SegmentationModelBase]().create_model_config_from_name(
+    config = ModelConfigLoader().create_model_config_from_name(
         args.model_name, overrides=commandline_args)
     config.show_patch_sampling = args.number_samples
     ml_util.set_random_seed(config.random_seed)

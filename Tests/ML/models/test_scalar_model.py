@@ -164,8 +164,7 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
     logging_to_stdout()
     azure_config = get_default_azure_config()
     azure_config.train = True
-    config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
-        .create_model_config_from_name(model_name)
+    config: ScalarModelBase = ModelConfigLoader().create_model_config_from_name(model_name)
     config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
     config.set_output_to(test_output_dirs.root_dir)
     # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
@@ -218,7 +217,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     set_from_commandline = 12345
     scalar1 = '["label"]'
     model_name = "DummyClassification"
-    initial_config = ModelConfigLoader[ScalarModelBase]().create_model_config_from_name(model_name)
+    initial_config = ModelConfigLoader().create_model_config_from_name(model_name)
     assert initial_config.non_image_feature_channels == []
     output_root = str(test_output_dirs.root_dir)
     args = ["",
