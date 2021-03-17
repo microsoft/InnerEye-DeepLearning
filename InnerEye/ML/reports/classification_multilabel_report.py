@@ -12,7 +12,9 @@ import math
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.scalar_config import ScalarModelBase
-from InnerEye.ML.reports.classification_report import LabelsAndPredictions
+from InnerEye.ML.reports.classification_report import LabelsAndPredictions, print_metrics, get_labels_and_predictions, \
+    get_metric, ReportedMetrics
+from InnerEye.ML.reports.notebook_report import print_header
 
 
 def get_unique_prediction_target_combinations(config: ScalarModelBase) -> Set[FrozenSet[str]]:
@@ -127,3 +129,36 @@ def get_labels_and_predictions_for_prediction_target_set(csv: Path,
     model_outputs = df[LoggingColumns.ModelOutput.value].to_numpy()
     subjects = df[LoggingColumns.Patient.value].to_numpy()
     return LabelsAndPredictions(subject_ids=subjects, labels=labels, model_outputs=model_outputs)
+
+
+def print_metrics_for_thresholded_output_for_all_prediction_targets(val_metrics_csv: Path,
+                                                                    test_metrics_csv: Path,
+                                                                    config: ScalarModelBase) -> None:
+
+    """
+    Given csvs written during inference for the validation and test sets, print out metrics for every combination of
+    prediction targets that exist in the dataset.
+
+    :param val_metrics_csv: Csv written during inference time for the val set. This is used to determine the
+    optimal threshold for classification.
+    :param test_metrics_csv: Csv written during inference time for the test set. Metrics are calculated for this csv.
+    :param config: Model config
+    """
+
+    unique_prediction_target_combinations = get_unique_prediction_target_combinations(config)
+    all_prediction_target_combinations = list(set([(prediction_target,) for prediction_target in config.class_names])
+                                              | set(map(tuple, unique_prediction_target_combinations)))
+
+    thresholds_per_prediction_target = []
+    for label in config.class_names:
+        val_metrics = get_labels_and_predictions(val_metrics_csv, label)
+        test_metrics = get_labels_and_predictions(test_metrics_csv, label)
+        thresholds_per_prediction_target.append(get_metric(val_labels_and_predictions=val_metrics,
+                                                test_labels_and_predictions=test_metrics,
+                                                metric=ReportedMetrics.OptimalThreshold))
+
+    for labels in all_prediction_target_combinations:
+        print_header(f"Class {'|'.join(labels) or 'Negative'}", level=3)
+        val_metrics = get_labels_and_predictions_for_prediction_target_set(val_metrics_csv, labels, config.class_names, thresholds_per_prediction_target)
+        test_metrics = get_labels_and_predictions_for_prediction_target_set(test_metrics_csv, labels, config.class_names, thresholds_per_prediction_target)
+        print_metrics(val_labels_and_predictions=val_metrics, test_labels_and_predictions=test_metrics, is_thresholded=True)

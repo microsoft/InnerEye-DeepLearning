@@ -231,7 +231,7 @@ def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
                                              config: ScalarModelBase,
                                              is_thresholded: bool = False) -> None:
     """
-    Given LabelsAndPredictions objects for the validation and test sets, print out metrics for every prediction target
+    Given csvs written during inference for the validation and test sets, print out metrics for every prediction target
     in the config.
 
     :param val_metrics_csv: Csv written during inference time for the val set. This is used to determine the
