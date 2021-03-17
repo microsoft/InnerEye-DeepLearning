@@ -146,8 +146,9 @@ def print_metrics_for_thresholded_output_for_all_prediction_targets(val_metrics_
     """
 
     unique_prediction_target_combinations = get_unique_prediction_target_combinations(config)
-    all_prediction_target_combinations = list(set([(prediction_target,) for prediction_target in config.class_names])
-                                              | set(map(tuple, unique_prediction_target_combinations)))
+    all_prediction_target_combinations = list(set([frozenset([prediction_target])
+                                                   for prediction_target in config.class_names])
+                                              | unique_prediction_target_combinations)
 
     thresholds_per_prediction_target = []
     for label in config.class_names:
@@ -159,6 +160,6 @@ def print_metrics_for_thresholded_output_for_all_prediction_targets(val_metrics_
 
     for labels in all_prediction_target_combinations:
         print_header(f"Class {'|'.join(labels) or 'Negative'}", level=3)
-        val_metrics = get_labels_and_predictions_for_prediction_target_set(val_metrics_csv, labels, config.class_names, thresholds_per_prediction_target)
-        test_metrics = get_labels_and_predictions_for_prediction_target_set(test_metrics_csv, labels, config.class_names, thresholds_per_prediction_target)
+        val_metrics = get_labels_and_predictions_for_prediction_target_set(val_metrics_csv, list(labels), config.class_names, thresholds_per_prediction_target)
+        test_metrics = get_labels_and_predictions_for_prediction_target_set(test_metrics_csv, list(labels), config.class_names, thresholds_per_prediction_target)
         print_metrics(val_labels_and_predictions=val_metrics, test_labels_and_predictions=test_metrics, is_thresholded=True)
