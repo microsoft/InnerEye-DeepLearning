@@ -160,6 +160,14 @@ def print_metrics_for_thresholded_output_for_all_prediction_targets(val_metrics_
 
     for labels in all_prediction_target_combinations:
         print_header(f"Class {'|'.join(labels) or 'Negative'}", level=3)
-        val_metrics = get_labels_and_predictions_for_prediction_target_set(val_metrics_csv, list(labels), config.class_names, thresholds_per_prediction_target)
-        test_metrics = get_labels_and_predictions_for_prediction_target_set(test_metrics_csv, list(labels), config.class_names, thresholds_per_prediction_target)
+        val_metrics = get_labels_and_predictions_for_prediction_target_set(
+                            csv=val_metrics_csv,
+                            prediction_target_set_to_match=list(labels),
+                            all_prediction_targets=config.class_names,
+                            thresholds_per_prediction_target=thresholds_per_prediction_target)
+        test_metrics = get_labels_and_predictions_for_prediction_target_set(
+                            csv=test_metrics_csv,
+                            prediction_target_set_to_match=list(labels),
+                            all_prediction_targets=config.class_names,
+                            thresholds_per_prediction_target=thresholds_per_prediction_target)
         print_metrics(val_labels_and_predictions=val_metrics, test_labels_and_predictions=test_metrics, is_thresholded=True)
