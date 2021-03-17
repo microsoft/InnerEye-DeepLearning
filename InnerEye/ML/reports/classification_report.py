@@ -69,7 +69,8 @@ def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str) -> 
 
 def get_labels_and_predictions(csv: Path, prediction_target: str) -> LabelsAndPredictions:
     """
-    Given a CSV file, reads the subject IDs, ground truth labels and model outputs for each subject.
+    Given a CSV file, reads the subject IDs, ground truth labels and model outputs for each subject
+    for the given prediction target.
     NOTE: This CSV file should have results from a single epoch, as in the metrics files written during inference, not
     like the ones written while training.
     """
@@ -119,7 +120,8 @@ def plot_pr_and_roc_curves(labels_and_model_outputs: LabelsAndPredictions) -> No
 
 def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase) -> None:
     """
-    Given the csv written during inference time, plot the ROC and PR curves for all prediction targets.
+    Given the csv written during inference time and the model config,
+    plot the ROC and PR curves for all prediction targets.
     """
     for prediction_target in config.class_names:
         print_header(f"Class {prediction_target}", level=3)
@@ -173,14 +175,21 @@ def get_metric(val_labels_and_predictions: LabelsAndPredictions,
 
 def print_metrics(val_labels_and_predictions: LabelsAndPredictions,
                   test_labels_and_predictions: LabelsAndPredictions,
-                  exclusive: bool = False) -> None:
+                  is_thresholded: bool = False) -> None:
     """
     Given LabelsAndPredictions objects for the validation and test sets, print out some metrics.
+    :param val_labels_and_predictions: LabelsAndPredictions object for the val set. This is used to determine the
+    optimal threshold for classification.
+    :param test_labels_and_predictions: LabelsAndPredictions object for the test set. Metrics are calculated for this
+    set.
+    :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
+                           or are floating point numbers.
+    :return:
     """
 
-    optimal_threshold = 0.5 if exclusive else None
+    optimal_threshold = 0.5 if is_thresholded else None
 
-    if not exclusive:
+    if not is_thresholded:
         roc_auc = get_metric(val_labels_and_predictions=val_labels_and_predictions,
                              test_labels_and_predictions=test_labels_and_predictions,
                              metric=ReportedMetrics.AUC_ROC)
@@ -220,16 +229,24 @@ def print_metrics(val_labels_and_predictions: LabelsAndPredictions,
 def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
                                              test_metrics_csv: Path,
                                              config: ScalarModelBase,
-                                             exclusive: bool = False) -> None:
+                                             is_thresholded: bool = False) -> None:
     """
     Given LabelsAndPredictions objects for the validation and test sets, print out metrics for every prediction target
     in the config.
+
+    :param val_metrics_csv: Csv written during inference time for the val set. This is used to determine the
+    optimal threshold for classification. 
+    :param test_metrics_csv: Csv written during inference time for the test set. Metrics are calculated for this csv.
+    :param config: Model config
+    :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
+                           or are floating point numbers.
     """
+
     for prediction_target in config.class_names:
         print_header(f"Class {prediction_target}", level=3)
         val_metrics = get_labels_and_predictions(val_metrics_csv, prediction_target)
         test_metrics = get_labels_and_predictions(test_metrics_csv, prediction_target)
-        print_metrics(val_labels_and_predictions=val_metrics, test_labels_and_predictions=test_metrics, exclusive=exclusive)
+        print_metrics(val_labels_and_predictions=val_metrics, test_labels_and_predictions=test_metrics, is_thresholded=is_thresholded)
 
 
 def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path,
