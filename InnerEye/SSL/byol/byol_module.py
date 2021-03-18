@@ -35,7 +35,7 @@ class BYOLInnerEye(pl.LightningModule):
             learning_rate: Optimizer learning rate.
             batch_size: Sample batch size used in gradient updates.
             encoder_name: Type of CNN encoder used to extract image embeddings. The options are:
-                          {'resnet18', 'resnet50', 'resnet101'}.
+                          {'resnet18', 'resnet50', 'resnet101', 'densenet121'}.
             warmup_epochs: Number of epochs for scheduler warm up (linear increase from 0 to base_lr).
             dataset_name: Name of training dataset - If set to "CIFAR10" then the encoder is adjusted to image size.
             weight_decay: L2-norm weight decay.
