@@ -782,23 +782,27 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
         Returns a list of all the labels in the dataset. Used to compute
         the sampling weights in Imbalanced Sampler
         """
+        if len(self.args.class_names) > 1:
+            raise NotImplementedError("ImbalancedSampler is not supported for multilabel tasks.")
+
         return [item.label.item() for item in self.items]
 
     def get_class_counts(self) -> Dict[float, int]:
         """
-        Return the label counts.
-        :return: Dictionary of {"label": count}
+        Return the label counts as a dictionary with the key-value pairs being the class indices and per-class counts.
+        In the binary case, the dictionary will have a single element. The key will be 0 as there is only one class and
+        one class index. The value stored will be the number of samples that belong to the positive class.
+        In the multilabel case, this returns a dictionary with class indices and samples per class as the key-value
+        pairs.
+        :return: Dictionary of {class_index: count}
         """
-        if len(self.args.class_names) == 1:
-            return dict(Counter([item.label.item() for item in self.items if item.label.item() != 0]))
-        else:
-            all_labels = [torch.flatten(torch.nonzero(item.label)).tolist() for item in self.items]  # [N, 1]
-            flat_list = list(flatten(all_labels))
-            freq_iter: typing.Counter = Counter()
-            freq_iter.update({x: 0 for x in range(len(self.args.class_names))})
-            freq_iter.update(flat_list)
-            result = dict(freq_iter)
-            return result
+        all_labels = [torch.flatten(torch.nonzero(item.label)).tolist() for item in self.items]  # [N, 1]
+        flat_list = list(flatten(all_labels))
+        freq_iter: typing.Counter = Counter()
+        freq_iter.update({x: 0 for x in range(len(self.args.class_names))})
+        freq_iter.update(flat_list)
+        result = dict(freq_iter)
+        return result
 
     def __len__(self) -> int:
         return len(self.items)

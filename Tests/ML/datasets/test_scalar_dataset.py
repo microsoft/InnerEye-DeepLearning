@@ -799,7 +799,7 @@ def test_imbalanced_sampler() -> None:
     assert count_negative_subjects / float(len(drawn_subjects)) > 0.3
 
 
-def test_get_class_weights_dataset_binary(test_output_dirs: OutputFolderForTests) -> None:
+def test_get_class_counts_binary(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test the get_class_counts method for binary scalar datasets.
     """
@@ -823,10 +823,10 @@ def test_get_class_weights_dataset_binary(test_output_dirs: OutputFolderForTests
     config.set_output_to(test_output_dirs.root_dir)
     train_dataset = ScalarDataset(config, pd.read_csv(StringIO(dataset_contents), dtype=str))
     class_counts = train_dataset.get_class_counts()
-    assert class_counts == {1.0: 2}
+    assert class_counts == {0.0: 2}
 
 
-def test_get_class_weights_dataset_multilabel(test_output_dirs: OutputFolderForTests) -> None:
+def test_get_class_counts_multilabel(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test the get_class_counts method for multilabel scalar datasets.
     """
@@ -852,3 +852,57 @@ def test_get_class_weights_dataset_multilabel(test_output_dirs: OutputFolderForT
     class_counts = train_dataset.get_class_counts()
     assert class_counts == {0.0: 1, 1.0: 3, 2.0: 2, 3.0: 0}
 
+
+def test_get_labels_for_imbalanced_sampler_binary(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test the get_labels_for_imbalanced_sampler method for binary scalar datasets.
+    """
+    dataset_folder = Path(test_output_dirs.make_sub_dir("dataset"))
+    dataset_contents = """subject,channel,path,label,numerical1,numerical2,CAT1
+    S1,week0,scan1.npy,,1,10,A
+    S1,week1,scan2.npy,True,2,20,A
+    S2,week0,scan3.npy,,3,30,A
+    S2,week1,scan4.npy,False,4,40,A
+    S3,week0,scan1.npy,,5,50,A
+    S3,week1,scan3.npy,True,6,60,A
+    """
+    config = ScalarModelBase(
+        local_dataset=dataset_folder,
+        label_channels=["week1"],
+        label_value_column="label",
+        non_image_feature_channels=["week0", "week1"],
+        numerical_columns=["numerical1", "numerical2"],
+        should_validate=False
+    )
+    config.set_output_to(test_output_dirs.root_dir)
+    train_dataset = ScalarDataset(config, pd.read_csv(StringIO(dataset_contents), dtype=str))
+    labels = train_dataset.get_labels_for_imbalanced_sampler()
+    assert labels == [1.0, 0.0, 1.0]
+
+
+def test_get_labels_for_imbalanced_sampler_multilabel(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that the get_labels_for_imbalanced_sampler method raises an error for multilabel scalar datasets.
+    """
+    dataset_folder = Path(test_output_dirs.make_sub_dir("dataset"))
+    dataset_contents = """subject,channel,path,label,CAT1
+    S1,week0,scan1.npy,,A
+    S1,week1,scan2.npy,0|1|2,A
+    S2,week0,scan3.npy,,A
+    S2,week1,scan4.npy,1|2,A
+    S3,week0,scan1.npy,,A
+    S3,week1,scan3.npy,1,A
+    """
+    config = ScalarModelBase(
+        local_dataset=dataset_folder,
+        class_names=["class0", "class1", "class2", "class3"],
+        label_channels=["week1"],
+        label_value_column="label",
+        non_image_feature_channels=["week0", "week1"],
+        should_validate=False
+    )
+    config.set_output_to(test_output_dirs.root_dir)
+    train_dataset = ScalarDataset(config, pd.read_csv(StringIO(dataset_contents), dtype=str))
+    with pytest.raises(NotImplementedError) as ex:
+        train_dataset.get_labels_for_imbalanced_sampler()
+    assert "ImbalancedSampler is not supported for multilabel tasks." in str(ex)
