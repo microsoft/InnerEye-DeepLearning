@@ -599,7 +599,7 @@ S4,0,True,4,40,M2,B1
         assert_tensors_equal(test_items[0].items[0].get_all_non_imaging_features(), [3., 3., 0., 1., 1., 0.])
 
 
-def test_get_class_weights_dataset(test_output_dirs: OutputFolderForTests) -> None:
+def test_get_class_counts(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and testing of sequence models that predicts at multiple time points,
     when it is started via run_ml.
@@ -615,7 +615,7 @@ def test_get_class_weights_dataset(test_output_dirs: OutputFolderForTests) -> No
     splits = config.get_dataset_splits()
     train_dataset = config.create_torch_datasets(splits)[ModelExecutionMode.TRAIN]
     class_counts = train_dataset.get_class_counts()
-    assert class_counts == {1.0: 2}
+    assert class_counts == {0: 2}
 
 
 def test_get_labels_at_target_indices() -> None:

@@ -787,7 +787,7 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
 
         return [item.label.item() for item in self.items]
 
-    def get_class_counts(self) -> Dict[float, int]:
+    def get_class_counts(self) -> Dict[int, int]:
         """
         Return the label counts as a dictionary with the key-value pairs being the class indices and per-class counts.
         In the binary case, the dictionary will have a single element. The key will be 0 as there is only one class and
@@ -796,7 +796,7 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
         pairs.
         :return: Dictionary of {class_index: count}
         """
-        all_labels = [torch.flatten(torch.nonzero(item.label)).tolist() for item in self.items]  # [N, 1]
+        all_labels = [torch.flatten(torch.nonzero(item.label).int()).tolist() for item in self.items]  # [N, 1]
         flat_list = list(flatten(all_labels))
         freq_iter: typing.Counter = Counter()
         freq_iter.update({x: 0 for x in range(len(self.args.class_names))})

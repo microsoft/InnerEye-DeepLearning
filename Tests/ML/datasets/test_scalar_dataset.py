@@ -823,7 +823,7 @@ def test_get_class_counts_binary(test_output_dirs: OutputFolderForTests) -> None
     config.set_output_to(test_output_dirs.root_dir)
     train_dataset = ScalarDataset(config, pd.read_csv(StringIO(dataset_contents), dtype=str))
     class_counts = train_dataset.get_class_counts()
-    assert class_counts == {0.0: 2}
+    assert class_counts == {0: 2}
 
 
 def test_get_class_counts_multilabel(test_output_dirs: OutputFolderForTests) -> None:
@@ -850,7 +850,7 @@ def test_get_class_counts_multilabel(test_output_dirs: OutputFolderForTests) -> 
     config.set_output_to(test_output_dirs.root_dir)
     train_dataset = ScalarDataset(config, pd.read_csv(StringIO(dataset_contents), dtype=str))
     class_counts = train_dataset.get_class_counts()
-    assert class_counts == {0.0: 1, 1.0: 3, 2.0: 2, 3.0: 0}
+    assert class_counts == {0: 1, 1: 3, 2: 2, 3: 0}
 
 
 def test_get_labels_for_imbalanced_sampler_binary(test_output_dirs: OutputFolderForTests) -> None:

@@ -233,6 +233,9 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
             raise ValueError("This class requires a value in the `sequence_column`, specifying where the "
                              "sequence index should be read from.")
 
+        if len(self.args.class_names) > 1:
+            raise ValueError("Multilabel configs not supported for sequence datasets.")
+
         data_sources = self.load_all_data_sources()
         grouped = group_samples_into_sequences(
             data_sources,
@@ -278,7 +281,7 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
         return [seq.get_labels_at_target_indices(self.args.get_target_indices())[-1].item()
                 for seq in self.items]
 
-    def get_class_counts(self) -> Dict[float, int]:
+    def get_class_counts(self) -> Dict[int, int]:
         """
         Return the label counts (summed over all target indices).
         :return: Dictionary of {"label": count}
@@ -286,7 +289,10 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
         all_labels_per_target = torch.stack([seq.get_labels_at_target_indices(self.args.get_target_indices())
                                              for seq in self.items])  # [N, T, 1]
         non_nan_and_nonzero_labels = list(filter(lambda x: not np.isnan(x) and x != 0, all_labels_per_target.flatten().tolist()))
-        return dict(Counter(non_nan_and_nonzero_labels))
+        counts = dict(Counter(non_nan_and_nonzero_labels))
+        if not len(counts.keys()) == 1 or 1 not in counts.keys():
+            raise ValueError("get_class_counts supports only binary targets.")
+        return {0: counts[1]}
 
     def __len__(self) -> int:
         return len(self.items)
