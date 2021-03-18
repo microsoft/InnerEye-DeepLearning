@@ -55,14 +55,15 @@ class BYOLInnerEye(pl.LightningModule):
     def forward(self, x: T) -> T:  # type: ignore
         return self.target_network.encoder(x)
 
-    def cosine_loss(self, a: T, b: T) -> T:
+    @staticmethod
+    def cosine_loss(a: T, b: T) -> T:
         a = F.normalize(a, dim=-1)
         b = F.normalize(b, dim=-1)
         neg_cos_sim = -(a * b).sum(dim=-1).mean()
         return neg_cos_sim
 
     def shared_step(self, batch: BatchType, batch_idx: int) -> T:
-        (img_1, img_2, _), y = batch
+        (img_1, img_2, _), _ = batch
 
         # Image 1 to image 2 loss
         _, _, h_img1 = self.online_network(img_1)
