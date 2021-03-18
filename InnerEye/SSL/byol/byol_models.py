@@ -25,7 +25,20 @@ class _MLP(nn.Module):
         return x
 
 class SSLEncoder(nn.Module):
+    """
+    CNN image encoder that generates fixed size BYOL image embeddings.
+    Feature responses are pooled to generate a 1-D embedding vector.
+    """
+
     def __init__(self, encoder_name: str, dataset_name: str, use_output_pooling: bool = True):
+        """
+        :param encoder_name: Type of the image encoder: {'resnet18', 'resnet50', 'resnet101', 'densenet121'}.
+        :param dataset_name: If CIFAR dataset is specified, the initial convolution kernels are reduced to 3x3
+                             to reduce information loss.
+        :param use_output_pooling: If set to True, output embeddings in spatial grid are pooled to form
+                             a fixed size embedding vector.
+        """
+
         super().__init__()
         self.cnn_model = create_ssl_encoder(encoder_name=encoder_name, dataset_name=dataset_name)
         self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
