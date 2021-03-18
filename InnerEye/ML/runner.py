@@ -171,10 +171,9 @@ class Runner:
         config_or_container = model_config_loader.create_model_config_from_name(model_name=azure_config.model)
         if has_torch and isinstance(config_or_container, LightningContainer):
             # Create the actual Lightning module, and store it for later use in the container, too
-            lightning_module = config_or_container.create_lightning_module()
-            config_or_container.lightning_module = lightning_module
+            config_or_container.create_lightning_module_and_store()
             self.lightning_container = config_or_container
-            model_config = lightning_module
+            model_config = config_or_container.lightning_module
         else:
             model_config = config_or_container
 
@@ -293,7 +292,9 @@ class Runner:
                 set_environment_variables_for_multi_node()
             logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
             try:
-                self.create_ml_runner().run()
+                ml_runner = self.create_ml_runner()
+                ml_runner.setup()
+                ml_runner.run()
             finally:
                 disable_logging_to_file()
 
@@ -303,7 +304,7 @@ class Runner:
         """
         # This import statement cannot be at the beginning of the file because it will cause import
         # of packages that are not available inside the azure_runner.yml environment, in particular pytorch.
-        # That is also why we specify the return type as Any rather than MLRunner.
+        # That is also why we specify the return type is Any rather than MLRunner.
         from InnerEye.ML.run_ml import MLRunner
         return MLRunner(
             model_config=self.model_config,

@@ -20,9 +20,7 @@ from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, cleanup_checkpoint_folder
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_base import InnerEyeContainer, TrainingAndValidationDataLightning
 from InnerEye.ML.lightning_container import LightningContainer
-from InnerEye.ML.lightning_helpers import create_lightning_model
 from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
@@ -160,7 +158,7 @@ def start_resource_monitor(config: DeepLearningConfig) -> ResourceMonitor:
 
 def model_train(config: DeepLearningConfig,
                 checkpoint_handler: CheckpointHandler,
-                lightning_container: Optional[LightningContainer] = None,
+                lightning_container: LightningContainer,
                 num_nodes: int = 1) -> ModelTrainingResults:
     """
     The main training loop. It creates the Pytorch model based on the configuration options passed in,
@@ -169,24 +167,12 @@ def model_train(config: DeepLearningConfig,
     :param config: The arguments which specify all required information.
     :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     :param num_nodes: The number of nodes to use in distributed training.
+    :param lightning_container: A container object that holds the training data in PyTorch Lightning format
+    and the model to train.
     """
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
-    if lightning_container is None:
-        # The core InnerEye models do not rely on the LightningContainer infrastructure. For simplicity of code, build a
-        # fake container
-        assert isinstance(config, ModelConfigBase), "When using a built-in InnerEye model, the configuration should " \
-                                                    "be an instance of ModelConfigBase"
-        lightning_container = InnerEyeContainer(config)
-        lightning_container.setup()
-        if is_rank_zero():
-            # Save the dataset files for later use in cross validation analysis
-            # TODO antonsc: Should we move that into TrainAndValidationDataLightning? The .prepare method
-            # of a data module is called only on rank zero
-            config.write_dataset_files()
-        lightning_model = create_lightning_model(config)
-    else:
-        lightning_model = lightning_container.lightning_module
+    lightning_model = lightning_container.lightning_module
 
     # This reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
     # for categorical features, that need to be available before creating the model.

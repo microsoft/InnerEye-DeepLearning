@@ -2,8 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from pathlib import Path
 from typing import List, Tuple
 
+import param
 import torch
 from pytorch_lightning import LightningDataModule
 from torch import Tensor
@@ -45,9 +47,17 @@ class DummyContainerWithAzureAndLocalDataset(DummyContainerWithDatasets):
         super().__init__(has_local_dataset=True, has_azure_dataset=True)
 
 
+class DummyContainerWithParameters(LightningContainer):
+    my_param = param.String(default="foo")
+
+    def __init__(self):
+        super().__init__()
+
+
 class DummyRegression(LightningWithInference):
     def __init__(self, in_features: int = 1, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.output_folder = Path(".")
         activation = Identity()
         layers = [
             torch.nn.Linear(in_features=in_features, out_features=1, bias=True),
@@ -64,6 +74,20 @@ class DummyRegression(LightningWithInference):
         prediction = self.forward(input)
         loss = torch.nn.functional.mse_loss(prediction, target)
         return loss
+
+    def on_test_epoch_start(self) -> None:
+        (self.outputs_folder / "on_test_epoch_start.txt").touch()
+        (self.outputs_folder / "results.txt").touch()
+
+    def test_step(self, item: Tuple[Tensor, Tensor], batch_idx, **kwargs):
+        print(f"test_step batch_idx={batch_idx}")
+        input, target = item
+        prediction = self.forward(input)
+        with (self.outputs_folder / "results.txt").open(mode="a") as f:
+            f.write(f"{prediction} {target}")
+
+    def on_test_epoch_end(self) -> None:
+        (self.outputs_folder / "on_test_epoch_end.txt").touch()
 
 
 class FixedDataset(Dataset):
@@ -98,6 +122,10 @@ class FixedRegressionData(LightningDataModule):
 
 
 class DummyContainerWithModel(LightningContainer):
+
+    def __init__(self):
+        self.weight = 42
+
     def create_lightning_module(self) -> LightningWithInference:
         return DummyRegression()
 

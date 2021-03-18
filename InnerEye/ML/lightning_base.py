@@ -11,7 +11,7 @@ from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.utilities import rank_zero_only
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
@@ -29,7 +29,7 @@ from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed, validate_dataset_paths
 
 
-class TrainingAndValidationDataLightning(LightningDataModule):
+class TrainAndValDataLightning(LightningDataModule):
     """
     A class that wraps training and validation data from an InnerEye model configuration to a Lightning data module.
     """
@@ -49,13 +49,52 @@ class TrainingAndValidationDataLightning(LightningDataModule):
         return self.data_loaders[ModelExecutionMode.VAL]
 
     def test_dataloader(self) -> DataLoader:  # type: ignore
-        raise NotImplementedError("For segmentation models, the test dataset should not be evaluated patch-wise.")
+        raise NotImplementedError("There is no test dataset stored here, because this object is only meant to be "
+                                  "used for training and validation.")
+
+
+class InferenceDataLightning(LightningDataModule):
+    """
+    A class that wraps data for running model inference on InnerEye models, as a Lightning data module.
+    """
+
+    def __init__(self, config: ModelConfigBase) -> None:
+        super().__init__()
+        self.config = config
+        self.train_data: Optional[Dataset] = None
+        self.val_data: Optional[Dataset] = None
+        self.test_data: Optional[Dataset] = None
+
+    def setup(self) -> None:
+        """
+        Initializes the datasets stored in the present object, by calling the config object to
+        prepare the torch Dataset objects for train/val/test.
+        """
+        self.train_data = self.config.get_torch_dataset_for_inference(ModelExecutionMode.TRAIN)
+        self.val_data = self.config.get_torch_dataset_for_inference(ModelExecutionMode.VAL)
+        self.test_data = self.config.get_torch_dataset_for_inference(ModelExecutionMode.TEST)
+
+    @staticmethod
+    def _test_and_return(dataset) -> DataLoader:
+        if dataset is None:
+            raise ValueError("Need to call setup before reading out the data.")
+        return DataLoader(dataset)
+
+    def train_dataloader(self) -> DataLoader:
+        self._test_and_return(self.train_data)
+
+    def val_dataloader(self) -> DataLoader:  # type: ignore
+        self._test_and_return(self.val_data)
+
+    def test_dataloader(self) -> DataLoader:  # type: ignore
+        self._test_and_return(self.test_data)
 
 
 class InnerEyeContainer(LightningContainer):
     """
-    A container that wraps the creation of Lightning datasets.
+    A container that wraps the creation of Lightning datasets for the built-in InnerEye models.
     """
+
     def __init__(self, config: ModelConfigBase):
         super().__init__()
         self.config = config
@@ -63,6 +102,7 @@ class InnerEyeContainer(LightningContainer):
     def setup(self) -> None:
         """
         Reads the dataset files and anything else that needs to happen before the datasets can be read out.
+        Also creates the Lightning model itself, and stores it in the present object.
         """
         # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
         # loaded (typically only during tests)
@@ -70,10 +110,14 @@ class InnerEyeContainer(LightningContainer):
             assert self.config.local_dataset is not None
             validate_dataset_paths(self.config.local_dataset, self.config.dataset_csv)
         self.config.read_dataset_if_needed()
+        from InnerEye.ML.lightning_models import create_lightning_model
+        self._lightning_module = create_lightning_model(self.config)
 
     def get_training_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:
-        return TrainingAndValidationDataLightning(self.config)
+        return TrainAndValDataLightning(self.config)
 
+    def get_inference_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:
+        return InferenceDataLightning(self.config)
 
 
 class InnerEyeLightning(LightningModule):

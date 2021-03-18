@@ -15,7 +15,8 @@ from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, LAST_CHECK
     LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME, RECOVERY_CHECKPOINT_FILE_NAME_WITH_SUFFIX, \
     cleanup_checkpoint_folder, keep_best_checkpoint, keep_latest
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.lightning_helpers import create_lightning_model, load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_helpers import load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_models import create_lightning_model
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training import create_lightning_trainer
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting

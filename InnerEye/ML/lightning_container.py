@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from typing import Any, Dict, Iterator, List, Tuple
 
+import param
 import torch
 from jinja2.optimizer import Optimizer
 from pytorch_lightning import LightningDataModule, LightningModule
@@ -13,6 +14,7 @@ from pytorch_lightning import LightningDataModule, LightningModule
 # model_config.perform_crossvalidation
 from torch.optim.lr_scheduler import _LRScheduler
 
+from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 # Do we want to support ensembles at inference time? Not now
@@ -35,6 +37,15 @@ from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 # run experiments by config name
 # AzureML submission framework
 # Consuming datasets from Azure blob storage
+
+# rename from inference_... to test_step
+# How to define parameters?
+# Can we simplify score.py by re-using code here?
+# automatic regression testing
+
+# We can restrict inference to only the test set for pretty much all models. Only in segmentation models we
+# are presently doing something different than in training.
+# If that is not enough: Can pass in inference mode (single model / ensemble) and which dataset we are running on.
 
 
 class LightningWithInferenceMeta(type(DeepLearningConfig), type(LightningModule)):
@@ -68,7 +79,7 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
         """
         raise NotImplementedError("This method must be overridden in a derived class.")
 
-    def inference_start(self) -> None:
+    def on_test_epoch_start(self) -> None:
         """
         Runs initialization for everything that the inference_step might require. This can initialize
         output files, set up metric computation, etc.
@@ -82,8 +93,9 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
     #           model_outputs[fold] = model.forward(item)
     #       model.inference_step(item, model_outputs, dataset_split, is_ensemble_result=is_ensemble_result)
     #   model.inference_end()
-    def inference_step(self, item: Any, model_outputs: Iterator[Any], dataset_split: ModelExecutionMode,
-                       is_ensemble_result: bool) -> None:
+    # We could use test_step, but that has a different signature. In particular, it does not allow
+    # to pass
+    def test_step(self, *args, **kwargs):
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
         or compute metrics and store them.
@@ -113,7 +125,7 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
         aggregate_output = aggregate_output / count
         return aggregate_output
 
-    def inference_end(self) -> None:
+    def on_test_epoch_end(self) -> None:
         """
         Called when the model has made predictions on all. This can write all metrics to disk, for example.
         """
@@ -162,27 +174,21 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
         pass
 
 
-class LightningContainer:
+class LightningContainer(GenericConfig):
+
+    # All model parameters that should be available on the commandline should be added here.
+    # They can be used later in, for example, the call to create the model.
+    some_parameter = param.String(default="Default", doc="Some documentation.")
 
     def __init__(self):
         super().__init__()
         self._lightning_module = None
 
-    @property
-    def lightning_module(self) -> LightningWithInference:
-        """
-        Returns that PyTorch Lightning module that the present container object manages.
-        :return: A PyTorch Lightning module
-        """
-        if self._lightning_module is None:
-            raise ValueError("No Lightning module has been set yet.")
-        return self._lightning_module
-
-    @lightning_module.setter
-    def lightning_module(self, value: LightningWithInference) -> None:
-        self._lightning_module = value
-
     def create_lightning_module(self) -> LightningWithInference:
+        """
+        This method must create the actual Lightning model that will be trained. It can read out parameters from the
+        container and pass them into the model, for example.
+        """
         pass
 
     def get_training_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:
@@ -216,3 +222,24 @@ class LightningContainer:
         Gets additional parameters that will be passed on to the PL trainer.
         """
         return dict()
+
+    # The code from here onwards does not need to be modified.
+
+    @property
+    def lightning_module(self) -> LightningWithInference:
+        """
+        Returns that PyTorch Lightning module that the present container object manages.
+        :return: A PyTorch Lightning module
+        """
+        if self._lightning_module is None:
+            raise ValueError("No Lightning module has been set yet.")
+        return self._lightning_module
+
+    def create_lightning_module_and_store(self) -> None:
+        """
+        Creates the Lightning model by calling `create_lightning_module` and stores it in the `lightning_module`
+        property.
+        """
+        self._lightning_module = self.create_lightning_module()
+
+

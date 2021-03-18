@@ -20,6 +20,7 @@ from InnerEye.Common.type_annotations import PathOrString, TupleInt3
 from InnerEye.ML.dataset.full_image_dataset import PatientDatasetSource
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
@@ -231,4 +232,7 @@ def model_train_unittest(config: DeepLearningConfig, dirs: OutputFolderForTests,
     :param lightning_container: An optional LightningContainer object that will be pass through to the training routine.
     """
     checkpoint_handler = get_default_checkpoint_handler(config, project_root=dirs.root_dir)
+    if lightning_container is None:
+        lightning_container = InnerEyeContainer(config)
+        lightning_container.setup()
     return model_train(config, checkpoint_handler=checkpoint_handler, lightning_container=lightning_container)

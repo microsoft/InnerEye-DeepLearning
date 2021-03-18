@@ -35,11 +35,13 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
     FINAL_MODEL_FOLDER, \
     ModelCategory, MultiprocessingStartMethod
+from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
+from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
-from InnerEye.ML.model_training import model_train
+from InnerEye.ML.model_training import create_lightning_trainer, is_rank_zero, model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_notebook, generate_segmentation_notebook
 from InnerEye.ML.runner import ModelDeploymentHookSignature, PostCrossValidationHookSignature, REPORT_HTML, \
     REPORT_IPYNB, get_all_environment_files
@@ -144,6 +146,18 @@ class MLRunner:
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
+
+    def setup(self) -> None:
+        if self.lightning_container is None:
+            # The core InnerEye models do not rely on the LightningContainer infrastructure. For simplicity of code,
+            # build a fake container
+            assert isinstance(self.model_config, ModelConfigBase), \
+                "When using a built-in InnerEye model, the configuration should be an instance of ModelConfigBase"
+            self.lightning_container = InnerEyeContainer(self.model_config)
+            self.lightning_container.setup()
+            if is_rank_zero():
+                # Save the dataset files for later use in cross validation analysis
+                self.model_config.write_dataset_files()
 
     def is_offline_cross_val_parent_run(self) -> bool:
         """
@@ -259,19 +273,40 @@ class MLRunner:
             # log the number of epochs used for model training
             RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
 
-        # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
-        # the current run is a single one. See the documentation of ModelProcessing for more details.
-        self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
+        if isinstance(self.lightning_container, InnerEyeContainer):
+            # Inference for the InnerEye built-in models
+            # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
+            # the current run is a single one. See the documentation of ModelProcessing for more details.
+            self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
 
-        if self.model_config.generate_report:
-            self.generate_report(ModelProcessing.DEFAULT)
+            if self.model_config.generate_report:
+                self.generate_report(ModelProcessing.DEFAULT)
 
-        # If this is an cross validation run, and the present run is child run 0, then wait for the sibling runs,
-        # build the ensemble model, and write a report for that.
-        if self.model_config.number_of_cross_validation_splits > 0:
-            if self.model_config.should_wait_for_other_cross_val_child_runs():
-                self.wait_for_runs_to_finish()
-                self.create_ensemble_model()
+            # If this is an cross validation run, and the present run is child run 0, then wait for the sibling runs,
+            # build the ensemble model, and write a report for that.
+            if self.model_config.number_of_cross_validation_splits > 0:
+                if self.model_config.should_wait_for_other_cross_val_child_runs():
+                    self.wait_for_runs_to_finish()
+                    self.create_ensemble_model_and_run_inference()
+        else:
+            # Inference for all models that are specified via LightningContainers
+            self.run_inference_for_lightning_models(checkpoint_handler.get_checkpoints_to_test())
+
+    def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
+        """
+        Run inference on the test set for all models that are specified via a LightningContainer.
+        """
+        if len(checkpoint_paths) != 1:
+            raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
+        # TODO antonsc: Should we re-use the trainer object that was used in model_train?
+        # By creating a separate one, we also create a new Tensorboard file, and hence training
+        # and inference metrics are at separate places.
+        trainer, _ = create_lightning_trainer(self.model_config)
+        data = self.lightning_container.get_inference_data_module(
+            crossval_index=self.model_config.cross_validation_split_index,
+            crossval_count=self.model_config.number_of_cross_validation_splits)
+        trainer.model = self.lightning_container.lightning_module
+        trainer.test(test_dataloaders=data.test_dataloader(), ckpt_path=str(checkpoint_paths[0]))
 
     def run_inference_and_register_model(self, checkpoint_handler: CheckpointHandler,
                                          model_proc: ModelProcessing) -> None:
@@ -347,7 +382,7 @@ class MLRunner:
             if azure_dataset_id:
                 return download_dataset(azure_dataset_id=azure_dataset_id,
                                         target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
-                                        dataset_csv=self.model_config.dataset_csv,azure_config=self.azure_config)
+                                        dataset_csv=self.model_config.dataset_csv, azure_config=self.azure_config)
             return None
 
         # Inside of AzureML, datasets can be either mounted or downloaded.
@@ -634,7 +669,7 @@ class MLRunner:
         else:
             raise NotImplementedError("are_sibling_runs_finished only works for cross validation runs in AzureML.")
 
-    def create_ensemble_model(self) -> None:
+    def create_ensemble_model_and_run_inference(self) -> None:
         """
         Create an ensemble model from the results of the sibling runs of the present run. The present run here will
         be cross validation child run 0.
