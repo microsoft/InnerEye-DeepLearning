@@ -63,8 +63,6 @@ class BinaryCrossEntropyWithLogitsLoss(SupervisedLearningCriterion):
         """
         :param num_classes: The number of classes the model predicts. For binary classification num_classes is one
                             and for multi-label classification tasks num_classes will be greater than one.
-                            Note that in multi-label tasks, the negative class (all other ground truth classes being
-                            false for a sample) should not be considered a separate class.
         :param class_counts: The number of positive samples for each class. class_counts is a dictionary with key-value
                              pairs corresponding to each class and the positive sample count for the class.
                              For binary classification tasks, class_counts should have a single key-value pair
