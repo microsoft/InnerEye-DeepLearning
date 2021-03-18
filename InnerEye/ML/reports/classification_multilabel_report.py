@@ -51,7 +51,7 @@ def get_dataframe_with_exact_label_matches(metrics_df: pd.DataFrame,
                                            all_prediction_targets: List[str],
                                            thresholds_per_prediction_target: List[float]) -> pd.DataFrame:
     """
-    Given a set of prediction targets, for each sample find
+    Given a set of prediction targets (a subset of the classes in the classification task), for each sample find
         (i) if the set of ground truth labels matches this set exactly,
         (ii) if the predicted model outputs (after thresholding) match this set exactly
 
@@ -60,8 +60,9 @@ def get_dataframe_with_exact_label_matches(metrics_df: pd.DataFrame,
 
     The output dataframe is generated according to the following rules:
       - LoggingColumns.Patient: For each sample, the sample id is copied over into this field
-      - LoggingColumns.Label: For each sample, this field is set to 1 if the set of ground truth labels for the sample
-        correspond exactly with the given set of prediction targets, otherwise it is set to 0.
+      - LoggingColumns.Label: For each sample, this field is set to 1 if the ground truth value is true
+        for every prediction target (i.e. every class) in the given set and false for all other prediction
+        targets. It is set to 0 otherwise.
       - LoggingColumns.ModelOutput: For each sample, this field is set to 1 if the model predicts a value exceeding the
         prediction target threshold for every prediction target in the given set and lower for all other prediction
         targets. It is set to 0 otherwise.
@@ -115,7 +116,8 @@ def get_labels_and_predictions_for_prediction_target_set(csv: Path,
                                                          all_prediction_targets: List[str],
                                                          thresholds_per_prediction_target: List[float]) -> LabelsAndPredictions:
     """
-    Given a CSV file, generate a set of labels and model predictions for the combination of prediction targets.
+    Given a CSV file, generate a set of labels and model predictions for the given set of prediction targets
+    (in other words, for the given subset of the classes in the classification task).
     NOTE: This CSV file should have results from a single epoch, as in the metrics files written during inference, not
     like the ones written while training.
     """
@@ -137,7 +139,7 @@ def print_metrics_for_thresholded_output_for_all_prediction_targets(val_metrics_
 
     """
     Given csvs written during inference for the validation and test sets, print out metrics for every combination of
-    prediction targets that exist in the dataset.
+    prediction targets that exist in the dataset (i.e. for every subset of classes that occur in the dataset).
 
     :param val_metrics_csv: Csv written during inference time for the val set. This is used to determine the
     optimal threshold for classification.
