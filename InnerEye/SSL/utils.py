@@ -42,13 +42,13 @@ def update_model_config(config: ConfigNode) -> ConfigNode:
 
 
 def create_ssl_encoder(encoder_name: str, dataset_name: Optional[str] = None) -> torch.nn.Module:
-    from pl_bolts.models.self_supervised.resnets import resnet18, resnet50_bn, resnet101
+    from pl_bolts.models.self_supervised.resnets import resnet18, resnet50, resnet101
     """
     """
     if encoder_name == 'resnet18':
         encoder = resnet18(return_all_feature_maps=False)
     elif encoder_name == 'resnet50':
-        encoder = resnet50_bn(return_all_feature_maps=False)
+        encoder = resnet50(return_all_feature_maps=False)
     elif encoder_name == 'resnet101':
         encoder = resnet101(return_all_feature_maps=False)
     elif encoder_name == 'densenet121':

@@ -25,7 +25,7 @@ class _MLP(nn.Module):
         return x
 
 class SSLEncoder(nn.Module):
-    def __init__(self, encoder_name: str, dataset_name: str, use_output_pooling: bool = True):
+    def __init__(self, encoder_name: str, dataset_name: str, use_output_pooling: bool = False):
         super().__init__()
         self.cnn_model = create_ssl_encoder(encoder_name=encoder_name, dataset_name=dataset_name)
         self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))

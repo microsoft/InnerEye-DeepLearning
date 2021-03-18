@@ -34,5 +34,5 @@ class SimCLRInnerEye(SimCLR):
         """
         super().__init__(**kwargs)
         self.save_hyperparameters()
-        self.encoder = SSLEncoder(encoder_name, dataset_name, use_output_pooling=True)
+        self.encoder = SSLEncoder(encoder_name, dataset_name)
         self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)

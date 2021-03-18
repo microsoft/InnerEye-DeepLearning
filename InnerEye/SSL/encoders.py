@@ -18,9 +18,10 @@ class DenseNet121Encoder(torch.nn.Module):
         super().__init__()
         self.densenet121 = densenet121()
         self.cnn_model = self.densenet121.features
+        self.avgpool = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.cnn_model(x)
+        return self.avgpool(self.cnn_model(x)).view(x.size(0), -1)
 
 
 class Lambda(torch.nn.Module):

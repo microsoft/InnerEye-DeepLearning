@@ -10,8 +10,8 @@ from torch.nn import functional as F
 from InnerEye.SSL.metrics import AreaUnderRocCurve
 from pytorch_lightning.metrics import Accuracy
 
-
 BatchType = Tuple[List, T]
+
 
 class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
     def __init__(self, class_weights: Optional[torch.Tensor] = None, **kwargs: Any) -> None:
@@ -50,7 +50,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
     # Use only one of the transformed images
     @staticmethod
     def to_device(batch: BatchType, device: Union[str, torch.device]) -> Tuple[T, T]:
-        (x1, x2), y = batch
+        (x1, x2, _), y = batch
         x1 = x1.to(device)
         y = y.to(device)
         return x1, y
@@ -90,6 +90,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
 
         # log metrics
         logger.add_scalar('ssl/online_train_loss', loss, global_step=self.training_step)
+
 
 class SSLClassifier(torch.nn.Module):
     """
@@ -159,6 +160,7 @@ def WrapSSL(ssl_class: Any, num_classes: int) -> Any:
     :param num_classes: Number of target classes for the linear head.
     :param ssl_class:   SSL object either BYOL or SimCLR.
     """
+
     class _wrap(ssl_class):  # type: ignore
         def __init__(self, **kwargs: Any) -> None:
             super().__init__(**kwargs)

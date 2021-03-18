@@ -62,7 +62,7 @@ class BYOLInnerEye(pl.LightningModule):
         return neg_cos_sim
 
     def shared_step(self, batch: BatchType, batch_idx: int) -> T:
-        (img_1, img_2), y = batch
+        (img_1, img_2, _), y = batch
 
         # Image 1 to image 2 loss
         _, _, h_img1 = self.online_network(img_1)

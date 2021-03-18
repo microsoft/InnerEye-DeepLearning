@@ -24,6 +24,7 @@ dependencies:
       - joblib==0.16.0
       - jupyter==1.0.0
       - jupyter-client==6.1.5
+      - lightning-bolts==0.3.1
       - matplotlib==3.3.0
       - mlflow==1.12.1
       - mypy==0.770

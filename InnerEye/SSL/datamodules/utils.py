@@ -26,6 +26,7 @@ def create_ssl_data_modules(config: ConfigNode) -> pl.LightningDataModule:
         dm.prepare_data()  # downloads data if necessary
         dm.train_transforms = SimCLRTrainDataTransform(32)
         dm.val_transforms = SimCLREvalDataTransform(32)
+        dm.setup()
         dm.class_weights = None
     else:
         raise NotImplementedError(f"No pytorch data module implemented for dataset type: {config.dataset.name}")
