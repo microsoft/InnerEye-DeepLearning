@@ -280,6 +280,9 @@ Classification datasets can be multi-label, i.e. they can have more than one lab
 In this case, in the label column, separate the (numerical) ground truth labels with a pipe character (`|`) to 
 provide multiple ground truth labels for the sample.
 
+Note that only *multi-label* datasets are supported, *multi-class* datasets (where the labels are mutually exclusive) 
+are not supported.
+
 For example, the `dataset.csv` for a multi-label task with 4 classes (0, 1, 2, 3) would look like the following:
 
 ```
