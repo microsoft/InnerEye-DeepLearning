@@ -65,7 +65,6 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     assert len(model_training_result.train_results_per_epoch[0]) >= 11
     assert len(model_training_result.val_results_per_epoch[0]) >= 11
 
-    target_suffix = "" if class_name == MetricsDict.DEFAULT_HUE_KEY else f"/{class_name}"
     for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
                    MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
                    MetricType.AREA_UNDER_PR_CURVE,
@@ -76,6 +75,13 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
                    MetricType.SECONDS_PER_EPOCH,
                    MetricType.SUBJECT_COUNT,
                    ]:
+        target_suffix = ""
+        if not class_name == MetricsDict.DEFAULT_HUE_KEY and metric not in [MetricType.LOSS,
+                                                                            MetricType.SECONDS_PER_BATCH,
+                                                                            MetricType.SECONDS_PER_EPOCH,
+                                                                            MetricType.SUBJECT_COUNT]:
+            target_suffix = f"/{class_name}"
+
         assert metric.value + target_suffix in model_training_result.train_results_per_epoch[0], \
             f"{metric.value + target_suffix} not in training"
         assert metric.value + target_suffix in model_training_result.val_results_per_epoch[0], \
