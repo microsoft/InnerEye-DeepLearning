@@ -298,7 +298,7 @@ SubjectID, Channel, FilePath, Label
 4, label, , 
 ```
 Note that the label field for sample 4 is left empty, this indicates that all labels are negative in Sample 4.
-In multi-label tasks, the negative class (all other ground truth classes being false for a sample) should not be 
+In multi-label tasks, the negative class (all ground truth classes being false for a sample) should not be 
 considered a separate class, and should be encoded by an empty label field.
 
 The labels which are true for each sample in the `dataset.csv` shown above are:
