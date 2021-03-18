@@ -32,6 +32,7 @@ is re-used.
 1.1.8 and AzureML SDK 1.23.0
 
 ### Fixed
+- ([#422](https://github.com/microsoft/InnerEye-DeepLearning/pull/422)) Documentation - clarified `setting_up_aml.md` datastore creation instructions and fixed small typos in `hello_world_model.md`
 
 ### Removed
 
