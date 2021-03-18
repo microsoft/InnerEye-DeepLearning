@@ -57,7 +57,7 @@ def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str) -> 
     Given one of the csv files written during inference time, read it and select only those rows which belong to the
     given prediction_target. Also check that there is only a single entry per prediction_target per subject in the file.
     The csv must have at least the following columns (defined in the LoggingColumns enum):
-    LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
+    LoggingColumns.Hue, LoggingColumns.Patient.
     """
     df = pd.read_csv(csv)
     df = df[df[LoggingColumns.Hue.value] == prediction_target]  # Filter by prediction target
@@ -72,7 +72,10 @@ def get_labels_and_predictions(csv: Path, prediction_target: str) -> LabelsAndPr
     Given a CSV file, reads the subject IDs, ground truth labels and model outputs for each subject
     for the given prediction target.
     NOTE: This CSV file should have results from a single epoch, as in the metrics files written during inference, not
-    like the ones written while training.
+    like the ones written while training. It must have at least the following columns (defined in the LoggingColumns
+    enum):
+    LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
+
     """
     df = read_csv_and_filter_prediction_target(csv, prediction_target)
     labels = df[LoggingColumns.Label.value].to_numpy()
@@ -256,6 +259,9 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
     false positives, false negatives and true negatives.
     The threshold for classification is obtained by looking at the validation file, and applied to the test set to get
     label predictions.
+    The validation and test csvs must have at least the following columns (defined in the LoggingColumns enum):
+    LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
+
     """
     df_val = read_csv_and_filter_prediction_target(val_metrics_csv, prediction_target)
 

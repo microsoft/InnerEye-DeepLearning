@@ -197,7 +197,7 @@ class ScalarDataSource(ScalarItemBase):
             raise ValueError("When loading images, channel_files should no longer contain None entries.")
         elif file_mapping:
             if file in file_mapping:
-                return file_mapping[str(file)]
+                return file_mapping[file]
             else:
                 raise ValueError(f"File mapping does not contain an entry for {file}")
         elif root_path:
