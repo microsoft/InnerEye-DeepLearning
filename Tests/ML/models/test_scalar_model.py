@@ -39,7 +39,8 @@ from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handl
 
 
 @pytest.mark.cpu_and_gpu
-def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> None:
+@pytest.mark.parametrize("class_name", [MetricsDict.DEFAULT_HUE_KEY, "foo"])
+def test_train_classification_model(class_name: str, test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and testing of classification models, asserting on the individual results from training and
     testing.
@@ -47,6 +48,7 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
     """
     logging_to_stdout(logging.DEBUG)
     config = ClassificationModelForTesting()
+    config.class_names = [class_name]
     config.set_output_to(test_output_dirs.root_dir)
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=Path(test_output_dirs.root_dir))
@@ -110,15 +112,15 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
         return
     metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
     metrics_expected = \
-        """epoch,subject,prediction_target,model_output,label,data_split,cross_validation_split_index
-0,S2,Default,0.529514,1,Train,-1
-0,S4,Default,0.521659,0,Train,-1
-1,S4,Default,0.521482,0,Train,-1
-1,S2,Default,0.529475,1,Train,-1
-2,S4,Default,0.521305,0,Train,-1
-2,S2,Default,0.529437,1,Train,-1
-3,S2,Default,0.529399,1,Train,-1
-3,S4,Default,0.521128,0,Train,-1
+        f"""epoch,subject,prediction_target,model_output,label,data_split,cross_validation_split_index
+0,S2,{class_name},0.529514,1,Train,-1
+0,S4,{class_name},0.521659,0,Train,-1
+1,S4,{class_name},0.521482,0,Train,-1
+1,S2,{class_name},0.529475,1,Train,-1
+2,S4,{class_name},0.521305,0,Train,-1
+2,S2,{class_name},0.529437,1,Train,-1
+3,S2,{class_name},0.529399,1,Train,-1
+3,S4,{class_name},0.521128,0,Train,-1
 """
     check_log_file(metrics_path, metrics_expected, ignore_columns=[])
     # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
@@ -126,9 +128,9 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
     inference_metrics_path = config.outputs_folder / get_epoch_results_path(ModelExecutionMode.TRAIN) / \
                              SUBJECT_METRICS_FILE_NAME
     inference_metrics_expected = \
-        """prediction_target,subject,model_output,label,cross_validation_split_index,data_split
-Default,S2,0.5293986201286316,1.0,-1,Train
-Default,S4,0.5211275815963745,0.0,-1,Train
+        f"""prediction_target,subject,model_output,label,cross_validation_split_index,data_split
+{class_name},S2,0.5293986201286316,1.0,-1,Train
+{class_name},S4,0.5211275815963745,0.0,-1,Train
 """
     check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
 
