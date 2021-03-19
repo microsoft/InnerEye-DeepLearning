@@ -5,6 +5,7 @@
 import logging
 import math
 import sys
+import typing
 from abc import abstractmethod
 from collections import Counter, defaultdict
 from multiprocessing import cpu_count
@@ -16,7 +17,6 @@ import pandas as pd
 import torch
 from joblib import Parallel, delayed
 from more_itertools import flatten
-from rich.progress import track
 
 from InnerEye.ML.dataset.full_image_dataset import GeneralDataset
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
@@ -28,61 +28,90 @@ from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.features_util import FeatureStatistics
 from InnerEye.ML.utils.transforms import Compose3D, Transform3D
 
-
 T = TypeVar('T', bound=ScalarDataSource)
 
 
-def extract_label_classification(label_string: Union[str, float], sample_id: str) -> Union[float, int]:
+def extract_label_classification(label_string: str, sample_id: str, num_classes: int,
+                                 is_classification_dataset: bool) -> List[float]:
     """
     Converts a string from a dataset.csv file that contains a model's label to a scalar.
-    The function maps ["1", "true", "yes"] to 1, ["0", "false", "no"] to 0.
-    If the entry in the CSV file was missing (no string given at all), it returns math.nan.
-    :param label_string: The value of the label as read from CSV via a DataFrame.
-    :param sample_id: The sample ID where this label was read from. This is only used for creating error messages.
-    :return:
-    """
-    if isinstance(label_string, float):
-        if math.isnan(label_string):
-            # When loading a dataframe with dtype=str, missing values can be encoded as NaN, and get into here.
-            return label_string
-        else:
-            raise ValueError(f"Subject {sample_id}: Unexpected float input {label_string} - did you read the "
-                             f"dataframe column as a string?")
-    if label_string:
-        label_lower = label_string.lower()
-        if label_lower in ["1", "true", "yes"]:
-            return 1
-        if label_lower in ["0", "false", "no"]:
-            return 0
-        raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
-    else:
-        return math.nan
 
+    For classification datasets:
+    If num_classes is 1 (binary classification tasks):
+        The function maps ["1", "true", "yes"] to [1], ["0", "false", "no"] to [0].
+        If the entry in the CSV file was missing (no string given at all) or an empty string, it returns math.nan.
+    If num_classes is greater than 1 (multilabel datasets):
+        The function maps a pipe-separated set of classes to a tensor with ones at the indices
+        of the positive classes and 0 elsewhere (for example if we have a task with 6 label classes,
+        map "1|3|4" to [0, 1, 0, 1, 1, 0]).
+        If the entry in the CSV file was missing (no string given at all) or an empty string,
+        this function returns an all-zero tensor (none of the label classes were positive for this sample).
 
-def extract_label_regression(label_string: Union[str, float], sample_id: str) -> Union[float, int]:
-    """
-    Converts a string from a dataset.csv file that contains a model's label to a scalar.
+    For regression datasets:
     The function casts a string label to float. Raises an exception if the conversion is
     not possible.
-    If the entry in the CSV file was missing (no string given at all), it returns math.nan.
+    If the entry in the CSV file was missing (no string given at all) or an empty string, it returns math.nan.
+
     :param label_string: The value of the label as read from CSV via a DataFrame.
     :param sample_id: The sample ID where this label was read from. This is only used for creating error messages.
-    :return:
+    :param num_classes: Number of classes. This should be equal the size of the model output.
+    For binary classification tasks, num_classes should be one. For multilabel classification tasks, num_classes should
+    correspond to the number of label classes in the problem.
+    :param is_classification_dataset: If the model is a classification model
+    :return: A list of floats with the same size as num_classes
     """
+
+    if num_classes < 1:
+        raise ValueError(f"Subject {sample_id}: Invalid number of classes: '{num_classes}'")
+
     if isinstance(label_string, float):
         if math.isnan(label_string):
-            # When loading a dataframe with dtype=str, missing values can be encoded as NaN, and get into here.
-            return label_string
+            if num_classes == 1:
+                # Pandas special case: When loading a dataframe with dtype=str, missing values can be encoded as NaN, and get into here.
+                return [label_string]
+            else:
+                return [0] * num_classes
         else:
-            raise ValueError(f"Subject {sample_id}: Unexpected float input {label_string} - did you read the "
+            raise ValueError(f"Subject {sample_id}: Unexpected float input {label_string} - did you read the "	
                              f"dataframe column as a string?")
-    if label_string:
-        try:
-            return float(label_string)
-        except ValueError:
-            raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
+
+    if not label_string:
+        if not is_classification_dataset or num_classes == 1:
+            return [math.nan]
+        else:
+            return [0] * num_classes
+
+    if is_classification_dataset:
+        if num_classes == 1:
+            label_lower = label_string.lower()
+            if label_lower in ["true", "yes"]:
+                return [1.0]
+            elif label_lower in ["false", "no"]:
+                return [0.0]
+            elif label_string in ["0", "1"]:
+                return [float(label_string)]
+            else:
+                raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'. "
+                             f"Should be one of true/false, yes/no or 0/1.")
+
+        if '|' in label_string or label_string.isdigit():
+            classes = [int(a) for a in label_string.split('|')]
+
+            out_of_range = [_class for _class in classes if _class >= num_classes]
+            if out_of_range:
+                raise ValueError(f"Subject {sample_id}: Indices {out_of_range} are out of range, for number of classes "
+                                 f"= {num_classes}")
+
+            one_hot_array = np.zeros(num_classes, dtype=np.float)
+            one_hot_array[classes] = 1.0
+            return one_hot_array.tolist()
     else:
-        return math.nan
+        try:
+            return [float(label_string)]
+        except ValueError:
+            pass
+
+    raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'")
 
 
 def _get_single_channel_row(subject_rows: pd.DataFrame,
@@ -150,10 +179,12 @@ def load_single_data_source(subject_rows: pd.DataFrame,
                             categorical_data_encoder: Optional[CategoricalToOneHotEncoder] = None,
                             metadata_columns: Optional[Set[str]] = None,
                             is_classification_dataset: bool = True,
+                            num_classes: int = 1,
                             sequence_position_numeric: Optional[int] = None) -> T:
     """
     Converts a set of dataset rows for a single subject to a ScalarDataSource instance, which contains the
     labels, the non-image features, and the paths to the image files.
+    :param num_classes: Number of classes, this is equivalent to model output tensor size
     :param channel_column: The name of the column that contains the row identifier ("channels")
     :param metadata_columns: A list of columns that well be added to the item metadata as key/value pairs.
     :param subject_rows: All dataset rows that belong to the same subject.
@@ -167,8 +198,8 @@ def load_single_data_source(subject_rows: pd.DataFrame,
     additional scalar values should be read from. THe keys should map each feature to its channels.
     :param numerical_columns: The names of all columns where additional scalar values should be read from.
     :param categorical_data_encoder: Encoding scheme for categorical data.
-    :param is_classification_dataset: If the current dataset is classification or not.
-    from.
+    :param is_classification_dataset: If True, the dataset will be used in a classification model. If False,
+    assume that the dataset will be used in a regression model.
     :param transform_labels: a label transformation or a list of label transformation to apply to the labels.
     If a list is provided, the transformations are applied in order from left to right.
     :param sequence_position_numeric: Numeric position of the data source in a data sequence. Assumed to be
@@ -180,11 +211,12 @@ def load_single_data_source(subject_rows: pd.DataFrame,
         return _get_single_channel_row(subject_rows, channel, subject_id, channel_column)
 
     def _get_label_as_tensor(channel: Optional[str]) -> torch.Tensor:
-        extract_fn = extract_label_classification if is_classification_dataset else extract_label_regression
         label_row = _get_row_for_channel(channel)
         label_string = label_row[label_value_column]
-        return torch.tensor([extract_fn(label_string=label_string, sample_id=subject_id)],
-                            dtype=torch.float)
+        return torch.tensor(
+            extract_label_classification(label_string=label_string, sample_id=subject_id, num_classes=num_classes,
+                                         is_classification_dataset=is_classification_dataset),
+            dtype=torch.float)
 
     def _apply_label_transforms(labels: Any) -> Any:
         """
@@ -314,6 +346,7 @@ class DataSourceReader(Generic[T]):
                  subject_column: str = CSV_SUBJECT_HEADER,
                  channel_column: str = CSV_CHANNEL_HEADER,
                  is_classification_dataset: bool = True,
+                 num_classes: int = 1,
                  categorical_data_encoder: Optional[CategoricalToOneHotEncoder] = None):
         """
         :param label_value_column: The column that contains the value for the label scalar or vector.
@@ -330,7 +363,7 @@ class DataSourceReader(Generic[T]):
         :param subject_column: The name of the column that contains the subject identifier
         :param channel_column: The name of the column that contains the row identifier ("channels")
         that are expected to be loaded from disk later because they are large images.
-        :param is_classification_dataset: If the current dataset is classification or not from.
+        :param is_classification_dataset: If the current dataset is classification or not.
         :param categorical_data_encoder: Encoding scheme for categorical data.
         """
         self.categorical_data_encoder = categorical_data_encoder
@@ -346,6 +379,7 @@ class DataSourceReader(Generic[T]):
         self.image_file_column = image_file_column
         self.label_value_column = label_value_column
         self.data_frame = data_frame
+        self.num_classes = num_classes
         self.expected_non_image_channels: Union[List[None], Set[str]]
 
         if self.non_image_feature_channels is None:
@@ -419,6 +453,7 @@ class DataSourceReader(Generic[T]):
             sequence_column=sequence_column,
             subject_column=args.subject_column,
             channel_column=args.channel_column,
+            num_classes=len(args.class_names),
             is_classification_dataset=args.is_classification_model
         ).load_data_sources(num_dataset_reader_workers=args.num_dataset_reader_workers)
 
@@ -445,7 +480,7 @@ class DataSourceReader(Generic[T]):
             _n_jobs = max(1, num_dataset_reader_workers)
 
         results = Parallel(n_jobs=_n_jobs, backend=_backend)(
-            delayed(self.load_datasources_for_subject)(subject_id) for subject_id in track(subject_ids))
+            delayed(self.load_datasources_for_subject)(subject_id) for subject_id in subject_ids)
 
         return list(flatten(filter(None, results)))
 
@@ -469,6 +504,7 @@ class DataSourceReader(Generic[T]):
                 metadata_columns=self.metadata_columns,
                 channel_column=self.channel_column,
                 is_classification_dataset=self.is_classification_dataset,
+                num_classes=self.num_classes,
                 sequence_position_numeric=_sequence_position_numeric
             )
 
@@ -746,15 +782,27 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
         Returns a list of all the labels in the dataset. Used to compute
         the sampling weights in Imbalanced Sampler
         """
+        if len(self.args.class_names) > 1:
+            raise NotImplementedError("ImbalancedSampler is not supported for multilabel tasks.")
+
         return [item.label.item() for item in self.items]
 
-    def get_class_counts(self) -> Dict:
+    def get_class_counts(self) -> Dict[int, int]:
         """
-        Return class weights that are proportional to the inverse frequency of label counts.
-        :return: Dictionary of {"label": count}
+        Return the label counts as a dictionary with the key-value pairs being the class indices and per-class counts.
+        In the binary case, the dictionary will have a single element. The key will be 0 as there is only one class and
+        one class index. The value stored will be the number of samples that belong to the positive class.
+        In the multilabel case, this returns a dictionary with class indices and samples per class as the key-value
+        pairs.
+        :return: Dictionary of {class_index: count}
         """
-        all_labels = [item.label.item() for item in self.items]  # [N, 1]
-        return dict(Counter(all_labels))
+        all_labels = [torch.flatten(torch.nonzero(item.label).int()).tolist() for item in self.items]  # [N, 1]
+        flat_list = list(flatten(all_labels))
+        freq_iter: typing.Counter = Counter()
+        freq_iter.update({x: 0 for x in range(len(self.args.class_names))})
+        freq_iter.update(flat_list)
+        result = dict(freq_iter)
+        return result
 
     def __len__(self) -> int:
         return len(self.items)

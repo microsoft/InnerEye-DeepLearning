@@ -8,19 +8,15 @@ from typing import Iterator, Set
 
 import pytest
 from azureml.core import Run
-from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.workspace import Workspace
 
 from InnerEye.Azure.azure_config import AzureConfig, SourceConfig
-from InnerEye.Azure.azure_runner import create_experiment_name, get_or_create_python_environment, \
-    pytorch_version_from_conda_dependencies
+from InnerEye.Azure.azure_runner import create_experiment_name, get_or_create_python_environment
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, fetch_child_runs, fetch_run, \
     get_cross_validation_split_index, is_cross_validation_child_run, is_run_and_child_runs_completed, \
-    merge_conda_dependencies, \
-    merge_conda_files, to_azure_friendly_container_path
-from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import logging_to_stdout
-from InnerEye.Common.fixed_paths import ENVIRONMENT_YAML_FILE_NAME, PRIVATE_SETTINGS_FILE, PROJECT_SECRETS_FILE, \
+    merge_conda_dependencies, merge_conda_files, to_azure_friendly_container_path
+from InnerEye.Common.common_util import logging_to_stdout, is_linux
+from InnerEye.Common.fixed_paths import PRIVATE_SETTINGS_FILE, PROJECT_SECRETS_FILE, \
     get_environment_yaml_file, repository_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, get_most_recent_run, get_most_recent_run_id
@@ -89,6 +85,7 @@ def test_is_cross_validation_child_run_ensemble_run() -> None:
     assert all([is_cross_validation_child_run(x) for x in fetch_child_runs(run)])
 
 
+@pytest.mark.skipif(is_linux(), reason="Spurious file read/write errors on linux build agents.")
 def test_merge_conda(test_output_dirs: OutputFolderForTests) -> None:
     """
     Tests the logic for merging Conda environment files.
@@ -155,19 +152,6 @@ def test_experiment_name() -> None:
     assert create_experiment_name(c) == "branch"
     c.experiment_name = "foo"
     assert create_experiment_name(c) == "foo"
-
-
-def test_framework_version(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test if the Pytorch framework version can be read correctly from the current environment file.
-    """
-    environment_file = fixed_paths.repository_root_directory(ENVIRONMENT_YAML_FILE_NAME)
-    assert environment_file.is_file(), "Environment file must be present"
-    conda_dep = CondaDependencies(conda_dependencies_file_path=environment_file)
-    framework = pytorch_version_from_conda_dependencies(conda_dep)
-    # If this fails, it is quite likely that the AzureML SDK is behind pytorch, and does not yet know about a
-    # new version of pytorch that we are using here.
-    assert framework is not None
 
 
 def get_run_and_check(run_id: str, expected: bool, workspace: Workspace) -> None:

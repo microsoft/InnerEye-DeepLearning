@@ -105,10 +105,21 @@ class InnerEyeLightning(LightningModule):
         self.train_epoch_metrics_logger.flush()
         self.val_epoch_metrics_logger.flush()
 
+    @property
+    def use_sync_dist(self) -> bool:
+        """
+        Returns True if metric logging should use sync_dist=True. This is read off from the use_ddp flag of the trainer.
+        """
+        # For PL from version 1.2.0 on: self.trainer.accelerator_connector.use_ddp
+        return self.trainer.use_ddp
+
     def on_train_epoch_start(self) -> None:
         self.train_timers.reset()
 
     def training_epoch_end(self, outputs: List[Any]) -> None:
+        # Write out all the metrics that have been accumulated in the StoringLogger in the previous epoch.
+        # Metrics for the very last epoch are written in on_train_end
+        self.read_epoch_results_from_logger_and_store(epoch=self.current_epoch - 1)
         self.training_or_validation_epoch_end(is_training=True)
 
     def on_validation_epoch_start(self) -> None:
@@ -142,14 +153,6 @@ class InnerEyeLightning(LightningModule):
         self.training_or_validation_epoch_end(is_training=False)
 
     @rank_zero_only
-    def on_epoch_end(self) -> None:
-        """
-        This hook is called once per epoch, before on_train_epoch_end. Use it to write out all the metrics
-        that have been accumulated in the StoringLogger in the previous epoch.
-        """
-        self.read_epoch_results_from_logger_and_store(epoch=self.current_epoch - 1)
-
-    @rank_zero_only
     def on_train_end(self) -> None:
         """
         This hook is called at the very end of training. Use that to write the very last set of training and
@@ -157,6 +160,7 @@ class InnerEyeLightning(LightningModule):
         """
         self.read_epoch_results_from_logger_and_store(epoch=self.current_epoch)
 
+    @rank_zero_only
     def read_epoch_results_from_logger_and_store(self, epoch: int) -> None:
         """
         Reads the metrics for the previous epoch from the StoringLogger, and writes them to disk, broken down by
@@ -167,8 +171,6 @@ class InnerEyeLightning(LightningModule):
                 for is_training, prefix in [(True, TRAIN_PREFIX), (False, VALIDATION_PREFIX)]:
                     metrics = self.storing_logger.extract_by_prefix(epoch, prefix)
                     self.store_epoch_results(metrics, epoch, is_training)
-            else:
-                print(f"Skipping, no results for {epoch}")
 
     @rank_zero_only
     def training_or_validation_epoch_end(self, is_training: bool) -> None:
@@ -234,7 +236,7 @@ class InnerEyeLightning(LightningModule):
         if isinstance(value, numbers.Number):
             value = torch.tensor(value, dtype=torch.float, device=self.device)
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
-        sync_dist = self.use_ddp if sync_dist_override is None else sync_dist_override
+        sync_dist = self.use_sync_dist if sync_dist_override is None else sync_dist_override
         self.log(prefix + metric_name, value,
                  sync_dist=sync_dist,
                  on_step=False, on_epoch=True,

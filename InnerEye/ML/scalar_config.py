@@ -14,8 +14,9 @@ from azureml.train.hyperdrive import HyperDriveConfig
 from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, OneHotEncoderBase
+from InnerEye.ML.common import ModelExecutionMode, OneHotEncoderBase
 from InnerEye.ML.deep_learning_config import ModelCategory
+from InnerEye.ML.metrics_dict import MetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.split_dataset import DatasetSplits
@@ -102,6 +103,17 @@ class LabelTransformation(Enum):
 
 
 class ScalarModelBase(ModelConfigBase):
+    class_names: List[str] = param.List(class_=str,
+                                        default=[MetricsDict.DEFAULT_HUE_KEY],
+                                        bounds=(1, None),
+                                        doc="The label names for each label class in the dataset and model output "
+                                            "in the case of binary and multi-label classification tasks."
+                                            "The order of the names should match the order of label class indices "
+                                            "in dataset.csv"
+                                            "For multi-label classification, this field is required."
+                                            "For binary classification, this field must be a list of size 1, and "
+                                            "is by default ['Default'], but can optionally be set to a more descriptive "
+                                            "name for the positive class.")
     aggregation_type: AggregationType = param.ClassSelector(default=AggregationType.Average, class_=AggregationType,
                                                             doc="The type of global pooling aggregation to use between"
                                                                 " the encoder and the classifier.")
@@ -112,8 +124,7 @@ class ScalarModelBase(ModelConfigBase):
     image_file_column: Optional[str] = param.String(default=None, allow_None=True,
                                                     doc="The column that contains the path to image files.")
     expected_column_values: List[Tuple[str, str]] = \
-        param.List(default=None, doc="List of tuples with column name and expected value to filter rows in the "
-                                     f"{DATASET_CSV_FILE_NAME}",
+        param.List(default=None, doc="List of tuples with column name and expected value to filter rows in the dataset csv file",
                    allow_None=True)
     label_channels: Optional[List[str]] = \
         param.List(default=None, allow_None=True,
@@ -205,6 +216,10 @@ class ScalarModelBase(ModelConfigBase):
                          "num_dataset_reader_workers to 0 as this is an AML run.")
         else:
             self.num_dataset_reader_workers = num_dataset_reader_workers
+
+    def validate(self) -> None:
+        if len(self.class_names) > 1 and not self.is_classification_model:
+            raise ValueError("Multiple label classes supported only for classification tasks.")
 
     @property
     def is_classification_model(self) -> bool:
@@ -327,7 +342,7 @@ class ScalarModelBase(ModelConfigBase):
 
     def read_dataset_into_dataframe_and_pre_process(self) -> None:
         assert self.local_dataset is not None
-        file_path = self.local_dataset / DATASET_CSV_FILE_NAME
+        file_path = self.local_dataset / self.dataset_csv
         self.dataset_data_frame = pd.read_csv(file_path, dtype=str, low_memory=False)
         self.pre_process_dataset_dataframe()
 
@@ -385,6 +400,12 @@ class ScalarModelBase(ModelConfigBase):
             self.create_and_set_torch_datasets(for_inference=False)
         assert self._datasets_for_training is not None  # for mypy
         return self._datasets_for_training[ModelExecutionMode.TRAIN].get_class_counts()
+
+    def get_total_number_of_training_samples(self) -> int:
+        if self._datasets_for_training is None:
+            self.create_and_set_torch_datasets(for_inference=False)
+        assert self._datasets_for_training is not None  # for mypy
+        return len(self._datasets_for_training[ModelExecutionMode.TRAIN])
 
     def create_model(self) -> Any:
         pass

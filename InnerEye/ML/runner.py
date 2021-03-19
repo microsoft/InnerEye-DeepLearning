@@ -41,9 +41,6 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 
-REPORT_IPYNB = "report.ipynb"
-REPORT_HTML = "report.html"
-
 LOG_FILE_NAME = "stdout.txt"
 
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
@@ -265,8 +262,13 @@ class Runner:
                 print_exception(ex, "Unable to run PyTest.")
                 error_messages.append(f"Unable to run PyTest: {ex}")
         else:
-            try:
+            # Set environment variables for multi-node training if needed.
+            # In particular, the multi-node environment variables should NOT be set in single node
+            # training, otherwise this might lead to errors with the c10 distributed backend
+            # (https://github.com/microsoft/InnerEye-DeepLearning/issues/395)
+            if self.azure_config.num_nodes > 1:
                 set_environment_variables_for_multi_node()
+            try:
                 logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
                 try:
                     self.create_ml_runner().run()
