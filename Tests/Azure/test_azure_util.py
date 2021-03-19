@@ -15,7 +15,7 @@ from InnerEye.Azure.azure_runner import create_experiment_name, get_or_create_py
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, fetch_child_runs, fetch_run, \
     get_cross_validation_split_index, is_cross_validation_child_run, is_run_and_child_runs_completed, \
     merge_conda_dependencies, merge_conda_files, to_azure_friendly_container_path
-from InnerEye.Common.common_util import logging_to_stdout
+from InnerEye.Common.common_util import logging_to_stdout, is_linux
 from InnerEye.Common.fixed_paths import PRIVATE_SETTINGS_FILE, PROJECT_SECRETS_FILE, \
     get_environment_yaml_file, repository_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -85,6 +85,7 @@ def test_is_cross_validation_child_run_ensemble_run() -> None:
     assert all([is_cross_validation_child_run(x) for x in fetch_child_runs(run)])
 
 
+@pytest.mark.skipif(is_linux(), reason="Spurious file read/write errors on linux build agents.")
 def test_merge_conda(test_output_dirs: OutputFolderForTests) -> None:
     """
     Tests the logic for merging Conda environment files.

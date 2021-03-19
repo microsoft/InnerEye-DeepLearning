@@ -384,6 +384,13 @@ def load_images_and_stack(files: Iterable[Path],
     return ImageAndSegmentations(images=image_tensor, segmentations=segmentation_tensor)
 
 
+def is_png(file: PathOrString) -> bool:
+    """
+    Returns true if file is png
+    """
+    return _file_matches_extension(file, [".png"])
+
+
 def load_image_in_known_formats(file: Path,
                                 load_segmentation: bool) -> ImageAndSegmentations[np.ndarray]:
     """
@@ -404,6 +411,9 @@ def load_image_in_known_formats(file: Path,
         return ImageAndSegmentations(images=load_numpy_image(path=file))
     elif is_dicom_file_path(file):
         return ImageAndSegmentations(images=load_dicom_image(path=file))
+    elif is_png(file):
+        image_with_header = load_image(path=file)
+        return ImageAndSegmentations(images=image_with_header.image)
     else:
         raise ValueError(f"Unsupported image file type for path {file}")
 
@@ -463,6 +473,11 @@ def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageW
             image = load_hdf5_dataset_from_file(Path(h5_path), dataset)[channel]
             header = get_unit_image_header()
             return ImageWithHeader(image, header)
+    elif is_png(path):
+        import imageio
+        image = imageio.imread(path).astype(np.float)
+        header = get_unit_image_header()
+        return ImageWithHeader(image, header)
     raise ValueError(f"Invalid file type {path}")
 
 

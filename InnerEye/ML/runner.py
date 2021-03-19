@@ -41,9 +41,6 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
 
-REPORT_IPYNB = "report.ipynb"
-REPORT_HTML = "report.html"
-
 LOG_FILE_NAME = "stdout.txt"
 
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]

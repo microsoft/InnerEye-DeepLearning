@@ -185,9 +185,10 @@ class ScalarLightning(InnerEyeLightning):
         else:
             self.loss_fn = raw_loss
             self.target_indices = []
-            self.target_names = [MetricsDict.DEFAULT_HUE_KEY]
+            self.target_names = config.class_names
         self.is_classification_model = config.is_classification_model
         self.use_mean_teacher_model = config.compute_mean_teacher_model
+        self.is_binary_classification_or_regression = True if len(config.class_names) == 1 else False
         self.logits_to_posterior_fn = config.get_post_loss_logits_normalization_function()
         self.loss_type = config.loss_type
         # These two fields store the PyTorch Lightning Metrics objects that will compute metrics on validation
@@ -338,7 +339,8 @@ class ScalarLightning(InnerEyeLightning):
         metric_computers = self.train_metric_computers if is_training else self.val_metric_computers
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         for prediction_target, metric_list in metric_computers.items():
-            target_suffix = "" if prediction_target == MetricsDict.DEFAULT_HUE_KEY else f"/{prediction_target}"
+            target_suffix = "" if (prediction_target == MetricsDict.DEFAULT_HUE_KEY
+                                   or self.is_binary_classification_or_regression) else f"/{prediction_target}"
             for metric in metric_list:
                 if metric.has_predictions:
                     # Sequence models can have no predictions at all for particular positions, depending on the data.
