@@ -52,7 +52,6 @@ def test_train_and_recover_BYOLClassifier_cifar10_densenet() -> None:
     ssl_classifier = create_ssl_image_classifier(num_classes=10, pl_checkpoint_path=last_cpkt)
 
 
-
 @pytest.mark.parametrize("balanced_binary_loss", [False, True])
 def test_train_and_recover_BYOLClassifier_rsna_resnet(balanced_binary_loss: bool) -> None:
     config = load_ssl_model_config(
@@ -62,7 +61,8 @@ def test_train_and_recover_BYOLClassifier_rsna_resnet(balanced_binary_loss: bool
     config.train.self_supervision.encoder_name = "resnet18"
     config.dataset.dataset_dir = str(Path(__file__).parent / "test_dataset")
     config.train.self_supervision.use_balanced_binary_loss_for_linear_head = balanced_binary_loss
-    dummy_rsna_train_dataloader, dummy_rsna_val_dataloader = _get_dummy_val_train_rsna_datasets(config.dataset.dataset_dir)
+    dummy_rsna_train_dataloader, dummy_rsna_val_dataloader = _get_dummy_val_train_rsna_dataloaders(
+        config.dataset.dataset_dir)
     with mock.patch("InnerEye.SSL.datamodules.chestxray_datamodule.RSNAKaggleDataModule.train_dataloader",
                     return_value=dummy_rsna_train_dataloader):
         with mock.patch("InnerEye.SSL.datamodules.chestxray_datamodule.RSNAKaggleDataModule.val_dataloader",
@@ -72,7 +72,7 @@ def test_train_and_recover_BYOLClassifier_rsna_resnet(balanced_binary_loss: bool
     ssl_classifier = create_ssl_image_classifier(num_classes=2, pl_checkpoint_path=last_cpkt)
 
 
-def _get_dummy_val_train_rsna_datasets(dataset_dir: Path):
+def _get_dummy_val_train_rsna_dataloaders(dataset_dir: Path):
     """
     Return dummy train and validation datasets
     """
