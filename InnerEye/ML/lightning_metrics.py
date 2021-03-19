@@ -139,7 +139,12 @@ class ScalarMetricsBase(Metric):
         """
         Gets a tuple of (concatenated predictions, concatenated targets).
         """
-        return torch.cat(self.preds), torch.cat(self.targets)  # type: ignore
+        preds, targets = torch.cat(self.preds), torch.cat(self.targets)  # type: ignore
+        if preds.dim() == 2 and preds.shape[1] == 2:
+            assert preds.shape[0] == targets.shape[0]
+            return preds[:, 1], targets
+        assert preds.dim() == targets.dim() == 1 and preds.shape[0] == targets.shape[0]
+        return preds, targets
 
     @property
     def has_predictions(self) -> bool:
