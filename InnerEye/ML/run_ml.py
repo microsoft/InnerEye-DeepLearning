@@ -149,7 +149,7 @@ class MLRunner:
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
 
-    def setup(self) -> None:
+    def _setup(self) -> None:
         if self.lightning_container is None:
             # The core InnerEye models do not rely on the LightningContainer infrastructure. For simplicity of code,
             # build a fake container
@@ -234,6 +234,7 @@ class MLRunner:
         Driver function to run a ML experiment. If an offline cross validation run is requested, then
         this function is recursively called for each cross validation split.
         """
+        self._setup()
         if self.is_offline_cross_val_parent_run():
             if self.model_config.is_segmentation_model:
                 raise NotImplementedError("Offline cross validation is only supported for classification models.")

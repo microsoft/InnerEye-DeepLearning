@@ -19,7 +19,7 @@ from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_F
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML import model_testing, model_training, runner
+from InnerEye.ML import model_testing, runner
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
@@ -32,7 +32,8 @@ from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get
     unroll_aggregate_metrics
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler, machine_has_gpu
+from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler, machine_has_gpu, \
+    model_train_unittest
 
 
 @pytest.mark.cpu_and_gpu
@@ -45,11 +46,9 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
     logging_to_stdout(logging.DEBUG)
     config = ClassificationModelForTesting()
     config.set_output_to(test_output_dirs.root_dir)
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=Path(test_output_dirs.root_dir))
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
-    model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
+    model_training_result, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]

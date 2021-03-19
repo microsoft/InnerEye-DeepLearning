@@ -59,6 +59,7 @@ class DummyContainerWithParameters(LightningContainer):
 class DummyRegression(LightningWithInference):
     def __init__(self, in_features: int = 1, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.l_rate = 1e-1
         self.dataset_split = ModelExecutionMode.TRAIN
         self.perform_training_set_inference = True
         activation = Identity()

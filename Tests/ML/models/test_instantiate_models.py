@@ -9,19 +9,17 @@ from unittest import mock
 import pytest
 from azureml.core import Run
 
-from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout, namespace_to_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_training import generate_and_print_model_summary
-from InnerEye.ML.runner import Runner
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithInvalidTrainerArguments, \
-    DummyContainerWithModel, DummyContainerWithParameters
-from Tests.ML.util import get_model_loader, model_train_unittest
+    DummyContainerWithParameters
+from Tests.ML.util import default_runner, get_model_loader, model_train_unittest
 
 
 def find_models() -> List[str]:
@@ -165,8 +163,7 @@ def test_run_model_with_invalid_trainer_arguments(test_output_dirs: OutputFolder
     Test if the trainer_arguments in a LightningContainer are passed to the trainer.
     """
     container = DummyContainerWithInvalidTrainerArguments()
-    config = container.create_lightning_module()
-    container.lightning_module = config
+    container.create_lightning_module_and_store()
     with pytest.raises(Exception) as ex:
         model_train_unittest(container.lightning_module, dirs=test_output_dirs, lightning_container=container)
     assert "no_such_argument" in str(ex)

@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 import pytest
@@ -223,20 +223,27 @@ def get_default_workspace() -> Workspace:
     return get_default_azure_config().get_workspace()
 
 
-def model_train_unittest(config: DeepLearningConfig, dirs: OutputFolderForTests,
-                         lightning_container: Optional[LightningContainer] = None) -> ModelTrainingResults:
+def model_train_unittest(config: DeepLearningConfig,
+                         dirs: OutputFolderForTests,
+                         checkpoint_handler: Optional[CheckpointHandler] = None,
+                         lightning_container: Optional[LightningContainer] = None) -> \
+        Tuple[ModelTrainingResults, CheckpointHandler]:
     """
     A shortcut for running model training in the unit test suite. It runs training for the given config, with the
     default checkpoint handler initialized to point to the test output folder specified in dirs.
     :param config: The configuration of the model to train.
     :param dirs: The test fixture that provides an output folder for the test.
     :param lightning_container: An optional LightningContainer object that will be pass through to the training routine.
+    :param checkpoint_handler: The checkpoint handler that should be used for training. If not provided, it will be
+    created via get_default_checkpoint_handler.
+    :return: Tuple[ModelTrainingResults, CheckpointHandler]
     """
-    checkpoint_handler = get_default_checkpoint_handler(config, project_root=dirs.root_dir)
+    checkpoint_handler = checkpoint_handler or get_default_checkpoint_handler(config, project_root=dirs.root_dir)
     if lightning_container is None:
         lightning_container = InnerEyeContainer(config)
         lightning_container.setup()
-    return model_train(config, checkpoint_handler=checkpoint_handler, lightning_container=lightning_container)
+    result = model_train(config, checkpoint_handler=checkpoint_handler, lightning_container=lightning_container)
+    return result, checkpoint_handler
 
 
 def default_runner() -> Runner:
