@@ -6,7 +6,8 @@ The code present in this folder allows you to train self-supervised models using
 
 
 We provide datamodules and configs examples for two datasets: [CIFAR10](https://www.cs.toronto.edu/~kriz/cifar.html) and [RSNA Pneumonia Detection Challenge](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge/overview) to get you kickstarted with unsupervised models. To use this code with your own data, you simply need to adapt one of the existing [configs](configs) 
-and create a PyTorch lightning datamodule for your dataset. 
+and create a PyTorch lightning datamodule for your dataset. Details about the meaning of each config arguments can be found 
+in the [ssl_model_config.py](configs/ssl_model_config.py) file.
 
 
 ### Example 1: training a SimCLR model on CIFAR10
@@ -20,8 +21,7 @@ This will automatically take care of downloading the dataset to your machine pri
 ### Example 2: training a BYOL model on RSNA Pneumonia Detection Challenge
 
 ##### Step 1: Get the data
-Prior to starting training a model on these datasets, you will need to download them to your machine. They are both
-available on Kaggle:
+Prior to starting training a model on this dataset, you will need to download it from Kaggle to your machine:
 * To use the RSNA Pneumonia Detection Challenge data: please download from 
   [here](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge/data?select=stage_2_train_images). 
   Make sure to download all images and the `dataset.csv` file to your data folder. Please note that the labels are here 
