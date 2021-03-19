@@ -17,10 +17,11 @@ class RSNAKaggleDataModule(LightningDataModule):
                  *args: Any, **kwargs: Any) -> None:
         """
         This is the data module to load and prepare the Kaggle RSNA Pneumonia detection challenge dataset.
-        :param config:
+        :param config: the config parametrizing the experiment. In particular, used for augmentation strength parameters
+        (cf. config doc).
         :param num_devices: The number of GPUs to use. The total batch size specified in the config will be divided
         by the number of GPUs.
-        :param num_workers: The number of dataloader workers.
+        :param num_workers: The number of cpu dataloader workers.
         """
         super().__init__(*args, **kwargs)
         self.config = config

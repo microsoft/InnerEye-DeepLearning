@@ -32,7 +32,9 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         self.class_weights = class_weights
 
     def on_pretrain_routine_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
-        # Move metrics and class weights to module device
+        """
+        Initializes modules and moves metrics and class weights to module device
+        """
         for metric in [*self.train_metrics, *self.val_metrics]:
             metric.to(device=pl_module.device)  # type: ignore
         if self.class_weights:
@@ -47,15 +49,28 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                                           lr=self.learning_rate,
                                           weight_decay=self.weight_decay)
 
-    # Use only one of the transformed images
     @staticmethod
     def to_device(batch: BatchType, device: Union[str, torch.device]) -> Tuple[T, T]:
+        """
+        Moves batch to device, only use the first augmented version of the image for linear head, disregard the others.
+        :param batch: assumed to be a batch a Tuple(List[tensor, tensor, tensor], tensor) to match lightning-bolts
+        SimCLRTrainDataTransform API; the first tuple element contains a list of three tensor where the two first
+        elements contain two are two strong augmented versions  of the original images in the batch and the last
+        is a milder augmentation. Here, only use the first augmented version of the image for linear
+        head, disregard the others inputs.
+        :param device: device to move the batch to.
+        """
         (x1, x2, _), y = batch
         x1 = x1.to(device)
         y = y.to(device)
         return x1, y
 
     def shared_step(self, batch: BatchType, pl_module: pl.LightningModule, is_training: bool) -> T:
+        """
+        Forward pass and MLP loss computation for the linear head only. Representations from the encoder are frozen and
+        detach from computation graph for this loss computation.
+        Returns cross-entropy loss for the input batch.
+        """
         x, y = self.to_device(batch, pl_module.device)
         with torch.no_grad():
             representations = self.get_representations(pl_module, x)
@@ -74,11 +89,16 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         return mlp_loss
 
     def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):  # type: ignore
+        """
+        Get and log validation metrics.
+        """
         loss = self.shared_step(batch, pl_module, is_training=False)
-        # Log classification metrics
         pl_module.log('ssl/online_val_loss', loss, on_step=False, on_epoch=True, sync_dist=False)
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
+        """
+        Get and log training metrics, perform network update.
+        """
         logger = trainer.logger.experiment  # type: ignore 
         loss = self.shared_step(batch, pl_module, is_training=True)
 

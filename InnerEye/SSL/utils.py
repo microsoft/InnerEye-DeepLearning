@@ -26,7 +26,8 @@ def load_ssl_model_config(config_path: Path) -> ConfigNode:
 
 def update_model_config(config: ConfigNode) -> ConfigNode:
     '''
-    Adds dataset specific parameters in model config
+    Adds dataset specific parameters in model config for CIFAR10 and CIFAR100. For other datasets simply return
+    the config.
     '''
     if config.dataset.name in ['CIFAR10', 'CIFAR100']:
         dataset_dir = f'~/.torch/datasets/{config.dataset.name}'
@@ -42,9 +43,13 @@ def update_model_config(config: ConfigNode) -> ConfigNode:
 
 
 def create_ssl_encoder(encoder_name: str, dataset_name: Optional[str] = None) -> torch.nn.Module:
+    """
+    Creates SSL encoder.
+    :param encoder_name: available choices: resnet18, resnet50, resnet101 and densenet121.
+    :param dataset_name: optional, if "CIFAR10" the initial convolution layer with be adapted to not shrink the
+    images. Else if None or other the argument is ignored.
+    """
     from pl_bolts.models.self_supervised.resnets import resnet18, resnet50, resnet101
-    """
-    """
     if encoder_name == 'resnet18':
         encoder = resnet18(return_all_feature_maps=False)
     elif encoder_name == 'resnet50':

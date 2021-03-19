@@ -80,6 +80,11 @@ class RandomGamma(BaseTransform):
 
 
 class ExpandChannels:
+    """
+    Transforms a image with one channel to a an image with
+    3 channels by copying pixel intensities of the image along
+    the 0 dimension.
+    """
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
         return torch.repeat_interleave(data, 3, dim=0)
 
@@ -155,7 +160,11 @@ class DualViewTransformWrapper:
 def create_chest_xray_transform(config: ConfigNode,
                                 is_train: bool) -> Callable:
     """
-    Defines the image transformations pipeline for Chest-Xray datasets.
+    Defines the image transformations pipeline used in Chest-Xray datasets.
+    Type of augmentation and strength are defined in the config.
+    :param config: config yaml file fixing strength and type of augmentation to apply
+    :param is_train: if True return transformation pipeline with augmentations. Else, disable augmentations i.e.
+    only resize and center crop the image.
     """
     transforms: List[Any] = []
     if is_train:

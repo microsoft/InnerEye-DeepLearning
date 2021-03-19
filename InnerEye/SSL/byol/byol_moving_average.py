@@ -42,11 +42,17 @@ class BYOLMAWeightUpdate(Callback):
         self.current_tau = self.update_tau(pl_module, trainer)
 
     def update_tau(self, pl_module: pl.LightningModule, trainer: pl.Trainer) -> float:
+        """
+        Update tau parameter (controlling update of teacher model) for BYOL according to current step (cosine schedule).
+        """
         max_steps = len(trainer.train_dataloader) * trainer.max_epochs  # type: ignore
         tau = 1 - (1 - self.initial_tau) * (math.cos(math.pi * pl_module.global_step / max_steps) + 1) / 2
         return tau
 
     def update_weights(self, online_net: torch.nn.Module, target_net: torch.nn.Module) -> None:
+        """
+        Update target network weights with new online network weights.
+        """
         # apply MA weight update
         for current_params, ma_params in zip(online_net.parameters(), target_net.parameters()):
             up_weight, old_weight = current_params.data, ma_params.data

@@ -63,6 +63,16 @@ class BYOLInnerEye(pl.LightningModule):
         return neg_cos_sim
 
     def shared_step(self, batch: BatchType, batch_idx: int) -> T:
+        """
+        Returns the BYOL loss for a given batch of images, used in validation
+        and training step.
+        :param batch: assumed to be a batch a Tuple(List[tensor, tensor, tensor], tensor) to match lightning-bolts
+        SimCLRTrainDataTransform API; the first tuple element contains a list of three tensor where the two first
+        elements contain two are two strong augmented versions  of the original images in the batch and the last
+        is a milder augmentation (ignored here).
+        :param batch_idx: index of the batch
+        :return: BYOL loss
+        """
         (img_1, img_2, _), _ = batch
 
         # Image 1 to image 2 loss
@@ -79,13 +89,11 @@ class BYOLInnerEye(pl.LightningModule):
     def training_step(self, batch: BatchType, batch_idx: int) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
         self.log_dict({'byol/train_loss': loss, 'byol/tau': self.weight_callback.current_tau})
-
         return loss
 
     def validation_step(self, batch: BatchType, batch_idx: int) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
         self.log_dict({'byol/validation_loss': loss})
-
         return loss
 
     def setup(self, *args: Any, **kwargs: Any) -> None:
@@ -93,6 +101,11 @@ class BYOLInnerEye(pl.LightningModule):
         self.train_iters_per_epoch = self.hparams.num_samples // global_batch_size  # type: ignore
 
     def configure_optimizers(self) -> Any:
+        """
+        Configures the optimizer to use for training: Adam optimizer with Lars scheduling, excluding certain parameters
+        (batch norm and bias of convolution) from weight decay. Apply Linear Cosine Annealing schedule of learning
+        rate with warm-up.
+        """
         # TRICK 1 (Use lars + filter weights)
         # exclude certain parameters
         parameters = self.exclude_from_wt_decay(self.online_network.named_parameters(),
