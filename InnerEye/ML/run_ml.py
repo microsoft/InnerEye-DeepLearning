@@ -16,6 +16,8 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Run
 from azureml.core.model import Model
 from azureml.data import FileDataset
+from pytorch_lightning.utilities.cloud_io import load as pl_load
+from torch.utils.data import DataLoader
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig
@@ -36,12 +38,12 @@ from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConf
     FINAL_MODEL_FOLDER, \
     ModelCategory, MultiprocessingStartMethod
 from InnerEye.ML.lightning_base import InnerEyeContainer
-from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
-from InnerEye.ML.model_training import create_lightning_trainer, is_rank_zero, model_train
+from InnerEye.ML.model_training import is_rank_zero, model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_notebook, generate_segmentation_notebook
 from InnerEye.ML.runner import ModelDeploymentHookSignature, PostCrossValidationHookSignature, REPORT_HTML, \
     REPORT_IPYNB, get_all_environment_files
@@ -298,15 +300,32 @@ class MLRunner:
         """
         if len(checkpoint_paths) != 1:
             raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
-        # TODO antonsc: Should we re-use the trainer object that was used in model_train?
-        # By creating a separate one, we also create a new Tensorboard file, and hence training
-        # and inference metrics are at separate places.
-        trainer, _ = create_lightning_trainer(self.model_config)
+        assert isinstance(self.model_config, LightningWithInference), "For this method, the configuration should be " \
+                                                                      "an instance of LightningWithInference"
         data = self.lightning_container.get_inference_data_module(
             crossval_index=self.model_config.cross_validation_split_index,
             crossval_count=self.model_config.number_of_cross_validation_splits)
-        trainer.model = self.lightning_container.lightning_module
-        trainer.test(test_dataloaders=data.test_dataloader(), ckpt_path=str(checkpoint_paths[0]))
+        dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
+        if self.model_config.perform_validation_and_test_set_inference:
+            dataloaders.append((data.test_dataloader(), ModelExecutionMode.TEST))
+            dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))
+        if self.model_config.perform_training_set_inference:
+            dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))
+        map_location = "gpu" if self.model_config.use_gpu else "cpu"
+        checkpoint = pl_load(checkpoint_paths[0], map_location=map_location)
+        lightning_model = self.model_config
+        lightning_model.load_state_dict(checkpoint['state_dict'])
+        lightning_model.eval()
+        lightning_model.on_inference_start()
+        for loader, split in dataloaders:
+            logging.info(f"Starting inference on {split.value} set")
+            lightning_model.on_inference_epoch_start(dataset_split=split, is_ensemble_model=False)
+            for batch_idx, item in enumerate(loader):
+                model_output = lightning_model.forward(item[0])
+                lightning_model.inference_step(item, batch_idx, model_output=model_output)
+            lightning_model.on_inference_epoch_end()
+        lightning_model.on_inference_end()
+        logging.info("Finished inference.")
 
     def run_inference_and_register_model(self, checkpoint_handler: CheckpointHandler,
                                          model_proc: ModelProcessing) -> None:

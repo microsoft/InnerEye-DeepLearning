@@ -131,13 +131,11 @@ class Runner:
                  project_root: Path,
                  yaml_config_file: Path,
                  post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
-                 model_deployment_hook: Optional[ModelDeploymentHookSignature] = None,
-                 command_line_args: Optional[List[str]] = None):
+                 model_deployment_hook: Optional[ModelDeploymentHookSignature] = None):
         self.project_root = project_root
         self.yaml_config_file = yaml_config_file
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
-        self.command_line_args = command_line_args
         # model_config and azure_config are placeholders for now, and are set properly when command line args are
         # parsed.
         self.model_config: DeepLearningConfig = DeepLearningConfig(azure_dataset_id="")
@@ -158,7 +156,6 @@ class Runner:
         parser1_result = parse_args_and_add_yaml_variables(parser1,
                                                            yaml_config_file=self.yaml_config_file,
                                                            project_root=self.project_root,
-                                                           args=self.command_line_args,
                                                            fail_on_unknown_args=False)
         azure_config = AzureConfig(**parser1_result.args)
         azure_config.project_root = self.project_root
@@ -190,10 +187,6 @@ class Runner:
         model_config.apply_overrides(parser1_result.unknown_settings_from_yaml)
         model_config.apply_overrides(parser2_result.overrides)
         model_config.validate()
-
-        # Set the file system related configs, they might be affected by the overrides that were applied.
-        logging.info("Creating the adjusted output folder structure.")
-        model_config.create_filesystem(self.project_root)
 
         if azure_config.extra_code_directory:
             exist = "exists" if Path(azure_config.extra_code_directory).exists() else "does not exist"
@@ -288,8 +281,11 @@ class Runner:
             # In particular, the multi-node environment variables should NOT be set in single node
             # training, otherwise this might lead to errors with the c10 distributed backend
             # (https://github.com/microsoft/InnerEye-DeepLearning/issues/395)
+
             if self.azure_config.num_nodes > 1:
                 set_environment_variables_for_multi_node()
+            logging.info("Creating the output folder structure.")
+            self.model_config.create_filesystem(self.project_root)
             logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
             try:
                 ml_runner = self.create_ml_runner()
@@ -335,8 +331,7 @@ def default_post_cross_validation_hook(config: ModelConfigBase, root_folder: Pat
 def run(project_root: Path,
         yaml_config_file: Path,
         post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
-        model_deployment_hook: Optional[ModelDeploymentHookSignature] = None,
-        command_line_args: Optional[List[str]] = None) -> \
+        model_deployment_hook: Optional[ModelDeploymentHookSignature] = None) -> \
         Tuple[ModelConfigBase, Optional[Run]]:
     """
     The main entry point for training and testing models from the commandline. This chooses a model to train
@@ -344,8 +339,7 @@ def run(project_root: Path,
     :return: If submitting to AzureML, returns the model configuration that was used for training,
     including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
-    runner = Runner(project_root, yaml_config_file, post_cross_validation_hook,
-                    model_deployment_hook, command_line_args)
+    runner = Runner(project_root, yaml_config_file, post_cross_validation_hook, model_deployment_hook)
     return runner.run()
 
 

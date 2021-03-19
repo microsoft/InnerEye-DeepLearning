@@ -79,36 +79,57 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
         """
         raise NotImplementedError("This method must be overridden in a derived class.")
 
-    def on_inference_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
+    def on_inference_start(self) -> None:
         """
-        Runs initialization for everything that the inference_step might require. This can initialize
-        output files, set up metric computation, etc.
-        :param dataset_split:
-        :param is_ensemble_model:
-        :return:
+        Runs initialization for everything that inference might require. This can initialize
+        output files, set up metric computation, etc. This is run only once.
         """
         pass
 
-    # for dataset_split in [Train, Val, Test]
-    #   model.inference_start()
-    #   for item in dataloader[dataset_split]:
-    #       for fold in (range(5) if is_ensemble or range(1)):
-    #           model_outputs[fold] = model.forward(item)
-    #       model.inference_step(item, model_outputs, dataset_split, is_ensemble_result=is_ensemble_result)
-    #   model.inference_end()
-    def inference_step(self, batch: Any, batch_idx: int, model_outputs: torch.Tensor):
+    def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
         """
-        This hook is called when the model has finished making a prediction. It can write the results to a file,
-        or compute metrics and store them.
-        :param batch: The batch of data for which the model made a prediction.
-        :param model_outputs: The model outputs. This would usually be a torch.Tensor, but can be any datatype.
+        Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
+        Depending on the settings, this can be called anywhere between 0 (no inference at all) to 3 times (inference
+        on all of train/val/test split).
         :param dataset_split: Indicates whether the item comes from the training, validation or test set.
-        :param is_ensemble_result: If False, the model_outputs come from an individual model If True, the model
+        :param is_ensemble_model: If False, the model_outputs come from an individual model. If True, the model
         outputs come from multiple models.
         """
         pass
 
-    def aggregate_model_outputs(self, model_outputs: Iterator[torch.Tensor]) -> torch.Tensor:
+    # model.inference_start()
+    # for dataset_split in [Train, Val, Test]
+    #     model.on_inference_epoch_start(dataset_split, is_ensemble_model=False)
+    #     for batch_idx, item in enumerate(dataloader[dataset_split])):
+    #         model_outputs = model.forward(item)
+    #         model.inference_step(item, batch_idx, model_outputs)
+    #     model.on_inference_epoch_end()
+    # model.on_inference_end()
+    def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor):
+        """
+        This hook is called when the model has finished making a prediction. It can write the results to a file,
+        or compute metrics and store them.
+        :param batch: The batch of data for which the model made a prediction.
+        :param model_output: The model outputs. This would usually be a torch.Tensor, but can be any datatype.
+        """
+        pass
+
+    def on_inference_epoch_end(self) -> None:
+        """
+        Called when the inference on one of the dataset splits (train/val/test) has finished.
+        Depending on the settings, this can be called anywhere between 0 (no inference at all) to 3 times (inference
+        on all of train/val/test split).
+        """
+        pass
+
+    def on_inference_end(self) -> None:
+        """
+        Called when all inference epochs have finished. This can write all metrics to disk, for example. This method
+        is called exactly once.
+        """
+        pass
+
+    def aggregate_ensemble_model_outputs(self, model_outputs: Iterator[torch.Tensor]) -> torch.Tensor:
         """
         Aggregates the outputs of multiple models when using an ensemble model. In the default implementation,
         this averages the tensors coming from all the models.
@@ -125,12 +146,6 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
                 aggregate_output = aggregate_output + m
         aggregate_output = aggregate_output / count
         return aggregate_output
-
-    def on_inference_end(self) -> None:
-        """
-        Called when the model has made predictions on all. This can write all metrics to disk, for example.
-        """
-        pass
 
     def create_report(self) -> None:
         """
@@ -176,7 +191,6 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
 
 
 class LightningContainer(GenericConfig):
-
     # All model parameters that should be available on the commandline should be added here.
     # They can be used later in, for example, the call to create the model.
     some_parameter = param.String(default="Default", doc="Some documentation.")
@@ -242,5 +256,3 @@ class LightningContainer(GenericConfig):
         property.
         """
         self._lightning_module = self.create_lightning_module()
-
-
