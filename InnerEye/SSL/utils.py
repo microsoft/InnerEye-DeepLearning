@@ -10,10 +10,10 @@ from InnerEye.SSL.encoders import DenseNet121Encoder
 
 
 def load_ssl_model_config(config_path: Path) -> ConfigNode:
-    '''
+    """
     Loads configs required for self supervised learning. Does not setup cudann as this is being
-    taken care of by lightining.
-    '''
+    taken care of by lightning.
+    """
     config = ssl_model_config.get_default_model_config()
     config.merge_from_file(config_path)
     update_model_config(config)
@@ -25,10 +25,10 @@ def load_ssl_model_config(config_path: Path) -> ConfigNode:
 
 
 def update_model_config(config: ConfigNode) -> ConfigNode:
-    '''
+    """
     Adds dataset specific parameters in model config for CIFAR10 and CIFAR100. For other datasets simply return
     the config.
-    '''
+    """
     if config.dataset.name in ['CIFAR10', 'CIFAR100']:
         dataset_dir = f'~/.torch/datasets/{config.dataset.name}'
         config.dataset.dataset_dir = dataset_dir
