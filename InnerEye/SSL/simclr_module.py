@@ -1,8 +1,12 @@
 from typing import Any
-
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pl_bolts.losses.self_supervised_learning import nt_xent_loss
+from pl_bolts.optimizers import LARSWrapper, LinearWarmupCosineAnnealingLR
+from torch.optim import Adam
+
 from InnerEye.SSL.byol.byol_models import SSLEncoder
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
 
@@ -32,7 +36,13 @@ class SimCLRInnerEye(SimCLR):
             encoder_name [str]: Image encoder name (predefined models)
             dataset_name [str]: Image dataset name (e.g. cifar10, kaggle, etc.)
         """
+        if "dataset" not in kwargs:  # needed for the new version of lightning-bolts
+            kwargs.update({"dataset": dataset_name})
         super().__init__(**kwargs)
         self.save_hyperparameters()
+        self.nt_xent_loss = nt_xent_loss
         self.encoder = SSLEncoder(encoder_name, dataset_name)
         self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
+
+    def forward(self, x):
+        return self.encoder(x)

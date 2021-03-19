@@ -59,11 +59,12 @@ def cli_main(config: ConfigNode, debug: bool = False) -> None:
     # Create SimCLR data modules and model
     dm = create_ssl_data_modules(config)
     if ssl_type == "simclr":
-        model = SimCLRInnerEye(num_samples=dm.num_samples,  # type: ignore
+        model = SimCLRInnerEye(dataset_name=config.dataset.name,
+                               gpus=num_gpus,
+                               encoder_name=config.train.self_supervision.encoder_name,
+                               num_samples=dm.num_samples,  # type: ignore
                                batch_size=dm.batch_size,  # type: ignore
-                               lr=config.train.base_lr,
-                               dataset_name=config.dataset.name,
-                               encoder_name=config.train.self_supervision.encoder_name)
+                               lr=config.train.base_lr)
     # Create BYOL model
     else:
         model = BYOLInnerEye(num_samples=dm.num_samples,  # type: ignore
