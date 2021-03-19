@@ -65,9 +65,12 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     assert len(model_training_result.train_results_per_epoch[0]) >= 11
     assert len(model_training_result.val_results_per_epoch[0]) >= 11
 
-    target_suffix = "" if class_name == MetricsDict.DEFAULT_HUE_KEY else f"/{class_name}"
-
-    for metric in [MetricType.LOSS,
+    for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
+                   MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
+                   MetricType.AREA_UNDER_PR_CURVE,
+                   MetricType.AREA_UNDER_ROC_CURVE,
+                   MetricType.CROSS_ENTROPY,
+                   MetricType.LOSS,
                    MetricType.SECONDS_PER_BATCH,
                    MetricType.SECONDS_PER_EPOCH,
                    MetricType.SUBJECT_COUNT]:
@@ -75,17 +78,6 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
             f"{metric.value} not in training"
         assert metric.value in model_training_result.val_results_per_epoch[0], \
             f"{metric.value} not in validation"
-
-    for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
-                   MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
-                   MetricType.AREA_UNDER_PR_CURVE,
-                   MetricType.AREA_UNDER_ROC_CURVE,
-                   MetricType.CROSS_ENTROPY]:
-
-        assert metric.value + target_suffix in model_training_result.train_results_per_epoch[0], \
-            f"{metric.value + target_suffix} not in training"
-        assert metric.value + target_suffix in model_training_result.val_results_per_epoch[0], \
-            f"{metric.value + target_suffix} not in validation"
 
     actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS.value)
     actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS.value)
@@ -108,14 +100,14 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     epoch_metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME
     # Auto-format will break the long header line, hence the strange way of writing it!
     expected_epoch_metrics = \
-        f"{LoggingColumns.Loss.value},{LoggingColumns.CrossEntropy.value + target_suffix}," \
-        f"{LoggingColumns.AccuracyAtThreshold05.value + target_suffix},{LoggingColumns.LearningRate.value}," + \
-        f"{LoggingColumns.AreaUnderRocCurve.value + target_suffix}," \
-        f"{LoggingColumns.AreaUnderPRCurve.value + target_suffix}," \
-        f"{LoggingColumns.AccuracyAtOptimalThreshold.value + target_suffix}," \
-        f"{LoggingColumns.FalsePositiveRateAtOptimalThreshold.value + target_suffix}," \
-        f"{LoggingColumns.FalseNegativeRateAtOptimalThreshold.value + target_suffix}," \
-        f"{LoggingColumns.OptimalThreshold.value + target_suffix}," \
+        f"{LoggingColumns.Loss.value},{LoggingColumns.CrossEntropy.value}," \
+        f"{LoggingColumns.AccuracyAtThreshold05.value},{LoggingColumns.LearningRate.value}," + \
+        f"{LoggingColumns.AreaUnderRocCurve.value}," \
+        f"{LoggingColumns.AreaUnderPRCurve.value}," \
+        f"{LoggingColumns.AccuracyAtOptimalThreshold.value}," \
+        f"{LoggingColumns.FalsePositiveRateAtOptimalThreshold.value}," \
+        f"{LoggingColumns.FalseNegativeRateAtOptimalThreshold.value}," \
+        f"{LoggingColumns.OptimalThreshold.value}," \
         f"{LoggingColumns.SubjectCount.value},{LoggingColumns.Epoch.value}," \
         f"{LoggingColumns.CrossValidationSplitIndex.value}\n" + \
         """0.6866141557693481,0.6866141557693481,0.5,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,0,-1	
