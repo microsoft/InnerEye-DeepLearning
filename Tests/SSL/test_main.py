@@ -72,11 +72,11 @@ def test_train_and_recover_BYOLClassifier_rsna_resnet(balanced_binary_loss: bool
     ssl_classifier = create_ssl_image_classifier(num_classes=2, pl_checkpoint_path=last_cpkt)
 
 
-def _get_dummy_val_train_rsna_dataloaders(dataset_dir: Path):
+def _get_dummy_val_train_rsna_dataloaders():
     """
     Return dummy train and validation datasets
     """
-
+    dataset_dir = str(Path(__file__).parent / "test_dataset")
     class DummyRSNADataset(RSNAKaggleCXR):
         def __getitem__(self, item):
             return (torch.rand([3, 224, 224], dtype=torch.float32), torch.rand([3, 224, 224], dtype=torch.float32),
