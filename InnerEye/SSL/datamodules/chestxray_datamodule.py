@@ -38,7 +38,7 @@ class RSNAKaggleDataModule(LightningDataModule):
             class_weights = len(self.train_dataset.targets) / np.bincount(self.train_dataset.targets)
             # Normalized class weights
             class_weights /= class_weights.sum()
-            self.class_weights = torch.tensor(class_weights)
+            self.class_weights = torch.tensor(class_weights, dtype=torch.float32)
 
     @property
     def num_classes(self) -> int:
