@@ -9,6 +9,7 @@ import numpy as np
 
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.Common.common_util import is_windows
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.metrics_dict import MetricsDict
 from InnerEye.ML.reports.classification_multilabel_report import get_dataframe_with_exact_label_matches, \
@@ -19,6 +20,7 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 
 
+@pytest.mark.skipif(is_windows(), reason="Random timeout errors on windows.")
 def test_generate_classification_multilabel_report(test_output_dirs: OutputFolderForTests) -> None:
     hues = ["Hue1", "Hue2"]
 

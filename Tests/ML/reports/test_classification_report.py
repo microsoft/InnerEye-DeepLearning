@@ -12,6 +12,7 @@ import pytest
 
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.Common.common_util import is_windows
 from InnerEye.ML.reports.classification_report import ReportedMetrics, get_correct_and_misclassified_examples, \
     get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_labels_and_predictions, \
     plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id
@@ -23,6 +24,7 @@ from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 
 
+@pytest.mark.skipif(is_windows(), reason="Random timeout errors on windows.")
 def test_generate_classification_report(test_output_dirs: OutputFolderForTests) -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
