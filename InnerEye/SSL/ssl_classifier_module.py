@@ -4,11 +4,11 @@ import pytorch_lightning as pl
 import torch
 from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
+from pytorch_lightning.metrics import Accuracy
 from torch import Tensor as T
 from torch.nn import functional as F
 
-from InnerEye.SSL.metrics import AreaUnderRocCurve
-from pytorch_lightning.metrics import Accuracy
+from InnerEye.ML.lightning_metrics import AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 
 BatchType = Tuple[List, T]
 
@@ -27,8 +27,8 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         self.weight_decay = 1e-4
         self.learning_rate = 1e-4
 
-        self.train_metrics = [AreaUnderRocCurve(), Accuracy()] if self.num_classes == 2 else [Accuracy()]
-        self.val_metrics = [AreaUnderRocCurve(), Accuracy()] if self.num_classes == 2 else [Accuracy()]
+        self.train_metrics = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy()] if self.num_classes == 2 else [Accuracy()]
+        self.val_metrics = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy()] if self.num_classes == 2 else [Accuracy()]
         self.class_weights = class_weights
 
     def on_pretrain_routine_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
@@ -37,7 +37,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
         for metric in [*self.train_metrics, *self.val_metrics]:
             metric.to(device=pl_module.device)  # type: ignore
-        if self.class_weights:
+        if self.class_weights is not None:
             self.class_weights.to(device=pl_module.device)
 
         pl_module.non_linear_evaluator = SSLEvaluator(n_input=self.z_dim,
