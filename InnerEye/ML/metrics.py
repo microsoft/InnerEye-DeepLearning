@@ -347,7 +347,8 @@ def store_epoch_metrics(metrics: DictStrFloat,
             metric_name = tokens[0]
             hue_suffix = "/" + tokens[1]
         else:
-            raise ValueError(f"Expected key have format 'metric_name[/optional_suffix_for_hue]', got {key}")
+            raise ValueError(f"Expected key to have format 'metric_name[/optional_suffix_for_hue]', got {key}")
+
         if metric_name == MetricType.SECONDS_PER_BATCH.value or metric_name == MetricType.SECONDS_PER_EPOCH.value:
             continue
         if metric_name in INTERNAL_TO_LOGGING_COLUMN_NAMES.keys():
