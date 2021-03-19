@@ -65,27 +65,28 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     assert len(model_training_result.train_results_per_epoch[0]) >= 11
     assert len(model_training_result.val_results_per_epoch[0]) >= 11
 
+    target_suffix = "" if class_name == MetricsDict.DEFAULT_HUE_KEY else f"/{class_name}"
+
+    for metric in [MetricType.LOSS,
+                   MetricType.SECONDS_PER_BATCH,
+                   MetricType.SECONDS_PER_EPOCH,
+                   MetricType.SUBJECT_COUNT]:
+        assert metric.value in model_training_result.train_results_per_epoch[0], \
+            f"{metric.value} not in training"
+        assert metric.value in model_training_result.val_results_per_epoch[0], \
+            f"{metric.value} not in validation"
+
     for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
                    MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
                    MetricType.AREA_UNDER_PR_CURVE,
                    MetricType.AREA_UNDER_ROC_CURVE,
-                   MetricType.CROSS_ENTROPY,
-                   MetricType.LOSS,
-                   MetricType.SECONDS_PER_BATCH,
-                   MetricType.SECONDS_PER_EPOCH,
-                   MetricType.SUBJECT_COUNT,
-                   ]:
-        target_suffix = ""
-        if not class_name == MetricsDict.DEFAULT_HUE_KEY and metric not in [MetricType.LOSS,
-                                                                            MetricType.SECONDS_PER_BATCH,
-                                                                            MetricType.SECONDS_PER_EPOCH,
-                                                                            MetricType.SUBJECT_COUNT]:
-            target_suffix = f"/{class_name}"
+                   MetricType.CROSS_ENTROPY]:
 
         assert metric.value + target_suffix in model_training_result.train_results_per_epoch[0], \
             f"{metric.value + target_suffix} not in training"
         assert metric.value + target_suffix in model_training_result.val_results_per_epoch[0], \
             f"{metric.value + target_suffix} not in validation"
+
     actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS.value)
     actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS.value)
     actual_lr = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE.value)
@@ -96,20 +97,27 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
                                             checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
     expected_metrics = [0.636085, 0.735952]
-    assert test_results.metrics.values()[MetricType.CROSS_ENTROPY.value] == \
+    assert test_results.metrics.values(class_name)[MetricType.CROSS_ENTROPY.value] == \
            pytest.approx(expected_metrics, abs=1e-5)
     # Run detailed logs file check only on CPU, it will contain slightly different metrics on GPU, but here
     # we want to mostly assert that the files look reasonable
     if machine_has_gpu:
         return
+
     # Check epoch_metrics.csv
     epoch_metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME
     # Auto-format will break the long header line, hence the strange way of writing it!
     expected_epoch_metrics = \
-        "loss,cross_entropy,accuracy_at_threshold_05,learning_rate," + \
-        "area_under_roc_curve,area_under_pr_curve,accuracy_at_optimal_threshold," \
-        "false_positive_rate_at_optimal_threshold,false_negative_rate_at_optimal_threshold," \
-        "optimal_threshold,subject_count,epoch,cross_validation_split_index\n" + \
+        f"{LoggingColumns.Loss.value},{LoggingColumns.CrossEntropy.value + target_suffix}," \
+        f"{LoggingColumns.AccuracyAtThreshold05.value + target_suffix},{LoggingColumns.LearningRate.value}," + \
+        f"{LoggingColumns.AreaUnderRocCurve.value + target_suffix}," \
+        f"{LoggingColumns.AreaUnderPRCurve.value + target_suffix}," \
+        f"{LoggingColumns.AccuracyAtOptimalThreshold.value + target_suffix}," \
+        f"{LoggingColumns.FalsePositiveRateAtOptimalThreshold.value + target_suffix}," \
+        f"{LoggingColumns.FalseNegativeRateAtOptimalThreshold.value + target_suffix}," \
+        f"{LoggingColumns.OptimalThreshold.value + target_suffix}," \
+        f"{LoggingColumns.SubjectCount.value},{LoggingColumns.Epoch.value}," \
+        f"{LoggingColumns.CrossValidationSplitIndex.value}\n" + \
         """0.6866141557693481,0.6866141557693481,0.5,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,0,-1	
         0.6864652633666992,0.6864652633666992,0.5,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,1,-1	
         0.6863163113594055,0.6863162517547607,0.5,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,2,-1	
