@@ -19,8 +19,8 @@ from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode,\
-    create_recovery_checkpoint_path, create_unique_timestamp_id,\
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, \
+    create_recovery_checkpoint_path, create_unique_timestamp_id, \
     get_best_checkpoint_path
 
 VISUALIZATION_FOLDER = "Visualizations"
@@ -186,6 +186,7 @@ class DeepLearningFileSystemConfig(Parameterized):
                          "outputs folder.")
 
 
+# TODO antonsc: Split off some fields into ModelConfigBase
 class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     """
     A class that holds all settings that are shared across segmentation models and regression/classification models.
@@ -196,14 +197,13 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                               "usually set from the class name.")
 
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
-    azure_dataset_id: str = param.String(doc="If provided, the ID of the dataset to use. This dataset must exist as a "
-                                             "folder of the same name in the 'datasets' "
-                                             "container in the datasets storage account.")
-    local_dataset: Optional[Path] = param.ClassSelector(class_=Path,
-                                                        default=None,
-                                                        allow_None=True,
-                                                        doc="The path of the dataset to use, when training is running "
-                                                            "outside Azure.")
+    azure_dataset_id: str = param.String(doc="If provided, the ID of the dataset to use when running in AzureML. "
+                                             "This dataset must exist as a folder of the same name in the 'datasets' "
+                                             "container in the datasets storage account. This dataset will be mounted "
+                                             "and made available at the 'local_dataset' path when running in AzureML.")
+    local_dataset: Optional[Path] = \
+        param.ClassSelector(class_=Path, default=None, allow_None=True,
+                            doc="The path of the dataset to use, when training is running outside Azure.")
     num_dataload_workers: int = param.Integer(8, bounds=(0, None),
                                               doc="The number of data loading workers (processes). When set to 0,"
                                                   "data loading is running in the same process (no process startup "
@@ -377,10 +377,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     #: Name of the csv file providing information on the dataset to be used.
     dataset_csv: str = param.String(
-            DATASET_CSV_FILE_NAME,
-            doc="Name of the csv file providing information on the dataset "
-                "to be used, containing at least the fields: "
-                "subject, channel, filePath.")
+        DATASET_CSV_FILE_NAME,
+        doc="Name of the csv file providing information on the dataset "
+            "to be used, containing at least the fields: "
+            "subject, channel, filePath.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__

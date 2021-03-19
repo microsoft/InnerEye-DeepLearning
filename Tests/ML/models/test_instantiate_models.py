@@ -127,15 +127,6 @@ def test_config_loader_on_lightning_container() -> None:
     assert model is not None
 
 
-def default_runner() -> Runner:
-    """
-    Create an InnerEye Runner object with the default settings, pointing to the repository root and
-    default settings files.
-    """
-    return Runner(project_root=fixed_paths.repository_root_directory(),
-                  yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
-
-
 @pytest.mark.parametrize("container_name", ["DummyContainerWithAzureDataset",
                                             "DummyContainerWithoutDataset",
                                             "DummyContainerWithLocalDataset",
@@ -167,18 +158,6 @@ def test_load_container_with_arguments() -> None:
         runner.parse_and_load_model()
     assert isinstance(runner.lightning_container, DummyContainerWithParameters)
     assert runner.lightning_container.my_param == "foo"
-
-
-def test_run_container_in_situ() -> None:
-    """
-    Test if we can get the config loader to load a Lightning container model, and then train locally.
-    """
-    runner = default_runner()
-    args = ["", "--model=DummyContainerWithModel", "--model_configs_namespace=Tests.ML.configs"]
-    with mock.patch("sys.argv", args):
-        loaded_config, actual_run = runner.run()
-    assert actual_run is None
-    assert isinstance(runner.lightning_container, DummyContainerWithModel)
 
 
 def test_run_model_with_invalid_trainer_arguments(test_output_dirs: OutputFolderForTests) -> None:

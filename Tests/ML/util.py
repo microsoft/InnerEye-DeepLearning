@@ -24,6 +24,7 @@ from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
+from InnerEye.ML.runner import Runner
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
@@ -236,3 +237,12 @@ def model_train_unittest(config: DeepLearningConfig, dirs: OutputFolderForTests,
         lightning_container = InnerEyeContainer(config)
         lightning_container.setup()
     return model_train(config, checkpoint_handler=checkpoint_handler, lightning_container=lightning_container)
+
+
+def default_runner() -> Runner:
+    """
+    Create an InnerEye Runner object with the default settings, pointing to the repository root and
+    default settings files.
+    """
+    return Runner(project_root=fixed_paths.repository_root_directory(),
+                  yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)

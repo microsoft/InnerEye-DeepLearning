@@ -79,10 +79,13 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
         """
         raise NotImplementedError("This method must be overridden in a derived class.")
 
-    def on_test_epoch_start(self) -> None:
+    def on_inference_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
         """
         Runs initialization for everything that the inference_step might require. This can initialize
         output files, set up metric computation, etc.
+        :param dataset_split:
+        :param is_ensemble_model:
+        :return:
         """
         pass
 
@@ -93,14 +96,12 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
     #           model_outputs[fold] = model.forward(item)
     #       model.inference_step(item, model_outputs, dataset_split, is_ensemble_result=is_ensemble_result)
     #   model.inference_end()
-    # We could use test_step, but that has a different signature. In particular, it does not allow
-    # to pass
-    def test_step(self, *args, **kwargs):
+    def inference_step(self, batch: Any, batch_idx: int, model_outputs: torch.Tensor):
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
         or compute metrics and store them.
-        :param item: The item for which the model made a prediction.
-        :param model_outputs: The model output. This would usually be a torch.Tensor, but can be any datatype.
+        :param batch: The batch of data for which the model made a prediction.
+        :param model_outputs: The model outputs. This would usually be a torch.Tensor, but can be any datatype.
         :param dataset_split: Indicates whether the item comes from the training, validation or test set.
         :param is_ensemble_result: If False, the model_outputs come from an individual model If True, the model
         outputs come from multiple models.
@@ -125,7 +126,7 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
         aggregate_output = aggregate_output / count
         return aggregate_output
 
-    def on_test_epoch_end(self) -> None:
+    def on_inference_end(self) -> None:
         """
         Called when the model has made predictions on all. This can write all metrics to disk, for example.
         """

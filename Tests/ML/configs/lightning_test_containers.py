@@ -73,20 +73,22 @@ class DummyRegression(LightningWithInference):
         input, target = batch
         prediction = self.forward(input)
         loss = torch.nn.functional.mse_loss(prediction, target)
+        self.log("loss", loss, on_epoch=True)
         return loss
 
-    def on_test_epoch_start(self) -> None:
+    def on_inference_start(self) -> None:
         (self.outputs_folder / "on_test_epoch_start.txt").touch()
-        (self.outputs_folder / "results.txt").touch()
 
-    def test_step(self, item: Tuple[Tensor, Tensor], batch_idx, **kwargs):
+    def inference_step(self, item: Tuple[Tensor, Tensor], batch_idx, **kwargs):
         print(f"test_step batch_idx={batch_idx}")
         input, target = item
         prediction = self.forward(input)
+        mse = torch.nn.functional.mse_loss(prediction, target)
+        self.log("mse", mse, on_epoch=True)
         with (self.outputs_folder / "results.txt").open(mode="a") as f:
-            f.write(f"{prediction} {target}")
+            f.write(f"{prediction} {target}\n")
 
-    def on_test_epoch_end(self) -> None:
+    def on_inference_end(self) -> None:
         (self.outputs_folder / "on_test_epoch_end.txt").touch()
 
 
