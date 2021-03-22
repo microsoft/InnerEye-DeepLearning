@@ -19,7 +19,7 @@ from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithInvalidTrainerArguments, \
     DummyContainerWithParameters
-from Tests.ML.util import default_runner, get_model_loader, model_train_unittest
+from Tests.ML.util import default_runner, get_model_loader, model_loader_including_tests, model_train_unittest
 
 
 def find_models() -> List[str]:
@@ -31,6 +31,7 @@ def find_models() -> List[str]:
     folders = [path / "segmentation", path / "classification", path / "regression"]
     names = [str(f.stem) for folder in folders for f in folder.glob("*.py") if folder.exists()]
     return [name for name in names if not name.endswith("Base") and not name.startswith("__")]
+
 
 
 def test_any_models_found() -> None:
@@ -119,9 +120,10 @@ def test_config_loader_on_lightning_container() -> None:
     """
     Test if the config loader can load an model that is neither classification nor segmentation.
     """
+    # First test if the container can be instantiated at all (it is tricky to get that right when inheritance change)
+    DummyContainerWithParameters()
     logging_to_stdout(log_level=logging.DEBUG)
-    loader_including_tests = get_model_loader(namespace="Tests.ML.configs")
-    model = loader_including_tests.create_model_config_from_name("DummyLightningContainer")
+    model = model_loader_including_tests.create_model_config_from_name("DummyContainerWithParameters")
     assert model is not None
 
 
@@ -150,8 +152,9 @@ def test_load_container_with_arguments() -> None:
     """
     Test if we can load a container and override a value in it via the commandline.
     """
+    DummyContainerWithParameters()
     runner = default_runner()
-    args = ["", "--model=DummyContainerWithParameters", "--my_param=foo"]
+    args = ["", "--model=DummyContainerWithParameters", "--my_param=foo", "--model_configs_namespace=Tests.ML.configs"]
     with mock.patch("sys.argv", args):
         runner.parse_and_load_model()
     assert isinstance(runner.lightning_container, DummyContainerWithParameters)

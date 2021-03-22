@@ -211,7 +211,8 @@ def get_default_checkpoint_handler(model_config: DeepLearningConfig, project_roo
     Gets a checkpoint handler, using the given model config and the default azure configuration.
     """
     azure_config = get_default_azure_config()
-    return CheckpointHandler(azure_config=azure_config, model_config=model_config,
+    return CheckpointHandler(azure_config=azure_config,
+                             lightning_container=InnerEyeContainer(model_config),
                              project_root=project_root)
 
 
@@ -253,3 +254,6 @@ def default_runner() -> Runner:
     """
     return Runner(project_root=fixed_paths.repository_root_directory(),
                   yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
+
+
+model_loader_including_tests = get_model_loader(namespace="Tests.ML.configs")

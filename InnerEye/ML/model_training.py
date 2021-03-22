@@ -13,13 +13,14 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
-from InnerEye.Azure.azure_util import RUN_CONTEXT
+from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
 from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, cleanup_checkpoint_folder
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, VISUALIZATION_FOLDER
+from InnerEye.ML.deep_learning_config import ARGS_TXT, DeepLearningConfig, OutputParams, TrainerParams, \
+    VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
@@ -61,7 +62,16 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
     RUN_CONTEXT.upload_file(upload_name, path_or_stream=str(file_path))
 
 
-def create_lightning_trainer(config: DeepLearningConfig,
+def write_args_file(config: OutputParams) -> None:
+    """
+    Writes the given object to disk in the default output folder.
+    """
+    config.outputs_folder.mkdir(exist_ok=True, parents=True)
+    dst = config.outputs_folder / ARGS_TXT
+    dst.write_text(data=str(config))
+
+
+def create_lightning_trainer(config: TrainerParams,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1,
                              **kwargs: Dict[str, Any]) -> \
@@ -96,7 +106,7 @@ def create_lightning_trainer(config: DeepLearningConfig,
 
     num_gpus = torch.cuda.device_count() if config.use_gpu else 0
     logging.info(f"Number of available GPUs: {num_gpus}")
-    if config.max_num_gpus >= 0 and config.max_num_gpus < num_gpus:
+    if 0 <= config.max_num_gpus < num_gpus:
         num_gpus = config.max_num_gpus
         logging.info(f"Restricting the number of GPUs to {num_gpus}")
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
@@ -180,7 +190,7 @@ def model_train(config: DeepLearningConfig,
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
     # training in the unit tests.d
     old_environ = dict(os.environ)
-    seed_everything(config.get_effective_random_seed())
+    seed_everything(lightning_container.get_effective_random_seed())
     trainer, storing_logger = create_lightning_trainer(config,
                                                        checkpoint_path,
                                                        num_nodes=num_nodes,
@@ -194,12 +204,12 @@ def model_train(config: DeepLearningConfig,
     resource_monitor = None
     # Execute some bookkeeping tasks only once if running distributed:
     if is_rank_zero():
-        config.write_args_file()
+        write_args_file(config)
         logging.info(str(config))
         logging.info(f"Model checkpoints are saved at {config.checkpoint_folder}")
 
         # set the random seed for all libraries
-        ml_util.set_random_seed(config.get_effective_random_seed(), "Patch visualization")
+        ml_util.set_random_seed(lightning_container.get_effective_random_seed(), "Patch visualization")
         # Visualize how patches are sampled for segmentation models. This changes the random generator, but we don't
         # want training to depend on how many patients we visualized, and hence set the random seed again right after.
         if isinstance(config, SegmentationModelBase):
@@ -212,19 +222,20 @@ def model_train(config: DeepLearningConfig,
             # of the dataset and do forward propagation?
             generate_and_print_model_summary(config, lightning_model.model)
 
-        if config.monitoring_interval_seconds > 0:
+        if lightning_container.monitoring_interval_seconds > 0:
             resource_monitor = start_resource_monitor(config)
 
     # Training loop
     logging.info("Starting training")
 
-    lightning_data = lightning_container.get_training_data_module(crossval_index=config.cross_validation_split_index,
-                                                                  crossval_count=config.number_of_cross_validation_splits)
+    lightning_data = lightning_container.get_training_data_module(
+        crossval_index=lightning_container.cross_validation_split_index,
+        crossval_count=lightning_container.number_of_cross_validation_splits)
     trainer.fit(lightning_model, datamodule=lightning_data)
     trainer.logger.close()  # type: ignore
     lightning_model.close_all_loggers()
     world_size = getattr(trainer, "world_size", 0)
-    is_azureml_run = not config.is_offline_run
+    is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
     # Each thread per rank will come here, and upload its files to the run outputs. Rank 0 will later download them.
     if is_azureml_run and world_size > 1 and isinstance(lightning_model, ScalarLightning):
@@ -238,7 +249,7 @@ def model_train(config: DeepLearningConfig,
         sys.exit()
 
     logging.info("Choosing the best checkpoint and removing redundant files.")
-    cleanup_checkpoint_folder(config.checkpoint_folder)
+    cleanup_checkpoint_folder(lightning_model.checkpoint_folder)
     # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
     # those environment variables will mislead the training runs in the test suite, and make them crash.
     # Hence, restore the original environment after training.
@@ -281,14 +292,14 @@ def model_train(config: DeepLearningConfig,
     # checkpoints correctly.
     checkpoint_handler.additional_training_done()
 
-    # Upload visualization directory to AML run context to be able to see it
-    # in the Azure UI.
-    if config.max_batch_grad_cam > 0 and config.visualization_folder.exists():
-        RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(config.visualization_folder))
+    # Upload visualization directory to AML run context to be able to see it in the Azure UI.
+    if isinstance(config, DeepLearningConfig):
+        if config.max_batch_grad_cam > 0 and config.visualization_folder.exists():
+            RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(config.visualization_folder))
 
     if resource_monitor:
         logging.info("Shutting down the resource monitor process.")
-        if not config.is_offline_run:
+        if is_azureml_run:
             for gpu_name, metrics_per_gpu in resource_monitor.read_aggregate_metrics().items():
                 # Log as a table, with GPU being the first column
                 RUN_CONTEXT.log_row("GPU utilization", GPU=gpu_name, **metrics_per_gpu)

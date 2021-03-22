@@ -6,12 +6,15 @@ import os
 import sys
 from pathlib import Path
 
+# Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
+# the working directory is not correctly picked up in sys.path
+from InnerEye.Common.generic_parsing import GenericConfig
+
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
 # flake8: noqa
+from InnerEye.ML.lightning_base import InnerEyeContainer
 
-# Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
-# the working directory is not correctly picked up in sys.path
 print("Starting InnerEye runner.")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
@@ -38,7 +41,7 @@ from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGG
     ModelProcessing, disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.deep_learning_config import DeepLearningConfig, EssentialParams
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 
@@ -153,40 +156,49 @@ class Runner:
         """
         # Create a parser that will understand only the args we need for an AzureConfig
         parser1 = create_runner_parser()
-        parser1_result = parse_args_and_add_yaml_variables(parser1,
+        parser_result = parse_args_and_add_yaml_variables(parser1,
                                                            yaml_config_file=self.yaml_config_file,
                                                            project_root=self.project_root,
                                                            fail_on_unknown_args=False)
-        azure_config = AzureConfig(**parser1_result.args)
+        azure_config = AzureConfig(**parser_result.args)
         azure_config.project_root = self.project_root
         self.azure_config = azure_config
         self.model_config = None  # type: ignore
         if not azure_config.model:
             return None
-        model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser1_result.args)
+        model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser_result.args)
         # Create the model as per the "model" commandline option
         config_or_container = model_config_loader.create_model_config_from_name(model_name=azure_config.model)
         if has_torch and isinstance(config_or_container, LightningContainer):
-            # Create the actual Lightning module, and store it for later use in the container, too
+            # The loaded object is a LightningContainer: These can have overrides at container level, and at
+            # model level. To set these, need to first create the actual Lightning module. Then create argument parsers
+            # at both container and model level.
             config_or_container.create_lightning_module_and_store()
             self.lightning_container = config_or_container
             model_config = config_or_container.lightning_module
+            parser_for_these_objects = [config_or_container, model_config]
         else:
+            # Built-in InnerEye models:
             model_config = config_or_container
+            # This model will be either a classification model or a segmentation model. Those have different
+            # fields that could be overridden on the command line. Create a parser that understands the fields we need
+            # for the actual model type. We feed this parser will the YAML settings and commandline arguments that the
+            # first parser did not recognize.
+            parser_for_these_objects = [model_config]
 
-        # This model will be either a classification model or a segmentation model. Those have different
-        # fields that could be overridden on the command line. Create a parser that understands the fields we need
-        # for the actual model type. We feed this parser will the YAML settings and commandline arguments that the
-        # first parser did not recognize.
-        parser2 = type(model_config).create_argparser()
-        parser2_result = parse_arguments(parser2,
-                                         settings_from_yaml=parser1_result.unknown_settings_from_yaml,
-                                         args=parser1_result.unknown,
-                                         fail_on_unknown_args=True)
-        # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
-        model_config.apply_overrides(parser1_result.unknown_settings_from_yaml)
-        model_config.apply_overrides(parser2_result.overrides)
-        model_config.validate()
+        for i, c in enumerate(parser_for_these_objects):
+            assert isinstance(c, GenericConfig)
+            is_last_parser = i == len(parser_for_these_objects) - 1
+            parser = type(c).create_argparser()
+            # For each parser, feed in the unknown settings from the previous parser.
+            parser_result = parse_arguments(parser,
+                                            settings_from_yaml=parser_result.unknown_settings_from_yaml,
+                                            args=parser_result.unknown,
+                                            fail_on_unknown_args=is_last_parser)
+            # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
+            c.apply_overrides(parser_result.unknown_settings_from_yaml)
+            c.apply_overrides(parser_result.overrides)
+            c.validate()
 
         if azure_config.extra_code_directory:
             exist = "exists" if Path(azure_config.extra_code_directory).exists() else "does not exist"
@@ -194,7 +206,18 @@ class Runner:
         else:
             logging.info("extra_code_directory is unset")
         self.model_config = model_config
-        return parser2_result
+        return parser_result
+
+    @property
+    def perform_cross_validation(self) -> bool:
+        """
+        Returns True if cross validation will be be performed as part of the training procedure.
+        """
+        if isinstance(self.model_config, DeepLearningConfig):
+            return self.model_config.perform_cross_validation
+        else:
+            assert isinstance(self.lightning_container, EssentialParams)
+            return self.lightning_container.perform_cross_validation
 
     def run(self) -> Tuple[DeepLearningConfig, Optional[Run]]:
         """
@@ -209,8 +232,7 @@ class Runner:
         may_initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
-        # TODO antonsc: crossvalidation for BYOL. Need to move some fields into the container class?
-        if self.model_config is not None and self.model_config.perform_cross_validation:
+        if self.perform_cross_validation:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None
@@ -227,11 +249,8 @@ class Runner:
         """
         # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
         logging.getLogger('adal-python').setLevel(logging.WARNING)
-        if self.lightning_container is None:
-            # When bringing in Lightning modules, we want to be more flexible, and run them even without an
-            # Azure dataset, because they may come with their own dataset downloading code.
-            if not self.model_config.azure_dataset_id:
-                raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
+        if not self.lightning_container.azure_dataset_id:
+            raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
@@ -241,7 +260,7 @@ class Runner:
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
-        azure_run = submit_to_azureml(self.azure_config, source_config, self.model_config.azure_dataset_id)
+        azure_run = submit_to_azureml(self.azure_config, source_config, self.lightning_container.azure_dataset_id)
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
@@ -289,7 +308,6 @@ class Runner:
             logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
             try:
                 ml_runner = self.create_ml_runner()
-                ml_runner.setup()
                 ml_runner.run()
             finally:
                 disable_logging_to_file()

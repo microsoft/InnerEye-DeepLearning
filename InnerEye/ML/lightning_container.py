@@ -2,21 +2,23 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import abc
 from typing import Any, Dict, Iterator, List, Tuple
 
 import param
 import torch
-from jinja2.optimizer import Optimizer
 from pytorch_lightning import LightningDataModule, LightningModule
 # Problem: We need to know
 # azure_dataset_id
 # model_config.get_hyperdrive_config
 # model_config.perform_crossvalidation
+from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.deep_learning_config import DatasetParams, EssentialParams, OptimizerParams, OutputParams, \
+    TrainerParams
 # Do we want to support ensembles at inference time? Not now
 from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
@@ -47,37 +49,20 @@ from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 # are presently doing something different than in training.
 # If that is not enough: Can pass in inference mode (single model / ensemble) and which dataset we are running on.
 
-
-class LightningWithInferenceMeta(type(DeepLearningConfig), type(LightningModule)):
-    pass
-
-
-class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=LightningWithInferenceMeta):
+class LightningInference(abc.ABC):
     """
-    Double inheritance. All files should be written to config.outputs_folder or config.logs_folder
+    A base class that defines the methods that need to be present for doing inference on a trained model.
+    The inference code calls the methods in this order:
+
+    model.inference_start()
+    for dataset_split in [Train, Val, Test]
+        model.on_inference_epoch_start(dataset_split, is_ensemble_model=False)
+        for batch_idx, item in enumerate(dataloader[dataset_split])):
+            model_outputs = model.forward(item)
+            model.inference_step(item, batch_idx, model_outputs)
+        model.on_inference_epoch_end()
+    model.on_inference_end()
     """
-
-    def __init__(self, *args, **kwargs) -> None:
-        DeepLearningConfig.__init__(self, *args, **kwargs)
-        LightningModule.__init__(self)
-        pass
-
-    def forward(self, *args, **kwargs):
-        """
-        Run an item through the model at prediction time. This overrides LightningModule.forward, and
-        has the same expected use.
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        raise NotImplementedError("This method must be overridden in a derived class.")
-
-    def training_step(self, *args, **kwargs):
-        """
-        Implements the PyTorch Lightning training step. This overrides LightningModule.training_step, and
-        has the same expected use.
-        """
-        raise NotImplementedError("This method must be overridden in a derived class.")
 
     def on_inference_start(self) -> None:
         """
@@ -97,14 +82,6 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
         """
         pass
 
-    # model.inference_start()
-    # for dataset_split in [Train, Val, Test]
-    #     model.on_inference_epoch_start(dataset_split, is_ensemble_model=False)
-    #     for batch_idx, item in enumerate(dataloader[dataset_split])):
-    #         model_outputs = model.forward(item)
-    #         model.inference_step(item, batch_idx, model_outputs)
-    #     model.on_inference_epoch_end()
-    # model.on_inference_end()
     def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor):
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
@@ -147,6 +124,43 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
         aggregate_output = aggregate_output / count
         return aggregate_output
 
+
+class LightningWithInferenceMeta(type(LightningInference),
+                                 type(OutputParams)):
+    pass
+
+
+class LightningWithInference(LightningModule,
+                             LightningInference,
+                             OutputParams,
+                             TrainerParams,
+                             GenericConfig,
+                             metaclass=LightningWithInferenceMeta):
+    """
+    Double inheritance. All files should be written to config.outputs_folder or config.logs_folder
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        LightningModule.__init__(self)
+        pass
+
+    def forward(self, *args, **kwargs):
+        """
+        Run an item through the model at prediction time. This overrides LightningModule.forward, and
+        has the same expected use.
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        raise NotImplementedError("This method must be overridden in a derived class.")
+
+    def training_step(self, *args, **kwargs):
+        """
+        Implements the PyTorch Lightning training step. This overrides LightningModule.training_step, and
+        has the same expected use.
+        """
+        raise NotImplementedError("This method must be overridden in a derived class.")
+
     def create_report(self) -> None:
         """
         This method should look through all files that training and inference wrote, and cook that into a
@@ -162,9 +176,13 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
         Override this method for full flexibility to define any optimizer and scheduler.
         :return: A tuple of (optimizer, LR scheduler)
         """
-        optimizer = model_util.create_optimizer(self, self.parameters())
-        l_rate_scheduler = SchedulerWithWarmUp(self, optimizer)
-        return [optimizer], [l_rate_scheduler]  # type: ignore
+        if isinstance(self, OptimizerParams):
+            optimizer = model_util.create_optimizer(self, self.parameters())
+            l_rate_scheduler = SchedulerWithWarmUp(self, optimizer)
+            return [optimizer], [l_rate_scheduler]
+        else:
+            raise NotImplementedError("This method must be overridden in a derived class. Alternatively, inherit "
+                                      "from the OptimizerParams class and the settings defined therein.")
 
     def close_all_loggers(self) -> None:
         """
@@ -190,7 +208,9 @@ class LightningWithInference(LightningModule, DeepLearningConfig, metaclass=Ligh
         pass
 
 
-class LightningContainer(GenericConfig):
+class LightningContainer(GenericConfig,
+                         EssentialParams,
+                         DatasetParams):
     # All model parameters that should be available on the commandline should be added here.
     # They can be used later in, for example, the call to create the model.
     some_parameter = param.String(default="Default", doc="Some documentation.")
@@ -256,3 +276,4 @@ class LightningContainer(GenericConfig):
         property.
         """
         self._lightning_module = self.create_lightning_module()
+        self._model_name = type(self).__name__

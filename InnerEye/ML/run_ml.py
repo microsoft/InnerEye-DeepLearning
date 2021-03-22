@@ -25,7 +25,7 @@ from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, INPUT_DATA_KEY, get
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, \
     MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
-    RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, merge_conda_files
+    RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, is_offline_run_context, merge_conda_files
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
@@ -161,13 +161,21 @@ class MLRunner:
                 # Save the dataset files for later use in cross validation analysis
                 self.model_config.write_dataset_files()
 
+    @property
+    def is_offline_run(self) -> bool:
+        """
+        Returns True if the present run is outside of AzureML, and False if it is inside of AzureML.
+        :return:
+        """
+        return is_offline_run_context(RUN_CONTEXT)
+
     def is_offline_cross_val_parent_run(self) -> bool:
         """
         Returns true if the current run is an offline run with cross validation splits > 0
         and cross_validation_split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX (ie: a parent)
         """
-        return self.model_config.cross_validation_split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX and \
-               self.model_config.perform_cross_validation and self.model_config.is_offline_run
+        return self.lightning_container.cross_validation_split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX and \
+               self.lightning_container.perform_cross_validation and self.is_offline_run
 
     def spawn_offline_cross_val_classification_child_runs(self) -> None:
         """
@@ -242,7 +250,7 @@ class MLRunner:
             return
 
         # Get the AzureML context in which the script is running
-        if not self.model_config.is_offline_run and PARENT_RUN_CONTEXT is not None:
+        if not self.is_offline_run and PARENT_RUN_CONTEXT is not None:
             logging.info("Setting tags from parent run.")
             self.set_run_tags_from_parent()
 
@@ -250,7 +258,7 @@ class MLRunner:
         self.set_multiprocessing_start_method()
 
         # configure recovery container if provided
-        checkpoint_handler = CheckpointHandler(model_config=self.model_config,
+        checkpoint_handler = CheckpointHandler(lightning_container=self.lightning_container,
                                                azure_config=self.azure_config,
                                                project_root=self.project_root,
                                                run_context=RUN_CONTEXT)
@@ -282,13 +290,15 @@ class MLRunner:
             # the current run is a single one. See the documentation of ModelProcessing for more details.
             self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
 
-            if self.model_config.generate_report:
+            if self.lightning_container.generate_report:
                 self.generate_report(ModelProcessing.DEFAULT)
 
             # If this is an cross validation run, and the present run is child run 0, then wait for the sibling runs,
             # build the ensemble model, and write a report for that.
-            if self.model_config.number_of_cross_validation_splits > 0:
-                if self.model_config.should_wait_for_other_cross_val_child_runs():
+            if self.lightning_container.number_of_cross_validation_splits > 0:
+                should_wait_for_other_child_runs = (not self.is_offline_run) and \
+                                                   self.lightning_container.cross_validation_split_index == 0
+                if should_wait_for_other_child_runs:
                     self.wait_for_runs_to_finish()
                     self.create_ensemble_model_and_run_inference()
         else:
@@ -304,13 +314,13 @@ class MLRunner:
         assert isinstance(self.model_config, LightningWithInference), "For this method, the configuration should be " \
                                                                       "an instance of LightningWithInference"
         data = self.lightning_container.get_inference_data_module(
-            crossval_index=self.model_config.cross_validation_split_index,
-            crossval_count=self.model_config.number_of_cross_validation_splits)
+            crossval_index=self.lightning_container.cross_validation_split_index,
+            crossval_count=self.lightning_container.number_of_cross_validation_splits)
         dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
-        if self.model_config.perform_validation_and_test_set_inference:
+        if self.lightning_container.perform_validation_and_test_set_inference:
             dataloaders.append((data.test_dataloader(), ModelExecutionMode.TEST))
             dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))
-        if self.model_config.perform_training_set_inference:
+        if self.lightning_container.perform_training_set_inference:
             dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))
         map_location = "gpu" if self.model_config.use_gpu else "cpu"
         checkpoint = pl_load(checkpoint_paths[0], map_location=map_location)
@@ -361,7 +371,7 @@ class MLRunner:
         model (from the run we recovered) should already have been registered, so we should only
         do so if this run is specifically for that purpose.
         """
-        if self.model_config.is_offline_run:
+        if self.is_offline_run:
             return False
         return self.azure_config.train or self.azure_config.only_register_model
 
@@ -381,13 +391,13 @@ class MLRunner:
         mounted or downloaded.
         Returns the path of the dataset on the executing machine.
         """
-        azure_dataset_id = self.model_config.azure_dataset_id
-        local_dataset = self.model_config.local_dataset
+        azure_dataset_id = self.lightning_container.azure_dataset_id
+        local_dataset = self.lightning_container.local_dataset
         # A dataset, either local or in Azure, is required for the built-in InnerEye models. When models are
         # specified via a LightningContainer, these dataset fields are optional, because the container datasets
         # could be downloaded even from the webno such requirement.
         is_dataset_required = self.lightning_container is None
-        if self.model_config.is_offline_run:
+        if self.is_offline_run:
             # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
             # Otherwise, download the dataset specified by the azure_dataset_id
             if is_dataset_required:
@@ -419,7 +429,7 @@ class MLRunner:
         """
         Set the (PyTorch) multiprocessing start method.
         """
-        method = self.model_config.multiprocessing_start_method
+        method = self.lightning_container.multiprocessing_start_method
         if is_windows():
             if method != MultiprocessingStartMethod.spawn:
                 logging.warning(f"Cannot set multiprocessing start method to '{method.name}' "
@@ -444,7 +454,7 @@ class MLRunner:
             logging.warning("Abandoning model registration - no valid checkpoint paths found")
             return
 
-        if not self.model_config.is_offline_run:
+        if not self.is_offline_run:
             split_index = RUN_CONTEXT.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
             if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
                 RUN_CONTEXT.tag(IS_ENSEMBLE_KEY_NAME, str(model_proc == ModelProcessing.ENSEMBLE_CREATION))
@@ -651,7 +661,7 @@ class MLRunner:
 
         # log the metrics to AzureML experiment if possible. When doing ensemble runs, log to the Hyperdrive parent run,
         # so that we get the metrics of child run 0 and the ensemble separated.
-        if config.is_segmentation_model and not config.is_offline_run:
+        if config.is_segmentation_model and not self.is_offline_run:
             run_for_logging = PARENT_RUN_CONTEXT if model_proc.ENSEMBLE_CREATION else RUN_CONTEXT
             log_metrics(val_metrics=val_metrics, test_metrics=test_metrics,  # type: ignore
                         train_metrics=train_metrics, run_context=run_for_logging)  # type: ignore
@@ -674,7 +684,7 @@ class MLRunner:
         :return: True if all sibling runs of the current run have finished (they either completed successfully,
         or failed). False if any of them is still pending (running or queued).
         """
-        if (not self.model_config.is_offline_run) \
+        if (not self.is_offline_run) \
                 and (azure_util.is_cross_validation_child_run(RUN_CONTEXT)):
             n_splits = self.model_config.get_total_number_of_cross_validation_runs()
             child_runs = azure_util.fetch_child_runs(PARENT_RUN_CONTEXT,
@@ -696,7 +706,7 @@ class MLRunner:
         """
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
         with logging_section("Downloading checkpoints from sibling runs"):
-            checkpoint_handler = CheckpointHandler(model_config=self.model_config,
+            checkpoint_handler = CheckpointHandler(lightning_container=self.lightning_container,
                                                    azure_config=self.azure_config,
                                                    project_root=self.project_root,
                                                    run_context=PARENT_RUN_CONTEXT)

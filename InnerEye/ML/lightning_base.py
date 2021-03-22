@@ -17,7 +17,7 @@ from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.deep_learning_config import DatasetParams, DeepLearningConfig, EssentialParams
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.metrics import EpochTimers, MAX_ITEM_LOAD_TIME_SEC, store_epoch_metrics
@@ -98,11 +98,17 @@ class InnerEyeContainer(LightningContainer):
     def __init__(self, config: ModelConfigBase):
         super().__init__()
         self.config = config
+        # Fields like cross validation index are defined at container level, but the InnerEye models define them
+        # at model level. Copy everything over.
+        for type_to_copy in [EssentialParams, DatasetParams]:
+            config.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},
+                                   should_validate=False)
 
     def setup(self) -> None:
         """
         Reads the dataset files and anything else that needs to happen before the datasets can be read out.
-        Also creates the Lightning model itself, and stores it in the present object.
+        Also creates the Lightning model itself, and stores it in the present object, accessible via the
+        `lightning_module` parameter.
         """
         # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
         # loaded (typically only during tests)

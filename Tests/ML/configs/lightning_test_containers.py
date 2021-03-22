@@ -15,19 +15,18 @@ from torch.utils.data import DataLoader, Dataset
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.deep_learning_config import OptimizerParams
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 
 
 class DummyContainerWithDatasets(LightningContainer):
     def __init__(self, has_local_dataset: bool = False, has_azure_dataset: bool = False):
         super().__init__()
-        self.has_local_dataset = has_local_dataset
-        self.has_azure_dataset = has_azure_dataset
+        self.local_dataset = full_ml_test_data_path("lightning_module_data") if has_local_dataset else None
+        self.azure_dataset = "azure_dataset" if has_azure_dataset else ""
 
     def create_lightning_module(self) -> LightningWithInference:
-        local_dataset = full_ml_test_data_path("lightning_module_data") if self.has_local_dataset else None
-        azure_dataset = "azure_dataset" if self.has_local_dataset else ""
-        return LightningWithInference(azure_dataset_id=azure_dataset, local_dataset=local_dataset)
+        return LightningWithInference()
 
 
 class DummyContainerWithAzureDataset(DummyContainerWithDatasets):
@@ -56,12 +55,11 @@ class DummyContainerWithParameters(LightningContainer):
         super().__init__()
 
 
-class DummyRegression(LightningWithInference):
+class DummyRegression(LightningWithInference, OptimizerParams):
     def __init__(self, in_features: int = 1, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.l_rate = 1e-1
         self.dataset_split = ModelExecutionMode.TRAIN
-        self.perform_training_set_inference = True
         activation = Identity()
         layers = [
             torch.nn.Linear(in_features=in_features, out_features=1, bias=True),
@@ -142,6 +140,7 @@ class DummyContainerWithModel(LightningContainer):
 
     def __init__(self):
         super().__init__()
+        self.perform_training_set_inference = True
 
     def create_lightning_module(self) -> LightningWithInference:
         return DummyRegression()
