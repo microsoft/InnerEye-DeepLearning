@@ -49,7 +49,7 @@ def test_use_local_weights_file(test_output_dirs: OutputFolderForTests) -> None:
     assert not checkpoint_handler.local_weights_path
 
     # weights from local_weights_path and weights_url will be modified if needed and stored at this location
-    expected_path = checkpoint_handler.model_config.outputs_folder / WEIGHTS_FILE
+    expected_path = checkpoint_handler.output_params.outputs_folder / WEIGHTS_FILE
 
     # Set a weights_path
     checkpoint_handler.azure_config.run_recovery_id = ""

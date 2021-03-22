@@ -136,6 +136,7 @@ class InnerEyeLightning(LightningModule):
     def __init__(self, config: DeepLearningConfig, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.outputs_folder = config.outputs_folder
+        self.checkpoint_folder = config.checkpoint_folder
         self.model: DeviceAwareModule = DeviceAwareModule()
         # These two will be set later in set_optimizer_and_scheduler.
         # The ddp_spawn accelerator only works if the model configuration object is

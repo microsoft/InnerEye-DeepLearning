@@ -215,7 +215,7 @@ class LightningContainer(GenericConfig,
     # They can be used later in, for example, the call to create the model.
     some_parameter = param.String(default="Default", doc="Some documentation.")
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._lightning_module = None
 
@@ -276,4 +276,4 @@ class LightningContainer(GenericConfig,
         property.
         """
         self._lightning_module = self.create_lightning_module()
-        self._model_name = type(self).__name__
+        self._lightning_module._model_name = type(self).__name__

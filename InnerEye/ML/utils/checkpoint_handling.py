@@ -5,6 +5,7 @@
 import logging
 import os
 import uuid
+from builtins import property
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse
@@ -15,7 +16,9 @@ from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, EssentialParams, WEIGHTS_FILE
+from InnerEye.ML.deep_learning_config import OutputParams, WEIGHTS_FILE, \
+    load_checkpoint_and_modify
+from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.utils.run_recovery import RunRecovery
 
@@ -36,12 +39,39 @@ class CheckpointHandler:
         self.local_weights_path: Optional[Path] = None
         self.has_continued_training = False
 
+    @property
+    def output_params(self) -> OutputParams:
+        """
+        Gets the part of the configuration that is responsible for output paths.
+        """
+        if isinstance(self.container, InnerEyeContainer):
+            return self.container.config
+        else:
+            return self.container.lightning_module
+
+    @property
+    def start_epoch(self) -> int:
+        """
+        Gets the value of the start epoch for training.
+        """
+        if isinstance(self.container, InnerEyeContainer):
+            return self.container.config.start_epoch
+        else:
+            return self.container.lightning_module.start_epoch
+
+    @property
+    def use_gpu(self) -> bool:
+        if isinstance(self.container, InnerEyeContainer):
+            return self.container.config.use_gpu
+        else:
+            return self.container.lightning_module.use_gpu
+
     def download_checkpoints_from_hyperdrive_child_runs(self, hyperdrive_parent_run: Run) -> None:
         """
         Downloads the best checkpoints from all child runs of a Hyperdrive parent runs. This is used to gather results
         for ensemble creation.
         """
-        self.run_recovery = RunRecovery.download_best_checkpoints_from_child_runs(self.container.lightning_module,
+        self.run_recovery = RunRecovery.download_best_checkpoints_from_child_runs(self.output_params,
                                                                                   hyperdrive_parent_run)
         # Check paths are good, just in case
         for path in self.run_recovery.checkpoints_roots:
@@ -56,8 +86,7 @@ class CheckpointHandler:
         """
         if self.azure_config.run_recovery_id:
             run_to_recover = self.azure_config.fetch_run(self.azure_config.run_recovery_id.strip())
-            self.run_recovery = RunRecovery.download_all_checkpoints_from_run(self.container.lightning_module,
-                                                                              run_to_recover)
+            self.run_recovery = RunRecovery.download_all_checkpoints_from_run(self.output_params, run_to_recover)
         else:
             self.run_recovery = None
 
@@ -76,7 +105,7 @@ class CheckpointHandler:
         checkpoint from there, otherwise use the checkpoints from the current run.
         :return: Constructed checkpoint path to recover from.
         """
-        start_epoch = self.container.lightning_module.start_epoch
+        start_epoch = self.start_epoch
         if start_epoch > 0 and not self.run_recovery:
             raise ValueError("Start epoch is > 0, but no run recovery object has been provided to resume training.")
 
@@ -131,7 +160,7 @@ class CheckpointHandler:
         if self.has_continued_training:
             # Checkpoint is from the current run, whether a new run or a run recovery which has been doing more
             # training, so we look for it there.
-            checkpoint_from_current_run = self.container.lightning_module.get_path_to_best_checkpoint()
+            checkpoint_from_current_run = self.output_params.get_path_to_best_checkpoint()
             if checkpoint_from_current_run.is_file():
                 logging.info("Using checkpoints from current run.")
                 checkpoint_paths = [checkpoint_from_current_run]
@@ -221,8 +250,8 @@ class CheckpointHandler:
         if not weights_path or not weights_path.is_file():
             raise FileNotFoundError(f"Could not find the weights file at {weights_path}")
 
-        modified_weights = self.container.load_checkpoint_and_modify(weights_path)
-        target_file = self.container.lightning_module.outputs_folder / WEIGHTS_FILE
+        modified_weights = load_checkpoint_and_modify(weights_path, use_gpu=self.use_gpu)
+        target_file = self.output_params.outputs_folder / WEIGHTS_FILE
         torch.save(modified_weights, target_file)
         return target_file
 
@@ -230,4 +259,4 @@ class CheckpointHandler:
         """
         Returns true if the optimizer should be loaded from checkpoint. Looks at the model config to determine this.
         """
-        return self.container.lightning_module.start_epoch > 0
+        return self.start_epoch > 0

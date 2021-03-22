@@ -239,10 +239,14 @@ def model_train_unittest(config: DeepLearningConfig,
     created via get_default_checkpoint_handler.
     :return: Tuple[ModelTrainingResults, CheckpointHandler]
     """
-    checkpoint_handler = checkpoint_handler or get_default_checkpoint_handler(config, project_root=dirs.root_dir)
     if lightning_container is None:
         lightning_container = InnerEyeContainer(config)
         lightning_container.setup()
+    if checkpoint_handler is None:
+        azure_config = get_default_azure_config()
+        checkpoint_handler = CheckpointHandler(azure_config=azure_config,
+                                               lightning_container=lightning_container,
+                                               project_root=dirs.root_dir)
     result = model_train(config, checkpoint_handler=checkpoint_handler, lightning_container=lightning_container)
     return result, checkpoint_handler
 

@@ -149,7 +149,13 @@ class MLRunner:
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
 
-    def _setup(self) -> None:
+    def _setup(self, should_write_dataset_files: bool = True) -> None:
+        """
+        If the present object is using one of the InnerEye built-in models, create a (fake) container for it
+        and call the setup method. If should_write_dataset_files is True, and the present code is running on
+        distributed training rank zero, the method also writes the dataset files to disk.
+        :param should_write_dataset_files: If True, write the dataset files to disk on rank 0. If False, do nothing.
+        """
         if self.lightning_container is None:
             # The core InnerEye models do not rely on the LightningContainer infrastructure. For simplicity of code,
             # build a fake container
@@ -157,7 +163,7 @@ class MLRunner:
                 "When using a built-in InnerEye model, the configuration should be an instance of ModelConfigBase"
             self.lightning_container = InnerEyeContainer(self.model_config)
             self.lightning_container.setup()
-            if is_rank_zero():
+            if is_rank_zero() and should_write_dataset_files:
                 # Save the dataset files for later use in cross validation analysis
                 self.model_config.write_dataset_files()
 
@@ -395,8 +401,8 @@ class MLRunner:
         local_dataset = self.lightning_container.local_dataset
         # A dataset, either local or in Azure, is required for the built-in InnerEye models. When models are
         # specified via a LightningContainer, these dataset fields are optional, because the container datasets
-        # could be downloaded even from the webno such requirement.
-        is_dataset_required = self.lightning_container is None
+        # could be downloaded even from the web.
+        is_dataset_required = isinstance(self.lightning_container, InnerEyeContainer)
         if self.is_offline_run:
             # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
             # Otherwise, download the dataset specified by the azure_dataset_id

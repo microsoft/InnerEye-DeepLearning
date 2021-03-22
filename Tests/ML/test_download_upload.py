@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Optional
 from unittest import mock
 
+import pandas as pd
 import pytest
 
 from InnerEye.Azure.azure_config import AzureConfig
@@ -14,12 +15,12 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLBACK_SINGLE_RUN, get_most_recent_run
+from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_azure_config
 
 logging_to_stdout(logging.DEBUG)
@@ -78,6 +79,7 @@ def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> Non
     config = ModelConfigBase(should_validate=False)
     azure_config = get_default_azure_config()
     runner = MLRunner(config, azure_config)
+    runner._setup()
     runner.project_root = test_output_dirs.root_dir
 
     # If the model has neither local_dataset or azure_dataset_id, mount_or_download_dataset should fail.
@@ -120,12 +122,21 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
                                         local_dataset: Optional[Path],
                                         azure_dataset: str,
                                         is_lightning_model: bool):
-    config = DeepLearningConfig(azure_dataset_id=azure_dataset,
-                                local_dataset=local_dataset,
-                                should_validate=False)
-    runner = MLRunner(config, azure_config=None, project_root=test_output_dirs.root_dir)
     if is_lightning_model:
-        runner.lightning_container = LightningContainer()
+        lightning_container = LightningContainer()
+        lightning_container.azure_dataset_id = azure_dataset
+        lightning_container.local_dataset = local_dataset
+        config = LightningWithInference()
+    else:
+        config = DummyModel()
+        config.azure_dataset_id = azure_dataset
+        config.local_dataset = local_dataset
+        # Set a fake dataframe to skip the check if dataset.csv is present
+        config.dataset_data_frame = pd.DataFrame()
+        lightning_container = None
+    runner = MLRunner(config, lightning_container=lightning_container,
+                      azure_config=None, project_root=test_output_dirs.root_dir)
+    runner._setup(should_write_dataset_files=False)
     with mock.patch("InnerEye.ML.deep_learning_config.is_offline_run_context", return_value=is_offline_run):
         with mock.patch("InnerEye.ML.run_ml.download_dataset", return_value="download"):
             with mock.patch("InnerEye.ML.run_ml.try_to_mount_input_dataset", return_value="mount"):
@@ -145,7 +156,8 @@ def test_mount_failing(test_output_dirs: OutputFolderForTests):
                                             azure_dataset="",
                                             is_lightning_model=False)
     assert "The model must contain either local_dataset or azure_dataset_id" in str(ex)
-    # ... but this is OK for Lightning container models.
+    # ... but this is OK for Lightning container models. A Lightning container could simply download its
+    # data from the web before training.
     assert _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
                                                is_offline_run=True,
                                                local_dataset=None,

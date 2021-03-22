@@ -14,9 +14,8 @@ from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecu
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.metrics import InferenceMetricsForClassification
 from InnerEye.ML.model_testing import model_test
-from InnerEye.ML.model_training import model_train
 from InnerEye.ML.utils.run_recovery import RunRecovery
-from Tests.ML.util import get_default_checkpoint_handler
+from Tests.ML.util import get_default_checkpoint_handler, model_train_unittest
 
 
 # @pytest.mark.parametrize("mean_teacher_model", [True, False])
@@ -35,9 +34,7 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     os.makedirs(str(config.outputs_folder))
     config.recovery_checkpoint_save_interval = 2
 
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=test_output_dirs.root_dir)
-    train_results = model_train(config, checkpoint_handler=checkpoint_handler)
+    train_results, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
     assert len(train_results.train_results_per_epoch) == config.num_epochs
 
     # Run inference on this

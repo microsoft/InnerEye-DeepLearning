@@ -416,6 +416,7 @@ class TrainerParams(CudaAwareConfig):
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
                           "you may see training speed increases.")
+    # TODO antonsc: This should be removed.
     start_epoch: int = param.Integer(0, bounds=(0, None), doc="The first epoch to train. Set to 0 to start a new "
                                                               "training. Set to a value larger than zero for starting"
                                                               " from a checkpoint.")
@@ -662,32 +663,35 @@ class DeepLearningConfig(EssentialParams,
                 arguments_str += f"\t{key:40}: {value}\n"
         return arguments_str
 
-    def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:
-        """
-        By default, uses torch.load to read and return the state dict from the checkpoint file, and does no modification
-        of the checkpoint file.
 
-        Overloading this function:
-        When weights_url or local_weights_path is set, the file downloaded may not be in the exact
-        format expected by the model's load_state_dict() - for example, pretrained Imagenet weights for networks
-        may have mismatched layer names in different implementations.
-        In such cases, you can overload this function to extract the state dict from the checkpoint.
+def load_checkpoint_and_modify(path_to_checkpoint: Path, use_gpu: bool = True) -> Dict[str, Any]:
+    """
+    By default, uses torch.load to read and return the state dict from the checkpoint file, and does no modification
+    of the checkpoint file.
 
-        NOTE: The model checkpoint will be loaded using the torch function load_state_dict() with argument strict=False,
-        so extra care needs to be taken to check that the state dict is valid.
-        Check the logs for warnings related to missing and unexpected keys.
-        See https://pytorch.org/tutorials/beginner/saving_loading_models.html#warmstarting-model-using-parameters
-        -from-a-different-model
-        for an explanation on why strict=False is useful when loading parameters from other models.
+    Overloading this function:
+    When weights_url or local_weights_path is set, the file downloaded may not be in the exact
+    format expected by the model's load_state_dict() - for example, pretrained Imagenet weights for networks
+    may have mismatched layer names in different implementations.
+    In such cases, you can overload this function to extract the state dict from the checkpoint.
 
-        :param path_to_checkpoint: Path to the checkpoint file.
-        :return: Dictionary with model and optimizer state dicts. The dict should have at least the following keys:
-        1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set to the model state dict.
-        2. Key ModelAndInfo.EPOCH_KEY and value set to the checkpoint epoch.
-        Other (optional) entries corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
-        ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported.
-        """
-        import torch
-        map_location = None if self.use_gpu else 'cpu'
-        checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
-        return checkpoint
+    NOTE: The model checkpoint will be loaded using the torch function load_state_dict() with argument strict=False,
+    so extra care needs to be taken to check that the state dict is valid.
+    Check the logs for warnings related to missing and unexpected keys.
+    See https://pytorch.org/tutorials/beginner/saving_loading_models.html#warmstarting-model-using-parameters
+    -from-a-different-model
+    for an explanation on why strict=False is useful when loading parameters from other models.
+
+    :param use_gpu: If True, do not modify the device of the loaded weights. If False, map all loaded weights to the
+    CPU.
+    :param path_to_checkpoint: Path to the checkpoint file.
+    :return: Dictionary with model and optimizer state dicts. The dict should have at least the following keys:
+    1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set to the model state dict.
+    2. Key ModelAndInfo.EPOCH_KEY and value set to the checkpoint epoch.
+    Other (optional) entries corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
+    ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported.
+    """
+    import torch
+    map_location = None if use_gpu else 'cpu'
+    checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
+    return checkpoint
