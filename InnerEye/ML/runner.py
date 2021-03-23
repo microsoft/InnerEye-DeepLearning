@@ -54,9 +54,6 @@ try:
 except ModuleNotFoundError as ex:
     has_torch = False
 
-REPORT_IPYNB = "report.ipynb"
-REPORT_HTML = "report.html"
-
 LOG_FILE_NAME = "stdout.txt"
 
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]

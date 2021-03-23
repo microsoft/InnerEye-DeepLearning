@@ -23,7 +23,6 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, \
     create_recovery_checkpoint_path, create_unique_timestamp_id, \
     get_best_checkpoint_path
 
-VISUALIZATION_FOLDER = "Visualizations"
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
 FINAL_MODEL_FOLDER = "final_model"
 FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
@@ -31,6 +30,8 @@ FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
 # The checkpoints must be stored inside of the final model folder, if we want to avoid copying
 # them before registration.
 CHECKPOINT_FOLDER = "checkpoints"
+VISUALIZATION_FOLDER = "visualizations"
+
 ARGS_TXT = "args.txt"
 WEIGHTS_FILE = "weights.pth"
 

@@ -21,7 +21,7 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
 from InnerEye.ML.dataset.scalar_dataset import DataSourceReader, ScalarDataSource, ScalarDataset, \
-    _get_single_channel_row, _string_to_float, extract_label_classification, extract_label_regression, files_by_stem, \
+    _get_single_channel_row, _string_to_float, extract_label_classification, files_by_stem, \
     is_valid_item_index, load_single_data_source
 from InnerEye.ML.photometric_normalization import WindowNormalizationForScalarItem, mri_window
 from InnerEye.ML.scalar_config import LabelTransformation, ScalarLoss, ScalarModelBase
@@ -496,41 +496,49 @@ def test_load_single_item_7() -> None:
     assert torch.all(torch.isnan(item.categorical_non_image_features[4:6]))
 
 
-@pytest.mark.parametrize(["text", "expected_classification", "expected_regression"],
+@pytest.mark.parametrize(["text", "is_classification", "num_classes", "expected_label"],
                          [
-                             ("true", 1, None),
-                             ("tRuE", 1, None),
-                             ("false", 0, None),
-                             ("False", 0, None),
-                             ("nO", 0, None),
-                             ("Yes", 1, None),
-                             ("1.23", None, 1.23),
-                             (3.45, None, None),
-                             (math.nan, math.nan, math.nan),
-                             ("", math.nan, math.nan),
-                             (None, math.nan, math.nan),
-                             ("abc", None, None),
-                             ("1", 1, 1.0),
-                             ("-1", None, -1.0)
+                             ("false", True, 0, None),
+                             ("false", False, 0, None),
+                             ("true", True, 1, [1]),
+                             ("tRuE", True, 1, [1]),
+                             ("false", True, 1, [0]),
+                             ("False", True, 1, [0]),
+                             ("nO", True, 1, [0]),
+                             ("Yes", True, 1, [1.0]),
+                             ("1.23", False, 1, [1.23]),
+                             (3.45, True, 1, None),
+                             (3.45, False, 1, None),
+                             ("3.45", False, 1, [3.45]),
+                             (math.nan, True, 1, [math.nan]),
+                             (math.nan, True, 3, [0.0, 0.0, 0.0]),
+                             (math.nan, False, 1, [math.nan]),
+                             ("", True, 1, [math.nan]),
+                             ("", True, 3, [0.0, 0.0, 0.0]),
+                             ("", False, 1, [math.nan]),
+                             ("abc", True, 1, None),
+                             ("abc", True, 3, None),
+                             ("abc", False, 1, None),
+                             ("1", True, 1, [1.0]),
+                             ("1", True, 3, [0.0, 1.0, 0.0]),
+                             ("1", False, 1, [1.0]),
+                             ("-1", False, 1, [-1.0]),
+                             ("1|2", True, 3, [0.0, 1.0, 1.0]),
+                             ("1|5", True, 3, None)
                          ])
-def test_extract_label(text: Union[float, str], expected_classification: Optional[float],
-                       expected_regression: Optional[float]) -> None:
-    _check_label_extraction_function(extract_label_classification, text, expected_classification)
-    _check_label_extraction_function(extract_label_regression, text, expected_regression)
-
-
-def _check_label_extraction_function(extract_fn: Callable, text: Union[float, str], expected: Optional[float]) -> None:
-    if expected is None:
+def test_extract_label(text: str, is_classification: bool, num_classes: int,
+                       expected_label: List[float], ) -> None:
+    if expected_label is None:
         with pytest.raises(ValueError) as ex:
-            extract_fn(text, "foo")
-        assert "Subject foo:" in str(ex)
+            extract_label_classification(text, "subject1", num_classes, is_classification)
+        assert "Subject subject1:" in str(ex)
     else:
-        actual = extract_fn(text, "foo")
-        assert isinstance(actual, type(expected))
-        if math.isnan(expected):
-            assert math.isnan(actual)
+        actual = extract_label_classification(text, "subject1", num_classes, is_classification)
+        assert isinstance(actual, type(expected_label))
+        if expected_label == [math.nan]:
+            assert math.isnan(actual[0])
         else:
-            assert actual == expected
+            assert actual == expected_label
 
 
 @pytest.mark.parametrize(["text", "expected"],
@@ -791,10 +799,9 @@ def test_imbalanced_sampler() -> None:
     assert count_negative_subjects / float(len(drawn_subjects)) > 0.3
 
 
-def test_get_class_weights_dataset(test_output_dirs: OutputFolderForTests) -> None:
+def test_get_class_counts_binary(test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test training and testing of sequence models that predicts at multiple time points,
-    when it is started via run_ml.
+    Test the get_class_counts method for binary scalar datasets.
     """
     dataset_folder = Path(test_output_dirs.make_sub_dir("dataset"))
     dataset_contents = """subject,channel,path,label,numerical1,numerical2,CAT1
@@ -816,4 +823,86 @@ def test_get_class_weights_dataset(test_output_dirs: OutputFolderForTests) -> No
     config.set_output_to(test_output_dirs.root_dir)
     train_dataset = ScalarDataset(config, pd.read_csv(StringIO(dataset_contents), dtype=str))
     class_counts = train_dataset.get_class_counts()
-    assert class_counts == {0.0: 1, 1.0: 2}
+    assert class_counts == {0: 2}
+
+
+def test_get_class_counts_multilabel(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test the get_class_counts method for multilabel scalar datasets.
+    """
+    dataset_folder = Path(test_output_dirs.make_sub_dir("dataset"))
+    dataset_contents = """subject,channel,path,label,CAT1
+   S1,week0,scan1.npy,,A
+   S1,week1,scan2.npy,0|1|2,A
+   S2,week0,scan3.npy,,A
+   S2,week1,scan4.npy,1|2,A
+   S3,week0,scan1.npy,,A
+   S3,week1,scan3.npy,1,A
+   """
+    config = ScalarModelBase(
+        local_dataset=dataset_folder,
+        class_names=["class0", "class1", "class2", "class3"],
+        label_channels=["week1"],
+        label_value_column="label",
+        non_image_feature_channels=["week0", "week1"],
+        should_validate=False
+    )
+    config.set_output_to(test_output_dirs.root_dir)
+    train_dataset = ScalarDataset(config, pd.read_csv(StringIO(dataset_contents), dtype=str))
+    class_counts = train_dataset.get_class_counts()
+    assert class_counts == {0: 1, 1: 3, 2: 2, 3: 0}
+
+
+def test_get_labels_for_imbalanced_sampler_binary(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test the get_labels_for_imbalanced_sampler method for binary scalar datasets.
+    """
+    dataset_folder = Path(test_output_dirs.make_sub_dir("dataset"))
+    dataset_contents = """subject,channel,path,label,numerical1,numerical2,CAT1
+    S1,week0,scan1.npy,,1,10,A
+    S1,week1,scan2.npy,True,2,20,A
+    S2,week0,scan3.npy,,3,30,A
+    S2,week1,scan4.npy,False,4,40,A
+    S3,week0,scan1.npy,,5,50,A
+    S3,week1,scan3.npy,True,6,60,A
+    """
+    config = ScalarModelBase(
+        local_dataset=dataset_folder,
+        label_channels=["week1"],
+        label_value_column="label",
+        non_image_feature_channels=["week0", "week1"],
+        numerical_columns=["numerical1", "numerical2"],
+        should_validate=False
+    )
+    config.set_output_to(test_output_dirs.root_dir)
+    train_dataset = ScalarDataset(config, pd.read_csv(StringIO(dataset_contents), dtype=str))
+    labels = train_dataset.get_labels_for_imbalanced_sampler()
+    assert labels == [1.0, 0.0, 1.0]
+
+
+def test_get_labels_for_imbalanced_sampler_multilabel(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that the get_labels_for_imbalanced_sampler method raises an error for multilabel scalar datasets.
+    """
+    dataset_folder = Path(test_output_dirs.make_sub_dir("dataset"))
+    dataset_contents = """subject,channel,path,label,CAT1
+    S1,week0,scan1.npy,,A
+    S1,week1,scan2.npy,0|1|2,A
+    S2,week0,scan3.npy,,A
+    S2,week1,scan4.npy,1|2,A
+    S3,week0,scan1.npy,,A
+    S3,week1,scan3.npy,1,A
+    """
+    config = ScalarModelBase(
+        local_dataset=dataset_folder,
+        class_names=["class0", "class1", "class2", "class3"],
+        label_channels=["week1"],
+        label_value_column="label",
+        non_image_feature_channels=["week0", "week1"],
+        should_validate=False
+    )
+    config.set_output_to(test_output_dirs.root_dir)
+    train_dataset = ScalarDataset(config, pd.read_csv(StringIO(dataset_contents), dtype=str))
+    with pytest.raises(NotImplementedError) as ex:
+        train_dataset.get_labels_for_imbalanced_sampler()
+    assert "ImbalancedSampler is not supported for multilabel tasks." in str(ex)

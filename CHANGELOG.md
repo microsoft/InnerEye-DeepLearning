@@ -11,28 +11,38 @@ created.
 ## Upcoming
 
 ### Added 
-- Add the ability to train a model on multiple nodes in AzureML. Example: Add `--num_nodes=2` to the commandline 
-    arguments to train on 2 nodes ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385))
-- Added new parameters to the `score.py` script of `use_dicom` and `result_zip_dicom_name`. If `use_dicom==True` 
-    then the input file should be
-    a zip of a DICOM series. This will be unzipped and converted to Nifti format before processing. The 
-    result will then be converted to a DICOM-RT file, zipped and stored as `result_zip_dicom_name`. 
-    ([#366](https://github.com/microsoft/InnerEye-DeepLearning/pull/366)) and ([#407](https://github.com/microsoft/InnerEye-DeepLearning/pull/407))
-- Add a github action chat checks if `CHANGELOG.md` has been modified ([#416](https://github.com/microsoft/InnerEye-DeepLearning/pull/416))
-- Dataset files can now have arbitrary names, and are no longer restricted to be called
-  `dataset.csv`, via the config field `dataset_csv`. This allows to have a single set of image files in a folder, but 
-  multiple datasets derived from it ([#412](https://github.com/microsoft/InnerEye-DeepLearning/pull/412))  
+- ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Add the ability to train a model on multiple
+nodes in AzureML. Example: Add `--num_nodes=2` to the commandline arguments to train on 2 nodes.
+- ([#366](https://github.com/microsoft/InnerEye-DeepLearning/pull/366)) and
+  ([#407](https://github.com/microsoft/InnerEye-DeepLearning/pull/407)) add new parameters to the `score.py` script of `use_dicom` and `result_zip_dicom_name`. If `use_dicom==True` then the input file should be
+  a zip of a DICOM series. This will be unzipped and converted to Nifti format before processing. The 
+  result will then be converted to a DICOM-RT file, zipped and stored as `result_zip_dicom_name`.
+- ([#416](https://github.com/microsoft/InnerEye-DeepLearning/pull/416)) Add a github action chat checks
+  if `CHANGELOG.md` has been modified.
+- ([#412](https://github.com/microsoft/InnerEye-DeepLearning/pull/412)) Dataset files can now have arbitrary names, and are no longer restricted to be called
+  `dataset.csv`, via the config field `dataset_csv`. This allows to have a single set of image files in a folder, but multiple datasets derived from it. 
+- ([#391](https://github.com/microsoft/InnerEye-DeepLearning/pull/391)) Support for multilabel classification tasks. 
+  Multilabel models can be trained by adding the parameter `class_names` to the config for classification models. 
+  `class_names` should contain the name of each label class in the dataset, and the order of names should match the 
+  order of class label indices in `dataset.csv`.
+  `dataset.csv` supports multiple labels (indices corresponding to `class_names`) per subject in the label column. 
+  Multiple labels should be encoded as a string with labels separated by a `|`, for example "0|2|4".
+  Note that this PR does not add support for multiclass models, where the labels are mutually exclusive.
 
 ### Changed
-- Starting an AzureML run now uses the `ScriptRunConfig` object, rather than the deprecated `Estimator` object ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385))
-- When registering a model, the name of the Python execution environment is added as a tag. This tag is read when running inference, and the execution environment
-    is re-used. ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) 
--  Upgraded to PyTorch 1.8.0, PyTorch-Lightning 1.1.8 and AzureML SDK 1.23.0 ([#411](https://github.com/microsoft/InnerEye-DeepLearning/pull/411))
+- ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Starting an AzureML run now uses the
+`ScriptRunConfig` object, rather than the deprecated `Estimator` object.
+- ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) When registering a model, the name of the 
+Python execution environment is added as a tag. This tag is read when running inference, and the execution environment
+is re-used.
+- ([#411](https://github.com/microsoft/InnerEye-DeepLearning/pull/411)) Upgraded to PyTorch 1.8.0, PyTorch-Lightning 
+1.1.8 and AzureML SDK 1.23.0
 
 ### Fixed
+- ([#422](https://github.com/microsoft/InnerEye-DeepLearning/pull/422)) Documentation - clarified `setting_up_aml.md` datastore creation instructions and fixed small typos in `hello_world_model.md`
 
 ### Removed
-- Removed an output file that only contains metadata for a legacy consumer ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417))
+- ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417)) Removed an output file that only contains metadata for a legacy consumer
 
 ### Deprecated
 
