@@ -9,6 +9,7 @@ import pandas as pd
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithInference, FastMriDemoContainer
 from InnerEye.ML.deep_learning_config import DatasetParams, EssentialParams
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -62,3 +63,23 @@ def test_innereye_container_init() -> None:
         setattr(config, attrib, "foo")
         container = InnerEyeContainer(config)
         assert getattr(container, attrib) == "foo"
+
+
+def test_create_fastmri_container() -> None:
+    """
+    Test if we can create a model that uses the fastMRI submodule.
+    """
+    FastMriDemoContainer()
+    VarNetWithInference()
+
+
+def test_run_fastmri_container(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if we can get run the fastMRI model end-to-end.
+    """
+    runner = default_runner()
+    args = ["", "--model=FastMriVarnetDemoContainer", f"--output_to={test_output_dirs.root_dir}"]
+    with mock.patch("sys.argv", args):
+        loaded_config, actual_run = runner.run()
+    assert actual_run is None
+    assert isinstance(runner.lightning_container, FastMriDemoContainer)

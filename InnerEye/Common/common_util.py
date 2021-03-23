@@ -390,3 +390,18 @@ def remove_file_or_directory(pth: Path) -> None:
         pth.rmdir()
     elif pth.exists():
         pth.unlink()
+
+
+def add_folder_to_sys_path_if_needed(folder_under_repo_root: str) -> None:
+    """
+    Checks if the Python paths in sys.path already contain the given folder, which is expected to be relative
+    to the repository root. If that folder is not yet in sys.path, add it.
+    """
+    full_folder = repository_root_directory() / folder_under_repo_root
+    for path_str in sys.path:
+        path = Path(path_str)
+        if path == full_folder:
+            return
+    print(f"Adding {full_folder} to sys.path")
+    sys.path.append(str(full_folder))
+
