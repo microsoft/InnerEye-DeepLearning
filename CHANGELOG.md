@@ -28,6 +28,7 @@ nodes in AzureML. Example: Add `--num_nodes=2` to the commandline arguments to t
   `dataset.csv` supports multiple labels (indices corresponding to `class_names`) per subject in the label column. 
   Multiple labels should be encoded as a string with labels separated by a `|`, for example "0|2|4".
   Note that this PR does not add support for multiclass models, where the labels are mutually exclusive.
+- ([#425](https://github.com/microsoft/InnerEye-DeepLearning/pull/425)) The number of layers in a Unet is no longer fixed at 4, but can be set via the config field `num_downsampled_paths`. A lower number of layers may be useful for decreasing memory requirements, or for working with smaller images. (The minimum image size in any dimension when using a network of n layers is 2**n.)
 
 ### Changed
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Starting an AzureML run now uses the
