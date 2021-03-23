@@ -39,7 +39,25 @@ class TrainAndValDataLightning(LightningDataModule):
         self.config = config
         self.data_loaders: Dict[ModelExecutionMode, DataLoader] = {}
 
+    def prepare_data(self, *args, **kwargs) -> None:
+        """
+        Writes the dataset files for later use in cross validation analysis. This is only executed once per
+        distributed training run.
+        """
+        # Save the dataset files for later use in cross validation analysis
+        self.config.write_dataset_files()
+
     def setup(self, stage: Optional[str] = None) -> None:
+        """
+        Checks if the dataset folder is present, and the dataset file exists. This is execute on each node in
+        distributed training.
+        """
+        # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
+        # loaded (typically only during tests)
+        if self.config.dataset_data_frame is None:
+            assert self.config.local_dataset is not None
+            validate_dataset_paths(self.config.local_dataset, self.config.dataset_csv)
+        self.config.read_dataset_if_needed()
         self.data_loaders = self.config.create_data_loaders()
 
     def train_dataloader(self) -> DataLoader:  # type: ignore
@@ -61,11 +79,11 @@ class InferenceDataLightning(LightningDataModule):
     def __init__(self, config: ModelConfigBase) -> None:
         super().__init__()
         self.config = config
-        self.train_data: Optional[Dataset] = None
-        self.val_data: Optional[Dataset] = None
-        self.test_data: Optional[Dataset] = None
+        self.train_data: Dataset = Dataset()
+        self.val_data: Dataset = Dataset()
+        self.test_data: Dataset = Dataset()
 
-    def setup(self) -> None:
+    def setup(self, stage: Optional[str] = None) -> None:
         """
         Initializes the datasets stored in the present object, by calling the config object to
         prepare the torch Dataset objects for train/val/test.
@@ -74,20 +92,14 @@ class InferenceDataLightning(LightningDataModule):
         self.val_data = self.config.get_torch_dataset_for_inference(ModelExecutionMode.VAL)
         self.test_data = self.config.get_torch_dataset_for_inference(ModelExecutionMode.TEST)
 
-    @staticmethod
-    def _test_and_return(dataset) -> DataLoader:
-        if dataset is None:
-            raise ValueError("Need to call setup before reading out the data.")
-        return DataLoader(dataset)
-
     def train_dataloader(self) -> DataLoader:
-        self._test_and_return(self.train_data)
+        return DataLoader(self.train_data)
 
-    def val_dataloader(self) -> DataLoader:  # type: ignore
-        self._test_and_return(self.val_data)
+    def val_dataloader(self) -> DataLoader:
+        return DataLoader(self.val_data)
 
-    def test_dataloader(self) -> DataLoader:  # type: ignore
-        self._test_and_return(self.test_data)
+    def test_dataloader(self) -> DataLoader:
+        return DataLoader(self.test_data)
 
 
 class InnerEyeContainer(LightningContainer):
@@ -101,21 +113,14 @@ class InnerEyeContainer(LightningContainer):
         # Fields like cross validation index are defined at container level, but the InnerEye models define them
         # at model level. Copy everything over.
         for type_to_copy in [EssentialParams, DatasetParams]:
-            config.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},
+            self.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},
                                    should_validate=False)
 
     def setup(self) -> None:
         """
-        Reads the dataset files and anything else that needs to happen before the datasets can be read out.
-        Also creates the Lightning model itself, and stores it in the present object, accessible via the
+        Creates the Lightning model itself, and stores it in the present object, accessible via the
         `lightning_module` parameter.
         """
-        # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
-        # loaded (typically only during tests)
-        if self.config.dataset_data_frame is None:
-            assert self.config.local_dataset is not None
-            validate_dataset_paths(self.config.local_dataset, self.config.dataset_csv)
-        self.config.read_dataset_if_needed()
         from InnerEye.ML.lightning_models import create_lightning_model
         self._lightning_module = create_lightning_model(self.config)
 

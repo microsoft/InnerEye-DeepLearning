@@ -211,8 +211,9 @@ def get_default_checkpoint_handler(model_config: DeepLearningConfig, project_roo
     Gets a checkpoint handler, using the given model config and the default azure configuration.
     """
     azure_config = get_default_azure_config()
+    lightning_container = InnerEyeContainer(model_config)
     return CheckpointHandler(azure_config=azure_config,
-                             lightning_container=InnerEyeContainer(model_config),
+                             lightning_container=lightning_container,
                              project_root=project_root)
 
 

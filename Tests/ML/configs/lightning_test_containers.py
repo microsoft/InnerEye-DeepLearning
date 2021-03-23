@@ -23,7 +23,7 @@ class DummyContainerWithDatasets(LightningContainer):
     def __init__(self, has_local_dataset: bool = False, has_azure_dataset: bool = False):
         super().__init__()
         self.local_dataset = full_ml_test_data_path("lightning_module_data") if has_local_dataset else None
-        self.azure_dataset = "azure_dataset" if has_azure_dataset else ""
+        self.azure_dataset_id = "azure_dataset" if has_azure_dataset else ""
 
     def create_lightning_module(self) -> LightningWithInference:
         return LightningWithInference()
@@ -48,11 +48,21 @@ class DummyContainerWithAzureAndLocalDataset(DummyContainerWithDatasets):
         super().__init__(has_local_dataset=True, has_azure_dataset=True)
 
 
+class InferenceWithParameters(LightningWithInference):
+    model_param = param.String(default="bar")
+
+    def __init__(self):
+        super().__init__()
+
+
 class DummyContainerWithParameters(LightningContainer):
     my_param = param.String(default="foo")
 
     def __init__(self):
         super().__init__()
+
+    def create_lightning_module(self) -> LightningWithInference:
+        return InferenceWithParameters()
 
 
 class DummyRegression(LightningWithInference, OptimizerParams):

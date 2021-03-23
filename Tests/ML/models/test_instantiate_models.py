@@ -12,13 +12,13 @@ from azureml.core import Run
 from InnerEye.Common.common_util import logging_to_stdout, namespace_to_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 from InnerEye.ML.model_training import generate_and_print_model_summary
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithInvalidTrainerArguments, \
-    DummyContainerWithParameters
+    DummyContainerWithParameters, InferenceWithParameters
 from Tests.ML.util import default_runner, get_model_loader, model_loader_including_tests, model_train_unittest
 
 
@@ -144,21 +144,25 @@ def test_submit_container_to_azureml(container_name: str) -> None:
             with mock.patch("azureml.core.Experiment.submit", return_value=mock_run):
                 loaded_config, actual_run = runner.run()
     assert actual_run == mock_run
-    assert isinstance(loaded_config, DeepLearningConfig)
+    assert isinstance(loaded_config, LightningWithInference)
     assert isinstance(runner.lightning_container, LightningContainer)
 
 
 def test_load_container_with_arguments() -> None:
     """
-    Test if we can load a container and override a value in it via the commandline.
+    Test if we can load a container and override a value in it via the commandline. Parameters that are overridable
+    can be set at both container and model level.
     """
     DummyContainerWithParameters()
     runner = default_runner()
-    args = ["", "--model=DummyContainerWithParameters", "--my_param=foo", "--model_configs_namespace=Tests.ML.configs"]
+    args = ["", "--model=DummyContainerWithParameters", "--my_param=param1", "--model_param=param2",
+            "--model_configs_namespace=Tests.ML.configs"]
     with mock.patch("sys.argv", args):
         runner.parse_and_load_model()
     assert isinstance(runner.lightning_container, DummyContainerWithParameters)
-    assert runner.lightning_container.my_param == "foo"
+    assert runner.lightning_container.my_param == "param1"
+    assert isinstance(runner.lightning_container.lightning_module, InferenceWithParameters)
+    assert runner.lightning_container.lightning_module.model_param == "param2"
 
 
 def test_run_model_with_invalid_trainer_arguments(test_output_dirs: OutputFolderForTests) -> None:

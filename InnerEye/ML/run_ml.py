@@ -30,7 +30,7 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
     OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
-    get_epoch_results_path, is_windows, logging_section, print_exception, remove_file_or_directory
+    get_epoch_results_path, is_windows, logging_section, logging_to_file, print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -42,10 +42,11 @@ from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentatio
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
-from InnerEye.ML.model_training import is_rank_zero, model_train
+from InnerEye.ML.model_training import model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook, \
     generate_classification_notebook, generate_segmentation_notebook, get_ipynb_report_name, reports_folder
-from InnerEye.ML.runner import ModelDeploymentHookSignature, PostCrossValidationHookSignature, get_all_environment_files
+from InnerEye.ML.runner import LOG_FILE_NAME, ModelDeploymentHookSignature, PostCrossValidationHookSignature, \
+    get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
@@ -79,7 +80,8 @@ def download_dataset(azure_dataset_id: str,
     contains a dataset csv file, no download is started.
     :param azure_dataset_id: The name of a dataset that is registered in the AzureML workspace.
     :param target_folder: The folder in which to download the dataset from Azure.
-    :param dataset_csv: Name of the csv file describing the dataset.
+    :param dataset_csv: Name of the csv file describing the dataset. This is only used to check if the dataset has been
+    downloaded already.
     :param azure_config: All Azure-related configuration options.
     :return: A path on the local machine that contains the dataset.
     """
@@ -89,11 +91,18 @@ def download_dataset(azure_dataset_id: str,
         raise ValueError(f"Expected to get a FileDataset, but got {type(azure_dataset)}")
     # The downloaded dataset may already exist from a previous run.
     expected_dataset_path = target_folder / azure_dataset_id
-    expected_dataset_file = expected_dataset_path / dataset_csv
     logging.info(f"Model training will use dataset '{azure_dataset_id}' in Azure.")
-    if expected_dataset_path.is_dir() and expected_dataset_file.is_file():
-        logging.info(f"The dataset appears to be downloaded already in {expected_dataset_path}. Skipping.")
-        return expected_dataset_path
+    if expected_dataset_path.is_dir():
+        if dataset_csv:
+            if (expected_dataset_path / dataset_csv).is_file():
+                logging.info(f"The file {dataset_csv} is already downloaded in {expected_dataset_path}. Skipping.")
+                return expected_dataset_path
+        else:
+            existing_files = sum(1 for _ in expected_dataset_path.rglob("*"))
+            if existing_files > 1:
+                logging.info(f"There are already {existing_files} files in {expected_dataset_path}. Skipping.")
+                return expected_dataset_path
+
     logging.info("Starting to download the dataset - WARNING, this could take very long!")
     with logging_section("Downloading dataset"):
         t0 = time.perf_counter()
@@ -148,23 +157,24 @@ class MLRunner:
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
 
-    def _setup(self, should_write_dataset_files: bool = True) -> None:
+    def setup(self) -> None:
         """
         If the present object is using one of the InnerEye built-in models, create a (fake) container for it
         and call the setup method. If should_write_dataset_files is True, and the present code is running on
         distributed training rank zero, the method also writes the dataset files to disk.
-        :param should_write_dataset_files: If True, write the dataset files to disk on rank 0. If False, do nothing.
         """
         if self.lightning_container is None:
-            # The core InnerEye models do not rely on the LightningContainer infrastructure. For simplicity of code,
-            # build a fake container
             assert isinstance(self.model_config, ModelConfigBase), \
                 "When using a built-in InnerEye model, the configuration should be an instance of ModelConfigBase"
             self.lightning_container = InnerEyeContainer(self.model_config)
             self.lightning_container.setup()
-            if is_rank_zero() and should_write_dataset_files:
-                # Save the dataset files for later use in cross validation analysis
-                self.model_config.write_dataset_files()
+
+    def start_logging_to_file(self) -> None:
+        if self.lightning_container is None:
+            self.setup()
+        logs_folder = self.model_config.logs_folder if isinstance(self.model_config, DeepLearningConfig) \
+            else self.lightning_container.lightning_module.logs_folder
+        logging_to_file(logs_folder / LOG_FILE_NAME)
 
     @property
     def is_offline_run(self) -> bool:
@@ -238,8 +248,8 @@ class MLRunner:
         ]
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
         new_tags[RUN_RECOVERY_ID_KEY_NAME] = create_run_recovery_id(run=RUN_CONTEXT)
-        new_tags[CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY] = str(self.model_config.cross_validation_split_index)
-        new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.model_config.get_effective_random_seed())
+        new_tags[CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY] = str(self.lightning_container.cross_validation_split_index)
+        new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.lightning_container.get_effective_random_seed())
         RUN_CONTEXT.set_tags(new_tags)
 
     def run(self) -> None:
@@ -247,7 +257,7 @@ class MLRunner:
         Driver function to run a ML experiment. If an offline cross validation run is requested, then
         this function is recursively called for each cross validation split.
         """
-        self._setup()
+        self.setup()
         if self.is_offline_cross_val_parent_run():
             if self.model_config.is_segmentation_model:
                 raise NotImplementedError("Offline cross validation is only supported for classification models.")
@@ -415,9 +425,12 @@ class MLRunner:
                 logging.info(f"Model training will use the local dataset provided in {expected_dir}")
                 return expected_dir
             if azure_dataset_id:
+                dataset_csv = ""
+                if isinstance(self.model_config, DeepLearningConfig):
+                    dataset_csv = self.model_config.dataset_csv
                 return download_dataset(azure_dataset_id=azure_dataset_id,
                                         target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
-                                        dataset_csv=self.model_config.dataset_csv, azure_config=self.azure_config)
+                                        dataset_csv=dataset_csv, azure_config=self.azure_config)
             return None
 
         # Inside of AzureML, datasets can be either mounted or downloaded.

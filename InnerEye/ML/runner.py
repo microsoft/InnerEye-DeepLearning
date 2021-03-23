@@ -6,15 +6,11 @@ import os
 import sys
 from pathlib import Path
 
-# Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
-# the working directory is not correctly picked up in sys.path
-from InnerEye.Common.generic_parsing import GenericConfig
-
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
 # flake8: noqa
-from InnerEye.ML.lightning_base import InnerEyeContainer
-
+# Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
+# the working directory is not correctly picked up in sys.path
 print("Starting InnerEye runner.")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
@@ -24,7 +20,6 @@ if (innereye_root / "InnerEye").is_dir():
         sys.path.insert(0, innereye_root_str)
 
 import logging
-from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
 from azureml._base_sdk_common import user_agent
@@ -39,6 +34,7 @@ from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
     ModelProcessing, disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout
+from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, EssentialParams
@@ -140,7 +136,7 @@ class Runner:
         # parsed.
         self.model_config: DeepLearningConfig = DeepLearningConfig(azure_dataset_id="")
         self.azure_config: AzureConfig = AzureConfig()
-        # This should be LightningContainer, but we don't always have that imported
+        # This should be typed as LightningContainer, but we don't always have that imported
         self.lightning_container: Any = None
 
     def parse_and_load_model(self) -> Optional[ParserResult]:
@@ -154,9 +150,9 @@ class Runner:
         # Create a parser that will understand only the args we need for an AzureConfig
         parser1 = create_runner_parser()
         parser_result = parse_args_and_add_yaml_variables(parser1,
-                                                           yaml_config_file=self.yaml_config_file,
-                                                           project_root=self.project_root,
-                                                           fail_on_unknown_args=False)
+                                                          yaml_config_file=self.yaml_config_file,
+                                                          project_root=self.project_root,
+                                                          fail_on_unknown_args=False)
         azure_config = AzureConfig(**parser_result.args)
         azure_config.project_root = self.project_root
         self.azure_config = azure_config
@@ -164,38 +160,46 @@ class Runner:
         if not azure_config.model:
             return None
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser_result.args)
-        # Create the model as per the "model" commandline option
+        # Create the model as per the "model" commandline option. This can return either a built-in config
+        # of type DeepLearningConfig, or a LightningContainer.
         config_or_container = model_config_loader.create_model_config_from_name(model_name=azure_config.model)
-        if has_torch and isinstance(config_or_container, LightningContainer):
-            # The loaded object is a LightningContainer: These can have overrides at container level, and at
-            # model level. To set these, need to first create the actual Lightning module. Then create argument parsers
-            # at both container and model level.
-            config_or_container.create_lightning_module_and_store()
-            self.lightning_container = config_or_container
-            model_config = config_or_container.lightning_module
-            parser_for_these_objects = [config_or_container, model_config]
-        else:
-            # Built-in InnerEye models:
-            model_config = config_or_container
-            # This model will be either a classification model or a segmentation model. Those have different
-            # fields that could be overridden on the command line. Create a parser that understands the fields we need
-            # for the actual model type. We feed this parser will the YAML settings and commandline arguments that the
-            # first parser did not recognize.
-            parser_for_these_objects = [model_config]
 
-        for i, c in enumerate(parser_for_these_objects):
+        def parse_overrides_and_apply(c: object,
+                                      previous_parser_result: ParserResult,
+                                      is_last_parser: bool) -> ParserResult:
             assert isinstance(c, GenericConfig)
-            is_last_parser = i == len(parser_for_these_objects) - 1
             parser = type(c).create_argparser()
             # For each parser, feed in the unknown settings from the previous parser.
             parser_result = parse_arguments(parser,
-                                            settings_from_yaml=parser_result.unknown_settings_from_yaml,
-                                            args=parser_result.unknown,
+                                            settings_from_yaml=previous_parser_result.unknown_settings_from_yaml,
+                                            args=previous_parser_result.unknown,
                                             fail_on_unknown_args=is_last_parser)
             # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
             c.apply_overrides(parser_result.unknown_settings_from_yaml)
             c.apply_overrides(parser_result.overrides)
             c.validate()
+            return parser_result
+
+        # Now create a parser that understands overrides at model/container level. For DeepLearningConfig models,
+        # there is no further level at which overrides can be applied, hence we can fail if an unknown argument is
+        # found. For LightningContainer models, unknown args could still fall through to the actual Lightning model.
+        is_last_parser = isinstance(config_or_container, DeepLearningConfig)
+        parser_result = parse_overrides_and_apply(config_or_container, parser_result, is_last_parser)
+
+        if has_torch and isinstance(config_or_container, LightningContainer):
+            # Random seed is set at container level. Need to seed already now because we need to create the
+            # Lightning model in order to create a parser for overrides.
+            from pytorch_lightning import seed_everything
+            seed_everything(config_or_container.get_effective_random_seed())
+            config_or_container.create_lightning_module_and_store()
+            parser_result = parse_overrides_and_apply(config_or_container.lightning_module, parser_result, True)
+            self.lightning_container = config_or_container
+            model_config = config_or_container.lightning_module
+        elif isinstance(config_or_container, DeepLearningConfig):
+            # Built-in InnerEye models: A fake container for these models will be created in MLRunner
+            model_config = config_or_container
+        else:
+            raise ValueError(f"Don't know how to handle a loaded configuration of type {type(config_or_container)}")
 
         if azure_config.extra_code_directory:
             exist = "exists" if Path(azure_config.extra_code_directory).exists() else "does not exist"
@@ -205,16 +209,34 @@ class Runner:
         self.model_config = model_config
         return parser_result
 
+    def _get_property_from_config_or_container(self, name: str):
+        """
+        Reads out a property or attribute from either the model configuration (if that is a built-in InnerEye
+        model) or the lightning container.
+        :param name: The name of the property to read.
+        :return: The property value, coming from either the model config or the container.
+        """
+        if isinstance(self.model_config, DeepLearningConfig):
+            return getattr(self.model_config, name)
+        elif self.lightning_container is not None:
+            return getattr(self.lightning_container, name)
+        else:
+            raise ValueError(f"Did not expect config of type {type(self.model_config)} and container of type "
+                             f"{type(self.lightning_container)}")
+
     @property
     def perform_cross_validation(self) -> bool:
         """
         Returns True if cross validation will be be performed as part of the training procedure.
         """
-        if isinstance(self.model_config, DeepLearningConfig):
-            return self.model_config.perform_cross_validation
-        else:
-            assert isinstance(self.lightning_container, EssentialParams)
-            return self.lightning_container.perform_cross_validation
+        return self._get_property_from_config_or_container("perform_cross_validation")
+
+    @property
+    def azure_dataset_id(self) -> str:
+        """
+        Returns the name of the Azure dataset that should be used.
+        """
+        return self._get_property_from_config_or_container("azure_dataset_id")
 
     def run(self) -> Tuple[DeepLearningConfig, Optional[Run]]:
         """
@@ -246,8 +268,9 @@ class Runner:
         """
         # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
         logging.getLogger('adal-python').setLevel(logging.WARNING)
-        if not self.lightning_container.azure_dataset_id:
-            raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
+        if isinstance(self.model_config, DeepLearningConfig) and not self.azure_dataset_id:
+            raise ValueError("When running an InnerEye built-in model in AzureML, the 'azure_dataset_id' "
+                             "property must be set.")
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
@@ -257,7 +280,7 @@ class Runner:
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
-        azure_run = submit_to_azureml(self.azure_config, source_config, self.lightning_container.azure_dataset_id)
+        azure_run = submit_to_azureml(self.azure_config, source_config, self.azure_dataset_id)
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
@@ -302,9 +325,9 @@ class Runner:
                 set_environment_variables_for_multi_node()
             logging.info("Creating the output folder structure.")
             self.model_config.create_filesystem(self.project_root)
-            logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
+            ml_runner = self.create_ml_runner()
+            ml_runner.start_logging_to_file()
             try:
-                ml_runner = self.create_ml_runner()
                 ml_runner.run()
             finally:
                 disable_logging_to_file()

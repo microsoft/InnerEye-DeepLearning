@@ -9,6 +9,9 @@ import pandas as pd
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.deep_learning_config import DatasetParams, EssentialParams
+from InnerEye.ML.lightning_base import InnerEyeContainer
+from InnerEye.ML.model_config_base import ModelConfigBase
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
 from Tests.ML.util import default_runner
 
@@ -44,3 +47,18 @@ Test,1e-7
 Val,1e-7
 Train,1e-7"""))
     pd.testing.assert_frame_equal(metrics_per_split, expected, check_less_precise=True)
+
+
+def test_innereye_container_init() -> None:
+    """
+    Test if the constructor of the InnerEye container copies attributes as expected.
+    """
+    # The constructor should copy all fields that belong to either EssentialParams or DatasetParams from the
+    # config object to the container.
+    for (attrib, type_) in [("weights_url", EssentialParams), ("azure_dataset_id", DatasetParams)]:
+        config = ModelConfigBase()
+        assert hasattr(type_, attrib)
+        assert hasattr(config, attrib)
+        setattr(config, attrib, "foo")
+        container = InnerEyeContainer(config)
+        assert getattr(container, attrib) == "foo"
