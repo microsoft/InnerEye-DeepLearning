@@ -134,7 +134,7 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
         config.azure_dataset_id = azure_dataset
         config.local_dataset = local_dataset
         lightning_container = InnerEyeContainer(config)
-    with mock.patch("InnerEye.ML.run_ml.MLRunner.is_offline_run", return_value=is_offline_run):
+    with mock.patch("InnerEye.ML.run_ml.MLRunner.is_offline_run", is_offline_run):
         with mock.patch("InnerEye.ML.run_ml.download_dataset", return_value="download"):
             with mock.patch("InnerEye.ML.run_ml.try_to_mount_input_dataset", return_value="mount"):
                 runner = MLRunner(config, lightning_container=lightning_container,
@@ -151,7 +151,7 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
                              # download its data from the web before training.
                              (True, True, ""),
                              # A built-in InnerEye model must have an azure dataset provided when running in AzureML
-                             (False, False,"The model must contain azure_dataset_id for running on AML"),
+                             (False, False, "The model must contain azure_dataset_id for running on AML"),
                              # ... but this is OK for Lightning container models.
                              (False, True, "")])
 def test_mount_failing(test_output_dirs: OutputFolderForTests,
