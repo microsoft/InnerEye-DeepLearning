@@ -320,7 +320,6 @@ class Runner:
             # In particular, the multi-node environment variables should NOT be set in single node
             # training, otherwise this might lead to errors with the c10 distributed backend
             # (https://github.com/microsoft/InnerEye-DeepLearning/issues/395)
-
             if self.azure_config.num_nodes > 1:
                 set_environment_variables_for_multi_node()
             logging.info("Creating the output folder structure.")
