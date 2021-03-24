@@ -19,17 +19,18 @@ from azureml.core.datastore import Datastore
 from azureml.core.runconfig import MpiConfiguration, RunConfiguration
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
 from azureml.data import FileDataset
+from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME, \
     RUN_RECOVERY_ID_KEY_NAME, \
-    merge_conda_dependencies
+    is_offline_run_context, merge_conda_dependencies
 from InnerEye.Azure.secrets_handling import read_all_settings
 from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 
 SLEEP_TIME_SECONDS = 30
 INPUT_DATA_KEY = "input_data"
@@ -42,15 +43,12 @@ ENVIRONMENT_VERSION = "1"
 
 def submit_to_azureml(azure_config: AzureConfig,
                       source_config: SourceConfig,
-                      model_config_overrides: str,
                       azure_dataset_id: str) -> Run:
     """
     The main entry point. It creates an AzureML workspace if needed, submits an experiment using the code
     as specified in source_config, and waits for completion if needed.
     :param azure_config: azure related configurations to setup valid workspace
     :param source_config: The information about which code should be submitted, and which arguments should be used.
-    :param model_config_overrides: A string that describes which model parameters were overwritten by commandline
-     arguments in the present run. This is only used for diagnostic purposes (it is set as a Tag on the run).
     :param azure_dataset_id: The name of the dataset on blob storage to be used for this run.
     """
     azure_run: Optional[Run] = None
@@ -68,8 +66,7 @@ def submit_to_azureml(azure_config: AzureConfig,
     for s in [signal.SIGINT, signal.SIGTERM]:
         signal.signal(s, interrupt_handler)
     # create train/test experiment
-    azure_run = create_and_submit_experiment(azure_config, source_config, model_config_overrides,
-                                             azure_dataset_id)
+    azure_run = create_and_submit_experiment(azure_config, source_config, azure_dataset_id)
 
     if azure_config.wait_for_completion:
         # We want the job output to be visible on the console, but the program should not exit if the
@@ -79,13 +76,12 @@ def submit_to_azureml(azure_config: AzureConfig,
     return azure_run
 
 
-def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: str) -> None:
+def set_run_tags(run: Run, azure_config: AzureConfig, commandline_args: str) -> None:
     """
     Set metadata for the run
     :param run: Run to set metadata for.
     :param azure_config: The configurations for the present AzureML job
-    :param model_config_overrides: A string that describes which model parameters were overwritten by commandline
-     arguments in the present run.
+    :param commandline_args: A string that holds all commandline arguments that were used for the present run.
     """
     git_information = azure_config.get_git_information()
     run.set_tags({
@@ -103,7 +99,7 @@ def set_run_tags(run: Run, azure_config: AzureConfig, model_config_overrides: st
         "source_message": git_information.commit_message,
         "source_author": git_information.commit_author,
         "source_dirty": str(git_information.is_dirty),
-        "overrides": model_config_overrides,
+        "commandline_args": commandline_args,
         CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: -1,
     })
 
@@ -125,14 +121,11 @@ def create_experiment_name(azure_config: AzureConfig) -> str:
 def create_and_submit_experiment(
         azure_config: AzureConfig,
         source_config: SourceConfig,
-        model_config_overrides: str,
         azure_dataset_id: str) -> Run:
     """
     Creates an AzureML experiment in the workspace and submits it for execution.
     :param azure_config: azure related configurations to setup valid workspace
     :param source_config: The information about which code should be submitted, and which arguments should be used.
-    :param model_config_overrides: A string that describes which model parameters were overwritten by commandline
-     arguments in the present run. This is only used for diagnostic purposes (it is set as a Tag on the run).
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
     :returns: Run object for the submitted AzureML run
     """
@@ -144,8 +137,12 @@ def create_and_submit_experiment(
     # submit a training/testing run associated with the experiment
     run: Run = exp.submit(script_run_config)
 
-    # set metadata for the run
-    set_run_tags(run, azure_config, model_config_overrides)
+    if is_offline_run_context(run):
+        # This codepath will only be executed in unit tests, when exp.submit is mocked.
+        return run
+
+    # Set metadata for the run.
+    set_run_tags(run, azure_config, commandline_args=(" ".join(source_config.script_params)))
 
     print("\n==============================================================================")
     print(f"Successfully queued new run {run.id} in experiment: {exp.name}")
@@ -276,6 +273,21 @@ def get_or_create_python_environment(azure_config: AzureConfig,
     return env
 
 
+def get_dataset_consumption(azure_config: AzureConfig, azure_dataset_id: str) -> DatasetConsumptionConfig:
+    """
+    Creates a configuration for using an AzureML dataset inside of an AzureML run. This will make the AzureML
+    dataset with given name available as a named input, using INPUT_DATA_KEY as the key.
+    :param azure_config: azure related configurations to use for model scale-out behaviour
+    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run. This can be an empty
+    string to not use any datasets.
+    """
+    azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
+    if not azureml_dataset:
+        raise ValueError(f"AzureML dataset {azure_dataset_id} could not be found or created.")
+    named_input = azureml_dataset.as_named_input(INPUT_DATA_KEY)
+    return named_input.as_mount() if azure_config.use_dataset_mount else named_input.as_download()
+
+
 def create_run_config(azure_config: AzureConfig,
                       source_config: SourceConfig,
                       azure_dataset_id: str = "",
@@ -292,11 +304,7 @@ def create_run_config(azure_config: AzureConfig,
     :return: The configured script run.
     """
     if azure_dataset_id:
-        azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
-        if not azureml_dataset:
-            raise ValueError(f"AzureML dataset {azure_dataset_id} could not be found or created.")
-        named_input = azureml_dataset.as_named_input(INPUT_DATA_KEY)
-        dataset_consumption = named_input.as_mount() if azure_config.use_dataset_mount else named_input.as_download()
+        dataset_consumption = get_dataset_consumption(azure_config, azure_dataset_id)
     else:
         dataset_consumption = None
     # AzureML seems to sometimes expect the entry script path in Linux format, hence convert to posix path
@@ -354,8 +362,7 @@ def create_runner_parser(model_config_class: type = None) -> argparse.ArgumentPa
 def parse_args_and_add_yaml_variables(parser: ArgumentParser,
                                       yaml_config_file: Optional[Path] = None,
                                       project_root: Optional[Path] = None,
-                                      fail_on_unknown_args: bool = False,
-                                      args: List[str] = None) -> ParserResult:
+                                      fail_on_unknown_args: bool = False) -> ParserResult:
     """
     Reads arguments from sys.argv, modifies them with secrets from local YAML files,
     and parses them using the given argument parser.
@@ -364,14 +371,12 @@ def parse_args_and_add_yaml_variables(parser: ArgumentParser,
     :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.
     :param fail_on_unknown_args: If True, raise an exception if the parser encounters an argument that it does not
     recognize. If False, unrecognized arguments will be ignored, and added to the "unknown" field of the parser result.
-    :param args: arguments to parse
     :return: The parsed arguments, and overrides
     """
     settings_from_yaml = read_all_settings(yaml_config_file, project_root=project_root)
     return parse_arguments(parser,
                            settings_from_yaml=settings_from_yaml,
-                           fail_on_unknown_args=fail_on_unknown_args,
-                           args=args)
+                           fail_on_unknown_args=fail_on_unknown_args)
 
 
 def _create_default_namespace(parser: ArgumentParser) -> Namespace:

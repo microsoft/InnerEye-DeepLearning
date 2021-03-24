@@ -21,6 +21,7 @@ from InnerEye.ML.lightning_metrics import Accuracy05, AccuracyAtOptimalThreshold
     OptimalThreshold, ScalarMetricsBase
 from InnerEye.ML.metrics import compute_dice_across_patches
 from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, SequenceMetricsDict
+from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
@@ -185,9 +186,10 @@ class ScalarLightning(InnerEyeLightning):
         else:
             self.loss_fn = raw_loss
             self.target_indices = []
-            self.target_names = [MetricsDict.DEFAULT_HUE_KEY]
+            self.target_names = config.class_names
         self.is_classification_model = config.is_classification_model
         self.use_mean_teacher_model = config.compute_mean_teacher_model
+        self.is_binary_classification_or_regression = True if len(config.class_names) == 1 else False
         self.logits_to_posterior_fn = config.get_post_loss_logits_normalization_function()
         self.loss_type = config.loss_type
         # These two fields store the PyTorch Lightning Metrics objects that will compute metrics on validation
@@ -338,7 +340,8 @@ class ScalarLightning(InnerEyeLightning):
         metric_computers = self.train_metric_computers if is_training else self.val_metric_computers
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         for prediction_target, metric_list in metric_computers.items():
-            target_suffix = "" if prediction_target == MetricsDict.DEFAULT_HUE_KEY else f"/{prediction_target}"
+            target_suffix = "" if (prediction_target == MetricsDict.DEFAULT_HUE_KEY
+                                   or self.is_binary_classification_or_regression) else f"/{prediction_target}"
             for metric in metric_list:
                 if metric.has_predictions:
                     # Sequence models can have no predictions at all for particular positions, depending on the data.
@@ -378,3 +381,23 @@ def transfer_batch_to_device(batch: Any, device: torch.device) -> Any:
         return batch
     else:
         return move_data_to_device(batch, device)
+
+
+def create_lightning_model(config: ModelConfigBase, set_optimizer_and_scheduler: bool = True) -> InnerEyeLightning:
+    """
+    Creates a PyTorch Lightning model that matches the provided InnerEye model configuration object.
+    The `optimizer` and `l_rate_scheduler` object of the Lightning model will also be populated.
+    :param set_optimizer_and_scheduler: If True (default), initialize the optimizer and LR scheduler of the model.
+    If False, skip that step (this is only meant to be used for unit tests.)
+    :param config: An InnerEye model configuration object
+    :return: A PyTorch Lightning model object.
+    """
+    if config.is_segmentation_model:
+        model: InnerEyeLightning = SegmentationLightning(config)
+    elif config.is_scalar_model:
+        model = ScalarLightning(config)
+    else:
+        raise NotImplementedError(f"Don't know how to handle config of type {type(config)}")
+    if set_optimizer_and_scheduler:
+        model.set_optimizer_and_scheduler(config)
+    return model

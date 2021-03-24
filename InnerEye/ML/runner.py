@@ -9,7 +9,6 @@ from pathlib import Path
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
 # flake8: noqa
-
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
 print("Starting InnerEye runner.")
@@ -21,7 +20,6 @@ if (innereye_root / "InnerEye").is_dir():
         sys.path.insert(0, innereye_root_str)
 
 import logging
-from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
 from azureml._base_sdk_common import user_agent
@@ -35,14 +33,22 @@ from InnerEye.Azure.azure_util import is_run_and_child_runs_completed
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    ModelProcessing, disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout, print_exception
+    ModelProcessing, disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout
+from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.deep_learning_config import DeepLearningConfig, EssentialParams
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 
-REPORT_IPYNB = "report.ipynb"
-REPORT_HTML = "report.html"
+try:
+    # This import can fail when the code runs inside the azure_runner.yml Conda environment, that we use
+    # for the PR builds
+    from InnerEye.ML.lightning_container import LightningContainer
+
+    has_torch = True
+except ModuleNotFoundError as ex:
+    has_torch = False
 
 LOG_FILE_NAME = "stdout.txt"
 
@@ -105,6 +111,8 @@ def get_all_environment_files(project_root: Path) -> List[Path]:
 
 class Runner:
     """
+    This class contains the high-level logic to start a training run: choose a model configuration by name,
+    submit to AzureML if needed, or otherwise start the actual training and test loop.
     :param project_root: The root folder that contains all of the source code that should be executed.
     :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.
     :param post_cross_validation_hook: A function to call after waiting for completion of cross validation runs.
@@ -119,17 +127,17 @@ class Runner:
                  project_root: Path,
                  yaml_config_file: Path,
                  post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
-                 model_deployment_hook: Optional[ModelDeploymentHookSignature] = None,
-                 command_line_args: Optional[List[str]] = None):
+                 model_deployment_hook: Optional[ModelDeploymentHookSignature] = None):
         self.project_root = project_root
         self.yaml_config_file = yaml_config_file
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
-        self.command_line_args = command_line_args
         # model_config and azure_config are placeholders for now, and are set properly when command line args are
         # parsed.
-        self.model_config: ModelConfigBase = ModelConfigBase(azure_dataset_id="")
+        self.model_config: DeepLearningConfig = DeepLearningConfig(azure_dataset_id="")
         self.azure_config: AzureConfig = AzureConfig()
+        # This should be typed as LightningContainer, but we don't always have that imported
+        self.lightning_container: Any = None
 
     def parse_and_load_model(self) -> Optional[ParserResult]:
         """
@@ -141,47 +149,96 @@ class Runner:
         """
         # Create a parser that will understand only the args we need for an AzureConfig
         parser1 = create_runner_parser()
-        parser1_result = parse_args_and_add_yaml_variables(parser1,
-                                                           yaml_config_file=self.yaml_config_file,
-                                                           project_root=self.project_root,
-                                                           args=self.command_line_args,
-                                                           fail_on_unknown_args=False)
-        azure_config = AzureConfig(**parser1_result.args)
+        parser_result = parse_args_and_add_yaml_variables(parser1,
+                                                          yaml_config_file=self.yaml_config_file,
+                                                          project_root=self.project_root,
+                                                          fail_on_unknown_args=False)
+        azure_config = AzureConfig(**parser_result.args)
         azure_config.project_root = self.project_root
         self.azure_config = azure_config
         self.model_config = None  # type: ignore
         if not azure_config.model:
             return None
-        model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser1_result.args)
-        # Create the model as per the "model" commandline option
-        model_config = model_config_loader.create_model_config_from_name(
-            model_name=azure_config.model
-        )
-        # This model will be either a classification model or a segmentation model. Those have different
-        # fields that could be overridden on the command line. Create a parser that understands the fields we need
-        # for the actual model type. We feed this parser will the YAML settings and commandline arguments that the
-        # first parser did not recognize.
-        parser2 = type(model_config).create_argparser()
-        parser2_result = parse_arguments(parser2,
-                                         settings_from_yaml=parser1_result.unknown_settings_from_yaml,
-                                         args=parser1_result.unknown,
-                                         fail_on_unknown_args=True)
-        # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
-        model_config.apply_overrides(parser1_result.unknown_settings_from_yaml)
-        model_config.apply_overrides(parser2_result.overrides)
-        model_config.validate()
-        # Set the file system related configs, they might be affected by the overrides that were applied.
-        logging.info("Creating the adjusted output folder structure.")
-        model_config.create_filesystem(self.project_root)
+        model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser_result.args)
+        # Create the model as per the "model" commandline option. This can return either a built-in config
+        # of type DeepLearningConfig, or a LightningContainer.
+        config_or_container = model_config_loader.create_model_config_from_name(model_name=azure_config.model)
+
+        def parse_overrides_and_apply(c: object,
+                                      previous_parser_result: ParserResult,
+                                      is_last_parser: bool) -> ParserResult:
+            assert isinstance(c, GenericConfig)
+            parser = type(c).create_argparser()
+            # For each parser, feed in the unknown settings from the previous parser.
+            parser_result = parse_arguments(parser,
+                                            settings_from_yaml=previous_parser_result.unknown_settings_from_yaml,
+                                            args=previous_parser_result.unknown,
+                                            fail_on_unknown_args=is_last_parser)
+            # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
+            c.apply_overrides(parser_result.unknown_settings_from_yaml)
+            c.apply_overrides(parser_result.overrides)
+            c.validate()
+            return parser_result
+
+        # Now create a parser that understands overrides at model/container level. For DeepLearningConfig models,
+        # there is no further level at which overrides can be applied, hence we can fail if an unknown argument is
+        # found. For LightningContainer models, unknown args could still fall through to the actual Lightning model.
+        is_last_parser = isinstance(config_or_container, DeepLearningConfig)
+        parser_result = parse_overrides_and_apply(config_or_container, parser_result, is_last_parser)
+
+        if has_torch and isinstance(config_or_container, LightningContainer):
+            # Random seed is set at container level. Need to seed already now because we need to create the
+            # Lightning model in order to create a parser for overrides.
+            from pytorch_lightning import seed_everything
+            seed_everything(config_or_container.get_effective_random_seed())
+            config_or_container.create_lightning_module_and_store()
+            parser_result = parse_overrides_and_apply(config_or_container.lightning_module, parser_result, True)
+            self.lightning_container = config_or_container
+            model_config = config_or_container.lightning_module
+        elif isinstance(config_or_container, DeepLearningConfig):
+            # Built-in InnerEye models: A fake container for these models will be created in MLRunner
+            model_config = config_or_container
+        else:
+            raise ValueError(f"Don't know how to handle a loaded configuration of type {type(config_or_container)}")
+
         if azure_config.extra_code_directory:
             exist = "exists" if Path(azure_config.extra_code_directory).exists() else "does not exist"
             logging.info(f"extra_code_directory is {azure_config.extra_code_directory}, which {exist}")
         else:
             logging.info("extra_code_directory is unset")
         self.model_config = model_config
-        return parser2_result
+        return parser_result
 
-    def run(self) -> Tuple[ModelConfigBase, Optional[Run]]:
+    def _get_property_from_config_or_container(self, name: str):
+        """
+        Reads out a property or attribute from either the model configuration (if that is a built-in InnerEye
+        model) or the lightning container.
+        :param name: The name of the property to read.
+        :return: The property value, coming from either the model config or the container.
+        """
+        if isinstance(self.model_config, DeepLearningConfig):
+            return getattr(self.model_config, name)
+        elif self.lightning_container is not None:
+            return getattr(self.lightning_container, name)
+        else:
+            raise ValueError(f"Did not expect config of type {type(self.model_config)} and container of type "
+                             f"{type(self.lightning_container)}")
+
+    @property
+    def perform_cross_validation(self) -> bool:
+        """
+        Returns True if cross validation will be be performed as part of the training procedure.
+        """
+        return self._get_property_from_config_or_container("perform_cross_validation")
+
+    @property
+    def azure_dataset_id(self) -> str:
+        """
+        Returns the name of the Azure dataset that should be used.
+        """
+        return self._get_property_from_config_or_container("azure_dataset_id")
+
+    def run(self) -> Tuple[DeepLearningConfig, Optional[Run]]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
         via a commandline argument, runs training or testing, and writes all required info to disk and logs.
@@ -194,7 +251,7 @@ class Runner:
         may_initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
-        if self.model_config is not None and self.model_config.perform_cross_validation:
+        if self.perform_cross_validation:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None
@@ -211,21 +268,19 @@ class Runner:
         """
         # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
         logging.getLogger('adal-python').setLevel(logging.WARNING)
-        if not self.model_config.azure_dataset_id:
-            raise ValueError("When running on AzureML, the 'azure_dataset_id' property must be set.")
-        model_config_overrides = str(self.model_config.overrides)
+        if isinstance(self.model_config, DeepLearningConfig) and not self.azure_dataset_id:
+            raise ValueError("When running an InnerEye built-in model in AzureML, the 'azure_dataset_id' "
+                             "property must be set.")
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
             conda_dependencies_files=get_all_environment_files(self.project_root),
             hyperdrive_config_func=lambda run_config: self.model_config.get_hyperdrive_config(run_config),
-            # For large jobs, upload of results times out frequently because of large checkpoint files. Default is 600
+            # For large jobs, upload of results can time out because of large checkpoint files. Default is 600
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
-        assert self.model_config.azure_dataset_id is not None  # to stop mypy complaining about next line
-        azure_run = submit_to_azureml(self.azure_config, source_config, model_config_overrides,
-                                      self.model_config.azure_dataset_id)
+        azure_run = submit_to_azureml(self.azure_config, source_config, self.azure_dataset_id)
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
@@ -249,42 +304,33 @@ class Runner:
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(self.azure_config.log_level)
         suppress_logging_noise()
-        error_messages = []
         # For the PR build in AzureML, we can either pytest, or the training of the simple PR model. Running both
         # only works when using DDP_spawn, but that has as a side-effect that it messes up memory consumption of the
         # large models.
         if self.azure_config.pytest_mark:
-            try:
-                outputs_folder = Path.cwd() / fixed_paths.DEFAULT_AML_UPLOAD_DIR
-                pytest_passed, results_file_path = run_pytest(self.azure_config.pytest_mark, outputs_folder)
-                if not pytest_passed:
-                    pytest_failures = f"Not all PyTest tests passed. See {results_file_path}"
-                    logging.error(pytest_failures)
-                    error_messages.append(pytest_failures)
-            except Exception as ex:
-                print_exception(ex, "Unable to run PyTest.")
-                error_messages.append(f"Unable to run PyTest: {ex}")
+            outputs_folder = Path.cwd() / fixed_paths.DEFAULT_AML_UPLOAD_DIR
+            pytest_passed, results_file_path = run_pytest(self.azure_config.pytest_mark, outputs_folder)
+            if not pytest_passed:
+                # Terminate if pytest has failed. This makes the smoke test in
+                # PR builds fail if pytest fails.
+                pytest_failures = f"Not all PyTest tests passed. See {results_file_path}"
+                raise ValueError(pytest_failures)
         else:
             # Set environment variables for multi-node training if needed.
             # In particular, the multi-node environment variables should NOT be set in single node
             # training, otherwise this might lead to errors with the c10 distributed backend
             # (https://github.com/microsoft/InnerEye-DeepLearning/issues/395)
+
             if self.azure_config.num_nodes > 1:
                 set_environment_variables_for_multi_node()
+            logging.info("Creating the output folder structure.")
+            self.model_config.create_filesystem(self.project_root)
+            ml_runner = self.create_ml_runner()
+            ml_runner.start_logging_to_file()
             try:
-                logging_to_file(self.model_config.logs_folder / LOG_FILE_NAME)
-                try:
-                    self.create_ml_runner().run()
-                except Exception as ex:
-                    print_exception(ex, "Model training/testing failed.")
-                    error_messages.append(f"Training failed: {ex}")
+                ml_runner.run()
             finally:
                 disable_logging_to_file()
-        # Terminate if pytest or model training has failed. This makes the smoke test in
-        # PR builds fail if pytest fails.
-        if error_messages:
-            raise ValueError(
-                f"At least one component of the runner failed: {os.linesep} {os.linesep.join(error_messages)}")
 
     def create_ml_runner(self) -> Any:
         """
@@ -292,10 +338,11 @@ class Runner:
         """
         # This import statement cannot be at the beginning of the file because it will cause import
         # of packages that are not available inside the azure_runner.yml environment, in particular pytorch.
-        # That is also why we specify the return type as Any rather than MLRunner.
+        # That is also why we specify the return type is Any rather than MLRunner.
         from InnerEye.ML.run_ml import MLRunner
         return MLRunner(
             model_config=self.model_config,
+            lightning_container=self.lightning_container,
             azure_config=self.azure_config,
             project_root=self.project_root,
             post_cross_validation_hook=self.post_cross_validation_hook,
@@ -322,8 +369,7 @@ def default_post_cross_validation_hook(config: ModelConfigBase, root_folder: Pat
 def run(project_root: Path,
         yaml_config_file: Path,
         post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
-        model_deployment_hook: Optional[ModelDeploymentHookSignature] = None,
-        command_line_args: Optional[List[str]] = None) -> \
+        model_deployment_hook: Optional[ModelDeploymentHookSignature] = None) -> \
         Tuple[ModelConfigBase, Optional[Run]]:
     """
     The main entry point for training and testing models from the commandline. This chooses a model to train
@@ -331,8 +377,7 @@ def run(project_root: Path,
     :return: If submitting to AzureML, returns the model configuration that was used for training,
     including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
-    runner = Runner(project_root, yaml_config_file, post_cross_validation_hook,
-                    model_deployment_hook, command_line_args)
+    runner = Runner(project_root, yaml_config_file, post_cross_validation_hook, model_deployment_hook)
     return runner.run()
 
 

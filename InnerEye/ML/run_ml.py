@@ -16,6 +16,8 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Run
 from azureml.core.model import Model
 from azureml.data import FileDataset
+from pytorch_lightning.utilities.cloud_io import load as pl_load
+from torch.utils.data import DataLoader
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig
@@ -23,29 +25,30 @@ from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, INPUT_DATA_KEY, get
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, \
     MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
-    RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, get_results_blob_path, merge_conda_files
+    RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, is_offline_run_context, merge_conda_files
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
     OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
-    get_epoch_results_path, is_windows, logging_section, print_exception, remove_file_or_directory
+    get_epoch_results_path, is_windows, logging_section, logging_to_file, print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER, \
-    ModelCategory, MultiprocessingStartMethod
+from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
+    FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod
+from InnerEye.ML.lightning_base import InnerEyeContainer
+from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.reports.notebook_report import generate_classification_notebook, generate_segmentation_notebook
-from InnerEye.ML.runner import ModelDeploymentHookSignature, PostCrossValidationHookSignature, REPORT_HTML, \
-    REPORT_IPYNB, get_all_environment_files
+from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook, \
+    generate_classification_notebook, generate_segmentation_notebook, get_ipynb_report_name, reports_folder
+from InnerEye.ML.runner import LOG_FILE_NAME, ModelDeploymentHookSignature, PostCrossValidationHookSignature, \
+    get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
-from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
@@ -77,7 +80,8 @@ def download_dataset(azure_dataset_id: str,
     contains a dataset csv file, no download is started.
     :param azure_dataset_id: The name of a dataset that is registered in the AzureML workspace.
     :param target_folder: The folder in which to download the dataset from Azure.
-    :param dataset_csv: Name of the csv file describing the dataset.
+    :param dataset_csv: Name of the csv file describing the dataset. This is only used to check if the dataset has been
+    downloaded already.
     :param azure_config: All Azure-related configuration options.
     :return: A path on the local machine that contains the dataset.
     """
@@ -87,11 +91,18 @@ def download_dataset(azure_dataset_id: str,
         raise ValueError(f"Expected to get a FileDataset, but got {type(azure_dataset)}")
     # The downloaded dataset may already exist from a previous run.
     expected_dataset_path = target_folder / azure_dataset_id
-    expected_dataset_file = expected_dataset_path / dataset_csv
     logging.info(f"Model training will use dataset '{azure_dataset_id}' in Azure.")
-    if expected_dataset_path.is_dir() and expected_dataset_file.is_file():
-        logging.info(f"The dataset appears to be downloaded already in {expected_dataset_path}. Skipping.")
-        return expected_dataset_path
+    if expected_dataset_path.is_dir():
+        if dataset_csv:
+            if (expected_dataset_path / dataset_csv).is_file():
+                logging.info(f"The file {dataset_csv} is already downloaded in {expected_dataset_path}. Skipping.")
+                return expected_dataset_path
+        else:
+            existing_files = sum(1 for _ in expected_dataset_path.rglob("*"))
+            if existing_files > 1:
+                logging.info(f"There are already {existing_files} files in {expected_dataset_path}. Skipping.")
+                return expected_dataset_path
+
     logging.info("Starting to download the dataset - WARNING, this could take very long!")
     with logging_section("Downloading dataset"):
         t0 = time.perf_counter()
@@ -120,8 +131,9 @@ def log_metrics(val_metrics: Optional[InferenceMetricsForSegmentation],
 class MLRunner:
 
     def __init__(self,
-                 model_config: ModelConfigBase,
+                 model_config: DeepLearningConfig,
                  azure_config: Optional[AzureConfig] = None,
+                 lightning_container: Optional[LightningContainer] = None,
                  project_root: Optional[Path] = None,
                  post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
                  model_deployment_hook: Optional[ModelDeploymentHookSignature] = None) -> None:
@@ -139,18 +151,46 @@ class MLRunner:
         Model as arguments, and return an optional Path and a further object of any type.
         """
         self.model_config = model_config
+        self.lightning_container = lightning_container
         self.azure_config: AzureConfig = azure_config or AzureConfig()
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
+
+    def setup(self) -> None:
+        """
+        If the present object is using one of the InnerEye built-in models, create a (fake) container for it
+        and call the setup method. If should_write_dataset_files is True, and the present code is running on
+        distributed training rank zero, the method also writes the dataset files to disk.
+        """
+        if self.lightning_container is None:
+            assert isinstance(self.model_config, ModelConfigBase), \
+                "When using a built-in InnerEye model, the configuration should be an instance of ModelConfigBase"
+            self.lightning_container = InnerEyeContainer(self.model_config)
+            self.lightning_container.setup()
+
+    def start_logging_to_file(self) -> None:
+        if self.lightning_container is None:
+            self.setup()
+        logs_folder = self.model_config.logs_folder if isinstance(self.model_config, DeepLearningConfig) \
+            else self.lightning_container.lightning_module.logs_folder
+        logging_to_file(logs_folder / LOG_FILE_NAME)
+
+    @property
+    def is_offline_run(self) -> bool:
+        """
+        Returns True if the present run is outside of AzureML, and False if it is inside of AzureML.
+        :return:
+        """
+        return is_offline_run_context(RUN_CONTEXT)
 
     def is_offline_cross_val_parent_run(self) -> bool:
         """
         Returns true if the current run is an offline run with cross validation splits > 0
         and cross_validation_split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX (ie: a parent)
         """
-        return self.model_config.cross_validation_split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX and \
-               self.model_config.perform_cross_validation and self.model_config.is_offline_run
+        return self.lightning_container.cross_validation_split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX and \
+               self.lightning_container.perform_cross_validation and self.is_offline_run
 
     def spawn_offline_cross_val_classification_child_runs(self) -> None:
         """
@@ -171,6 +211,7 @@ class MLRunner:
 
             logging.info(f"Running model train and test on cross validation split: {cross_val_split_index}")
             split_ml_runner = MLRunner(model_config=split_model_config,
+                                       lightning_container=self.lightning_container,
                                        azure_config=self.azure_config,
                                        project_root=self.project_root,
                                        post_cross_validation_hook=self.post_cross_validation_hook,
@@ -207,8 +248,8 @@ class MLRunner:
         ]
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
         new_tags[RUN_RECOVERY_ID_KEY_NAME] = create_run_recovery_id(run=RUN_CONTEXT)
-        new_tags[CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY] = str(self.model_config.cross_validation_split_index)
-        new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.model_config.get_effective_random_seed())
+        new_tags[CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY] = str(self.lightning_container.cross_validation_split_index)
+        new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.lightning_container.get_effective_random_seed())
         RUN_CONTEXT.set_tags(new_tags)
 
     def run(self) -> None:
@@ -216,6 +257,7 @@ class MLRunner:
         Driver function to run a ML experiment. If an offline cross validation run is requested, then
         this function is recursively called for each cross validation split.
         """
+        self.setup()
         if self.is_offline_cross_val_parent_run():
             if self.model_config.is_segmentation_model:
                 raise NotImplementedError("Offline cross validation is only supported for classification models.")
@@ -223,17 +265,15 @@ class MLRunner:
             return
 
         # Get the AzureML context in which the script is running
-        if not self.model_config.is_offline_run and PARENT_RUN_CONTEXT is not None:
+        if not self.is_offline_run and PARENT_RUN_CONTEXT is not None:
             logging.info("Setting tags from parent run.")
             self.set_run_tags_from_parent()
-
-        self.save_build_info_for_dotnet_consumers()
 
         # Set data loader start method
         self.set_multiprocessing_start_method()
 
         # configure recovery container if provided
-        checkpoint_handler = CheckpointHandler(model_config=self.model_config,
+        checkpoint_handler = CheckpointHandler(lightning_container=self.lightning_container,
                                                azure_config=self.azure_config,
                                                project_root=self.project_root,
                                                run_context=RUN_CONTEXT)
@@ -244,18 +284,14 @@ class MLRunner:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
             self.model_config.local_dataset = self.mount_or_download_dataset()
-            # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
-            # loaded (typically only during tests)
-            if self.model_config.dataset_data_frame is None:
-                assert self.model_config.local_dataset is not None
-                ml_util.validate_dataset_paths(
-                    self.model_config.local_dataset,
-                    self.model_config.dataset_csv)
 
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    model_train(self.model_config, checkpoint_handler, num_nodes=self.azure_config.num_nodes)
+                    model_train(self.model_config,
+                                checkpoint_handler,
+                                lightning_container=self.lightning_container,
+                                num_nodes=self.azure_config.num_nodes)
             else:
                 self.model_config.write_dataset_files()
                 self.create_activation_maps()
@@ -263,19 +299,59 @@ class MLRunner:
             # log the number of epochs used for model training
             RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
 
-        # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
-        # the current run is a single one. See the documentation of ModelProcessing for more details.
-        self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
+        if isinstance(self.lightning_container, InnerEyeContainer):
+            # Inference for the InnerEye built-in models
+            # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
+            # the current run is a single one. See the documentation of ModelProcessing for more details.
+            self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
 
-        if self.model_config.generate_report:
-            self.generate_report(ModelProcessing.DEFAULT)
+            if self.lightning_container.generate_report:
+                self.generate_report(ModelProcessing.DEFAULT)
 
-        # If this is an cross validation run, and the present run is child run 0, then wait for the sibling runs,
-        # build the ensemble model, and write a report for that.
-        if self.model_config.number_of_cross_validation_splits > 0:
-            if self.model_config.should_wait_for_other_cross_val_child_runs():
-                self.wait_for_runs_to_finish()
-                self.create_ensemble_model()
+            # If this is an cross validation run, and the present run is child run 0, then wait for the sibling runs,
+            # build the ensemble model, and write a report for that.
+            if self.lightning_container.number_of_cross_validation_splits > 0:
+                should_wait_for_other_child_runs = (not self.is_offline_run) and \
+                                                   self.lightning_container.cross_validation_split_index == 0
+                if should_wait_for_other_child_runs:
+                    self.wait_for_runs_to_finish()
+                    self.create_ensemble_model_and_run_inference()
+        else:
+            # Inference for all models that are specified via LightningContainers
+            self.run_inference_for_lightning_models(checkpoint_handler.get_checkpoints_to_test())
+
+    def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
+        """
+        Run inference on the test set for all models that are specified via a LightningContainer.
+        """
+        if len(checkpoint_paths) != 1:
+            raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
+        assert isinstance(self.model_config, LightningWithInference), "For this method, the configuration should be " \
+                                                                      "an instance of LightningWithInference"
+        data = self.lightning_container.get_inference_data_module(
+            crossval_index=self.lightning_container.cross_validation_split_index,
+            crossval_count=self.lightning_container.number_of_cross_validation_splits)
+        dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
+        if self.lightning_container.perform_validation_and_test_set_inference:
+            dataloaders.append((data.test_dataloader(), ModelExecutionMode.TEST))
+            dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))
+        if self.lightning_container.perform_training_set_inference:
+            dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))
+        map_location = "gpu" if self.model_config.use_gpu else "cpu"
+        checkpoint = pl_load(checkpoint_paths[0], map_location=map_location)
+        lightning_model = self.model_config
+        lightning_model.load_state_dict(checkpoint['state_dict'])
+        lightning_model.eval()
+        lightning_model.on_inference_start()
+        for loader, split in dataloaders:
+            logging.info(f"Starting inference on {split.value} set")
+            lightning_model.on_inference_epoch_start(dataset_split=split, is_ensemble_model=False)
+            for batch_idx, item in enumerate(loader):
+                model_output = lightning_model.forward(item[0])
+                lightning_model.inference_step(item, batch_idx, model_output=model_output)
+            lightning_model.on_inference_epoch_end()
+        lightning_model.on_inference_end()
+        logging.info("Finished inference.")
 
     def run_inference_and_register_model(self, checkpoint_handler: CheckpointHandler,
                                          model_proc: ModelProcessing) -> None:
@@ -310,7 +386,7 @@ class MLRunner:
         model (from the run we recovered) should already have been registered, so we should only
         do so if this run is specifically for that purpose.
         """
-        if self.model_config.is_offline_run:
+        if self.is_offline_run:
             return False
         return self.azure_config.train or self.azure_config.only_register_model
 
@@ -320,7 +396,7 @@ class MLRunner:
             activation_maps.extract_activation_maps(self.model_config)
             logging.info("Successfully extracted and saved activation maps")
 
-    def mount_or_download_dataset(self) -> Path:
+    def mount_or_download_dataset(self) -> Optional[Path]:
         """
         Makes the dataset that the model uses available on the executing machine. If the present training run is outside
         of AzureML, it expects that either the model has a `local_dataset` field set, in which case no action will be
@@ -330,53 +406,48 @@ class MLRunner:
         mounted or downloaded.
         Returns the path of the dataset on the executing machine.
         """
-        azure_dataset_id = self.model_config.azure_dataset_id
-
-        if self.model_config.is_offline_run:
+        azure_dataset_id = self.lightning_container.azure_dataset_id
+        local_dataset = self.lightning_container.local_dataset
+        # A dataset, either local or in Azure, is required for the built-in InnerEye models. When models are
+        # specified via a LightningContainer, these dataset fields are optional, because the container datasets
+        # could be downloaded even from the web.
+        is_dataset_required = isinstance(self.lightning_container, InnerEyeContainer)
+        if self.is_offline_run:
             # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
             # Otherwise, download the dataset specified by the azure_dataset_id
-            local_dataset = self.model_config.local_dataset
-            if (not azure_dataset_id) and (local_dataset is None):
-                raise ValueError("The model must contain either local_dataset or azure_dataset_id.")
+            if is_dataset_required:
+                if (not azure_dataset_id) and (local_dataset is None):
+                    raise ValueError("The model must contain either local_dataset or azure_dataset_id.")
             if local_dataset:
                 expected_dir = Path(local_dataset)
                 if not expected_dir.is_dir():
                     raise FileNotFoundError(f"The model uses a dataset in {expected_dir}, but that does not exist.")
                 logging.info(f"Model training will use the local dataset provided in {expected_dir}")
                 return expected_dir
-            return download_dataset(azure_dataset_id=azure_dataset_id,
-                                    target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
-                                    dataset_csv=self.model_config.dataset_csv,
-                                    azure_config=self.azure_config)
+            if azure_dataset_id:
+                dataset_csv = ""
+                if isinstance(self.model_config, DeepLearningConfig):
+                    dataset_csv = self.model_config.dataset_csv
+                return download_dataset(azure_dataset_id=azure_dataset_id,
+                                        target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
+                                        dataset_csv=dataset_csv, azure_config=self.azure_config)
+            return None
 
         # Inside of AzureML, datasets can be either mounted or downloaded.
-        if not azure_dataset_id:
+        if is_dataset_required and not azure_dataset_id:
             raise ValueError("The model must contain azure_dataset_id for running on AML")
-        mounted = try_to_mount_input_dataset()
-        if not mounted:
-            raise ValueError("Unable to mount or download input dataset.")
-        return mounted
-
-    def save_build_info_for_dotnet_consumers(self) -> None:
-        results_container = get_results_blob_path(RUN_CONTEXT.id)
-        result_location = ExperimentResultLocation(
-            azure_job_name=RUN_CONTEXT.id,
-            dataset_folder=self.model_config.azure_dataset_id,
-            results_container_name=results_container,
-            commandline_overrides=str(self.model_config.overrides),
-            dataset_uri=self.model_config.azure_dataset_id,
-            results_uri="",
-        )
-        # Fill in the missing information in the build config (everything that is not available at the time
-        # of evoking the runner), and then save in the format needed for the .NET consumers
-        build_information_to_dot_net_json_file(
-            self.azure_config, result_location, folder=self.model_config.outputs_folder)
+        if azure_dataset_id:
+            mounted = try_to_mount_input_dataset()
+            if not mounted:
+                raise ValueError("Unable to mount or download input dataset.")
+            return mounted
+        return None
 
     def set_multiprocessing_start_method(self) -> None:
         """
         Set the (PyTorch) multiprocessing start method.
         """
-        method = self.model_config.multiprocessing_start_method
+        method = self.lightning_container.multiprocessing_start_method
         if is_windows():
             if method != MultiprocessingStartMethod.spawn:
                 logging.warning(f"Cannot set multiprocessing start method to '{method.name}' "
@@ -401,7 +472,7 @@ class MLRunner:
             logging.warning("Abandoning model registration - no valid checkpoint paths found")
             return
 
-        if not self.model_config.is_offline_run:
+        if not self.is_offline_run:
             split_index = RUN_CONTEXT.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
             if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
                 RUN_CONTEXT.tag(IS_ENSEMBLE_KEY_NAME, str(model_proc == ModelProcessing.ENSEMBLE_CREATION))
@@ -608,7 +679,7 @@ class MLRunner:
 
         # log the metrics to AzureML experiment if possible. When doing ensemble runs, log to the Hyperdrive parent run,
         # so that we get the metrics of child run 0 and the ensemble separated.
-        if config.is_segmentation_model and not config.is_offline_run:
+        if config.is_segmentation_model and not self.is_offline_run:
             run_for_logging = PARENT_RUN_CONTEXT if model_proc.ENSEMBLE_CREATION else RUN_CONTEXT
             log_metrics(val_metrics=val_metrics, test_metrics=test_metrics,  # type: ignore
                         train_metrics=train_metrics, run_context=run_for_logging)  # type: ignore
@@ -631,7 +702,7 @@ class MLRunner:
         :return: True if all sibling runs of the current run have finished (they either completed successfully,
         or failed). False if any of them is still pending (running or queued).
         """
-        if (not self.model_config.is_offline_run) \
+        if (not self.is_offline_run) \
                 and (azure_util.is_cross_validation_child_run(RUN_CONTEXT)):
             n_splits = self.model_config.get_total_number_of_cross_validation_runs()
             child_runs = azure_util.fetch_child_runs(PARENT_RUN_CONTEXT,
@@ -646,14 +717,14 @@ class MLRunner:
         else:
             raise NotImplementedError("are_sibling_runs_finished only works for cross validation runs in AzureML.")
 
-    def create_ensemble_model(self) -> None:
+    def create_ensemble_model_and_run_inference(self) -> None:
         """
         Create an ensemble model from the results of the sibling runs of the present run. The present run here will
         be cross validation child run 0.
         """
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
         with logging_section("Downloading checkpoints from sibling runs"):
-            checkpoint_handler = CheckpointHandler(model_config=self.model_config,
+            checkpoint_handler = CheckpointHandler(lightning_container=self.lightning_container,
                                                    azure_config=self.azure_config,
                                                    project_root=self.project_root,
                                                    run_context=PARENT_RUN_CONTEXT)
@@ -663,7 +734,8 @@ class MLRunner:
                                               model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
         crossval_dir = self.plot_cross_validation_and_upload_results()
-        self.generate_report(ModelProcessing.ENSEMBLE_CREATION)
+        if self.model_config.generate_report:
+            self.generate_report(ModelProcessing.ENSEMBLE_CREATION)
         # CrossValResults should have been uploaded to the parent run, so we don't need it here.
         remove_file_or_directory(crossval_dir)
         # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files
@@ -676,8 +748,7 @@ class MLRunner:
                 for subdir in other_runs_ensemble_dir.glob("*"):
                     if subdir.name not in [BASELINE_WILCOXON_RESULTS_FILE,
                                            SCATTERPLOTS_SUBDIR_NAME,
-                                           REPORT_HTML,
-                                           REPORT_IPYNB]:
+                                           reports_folder]:
                         remove_file_or_directory(subdir)
                 PARENT_RUN_CONTEXT.upload_folder(name=BASELINE_COMPARISONS_FOLDER, path=str(other_runs_ensemble_dir))
             else:
@@ -724,21 +795,34 @@ class MLRunner:
 
             output_dir = config.outputs_folder / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME \
                 if model_proc == ModelProcessing.ENSEMBLE_CREATION else config.outputs_folder
+
+            reports_dir = output_dir / reports_folder
+            if not reports_dir.exists():
+                reports_dir.mkdir(exist_ok=False)
+
             if config.model_category == ModelCategory.Segmentation:
-                generate_segmentation_notebook(result_notebook=output_dir / REPORT_IPYNB,
-                                               train_metrics=path_to_best_epoch_train,
-                                               val_metrics=path_to_best_epoch_val,
-                                               test_metrics=path_to_best_epoch_test)
+                generate_segmentation_notebook(
+                    result_notebook=reports_dir / get_ipynb_report_name(config.model_category.value),
+                    train_metrics=path_to_best_epoch_train,
+                    val_metrics=path_to_best_epoch_val,
+                    test_metrics=path_to_best_epoch_test)
             else:
                 if isinstance(config, ScalarModelBase) and not isinstance(config, SequenceModelBase):
-                    dataset_csv_path = config.local_dataset / config.dataset_csv if config.local_dataset else None
-                    generate_classification_notebook(result_notebook=output_dir / REPORT_IPYNB,
-                                                     train_metrics=path_to_best_epoch_train,
-                                                     val_metrics=path_to_best_epoch_val,
-                                                     test_metrics=path_to_best_epoch_test,
-                                                     dataset_csv_path=dataset_csv_path,
-                                                     dataset_subject_column=config.subject_column,
-                                                     dataset_file_column=config.image_file_column)
+                    generate_classification_notebook(
+                        result_notebook=reports_dir / get_ipynb_report_name(config.model_category.value),
+                        config=config,
+                        train_metrics=path_to_best_epoch_train,
+                        val_metrics=path_to_best_epoch_val,
+                        test_metrics=path_to_best_epoch_test)
+
+                    if len(config.class_names) > 1:
+                        generate_classification_multilabel_notebook(
+                            result_notebook=reports_dir / get_ipynb_report_name(
+                                f"{config.model_category.value}_multilabel"),
+                            config=config,
+                            train_metrics=path_to_best_epoch_train,
+                            val_metrics=path_to_best_epoch_val,
+                            test_metrics=path_to_best_epoch_test)
                 else:
                     logging.info(f"Cannot create report for config of type {type(config)}.")
         except Exception as ex:

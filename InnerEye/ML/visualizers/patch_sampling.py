@@ -17,7 +17,7 @@ from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import Sample
 from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
 from InnerEye.ML.utils import augmentation, io_util, ml_util
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 # The name of the folder inside the default outputs folder that will holds plots that show the effect of
 # sampling random patches
 from InnerEye.ML.utils.image_util import get_unit_image_header
@@ -135,7 +135,7 @@ def main(args: CheckPatchSamplingConfig) -> None:
     output_folder.mkdir(parents=True, exist_ok=True)
 
     # Create a config file
-    config = ModelConfigLoader[SegmentationModelBase]().create_model_config_from_name(
+    config = ModelConfigLoader().create_model_config_from_name(
         args.model_name, overrides=commandline_args)
     config.show_patch_sampling = args.number_samples
     ml_util.set_random_seed(config.random_seed)

@@ -6,14 +6,17 @@ from io import StringIO
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.Common.common_util import is_windows
 from InnerEye.ML.reports.notebook_report import generate_segmentation_notebook
 from InnerEye.ML.reports.segmentation_report import describe_score, worst_patients_and_outliers
 from InnerEye.ML.utils.csv_util import COL_IS_OUTLIER
 
 
+@pytest.mark.skipif(is_windows(), reason="Random timeout errors on windows.")
 def test_generate_segmentation_report(test_output_dirs: OutputFolderForTests) -> None:
     reports_folder = Path(__file__).parent
     metrics_file = reports_folder / "metrics_hn.csv"

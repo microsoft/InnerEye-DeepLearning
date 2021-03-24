@@ -8,6 +8,7 @@ from typing import List, Optional, Union
 import pytest
 import torch
 
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase, equally_weighted_classes
@@ -124,6 +125,35 @@ def test_equally_weighted_classes_fails(num_fg_clases: int, background_weight: O
     classes = [""] * num_fg_clases
     with pytest.raises(ValueError):
         equally_weighted_classes(classes, background_weight)
+
+
+def test_fields_are_set() -> None:
+    """
+    Tests that expected fields are set when creating config classes.
+    """
+    expected = [("hello", None), ("world", None)]
+    config = SegmentationModelBase(
+        should_validate=False,
+        ground_truth_ids=[x[0] for x in expected],
+        largest_connected_component_foreground_classes=expected
+    )
+    assert hasattr(config, CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY)
+    assert config.largest_connected_component_foreground_classes == expected
+
+
+@pytest.mark.cpu_and_gpu
+def test_dataset_reader_workers() -> None:
+    """
+    Test to make sure the number of dataset reader workers are set correctly
+    """
+    config = ScalarModelBase(
+        should_validate=False,
+        num_dataset_reader_workers=-1
+    )
+    if config.is_offline_run:
+        assert config.num_dataset_reader_workers == -1
+    else:
+        assert config.num_dataset_reader_workers == 0
 
 
 def create_dataset_csv(test_output_dirs: OutputFolderForTests) -> Path:

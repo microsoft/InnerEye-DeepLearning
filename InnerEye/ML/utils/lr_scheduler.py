@@ -9,7 +9,7 @@ from typing import Dict, List
 from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR, LambdaLR, MultiStepLR, StepLR, _LRScheduler
 from torch.optim.optimizer import Optimizer
 
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, LRSchedulerType, LRWarmUpType
+from InnerEye.ML.deep_learning_config import DeepLearningConfig, LRSchedulerType, LRWarmUpType, OptimizerParams
 
 
 def get_current_learning_rates(optimizer: Optimizer) -> List[float]:
@@ -60,7 +60,7 @@ class SchedulerWithWarmUp(_LRScheduler):
     of the normal schedulers.
     """
 
-    def __init__(self, args: DeepLearningConfig, optimizer: Optimizer, last_epoch: int = -1):
+    def __init__(self, args: OptimizerParams, optimizer: Optimizer, last_epoch: int = -1):
         self.optimizer = optimizer
         self.last_epoch = last_epoch
         self.warmup_epochs = 0 if args.l_rate_warmup == LRWarmUpType.NoWarmUp else args.l_rate_warmup_epochs
@@ -75,7 +75,7 @@ class SchedulerWithWarmUp(_LRScheduler):
         self.min_l_rate = args.min_l_rate
         super().__init__(optimizer, last_epoch)
 
-    def get_scheduler(self, args: DeepLearningConfig) -> _LRScheduler:
+    def get_scheduler(self, args: OptimizerParams) -> _LRScheduler:
         """
         Create the LR scheduler that will be used after warmup, based on the config params.
         """

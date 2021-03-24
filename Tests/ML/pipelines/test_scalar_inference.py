@@ -12,8 +12,7 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
-from InnerEye.ML.lightning_helpers import create_lightning_model
-from InnerEye.ML.lightning_models import ScalarLightning
+from InnerEye.ML.lightning_models import ScalarLightning, create_lightning_model
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline, \
     ScalarInferencePipelineBase

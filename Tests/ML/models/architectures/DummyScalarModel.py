@@ -15,7 +15,8 @@ from InnerEye.ML.models.layers.identity import Identity
 class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
     def __init__(self, expected_image_size_zyx: TupleInt3,
                  activation: torch.nn.Module = Identity(),
-                 use_mixed_precision: bool = False) -> None:
+                 use_mixed_precision: bool = False,
+                 num_classes: int = 1) -> None:
         super().__init__()
         self.expected_image_size_zyx = expected_image_size_zyx
         self._layers = torch.nn.ModuleList()
@@ -25,7 +26,7 @@ class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
             fc_out = fc(torch.zeros((1, 1) + self.expected_image_size_zyx))
             self.feature_size = fc_out.view(-1).shape[0]
         self._layers.append(fc)
-        self.fc = torch.nn.Linear(self.feature_size, 1)
+        self.fc = torch.nn.Linear(self.feature_size, out_features=num_classes)
         self.activation = activation
         self.last_encoder_layer: List[str] = ["_layers", "0"]
         self.conv_in_3d = False

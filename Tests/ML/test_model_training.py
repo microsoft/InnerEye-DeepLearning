@@ -19,7 +19,6 @@ from InnerEye.Common.common_util import is_windows, logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML import model_training
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode, \
     RECOVERY_CHECKPOINT_FILE_NAME_WITH_SUFFIX, \
     STORED_CSV_FILE_NAMES
@@ -27,7 +26,6 @@ from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.utils.model_util import create_segmentation_loss_function
@@ -35,7 +33,7 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_checkpoint_handler, machine_has_gpu
+from Tests.ML.util import machine_has_gpu, model_train_unittest
 
 config_path = full_ml_test_data_path()
 base_path = full_ml_test_data_path()
@@ -110,10 +108,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     loss_absolute_tolerance = 1e-6
     expected_learning_rates = [train_config.l_rate, 5.3589e-4]
 
-    checkpoint_handler = get_default_checkpoint_handler(model_config=train_config,
-                                                        project_root=Path(output_dirs.root_dir))
-    model_training_result = model_training.model_train(train_config,
-                                                       checkpoint_handler=checkpoint_handler)
+    model_training_result, _ = model_train_unittest(train_config, dirs=output_dirs)
     assert isinstance(model_training_result, ModelTrainingResults)
 
     def assert_all_close(metric: str, expected: List[float], **kwargs: Any) -> None:
@@ -323,9 +318,7 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
 
     # First round of training
     config.num_epochs = 2
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=test_output_dirs.root_dir)
-    model_train(config, checkpoint_handler=checkpoint_handler)
+    _, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
     assert len(list(config.checkpoint_folder.glob("*.*"))) == 2
 
     # Restart training from previous run
@@ -338,7 +331,7 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
     shutil.copytree(str(original_checkpoint_folder), str(checkpoint_root))
     checkpoint_handler.run_recovery = RunRecovery([checkpoint_root])
 
-    model_train(config, checkpoint_handler=checkpoint_handler)
+    model_train_unittest(config, dirs=test_output_dirs, checkpoint_handler=checkpoint_handler)
     # remove recovery checkpoints
     shutil.rmtree(checkpoint_root)
     assert len(list(config.checkpoint_folder.glob("*.*"))) == 2

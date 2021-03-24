@@ -40,7 +40,7 @@ from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_ni
 
 
 FALLBACK_ENSEMBLE_RUN = "refs_pull_385_merge:HD_2850254e-4ecf-4425-9245-70fa98f50d81"
-FALLBACK_SINGLE_RUN = "refs_pull_407_merge_1614271518_cdbeb28e"
+FALLBACK_SINGLE_RUN = "refs_pull_407_merge:refs_pull_407_merge_1614271518_cdbeb28e"
 FALLBACK_2NODE_RUN = "refs_pull_385_merge:refs_pull_385_merge_1612421371_ba12a007"
 
 

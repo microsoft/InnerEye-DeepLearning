@@ -49,20 +49,20 @@ def test_use_local_weights_file(test_output_dirs: OutputFolderForTests) -> None:
     assert not checkpoint_handler.local_weights_path
 
     # weights from local_weights_path and weights_url will be modified if needed and stored at this location
-    expected_path = checkpoint_handler.model_config.outputs_folder / WEIGHTS_FILE
+    expected_path = checkpoint_handler.output_params.outputs_folder / WEIGHTS_FILE
 
     # Set a weights_path
     checkpoint_handler.azure_config.run_recovery_id = ""
-    config.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
+    checkpoint_handler.container.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.local_weights_path == expected_path
     assert checkpoint_handler.local_weights_path.is_file()
 
     # set a local_weights_path
-    config.weights_url = ""
+    checkpoint_handler.container.weights_url = ""
     local_weights_path = test_output_dirs.root_dir / "exist.pth"
     create_checkpoint_file(local_weights_path)
-    config.local_weights_path = local_weights_path
+    checkpoint_handler.container.local_weights_path = local_weights_path
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.local_weights_path == expected_path
 
@@ -113,11 +113,11 @@ def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None
     assert checkpoint_handler.get_recovery_path_train() is None
 
     # weights from local_weights_path and weights_url will be modified if needed and stored at this location
-    expected_path = checkpoint_handler.model_config.outputs_folder / WEIGHTS_FILE
+    expected_path = checkpoint_handler.output_params.outputs_folder / WEIGHTS_FILE
 
     # Set a weights_url to get checkpoint from
     checkpoint_handler.azure_config.run_recovery_id = ""
-    config.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
+    checkpoint_handler.container.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.local_weights_path == expected_path
     config.start_epoch = 0
@@ -129,10 +129,10 @@ def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None
         assert ex.value.args == "Start epoch is > 0, but no run recovery object has been provided to resume training."
 
     # Set a local_weights_path to get checkpoint from
-    config.weights_url = ""
+    checkpoint_handler.container.weights_url = ""
     local_weights_path = test_output_dirs.root_dir / "exist.pth"
     create_checkpoint_file(local_weights_path)
-    config.local_weights_path = local_weights_path
+    checkpoint_handler.container.local_weights_path = local_weights_path
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.local_weights_path == expected_path
     config.start_epoch = 0
@@ -246,12 +246,12 @@ def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None
     # so the local weights should be used ignoring any epochs to test
     local_weights_path = test_output_dirs.root_dir / "exist.pth"
     create_checkpoint_file(local_weights_path)
-    config.local_weights_path = local_weights_path
+    manage_recovery.container.local_weights_path = local_weights_path
     manage_recovery.download_recovery_checkpoints_or_weights()
     checkpoint_and_paths = manage_recovery.get_checkpoints_to_test()
     assert checkpoint_and_paths
     assert len(checkpoint_and_paths) == 1
-    assert checkpoint_and_paths[0] == manage_recovery.model_config.outputs_folder / WEIGHTS_FILE
+    assert checkpoint_and_paths[0] == manage_recovery.output_params.outputs_folder / WEIGHTS_FILE
 
     config.start_epoch = 1
     manage_recovery.additional_training_done()
@@ -325,13 +325,13 @@ def test_get_local_weights_path_or_download(test_output_dirs: OutputFolderForTes
     # If local_weights_path folder exists, get_local_weights_path_or_download should not do anything.
     local_weights_path = manage_recovery.project_root / "exist.pth"
     create_checkpoint_file(local_weights_path)
-    manage_recovery.model_config.local_weights_path = local_weights_path
+    manage_recovery.container.local_weights_path = local_weights_path
     returned_weights_path = manage_recovery.get_local_weights_path_or_download()
     assert local_weights_path == returned_weights_path
 
     # Pointing the model to a URL should trigger a download
-    config.local_weights_path = None
-    config.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
+    manage_recovery.container.local_weights_path = None
+    manage_recovery.container.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
     downloaded_weights = manage_recovery.get_local_weights_path_or_download()
     # Download goes into <project_root> / "modelweights" / "resnet18-5c106cde.pth"
     expected_path = manage_recovery.project_root / MODEL_WEIGHTS_DIR_NAME / \
@@ -361,7 +361,7 @@ def test_get_and_modify_local_weights(test_output_dirs: OutputFolderForTests) ->
         assert "neither local_weights_path nor weights_url is set in the model config" in ex.value.args[0]
 
     # Pointing the model to a local_weights_path that does not exist will raise an error.
-    config.local_weights_path = manage_recovery.project_root / "non_exist"
+    manage_recovery.container.local_weights_path = manage_recovery.project_root / "non_exist"
     with pytest.raises(FileNotFoundError) as file_ex:
         manage_recovery.get_and_save_modified_weights()
         assert "Could not find the weights file" in file_ex.value.args[0]
@@ -374,9 +374,9 @@ def test_get_and_modify_local_weights(test_output_dirs: OutputFolderForTests) ->
     # Set the local_weights_path to an empty file, which will be passed to modify_checkpoint
     local_weights_path = manage_recovery.project_root / "exist.pth"
     create_checkpoint_file(local_weights_path)
-    config.local_weights_path = local_weights_path
+    manage_recovery.container.local_weights_path = local_weights_path
     weights_path = manage_recovery.get_and_save_modified_weights()
-    expected_path = manage_recovery.model_config.outputs_folder / WEIGHTS_FILE
+    expected_path = manage_recovery.output_params.outputs_folder / WEIGHTS_FILE
     # read from weights_path and check that the dict has been written
     assert weights_path.is_file()
     assert expected_path == weights_path
@@ -393,10 +393,10 @@ def test_get_and_modify_local_weights(test_output_dirs: OutputFolderForTests) ->
     ModelConfigBase.load_checkpoint_and_modify = lambda self, path_to_checkpoint: {"modified": "url",  # type: ignore
                                                                                    "path": path_to_checkpoint}
     # Set the weights_url to the sample pytorch URL, which will be passed to modify_checkpoint
-    config.local_weights_path = None
-    config.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
+    manage_recovery.container.local_weights_path = None
+    manage_recovery.container.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
     weights_path = manage_recovery.get_and_save_modified_weights()
-    expected_path = manage_recovery.model_config.outputs_folder / WEIGHTS_FILE
+    expected_path = manage_recovery.output_params.outputs_folder / WEIGHTS_FILE
     # read from weights_path and check that the dict has been written
     assert weights_path.is_file()
     assert expected_path == weights_path

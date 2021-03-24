@@ -152,7 +152,11 @@ Classification datasets should have a `dataset.csv` and a folder containing the 
 have at least the following fields:
  * subject: The subject ID, a unique positive integer assigned to every image
  * path: Path to the image file for this subject
- * value: For classification, a (binary) ground truth label. For regression, a scalar value.
+ * value: 
+   * For binary classification, a (binary) ground truth label. This can be "true" and "false" or "0" and "1".
+   * For multi-label classification, the set of all positive labels for the image, separated by a `|` character.
+     Ex: "0|2|4" for a sample with true labels 0, 2 and 4 and "" for a sample in which all labels are false.
+   * For regression, a scalar value.
 
 These, and other fields which can be added to dataset.csv are described in the examples below.
 
@@ -233,7 +237,7 @@ Other recognized fields, apart from subject, channel, file path and label are nu
 These are extra scalar and categorical values to be used as model input. 
 
 Any *unrecognized* columns (any column which is both not described in the model config and has no default) 
-will be converted to a dict of key-value pairs and stored in a object of type `GeneralSampleMetadata` in the sample.
+will be converted to a dict of key-value pairs and stored in an object of type `GeneralSampleMetadata` in the sample.
 
 ```
 SubjectID, Channel, FilePath, Label, Tag, weight, class
@@ -270,4 +274,58 @@ In this example, `weight` is a scalar feature read from the csv, and `class` is 
 **Filtering on channels**: This example also shows why filtering values by channel is useful: In this example, each subject has 2 images taken at 
  different times with different label values. By using `label_channels=["image_time_2"]`, we can use the label associated with
  the second image for all subjects.
- 
+
+#### Multi-label classification datasets
+Classification datasets can be multi-label, i.e. they can have more than one label associated with every sample.
+In this case, in the label column, separate the (numerical) ground truth labels with a pipe character (`|`) to 
+provide multiple ground truth labels for the sample.
+
+Note that only *multi-label* datasets are supported, *multi-class* datasets (where the labels are mutually exclusive) 
+are not supported.
+
+For example, the `dataset.csv` for a multi-label task with 4 classes (0, 1, 2, 3) would look like the following:
+
+```
+SubjectID, Channel, FilePath, Label
+1, image_feature_1, images/image_1_feature_1.npy,
+1, image_feature_2, images/image_1_feature_2.npy,
+1, label, , 0|2|3
+2, image_feature_1, images/image_2_feature_1.npy
+2, image_feature_2, images/image_2_feature_2.npy
+2, label, , 1|2
+3, image_feature_1, images/image_3_feature_1.npy
+3, image_feature_2, images/image_3_feature_2.npy
+3, label, , 1
+4, image_feature_1, images/image_4_feature_1.npy
+4, image_feature_2, images/image_4_feature_2.npy
+4, label, , 
+```
+Note that the label field for sample 4 is left empty, this indicates that all labels are negative in Sample 4.
+In multi-label tasks, the negative class (all ground truth classes being false for a sample) should not be 
+considered a separate class, and should be encoded by an empty label field.
+
+The labels which are true for each sample in the `dataset.csv` shown above are:
+* Sample 1: 0, 2, 3
+* Sample 2: 1, 2
+* Sample 3: 1
+* Sample 4: No labels are true for this sample
+
+The config file would be
+
+```python
+class GlaucomaPublicExt(GlaucomaPublic):
+    def __init__(self) -> None:
+        super().__init__(azure_dataset_id="name_of_your_dataset_on_azure",
+                         subject_column="SubjectID",
+                         channel_column="Channel",
+                         image_channels=["image_feature_1", "image_feature_2"],
+                         image_file_column="FilePath",
+                         label_channels=["label"],
+                         label_value_column="Label",
+                         class_names=["class0", "class1", "class2", "class3"])
+``` 
+
+The added parameter `class_names` gives the string name corresponding to each ground truth class index. 
+In multi-label configs, the `class_names` parameter must be specified, so that InnerEye can recognize that the task is 
+a multi-label task and parse the `dataset.csv` accordingly. In binary tasks, the class_names field can optionally be 
+set to a list with a single string in it corresponding to the name of the positive class.

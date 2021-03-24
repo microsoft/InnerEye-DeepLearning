@@ -1,0 +1,3 @@
+[submodule "fastMRI"]
+	path = fastMRI
+	url = https://github.com/facebookresearch/fastMRI

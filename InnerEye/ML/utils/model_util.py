@@ -19,7 +19,7 @@ from InnerEye.ML.config import ModelArchitectureConfig, PaddingMode, Segmentatio
     basic_size_shrinkage
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, OptimizerType
+from InnerEye.ML.deep_learning_config import DeepLearningConfig, OptimizerParams, OptimizerType
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.models.architectures.complex import ComplexModel
@@ -38,7 +38,7 @@ from InnerEye.ML.utils.temperature_scaling import ModelWithTemperature
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 
 
-def create_optimizer(config: DeepLearningConfig, parameters: Iterator[Parameter]) -> torch.optim.Optimizer:
+def create_optimizer(config: OptimizerParams, parameters: Iterator[Parameter]) -> torch.optim.Optimizer:
     # Select optimizer type
     if config.optimizer_type in [OptimizerType.Adam, OptimizerType.AMSGrad]:
         return torch.optim.Adam(parameters, config.l_rate,
@@ -105,11 +105,14 @@ def create_scalar_loss_function(config: ScalarModelBase) -> torch.nn.Module:
     Returns a torch module that computes a loss function for classification and regression models.
     """
     if config.loss_type == ScalarLoss.BinaryCrossEntropyWithLogits:
-        return BinaryCrossEntropyWithLogitsLoss(smoothing_eps=config.label_smoothing_eps)
+        return BinaryCrossEntropyWithLogitsLoss(num_classes=len(config.class_names),
+                                                smoothing_eps=config.label_smoothing_eps)
     if config.loss_type == ScalarLoss.WeightedCrossEntropyWithLogits:
         return BinaryCrossEntropyWithLogitsLoss(
+            num_classes=len(config.class_names),
             smoothing_eps=config.label_smoothing_eps,
-            class_counts=config.get_training_class_counts())
+            class_counts=config.get_training_class_counts(),
+            num_train_samples=config.get_total_number_of_training_samples())
     elif config.loss_type == ScalarLoss.MeanSquaredError:
         return MSELoss()
     else:

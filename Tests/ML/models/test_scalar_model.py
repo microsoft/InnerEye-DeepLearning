@@ -19,24 +19,29 @@ from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_F
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML import model_testing, model_training, runner
+from InnerEye.ML import model_testing, runner
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
 from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
+from InnerEye.ML.reports.notebook_report import get_ipynb_report_name, get_html_report_name, \
+    generate_classification_notebook, generate_classification_multilabel_notebook
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get_config_and_results_for_offline_runs, \
     unroll_aggregate_metrics
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler, machine_has_gpu
+from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler, machine_has_gpu, \
+    model_train_unittest
 
 
 @pytest.mark.cpu_and_gpu
-def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> None:
+@pytest.mark.parametrize("class_name", [MetricsDict.DEFAULT_HUE_KEY, "foo"])
+def test_train_classification_model(class_name: str, test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and testing of classification models, asserting on the individual results from training and
     testing.
@@ -44,12 +49,11 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
     """
     logging_to_stdout(logging.DEBUG)
     config = ClassificationModelForTesting()
+    config.class_names = [class_name]
     config.set_output_to(test_output_dirs.root_dir)
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=Path(test_output_dirs.root_dir))
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
-    model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
+    model_training_result, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
@@ -59,6 +63,7 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
     assert len(model_training_result.val_results_per_epoch) == config.num_epochs
     assert len(model_training_result.train_results_per_epoch[0]) >= 11
     assert len(model_training_result.val_results_per_epoch[0]) >= 11
+
     for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
                    MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
                    MetricType.AREA_UNDER_PR_CURVE,
@@ -67,10 +72,12 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
                    MetricType.LOSS,
                    MetricType.SECONDS_PER_BATCH,
                    MetricType.SECONDS_PER_EPOCH,
-                   MetricType.SUBJECT_COUNT,
-                   ]:
-        assert metric.value in model_training_result.train_results_per_epoch[0], f"{metric.value} not in training"
-        assert metric.value in model_training_result.val_results_per_epoch[0], f"{metric.value} not in validation"
+                   MetricType.SUBJECT_COUNT]:
+        assert metric.value in model_training_result.train_results_per_epoch[0], \
+            f"{metric.value} not in training"
+        assert metric.value in model_training_result.val_results_per_epoch[0], \
+            f"{metric.value} not in validation"
+
     actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS.value)
     actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS.value)
     actual_lr = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE.value)
@@ -81,20 +88,27 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
                                             checkpoint_handler=checkpoint_handler)
     assert isinstance(test_results, InferenceMetricsForClassification)
     expected_metrics = [0.636085, 0.735952]
-    assert test_results.metrics.values()[MetricType.CROSS_ENTROPY.value] == \
+    assert test_results.metrics.values(class_name)[MetricType.CROSS_ENTROPY.value] == \
            pytest.approx(expected_metrics, abs=1e-5)
     # Run detailed logs file check only on CPU, it will contain slightly different metrics on GPU, but here
     # we want to mostly assert that the files look reasonable
     if machine_has_gpu:
         return
+
     # Check epoch_metrics.csv
     epoch_metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / EPOCH_METRICS_FILE_NAME
     # Auto-format will break the long header line, hence the strange way of writing it!
     expected_epoch_metrics = \
-        "loss,cross_entropy,accuracy_at_threshold_05,learning_rate," + \
-        "area_under_roc_curve,area_under_pr_curve,accuracy_at_optimal_threshold," \
-        "false_positive_rate_at_optimal_threshold,false_negative_rate_at_optimal_threshold," \
-        "optimal_threshold,subject_count,epoch,cross_validation_split_index\n" + \
+        f"{LoggingColumns.Loss.value},{LoggingColumns.CrossEntropy.value}," \
+        f"{LoggingColumns.AccuracyAtThreshold05.value},{LoggingColumns.LearningRate.value}," + \
+        f"{LoggingColumns.AreaUnderRocCurve.value}," \
+        f"{LoggingColumns.AreaUnderPRCurve.value}," \
+        f"{LoggingColumns.AccuracyAtOptimalThreshold.value}," \
+        f"{LoggingColumns.FalsePositiveRateAtOptimalThreshold.value}," \
+        f"{LoggingColumns.FalseNegativeRateAtOptimalThreshold.value}," \
+        f"{LoggingColumns.OptimalThreshold.value}," \
+        f"{LoggingColumns.SubjectCount.value},{LoggingColumns.Epoch.value}," \
+        f"{LoggingColumns.CrossValidationSplitIndex.value}\n" + \
         """0.6866141557693481,0.6866141557693481,0.5,0.0001,1.0,1.0,0.5,0.0,0.0,0.529514,2.0,0,-1	
         0.6864652633666992,0.6864652633666992,0.5,9.999712322065557e-05,1.0,1.0,0.5,0.0,0.0,0.529475,2.0,1,-1	
         0.6863163113594055,0.6863162517547607,0.5,9.999306876841536e-05,1.0,1.0,0.5,0.0,0.0,0.529437,2.0,2,-1	
@@ -107,15 +121,15 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
         return
     metrics_path = config.outputs_folder / ModelExecutionMode.TRAIN.value / SUBJECT_METRICS_FILE_NAME
     metrics_expected = \
-        """epoch,subject,prediction_target,model_output,label,data_split,cross_validation_split_index
-0,S2,Default,0.529514,1,Train,-1
-0,S4,Default,0.521659,0,Train,-1
-1,S4,Default,0.521482,0,Train,-1
-1,S2,Default,0.529475,1,Train,-1
-2,S4,Default,0.521305,0,Train,-1
-2,S2,Default,0.529437,1,Train,-1
-3,S2,Default,0.529399,1,Train,-1
-3,S4,Default,0.521128,0,Train,-1
+        f"""epoch,subject,prediction_target,model_output,label,data_split,cross_validation_split_index
+0,S2,{class_name},0.529514,1,Train,-1
+0,S4,{class_name},0.521659,0,Train,-1
+1,S4,{class_name},0.521482,0,Train,-1
+1,S2,{class_name},0.529475,1,Train,-1
+2,S4,{class_name},0.521305,0,Train,-1
+2,S2,{class_name},0.529437,1,Train,-1
+3,S2,{class_name},0.529399,1,Train,-1
+3,S4,{class_name},0.521128,0,Train,-1
 """
     check_log_file(metrics_path, metrics_expected, ignore_columns=[])
     # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
@@ -123,11 +137,93 @@ def test_train_classification_model(test_output_dirs: OutputFolderForTests) -> N
     inference_metrics_path = config.outputs_folder / get_epoch_results_path(ModelExecutionMode.TRAIN) / \
                              SUBJECT_METRICS_FILE_NAME
     inference_metrics_expected = \
-        """prediction_target,subject,model_output,label,cross_validation_split_index,data_split
-Default,S2,0.5293986201286316,1.0,-1,Train
-Default,S4,0.5211275815963745,0.0,-1,Train
+        f"""prediction_target,subject,model_output,label,cross_validation_split_index,data_split
+{class_name},S2,0.5293986201286316,1.0,-1,Train
+{class_name},S4,0.5211275815963745,0.0,-1,Train
 """
     check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
+
+
+@pytest.mark.cpu_and_gpu
+def test_train_classification_multilabel_model(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test training and testing of classification models, asserting on the individual results from training and
+    testing.
+    Expected test results are stored for GPU with and without mixed precision.
+    """
+    logging_to_stdout(logging.DEBUG)
+    config = DummyMulticlassClassification()
+    config.set_output_to(test_output_dirs.root_dir)
+    # Train for 4 epochs, checkpoints at epochs 2 and 4
+    config.num_epochs = 4
+    model_training_result, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
+    assert model_training_result is not None
+    expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
+    expected_train_loss = [0.699870228767395, 0.6239662170410156, 0.551329493522644, 0.4825132489204407]
+    expected_val_loss = [0.6299371719360352, 0.5546272993087769, 0.4843321740627289, 0.41909298300743103]
+    # Ensure that all metrics are computed on both training and validation set
+    assert len(model_training_result.train_results_per_epoch) == config.num_epochs
+    assert len(model_training_result.val_results_per_epoch) == config.num_epochs
+    assert len(model_training_result.train_results_per_epoch[0]) >= 11
+    assert len(model_training_result.val_results_per_epoch[0]) >= 11
+    for class_name in config.class_names:
+        for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
+                       MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
+                       MetricType.AREA_UNDER_PR_CURVE,
+                       MetricType.AREA_UNDER_ROC_CURVE,
+                       MetricType.CROSS_ENTROPY]:
+            assert f'{metric.value}/{class_name}' in model_training_result.train_results_per_epoch[
+                0], f"{metric.value} not in training"
+            assert f'{metric.value}/{class_name}' in model_training_result.val_results_per_epoch[
+                0], f"{metric.value} not in validation"
+    for metric in [MetricType.LOSS,
+                   MetricType.SECONDS_PER_EPOCH,
+                   MetricType.SUBJECT_COUNT]:
+        assert metric.value in model_training_result.train_results_per_epoch[0], f"{metric.value} not in training"
+        assert metric.value in model_training_result.val_results_per_epoch[0], f"{metric.value} not in validation"
+
+    actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS.value)
+    actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS.value)
+    actual_lr = model_training_result.get_metric(is_training=True, metric_type=MetricType.LEARNING_RATE.value)
+    assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6), "Training loss"
+    assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6), "Validation loss"
+    assert actual_lr == pytest.approx(expected_learning_rates, rel=1e-5), "Learning rates"
+    test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
+                                            checkpoint_handler=checkpoint_handler)
+    assert isinstance(test_results, InferenceMetricsForClassification)
+
+    expected_metrics = {MetricType.CROSS_ENTROPY: [1.3996, 5.2966, 1.4020, 0.3553, 0.6908],
+                        MetricType.ACCURACY_AT_THRESHOLD_05: [0.0000, 0.0000, 0.0000, 1.0000, 1.0000]
+                        }
+
+    for i, class_name in enumerate(config.class_names):
+        for metric in expected_metrics.keys():
+            assert expected_metrics[metric][i] == pytest.approx(
+                                                        test_results.metrics.get_single_metric(
+                                                            metric_name=metric,
+                                                            hue=class_name), 1e-4)
+
+    def get_epoch_path(mode: ModelExecutionMode) -> Path:
+        p = get_epoch_results_path(mode=mode)
+        return config.outputs_folder / p / SUBJECT_METRICS_FILE_NAME
+
+    path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
+    path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
+    path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
+    generate_classification_notebook(result_notebook=config.outputs_folder / get_ipynb_report_name(config.model_category.value),
+                                     config=config,
+                                     train_metrics=path_to_best_epoch_train,
+                                     val_metrics=path_to_best_epoch_val,
+                                     test_metrics=path_to_best_epoch_test)
+    assert (config.outputs_folder / get_html_report_name(config.model_category.value)).exists()
+
+    report_name_multilabel = f"{config.model_category.value}_multilabel"
+    generate_classification_multilabel_notebook(result_notebook=config.outputs_folder / get_ipynb_report_name(report_name_multilabel),
+                                                config=config,
+                                                train_metrics=path_to_best_epoch_train,
+                                                val_metrics=path_to_best_epoch_val,
+                                                test_metrics=path_to_best_epoch_test)
+    assert (config.outputs_folder / get_html_report_name(report_name_multilabel)).exists()
 
 
 def _count_lines(s: str) -> int:
@@ -164,8 +260,7 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
     logging_to_stdout()
     azure_config = get_default_azure_config()
     azure_config.train = True
-    config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
-        .create_model_config_from_name(model_name)
+    config: ScalarModelBase = ModelConfigLoader().create_model_config_from_name(model_name)
     config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
     config.set_output_to(test_output_dirs.root_dir)
     # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
@@ -218,7 +313,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     set_from_commandline = 12345
     scalar1 = '["label"]'
     model_name = "DummyClassification"
-    initial_config = ModelConfigLoader[ScalarModelBase]().create_model_config_from_name(model_name)
+    initial_config = ModelConfigLoader().create_model_config_from_name(model_name)
     assert initial_config.non_image_feature_channels == []
     output_root = str(test_output_dirs.root_dir)
     args = ["",
@@ -354,7 +449,9 @@ def _compute_scalar_metrics(output_values_list: List[List[float]],
 def test_is_offline_cross_val_parent_run(offline_parent_cv_run: bool) -> None:
     train_config = DummyModel()
     train_config.number_of_cross_validation_splits = 2 if offline_parent_cv_run else 0
-    assert MLRunner(train_config).is_offline_cross_val_parent_run() == offline_parent_cv_run
+    runner = MLRunner(train_config)
+    runner.setup()
+    assert runner.is_offline_cross_val_parent_run() == offline_parent_cv_run
 
 
 def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) -> None:

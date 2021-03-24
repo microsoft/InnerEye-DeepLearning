@@ -158,8 +158,8 @@ that holds your datasets - this can be the name of  the storage account created 
 AzureML workspace in Step 1. 
 - Find the storage account in the Azure.
 - In the left hand pane, choose "Access keys", and copy one of the keys to the clipboard.
-- Now go to your AzureML workspace to create the datastore. In the left hand navigation pane, choose "Datastores".
-- Click `+ New datastore`. 
+- Now go to your AzureML workspace and launch Azure Machine Learning Studio (blue button in the main pane marked "Launch Studio") 
+- In the left hand navigation pane of Azure Machine Learning Studio, choose "Datastores".- Click `+ New datastore`. 
 - Create a datastore called `innereyedatasets`. 
 - In the fields for storage account, type in your dataset storage account
 name (newly created or the AzureML one). 

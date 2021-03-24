@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 import pytest
@@ -15,17 +15,22 @@ from azureml.core import Workspace
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import PathOrString, TupleInt3
-from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import PatientDatasetSource
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.lightning_base import InnerEyeContainer
+from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.model_training import model_train
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
+from InnerEye.ML.runner import Runner
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.io_util import ImageHeader, ImageWithHeader
 from InnerEye.ML.utils.ml_util import is_gpu_available
+from InnerEye.ML.utils.training_util import ModelTrainingResults
 
 TEST_CHANNEL_IDS = ["channel1", "channel2"]
 TEST_MASK_ID = "mask"
@@ -185,12 +190,12 @@ def assert_binary_files_match(actual_file: Path, expected_file: Path) -> None:
 DummyPatientMetadata = PatientMetadata(patient_id='42')
 
 
-def get_model_loader(namespace: Optional[str] = None) -> ModelConfigLoader[SegmentationModelBase]:
+def get_model_loader(namespace: Optional[str] = None) -> ModelConfigLoader:
     """
     Returns a ModelConfigLoader for segmentation models, with the given non-default namespace (if not None)
     to search under.
     """
-    return ModelConfigLoader[SegmentationModelBase](model_configs_namespace=namespace)
+    return ModelConfigLoader(model_configs_namespace=namespace)
 
 
 def get_default_azure_config() -> AzureConfig:
@@ -206,7 +211,9 @@ def get_default_checkpoint_handler(model_config: DeepLearningConfig, project_roo
     Gets a checkpoint handler, using the given model config and the default azure configuration.
     """
     azure_config = get_default_azure_config()
-    return CheckpointHandler(azure_config=azure_config, model_config=model_config,
+    lightning_container = InnerEyeContainer(model_config)
+    return CheckpointHandler(azure_config=azure_config,
+                             lightning_container=lightning_container,
                              project_root=project_root)
 
 
@@ -216,3 +223,42 @@ def get_default_workspace() -> Workspace:
     :return:
     """
     return get_default_azure_config().get_workspace()
+
+
+def model_train_unittest(config: DeepLearningConfig,
+                         dirs: OutputFolderForTests,
+                         checkpoint_handler: Optional[CheckpointHandler] = None,
+                         lightning_container: Optional[LightningContainer] = None) -> \
+        Tuple[ModelTrainingResults, CheckpointHandler]:
+    """
+    A shortcut for running model training in the unit test suite. It runs training for the given config, with the
+    default checkpoint handler initialized to point to the test output folder specified in dirs.
+    :param config: The configuration of the model to train.
+    :param dirs: The test fixture that provides an output folder for the test.
+    :param lightning_container: An optional LightningContainer object that will be pass through to the training routine.
+    :param checkpoint_handler: The checkpoint handler that should be used for training. If not provided, it will be
+    created via get_default_checkpoint_handler.
+    :return: Tuple[ModelTrainingResults, CheckpointHandler]
+    """
+    if lightning_container is None:
+        lightning_container = InnerEyeContainer(config)
+        lightning_container.setup()
+    if checkpoint_handler is None:
+        azure_config = get_default_azure_config()
+        checkpoint_handler = CheckpointHandler(azure_config=azure_config,
+                                               lightning_container=lightning_container,
+                                               project_root=dirs.root_dir)
+    result = model_train(config, checkpoint_handler=checkpoint_handler, lightning_container=lightning_container)
+    return result, checkpoint_handler
+
+
+def default_runner() -> Runner:
+    """
+    Create an InnerEye Runner object with the default settings, pointing to the repository root and
+    default settings files.
+    """
+    return Runner(project_root=fixed_paths.repository_root_directory(),
+                  yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
+
+
+model_loader_including_tests = get_model_loader(namespace="Tests.ML.configs")

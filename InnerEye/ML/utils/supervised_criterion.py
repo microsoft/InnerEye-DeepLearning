@@ -37,7 +37,7 @@ class SupervisedLearningCriterion(torch.nn.Module, abc.ABC):
             # Smooth the one-hot target: 1.0 becomes 1.0-eps, 0.0 becomes eps / (nClasses - 1)
             # noinspection PyTypeChecker
             return target * (1.0 - self.smoothing_eps) + \
-                (1.0 - target) * self.smoothing_eps / (_num_classes - 1.0)  # type: ignore
+                   (1.0 - target) * self.smoothing_eps / (_num_classes - 1.0)  # type: ignore
 
         _input: List[T] = list(input)
         if self.smoothing_eps > 0.0:
@@ -56,10 +56,26 @@ class SupervisedLearningCriterion(torch.nn.Module, abc.ABC):
 class BinaryCrossEntropyWithLogitsLoss(SupervisedLearningCriterion):
     """A wrapper function for torch.nn.BCEWithLogitsLoss to enable label smoothing"""
 
-    def __init__(self, class_counts: Optional[Dict[float, float]] = None, **kwargs: Any):
+    def __init__(self, num_classes: int,
+                 class_counts: Optional[Dict[float, int]] = None,
+                 num_train_samples: Optional[int] = None,
+                 **kwargs: Any):
+        """
+        :param num_classes: The number of classes the model predicts. For binary classification num_classes is one
+                            and for multi-label classification tasks num_classes will be greater than one.
+        :param class_counts: The number of positive samples for each class. class_counts is a dictionary with key-value
+                             pairs corresponding to each class and the positive sample count for the class.
+                             For binary classification tasks, class_counts should have a single key-value pair
+                             for the positive class.
+        :param num_train_samples: The total number of training samples in the dataset.
+        """
         super().__init__(is_binary_classification=True, **kwargs)
+        if class_counts and not num_train_samples:
+            raise ValueError("Need to specify the num_train_samples with class_counts")
         self._positive_class_weights = None
         self._class_counts = class_counts
+        self._num_train_samples = num_train_samples
+        self.num_classes = num_classes
         if class_counts:
             self._positive_class_weights = self.get_positive_class_weights()
             if torch.cuda.is_available():
@@ -73,16 +89,18 @@ class BinaryCrossEntropyWithLogitsLoss(SupervisedLearningCriterion):
         target position.
         :return: a list of weights to use for the positive class for each target position.
         """
-        assert self._class_counts is not None
-        labels = list(self._class_counts.keys())
-        if sorted(labels) != [0.0, 1.0]:
-            if labels == [1.0] or labels == [0.0]:
-                return torch.tensor(1.0)
-            else:
-                raise ValueError(f"Expected one-hot encoded binary label."
-                                 f"Found labels {self._class_counts.keys()}")
-        else:
-            return torch.tensor(float(self._class_counts[0.0]) / self._class_counts[1.0], dtype=torch.float32)
+        assert self._class_counts and self._num_train_samples
+        if len(self._class_counts) != self.num_classes:
+            raise ValueError(f"Have {self.num_classes} classes but got counts for {len(self._class_counts)} classes "
+                             f"Note: If this is a binary classification task, there should be a single class count "
+                             f"corresponding to the positive class.")
+        # These weights are given to the pos_weight parameter of Pytorch's BCEWithLogitsLoss.
+        # Weights are calculated as (number of negative samples for class 'i')/(number of positive samples for class 'i')
+        # for every class 'i' in a binary/multi-label classification task.
+        # For a binary classification task, this reduces to (number of false samples / number of true samples).
+        weights = [(self._num_train_samples - value) / value if value != 0 else 1.0 for (key, value) in
+                   sorted(self._class_counts.items())]  # Uses the first number on the tuple to compare
+        return torch.tensor(weights, dtype=torch.float32)
 
     def forward_minibatch(self, output: T, target: T, **kwargs: Any) -> Any:
         if isinstance(target, PackedSequence) and isinstance(output, PackedSequence):
