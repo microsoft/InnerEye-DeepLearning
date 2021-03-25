@@ -13,6 +13,7 @@ from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithInference, FastMr
 from InnerEye.ML.deep_learning_config import DatasetParams, EssentialParams
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
 from Tests.ML.util import default_runner
 
@@ -22,15 +23,19 @@ def test_run_container_in_situ(test_output_dirs: OutputFolderForTests) -> None:
     Test if we can get the config loader to load a Lightning container model, and then train locally.
     """
     runner = default_runner()
+    local_dataset = test_output_dirs.root_dir / "dataset"
+    local_dataset.mkdir()
     args = ["", "--model=DummyContainerWithModel", "--model_configs_namespace=Tests.ML.configs",
-            f"--output_to={test_output_dirs.root_dir}"]
+            f"--output_to={test_output_dirs.root_dir}", f"--local_dataset={local_dataset}"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = runner.run()
     assert actual_run is None
     assert isinstance(runner.lightning_container, DummyContainerWithModel)
     # Test if the outputs folder is relative to the folder that we specified via the commandline
-    runner.model_config.outputs_folder.relative_to(test_output_dirs.root_dir)
-    results = runner.model_config.outputs_folder
+    runner.lightning_container.outputs_folder.relative_to(test_output_dirs.root_dir)
+    results = runner.lightning_container.outputs_folder
+    # Test that the setup method has been called
+    assert (runner.lightning_container.local_dataset / "setup.txt").is_file()
     # Test if all the files that are written during inference exist. Data for all 3 splits must be processed
     assert (results / "on_inference_start.txt").is_file()
     assert (results / "on_inference_end.txt").is_file()
@@ -78,8 +83,19 @@ def test_run_fastmri_container(test_output_dirs: OutputFolderForTests) -> None:
     Test if we can get run the fastMRI model end-to-end.
     """
     runner = default_runner()
-    args = ["", "--model=FastMriVarnetDemoContainer", f"--output_to={test_output_dirs.root_dir}"]
+    args = ["", "--model=FastMriDemoContainer", f"--output_to={test_output_dirs.root_dir}"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = runner.run()
     assert actual_run is None
     assert isinstance(runner.lightning_container, FastMriDemoContainer)
+
+
+def test_model_name_is_set(test_output_dirs: OutputFolderForTests) -> None:
+    container = DummyContainerWithModel()
+    container.local_dataset = test_output_dirs.root_dir
+    runner = MLRunner(model_config=None, container=container)
+    runner.setup()
+    expected_name = "DummyContainerWithModel"
+    assert runner.container._model_name == expected_name
+    assert runner.container.model.output_params._model_name == expected_name
+    assert expected_name in str(runner.container.model.outputs_folder)

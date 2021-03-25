@@ -8,7 +8,7 @@ from typing import Any, List, Optional, Tuple
 import param
 import pytest
 
-from InnerEye.Common.generic_parsing import GenericConfig, IntTuple
+from InnerEye.Common.generic_parsing import GenericConfig, IntTuple, create_from_matching_params
 
 
 class ParamEnum(Enum):
@@ -57,6 +57,7 @@ def test_create_parser() -> None:
     """
     Check that parse_args works as expected, with both non default and default values.
     """
+
     def check(arg: List[str], expected_key: str, expected_value: Any) -> None:
         parsed = ParamClass.parse_args(arg)
         assert getattr(parsed, expected_key) == expected_value
@@ -127,3 +128,44 @@ def test_int_tuple_validation(value_idx_0: Any, value_idx_1: Any, value_idx_2: A
             m.int_tuple = (value_idx_0, value_idx_1, value_idx_2)
     else:
         m.int_tuple = (value_idx_0, value_idx_1, value_idx_2)
+
+
+class ClassFrom(param.Parameterized):
+    foo = param.String("foo")
+    bar = param.Integer(1)
+    baz = param.String("baz")
+    _private = param.String("private")
+    constant = param.String("constant", constant=True)
+
+
+class ClassTo(param.Parameterized):
+    foo = param.String("foo2")
+    bar = param.Integer(2)
+    _private = param.String("private2")
+    constant = param.String("constant2", constant=True)
+
+
+class NotParameterized:
+    foo = 1
+
+
+def test_create_from_matching_params() -> None:
+    """
+    Test if Parameterized objects can be cloned by looking at matching fields.
+    """
+    class_from = ClassFrom()
+    class_to = create_from_matching_params(class_from, cls_=ClassTo)
+    assert isinstance(class_to, ClassTo)
+    assert class_to.foo == "foo"
+    assert class_to.bar == 1
+    # Constant fields should not be touched
+    assert class_to.constant == "constant2"
+    # Private fields must be copied over.
+    assert class_to._private == "private"
+    # Baz is only present in the "from" object, and should not be copied to the new object
+    assert not hasattr(class_to, "baz")
+
+    with pytest.raises(ValueError) as ex:
+        create_from_matching_params(class_from, NotParameterized)
+    assert "subclass of param.Parameterized" in str(ex)
+    assert "NotParameterized" in str(ex)

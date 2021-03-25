@@ -281,3 +281,21 @@ class GenericConfig(param.Parameterized):
                     reason = f"parameter is {reason}"
             # We could raise an error here instead - to be discussed.
             logging.warning(f"Override {key}={desired} failed: {reason} in class {self.__class__.name}")
+
+
+def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T]) -> T:
+    """
+    Creates an object of the given target class, and then copies all attributes from the `from_object` to
+    the newly created object, if there is a matching attribute. The target class must be a subclass of
+    param.Parameterized.
+    :param from_object: The object to read attributes from.
+    :param cls_: The name of the class for the newly created object.
+    :return: An instance of cls_
+    """
+    c = cls_()
+    if not isinstance(c, param.Parameterized):
+        raise ValueError(f"The created object must be a subclass of param.Parameterized, but got {type(c)}")
+    for param_name, p in c.params().items():
+        if not p.constant and not p.readonly:
+            setattr(c, param_name, getattr(from_object, param_name))
+    return c

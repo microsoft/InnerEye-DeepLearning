@@ -150,19 +150,25 @@ def test_submit_container_to_azureml(container_name: str) -> None:
 
 def test_load_container_with_arguments() -> None:
     """
-    Test if we can load a container and override a value in it via the commandline. Parameters that are overridable
-    can be set at both container and model level.
+    Test if we can load a container and override a value in it via the commandline. Parameters can only be set at
+    container level, not at model level.
     """
     DummyContainerWithParameters()
     runner = default_runner()
-    args = ["", "--model=DummyContainerWithParameters", "--my_param=param1", "--model_param=param2",
+    args = ["", "--model=DummyContainerWithParameters", "--container_param=param1",
             "--model_configs_namespace=Tests.ML.configs"]
     with mock.patch("sys.argv", args):
         runner.parse_and_load_model()
     assert isinstance(runner.lightning_container, DummyContainerWithParameters)
-    assert runner.lightning_container.my_param == "param1"
-    assert isinstance(runner.lightning_container.lightning_module, InferenceWithParameters)
-    assert runner.lightning_container.lightning_module.model_param == "param2"
+    assert runner.lightning_container.container_param == "param1"
+    assert isinstance(runner.lightning_container.model, InferenceWithParameters)
+    assert runner.lightning_container.model.model_param == "param2"
+    args = ["", "--model=DummyContainerWithParameters", "--model_param=param2",
+            "--model_configs_namespace=Tests.ML.configs"]
+    with pytest.raises(ValueError) as ex:
+        with mock.patch("sys.argv", args):
+            runner.parse_and_load_model()
+    assert "model_param" in str(ex)
 
 
 def test_run_model_with_invalid_trainer_arguments(test_output_dirs: OutputFolderForTests) -> None:
@@ -172,5 +178,5 @@ def test_run_model_with_invalid_trainer_arguments(test_output_dirs: OutputFolder
     container = DummyContainerWithInvalidTrainerArguments()
     container.create_lightning_module_and_store()
     with pytest.raises(Exception) as ex:
-        model_train_unittest(container.lightning_module, dirs=test_output_dirs, lightning_container=container)
+        model_train_unittest(container.model, dirs=test_output_dirs, lightning_container=container)
     assert "no_such_argument" in str(ex)

@@ -90,7 +90,7 @@ def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> Non
 
     # Pointing the model to a dataset folder that does not exist should raise an Exception
     fake_folder = runner.project_root / "foo"
-    runner.lightning_container.local_dataset = fake_folder
+    runner.container.local_dataset = fake_folder
     with pytest.raises(FileNotFoundError):
         runner.mount_or_download_dataset()
 
@@ -100,8 +100,8 @@ def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> Non
     assert local_dataset == fake_folder
 
     # Pointing the model to a dataset in Azure should trigger a download
-    runner.lightning_container.local_dataset = None
-    runner.lightning_container.azure_dataset_id = dataset_name
+    runner.container.local_dataset = None
+    runner.container.azure_dataset_id = dataset_name
     with logging_section("Starting download"):
         result_path = runner.mount_or_download_dataset()
     # Download goes into <project_root> / "datasets" / "test_dataset"
@@ -137,7 +137,7 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
     with mock.patch("InnerEye.ML.run_ml.MLRunner.is_offline_run", is_offline_run):
         with mock.patch("InnerEye.ML.run_ml.download_dataset", return_value="download"):
             with mock.patch("InnerEye.ML.run_ml.try_to_mount_input_dataset", return_value="mount"):
-                runner = MLRunner(config, lightning_container=lightning_container,
+                runner = MLRunner(config, container=lightning_container,
                                   azure_config=None, project_root=test_output_dirs.root_dir)
                 runner.setup()
                 return runner.mount_or_download_dataset()

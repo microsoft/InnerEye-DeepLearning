@@ -62,13 +62,15 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
     RUN_CONTEXT.upload_file(upload_name, path_or_stream=str(file_path))
 
 
-def write_args_file(config: OutputParams) -> None:
+def write_args_file(config: Any, outputs_folder: Path) -> None:
     """
     Writes the given object to disk in the default output folder.
     """
-    config.outputs_folder.mkdir(exist_ok=True, parents=True)
-    dst = config.outputs_folder / ARGS_TXT
-    dst.write_text(data=str(config))
+    output = str(config)
+    outputs_folder.mkdir(exist_ok=True, parents=True)
+    dst = outputs_folder / ARGS_TXT
+    dst.write_text(output)
+    logging.info(output)
 
 
 def create_lightning_trainer(config: TrainerParams,
@@ -150,7 +152,7 @@ def create_lightning_trainer(config: TrainerParams,
     return trainer, storing_logger
 
 
-def start_resource_monitor(config: DeepLearningConfig) -> ResourceMonitor:
+def start_resource_monitor(config: OutputParams) -> ResourceMonitor:
     # initialize and start GPU monitoring
     gpu_tensorboard = config.logs_folder / "gpu_utilization"
     # Result file in CSV format should NOT live in the logs folder, the streaming upload that is
@@ -182,7 +184,7 @@ def model_train(config: DeepLearningConfig,
     """
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
-    lightning_model = lightning_container.lightning_module
+    lightning_model = lightning_container.model
 
     # This reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
     # for categorical features, that need to be available before creating the model.
@@ -191,7 +193,7 @@ def model_train(config: DeepLearningConfig,
     # training in the unit tests.d
     old_environ = dict(os.environ)
     seed_everything(lightning_container.get_effective_random_seed())
-    trainer, storing_logger = create_lightning_trainer(config,
+    trainer, storing_logger = create_lightning_trainer(lightning_container,
                                                        checkpoint_path,
                                                        num_nodes=num_nodes,
                                                        **lightning_container.get_trainer_arguments())
@@ -204,9 +206,9 @@ def model_train(config: DeepLearningConfig,
     resource_monitor = None
     # Execute some bookkeeping tasks only once if running distributed:
     if is_rank_zero():
-        write_args_file(config)
-        logging.info(str(config))
-        logging.info(f"Model checkpoints are saved at {config.checkpoint_folder}")
+        write_args_file(config if isinstance(config, DeepLearningConfig) else lightning_container,
+                        outputs_folder=lightning_container.outputs_folder)
+        logging.info(f"Model checkpoints are saved at {lightning_container.checkpoint_folder}")
 
         # set the random seed for all libraries
         ml_util.set_random_seed(lightning_container.get_effective_random_seed(), "Patch visualization")
@@ -228,10 +230,7 @@ def model_train(config: DeepLearningConfig,
     # Training loop
     logging.info("Starting training")
 
-    lightning_data = lightning_container.get_training_data_module(
-        crossval_index=lightning_container.cross_validation_split_index,
-        crossval_count=lightning_container.number_of_cross_validation_splits)
-    trainer.fit(lightning_model, datamodule=lightning_data)
+    trainer.fit(lightning_model, datamodule=lightning_container.get_data_module())
     trainer.logger.close()  # type: ignore
     lightning_model.close_all_loggers()
     world_size = getattr(trainer, "world_size", 0)
@@ -249,7 +248,7 @@ def model_train(config: DeepLearningConfig,
         sys.exit()
 
     logging.info("Choosing the best checkpoint and removing redundant files.")
-    cleanup_checkpoint_folder(lightning_model.checkpoint_folder)
+    cleanup_checkpoint_folder(lightning_container.checkpoint_folder)
     # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
     # those environment variables will mislead the training runs in the test suite, and make them crash.
     # Hence, restore the original environment after training.

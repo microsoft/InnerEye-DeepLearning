@@ -49,8 +49,15 @@ method has the same signature as defined in `LightningModule.configure_optimizer
 
 ## Overriding properties on the commandline
 
+You can define hyperparameters that affect both data and model, as in the following code snippet: 
+```
+class DummyContainerWithParameters(LightningContainer):
+    container_param = param.String(default="foo")
+    def __init__(self):
+        super().__init__()
 
-
-
-
-
+    def create_lightning_module(self) -> LightningWithInference:
+        return InferenceWithParameters(self.container_param)
+```
+All parameters so added will be automatically accessible from the commandline, that is, when starting
+training, you can add a flag like `--container_param=bar`.
