@@ -144,7 +144,7 @@ def test_submit_container_to_azureml(container_name: str) -> None:
             with mock.patch("azureml.core.Experiment.submit", return_value=mock_run):
                 loaded_config, actual_run = runner.run()
     assert actual_run == mock_run
-    assert isinstance(loaded_config, LightningWithInference)
+    assert loaded_config is None
     assert isinstance(runner.lightning_container, LightningContainer)
 
 
@@ -161,8 +161,7 @@ def test_load_container_with_arguments() -> None:
         runner.parse_and_load_model()
     assert isinstance(runner.lightning_container, DummyContainerWithParameters)
     assert runner.lightning_container.container_param == "param1"
-    assert isinstance(runner.lightning_container.model, InferenceWithParameters)
-    assert runner.lightning_container.model.model_param == "param2"
+    # Overriding model parameters should not work
     args = ["", "--model=DummyContainerWithParameters", "--model_param=param2",
             "--model_configs_namespace=Tests.ML.configs"]
     with pytest.raises(ValueError) as ex:
