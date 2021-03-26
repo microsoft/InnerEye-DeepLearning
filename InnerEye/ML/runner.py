@@ -185,6 +185,7 @@ class Runner:
 
         if has_torch and isinstance(config_or_container, LightningContainer):
             self.lightning_container = config_or_container
+            self.model_config = config_or_container
         elif isinstance(config_or_container, DeepLearningConfig):
             # Built-in InnerEye models: A fake container for these models will be created in MLRunner
             self.model_config = config_or_container
