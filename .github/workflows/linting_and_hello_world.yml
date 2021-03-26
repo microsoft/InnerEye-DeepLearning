@@ -13,11 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # Run Flake8 first, to fail as quicly as possible
+      # Run Flake8 first, to fail as quickly as possible
       - name: flake8
         run: |
           pip install flake8
-          flake8
+          python -m flake8
         shell: bash
         
       - name: Print conda version and initial package list
