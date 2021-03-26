@@ -101,6 +101,8 @@ class SSLContainer(LightningContainer):
         """
         Gets the data that is used for the training and validation steps.
         """
+        if hasattr(self, "data_module"):
+            return self.data_module
         return create_ssl_data_modules(self.yaml_config, self.local_dataset)
 
     def get_trainer_arguments(self):
