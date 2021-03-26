@@ -74,7 +74,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         detach from computation graph for this loss computation.
         Returns cross-entropy loss for the input batch.
         """
-        batch = batch[SSLModule.ENCODER] if isinstance(batch, dict) else batch
+        batch = batch[SSLModule.LINEAR_HEAD] if isinstance(batch, dict) else batch
         x, y = self.to_device(batch, pl_module.device)
         with torch.no_grad():
             representations = self.get_representations(pl_module, x)
