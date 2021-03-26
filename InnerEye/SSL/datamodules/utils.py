@@ -1,4 +1,7 @@
 import multiprocessing
+from pathlib import Path
+from typing import Optional
+
 import torch
 import pytorch_lightning as pl
 from pl_bolts.datamodules import CIFAR10DataModule
@@ -10,16 +13,21 @@ num_gpus = torch.cuda.device_count()
 num_devices = num_gpus if num_gpus > 0 else 1
 
 
-def create_ssl_data_modules(config: ConfigNode) -> pl.LightningDataModule:
+def create_ssl_data_modules(config: ConfigNode, dataset_path: Optional[Path]) -> pl.LightningDataModule:
     """
     Returns torch lightning data module.
     """
     num_workers = config.dataset.num_workers if config.dataset.num_workers else multiprocessing.cpu_count()
 
     if config.dataset.name == "RSNAKaggle":
-        dm = RSNAKaggleDataModule(config, num_devices=num_devices, num_workers=num_workers)  # type: ignore
+        assert dataset_path is not None
+        dm = RSNAKaggleDataModule(config,
+                                  dataset_path=dataset_path,
+                                  num_devices=num_devices,
+                                  num_workers=num_workers)  # type: ignore
     elif config.dataset.name == "CIFAR10":
-        dm = CIFAR10DataModule(num_workers=num_workers,
+        dm = CIFAR10DataModule(data_dir=dataset_path,
+                               num_workers=num_workers,
                                 batch_size=config.train.batch_size // num_devices,
                                 seed=1234,
                                 val_split=5000)
