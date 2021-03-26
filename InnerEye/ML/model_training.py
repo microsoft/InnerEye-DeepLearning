@@ -106,11 +106,7 @@ def create_lightning_trainer(config: TrainerParams,
                                                    period=config.recovery_checkpoint_save_interval
                                                    )
 
-    num_gpus = torch.cuda.device_count() if config.use_gpu else 0
-    logging.info(f"Number of available GPUs: {num_gpus}")
-    if 0 <= config.max_num_gpus < num_gpus:
-        num_gpus = config.max_num_gpus
-        logging.info(f"Restricting the number of GPUs to {num_gpus}")
+    num_gpus = config.get_num_gpus_to_use()
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
     # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if num_gpus > 1 else None
@@ -133,13 +129,19 @@ def create_lightning_trainer(config: TrainerParams,
         benchmark = True
     # Read out additional model-specific args here.
     # We probably want to keep essential ones like numgpu and logging.
+
+    # If the users provides additional callbacks via get_trainer_arguments (for custom
+    # containers
+    callbacks = [best_checkpoint_callback, recovery_checkpoint_callback]
+    if "callbacks" in kwargs:
+        callbacks.append(kwargs.pop("callbacks"))
     trainer = Trainer(default_root_dir=str(config.outputs_folder),
                       deterministic=deterministic,
                       benchmark=benchmark,
                       accelerator=accelerator,
                       max_epochs=config.num_epochs,
                       num_sanity_val_steps=config.pl_num_sanity_val_steps,
-                      callbacks=[best_checkpoint_callback, recovery_checkpoint_callback],
+                      callbacks=callbacks,
                       logger=loggers,
                       progress_bar_refresh_rate=0,  # Disable the progress bar completely
                       num_nodes=num_nodes,
