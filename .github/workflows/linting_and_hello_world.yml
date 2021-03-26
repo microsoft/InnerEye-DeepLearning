@@ -30,7 +30,7 @@ jobs:
       - name: Take ownership of conda installation
         run: |
           sudo chown -R $USER /usr/share/miniconda
-        condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
+        if: ${{runner.os == "Linux"}}
 
       - name: Create conda environment
         run: |
@@ -60,5 +60,5 @@ jobs:
           source activate InnerEye
           python ./InnerEye/ML/runner.py --model=HelloWorld
         env:
-          PYTHONPATH: {{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}
         shell: bash
