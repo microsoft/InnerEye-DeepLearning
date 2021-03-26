@@ -32,7 +32,7 @@ jobs:
       - name: Take ownership of conda installation
         run: |
           sudo chown -R $USER /usr/share/miniconda
-        if: ${{runner.os == "Linux"}}
+        if: ${{runner.os == 'Linux'}}
 
       - name: Create conda environment
         run: |
