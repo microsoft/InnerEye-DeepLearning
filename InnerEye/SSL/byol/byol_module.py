@@ -88,13 +88,12 @@ class BYOLInnerEye(pl.LightningModule):
 
     def training_step(self, batch: BatchType, batch_idx: int) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
-        self.log_dict({'byol/train_loss': loss, 'byol/tau': self.weight_callback.current_tau},
-                      on_step=False, on_epoch=True)
+        self.log_dict({'byol/train_loss': loss, 'byol/tau': self.weight_callback.current_tau})
         return loss
 
     def validation_step(self, batch: BatchType, batch_idx: int) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
-        self.log_dict({'byol/validation_loss': loss}, on_step=False, on_epoch=True)
+        self.log_dict({'byol/validation_loss': loss})
         return loss
 
     def setup(self, *args: Any, **kwargs: Any) -> None:
