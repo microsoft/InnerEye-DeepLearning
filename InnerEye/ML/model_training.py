@@ -285,13 +285,14 @@ def model_train(config: DeepLearningConfig,
                     # For all files but the first one, cut off the header line.
                     result_file.write_text(os.linesep.join(temp_file_contents.splitlines()[1:]))
 
+
     model_training_results = ModelTrainingResults(
-        train_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values()),
-        val_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=VALIDATION_PREFIX).values()),
-        train_diagnostics=lightning_model.train_diagnostics,
-        val_diagnostics=lightning_model.val_diagnostics,
-        optimal_temperature_scale_values_per_checkpoint_epoch=[]
-    )
+            train_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values()) if storing_logger else list(),
+            val_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=VALIDATION_PREFIX).values()) if storing_logger else list(),
+            train_diagnostics=lightning_model.train_diagnostics,
+            val_diagnostics=lightning_model.val_diagnostics,
+            optimal_temperature_scale_values_per_checkpoint_epoch=[]
+        )
 
     logging.info("Finished training")
 
