@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union, Dict
 
 import pytorch_lightning as pl
 import torch
@@ -9,9 +9,10 @@ from torch import Tensor as T
 from torch.nn import functional as F
 
 from InnerEye.ML.lightning_metrics import AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
+from InnerEye.SSL.utils import SSLModule
 
-BatchType = Tuple[List, T]
-
+SingleBatchType = Tuple[List, T]
+BatchType = Union[Dict[SSLModule, SingleBatchType], SingleBatchType]
 
 class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
     def __init__(self, class_weights: Optional[torch.Tensor] = None, **kwargs: Any) -> None:
@@ -27,8 +28,16 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         self.weight_decay = 1e-4
         self.learning_rate = 1e-4
 
-        self.train_metrics = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy()] if self.num_classes == 2 else [Accuracy()]
-        self.val_metrics = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy()] if self.num_classes == 2 else [Accuracy()]
+        self.train_metrics = [
+            AreaUnderRocCurve(),
+            AreaUnderPrecisionRecallCurve(),
+            Accuracy()] if self.num_classes == 2 else [
+            Accuracy()]
+        self.val_metrics = [
+            AreaUnderRocCurve(),
+            AreaUnderPrecisionRecallCurve(),
+            Accuracy()] if self.num_classes == 2 else [
+            Accuracy()]
         self.class_weights = class_weights
 
     def on_pretrain_routine_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
@@ -71,6 +80,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         detach from computation graph for this loss computation.
         Returns cross-entropy loss for the input batch.
         """
+        batch = batch[SSLModule.ENCODER] if isinstance(batch, dict) else batch
         x, y = self.to_device(batch, pl_module.device)
         with torch.no_grad():
             representations = self.get_representations(pl_module, x)
@@ -161,7 +171,9 @@ def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module]
 
     # Create a dummy input image
     if dm is not None:
-        batch = iter(dm.train_dataloader()).next()  # type: ignore 
+        dataloader = dm.train_dataloader()
+        dataloader = dataloader[SSLModule.ENCODER] if isinstance(dataloader, dict) else dataloader
+        batch = iter(dataloader).next()  # type: ignore 
         x, _ = SSLOnlineEvaluatorInnerEye.to_device(batch, device)
     else:
         x = torch.rand((1, 3, 256, 256)).to(device)

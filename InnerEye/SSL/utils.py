@@ -1,12 +1,18 @@
+import logging
+from enum import Enum
 from pathlib import Path
 from typing import Optional
-import logging
 
 import torch
 
 from InnerEye.SSL.configs import ssl_model_config
 from InnerEye.SSL.configs.config_node import ConfigNode
 from InnerEye.SSL.encoders import DenseNet121Encoder
+
+
+class SSLModule(Enum):
+    ENCODER = 'encoder'
+    LINEAR_HEAD = 'linear_head'
 
 
 def load_ssl_model_config(config_path: Path) -> ConfigNode:
