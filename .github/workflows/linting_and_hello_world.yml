@@ -59,4 +59,6 @@ jobs:
         run: |
           source activate InnerEye
           python ./InnerEye/ML/runner.py --model=HelloWorld
+        env:
+          PYTHONPATH: {{ github.workspace }}
         shell: bash
