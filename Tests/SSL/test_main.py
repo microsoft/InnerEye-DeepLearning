@@ -10,67 +10,36 @@ import pytest
 import torch
 
 from InnerEye.Common.fixed_paths import SSL_EXPERIMENT_DIR, repository_root_directory
+from InnerEye.ML.configs.ssl.ssl_base import SSLContainer, WrapBYOLInnerEye, WrapSimCLRInnerEye
 from InnerEye.SSL.datamodules.rsna_cxr_dataset import RSNAKaggleCXR
 from InnerEye.SSL.main import cli_main, get_last_checkpoint_path
 from InnerEye.SSL.utils import create_ssl_image_classifier, load_ssl_model_config
+from Tests.ML.util import default_runner
+
+def test_innereye_ssl_container_cifar10_resnet_byol_2() -> None:
+    path_to_config = repository_root_directory() / "InnerEye" / "SSL" / "configs" / "cifar10_byol.yaml"
+    args = ["", "--model=DummySSLContainerResnet18", f"--path_yaml_config={str(path_to_config)}",
+            "--model_configs_namespace=Tests.ML.configs"]
+    with mock.patch("sys.argv", args):
+        loaded_config, actual_run = default_runner().run()
 
 
-def test_train_and_recover_SimCLRClassifier_cifar10() -> None:
-    config = load_ssl_model_config(
-        repository_root_directory() / "InnerEye" / "SSL" / "configs" / "cifar10_simclr.yaml")
-    config.defrost()
-    config.scheduler.epochs = 1
-    config.train.batch_size = 100
-    config.train.self_supervision.encoder_name = "resnet18"
-    cli_main(config, debug=True)
-    last_cpkt = get_last_checkpoint_path(SSL_EXPERIMENT_DIR / config.train.output_dir,
-                                         f'simclr_seed_{config.train.seed}')
-    ssl_classifier = create_ssl_image_classifier(num_classes=10, pl_checkpoint_path=last_cpkt)
-
-
-def test_train_and_recover_BYOLClassifier_cifar10_resnet() -> None:
-    config = load_ssl_model_config(
-        repository_root_directory() / "InnerEye" / "SSL" / "configs" / "cifar10_byol.yaml")
-    config.defrost()
-    config.scheduler.epochs = 1
-    config.train.batch_size = 100
-    config.train.self_supervision.encoder_name = "resnet18"
-    cli_main(config, debug=True)
-    last_cpkt = get_last_checkpoint_path(SSL_EXPERIMENT_DIR / config.train.output_dir, f'byol_seed_{config.train.seed}')
-    ssl_classifier = create_ssl_image_classifier(num_classes=10, pl_checkpoint_path=last_cpkt)
-
-
-def test_train_and_recover_BYOLClassifier_cifar10_densenet() -> None:
-    config = load_ssl_model_config(
-        repository_root_directory() / "InnerEye" / "SSL" / "configs" / "cifar10_byol.yaml")
-    config.defrost()
-    config.scheduler.epochs = 1
-    config.train.batch_size = 50
-    config.train.self_supervision.encoder_name = "densenet121"
-    cli_main(config, debug=True)
-    last_cpkt = get_last_checkpoint_path(SSL_EXPERIMENT_DIR / config.train.output_dir, f'byol_seed_{config.train.seed}')
-    ssl_classifier = create_ssl_image_classifier(num_classes=10, pl_checkpoint_path=last_cpkt)
-
-
-@pytest.mark.parametrize("balanced_binary_loss", [False, True])
-def test_train_and_recover_BYOLClassifier_rsna_resnet(balanced_binary_loss: bool) -> None:
-    config = load_ssl_model_config(
-        repository_root_directory() / "InnerEye" / "SSL" / "configs" / "rsna_byol.yaml")
-    config.defrost()
-    config.scheduler.epochs = 1
-    config.train.self_supervision.encoder_name = "resnet18"
-    config.dataset.dataset_dir = str(Path(__file__).parent / "test_dataset")
-    config.train.self_supervision.use_balanced_binary_loss_for_linear_head = balanced_binary_loss
-    dummy_rsna_train_dataloader, dummy_rsna_val_dataloader = _get_dummy_val_train_rsna_dataloaders(
-        config.dataset.dataset_dir)
-    with mock.patch("InnerEye.SSL.datamodules.chestxray_datamodule.RSNAKaggleDataModule.train_dataloader",
-                    return_value=dummy_rsna_train_dataloader):
-        with mock.patch("InnerEye.SSL.datamodules.chestxray_datamodule.RSNAKaggleDataModule.val_dataloader",
-                        return_value=dummy_rsna_val_dataloader):
-            cli_main(config, debug=True)
-    last_cpkt = get_last_checkpoint_path(SSL_EXPERIMENT_DIR / config.train.output_dir, f'byol_seed_{config.train.seed}')
-    ssl_classifier = create_ssl_image_classifier(num_classes=2, pl_checkpoint_path=last_cpkt)
-
+# todo container with linear head is missing. Implement and re-add to test to recover train & recover
+# todo functionality
+def test_innereye_ssl_container_cifar10_densenet() -> None:
+    path_to_config = repository_root_directory() / "InnerEye" / "SSL" / "configs" / "cifar10_byol.yaml"
+    args = ["", "--model=DummySSLContainerDenseNet121", f"--path_yaml_config={str(path_to_config)}",
+            "--model_configs_namespace=Tests.ML.configs"]
+    with mock.patch("sys.argv", args):
+        loaded_config, actual_run = default_runner().run()
+    checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
+    assert checkpoint_path.exists()
+    """
+    args = ["", "--model=DummyLinearImageClassifier", f"--path_yaml_config={str(path_to_config)}",
+            "--model_configs_namespace=Tests.ML.configs", f"--local_weights_path={checkpoint_path}"]
+    with mock.patch("sys.argv", args):
+        loaded_config, actual_run = default_runner().run()
+    """
 
 def _get_dummy_val_train_rsna_dataloaders():
     """
@@ -79,8 +48,9 @@ def _get_dummy_val_train_rsna_dataloaders():
     dataset_dir = str(Path(__file__).parent / "test_dataset")
     class DummyRSNADataset(RSNAKaggleCXR):
         def __getitem__(self, item):
-            return (torch.rand([3, 224, 224], dtype=torch.float32), torch.rand([3, 224, 224], dtype=torch.float32),
-                    torch.rand([3, 224, 224])), randint(0, 1)
+            return (torch.rand([3, 224, 224], dtype=torch.float32),
+                    torch.rand([3, 224, 224], dtype=torch.float32)), \
+                   randint(0, 1)
 
     dummy_rsna_train_dataloader = torch.utils.data.DataLoader(
         DummyRSNADataset(dataset_dir, True),
@@ -93,3 +63,22 @@ def _get_dummy_val_train_rsna_dataloaders():
         num_workers=0,
         drop_last=True)
     return dummy_rsna_train_dataloader, dummy_rsna_val_dataloader
+
+# todo test both cases with and with binary loss
+def test_innereye_ssl_container_rsna():
+    """
+    Test if we can get the config loader to load a Lightning container model, and then train locally.
+    """
+    runner = default_runner()
+    path_to_test_dataset = str(repository_root_directory() / "Tests" / "SSL" / "test_dataset")
+    path_to_config = repository_root_directory() / "InnerEye" / "SSL" / "configs" / "rsna_byol.yaml"
+    args = ["", "--model=DummySSLContainerResnet18", f"--path_yaml_config={str(path_to_config)}",
+            "--model_configs_namespace=Tests.ML.configs", f"--local_dataset={path_to_test_dataset}"]
+    with mock.patch("sys.argv", args):
+        dummy_rsna_train_dataloader, dummy_rsna_val_dataloader = _get_dummy_val_train_rsna_dataloaders()
+        with mock.patch("InnerEye.SSL.datamodules.chestxray_datamodule.RSNAKaggleDataModule.train_dataloader",
+                        return_value=dummy_rsna_train_dataloader):
+            with mock.patch("InnerEye.SSL.datamodules.chestxray_datamodule.RSNAKaggleDataModule.val_dataloader",
+                            return_value=dummy_rsna_val_dataloader):
+                loaded_config, actual_run = runner.run()
+
