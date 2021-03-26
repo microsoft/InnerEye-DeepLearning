@@ -647,15 +647,6 @@ class DeepLearningConfig(EssentialParams,
         return self.get_total_number_of_training_epochs()
 
 
-    def should_wait_for_other_cross_val_child_runs(self) -> bool:
-        """
-        Returns True if the current run is an online run and is the 0th cross validation split.
-        In this case, this will be the run that will wait for all other child runs to finish in order
-        to aggregate their results.
-        :return:
-        """
-        return
-
     @property
     def compute_mean_teacher_model(self) -> bool:
         """

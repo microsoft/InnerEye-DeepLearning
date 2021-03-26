@@ -21,6 +21,7 @@ from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import ARGS_TXT, DeepLearningConfig, OutputParams, TrainerParams, \
     VISUALIZATION_FOLDER
+from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
@@ -73,7 +74,7 @@ def write_args_file(config: Any, outputs_folder: Path) -> None:
     logging.info(output)
 
 
-def create_lightning_trainer(config: TrainerParams,
+def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1,
                              **kwargs: Dict[str, Any]) -> \
@@ -82,7 +83,7 @@ def create_lightning_trainer(config: TrainerParams,
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
     and loggers. That includes a diagnostic logger for use in unit tests, that is also returned as the second
     return value.
-    :param config: The model configuration.
+    :param container: The container with model and data.
     :param resume_from_checkpoint: If provided, training resumes from this checkpoint point.
     :param num_nodes: The number of nodes to use in distributed training.
     :param kwargs: Any additional keyowrd arguments will be passed to the constructor of Trainer.
@@ -92,7 +93,7 @@ def create_lightning_trainer(config: TrainerParams,
     # models, this still appears to be the best way of choosing them because validation loss on the relatively small
     # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
     # not for the HeadAndNeck model.
-    best_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
+    best_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
                                                # filename=BEST_CHECKPOINT_FILE_NAME,
                                                # monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
                                                # save_top_k=1,
@@ -101,9 +102,9 @@ def create_lightning_trainer(config: TrainerParams,
     # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs. Due to a bug in Lightning, this
     # will still write alternate files recovery.ckpt and recovery-v0.ckpt, which are cleaned up later in
     # cleanup_checkpoint_folder
-    recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
+    recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
                                                    filename=RECOVERY_CHECKPOINT_FILE_NAME,
-                                                   period=config.recovery_checkpoint_save_interval
+                                                   period=container.recovery_checkpoint_save_interval
                                                    )
 
     num_gpus = config.get_num_gpus_to_use()
@@ -111,17 +112,20 @@ def create_lightning_trainer(config: TrainerParams,
     # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if num_gpus > 1 else None
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
-    # TODO antonsc: Only use storing logger with InnerEye configs?
-    storing_logger = StoringLogger()
-    tensorboard_logger = TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")
-    loggers = [storing_logger, tensorboard_logger, AzureMLLogger()]
+    tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
+    loggers = [tensorboard_logger, AzureMLLogger()]
+    if isinstance(container, InnerEyeContainer):
+        storing_logger = StoringLogger()
+        loggers.append(storing_logger)
+    else:
+        storing_logger = None
     # Use 32bit precision when running on CPU. Otherwise, make it depend on use_mixed_precision flag.
-    precision = 32 if num_gpus == 0 else 16 if config.use_mixed_precision else 32
+    precision = 32 if num_gpus == 0 else 16 if container.use_mixed_precision else 32
     # The next two flags control the settings in torch.backends.cudnn.deterministic and torch.backends.cudnn.benchmark
     # https://pytorch.org/docs/stable/notes/randomness.html
     # For the classification models, we observed only a small performance deterioration (increase in 10sec on total
     # training time of 22min) when switching to deterministic.
-    if config.pl_deterministic:
+    if container.pl_deterministic:
         deterministic = True
         benchmark = False
     else:
@@ -139,8 +143,8 @@ def create_lightning_trainer(config: TrainerParams,
                       deterministic=deterministic,
                       benchmark=benchmark,
                       accelerator=accelerator,
-                      max_epochs=config.num_epochs,
-                      num_sanity_val_steps=config.pl_num_sanity_val_steps,
+                      max_epochs=container.num_epochs,
+                      num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       callbacks=callbacks,
                       logger=loggers,
                       progress_bar_refresh_rate=0,  # Disable the progress bar completely
@@ -148,7 +152,7 @@ def create_lightning_trainer(config: TrainerParams,
                       gpus=num_gpus,
                       precision=precision,
                       sync_batchnorm=True,
-                      terminate_on_nan=config.detect_anomaly,
+                      terminate_on_nan=container.detect_anomaly,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
                       **kwargs)
     return trainer, storing_logger
@@ -203,9 +207,11 @@ def model_train(config: DeepLearningConfig,
     logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
                  f"trainer.global_rank: {trainer.global_rank}")
     logging.debug("Creating the PyTorch model.")
-    lightning_model.storing_logger = storing_logger
+    # InnerEye models use this logger for diagnostics
+    if isinstance(lightning_model, InnerEyeLightning):
+        lightning_model.storing_logger = storing_logger
 
-    resource_monitor = None
+    resource_monitor: Optional[ResourceMonitor] = None
     # Execute some bookkeeping tasks only once if running distributed:
     if is_rank_zero():
         write_args_file(config if isinstance(config, DeepLearningConfig) else lightning_container,
@@ -220,7 +226,7 @@ def model_train(config: DeepLearningConfig,
             with logging_section("Visualizing the effect of sampling random crops for training"):
                 visualize_random_crops_for_dataset(config)
 
-        if isinstance(config, ModelConfigBase):
+        if isinstance(lightning_model, InnerEyeLightning):
             # Print out a detailed breakdown of layers, memory consumption and time.
             # TODO antonsc: Can we do better here, and print a model summary for all models? Read the first item
             # of the dataset and do forward propagation?

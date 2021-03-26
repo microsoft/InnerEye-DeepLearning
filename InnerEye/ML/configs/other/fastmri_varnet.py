@@ -34,7 +34,7 @@ class FastMriDemoContainer(LightningContainer):
         return VarNetWithInference()
 
     def get_data_module(self) -> LightningDataModule:
-        return something
+        return 1
 
 # Invoke via: runner.py --model FastMriDemoContainer
 

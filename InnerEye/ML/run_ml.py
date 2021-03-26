@@ -142,6 +142,7 @@ class MLRunner:
         Driver class to run a ML experiment. Note that the project root argument MUST be supplied when using InnerEye
         as a package!
         :param model_config: Model related configurations
+        :param container: The LightningContainer object
         :param azure_config: Azure related configurations
         :param project_root: Project root. This should only be omitted if calling run_ml from the test suite. Supplying
         it is crucial when using InnerEye as a package or submodule!
@@ -152,6 +153,10 @@ class MLRunner:
         Model as arguments, and return an optional Path and a further object of any type.
         """
         self.model_config = model_config
+        if container is None:
+            assert isinstance(model_config, ModelConfigBase), \
+                "When using a built-in InnerEye model, the configuration should be an instance of ModelConfigBase"
+            container = InnerEyeContainer(model_config)
         self.container = container
         self.azure_config: AzureConfig = azure_config or AzureConfig()
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
@@ -166,10 +171,6 @@ class MLRunner:
         """
         if self._has_setup_run:
             return
-        if self.container is None:
-            assert isinstance(self.model_config, ModelConfigBase), \
-                "When using a built-in InnerEye model, the configuration should be an instance of ModelConfigBase"
-            self.container = InnerEyeContainer(self.model_config)
         if not self.azure_config.only_register_model:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
@@ -189,9 +190,7 @@ class MLRunner:
     def start_logging_to_file(self) -> None:
         if self.container is None:
             self.setup()
-        logs_folder = self.model_config.logs_folder if isinstance(self.model_config, DeepLearningConfig) \
-            else self.container.model.logs_folder
-        logging_to_file(logs_folder / LOG_FILE_NAME)
+        logging_to_file(self.container.logs_folder / LOG_FILE_NAME)
 
     @property
     def is_offline_run(self) -> bool:
@@ -340,7 +339,7 @@ class MLRunner:
             raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
         lightning_model = self.container.model
         assert isinstance(lightning_model, LightningInference), \
-            f"Expected an instance of LightningInference, but got {type(self.model_config)}"
+            f"Expected an instance of LightningInference, but got {type(lightning_model)}"
         data = self.container.get_inference_data_module()
         dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
         if self.container.perform_validation_and_test_set_inference:

@@ -243,6 +243,7 @@ def model_train_unittest(config: DeepLearningConfig,
     if lightning_container is None:
         lightning_container = InnerEyeContainer(config)
         lightning_container.setup()
+        lightning_container.create_lightning_module_and_store()
     if checkpoint_handler is None:
         azure_config = get_default_azure_config()
         checkpoint_handler = CheckpointHandler(azure_config=azure_config,

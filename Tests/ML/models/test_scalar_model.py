@@ -26,8 +26,8 @@ from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
 from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
-from InnerEye.ML.reports.notebook_report import get_ipynb_report_name, get_html_report_name, \
-    generate_classification_notebook, generate_classification_multilabel_notebook
+from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook, \
+    generate_classification_notebook, get_html_report_name, get_ipynb_report_name
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
@@ -35,7 +35,7 @@ from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get
     unroll_aggregate_metrics
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler, machine_has_gpu, \
+from Tests.ML.util import get_default_azure_config, machine_has_gpu, \
     model_train_unittest
 
 
@@ -199,9 +199,9 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     for i, class_name in enumerate(config.class_names):
         for metric in expected_metrics.keys():
             assert expected_metrics[metric][i] == pytest.approx(
-                                                        test_results.metrics.get_single_metric(
-                                                            metric_name=metric,
-                                                            hue=class_name), 1e-4)
+                test_results.metrics.get_single_metric(
+                    metric_name=metric,
+                    hue=class_name), 1e-4)
 
     def get_epoch_path(mode: ModelExecutionMode) -> Path:
         p = get_epoch_results_path(mode=mode)
@@ -210,19 +210,21 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
     path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
     path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
-    generate_classification_notebook(result_notebook=config.outputs_folder / get_ipynb_report_name(config.model_category.value),
-                                     config=config,
-                                     train_metrics=path_to_best_epoch_train,
-                                     val_metrics=path_to_best_epoch_val,
-                                     test_metrics=path_to_best_epoch_test)
+    generate_classification_notebook(
+        result_notebook=config.outputs_folder / get_ipynb_report_name(config.model_category.value),
+        config=config,
+        train_metrics=path_to_best_epoch_train,
+        val_metrics=path_to_best_epoch_val,
+        test_metrics=path_to_best_epoch_test)
     assert (config.outputs_folder / get_html_report_name(config.model_category.value)).exists()
 
     report_name_multilabel = f"{config.model_category.value}_multilabel"
-    generate_classification_multilabel_notebook(result_notebook=config.outputs_folder / get_ipynb_report_name(report_name_multilabel),
-                                                config=config,
-                                                train_metrics=path_to_best_epoch_train,
-                                                val_metrics=path_to_best_epoch_val,
-                                                test_metrics=path_to_best_epoch_test)
+    generate_classification_multilabel_notebook(
+        result_notebook=config.outputs_folder / get_ipynb_report_name(report_name_multilabel),
+        config=config,
+        train_metrics=path_to_best_epoch_train,
+        val_metrics=path_to_best_epoch_val,
+        test_metrics=path_to_best_epoch_test)
     assert (config.outputs_folder / get_html_report_name(report_name_multilabel)).exists()
 
 
