@@ -20,16 +20,20 @@ jobs:
           python -m flake8
         shell: bash
         
+      - name: Add Conda to PATH
+        run: |
+          echo "$CONDA/bin/" >> $GITHUB_PATH
+          
       - name: Print conda version and initial package list
         run: |
-          $CONDA/bin/conda install conda=4.8.3 -y
-          $CONDA/bin/conda --version
-          $CONDA/bin/conda list
+          conda install conda=4.8.3 -y
+          conda --version
+          conda list
         shell: bash
 
       - name: Create conda environment
         run: |
-          $CONDA/bin/conda env create --file environment.yml --name InnerEye --quiet
+          conda env create --file environment.yml --name InnerEye --quiet
         shell: bash
 
       - name: mypy
@@ -49,17 +53,21 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-      
+              
+      - name: Add Conda to PATH
+        run: |
+          echo "$CONDA/Scripts/" >> $GITHUB_PATH
+
       - name: Print conda version and initial package list
         run: |
-          $CONDA/Scripts/conda install conda=4.8.3 -y
-          $CONDA/Scripts/conda --version
-          $CONDA/Scripts/conda list
+          conda install conda=4.8.3 -y
+          conda --version
+          conda list
         shell: bash
 
       - name: Create conda environment
         run: |
-          $CONDA/Scripts/conda env create --file environment.yml --name InnerEye --quiet
+          conda env create --file environment.yml --name InnerEye --quiet
         shell: bash
 
       - name: Run HelloWorld model
