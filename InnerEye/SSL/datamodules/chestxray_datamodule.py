@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 import torch
@@ -13,7 +14,10 @@ from InnerEye.SSL.datamodules.transforms_utils import DualViewTransformWrapper, 
 
 class RSNAKaggleDataModule(LightningDataModule):
 
-    def __init__(self, config: ConfigNode, num_devices: int, num_workers: int,
+    def __init__(self, config: ConfigNode,
+                 dataset_path: Path,
+                 num_devices: int,
+                 num_workers: int,
                  *args: Any, **kwargs: Any) -> None:
         """
         This is the data module to load and prepare the Kaggle RSNA Pneumonia detection challenge dataset.
@@ -25,12 +29,11 @@ class RSNAKaggleDataModule(LightningDataModule):
         """
         super().__init__(*args, **kwargs)
         self.config = config
-        self.num_samples = RSNA_KAGGLE_TOTAL_SIZE
+        self.dataset_path = dataset_path
         self.batch_size = config.train.batch_size // num_devices
         self.num_workers = num_workers
         self.train_transforms = DualViewTransformWrapper(create_chest_xray_transform(self.config, is_train=True))
-        self.val_transforms = DualViewTransformWrapper(create_chest_xray_transform(self.config, is_train=False))
-        self.train_dataset = RSNAKaggleCXR(self.config.dataset.dataset_dir, use_training_split=True,
+        self.train_dataset = RSNAKaggleCXR(self.dataset_path, use_training_split=True,
                                            transform=self.train_transforms, return_index=False)
         self.class_weights: Optional[torch.Tensor] = None
         if config.train.self_supervision.use_balanced_binary_loss_for_linear_head:
@@ -39,6 +42,7 @@ class RSNAKaggleDataModule(LightningDataModule):
             # Normalized class weights
             class_weights /= class_weights.sum()
             self.class_weights = torch.tensor(class_weights, dtype=torch.float32)
+        self.num_samples = len(self.train_dataset.targets)
 
     @property
     def num_classes(self) -> int:
@@ -60,8 +64,9 @@ class RSNAKaggleDataModule(LightningDataModule):
         """
         Returns Kaggle validation set (20% of total dataset)
         """
-        val_dataset = RSNAKaggleCXR(self.config.dataset.dataset_dir, use_training_split=False,
-                                    transform=self.val_transforms, return_index=False)
+        val_transforms = DualViewTransformWrapper(create_chest_xray_transform(self.config, is_train=False))
+        val_dataset = RSNAKaggleCXR(self.dataset_path, use_training_split=False,
+                                    transform=val_transforms, return_index=False)
         loader = torch.utils.data.DataLoader(
             val_dataset,
             batch_size=self.batch_size,
@@ -76,7 +81,7 @@ class RSNAKaggleDataModule(LightningDataModule):
         """
         No Kaggle test split implemented
         """
-        raise NotImplementedError
+        pass
 
     def default_transforms(self) -> Callable:
         transform = create_chest_xray_transform(self.config, is_train=False)
