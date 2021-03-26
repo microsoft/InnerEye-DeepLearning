@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import param
+import torch
 from pandas import DataFrame
 from param import Parameterized
 
@@ -409,6 +410,9 @@ class TrainerParams(CudaAwareConfig):
                                                          "training.")
     max_num_gpus: int = param.Integer(default=-1, doc="The maximum number of GPUS to use. If set to a value < 0, use"
                                                       "all available GPUs.")
+    _use_gpu: Optional[bool] = param.Boolean(None,
+                                             doc="If true, a CUDA capable GPU with at least 1 device is "
+                                                 "available. If None, the use_gpu property has not yet been called.")
     pl_num_sanity_val_steps: int = \
         param.Integer(default=0, doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
                                      "steps to run before training, to identify possible problems")
@@ -421,6 +425,38 @@ class TrainerParams(CudaAwareConfig):
     start_epoch: int = param.Integer(0, bounds=(0, None), doc="The first epoch to train. Set to 0 to start a new "
                                                               "training. Set to a value larger than zero for starting"
                                                               " from a checkpoint.")
+
+    @property  # type: ignore
+    def use_gpu(self) -> bool:  # type: ignore
+        """
+        Returns True if a CUDA capable GPU is present and should be used, False otherwise.
+        """
+        if self._use_gpu is None:
+            # Use a local import here because we don't want the whole file to depend on pytorch.
+            from InnerEye.ML.utils.ml_util import is_gpu_available
+            self._use_gpu = is_gpu_available()
+        return self._use_gpu
+
+    @use_gpu.setter
+    def use_gpu(self, value: bool) -> None:
+        """
+        Sets the flag that controls the use of the GPU. Raises a ValueError if the value is True, but no GPU is
+        present.
+        """
+        if value:
+            # Use a local import here because we don't want the whole file to depend on pytorch.
+            from InnerEye.ML.utils.ml_util import is_gpu_available
+            if not is_gpu_available():
+                raise ValueError("Can't set use_gpu to True if there is not CUDA capable GPU present.")
+        self._use_gpu = value
+
+    def get_num_gpus_to_use(self):
+        num_gpus = torch.cuda.device_count() if self.use_gpu else 0
+        logging.info(f"Number of available GPUs: {num_gpus}")
+        if 0 <= self.max_num_gpus < num_gpus:
+            num_gpus = self.max_num_gpus
+            logging.info(f"Restricting the number of GPUs to {num_gpus}")
+        return num_gpus
 
 
 class DeepLearningConfig(EssentialParams,
@@ -461,9 +497,7 @@ class DeepLearningConfig(EssentialParams,
         param.DataFrame(default=None,
                         doc="The dataframe that contains the dataset for the model. This is usually read from disk "
                             "from dataset.csv")
-    _use_gpu: Optional[bool] = param.Boolean(None,
-                                             doc="If true, a CUDA capable GPU with at least 1 device is "
-                                                 "available. If None, the use_gpu property has not yet been called.")
+
     avoid_process_spawn_in_data_loaders: bool = \
         param.Boolean(is_windows(), doc="If True, use a data loader logic that avoid spawning new processes at the "
                                         "start of each epoch. This speeds up training on both Windows and Linux, but"
@@ -612,29 +646,6 @@ class DeepLearningConfig(EssentialParams,
         """
         return self.get_total_number_of_training_epochs()
 
-    @property  # type: ignore
-    def use_gpu(self) -> bool:  # type: ignore
-        """
-        Returns True if a CUDA capable GPU is present and should be used, False otherwise.
-        """
-        if self._use_gpu is None:
-            # Use a local import here because we don't want the whole file to depend on pytorch.
-            from InnerEye.ML.utils.ml_util import is_gpu_available
-            self._use_gpu = is_gpu_available()
-        return self._use_gpu
-
-    @use_gpu.setter
-    def use_gpu(self, value: bool) -> None:
-        """
-        Sets the flag that controls the use of the GPU. Raises a ValueError if the value is True, but no GPU is
-        present.
-        """
-        if value:
-            # Use a local import here because we don't want the whole file to depend on pytorch.
-            from InnerEye.ML.utils.ml_util import is_gpu_available
-            if not is_gpu_available():
-                raise ValueError("Can't set use_gpu to True if there is not CUDA capable GPU present.")
-        self._use_gpu = value
 
     def should_wait_for_other_cross_val_child_runs(self) -> bool:
         """
