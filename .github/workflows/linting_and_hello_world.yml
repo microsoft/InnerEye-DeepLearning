@@ -62,6 +62,7 @@ jobs:
 
       - name: Print conda version and initial package list
         run: |
+          echo $CONDA
           $CONDA\Scripts\conda install conda=4.8.3 -y
           $CONDA\Scripts\conda --version
           $CONDA\Scripts\conda list
