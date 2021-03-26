@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Any, Dict, Tuple, List, Union
 
-import pytorch_lightning as pl
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
 from torch import Tensor as T
 
@@ -52,7 +51,6 @@ class SimCLRInnerEye(SimCLR):
     def shared_step(self, batch: BatchType) -> T:
         batch = batch[SSLModule.ENCODER] if isinstance(batch, dict) else batch
 
-        # final image in tuple is for online eval
         (img1, img2), y = batch
 
         # get h representations, bolts resnet returns a list
