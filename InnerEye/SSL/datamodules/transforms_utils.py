@@ -9,6 +9,7 @@ from typing import Any, List, Tuple
 import PIL
 import torch
 import torchvision
+from pl_bolts.models.self_supervised.simclr import SimCLREvalDataTransform, SimCLRTrainDataTransform
 from torchvision.transforms import ToTensor
 
 from InnerEye.SSL.configs.config_node import ConfigNode
@@ -191,3 +192,21 @@ def create_chest_xray_transform(config: ConfigNode,
         transforms += [Resize(config), CenterCrop(config), ToTensor()]
     transforms.append(ExpandChannels())
     return torchvision.transforms.Compose(transforms)
+
+
+class InnerEyeCIFARTrainTransform(SimCLRTrainDataTransform):
+    """
+    Overload lightning-bolts SimCLRTrainDataTransform, to avoid return unused eval transform.
+    """
+    def __call__(self, sample):
+        transform = self.train_transform
+        xi = transform(sample)
+        xj = transform(sample)
+        return xi, xj
+
+class InnerEyeCIFAREvalTransform(SimCLREvalDataTransform):
+    def __call__(self, sample):
+        transform = self.train_transform
+        xi = transform(sample)
+        xj = transform(sample)
+        return xi, xj

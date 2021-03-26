@@ -73,7 +73,7 @@ class BYOLInnerEye(pl.LightningModule):
         :param batch_idx: index of the batch
         :return: BYOL loss
         """
-        (img_1, img_2, _), _ = batch
+        (img_1, img_2), _ = batch
 
         # Image 1 to image 2 loss
         _, _, h_img1 = self.online_network(img_1)
@@ -88,12 +88,13 @@ class BYOLInnerEye(pl.LightningModule):
 
     def training_step(self, batch: BatchType, batch_idx: int) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
-        self.log_dict({'byol/train_loss': loss, 'byol/tau': self.weight_callback.current_tau})
+        self.log_dict({'byol/train_loss': loss, 'byol/tau': self.weight_callback.current_tau},
+                      on_step=False, on_epoch=True)
         return loss
 
     def validation_step(self, batch: BatchType, batch_idx: int) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
-        self.log_dict({'byol/validation_loss': loss})
+        self.log_dict({'byol/validation_loss': loss}, on_step=False, on_epoch=True)
         return loss
 
     def setup(self, *args: Any, **kwargs: Any) -> None:

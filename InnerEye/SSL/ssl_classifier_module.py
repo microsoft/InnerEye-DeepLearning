@@ -8,6 +8,8 @@ from pytorch_lightning.metrics import Accuracy
 from torch import Tensor as T
 from torch.nn import functional as F
 
+from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.lightning_container import LightningWithInference
 from InnerEye.ML.lightning_metrics import AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 
 BatchType = Tuple[List, T]
@@ -60,7 +62,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         head, disregard the others inputs.
         :param device: device to move the batch to.
         """
-        (x1, x2, _), y = batch
+        (x1, x2), y = batch
         x1 = x1.to(device)
         y = y.to(device)
         return x1, y
@@ -109,10 +111,10 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         self.training_step += 1
 
         # log metrics
-        logger.add_scalar('ssl/online_train_loss', loss, global_step=self.training_step)
+        pl_module.log('ssl/online_train_loss', loss)
 
 
-class SSLClassifier(torch.nn.Module):
+class SSLClassifier(LightningWithInference):
     """
     SSL Image classifier that combines pre-trained SSL encoder with a trainable linear-head.
     """
@@ -146,6 +148,15 @@ class SSLClassifier(torch.nn.Module):
 
         return self.classifier_head(agg_repr)
 
+
+    def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
+        pass
+
+    def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor):
+        pass
+
+    def on_inference_epoch_end(self) -> None:
+        pass
 
 def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module],
                            dm: Optional[pl.LightningDataModule] = None) -> int:

@@ -5,8 +5,8 @@ from typing import Optional
 import torch
 import pytorch_lightning as pl
 from pl_bolts.datamodules import CIFAR10DataModule
-from pl_bolts.models.self_supervised.simclr.transforms import SimCLREvalDataTransform, SimCLRTrainDataTransform
 from .chestxray_datamodule import RSNAKaggleDataModule
+from .transforms_utils import InnerEyeCIFAREvalTransform, InnerEyeCIFARTrainTransform
 from ..configs.config_node import ConfigNode
 
 num_gpus = torch.cuda.device_count()
@@ -32,8 +32,8 @@ def create_ssl_data_modules(config: ConfigNode, dataset_path: Optional[Path]) ->
                                 seed=1234,
                                 val_split=5000)
         dm.prepare_data()  # downloads data if necessary
-        dm.train_transforms = SimCLRTrainDataTransform(32)
-        dm.val_transforms = SimCLREvalDataTransform(32)
+        dm.train_transforms = InnerEyeCIFARTrainTransform(32)
+        dm.val_transforms = InnerEyeCIFAREvalTransform(32)
         dm.setup()
         dm.class_weights = None
     else:

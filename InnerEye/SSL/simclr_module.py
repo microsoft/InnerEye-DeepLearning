@@ -44,3 +44,19 @@ class SimCLRInnerEye(SimCLR):
 
     def forward(self, x):
         return self.encoder(x)
+
+    def shared_step(self, batch):
+        # final image in tuple is for online eval
+        (img1, img2), y = batch
+
+        # get h representations, bolts resnet returns a list
+        h1 = self(img1)
+        h2 = self(img2)
+
+        # get z representations
+        z1 = self.projection(h1)
+        z2 = self.projection(h2)
+
+        loss = self.nt_xent_loss(z1, z2, self.temperature)
+
+        return loss
