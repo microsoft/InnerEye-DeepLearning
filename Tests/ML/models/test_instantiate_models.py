@@ -11,14 +11,13 @@ from azureml.core import Run
 
 from InnerEye.Common.common_util import logging_to_stdout, namespace_to_path
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_training import generate_and_print_model_summary
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithInvalidTrainerArguments, \
-    DummyContainerWithParameters, InferenceWithParameters
+    DummyContainerWithParameters
 from Tests.ML.util import default_runner, get_model_loader, model_loader_including_tests, model_train_unittest
 
 
@@ -31,7 +30,6 @@ def find_models() -> List[str]:
     folders = [path / "segmentation", path / "classification", path / "regression"]
     names = [str(f.stem) for folder in folders for f in folder.glob("*.py") if folder.exists()]
     return [name for name in names if not name.endswith("Base") and not name.startswith("__")]
-
 
 
 def test_any_models_found() -> None:
