@@ -39,7 +39,7 @@ jobs:
       - name: mypy
         run: |
           activate InnerEye
-          python mypy_runner.py
+          python mypy_runner.py --mypy=$CONDA/envs/InnerEye/bin/mypy
         shell: bash
 
       - name: Run HelloWorld model
