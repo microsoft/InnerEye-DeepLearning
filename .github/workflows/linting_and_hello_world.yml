@@ -29,6 +29,7 @@ jobs:
           conda install conda=4.8.3 -y
           conda --version
           conda list
+          conda init bash
         shell: bash
 
       - name: Create conda environment
