@@ -46,6 +46,7 @@ dependencies:
       - pytorch-lightning==1.1.8
       - rich==5.1.1
       - rpdb==0.1.6
+      - runstats==1.8.0
       - scikit-image==0.17.2
       - scikit-learn==0.23.2
       - scipy==1.5.2

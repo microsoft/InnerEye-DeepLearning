@@ -15,7 +15,6 @@ from torch.utils.data import DataLoader, Dataset
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.deep_learning_config import OptimizerParams
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 
 
@@ -25,7 +24,7 @@ class DummyContainerWithDatasets(LightningContainer):
         self.local_dataset = full_ml_test_data_path("lightning_module_data") if has_local_dataset else None
         self.azure_dataset_id = "azure_dataset" if has_azure_dataset else ""
 
-    def create_lightning_module(self) -> LightningWithInference:
+    def create_model(self) -> LightningWithInference:
         return LightningWithInference()
 
 
@@ -51,21 +50,21 @@ class DummyContainerWithAzureAndLocalDataset(DummyContainerWithDatasets):
 class InferenceWithParameters(LightningWithInference):
     model_param = param.String(default="bar")
 
-    def __init__(self):
+    def __init__(self, container_param: str):
         super().__init__()
 
 
 class DummyContainerWithParameters(LightningContainer):
-    my_param = param.String(default="foo")
+    container_param = param.String(default="foo")
 
     def __init__(self):
         super().__init__()
 
-    def create_lightning_module(self) -> LightningWithInference:
-        return InferenceWithParameters()
+    def create_model(self) -> LightningWithInference:
+        return InferenceWithParameters(self.container_param)
 
 
-class DummyRegression(LightningWithInference, OptimizerParams):
+class DummyRegression(LightningWithInference):
     def __init__(self, in_features: int = 1, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.l_rate = 1e-1
@@ -84,7 +83,7 @@ class DummyRegression(LightningWithInference, OptimizerParams):
         input, target = batch
         prediction = self.forward(input)
         loss = torch.nn.functional.mse_loss(prediction, target)
-        self.log("loss", loss, on_epoch=True)
+        self.log("loss", loss, on_epoch=True, on_step=True)
         return loss
 
     def on_inference_start(self) -> None:
@@ -151,11 +150,16 @@ class DummyContainerWithModel(LightningContainer):
     def __init__(self):
         super().__init__()
         self.perform_training_set_inference = True
+        self.num_epochs = 100
+        self.l_rate = 1e-2
 
-    def create_lightning_module(self) -> LightningWithInference:
+    def setup(self) -> None:
+        (self.local_dataset / "setup.txt").touch()
+
+    def create_model(self) -> LightningWithInference:
         return DummyRegression()
 
-    def get_training_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:
+    def get_data_module(self) -> LightningDataModule:
         return FixedRegressionData()
 
 

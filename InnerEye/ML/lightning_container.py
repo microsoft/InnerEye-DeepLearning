@@ -3,6 +3,8 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import abc
+from abc import abstractmethod
+from pathlib import Path
 from typing import Any, Dict, Iterator, List, Tuple
 
 import param
@@ -15,7 +17,7 @@ from pytorch_lightning import LightningDataModule, LightningModule
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
-from InnerEye.Common.generic_parsing import GenericConfig
+from InnerEye.Common.generic_parsing import GenericConfig, create_from_matching_params
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DatasetParams, EssentialParams, OptimizerParams, OutputParams, \
     TrainerParams
@@ -71,6 +73,7 @@ class LightningInference(abc.ABC):
         """
         pass
 
+    @abstractmethod
     def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
         """
         Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
@@ -82,6 +85,7 @@ class LightningInference(abc.ABC):
         """
         pass
 
+    @abstractmethod
     def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor):
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
@@ -91,6 +95,7 @@ class LightningInference(abc.ABC):
         """
         pass
 
+    @abstractmethod
     def on_inference_epoch_end(self) -> None:
         """
         Called when the inference on one of the dataset splits (train/val/test) has finished.
@@ -125,23 +130,13 @@ class LightningInference(abc.ABC):
         return aggregate_output
 
 
-class LightningWithInferenceMeta(type(LightningInference),
-                                 type(OutputParams)):
-    pass
-
-
-class LightningWithInference(LightningModule,
-                             LightningInference,
-                             OutputParams,
-                             TrainerParams,
-                             GenericConfig,
-                             metaclass=LightningWithInferenceMeta):
-    """
-    Double inheritance. All files should be written to config.outputs_folder or config.logs_folder
-    """
+class LightningWithInference(LightningModule, LightningInference):
 
     def __init__(self, *args, **kwargs) -> None:
         LightningModule.__init__(self)
+        self.optimizer_params = OptimizerParams()
+        self.output_params = OutputParams()
+        self.trainer_params = TrainerParams()
         pass
 
     def forward(self, *args, **kwargs):
@@ -176,13 +171,10 @@ class LightningWithInference(LightningModule,
         Override this method for full flexibility to define any optimizer and scheduler.
         :return: A tuple of (optimizer, LR scheduler)
         """
-        if isinstance(self, OptimizerParams):
-            optimizer = model_util.create_optimizer(self, self.parameters())
-            l_rate_scheduler = SchedulerWithWarmUp(self, optimizer)
-            return [optimizer], [l_rate_scheduler]
-        else:
-            raise NotImplementedError("This method must be overridden in a derived class. Alternatively, inherit "
-                                      "from the OptimizerParams class and the settings defined therein.")
+        optimizer = model_util.create_optimizer(self.optimizer_params, self.parameters())
+        l_rate_scheduler = SchedulerWithWarmUp(self.optimizer_params, optimizer,
+                                               num_epochs=self.trainer_params.num_epochs)
+        return [optimizer], [l_rate_scheduler]
 
     def close_all_loggers(self) -> None:
         """
@@ -207,28 +199,45 @@ class LightningWithInference(LightningModule,
     def trainer_hook(self, trainer) -> None:
         pass
 
+    @property
+    def outputs_folder(self) -> Path:
+        return self.output_params.outputs_folder
+
+    @property
+    def logs_folder(self) -> Path:
+        return self.output_params.logs_folder
+
 
 class LightningContainer(GenericConfig,
                          EssentialParams,
-                         DatasetParams):
-    # All model parameters that should be available on the commandline should be added here.
-    # They can be used later in, for example, the call to create the model.
-    some_parameter = param.String(default="Default", doc="Some documentation.")
+                         DatasetParams,
+                         OutputParams,
+                         TrainerParams,
+                         OptimizerParams):
 
     def __init__(self) -> None:
         super().__init__()
-        self._lightning_module = None
+        self._model = None
+        self._model_name = type(self).__name__
 
-    def create_lightning_module(self) -> LightningWithInference:
+    def setup(self) -> None:
+        """
+        This method is called as one of the first operations of the training/testing workflow, before any other
+        operations on the present object. At the point when called, the dataset is already available in
+        the location given by self.local_dataset. Use this method to prepare datasets or data loaders, for example.
+        """
+        pass
+
+    def create_model(self) -> LightningWithInference:
         """
         This method must create the actual Lightning model that will be trained. It can read out parameters from the
         container and pass them into the model, for example.
         """
         pass
 
-    def get_training_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:
+    def get_data_module(self) -> LightningDataModule:
         """
-        Gets the data that is used for the training and validation steps.
+        Gets the data that is used for the training, validation, and test steps.
         This should read a dataset from the self.local_dataset folder or download from a web location.
         The format of the data is not specified any further.
         The method must take cross validation into account, and ensure that logic to create training and validation
@@ -237,10 +246,10 @@ class LightningContainer(GenericConfig,
         """
         pass
 
-    def get_inference_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:
+    def get_inference_data_module(self) -> LightningDataModule:
         """
-        Gets the data that is used for the inference after training. By default, this returns the value
-        of get_training_data_module, but you can override this to get for example full image datasets for
+        Gets the data that is used to evaluate the trained model. By default, this returns the value
+        of get_data_module(), but you can override this to get for example full image datasets for
         segmentation models.
         This should read a dataset from the self.local_dataset folder or download from a web location.
         The format of the data is not specified any further.
@@ -250,7 +259,7 @@ class LightningContainer(GenericConfig,
         """
         # You can override this if inference uses different data, for example segmentation models use
         # full images rather than equal sized crops.
-        return self.get_training_data_module(crossval_index=crossval_index, crossval_count=crossval_count)
+        return self.get_data_module()
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
         """
@@ -261,19 +270,21 @@ class LightningContainer(GenericConfig,
     # The code from here onwards does not need to be modified.
 
     @property
-    def lightning_module(self) -> LightningWithInference:
+    def model(self) -> LightningWithInference:
         """
-        Returns that PyTorch Lightning module that the present container object manages.
+        Returns the PyTorch Lightning module that the present container object manages.
         :return: A PyTorch Lightning module
         """
-        if self._lightning_module is None:
+        if self._model is None:
             raise ValueError("No Lightning module has been set yet.")
-        return self._lightning_module
+        return self._model
 
     def create_lightning_module_and_store(self) -> None:
         """
         Creates the Lightning model by calling `create_lightning_module` and stores it in the `lightning_module`
         property.
         """
-        self._lightning_module = self.create_lightning_module()
-        self._lightning_module._model_name = type(self).__name__
+        self._model = self.create_model()
+        self._model.output_params = create_from_matching_params(self, OutputParams)
+        self._model.optimizer_params = create_from_matching_params(self, OptimizerParams)
+        self._model.trainer_params = create_from_matching_params(self, TrainerParams)

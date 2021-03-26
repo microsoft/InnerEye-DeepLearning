@@ -17,7 +17,8 @@ from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.deep_learning_config import DatasetParams, DeepLearningConfig, EssentialParams
+from InnerEye.ML.deep_learning_config import DatasetParams, DeepLearningConfig, EssentialParams, OutputParams, \
+    TrainerParams
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.metrics import EpochTimers, MAX_ITEM_LOAD_TIME_SEC, store_epoch_metrics
@@ -112,22 +113,18 @@ class InnerEyeContainer(LightningContainer):
         self.config = config
         # Fields like cross validation index are defined at container level, but the InnerEye models define them
         # at model level. Copy everything over.
-        for type_to_copy in [EssentialParams, DatasetParams]:
+        for type_to_copy in [EssentialParams, DatasetParams, TrainerParams, OutputParams]:
             self.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},
                                    should_validate=False)
 
-    def setup(self) -> None:
-        """
-        Creates the Lightning model itself, and stores it in the present object, accessible via the
-        `lightning_module` parameter.
-        """
+    def create_model(self) -> LightningModule:
         from InnerEye.ML.lightning_models import create_lightning_model
-        self._lightning_module = create_lightning_model(self.config)
+        return create_lightning_model(self.config)
 
-    def get_training_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:
+    def get_data_module(self) -> LightningDataModule:
         return TrainAndValDataLightning(self.config)
 
-    def get_inference_data_module(self, crossval_index: int, crossval_count: int) -> LightningDataModule:
+    def get_inference_data_module(self) -> LightningDataModule:
         return InferenceDataLightning(self.config)
 
 
@@ -174,7 +171,7 @@ class InnerEyeLightning(LightningModule):
 
     def set_optimizer_and_scheduler(self, config: DeepLearningConfig) -> None:
         self.optimizer = model_util.create_optimizer(config, self.model.parameters())
-        self.l_rate_scheduler = SchedulerWithWarmUp(config, self.optimizer)
+        self.l_rate_scheduler = SchedulerWithWarmUp(config, self.optimizer, num_epochs=config.num_epochs)
 
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         return [self.optimizer], [self.l_rate_scheduler]  # type: ignore

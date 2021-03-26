@@ -157,6 +157,7 @@ class Runner:
         azure_config.project_root = self.project_root
         self.azure_config = azure_config
         self.model_config = None  # type: ignore
+        self.lightning_container = None
         if not azure_config.model:
             return None
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser_result.args)
@@ -164,40 +165,29 @@ class Runner:
         # of type DeepLearningConfig, or a LightningContainer.
         config_or_container = model_config_loader.create_model_config_from_name(model_name=azure_config.model)
 
-        def parse_overrides_and_apply(c: object,
-                                      previous_parser_result: ParserResult,
-                                      is_last_parser: bool) -> ParserResult:
+        def parse_overrides_and_apply(c: object, previous_parser_result: ParserResult) -> ParserResult:
             assert isinstance(c, GenericConfig)
             parser = type(c).create_argparser()
-            # For each parser, feed in the unknown settings from the previous parser.
+            # For each parser, feed in the unknown settings from the previous parser. All commandline args should
+            # be consumed by name, hence fail if there is something that is still unknown.
             parser_result = parse_arguments(parser,
                                             settings_from_yaml=previous_parser_result.unknown_settings_from_yaml,
                                             args=previous_parser_result.unknown,
-                                            fail_on_unknown_args=is_last_parser)
+                                            fail_on_unknown_args=True)
             # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
             c.apply_overrides(parser_result.unknown_settings_from_yaml)
             c.apply_overrides(parser_result.overrides)
             c.validate()
             return parser_result
 
-        # Now create a parser that understands overrides at model/container level. For DeepLearningConfig models,
-        # there is no further level at which overrides can be applied, hence we can fail if an unknown argument is
-        # found. For LightningContainer models, unknown args could still fall through to the actual Lightning model.
-        is_last_parser = isinstance(config_or_container, DeepLearningConfig)
-        parser_result = parse_overrides_and_apply(config_or_container, parser_result, is_last_parser)
+        # Now create a parser that understands overrides at model/container level.
+        parser_result = parse_overrides_and_apply(config_or_container, parser_result)
 
         if has_torch and isinstance(config_or_container, LightningContainer):
-            # Random seed is set at container level. Need to seed already now because we need to create the
-            # Lightning model in order to create a parser for overrides.
-            from pytorch_lightning import seed_everything
-            seed_everything(config_or_container.get_effective_random_seed())
-            config_or_container.create_lightning_module_and_store()
-            parser_result = parse_overrides_and_apply(config_or_container.lightning_module, parser_result, True)
             self.lightning_container = config_or_container
-            model_config = config_or_container.lightning_module
         elif isinstance(config_or_container, DeepLearningConfig):
             # Built-in InnerEye models: A fake container for these models will be created in MLRunner
-            model_config = config_or_container
+            self.model_config = config_or_container
         else:
             raise ValueError(f"Don't know how to handle a loaded configuration of type {type(config_or_container)}")
 
@@ -206,7 +196,6 @@ class Runner:
             logging.info(f"extra_code_directory is {azure_config.extra_code_directory}, which {exist}")
         else:
             logging.info("extra_code_directory is unset")
-        self.model_config = model_config
         return parser_result
 
     def _get_property_from_config_or_container(self, name: str):
@@ -320,12 +309,11 @@ class Runner:
             # In particular, the multi-node environment variables should NOT be set in single node
             # training, otherwise this might lead to errors with the c10 distributed backend
             # (https://github.com/microsoft/InnerEye-DeepLearning/issues/395)
-
             if self.azure_config.num_nodes > 1:
                 set_environment_variables_for_multi_node()
             logging.info("Creating the output folder structure.")
-            self.model_config.create_filesystem(self.project_root)
             ml_runner = self.create_ml_runner()
+            ml_runner.setup()
             ml_runner.start_logging_to_file()
             try:
                 ml_runner.run()
@@ -342,7 +330,7 @@ class Runner:
         from InnerEye.ML.run_ml import MLRunner
         return MLRunner(
             model_config=self.model_config,
-            lightning_container=self.lightning_container,
+            container=self.lightning_container,
             azure_config=self.azure_config,
             project_root=self.project_root,
             post_cross_validation_hook=self.post_cross_validation_hook,

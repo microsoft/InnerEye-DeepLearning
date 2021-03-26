@@ -213,7 +213,7 @@ def get_default_checkpoint_handler(model_config: DeepLearningConfig, project_roo
     azure_config = get_default_azure_config()
     lightning_container = InnerEyeContainer(model_config)
     return CheckpointHandler(azure_config=azure_config,
-                             lightning_container=lightning_container,
+                             container=lightning_container,
                              project_root=project_root)
 
 
@@ -246,7 +246,7 @@ def model_train_unittest(config: DeepLearningConfig,
     if checkpoint_handler is None:
         azure_config = get_default_azure_config()
         checkpoint_handler = CheckpointHandler(azure_config=azure_config,
-                                               lightning_container=lightning_container,
+                                               container=lightning_container,
                                                project_root=dirs.root_dir)
     result = model_train(config, checkpoint_handler=checkpoint_handler, lightning_container=lightning_container)
     return result, checkpoint_handler

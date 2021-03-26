@@ -18,7 +18,6 @@ from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.deep_learning_config import OutputParams, WEIGHTS_FILE, \
     load_checkpoint_and_modify
-from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.utils.run_recovery import RunRecovery
 
@@ -29,10 +28,10 @@ class CheckpointHandler:
     azure config and model config.
     """
 
-    def __init__(self, lightning_container: LightningContainer, azure_config: AzureConfig,
+    def __init__(self, container: LightningContainer, azure_config: AzureConfig,
                  project_root: Path, run_context: Optional[Run] = None):
         self.azure_config = azure_config
-        self.container = lightning_container
+        self.container = container
         self.run_recovery: Optional[RunRecovery] = None
         self.project_root = project_root
         self.run_context = run_context
@@ -44,27 +43,7 @@ class CheckpointHandler:
         """
         Gets the part of the configuration that is responsible for output paths.
         """
-        if isinstance(self.container, InnerEyeContainer):
-            return self.container.config
-        else:
-            return self.container.lightning_module
-
-    @property
-    def start_epoch(self) -> int:
-        """
-        Gets the value of the start epoch for training.
-        """
-        if isinstance(self.container, InnerEyeContainer):
-            return self.container.config.start_epoch
-        else:
-            return self.container.lightning_module.start_epoch
-
-    @property
-    def use_gpu(self) -> bool:
-        if isinstance(self.container, InnerEyeContainer):
-            return self.container.config.use_gpu
-        else:
-            return self.container.lightning_module.use_gpu
+        return self.container
 
     def download_checkpoints_from_hyperdrive_child_runs(self, hyperdrive_parent_run: Run) -> None:
         """
@@ -105,7 +84,7 @@ class CheckpointHandler:
         checkpoint from there, otherwise use the checkpoints from the current run.
         :return: Constructed checkpoint path to recover from.
         """
-        start_epoch = self.start_epoch
+        start_epoch = self.container.start_epoch
         if start_epoch > 0 and not self.run_recovery:
             raise ValueError("Start epoch is > 0, but no run recovery object has been provided to resume training.")
 
@@ -250,7 +229,7 @@ class CheckpointHandler:
         if not weights_path or not weights_path.is_file():
             raise FileNotFoundError(f"Could not find the weights file at {weights_path}")
 
-        modified_weights = load_checkpoint_and_modify(weights_path, use_gpu=self.use_gpu)
+        modified_weights = load_checkpoint_and_modify(weights_path, use_gpu=self.container.use_gpu)
         target_file = self.output_params.outputs_folder / WEIGHTS_FILE
         torch.save(modified_weights, target_file)
         return target_file
@@ -259,4 +238,4 @@ class CheckpointHandler:
         """
         Returns true if the optimizer should be loaded from checkpoint. Looks at the model config to determine this.
         """
-        return self.start_epoch > 0
+        return self.container.start_epoch > 0

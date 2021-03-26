@@ -60,9 +60,10 @@ class SchedulerWithWarmUp(_LRScheduler):
     of the normal schedulers.
     """
 
-    def __init__(self, args: OptimizerParams, optimizer: Optimizer, last_epoch: int = -1):
+    def __init__(self, args: OptimizerParams, optimizer: Optimizer, num_epochs: int, last_epoch: int = -1):
         self.optimizer = optimizer
         self.last_epoch = last_epoch
+        self.num_epochs = num_epochs
         self.warmup_epochs = 0 if args.l_rate_warmup == LRWarmUpType.NoWarmUp else args.l_rate_warmup_epochs
         self._scheduler = self.get_scheduler(args)
         # This must be called after self.get_scheduler, because we want the optimizer to have the learning rate
@@ -80,7 +81,7 @@ class SchedulerWithWarmUp(_LRScheduler):
         Create the LR scheduler that will be used after warmup, based on the config params.
         """
         scheduler: _LRScheduler
-        epochs_after_warmup = args.num_epochs - self.warmup_epochs
+        epochs_after_warmup = self.num_epochs - self.warmup_epochs
         if args.l_rate_scheduler == LRSchedulerType.Exponential:
             scheduler = ExponentialLR(optimizer=self.optimizer,
                                       gamma=args.l_rate_exponential_gamma,

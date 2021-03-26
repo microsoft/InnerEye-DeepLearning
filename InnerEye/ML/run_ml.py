@@ -16,6 +16,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Run
 from azureml.core.model import Model
 from azureml.data import FileDataset
+from pytorch_lightning import seed_everything
 from pytorch_lightning.utilities.cloud_io import load as pl_load
 from torch.utils.data import DataLoader
 
@@ -37,7 +38,7 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
     FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod
 from InnerEye.ML.lightning_base import InnerEyeContainer
-from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
+from InnerEye.ML.lightning_container import LightningContainer, LightningInference
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -133,7 +134,7 @@ class MLRunner:
     def __init__(self,
                  model_config: DeepLearningConfig,
                  azure_config: Optional[AzureConfig] = None,
-                 lightning_container: Optional[LightningContainer] = None,
+                 container: Optional[LightningContainer] = None,
                  project_root: Optional[Path] = None,
                  post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
                  model_deployment_hook: Optional[ModelDeploymentHookSignature] = None) -> None:
@@ -151,29 +152,45 @@ class MLRunner:
         Model as arguments, and return an optional Path and a further object of any type.
         """
         self.model_config = model_config
-        self.lightning_container = lightning_container
+        self.container = container
         self.azure_config: AzureConfig = azure_config or AzureConfig()
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
+        self._has_setup_run = False
 
     def setup(self) -> None:
         """
         If the present object is using one of the InnerEye built-in models, create a (fake) container for it
-        and call the setup method. If should_write_dataset_files is True, and the present code is running on
-        distributed training rank zero, the method also writes the dataset files to disk.
+        and call the setup method. It sets the random seeds, and then creates the actual Lightning modules.
         """
-        if self.lightning_container is None:
+        if self._has_setup_run:
+            return
+        if self.container is None:
             assert isinstance(self.model_config, ModelConfigBase), \
                 "When using a built-in InnerEye model, the configuration should be an instance of ModelConfigBase"
-            self.lightning_container = InnerEyeContainer(self.model_config)
-            self.lightning_container.setup()
+            self.container = InnerEyeContainer(self.model_config)
+        if not self.azure_config.only_register_model:
+            # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
+            # and config.local_dataset was not already set.
+            # This must happen before container setup because that could already read datasets.
+            self.container.local_dataset = self.mount_or_download_dataset()
+        # Ensure that we use fixed seeds before initializing the PyTorch models
+        seed_everything(self.container.get_effective_random_seed())
+        # This call needs to happen before the LightningModule is created, because the output parameters of the
+        # container will be copied into the module.
+        self.container.create_filesystem(self.project_root)
+        # For the InnerEye built-in models: If should_write_dataset_files is True, and the present code is running on
+        # distributed training rank zero, the method also writes the dataset files to disk.
+        self.container.setup()
+        self.container.create_lightning_module_and_store()
+        self._has_setup_run = True
 
     def start_logging_to_file(self) -> None:
-        if self.lightning_container is None:
+        if self.container is None:
             self.setup()
         logs_folder = self.model_config.logs_folder if isinstance(self.model_config, DeepLearningConfig) \
-            else self.lightning_container.lightning_module.logs_folder
+            else self.container.model.logs_folder
         logging_to_file(logs_folder / LOG_FILE_NAME)
 
     @property
@@ -189,8 +206,8 @@ class MLRunner:
         Returns true if the current run is an offline run with cross validation splits > 0
         and cross_validation_split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX (ie: a parent)
         """
-        return self.lightning_container.cross_validation_split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX and \
-               self.lightning_container.perform_cross_validation and self.is_offline_run
+        return self.container.cross_validation_split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX and \
+               self.container.perform_cross_validation and self.is_offline_run
 
     def spawn_offline_cross_val_classification_child_runs(self) -> None:
         """
@@ -211,7 +228,7 @@ class MLRunner:
 
             logging.info(f"Running model train and test on cross validation split: {cross_val_split_index}")
             split_ml_runner = MLRunner(model_config=split_model_config,
-                                       lightning_container=self.lightning_container,
+                                       container=self.container,
                                        azure_config=self.azure_config,
                                        project_root=self.project_root,
                                        post_cross_validation_hook=self.post_cross_validation_hook,
@@ -248,8 +265,8 @@ class MLRunner:
         ]
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
         new_tags[RUN_RECOVERY_ID_KEY_NAME] = create_run_recovery_id(run=RUN_CONTEXT)
-        new_tags[CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY] = str(self.lightning_container.cross_validation_split_index)
-        new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.lightning_container.get_effective_random_seed())
+        new_tags[CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY] = str(self.container.cross_validation_split_index)
+        new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.container.get_effective_random_seed())
         RUN_CONTEXT.set_tags(new_tags)
 
     def run(self) -> None:
@@ -273,7 +290,7 @@ class MLRunner:
         self.set_multiprocessing_start_method()
 
         # configure recovery container if provided
-        checkpoint_handler = CheckpointHandler(lightning_container=self.lightning_container,
+        checkpoint_handler = CheckpointHandler(container=self.container,
                                                azure_config=self.azure_config,
                                                project_root=self.project_root,
                                                run_context=RUN_CONTEXT)
@@ -281,38 +298,33 @@ class MLRunner:
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
         if not self.azure_config.only_register_model:
-            # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
-            # and config.local_dataset was not already set.
-            self.model_config.local_dataset = self.mount_or_download_dataset()
-
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
                     model_train(self.model_config,
                                 checkpoint_handler,
-                                lightning_container=self.lightning_container,
+                                lightning_container=self.container,
                                 num_nodes=self.azure_config.num_nodes)
-            else:
+                # log the number of epochs used for model training
+                RUN_CONTEXT.log(name="Train epochs", value=self.container.num_epochs)
+            elif isinstance(self.container, InnerEyeContainer):
                 self.model_config.write_dataset_files()
                 self.create_activation_maps()
 
-            # log the number of epochs used for model training
-            RUN_CONTEXT.log(name="Train epochs", value=self.model_config.num_epochs)
-
-        if isinstance(self.lightning_container, InnerEyeContainer):
+        if isinstance(self.container, InnerEyeContainer):
             # Inference for the InnerEye built-in models
             # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
             # the current run is a single one. See the documentation of ModelProcessing for more details.
             self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
 
-            if self.lightning_container.generate_report:
+            if self.container.generate_report:
                 self.generate_report(ModelProcessing.DEFAULT)
 
             # If this is an cross validation run, and the present run is child run 0, then wait for the sibling runs,
             # build the ensemble model, and write a report for that.
-            if self.lightning_container.number_of_cross_validation_splits > 0:
+            if self.container.number_of_cross_validation_splits > 0:
                 should_wait_for_other_child_runs = (not self.is_offline_run) and \
-                                                   self.lightning_container.cross_validation_split_index == 0
+                                                   self.container.cross_validation_split_index == 0
                 if should_wait_for_other_child_runs:
                     self.wait_for_runs_to_finish()
                     self.create_ensemble_model_and_run_inference()
@@ -326,20 +338,18 @@ class MLRunner:
         """
         if len(checkpoint_paths) != 1:
             raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
-        assert isinstance(self.model_config, LightningWithInference), "For this method, the configuration should be " \
-                                                                      "an instance of LightningWithInference"
-        data = self.lightning_container.get_inference_data_module(
-            crossval_index=self.lightning_container.cross_validation_split_index,
-            crossval_count=self.lightning_container.number_of_cross_validation_splits)
+        lightning_model = self.container.model
+        assert isinstance(lightning_model, LightningInference), \
+            f"Expected an instance of LightningInference, but got {type(self.model_config)}"
+        data = self.container.get_inference_data_module()
         dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
-        if self.lightning_container.perform_validation_and_test_set_inference:
+        if self.container.perform_validation_and_test_set_inference:
             dataloaders.append((data.test_dataloader(), ModelExecutionMode.TEST))
             dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))
-        if self.lightning_container.perform_training_set_inference:
+        if self.container.perform_training_set_inference:
             dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))
-        map_location = "gpu" if self.model_config.use_gpu else "cpu"
+        map_location = "gpu" if self.container.use_gpu else "cpu"
         checkpoint = pl_load(checkpoint_paths[0], map_location=map_location)
-        lightning_model = self.model_config
         lightning_model.load_state_dict(checkpoint['state_dict'])
         lightning_model.eval()
         lightning_model.on_inference_start()
@@ -406,12 +416,12 @@ class MLRunner:
         mounted or downloaded.
         Returns the path of the dataset on the executing machine.
         """
-        azure_dataset_id = self.lightning_container.azure_dataset_id
-        local_dataset = self.lightning_container.local_dataset
+        azure_dataset_id = self.container.azure_dataset_id
+        local_dataset = self.container.local_dataset
         # A dataset, either local or in Azure, is required for the built-in InnerEye models. When models are
         # specified via a LightningContainer, these dataset fields are optional, because the container datasets
         # could be downloaded even from the web.
-        is_dataset_required = isinstance(self.lightning_container, InnerEyeContainer)
+        is_dataset_required = isinstance(self.container, InnerEyeContainer)
         if self.is_offline_run:
             # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
             # Otherwise, download the dataset specified by the azure_dataset_id
@@ -447,7 +457,7 @@ class MLRunner:
         """
         Set the (PyTorch) multiprocessing start method.
         """
-        method = self.lightning_container.multiprocessing_start_method
+        method = self.container.multiprocessing_start_method
         if is_windows():
             if method != MultiprocessingStartMethod.spawn:
                 logging.warning(f"Cannot set multiprocessing start method to '{method.name}' "
@@ -724,7 +734,7 @@ class MLRunner:
         """
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
         with logging_section("Downloading checkpoints from sibling runs"):
-            checkpoint_handler = CheckpointHandler(lightning_container=self.lightning_container,
+            checkpoint_handler = CheckpointHandler(container=self.container,
                                                    azure_config=self.azure_config,
                                                    project_root=self.project_root,
                                                    run_context=PARENT_RUN_CONTEXT)
