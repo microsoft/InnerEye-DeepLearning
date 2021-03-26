@@ -174,10 +174,12 @@ def _dummy_yaml_config_overrides(path_yaml_config):
     yaml_config = load_ssl_model_config(path_yaml_config)
     yaml_config.defrost()
     yaml_config.train.batch_size = 25
+    yaml_config.scheduler.epochs = 1
     yaml_config.train.self_supervision.encoder_name = "resnet18"
     return yaml_config
 
 class DummySSLContainerResnet18(SSLContainer):
+
     def _load_config(self):
         self.yaml_config = _dummy_yaml_config_overrides(self.path_yaml_config)
 
@@ -192,6 +194,7 @@ class DummySSLContainerDenseNet121(DummySSLContainerResnet18):
     def _load_config(self):
         super()._load_config()
         self.yaml_config.train.self_supervision.encoder_name = "densenet121"
+
 """
 class DummyLinearImageClassifier(SSLLinearImageClassifierContainer):
     def _load_config(self):
