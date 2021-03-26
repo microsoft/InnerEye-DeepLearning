@@ -4,7 +4,9 @@ name: Flake8, MyPy, and Hello World
 # It also checks that the HelloWorld model can be trained.
 
 on:
-  pull_request:
+  push:
+    branches:
+      - antonsc/linting
 jobs:
   check:
     runs-on: [ubuntu-latest, windows-latest]
