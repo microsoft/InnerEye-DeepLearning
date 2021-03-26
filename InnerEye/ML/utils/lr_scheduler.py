@@ -9,7 +9,7 @@ from typing import Dict, List
 from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR, LambdaLR, MultiStepLR, StepLR, _LRScheduler
 from torch.optim.optimizer import Optimizer
 
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, LRSchedulerType, LRWarmUpType, OptimizerParams
+from InnerEye.ML.deep_learning_config import LRSchedulerType, LRWarmUpType, OptimizerParams
 
 
 def get_current_learning_rates(optimizer: Optimizer) -> List[float]:
@@ -23,6 +23,7 @@ class LinearWarmUp(_LRScheduler):
     """
     Implements linear warmup up to a given initial learning rate.
     """
+
     def __init__(self, optimizer: Optimizer, warmup_epochs: int, final_lr: float, last_epoch: int = -1):
         if warmup_epochs < 0:
             raise ValueError("The number of warmup epochs must be >= 0.")
