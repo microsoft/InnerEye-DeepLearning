@@ -65,10 +65,12 @@ jobs:
           $CONDA\Scripts\conda install conda=4.8.3 -y
           $CONDA\Scripts\conda --version
           $CONDA\Scripts\conda list
+        shell: cmd
 
       - name: Create conda environment
         run: |
           $CONDA\Scripts\conda env create --file environment.yml --name InnerEye --quiet
+        shell: cmd
 
       - name: Run HelloWorld model
         run: |
@@ -76,3 +78,4 @@ jobs:
           python ./InnerEye/ML/runner.py --model=HelloWorld
         env:
           PYTHONPATH: ${{ github.workspace }}
+        shell: cmd
