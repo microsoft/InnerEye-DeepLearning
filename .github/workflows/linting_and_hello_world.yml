@@ -9,7 +9,10 @@ on:
       - antonsc/linting
 jobs:
   check:
-    runs-on: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
       - name: Add conda to PATH
