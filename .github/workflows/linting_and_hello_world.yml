@@ -12,6 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
+      # Run Flake8 first, to fail as quicly as possible
+      - name: flake8
+        run: |
+          pip install flake8
+          flake8
+        shell: bash
+        
       - name: Print conda version and initial package list
         run: |
           $CONDA/bin/conda install conda=4.8.3 -y
@@ -22,12 +30,6 @@ jobs:
       - name: Create conda environment
         run: |
           $CONDA/bin/conda env create --file environment.yml --name InnerEye --quiet
-        shell: bash
-
-      - name: flake8
-        run: |
-          activate InnerEye
-          flake8
         shell: bash
 
       - name: mypy
@@ -47,6 +49,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
+      
       - name: Print conda version and initial package list
         run: |
           $CONDA/Scripts/conda install conda=4.8.3 -y
