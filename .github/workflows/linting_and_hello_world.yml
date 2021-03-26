@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          submodules: true
+          lfs: true
 
       # Run Flake8 first, to fail as quickly as possible
       - name: flake8
@@ -62,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          submodules: true
+          lfs: true
 
       - name: Print conda version and initial package list
         run: |
