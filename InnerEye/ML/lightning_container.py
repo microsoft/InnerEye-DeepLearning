@@ -5,7 +5,7 @@
 import abc
 from abc import abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import param
 import torch
@@ -86,7 +86,7 @@ class LightningInference(abc.ABC):
         pass
 
     @abstractmethod
-    def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor):
+    def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor) -> None:
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
         or compute metrics and store them.
@@ -118,28 +118,30 @@ class LightningInference(abc.ABC):
         :param model_outputs: An iterator over the model outputs for all ensemble members.
         :return: The aggregate model outputs.
         """
-        aggregate_output = None
+        aggregate_output: Optional[torch.Tensor] = None
         count = 0
         for m in model_outputs:
             count += 1
             if aggregate_output is None:
                 aggregate_output = m
             else:
-                aggregate_output = aggregate_output + m
-        aggregate_output = aggregate_output / count
+                aggregate_output += m
+        if count == 0 or aggregate_output is None:
+            raise ValueError("There were no results to aggregate.")
+        aggregate_output /= count
         return aggregate_output
 
 
 class LightningWithInference(LightningModule, LightningInference):
 
-    def __init__(self, *args, **kwargs) -> None:
-        LightningModule.__init__(self)
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        LightningModule.__init__(self, *args, **kwargs)
         self.optimizer_params = OptimizerParams()
         self.output_params = OutputParams()
         self.trainer_params = TrainerParams()
         pass
 
-    def forward(self, *args, **kwargs):
+    def forward(self, *args: Any, **kwargs: Any) -> torch.Tensor:
         """
         Run an item through the model at prediction time. This overrides LightningModule.forward, and
         has the same expected use.
@@ -149,7 +151,7 @@ class LightningWithInference(LightningModule, LightningInference):
         """
         raise NotImplementedError("This method must be overridden in a derived class.")
 
-    def training_step(self, *args, **kwargs):
+    def training_step(self, *args: Any, **kwargs: Any) -> Any:
         """
         Implements the PyTorch Lightning training step. This overrides LightningModule.training_step, and
         has the same expected use.
@@ -196,15 +198,20 @@ class LightningWithInference(LightningModule, LightningInference):
         """
         return None
 
-    def trainer_hook(self, trainer) -> None:
-        pass
-
     @property
     def outputs_folder(self) -> Path:
+        """
+        Gets the folder into which all output of the model training should be written. Output files in this folder
+        will be available in AzureML at the end of training.
+        """
         return self.output_params.outputs_folder
 
     @property
     def logs_folder(self) -> Path:
+        """
+        Gets the folder into which all log files from model training should be written. Log files will be streamed
+        to AzureML during training already.
+        """
         return self.output_params.logs_folder
 
 
@@ -217,7 +224,7 @@ class LightningContainer(GenericConfig,
 
     def __init__(self) -> None:
         super().__init__()
-        self._model = None
+        self._model: Optional[LightningWithInference] = None
         self._model_name = type(self).__name__
 
     def setup(self) -> None:

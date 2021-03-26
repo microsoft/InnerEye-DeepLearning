@@ -21,6 +21,7 @@ from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import ARGS_TXT, DeepLearningConfig, OutputParams, TrainerParams, \
     VISUALIZATION_FOLDER
+from InnerEye.ML.lightning_base import InnerEyeLightning
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
@@ -201,9 +202,9 @@ def model_train(config: DeepLearningConfig,
     logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
                  f"trainer.global_rank: {trainer.global_rank}")
     logging.debug("Creating the PyTorch model.")
-    lightning_model.storing_logger = storing_logger
+    lightning_model.storing_logger = storing_logger  # type: ignore
 
-    resource_monitor = None
+    resource_monitor: Optional[ResourceMonitor] = None
     # Execute some bookkeeping tasks only once if running distributed:
     if is_rank_zero():
         write_args_file(config if isinstance(config, DeepLearningConfig) else lightning_container,
@@ -218,7 +219,7 @@ def model_train(config: DeepLearningConfig,
             with logging_section("Visualizing the effect of sampling random crops for training"):
                 visualize_random_crops_for_dataset(config)
 
-        if isinstance(config, ModelConfigBase):
+        if isinstance(lightning_model, InnerEyeLightning):
             # Print out a detailed breakdown of layers, memory consumption and time.
             # TODO antonsc: Can we do better here, and print a model summary for all models? Read the first item
             # of the dataset and do forward propagation?

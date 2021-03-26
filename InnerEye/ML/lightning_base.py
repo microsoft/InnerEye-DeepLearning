@@ -6,6 +6,7 @@ import logging
 import numbers
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+import param
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.utilities import rank_zero_only
@@ -40,7 +41,7 @@ class TrainAndValDataLightning(LightningDataModule):
         self.config = config
         self.data_loaders: Dict[ModelExecutionMode, DataLoader] = {}
 
-    def prepare_data(self, *args, **kwargs) -> None:
+    def prepare_data(self, *args: Any, **kwargs: Any) -> None:
         """
         Writes the dataset files for later use in cross validation analysis. This is only executed once per
         distributed training run.
@@ -93,13 +94,13 @@ class InferenceDataLightning(LightningDataModule):
         self.val_data = self.config.get_torch_dataset_for_inference(ModelExecutionMode.VAL)
         self.test_data = self.config.get_torch_dataset_for_inference(ModelExecutionMode.TEST)
 
-    def train_dataloader(self) -> DataLoader:
+    def train_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
         return DataLoader(self.train_data)
 
-    def val_dataloader(self) -> DataLoader:
+    def val_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
         return DataLoader(self.val_data)
 
-    def test_dataloader(self) -> DataLoader:
+    def test_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
         return DataLoader(self.test_data)
 
 
@@ -114,10 +115,11 @@ class InnerEyeContainer(LightningContainer):
         # Fields like cross validation index are defined at container level, but the InnerEye models define them
         # at model level. Copy everything over.
         for type_to_copy in [EssentialParams, DatasetParams, TrainerParams, OutputParams]:
+            assert issubclass(type_to_copy, param.Parameterized)
             self.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},
                                    should_validate=False)
 
-    def create_model(self) -> LightningModule:
+    def create_model(self) -> LightningModule:  # type: ignore
         from InnerEye.ML.lightning_models import create_lightning_model
         return create_lightning_model(self.config)
 

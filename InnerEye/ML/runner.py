@@ -198,7 +198,7 @@ class Runner:
             logging.info("extra_code_directory is unset")
         return parser_result
 
-    def _get_property_from_config_or_container(self, name: str):
+    def _get_property_from_config_or_container(self, name: str) -> Any:
         """
         Reads out a property or attribute from either the model configuration (if that is a built-in InnerEye
         model) or the lightning container.

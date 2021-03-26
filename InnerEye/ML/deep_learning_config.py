@@ -636,15 +636,6 @@ class DeepLearningConfig(EssentialParams,
                 raise ValueError("Can't set use_gpu to True if there is not CUDA capable GPU present.")
         self._use_gpu = value
 
-    def should_wait_for_other_cross_val_child_runs(self) -> bool:
-        """
-        Returns True if the current run is an online run and is the 0th cross validation split.
-        In this case, this will be the run that will wait for all other child runs to finish in order
-        to aggregate their results.
-        :return:
-        """
-        return
-
     @property
     def compute_mean_teacher_model(self) -> bool:
         """
