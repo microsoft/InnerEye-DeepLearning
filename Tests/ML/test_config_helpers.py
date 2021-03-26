@@ -10,10 +10,11 @@ import torch
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.config import SegmentationModelBase, equally_weighted_classes
+from InnerEye.ML.config import ModelArchitectureConfig, SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
+from InnerEye.ML.utils.model_util import build_net
 from Tests.ML.configs.DummyModel import DummyModel
 
 
@@ -174,3 +175,35 @@ def test_dataset_csv_with_ScalarModelBase(
     model_config.read_dataset_into_dataframe_and_pre_process()
     assert model_config.dataset_data_frame is not None
     validate_dataset_paths(model_config)
+
+def test_unet3_num_downsampling_paths() -> None:
+    for num_downsampling_paths in range(1, 5):
+        j = int(2**num_downsampling_paths)
+
+        # Test that num_downsampling_paths for built UNet3D
+        # is set via model configuration
+        crop_size = (j, j, j)
+        config = SegmentationModelBase(
+                architecture=ModelArchitectureConfig.UNet3D,
+                image_channels=["ct"],
+                feature_channels=[1],
+                crop_size=crop_size,
+                num_downsampling_paths=num_downsampling_paths,
+                should_validate=False)
+        network = build_net(config)
+        assert network.num_downsampling_paths == num_downsampling_paths
+
+        # Test that exception is raised if crop size is smaller than is allowed
+        # by num_downsampling_paths
+        too_small_crop_size = (j//2, j//2, j//2)
+        ex_msg = f"Crop size is not valid. The required minimum is {crop_size}"
+        config = SegmentationModelBase(
+                architecture=ModelArchitectureConfig.UNet3D,
+                image_channels=["ct"],
+                feature_channels=[1],
+                crop_size=too_small_crop_size,
+                num_downsampling_paths=num_downsampling_paths,
+                should_validate=False)
+        with pytest.raises(ValueError) as ex:
+            network = build_net(config)
+        assert ex_msg in str(ex)
