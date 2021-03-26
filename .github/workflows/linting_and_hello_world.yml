@@ -19,11 +19,13 @@ jobs:
           pip install flake8
           python -m flake8
         shell: bash
+        if: always()        
         
       - name: Add Conda to PATH
         run: |
           echo "$CONDA/bin/" >> $GITHUB_PATH
-          
+        if: always()
+        
       - name: Print conda version and initial package list
         run: |
           conda install conda=4.8.3 -y
@@ -31,17 +33,20 @@ jobs:
           conda list
           conda init bash
         shell: bash
+        if: always()
 
       - name: Create conda environment
         run: |
           conda env create --file environment.yml --name InnerEye --quiet
         shell: bash
+        if: always()
 
       - name: mypy
         run: |
           conda activate InnerEye
           python mypy_runner.py --mypy=$CONDA/envs/InnerEye/bin/mypy
         shell: bash
+        if: always()
 
       - name: Run HelloWorld model
         run: |
@@ -50,6 +55,8 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
         shell: bash
+        if: always()
+
   windows:
     runs-on: windows-latest
     steps:
