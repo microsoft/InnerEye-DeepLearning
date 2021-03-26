@@ -185,9 +185,9 @@ class DummySSLContainerResnet18(SSLContainer):
 
     def get_trainer_arguments(self):
         trained_kwargs = super().get_trainer_arguments()
-        overfit_batches = max(1, 0.05 * (
-            min(len(self.data_module.val_dataloader()), len(self.data_module.train_dataloader()))))
-        trained_kwargs.update({"overfit_batches": overfit_batches})
+        #overfit_batches = max(1, 0.05 * (
+        #    min(len(self.data_module.val_dataloader()), len(self.data_module.train_dataloader()))))
+        trained_kwargs.update({"limit_train_batches": 2, "limit_val_batches": 2})
         return trained_kwargs
 
 class DummySSLContainerDenseNet121(DummySSLContainerResnet18):
