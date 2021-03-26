@@ -1,18 +1,19 @@
 from typing import Any, Optional, Dict, List, Union
 
-from pl_bolts.datamodules import CIFAR10DataModule
+
 from pl_bolts.datamodules.vision_datamodule import VisionDataModule
-from pl_bolts.models.self_supervised.simclr.transforms import SimCLREvalDataTransform, SimCLRTrainDataTransform
 from pytorch_lightning.trainer.supporters import CombinedLoader
+
 from torchvision.datasets import CIFAR10, CIFAR100
 from torch.utils.data import DataLoader
 
+from InnerEye.SSL.datamodules.transforms_utils import InnerEyeCIFAREvalTransform, InnerEyeCIFARTrainTransform
 from InnerEye.SSL.utils import SSLModule
 
 
-DATASET_CLS = {SSLModule.ENCODER: CIFAR100, SSLModule.LINEAR_HEAD: CIFAR10}
-TRAIN_TRANSFORMS = SimCLRTrainDataTransform(32)
-VAL_TRANSFORMS = SimCLREvalDataTransform(32)
+DATASET_CLS = {SSLModule.ENCODER: CIFAR10, SSLModule.LINEAR_HEAD: CIFAR100}
+TRAIN_TRANSFORMS = InnerEyeCIFARTrainTransform(32)
+VAL_TRANSFORMS = InnerEyeCIFAREvalTransform(32)
 
 class CIFARIEDataModule(VisionDataModule):
 
@@ -47,7 +48,8 @@ class CIFARIEDataModule(VisionDataModule):
             raise NotImplementedError
 
     def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[SSLModule, DataLoader]:
-        """ The train dataloaders """
+        """ The train dataloaders
+        """
         dataloaders = {
             SSLModule.ENCODER: self._data_loader(self.datasets[SSLModule.ENCODER][0], shuffle=self.shuffle),
             SSLModule.LINEAR_HEAD: self._data_loader(self.datasets[SSLModule.LINEAR_HEAD][0], shuffle=self.shuffle)}
@@ -55,7 +57,8 @@ class CIFARIEDataModule(VisionDataModule):
         return dataloaders
 
     def val_dataloader(self, *args: Any, **kwargs: Any) -> CombinedLoader:
-        """ The val dataloader """
+        """ The val dataloader
+        """
         dataloaders = {
             SSLModule.ENCODER: self._data_loader(self.datasets[SSLModule.ENCODER][1]),
             SSLModule.LINEAR_HEAD: self._data_loader(self.datasets[SSLModule.LINEAR_HEAD][1])}
