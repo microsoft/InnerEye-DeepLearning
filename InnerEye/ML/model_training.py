@@ -107,7 +107,7 @@ def create_lightning_trainer(container: LightningContainer,
                                                    period=container.recovery_checkpoint_save_interval
                                                    )
 
-    num_gpus = config.get_num_gpus_to_use()
+    num_gpus = container.get_num_gpus_to_use()
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
     # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if num_gpus > 1 else None
@@ -139,7 +139,7 @@ def create_lightning_trainer(container: LightningContainer,
     callbacks = [best_checkpoint_callback, recovery_checkpoint_callback]
     if "callbacks" in kwargs:
         callbacks.append(kwargs.pop("callbacks"))
-    trainer = Trainer(default_root_dir=str(config.outputs_folder),
+    trainer = Trainer(default_root_dir=str(container.outputs_folder),
                       deterministic=deterministic,
                       benchmark=benchmark,
                       accelerator=accelerator,
