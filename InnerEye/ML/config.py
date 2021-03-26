@@ -264,8 +264,7 @@ class SegmentationModelBase(ModelConfigBase):
 
     #: The number of image levels used in Unet (in encoding and decoding paths).
     num_downsampling_paths: int = param.Integer(4, bounds=(1, None),
-        instantiate=False, doc="The number of image levels used in Unet "
-                               "(in encoding and decoding paths).")
+        instantiate=False, doc="The number of levels used in a UNet architecture in encoding and decoding paths.")
 
     #: The size of the random crops that will be drawn from the input images during training. This is also the
     #: input size of the model.
