@@ -21,7 +21,7 @@ jobs:
         shell: bash
 
       - name: Print conda version and initial package list
-      - run: |
+        run: |
           conda install conda=4.8.3 -y
           conda --version
           conda list
