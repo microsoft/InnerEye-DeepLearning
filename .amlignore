@@ -15,3 +15,4 @@ tensorboard_runs
 InnerEyeTestVariables.txt
 InnerEyePrivateSettings.yml
 cifar-10-batches-py
+cifar-100-python
