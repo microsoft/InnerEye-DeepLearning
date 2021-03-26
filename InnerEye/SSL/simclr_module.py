@@ -1,13 +1,18 @@
-from typing import Any
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from pl_bolts.losses.self_supervised_learning import nt_xent_loss
+from typing import Any, Dict, Tuple, List, Union
 
-from InnerEye.SSL.byol.byol_models import SSLEncoder
+import pytorch_lightning as pl
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
+from torch import Tensor as T
 
+from InnerEye.SSL.utils import SSLModule
+from InnerEye.SSL.byol.byol_models import SSLEncoder
+
+SingleBatchType = Tuple[List, T]
+BatchType = Union[Dict[SSLModule, SingleBatchType], SingleBatchType]
 
 class _Projection(nn.Module):
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int) -> None:
@@ -38,20 +43,20 @@ class SimCLRInnerEye(SimCLR):
             kwargs.update({"dataset": dataset_name})
         super().__init__(**kwargs)
         self.save_hyperparameters()
-        self.nt_xent_loss = nt_xent_loss
         self.encoder = SSLEncoder(encoder_name, dataset_name)
         self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
 
     def forward(self, x):
         return self.encoder(x)
 
-    def shared_step(self, batch):
+    def shared_step(self, batch: BatchType) -> T:
+        batch = batch[SSLModule.ENCODER] if isinstance(batch, dict) else batch
+
         # final image in tuple is for online eval
         (img1, img2), y = batch
 
         # get h representations, bolts resnet returns a list
-        h1 = self(img1)
-        h2 = self(img2)
+        h1, h2 = self(img1), self(img2)
 
         # get z representations
         z1 = self.projection(h1)
