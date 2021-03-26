@@ -48,8 +48,6 @@ class SSLContainer(LightningContainer):
     This container is the module to use to train an SSL model either BYOL or SimCLR.
     See Readme for more extensive documentation about its configuration.
     """
-    # todo it should be made clear in readme that trainer will use the following fields
-    # todo i.e. they have to be set in the init of your module (or defaults will be taken)
     # TODO transform yaml config in nested param class
     # TODO the field output_dir is unused at the moment. Remove it from yaml config
 
