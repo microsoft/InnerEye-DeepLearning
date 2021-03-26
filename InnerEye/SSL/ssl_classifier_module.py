@@ -4,13 +4,13 @@ import pytorch_lightning as pl
 import torch
 from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
-from pytorch_lightning.metrics import Accuracy
+
 from torch import Tensor as T
 from torch.nn import functional as F
 
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.lightning_container import LightningWithInference
-from InnerEye.ML.lightning_metrics import AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
+from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 
 BatchType = Tuple[List, T]
 
@@ -29,8 +29,8 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         self.weight_decay = 1e-4
         self.learning_rate = 1e-4
 
-        self.train_metrics = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy()] if self.num_classes == 2 else [Accuracy()]
-        self.val_metrics = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy()] if self.num_classes == 2 else [Accuracy()]
+        self.train_metrics = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()] if self.num_classes == 2 else [Accuracy05()]
+        self.val_metrics = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()] if self.num_classes == 2 else [Accuracy05()]
         self.class_weights = class_weights
 
     def on_pretrain_routine_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
@@ -39,8 +39,6 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
         for metric in [*self.train_metrics, *self.val_metrics]:
             metric.to(device=pl_module.device)  # type: ignore
-        if self.class_weights is not None:
-            self.class_weights.to(device=pl_module.device)
 
         pl_module.non_linear_evaluator = SSLEvaluator(n_input=self.z_dim,
                                                       n_classes=self.num_classes,
@@ -81,7 +79,8 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
 
         # Run the linear-head with SSL embeddings.
         mlp_preds = pl_module.non_linear_evaluator(representations)
-        mlp_loss = F.cross_entropy(mlp_preds, y, weight=self.class_weights)
+        weights = None if self.class_weights is None else self.class_weights.to(device=pl_module.device)
+        mlp_loss = F.cross_entropy(mlp_preds, y, weight=weights)
 
         with torch.no_grad():
             posteriors = F.softmax(mlp_preds, dim=-1)
@@ -96,6 +95,8 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
         loss = self.shared_step(batch, pl_module, is_training=False)
         pl_module.log('ssl/online_val_loss', loss, on_step=False, on_epoch=True, sync_dist=False)
+        for metric in self.val_metrics:
+            pl_module.log(f"ssl/online_val_{metric.name}", metric, on_epoch=True, on_step=False)
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
         """
@@ -112,6 +113,8 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
 
         # log metrics
         pl_module.log('ssl/online_train_loss', loss)
+        for metric in self.train_metrics:
+            pl_module.log(f"ssl/online_train_{metric.name}", metric, on_epoch=True, on_step=False)
 
 
 class SSLClassifier(LightningWithInference):
