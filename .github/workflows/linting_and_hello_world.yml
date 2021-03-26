@@ -23,35 +23,22 @@ jobs:
         shell: bash
         if: always()        
         
-      - name: Add Conda to PATH
-        run: |
-          echo "$CONDA/bin/" >> $GITHUB_PATH
-        if: always()
-        
-      - name: Print conda version and initial package list
-        run: |
-          conda install conda=4.8.3 -y
-          conda --version
-          conda list
-          conda init bash
-        shell: bash
-        if: always()
-
-      - name: Create conda environment
-        run: |
-          conda env create --file environment.yml --name InnerEye --quiet
-        shell: bash
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: InnerEye
+          environment-file: environment.yml
+          python-version: 3.7
         if: always()
 
       - name: mypy
         run: |
-          $CONDA/envs/InnerEye/bin/python mypy_runner.py --mypy=$CONDA/envs/InnerEye/bin/mypy
+          python mypy_runner.py
         shell: bash
         if: always()
 
       - name: Run HelloWorld model
         run: |
-          $CONDA/envs/InnerEye/bin/python ./InnerEye/ML/runner.py --model=HelloWorld
+          python ./InnerEye/ML/runner.py --model=HelloWorld
         env:
           PYTHONPATH: ${{ github.workspace }}
         shell: bash
@@ -63,24 +50,16 @@ jobs:
       - uses: actions/checkout@v2
         with:
           lfs: true
-
-      - name: Print conda version and initial package list
-        run: |
-          echo %CONDA%
-          %CONDA%\Scripts\conda install conda=4.8.3 -y
-          %CONDA%\Scripts\conda --version
-          %CONDA%\Scripts\conda list
-          %CONDA%\Scripts\conda init cmd.exe
-        shell: cmd
-
-      - name: Create conda environment
-        run: |
-          %CONDA%\Scripts\conda env create --file environment.yml --name InnerEye --quiet
-        shell: cmd
+          
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: InnerEye
+          environment-file: environment.yml
+          python-version: 3.7
+        if: always()
 
       - name: Run HelloWorld model
         run: |
-          %CONDA%\Scripts\conda activate InnerEye
           python ./InnerEye/ML/runner.py --model=HelloWorld
         env:
           PYTHONPATH: ${{ github.workspace }}
