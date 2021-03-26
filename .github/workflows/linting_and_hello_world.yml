@@ -26,6 +26,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v2
         with:
           activate-environment: InnerEye
+          auto-activate-base: false
           environment-file: environment.yml
           python-version: 3.7
         if: always()
@@ -54,6 +55,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v2
         with:
           activate-environment: InnerEye
+          auto-activate-base: false
           environment-file: environment.yml
           python-version: 3.7
         if: always()
