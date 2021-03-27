@@ -30,6 +30,8 @@ from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
 
+import datetime
+
 MAX_ITEM_LOAD_TIME_SEC = 0.5
 MAX_LOAD_TIME_WARNINGS = 3
 MAX_LOAD_TIME_EPOCHS = 5
@@ -348,6 +350,8 @@ def store_epoch_metrics(metrics: DictStrFloat,
             hue_suffix = "/" + tokens[1]
         else:
             raise ValueError(f"Expected key to have format 'metric_name[/optional_suffix_for_hue]', got {key}")
+
+
 
         if metric_name == MetricType.SECONDS_PER_BATCH.value or metric_name == MetricType.SECONDS_PER_EPOCH.value:
             continue
