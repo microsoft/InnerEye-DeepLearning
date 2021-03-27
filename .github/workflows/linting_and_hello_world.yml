@@ -3,6 +3,8 @@ name: Flake8, MyPy, and Hello World
 # This workflow runs linting via Flake8 and Mypy.
 # It also checks that the HelloWorld model can be trained.
 
+
+# TODO antonsc: change back to trigger on PR
 on:
   push:
     branches:
@@ -15,14 +17,17 @@ jobs:
         with:
           lfs: true
 
-      # Run Flake8 first, to fail as quickly as possible
       - name: flake8
         run: |
           pip install flake8
           python -m flake8
         shell: bash
         if: always()        
-        
+
+      # This script also does "conda init" for all shells. For bash, this modifies .bashrc.
+      # However, the default "bash" in a github workflow does not execute bashrc. Hence, all
+      # scripts that use this environment need to either hardcode the path to Python, or use
+      # a customized shell that executes bashrc, like "shell: bash -eo pipefail {0}"
       - uses: conda-incubator/setup-miniconda@v2
         with:
           activate-environment: InnerEye
@@ -33,8 +38,7 @@ jobs:
 
       - name: mypy
         run: |
-          python mypy_runner.py --mypy=$CONDA/envs/InnerEye/bin/mypy
-        shell: bash -eo pipefail {0}
+          $CONDA/envs/InnerEye/bin/python mypy_runner.py --mypy=$CONDA/envs/InnerEye/bin/mypy
         if: always()
 
       - name: Run HelloWorld model
@@ -42,7 +46,6 @@ jobs:
           $CONDA/envs/InnerEye/bin/python ./InnerEye/ML/runner.py --model=HelloWorld
         env:
           PYTHONPATH: ${{ github.workspace }}
-        shell: bash -eo pipefail {0}
         if: always()
 
   windows:
