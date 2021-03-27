@@ -3,12 +3,9 @@ name: Flake8, MyPy, and Hello World
 # This workflow runs linting via Flake8 and Mypy.
 # It also checks that the HelloWorld model can be trained.
 
-
-# TODO antonsc: change back to trigger on PR
 on:
-  push:
-    branches:
-      - antonsc/linting
+  pull_request:
+
 jobs:
   linux:
     runs-on: ubuntu-latest
