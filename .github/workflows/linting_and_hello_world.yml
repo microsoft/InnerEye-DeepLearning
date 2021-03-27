@@ -62,7 +62,7 @@ jobs:
 
       - name: Run HelloWorld model
         run: |
-          $CONDA/envs/InnerEye/bin/python ./InnerEye/ML/runner.py --model=HelloWorld
+          %CONDA%\envs\InnerEye\bin\python ./InnerEye/ML/runner.py --model=HelloWorld
         env:
           PYTHONPATH: ${{ github.workspace }}
         shell: cmd
