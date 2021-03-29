@@ -1,0 +1,69 @@
+name: Flake8, MyPy, and Hello World
+
+# This workflow runs linting via Flake8 and Mypy.
+# It also checks that the HelloWorld model can be trained.
+
+on:
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+
+      - name: flake8
+        run: |
+          pip install flake8
+          python -m flake8
+        shell: bash
+        if: always()        
+
+      # This script also does "conda init" for all shells. For bash, this modifies .bashrc.
+      # However, the default "bash" in a github workflow does not execute bashrc. Hence, all
+      # scripts that use this environment need to either hardcode the path to Python, or use
+      # a customized shell that executes bashrc, like "shell: bash -eo pipefail {0}"
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: InnerEye
+          auto-activate-base: false
+          environment-file: environment.yml
+          python-version: 3.7
+        if: always()
+
+      - name: mypy
+        run: |
+          $CONDA/envs/InnerEye/bin/python mypy_runner.py --mypy=$CONDA/envs/InnerEye/bin/mypy
+        if: always()
+
+      - name: Run HelloWorld model
+        run: |
+          $CONDA/envs/InnerEye/bin/python ./InnerEye/ML/runner.py --model=HelloWorld
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        if: always()
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+          
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: InnerEye
+          auto-activate-base: false
+          environment-file: environment.yml
+          python-version: 3.7
+        if: always()
+
+      - name: Run HelloWorld model
+        run: |
+          conda info
+          %CONDA%\envs\InnerEye\bin\python ./InnerEye/ML/runner.py --model=HelloWorld
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        shell: cmd

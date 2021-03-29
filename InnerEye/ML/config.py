@@ -262,6 +262,10 @@ class SegmentationModelBase(ModelConfigBase):
     #: The size of the convolution kernels.
     kernel_size: int = param.Integer(3, bounds=(1, None), doc="The size of the convolution kernels.")
 
+    #: The number of image levels used in Unet (in encoding and decoding paths).
+    num_downsampling_paths: int = param.Integer(4, bounds=(1, None),
+        instantiate=False, doc="The number of levels used in a UNet architecture in encoding and decoding paths.")
+
     #: The size of the random crops that will be drawn from the input images during training. This is also the
     #: input size of the model.
     crop_size: TupleInt3 = IntTuple((1, 1, 1), length=3, doc="The size of the random crops that will be "
