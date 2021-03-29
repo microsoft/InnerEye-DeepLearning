@@ -34,7 +34,7 @@ class RSNAKaggleDataModule(LightningDataModule):
         self.num_workers = num_workers
         self.train_transforms = DualViewTransformWrapper(create_chest_xray_transform(self.config, is_train=True))
         self.train_dataset = RSNAKaggleCXR(self.dataset_path, use_training_split=True,
-                                           transform=self.train_transforms, return_index=False)
+                                           transform=self.train_transforms)
         self.class_weights: Optional[torch.Tensor] = None
         if config.train.self_supervision.use_balanced_binary_loss_for_linear_head:
             # Weight = inverse class proportion.
