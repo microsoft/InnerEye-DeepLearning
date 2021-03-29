@@ -11,6 +11,9 @@ created.
 ## Upcoming
 
 ### Added 
+- ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417)) Added a generic way of adding PyTorch Lightning
+models to the toolbox. It is now possible to train almost any Lightning model with the InnerEye toolbox in AzureML,
+with only minimum code changes required. See [the MD documentation](docs/bring_your_own_model.md) for details.
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Add the ability to train a model on multiple
 nodes in AzureML. Example: Add `--num_nodes=2` to the commandline arguments to train on 2 nodes.
 - ([#366](https://github.com/microsoft/InnerEye-DeepLearning/pull/366)) and
@@ -28,6 +31,12 @@ nodes in AzureML. Example: Add `--num_nodes=2` to the commandline arguments to t
   `dataset.csv` supports multiple labels (indices corresponding to `class_names`) per subject in the label column. 
   Multiple labels should be encoded as a string with labels separated by a `|`, for example "0|2|4".
   Note that this PR does not add support for multiclass models, where the labels are mutually exclusive.
+- ([#425](https://github.com/microsoft/InnerEye-DeepLearning/pull/425)) The number of layers in a Unet is no longer 
+  fixed at 4, but can be set via the config field `num_downsampling_paths`. A lower number of layers may be useful 
+  for decreasing memory requirements, or for working with smaller images. 
+  (The minimum image size in any dimension when using a network of n layers is 2**n.)
+- ([#426](https://github.com/microsoft/InnerEye-DeepLearning/pull/426)) Flake8, mypy, and testing the HelloWorld model
+  is now happening in a Github action, no longer in Azure Pipelines.
 
 ### Changed
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Starting an AzureML run now uses the

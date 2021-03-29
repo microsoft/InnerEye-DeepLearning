@@ -165,9 +165,6 @@ class InnerEyeLightning(LightningModule):
                                                           fixed_columns=fixed_logger_columns)
         self.val_epoch_metrics_logger = DataframeLogger(self.val_metrics_folder / EPOCH_METRICS_FILE_NAME,
                                                         fixed_columns=fixed_logger_columns)
-        # Fields to store diagnostics for unit testing
-        self.train_diagnostics: List[Any] = []
-        self.val_diagnostics: List[Any] = []
         # Stores information the checkpoint that created this model, if any.
         self.checkpoint_loading_message = ""
 

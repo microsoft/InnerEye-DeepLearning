@@ -59,10 +59,12 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
     expected_val_loss = [0.737061, 0.736691, 0.736321, 0.735952]
     # Ensure that all metrics are computed on both training and validation set
-    assert len(model_training_result.train_results_per_epoch) == config.num_epochs
-    assert len(model_training_result.val_results_per_epoch) == config.num_epochs
-    assert len(model_training_result.train_results_per_epoch[0]) >= 11
-    assert len(model_training_result.val_results_per_epoch[0]) >= 11
+    train_results_per_epoch = model_training_result.train_results_per_epoch()
+    val_results_per_epoch = model_training_result.val_results_per_epoch()
+    assert len(train_results_per_epoch) == config.num_epochs
+    assert len(val_results_per_epoch) == config.num_epochs
+    assert len(train_results_per_epoch[0]) >= 11
+    assert len(val_results_per_epoch[0]) >= 11
 
     for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
                    MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
@@ -73,10 +75,8 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
                    MetricType.SECONDS_PER_BATCH,
                    MetricType.SECONDS_PER_EPOCH,
                    MetricType.SUBJECT_COUNT]:
-        assert metric.value in model_training_result.train_results_per_epoch[0], \
-            f"{metric.value} not in training"
-        assert metric.value in model_training_result.val_results_per_epoch[0], \
-            f"{metric.value} not in validation"
+        assert metric.value in train_results_per_epoch[0], f"{metric.value} not in training"
+        assert metric.value in val_results_per_epoch[0], f"{metric.value} not in validation"
 
     actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS.value)
     actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS.value)
@@ -162,25 +162,25 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     expected_train_loss = [0.699870228767395, 0.6239662170410156, 0.551329493522644, 0.4825132489204407]
     expected_val_loss = [0.6299371719360352, 0.5546272993087769, 0.4843321740627289, 0.41909298300743103]
     # Ensure that all metrics are computed on both training and validation set
-    assert len(model_training_result.train_results_per_epoch) == config.num_epochs
-    assert len(model_training_result.val_results_per_epoch) == config.num_epochs
-    assert len(model_training_result.train_results_per_epoch[0]) >= 11
-    assert len(model_training_result.val_results_per_epoch[0]) >= 11
+    train_results_per_epoch = model_training_result.train_results_per_epoch()
+    val_results_per_epoch = model_training_result.val_results_per_epoch()
+    assert len(train_results_per_epoch) == config.num_epochs
+    assert len(val_results_per_epoch) == config.num_epochs
+    assert len(train_results_per_epoch[0]) >= 11
+    assert len(val_results_per_epoch[0]) >= 11
     for class_name in config.class_names:
         for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
                        MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
                        MetricType.AREA_UNDER_PR_CURVE,
                        MetricType.AREA_UNDER_ROC_CURVE,
                        MetricType.CROSS_ENTROPY]:
-            assert f'{metric.value}/{class_name}' in model_training_result.train_results_per_epoch[
-                0], f"{metric.value} not in training"
-            assert f'{metric.value}/{class_name}' in model_training_result.val_results_per_epoch[
-                0], f"{metric.value} not in validation"
+            assert f'{metric.value}/{class_name}' in train_results_per_epoch[0], f"{metric.value} not in training"
+            assert f'{metric.value}/{class_name}' in val_results_per_epoch[0], f"{metric.value} not in validation"
     for metric in [MetricType.LOSS,
                    MetricType.SECONDS_PER_EPOCH,
                    MetricType.SUBJECT_COUNT]:
-        assert metric.value in model_training_result.train_results_per_epoch[0], f"{metric.value} not in training"
-        assert metric.value in model_training_result.val_results_per_epoch[0], f"{metric.value} not in validation"
+        assert metric.value in train_results_per_epoch[0], f"{metric.value} not in training"
+        assert metric.value in val_results_per_epoch[0], f"{metric.value} not in validation"
 
     actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS.value)
     actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS.value)
