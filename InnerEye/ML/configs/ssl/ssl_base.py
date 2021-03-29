@@ -64,9 +64,6 @@ class SSLContainer(LightningContainer):
     def _load_config(self):
         self.yaml_config = load_ssl_model_config(self.path_yaml_config)
 
-    def get_num_gpus_to_use(self):
-        return 2
-
     def create_model(self) -> LightningWithInference:
         """
         This method must create the actual Lightning model that will be trained.
@@ -78,7 +75,8 @@ class SSLContainer(LightningContainer):
                                        encoder_name=self.yaml_config.train.self_supervision.encoder_name,
                                        num_samples=self.data_module.num_samples,  # type: ignore
                                        batch_size=self.data_module.batch_size,  # type: ignore
-                                       lr=self.yaml_config.train.base_lr)
+                                       lr=self.yaml_config.train.base_lr,
+                                       max_epochs=self.num_epochs)
         # Create BYOL model
         else:
             model = WrapBYOLInnerEye(output_folder=self.yaml_config.train.output_dir,

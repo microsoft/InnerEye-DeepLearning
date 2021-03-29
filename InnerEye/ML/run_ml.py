@@ -16,7 +16,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Run
 from azureml.core.model import Model
 from azureml.data import FileDataset
-from pytorch_lightning import seed_everything
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.utilities.cloud_io import load as pl_load
 from torch.utils.data import DataLoader
 
@@ -294,16 +294,17 @@ class MLRunner:
                                                project_root=self.project_root,
                                                run_context=RUN_CONTEXT)
         checkpoint_handler.download_recovery_checkpoints_or_weights()
+        trainer: Optional[Trainer] = None
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
         if not self.azure_config.only_register_model:
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    model_train(self.model_config,
-                                checkpoint_handler,
-                                lightning_container=self.container,
-                                num_nodes=self.azure_config.num_nodes)
+                    trainer, _ = model_train(self.model_config,
+                                             checkpoint_handler,
+                                             lightning_container=self.container,
+                                             num_nodes=self.azure_config.num_nodes)
                 # log the number of epochs used for model training
                 RUN_CONTEXT.log(name="Train epochs", value=self.container.num_epochs)
             elif isinstance(self.container, InnerEyeContainer):
@@ -329,9 +330,9 @@ class MLRunner:
                     self.create_ensemble_model_and_run_inference()
         else:
             # Inference for all models that are specified via LightningContainers
-            self.run_inference_for_lightning_models(checkpoint_handler.get_checkpoints_to_test())
+            self.run_inference_for_lightning_models(checkpoint_handler.get_checkpoints_to_test(), trainer)
 
-    def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
+    def run_inference_for_lightning_models(self, checkpoint_paths: List[Path], trainer: Optional[Trainer]) -> None:
         """
         Run inference on the test set for all models that are specified via a LightningContainer.
         """
