@@ -16,8 +16,9 @@ from InnerEye.SSL.main import cli_main, get_last_checkpoint_path
 from InnerEye.SSL.utils import create_ssl_image_classifier, load_ssl_model_config
 from Tests.ML.util import default_runner
 
-def test_innereye_ssl_container_cifar10_resnet_byol_2() -> None:
-    path_to_config = repository_root_directory() / "InnerEye" / "SSL" / "configs" / "cifar10_byol.yaml"
+
+def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
+    path_to_config = repository_root_directory() / "InnerEye" / "SSL" / "configs" / "cifar10_simclr.yaml"
     args = ["", "--model=DummySSLContainerResnet18", f"--path_yaml_config={str(path_to_config)}",
             "--model_configs_namespace=Tests.ML.configs"]
     with mock.patch("sys.argv", args):
@@ -41,11 +42,13 @@ def test_innereye_ssl_container_cifar10_densenet() -> None:
         loaded_config, actual_run = default_runner().run()
     """
 
+
 def _get_dummy_val_train_rsna_dataloaders():
     """
     Return dummy train and validation datasets
     """
     dataset_dir = str(Path(__file__).parent / "test_dataset")
+
     class DummyRSNADataset(RSNAKaggleCXR):
         def __getitem__(self, item):
             return (torch.rand([3, 224, 224], dtype=torch.float32),
@@ -64,6 +67,7 @@ def _get_dummy_val_train_rsna_dataloaders():
         drop_last=True)
     return dummy_rsna_train_dataloader, dummy_rsna_val_dataloader
 
+
 # todo test both cases with and with binary loss
 def test_innereye_ssl_container_rsna():
     """
@@ -81,4 +85,3 @@ def test_innereye_ssl_container_rsna():
             with mock.patch("InnerEye.SSL.datamodules.chestxray_datamodule.RSNAKaggleDataModule.val_dataloader",
                             return_value=dummy_rsna_val_dataloader):
                 loaded_config, actual_run = runner.run()
-
