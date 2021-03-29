@@ -68,7 +68,9 @@ def generate_notebook(template_notebook: Path, notebook_params: Dict, result_not
     papermill.execute_notebook(input_path=str(template_notebook),
                                output_path=str(result_notebook),
                                parameters=notebook_params,
-                               progress_bar=False)
+                               progress_bar=False,
+                               # Unit tests often fail with cell timeouts when default of 4 is used.
+                               iopub_timeout=10)
     return convert_to_html(result_notebook)
 
 
