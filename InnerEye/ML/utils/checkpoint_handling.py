@@ -5,6 +5,7 @@
 import logging
 import os
 import uuid
+from builtins import property
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse
@@ -15,7 +16,9 @@ from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, WEIGHTS_FILE
+from InnerEye.ML.deep_learning_config import OutputParams, WEIGHTS_FILE, \
+    load_checkpoint_and_modify
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.utils.run_recovery import RunRecovery
 
 
@@ -25,22 +28,29 @@ class CheckpointHandler:
     azure config and model config.
     """
 
-    def __init__(self, model_config: DeepLearningConfig, azure_config: AzureConfig,
+    def __init__(self, container: LightningContainer, azure_config: AzureConfig,
                  project_root: Path, run_context: Optional[Run] = None):
         self.azure_config = azure_config
-        self.model_config = model_config
+        self.container = container
         self.run_recovery: Optional[RunRecovery] = None
         self.project_root = project_root
         self.run_context = run_context
         self.local_weights_path: Optional[Path] = None
         self.has_continued_training = False
 
+    @property
+    def output_params(self) -> OutputParams:
+        """
+        Gets the part of the configuration that is responsible for output paths.
+        """
+        return self.container
+
     def download_checkpoints_from_hyperdrive_child_runs(self, hyperdrive_parent_run: Run) -> None:
         """
         Downloads the best checkpoints from all child runs of a Hyperdrive parent runs. This is used to gather results
         for ensemble creation.
         """
-        self.run_recovery = RunRecovery.download_best_checkpoints_from_child_runs(self.model_config,
+        self.run_recovery = RunRecovery.download_best_checkpoints_from_child_runs(self.output_params,
                                                                                   hyperdrive_parent_run)
         # Check paths are good, just in case
         for path in self.run_recovery.checkpoints_roots:
@@ -55,11 +65,11 @@ class CheckpointHandler:
         """
         if self.azure_config.run_recovery_id:
             run_to_recover = self.azure_config.fetch_run(self.azure_config.run_recovery_id.strip())
-            self.run_recovery = RunRecovery.download_all_checkpoints_from_run(self.model_config, run_to_recover)
+            self.run_recovery = RunRecovery.download_all_checkpoints_from_run(self.output_params, run_to_recover)
         else:
             self.run_recovery = None
 
-        if self.model_config.weights_url or self.model_config.local_weights_path:
+        if self.container.weights_url or self.container.local_weights_path:
             self.local_weights_path = self.get_and_save_modified_weights()
 
     def additional_training_done(self) -> None:
@@ -74,11 +84,11 @@ class CheckpointHandler:
         checkpoint from there, otherwise use the checkpoints from the current run.
         :return: Constructed checkpoint path to recover from.
         """
-
-        if self.model_config.start_epoch > 0 and not self.run_recovery:
+        start_epoch = self.container.start_epoch
+        if start_epoch > 0 and not self.run_recovery:
             raise ValueError("Start epoch is > 0, but no run recovery object has been provided to resume training.")
 
-        if self.run_recovery and self.model_config.start_epoch == 0:
+        if self.run_recovery and start_epoch == 0:
             raise ValueError("Run recovery set, but start epoch is 0. Please provide start epoch > 0 (for which a "
                              "checkpoint was saved in the previous run) to resume training from that run.")
 
@@ -88,7 +98,7 @@ class CheckpointHandler:
             checkpoints = self.run_recovery.get_recovery_checkpoint_paths()
             if len(checkpoints) > 1:
                 raise ValueError(f"Recovering training of ensemble runs is not supported. Found more than one "
-                                 f"checkpoint for epoch {self.model_config.start_epoch}")
+                                 f"checkpoint for epoch {start_epoch}")
             return checkpoints[0]
         elif self.local_weights_path:
             return self.local_weights_path
@@ -129,7 +139,7 @@ class CheckpointHandler:
         if self.has_continued_training:
             # Checkpoint is from the current run, whether a new run or a run recovery which has been doing more
             # training, so we look for it there.
-            checkpoint_from_current_run = self.model_config.get_path_to_best_checkpoint()
+            checkpoint_from_current_run = self.output_params.get_path_to_best_checkpoint()
             if checkpoint_from_current_run.is_file():
                 logging.info("Using checkpoints from current run.")
                 checkpoint_paths = [checkpoint_from_current_run]
@@ -172,7 +182,7 @@ class CheckpointHandler:
         target_folder = self.project_root / fixed_paths.MODEL_WEIGHTS_DIR_NAME
         target_folder.mkdir(exist_ok=True)
 
-        url = self.model_config.weights_url
+        url = self.container.weights_url
 
         # assign the same filename as in the download url if possible, so that we can check for duplicates
         # If that fails, map to a random uuid
@@ -198,9 +208,9 @@ class CheckpointHandler:
         """
         Get the path to the local weights to use or download them and set local_weights_path
         """
-        if self.model_config.local_weights_path:
-            weights_path = self.model_config.local_weights_path
-        elif self.model_config.weights_url:
+        if self.container.local_weights_path:
+            weights_path = self.container.local_weights_path
+        elif self.container.weights_url:
             weights_path = self.download_weights()
         else:
             raise ValueError("Cannot download/modify weights - neither local_weights_path nor weights_url is set in"
@@ -219,8 +229,8 @@ class CheckpointHandler:
         if not weights_path or not weights_path.is_file():
             raise FileNotFoundError(f"Could not find the weights file at {weights_path}")
 
-        modified_weights = self.model_config.load_checkpoint_and_modify(weights_path)
-        target_file = self.model_config.outputs_folder / WEIGHTS_FILE
+        modified_weights = load_checkpoint_and_modify(weights_path, use_gpu=self.container.use_gpu)
+        target_file = self.output_params.outputs_folder / WEIGHTS_FILE
         torch.save(modified_weights, target_file)
         return target_file
 
@@ -228,4 +238,4 @@ class CheckpointHandler:
         """
         Returns true if the optimizer should be loaded from checkpoint. Looks at the model config to determine this.
         """
-        return self.model_config.start_epoch > 0
+        return self.container.start_epoch > 0

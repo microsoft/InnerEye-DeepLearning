@@ -4,16 +4,21 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from typing import List
+from unittest import mock
 
 import pytest
+from azureml.core import Run
 
 from InnerEye.Common.common_util import logging_to_stdout, namespace_to_path
-from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_training import generate_and_print_model_summary
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_model_loader
+from Tests.ML.configs.lightning_test_containers import DummyContainerWithInvalidTrainerArguments, \
+    DummyContainerWithParameters
+from Tests.ML.util import default_runner, get_model_loader, model_loader_including_tests, model_train_unittest
 
 
 def find_models() -> List[str]:
@@ -48,7 +53,7 @@ def test_load_all_configs(model_name: str) -> None:
     """
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
-    config = ModelConfigLoader[SegmentationModelBase]().create_model_config_from_name(model_name)
+    config = ModelConfigLoader().create_model_config_from_name(model_name)
     assert config.model_name == model_name, "Mismatch between definition .py file and model name"
     if config.is_segmentation_model:
         # Reduce the feature channels to a minimum, to make tests run fast on CPU.
@@ -98,12 +103,77 @@ def test_config_loader_as_in_registration() -> None:
     During model registration, the model config namespace is read out from the present model. Ensure that we
     can create a config loader that has that value as an input.
     """
-    loader1 = ModelConfigLoader[SegmentationModelBase]()
+    loader1 = ModelConfigLoader()
     model_name = "BasicModel2Epochs"
     model = loader1.create_model_config_from_name(model_name)
     assert model is not None
     namespace = model.__module__
-    loader2 = ModelConfigLoader[SegmentationModelBase](model_configs_namespace=namespace)
+    loader2 = ModelConfigLoader(model_configs_namespace=namespace)
     assert len(loader2.module_search_specs) == 2
     model2 = loader2.create_model_config_from_name(model_name)
     assert model2 is not None
+
+
+def test_config_loader_on_lightning_container() -> None:
+    """
+    Test if the config loader can load an model that is neither classification nor segmentation.
+    """
+    # First test if the container can be instantiated at all (it is tricky to get that right when inheritance change)
+    DummyContainerWithParameters()
+    logging_to_stdout(log_level=logging.DEBUG)
+    model = model_loader_including_tests.create_model_config_from_name("DummyContainerWithParameters")
+    assert model is not None
+
+
+@pytest.mark.parametrize("container_name", ["DummyContainerWithAzureDataset",
+                                            "DummyContainerWithoutDataset",
+                                            "DummyContainerWithLocalDataset",
+                                            "DummyContainerWithAzureAndLocalDataset"])
+def test_submit_container_to_azureml(container_name: str) -> None:
+    """
+    Test if we can get the config loader to load a Lightning container model, and get it through the AzureML
+    submission process.
+    """
+    runner = default_runner()
+    mock_run = Run.get_context()
+    args = ["", f"--model={container_name}", "--azureml=True", "--model_configs_namespace=Tests.ML.configs"]
+    with mock.patch("sys.argv", args):
+        with mock.patch("InnerEye.Azure.azure_runner.get_dataset_consumption", return_value=None):
+            with mock.patch("azureml.core.Experiment.submit", return_value=mock_run):
+                loaded_config, actual_run = runner.run()
+    assert actual_run == mock_run
+    assert loaded_config is None
+    assert isinstance(runner.lightning_container, LightningContainer)
+
+
+def test_load_container_with_arguments() -> None:
+    """
+    Test if we can load a container and override a value in it via the commandline. Parameters can only be set at
+    container level, not at model level.
+    """
+    DummyContainerWithParameters()
+    runner = default_runner()
+    args = ["", "--model=DummyContainerWithParameters", "--container_param=param1",
+            "--model_configs_namespace=Tests.ML.configs"]
+    with mock.patch("sys.argv", args):
+        runner.parse_and_load_model()
+    assert isinstance(runner.lightning_container, DummyContainerWithParameters)
+    assert runner.lightning_container.container_param == "param1"
+    # Overriding model parameters should not work
+    args = ["", "--model=DummyContainerWithParameters", "--model_param=param2",
+            "--model_configs_namespace=Tests.ML.configs"]
+    with pytest.raises(ValueError) as ex:
+        with mock.patch("sys.argv", args):
+            runner.parse_and_load_model()
+    assert "model_param" in str(ex)
+
+
+def test_run_model_with_invalid_trainer_arguments(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if the trainer_arguments in a LightningContainer are passed to the trainer.
+    """
+    container = DummyContainerWithInvalidTrainerArguments()
+    container.create_lightning_module_and_store()
+    with pytest.raises(Exception) as ex:
+        model_train_unittest(container.model, dirs=test_output_dirs, lightning_container=container)
+    assert "no_such_argument" in str(ex)

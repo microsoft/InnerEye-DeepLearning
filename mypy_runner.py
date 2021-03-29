@@ -5,10 +5,10 @@
 import os
 import subprocess
 import sys
-from pathlib import Path
-from typing import List
-from shutil import which
 from argparse import ArgumentParser
+from pathlib import Path
+from shutil import which
+from typing import List
 
 
 def run_mypy(files: List[str], mypy_executable_path: str) -> int:
@@ -88,10 +88,10 @@ def main() -> int:
         # We don't want to check the files in the submodule if any, partly because they should already have
         # been checked in the original repo, and partly because we don't want the module name clashes mypy would
         # otherwise report.
-        submodule_name = "innereye-deeplearning"
+        excluded_folders = {"innereye-deeplearning", "fastMRI"}
         files = set(current_dir.glob('*.py'))
         for path in current_dir.glob('*'):
-            if path.name != submodule_name:
+            if path.name not in excluded_folders:
                 files.update(path.rglob('*.py'))
         file_list = list(files)
 

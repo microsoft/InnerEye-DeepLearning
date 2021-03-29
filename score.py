@@ -26,7 +26,7 @@ from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.io_util import ImageWithHeader, load_nifti_image, reverse_tuple_float3, store_as_ubyte_nifti, \
     load_dicom_series_and_save
 
@@ -64,8 +64,7 @@ def init_from_model_inference_json(model_folder: Path, use_gpu: bool = True) -> 
     logging.info(f'model_inference_config: {model_inference_config}')
     full_path_to_checkpoints = [model_folder / x for x in model_inference_config.checkpoint_paths]
     logging.info(f'full_path_to_checkpoints: {full_path_to_checkpoints}')
-    loader = ModelConfigLoader[SegmentationModelBase](
-        model_configs_namespace=model_inference_config.model_configs_namespace)
+    loader = ModelConfigLoader(model_configs_namespace=model_inference_config.model_configs_namespace)
     model_config = loader.create_model_config_from_name(model_name=model_inference_config.model_name)
     return create_inference_pipeline(model_config, full_path_to_checkpoints, use_gpu)
 

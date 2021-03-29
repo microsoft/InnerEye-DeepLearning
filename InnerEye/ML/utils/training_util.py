@@ -9,6 +9,8 @@ from typing import Any, List
 from InnerEye.Common.type_annotations import DictStrFloat
 
 
+# TODO antonsc: This class should go. Just return the StoringLogger, and let the consumer deal with the rest.
+# Diagnostics should ideally also go into the StoringLogger, but not sure how
 @dataclass(frozen=True)
 class ModelTrainingResults:
     """

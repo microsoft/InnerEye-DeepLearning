@@ -48,6 +48,7 @@ is re-used.
 - ([#422](https://github.com/microsoft/InnerEye-DeepLearning/pull/422)) Documentation - clarified `setting_up_aml.md` datastore creation instructions and fixed small typos in `hello_world_model.md`
 
 ### Removed
+- ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417)) Removed an output file that only contains metadata for a legacy consumer
 
 ### Deprecated
 

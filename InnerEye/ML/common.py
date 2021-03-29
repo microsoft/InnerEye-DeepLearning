@@ -24,6 +24,7 @@ LAST_CHECKPOINT_FILE_NAME = "last"
 LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX = LAST_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX
 
 
+# TODO antonsc: This should be renamed to DatasetSplit or something alike.
 @unique
 class ModelExecutionMode(Enum):
     """

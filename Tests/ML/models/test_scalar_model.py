@@ -19,23 +19,24 @@ from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_F
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML import model_testing, model_training, runner
+from InnerEye.ML import model_testing, runner
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
 from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
-from InnerEye.ML.reports.notebook_report import get_ipynb_report_name, get_html_report_name, \
-    generate_classification_notebook, generate_classification_multilabel_notebook
+from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook, \
+    generate_classification_notebook, get_html_report_name, get_ipynb_report_name
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get_config_and_results_for_offline_runs, \
     unroll_aggregate_metrics
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler, machine_has_gpu
+from Tests.ML.util import get_default_azure_config, machine_has_gpu, \
+    model_train_unittest
 
 
 @pytest.mark.cpu_and_gpu
@@ -50,11 +51,9 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     config = ClassificationModelForTesting()
     config.class_names = [class_name]
     config.set_output_to(test_output_dirs.root_dir)
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=Path(test_output_dirs.root_dir))
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
-    model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
+    model_training_result, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
@@ -155,11 +154,9 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     logging_to_stdout(logging.DEBUG)
     config = DummyMulticlassClassification()
     config.set_output_to(test_output_dirs.root_dir)
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=Path(test_output_dirs.root_dir))
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
-    model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
+    model_training_result, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     expected_train_loss = [0.699870228767395, 0.6239662170410156, 0.551329493522644, 0.4825132489204407]
@@ -202,9 +199,9 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     for i, class_name in enumerate(config.class_names):
         for metric in expected_metrics.keys():
             assert expected_metrics[metric][i] == pytest.approx(
-                                                        test_results.metrics.get_single_metric(
-                                                            metric_name=metric,
-                                                            hue=class_name), 1e-4)
+                test_results.metrics.get_single_metric(
+                    metric_name=metric,
+                    hue=class_name), 1e-4)
 
     def get_epoch_path(mode: ModelExecutionMode) -> Path:
         p = get_epoch_results_path(mode=mode)
@@ -213,19 +210,21 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
     path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
     path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
-    generate_classification_notebook(result_notebook=config.outputs_folder / get_ipynb_report_name(config.model_category.value),
-                                     config=config,
-                                     train_metrics=path_to_best_epoch_train,
-                                     val_metrics=path_to_best_epoch_val,
-                                     test_metrics=path_to_best_epoch_test)
+    generate_classification_notebook(
+        result_notebook=config.outputs_folder / get_ipynb_report_name(config.model_category.value),
+        config=config,
+        train_metrics=path_to_best_epoch_train,
+        val_metrics=path_to_best_epoch_val,
+        test_metrics=path_to_best_epoch_test)
     assert (config.outputs_folder / get_html_report_name(config.model_category.value)).exists()
 
     report_name_multilabel = f"{config.model_category.value}_multilabel"
-    generate_classification_multilabel_notebook(result_notebook=config.outputs_folder / get_ipynb_report_name(report_name_multilabel),
-                                                config=config,
-                                                train_metrics=path_to_best_epoch_train,
-                                                val_metrics=path_to_best_epoch_val,
-                                                test_metrics=path_to_best_epoch_test)
+    generate_classification_multilabel_notebook(
+        result_notebook=config.outputs_folder / get_ipynb_report_name(report_name_multilabel),
+        config=config,
+        train_metrics=path_to_best_epoch_train,
+        val_metrics=path_to_best_epoch_val,
+        test_metrics=path_to_best_epoch_test)
     assert (config.outputs_folder / get_html_report_name(report_name_multilabel)).exists()
 
 
@@ -263,8 +262,7 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
     logging_to_stdout()
     azure_config = get_default_azure_config()
     azure_config.train = True
-    config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
-        .create_model_config_from_name(model_name)
+    config: ScalarModelBase = ModelConfigLoader().create_model_config_from_name(model_name)
     config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
     config.set_output_to(test_output_dirs.root_dir)
     # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
@@ -317,7 +315,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     set_from_commandline = 12345
     scalar1 = '["label"]'
     model_name = "DummyClassification"
-    initial_config = ModelConfigLoader[ScalarModelBase]().create_model_config_from_name(model_name)
+    initial_config = ModelConfigLoader().create_model_config_from_name(model_name)
     assert initial_config.non_image_feature_channels == []
     output_root = str(test_output_dirs.root_dir)
     args = ["",
@@ -453,7 +451,9 @@ def _compute_scalar_metrics(output_values_list: List[List[float]],
 def test_is_offline_cross_val_parent_run(offline_parent_cv_run: bool) -> None:
     train_config = DummyModel()
     train_config.number_of_cross_validation_splits = 2 if offline_parent_cv_run else 0
-    assert MLRunner(train_config).is_offline_cross_val_parent_run() == offline_parent_cv_run
+    runner = MLRunner(train_config)
+    runner.setup()
+    assert runner.is_offline_cross_val_parent_run() == offline_parent_cv_run
 
 
 def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) -> None:

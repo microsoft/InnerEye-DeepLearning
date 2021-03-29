@@ -23,7 +23,8 @@ def test_create_ml_runner_args(is_default_namespace: bool,
                                set_output_to: bool) -> None:
     """Test round trip parsing of commandline arguments:
     From arguments to the Azure runner to the arguments of the ML runner, checking that
-    whatever is passed on can be correctly parsed."""
+    whatever is passed on can be correctly parsed. It also checks that the output files go into the right place
+    in local runs and in AzureML."""
     logging_to_stdout()
     model_name = "Lung"
     outputs_folder = test_output_dirs.root_dir
@@ -36,8 +37,7 @@ def test_create_ml_runner_args(is_default_namespace: bool,
 
     args_list = [f"--model={model_name}", "--train=True", "--l_rate=100.0",
                  "--norm_method=Simple Norm", "--subscription_id", "Test1", "--tenant_id=Test2",
-                 "--application_id", "Test3", "--azureml_datastore", "Test5",
-                 "--pytest_mark", "gpu"]
+                 "--application_id", "Test3", "--azureml_datastore", "Test5"]
 
     # toggle the output_to flag off only for online runs
     if set_output_to or is_offline_run:
@@ -48,10 +48,14 @@ def test_create_ml_runner_args(is_default_namespace: bool,
 
     with mock.patch("sys.argv", [""] + args_list):
         with mock.patch("InnerEye.ML.deep_learning_config.is_offline_run_context", return_value=is_offline_run):
-            runner = Runner(project_root=project_root, yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
-            runner.parse_and_load_model()
-            azure_config = runner.azure_config
-            model_config = runner.model_config
+            with mock.patch("InnerEye.ML.run_ml.MLRunner.run", return_value=None):
+                runner = Runner(project_root=project_root, yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
+                runner.parse_and_load_model()
+                # Only when calling config.create_filesystem we expect to see the correct paths, and this happens
+                # inside run_in_situ
+                runner.run_in_situ()
+                azure_config = runner.azure_config
+                model_config = runner.model_config
     assert azure_config.model == model_name
     assert model_config.l_rate == 100.0
     assert model_config.norm_method == PhotometricNormalizationMethod.SimpleNorm
@@ -67,7 +71,6 @@ def test_create_ml_runner_args(is_default_namespace: bool,
         assert model_config.logs_folder == (project_root / DEFAULT_LOGS_DIR_NAME)
 
     assert not hasattr(model_config, "azureml_datastore")
-    assert azure_config.pytest_mark == "gpu"
 
 
 def test_overridable_properties() -> None:

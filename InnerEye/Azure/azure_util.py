@@ -45,15 +45,6 @@ INNEREYE_SDK_NAME = "innereye"
 INNEREYE_SDK_VERSION = "1.0"
 
 
-def get_results_blob_path(run_id: str) -> str:
-    """
-    Creates the name of the top level folder that contains the results for a given AzureML run.
-    :param run_id: The AzureML run ID for which the folder should be created.
-    :return: A full Azure blob storage path, starting with the container name.
-    """
-    return AZUREML_RUN_FOLDER + run_id
-
-
 def create_run_recovery_id(run: Run) -> str:
     """
    Creates an recovery id for a run so it's checkpoints could be recovered for training/testing
