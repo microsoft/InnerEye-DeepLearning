@@ -208,8 +208,8 @@ class LightningContainer(GenericConfig,
                          TrainerParams,
                          OptimizerParams):
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self._model: Optional[LightningWithInference] = None
         self._model_name = type(self).__name__
 
