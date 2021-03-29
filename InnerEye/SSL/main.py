@@ -57,7 +57,7 @@ def cli_main(config: ConfigNode, debug: bool = False) -> None:
                                              version='logs',
                                              name=model_version)
     # Create SimCLR data modules and model
-    dm = create_ssl_data_modules(config)
+    dm = create_ssl_data_modules(config, None)
     if ssl_type == "simclr":
         model = SimCLRInnerEye(dataset_name=config.dataset.name,
                                gpus=num_gpus,
