@@ -56,16 +56,18 @@ from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
 
 
-def try_to_mount_input_dataset() -> Optional[Path]:
+def try_to_mount_input_dataset(idx: int = 0) -> Optional[Path]:
     """
     Checks if the AzureML run context has a field for input datasets. If yes, the dataset stored there is
     returned as a Path. Returns None if no input datasets was found.
+
+    :param idx, suffix of AML dataset name, return path to INPUT_DATA_KEY_idx dataset
     """
     if hasattr(RUN_CONTEXT, "input_datasets"):
         try:
-            return Path(RUN_CONTEXT.input_datasets[INPUT_DATA_KEY])
+            return Path(RUN_CONTEXT.input_datasets[f"{INPUT_DATA_KEY}_{idx}"])
         except KeyError:
-            logging.warning(f"Run context field input_datasets has no {INPUT_DATA_KEY} entry.")
+            logging.warning(f"Run context field input_datasets has no {INPUT_DATA_KEY}_{idx} entry.")
     return None
 
 
@@ -175,7 +177,26 @@ class MLRunner:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
             # This must happen before container setup because that could already read datasets.
-            self.container.local_dataset = self.mount_or_download_dataset()
+            self.container.local_dataset = self.mount_or_download_dataset(self.container.azure_dataset_id,
+                                                                          self.container.local_dataset)
+            if not isinstance(self.container, InnerEyeContainer):
+                extra_locals = []
+                if self.is_offline_run and self.container.extra_local_dataset_ids is not None:
+                    if self.container.extra_azure_dataset_ids is None:
+                        for local in self.container.extra_local_dataset_ids:
+                            extra_locals.append(self.mount_or_download_dataset(None, local))
+                    elif len(self.container.extra_azure_dataset_ids) == len(self.container.extra_local_dataset_ids):
+                        for azure_id, local in zip(self.container.extra_azure_dataset_ids,
+                                                   self.container.extra_local_dataset_ids):
+                            extra_locals.append(self.mount_or_download_dataset(azure_id, local))
+                    else:
+                        raise ValueError("The values of extra_local_dataset_ids and extra_azure_dataset_ids are "
+                                         "incompatible, you provided two non-empty lists of different length.")
+                elif self.container.extra_azure_dataset_ids is not None:
+                    for azure_id in self.container.extra_azure_dataset_ids:
+                        extra_locals.append(self.mount_or_download_dataset(azure_id, None))
+                self.container.extra_local_dataset_ids = extra_locals
+
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
         # This call needs to happen before the LightningModule is created, because the output parameters of the
@@ -406,7 +427,7 @@ class MLRunner:
             activation_maps.extract_activation_maps(self.model_config)
             logging.info("Successfully extracted and saved activation maps")
 
-    def mount_or_download_dataset(self) -> Optional[Path]:
+    def mount_or_download_dataset(self, azure_dataset_id, local_dataset) -> Optional[Path]:
         """
         Makes the dataset that the model uses available on the executing machine. If the present training run is outside
         of AzureML, it expects that either the model has a `local_dataset` field set, in which case no action will be
@@ -416,8 +437,6 @@ class MLRunner:
         mounted or downloaded.
         Returns the path of the dataset on the executing machine.
         """
-        azure_dataset_id = self.container.azure_dataset_id
-        local_dataset = self.container.local_dataset
         # A dataset, either local or in Azure, is required for the built-in InnerEye models. When models are
         # specified via a LightningContainer, these dataset fields are optional, because the container datasets
         # could be downloaded even from the web.

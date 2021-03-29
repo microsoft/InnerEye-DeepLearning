@@ -268,6 +268,18 @@ class DatasetParams(param.Parameterized):
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="The path of the dataset to use, when training is running outside Azure.")
 
+    extra_azure_dataset_ids: List[str] = param.List(default=None,
+                                                    allow_None=True,
+                                                    doc="This can be used to feed in additional datasets "
+                                                        "to your custom datamodules. These datasets will be mounted "
+                                                        "and made available as a list of paths in "
+                                                        "'extra_local_datasets' "
+                                                        "when running in AzureML.")
+    extra_local_dataset_ids: List[Path] = param.List(class_=Path, default=None, allow_None=True,
+                                                     doc="This can be used to feed in additional datasets "
+                                                         "to your custom datamodules when running outside of Azure "
+                                                         "AML.")
+
 
 class OutputParams(param.Parameterized):
     output_to: str = param.String(default="",
@@ -645,7 +657,6 @@ class DeepLearningConfig(EssentialParams,
         :return:
         """
         return self.get_total_number_of_training_epochs()
-
 
     @property
     def compute_mean_teacher_model(self) -> bool:
