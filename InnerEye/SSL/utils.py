@@ -5,6 +5,7 @@ from typing import Optional
 
 import torch
 
+from InnerEye.ML.lightning_container import LightningWithInference
 from InnerEye.SSL.configs import ssl_model_config
 from InnerEye.SSL.configs.config_node import ConfigNode
 from InnerEye.SSL.encoders import DenseNet121Encoder
@@ -75,7 +76,7 @@ def create_ssl_encoder(encoder_name: str, dataset_name: Optional[str] = None) ->
     return encoder
 
 
-def create_ssl_image_classifier(num_classes: int, pl_checkpoint_path: str) -> torch.nn.Module:
+def create_ssl_image_classifier(num_classes: int, pl_checkpoint_path: str) -> LightningWithInference:
     """
     Creates a SSL image classifier from a frozen encoder trained on in an unsupervised manner.
     """
