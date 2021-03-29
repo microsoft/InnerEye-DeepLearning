@@ -26,8 +26,7 @@ def create_ssl_data_modules(config: ConfigNode, dataset_path: Optional[Path],
         dm = CIFARIEDataModule(data_dir=dataset_path,
                                num_workers=num_workers,
                                batch_size=config.train.batch_size // num_devices,
-                               seed=1234,
-                               val_split=5000)
+                               seed=1234)
         dm.prepare_data()
         dm.setup('fit')
     else:
