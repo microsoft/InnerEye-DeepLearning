@@ -99,10 +99,9 @@ class RSNAKaggleCXR(Dataset):
 
     def __len__(self) -> int:
         """
-
         :return: The size of the dataset
         """
-        return len(self.indices)
+        return len(self.subject_ids)
 
     def get_label_names(self) -> List[str]:
         return ["No Opacity", "Opacity"]
