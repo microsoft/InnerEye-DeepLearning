@@ -24,8 +24,7 @@ class RSNAKaggleCXR(Dataset):
                  seed: int = 1234,
                  shuffle: bool = True,
                  transform: Optional[Callable] = None,
-                 num_samples: int = None,
-                 return_index: bool = True) -> None:
+                 num_samples: int = None) -> None:
         """
         Class for the full Kaggle RSNA Pneumonia Detection Dataset.
 
@@ -82,7 +81,6 @@ class RSNAKaggleCXR(Dataset):
         dataset_type = "TRAIN" if use_training_split else "VAL"
         logging.info(f"Proportion of positive labels - {dataset_type}: {np.mean(self.targets)}")
         logging.info(f"Number samples - {dataset_type}: {self.targets.shape[0]}")
-        self.return_index = return_index
 
     def __getitem__(self, index: int) -> Union[Tuple[int, PIL.Image.Image, int], Tuple[PIL.Image.Image, int]]:
         """
@@ -97,8 +95,6 @@ class RSNAKaggleCXR(Dataset):
         scan_image = Image.fromarray(scan_image)
         if self.transforms is not None:
             scan_image = self.transforms(scan_image)
-        if self.return_index:
-            return index, scan_image, int(target)
         return scan_image, int(target)
 
     def __len__(self) -> int:
@@ -109,7 +105,7 @@ class RSNAKaggleCXR(Dataset):
         return len(self.indices)
 
     def get_label_names(self) -> List[str]:
-        return ["Normal", "Opacity"]
+        return ["No Opacity", "Opacity"]
 
 
 class WorkerInitFunc:
