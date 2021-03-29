@@ -126,7 +126,7 @@ def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None
     config.start_epoch = 20
     with pytest.raises(ValueError) as ex:
         checkpoint_handler.get_recovery_path_train()
-        assert ex.value.args == "Start epoch is > 0, but no run recovery object has been provided to resume training."
+    assert ex.value.args == "Start epoch is > 0, but no run recovery object has been provided to resume training."
 
     # Set a local_weights_path to get checkpoint from
     checkpoint_handler.container.weights_url = ""

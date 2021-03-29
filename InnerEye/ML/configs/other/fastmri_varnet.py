@@ -2,6 +2,11 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+
+# Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
+# individual warnings only.
+# flake8: noqa
+
 from typing import Any
 
 import torch
