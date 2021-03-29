@@ -64,9 +64,6 @@ class SSLContainer(LightningContainer):
     def _load_config(self):
         self.yaml_config = load_ssl_model_config(self.path_yaml_config)
 
-    def get_num_gpus_to_use(self):
-        return 2
-
     def create_model(self) -> LightningWithInference:
         """
         This method must create the actual Lightning model that will be trained.
