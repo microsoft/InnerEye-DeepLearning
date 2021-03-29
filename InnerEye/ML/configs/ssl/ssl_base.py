@@ -30,8 +30,6 @@ class WrapSimCLRInnerEye(SimCLRInnerEye, LightningWithInference):
         pass
 
 
-
-
 class WrapBYOLInnerEye(BYOLInnerEye, LightningWithInference):
     def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
         pass
@@ -65,6 +63,9 @@ class SSLContainer(LightningContainer):
 
     def _load_config(self):
         self.yaml_config = load_ssl_model_config(self.path_yaml_config)
+
+    def get_num_gpus_to_use(self):
+        return 2
 
     def create_model(self) -> LightningWithInference:
         """
@@ -103,10 +104,13 @@ class SSLContainer(LightningContainer):
         """
         if hasattr(self, "data_module"):
             return self.data_module
-        return create_ssl_data_modules(self.yaml_config, self.local_dataset)
+
+        return create_ssl_data_modules(self.yaml_config, self.local_dataset,
+                                       num_devices=max(1, self.get_num_gpus_to_use()))
 
     def get_trainer_arguments(self):
         return {"callbacks": self.online_eval}
+
 
 '''
 class SSLLinearImageClassifierContainer(SSLContainer):
