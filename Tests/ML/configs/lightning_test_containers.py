@@ -174,9 +174,11 @@ def _dummy_yaml_config_overrides(path_yaml_config):
     yaml_config = load_ssl_model_config(path_yaml_config)
     yaml_config.defrost()
     yaml_config.train.batch_size = 25
-    yaml_config.scheduler.epochs = 1
+    yaml_config.scheduler.epochs = 2
+    yaml_config.train.checkpoint_period = 1
     yaml_config.train.self_supervision.encoder_name = "resnet18"
     return yaml_config
+
 
 class DummySSLContainerResnet18(SSLContainer):
 
@@ -185,15 +187,15 @@ class DummySSLContainerResnet18(SSLContainer):
 
     def get_trainer_arguments(self):
         trained_kwargs = super().get_trainer_arguments()
-        #overfit_batches = max(1, 0.05 * (
-        #    min(len(self.data_module.val_dataloader()), len(self.data_module.train_dataloader()))))
         trained_kwargs.update({"limit_train_batches": 2, "limit_val_batches": 2})
         return trained_kwargs
+
 
 class DummySSLContainerDenseNet121(DummySSLContainerResnet18):
     def _load_config(self):
         super()._load_config()
         self.yaml_config.train.self_supervision.encoder_name = "densenet121"
+
 
 """
 class DummyLinearImageClassifier(SSLLinearImageClassifierContainer):
