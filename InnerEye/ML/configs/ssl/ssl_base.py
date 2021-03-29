@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
+from pathlib import Path
 from typing import Any
 
 import param
@@ -49,7 +49,7 @@ class SSLContainer(LightningContainer):
     # TODO transform yaml config in nested param class
     # TODO the field output_dir is unused at the moment. Remove it from yaml config
 
-    path_yaml_config = param.String(doc="The path to the yaml config")
+    path_yaml_config = param.ClassSelector(class_=Path, doc="The path to the yaml config")
 
     def setup(self):
         self._load_config()
