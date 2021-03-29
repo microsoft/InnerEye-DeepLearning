@@ -15,12 +15,13 @@ from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_section,
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.lightning_base import InnerEyeContainer
-from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
+from InnerEye.ML.lightning_container import LightningWithInference
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLBACK_SINGLE_RUN, get_most_recent_run
 from Tests.ML.configs.DummyModel import DummyModel
+from Tests.ML.configs.lightning_test_containers import DummyContainerWithDatasets
 from Tests.ML.util import get_default_azure_config
 
 logging_to_stdout(logging.DEBUG)
@@ -81,17 +82,18 @@ def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> Non
     config.azure_dataset_id = ""
     azure_config = get_default_azure_config()
     runner = MLRunner(config, azure_config)
-    runner.setup()
-    runner.project_root = test_output_dirs.root_dir
-
     # If the model has neither local_dataset or azure_dataset_id, mount_or_download_dataset should fail.
-    with pytest.raises(ValueError):
-        runner.mount_or_download_dataset()
+    # This mounting call must happen before any other operations on the container, because already the model
+    # creation may need access to the dataset.
+    with pytest.raises(ValueError) as ex:
+        runner.setup()
+    assert ex.value.args[0] == "The model must contain either local_dataset or azure_dataset_id."
+    runner.project_root = test_output_dirs.root_dir
 
     # Pointing the model to a dataset folder that does not exist should raise an Exception
     fake_folder = runner.project_root / "foo"
     runner.container.local_dataset = fake_folder
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(FileNotFoundError) as ex:
         runner.mount_or_download_dataset()
 
     # If the local dataset folder exists, mount_or_download_dataset should not do anything.
@@ -123,9 +125,9 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
                                         is_offline_run: bool,
                                         local_dataset: Optional[Path],
                                         azure_dataset: str,
-                                        is_lightning_model: bool):
+                                        is_lightning_model: bool) -> Optional[Path]:
     if is_lightning_model:
-        lightning_container = LightningContainer()
+        lightning_container = DummyContainerWithDatasets()
         lightning_container.azure_dataset_id = azure_dataset
         lightning_container.local_dataset = local_dataset
         config = LightningWithInference()
@@ -135,12 +137,12 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
         config.local_dataset = local_dataset
         lightning_container = InnerEyeContainer(config)
     with mock.patch("InnerEye.ML.run_ml.MLRunner.is_offline_run", is_offline_run):
-        with mock.patch("InnerEye.ML.run_ml.download_dataset", return_value="download"):
-            with mock.patch("InnerEye.ML.run_ml.try_to_mount_input_dataset", return_value="mount"):
+        with mock.patch("InnerEye.ML.run_ml.download_dataset", return_value=Path("download")):
+            with mock.patch("InnerEye.ML.run_ml.try_to_mount_input_dataset", return_value=Path("mount")):
                 runner = MLRunner(config, container=lightning_container,
                                   azure_config=None, project_root=test_output_dirs.root_dir)
                 runner.setup()
-                return runner.mount_or_download_dataset()
+                return runner.container.local_dataset
 
 
 @pytest.mark.parametrize(("is_offline_run", "is_lightning_model", "expected_error"),
@@ -161,6 +163,7 @@ def test_mount_failing(test_output_dirs: OutputFolderForTests,
     """
     Test cases when MLRunner.mount_or_download_dataset raises an exception.
     """
+
     def run() -> Any:
         return _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
                                                    is_offline_run=is_offline_run,
@@ -187,13 +190,13 @@ def test_mount_or_download(test_output_dirs: OutputFolderForTests) -> None:
                                                    is_offline_run=True,
                                                    local_dataset=None,
                                                    azure_dataset="foo",
-                                                   is_lightning_model=is_lightning_model) == "download"
+                                                   is_lightning_model=is_lightning_model) == Path("download")
         # With runs in AzureML, an AML dataset should get mounted.
         assert _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
                                                    is_offline_run=False,
                                                    local_dataset=None,
                                                    azure_dataset="foo",
-                                                   is_lightning_model=is_lightning_model) == "mount"
+                                                   is_lightning_model=is_lightning_model) == Path("mount")
         # With runs outside of AzureML, a local dataset should be used as-is. Azure dataset ID is ignored here.
         assert _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
                                                    is_offline_run=True,

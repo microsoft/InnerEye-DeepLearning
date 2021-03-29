@@ -73,7 +73,6 @@ class LightningInference(abc.ABC):
         """
         pass
 
-    @abstractmethod
     def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
         """
         Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
@@ -85,7 +84,6 @@ class LightningInference(abc.ABC):
         """
         pass
 
-    @abstractmethod
     def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor) -> None:
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
@@ -93,9 +91,10 @@ class LightningInference(abc.ABC):
         :param batch: The batch of data for which the model made a prediction.
         :param model_output: The model outputs. This would usually be a torch.Tensor, but can be any datatype.
         """
-        pass
+        # We don't want abstract methods here, it avoids class creation for unit tests, and we also want this
+        # method to be left optional (it should be possible to also use Lightning's native test_step method)
+        raise NotImplementedError("Method on_inference_start must be overwritten in a derived class.")
 
-    @abstractmethod
     def on_inference_epoch_end(self) -> None:
         """
         Called when the inference on one of the dataset splits (train/val/test) has finished.
