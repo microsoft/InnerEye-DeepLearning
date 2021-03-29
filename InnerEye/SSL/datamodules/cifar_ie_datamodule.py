@@ -1,6 +1,5 @@
 from typing import Any, Optional, Dict, List, Union
 
-
 from pl_bolts.datamodules.vision_datamodule import VisionDataModule
 from pytorch_lightning.trainer.supporters import CombinedLoader
 
@@ -10,10 +9,10 @@ from torch.utils.data import DataLoader
 from InnerEye.SSL.datamodules.transforms_utils import InnerEyeCIFAREvalTransform, InnerEyeCIFARTrainTransform
 from InnerEye.SSL.utils import SSLModule
 
-
-DATASET_CLS = {SSLModule.ENCODER: CIFAR10, SSLModule.LINEAR_HEAD: CIFAR100}
+DATASET_CLS = {SSLModule.ENCODER: CIFAR10, SSLModule.LINEAR_HEAD: CIFAR10}
 TRAIN_TRANSFORMS = InnerEyeCIFARTrainTransform(32)
 VAL_TRANSFORMS = InnerEyeCIFAREvalTransform(32)
+
 
 class CIFARIEDataModule(VisionDataModule):
 
@@ -22,6 +21,7 @@ class CIFARIEDataModule(VisionDataModule):
         """
         super().__init__(**kwargs)
         self.class_weights = None
+        self.drop_last = True
 
     def prepare_data(self, *args: Any, **kwargs: Any) -> None:
         """
@@ -48,7 +48,8 @@ class CIFARIEDataModule(VisionDataModule):
             raise NotImplementedError
 
     def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[SSLModule, DataLoader]:
-        """ The train dataloaders
+        """
+        The train dataloaders
         """
         dataloaders = {
             SSLModule.ENCODER: self._data_loader(self.datasets[SSLModule.ENCODER][0], shuffle=self.shuffle),
