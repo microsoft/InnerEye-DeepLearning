@@ -185,20 +185,6 @@ class LightningWithInference(LightningModule, LightningInference):
         pass
 
     @property
-    def train_diagnostics(self) -> Any:
-        """
-        Gets additional diagnostic information that has been collected during training on the training data.
-        """
-        return None
-
-    @property
-    def val_diagnostics(self) -> Any:
-        """
-        Gets additional diagnostic information that has been collected during training on the validation data.
-        """
-        return None
-
-    @property
     def outputs_folder(self) -> Path:
         """
         Gets the folder into which all output of the model training should be written. Output files in this folder

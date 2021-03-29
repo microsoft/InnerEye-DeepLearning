@@ -15,22 +15,18 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
-from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, cleanup_checkpoint_folder
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import ARGS_TXT, DeepLearningConfig, OutputParams, TrainerParams, \
-    VISUALIZATION_FOLDER
+from InnerEye.ML.deep_learning_config import ARGS_TXT, DeepLearningConfig, OutputParams, VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
-from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary
-from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
 TEMP_PREFIX = "temp/"
@@ -175,7 +171,7 @@ def start_resource_monitor(config: OutputParams) -> ResourceMonitor:
 def model_train(config: DeepLearningConfig,
                 checkpoint_handler: CheckpointHandler,
                 lightning_container: LightningContainer,
-                num_nodes: int = 1) -> ModelTrainingResults:
+                num_nodes: int = 1) -> Tuple[Trainer, Optional[StoringLogger]]:
     """
     The main training loop. It creates the Pytorch model based on the configuration options passed in,
     creates a Pytorch Lightning trainer, and trains the model.
@@ -185,6 +181,9 @@ def model_train(config: DeepLearningConfig,
     :param num_nodes: The number of nodes to use in distributed training.
     :param lightning_container: A container object that holds the training data in PyTorch Lightning format
     and the model to train.
+    :return: A tuple of [Trainer, StoringLogger]. Trainer is the Lightning Trainer object that was used for fitting
+    the model. The StoringLogger object is returned when training an InnerEye built-in model, this is None when
+    fitting other models.
     """
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
@@ -283,14 +282,6 @@ def model_train(config: DeepLearningConfig,
                     # For all files but the first one, cut off the header line.
                     result_file.write_text(os.linesep.join(temp_file_contents.splitlines()[1:]))
 
-    model_training_results = ModelTrainingResults(
-        train_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values()),
-        val_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=VALIDATION_PREFIX).values()),
-        train_diagnostics=lightning_model.train_diagnostics,
-        val_diagnostics=lightning_model.val_diagnostics,
-        optimal_temperature_scale_values_per_checkpoint_epoch=[]
-    )
-
     logging.info("Finished training")
 
     # Since we have trained the model further, let the checkpoint_handler object know so it can handle
@@ -310,4 +301,4 @@ def model_train(config: DeepLearningConfig,
                 RUN_CONTEXT.log_row("GPU utilization", GPU=gpu_name, **metrics_per_gpu)
         resource_monitor.kill()
 
-    return model_training_results
+    return trainer, storing_logger

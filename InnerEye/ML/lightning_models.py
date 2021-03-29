@@ -130,9 +130,9 @@ class SegmentationLightning(InnerEyeLightning):
         if isinstance(center_indices, torch.Tensor):
             center_indices = center_indices.cpu().numpy()
         if is_training:
-            self.train_diagnostics.append(center_indices)
+            self.storing_logger.train_diagnostics.append(center_indices)
         else:
-            self.val_diagnostics.append(center_indices)
+            self.storing_logger.val_diagnostics.append(center_indices)
         # if self.train_val_params.in_training_mode:
         #     # store the sample train patch from this epoch for visualization
         #     if batch_index == self.example_to_save and self.config.store_dataset_sample:

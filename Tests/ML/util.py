@@ -22,6 +22,7 @@ from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.runner import Runner
@@ -30,7 +31,6 @@ from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.io_util import ImageHeader, ImageWithHeader
 from InnerEye.ML.utils.ml_util import is_gpu_available
-from InnerEye.ML.utils.training_util import ModelTrainingResults
 
 TEST_CHANNEL_IDS = ["channel1", "channel2"]
 TEST_MASK_ID = "mask"
@@ -229,7 +229,7 @@ def model_train_unittest(config: DeepLearningConfig,
                          dirs: OutputFolderForTests,
                          checkpoint_handler: Optional[CheckpointHandler] = None,
                          lightning_container: Optional[LightningContainer] = None) -> \
-        Tuple[ModelTrainingResults, CheckpointHandler]:
+        Tuple[StoringLogger, CheckpointHandler]:
     """
     A shortcut for running model training in the unit test suite. It runs training for the given config, with the
     default checkpoint handler initialized to point to the test output folder specified in dirs.
@@ -238,7 +238,7 @@ def model_train_unittest(config: DeepLearningConfig,
     :param lightning_container: An optional LightningContainer object that will be pass through to the training routine.
     :param checkpoint_handler: The checkpoint handler that should be used for training. If not provided, it will be
     created via get_default_checkpoint_handler.
-    :return: Tuple[ModelTrainingResults, CheckpointHandler]
+    :return: Tuple[StoringLogger, CheckpointHandler]
     """
     if lightning_container is None:
         lightning_container = InnerEyeContainer(config)
@@ -249,8 +249,9 @@ def model_train_unittest(config: DeepLearningConfig,
         checkpoint_handler = CheckpointHandler(azure_config=azure_config,
                                                container=lightning_container,
                                                project_root=dirs.root_dir)
-    result = model_train(config, checkpoint_handler=checkpoint_handler, lightning_container=lightning_container)
-    return result, checkpoint_handler
+    _, storing_logger = model_train(config, checkpoint_handler=checkpoint_handler,
+                                    lightning_container=lightning_container)
+    return storing_logger, checkpoint_handler
 
 
 def default_runner() -> Runner:

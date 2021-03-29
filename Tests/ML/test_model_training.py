@@ -26,11 +26,11 @@ from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.utils.model_util import create_segmentation_loss_function
 from InnerEye.ML.utils.run_recovery import RunRecovery
-from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import machine_has_gpu, model_train_unittest
@@ -109,10 +109,10 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     expected_learning_rates = [train_config.l_rate, 5.3589e-4]
 
     model_training_result, _ = model_train_unittest(train_config, dirs=output_dirs)
-    assert isinstance(model_training_result, ModelTrainingResults)
+    assert isinstance(model_training_result, StoringLogger)
 
     def assert_all_close(metric: str, expected: List[float], **kwargs: Any) -> None:
-        actual = model_training_result.get_training_metric(metric)
+        actual = model_training_result.get_train_metric(metric)
         assert np.allclose(actual, expected, **kwargs), f"Mismatch for {metric}: Got {actual}, expected {expected}"
 
     # check to make sure training batches are NOT all the same across epochs
@@ -132,11 +132,11 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # This checks that averages are computed correctly, and that metric computers are reset after each epoch.
     train_voxels = [[83092.0, 83212.0, 82946.0], [83000.0, 82881.0, 83309.0]]
     val_voxels = [[82765.0, 83212.0], [82765.0, 83212.0]]
-    _check_voxel_count(model_training_result.train_results_per_epoch, _mean_list(train_voxels), "Train")
-    _check_voxel_count(model_training_result.val_results_per_epoch, _mean_list(val_voxels), "Val")
+    _check_voxel_count(model_training_result.train_results_per_epoch(), _mean_list(train_voxels), "Train")
+    _check_voxel_count(model_training_result.val_results_per_epoch(), _mean_list(val_voxels), "Val")
 
-    actual_train_losses = model_training_result.get_training_metric(MetricType.LOSS.value)
-    actual_val_losses = model_training_result.get_validation_metric(MetricType.LOSS.value)
+    actual_train_losses = model_training_result.get_train_metric(MetricType.LOSS.value)
+    actual_val_losses = model_training_result.get_val_metric(MetricType.LOSS.value)
     print("actual_train_losses = {}".format(actual_train_losses))
     print("actual_val_losses = {}".format(actual_val_losses))
     assert np.allclose(actual_train_losses, expected_train_losses, atol=loss_absolute_tolerance), "Train losses"
@@ -144,7 +144,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # Check that the metric we track for Hyperdrive runs is actually written.
     assert TrackedMetrics.Val_Loss.value.startswith(VALIDATION_PREFIX)
     tracked_metric = TrackedMetrics.Val_Loss.value[len(VALIDATION_PREFIX):]
-    for val_result in model_training_result.val_results_per_epoch:
+    for val_result in model_training_result.val_results_per_epoch():
         assert tracked_metric in val_result
 
     # The following values are read off directly from the results of compute_dice_across_patches in the
@@ -187,10 +187,10 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert len(list(sampling_folder.rglob("*.png"))) == 3 * train_config.show_patch_sampling
 
     # Time per epoch: Test that we have all these times logged.
-    model_training_result.get_training_metric(MetricType.SECONDS_PER_EPOCH.value)
-    model_training_result.get_validation_metric(MetricType.SECONDS_PER_EPOCH.value)
-    model_training_result.get_validation_metric(MetricType.SECONDS_PER_BATCH.value)
-    model_training_result.get_training_metric(MetricType.SECONDS_PER_BATCH.value)
+    model_training_result.get_train_metric(MetricType.SECONDS_PER_EPOCH.value)
+    model_training_result.get_val_metric(MetricType.SECONDS_PER_EPOCH.value)
+    model_training_result.get_val_metric(MetricType.SECONDS_PER_BATCH.value)
+    model_training_result.get_train_metric(MetricType.SECONDS_PER_BATCH.value)
 
     # Issue #372
     # # Test for saving of example images

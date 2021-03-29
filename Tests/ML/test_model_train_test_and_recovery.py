@@ -35,7 +35,7 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     config.recovery_checkpoint_save_interval = 2
 
     train_results, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
-    assert len(train_results.train_results_per_epoch) == config.num_epochs
+    assert len(train_results.train_results_per_epoch()) == config.num_epochs
 
     # Run inference on this
     test_results = model_test(config=config, data_split=ModelExecutionMode.TEST, checkpoint_handler=checkpoint_handler)
