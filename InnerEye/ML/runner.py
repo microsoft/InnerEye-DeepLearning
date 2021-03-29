@@ -134,7 +134,7 @@ class Runner:
         self.model_deployment_hook = model_deployment_hook
         # model_config and azure_config are placeholders for now, and are set properly when command line args are
         # parsed.
-        self.model_config: DeepLearningConfig = DeepLearningConfig(azure_dataset_id="")
+        self.model_config: Optional[DeepLearningConfig] = None
         self.azure_config: AzureConfig = AzureConfig()
         # This should be typed as LightningContainer, but we don't always have that imported
         self.lightning_container: Any = None
@@ -156,7 +156,7 @@ class Runner:
         azure_config = AzureConfig(**parser_result.args)
         azure_config.project_root = self.project_root
         self.azure_config = azure_config
-        self.model_config = None  # type: ignore
+        self.model_config = None
         self.lightning_container = None
         if not azure_config.model:
             return None
@@ -227,7 +227,7 @@ class Runner:
         """
         return self._get_property_from_config_or_container("azure_dataset_id")
 
-    def run(self) -> Tuple[DeepLearningConfig, Optional[Run]]:
+    def run(self) -> Tuple[Optional[DeepLearningConfig], Optional[Run]]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
         via a commandline argument, runs training or testing, and writes all required info to disk and logs.

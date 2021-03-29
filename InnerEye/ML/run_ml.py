@@ -132,7 +132,7 @@ def log_metrics(val_metrics: Optional[InferenceMetricsForSegmentation],
 class MLRunner:
 
     def __init__(self,
-                 model_config: DeepLearningConfig,
+                 model_config: Optional[DeepLearningConfig],
                  azure_config: Optional[AzureConfig] = None,
                  container: Optional[LightningContainer] = None,
                  project_root: Optional[Path] = None,
@@ -141,8 +141,10 @@ class MLRunner:
         """
         Driver class to run a ML experiment. Note that the project root argument MUST be supplied when using InnerEye
         as a package!
-        :param model_config: Model related configurations
-        :param container: The LightningContainer object
+        :param model_config: If None, run the training as per the `container` argument (bring-your-own-model). If not
+        None, this is the model configuration for a built-in InnerEye model.
+        :param container: The LightningContainer object to use for training. If None, assume that the training is
+        for a built-in InnerEye model.
         :param azure_config: Azure related configurations
         :param project_root: Project root. This should only be omitted if calling run_ml from the test suite. Supplying
         it is crucial when using InnerEye as a package or submodule!
@@ -152,6 +154,8 @@ class MLRunner:
         If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
         Model as arguments, and return an optional Path and a further object of any type.
         """
+        if model_config is not None and container is not None:
+            raise ValueError("One of the two arguments 'model_config', 'container' must be provided.")
         self.model_config = model_config
         if container is None:
             assert isinstance(model_config, ModelConfigBase), \
@@ -218,16 +222,13 @@ class MLRunner:
         parent_run_file_system = _config.file_system_config
 
         def _spawn_run(cross_val_split_index: int) -> None:
-            split_model_config = copy.deepcopy(_config)
-            assert isinstance(split_model_config, ScalarModelBase)
-            split_model_config.cross_validation_split_index = cross_val_split_index
-
+            split_config = copy.deepcopy(_config)
+            split_config.cross_validation_split_index = cross_val_split_index
             _local_split_folder_name = str(cross_val_split_index)
-            split_model_config.file_system_config = parent_run_file_system.add_subfolder(_local_split_folder_name)
-
+            split_config.file_system_config = parent_run_file_system.add_subfolder(_local_split_folder_name)
             logging.info(f"Running model train and test on cross validation split: {cross_val_split_index}")
-            split_ml_runner = MLRunner(model_config=split_model_config,
-                                       container=self.container,
+            split_ml_runner = MLRunner(model_config=split_config,
+                                       container=None,
                                        azure_config=self.azure_config,
                                        project_root=self.project_root,
                                        post_cross_validation_hook=self.post_cross_validation_hook,
