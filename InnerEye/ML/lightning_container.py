@@ -3,11 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import abc
-from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
-import param
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 # Problem: We need to know
@@ -285,6 +283,15 @@ class LightningContainer(GenericConfig,
     def before_training_on_rank_zero(self) -> None:
         """
         A hook that will be called before starting model training, before creating the Lightning Trainer object.
-        In distributed training, this is only run on rank zero.
+        In distributed training, this is only run on rank zero. It is executed after the before_training_on_all_ranks
+        hook.
+        """
+        pass
+
+    def before_training_on_all_ranks(self) -> None:
+        """
+        A hook that will be called before starting model training.
+        In distributed training, this hook will be called on all ranks. It is executed before the
+        the before_training_on_rank_zero hook.
         """
         pass

@@ -183,24 +183,7 @@ def model_train(checkpoint_handler: CheckpointHandler,
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
     lightning_model = container.model
 
-    # This reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
-    # for categorical features, that need to be available before creating the model.
-
-    # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
-    # training in the unit tests.d
-    old_environ = dict(os.environ)
-    trainer, storing_logger = create_lightning_trainer(container,
-                                                       checkpoint_path,
-                                                       num_nodes=num_nodes,
-                                                       **container.get_trainer_arguments())
-
-    logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
-                 f"trainer.global_rank: {trainer.global_rank}")
-    logging.debug("Creating the PyTorch model.")
-    # InnerEye models use this logger for diagnostics
-    if isinstance(lightning_model, InnerEyeLightning):
-        lightning_model.storing_logger = storing_logger
-
+    container.before_training_on_all_ranks()
     resource_monitor: Optional[ResourceMonitor] = None
     # Execute some bookkeeping tasks only once if running distributed:
     if is_rank_zero():
@@ -211,12 +194,23 @@ def model_train(checkpoint_handler: CheckpointHandler,
         if container.monitoring_interval_seconds > 0:
             resource_monitor = start_resource_monitor(container)
 
-    # Training loop
-    logging.info("Starting training")
-
+    # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
+    # training in the unit tests.d
+    old_environ = dict(os.environ)
     # Set random seeds just before training. For segmentation models, we have
     # something that changes the random seed in the before_training_on_rank_zero hook.
     seed_everything(container.get_effective_random_seed())
+    trainer, storing_logger = create_lightning_trainer(container,
+                                                       checkpoint_path,
+                                                       num_nodes=num_nodes,
+                                                       **container.get_trainer_arguments())
+    logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
+                 f"trainer.global_rank: {trainer.global_rank}")
+    # InnerEye models use this logger for diagnostics
+    if isinstance(lightning_model, InnerEyeLightning):
+        lightning_model.storing_logger = storing_logger
+
+    logging.info("Starting training")
     trainer.fit(lightning_model, datamodule=container.get_data_module())
     trainer.logger.close()  # type: ignore
     lightning_model.close_all_loggers()

@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import param
 import torch
-from pytorch_lightning import LightningDataModule, LightningModule, seed_everything
+from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.utilities import rank_zero_only
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
@@ -144,6 +144,13 @@ class InnerEyeContainer(LightningContainer):
         # of the dataset and do forward propagation?
         assert isinstance(self.model, InnerEyeLightning)
         generate_and_print_model_summary(self.config, self.model.model)
+
+    def before_training_on_all_ranks(self):
+        """
+        This hook reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
+        for categorical features, that need to be available before creating the model.
+        """
+        self.config.read_dataset_if_needed()
 
 
 class InnerEyeLightning(LightningModule):
