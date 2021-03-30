@@ -189,8 +189,6 @@ class MLRunner:
         if isinstance(self.container, InnerEyeContainer):
             self.container.config.local_dataset = self.container.local_dataset
             self.container.file_system_config = self.container.file_system_config
-        # For the InnerEye built-in models: If should_write_dataset_files is True, and the present code is running on
-        # distributed training rank zero, the method also writes the dataset files to disk.
         self.container.setup()
         self.container.create_lightning_module_and_store()
         self._has_setup_run = True

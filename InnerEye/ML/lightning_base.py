@@ -133,6 +133,8 @@ class InnerEyeContainer(LightningContainer):
         return InferenceDataLightning(self.config)
 
     def before_training_on_rank_zero(self) -> None:
+        # Save the dataset files for later use in cross validation analysis
+        self.config.write_dataset_files()
         if isinstance(self.config, SegmentationModelBase):
             with logging_section("Visualizing the effect of sampling random crops for training"):
                 visualize_random_crops_for_dataset(self.config)
