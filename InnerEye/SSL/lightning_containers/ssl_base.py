@@ -10,6 +10,7 @@ from pytorch_lightning import LightningDataModule
 
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 from InnerEye.SSL.byol.byol_module import WrapBYOLInnerEye
+from InnerEye.SSL.config_node import ConfigNode
 from InnerEye.SSL.datamodules.chestxray_datamodule import RSNAKaggleDataModule
 from InnerEye.SSL.datamodules.cifar_ie_datamodule import CIFARIEDataModule
 from InnerEye.SSL.simclr_module import WrapSimCLRInnerEye
@@ -84,12 +85,8 @@ class SSLContainer(LightningContainer):
                                      warmup_epochs=10)  # todo (melanibe): this should be config arg
         model.hparams.update({'ssl_type': self.ssl_type})
 
-        # Create linear head callback for online monitoring of embedding quality.
-        self.online_eval = SSLOnlineEvaluatorInnerEye(class_weights=self.data_module.class_weights,  # type: ignore
-                                                      z_dim=get_encoder_output_dim(model, self.data_module),
-                                                      num_classes=self.data_module.num_classes,  # type: ignore
-                                                      dataset=self.dataset_name,
-                                                      drop_p=0.2)  # type: ignore
+        self.encoder_output_dim = get_encoder_output_dim(model, self.data_module)
+
         return model
 
     def get_data_module(self) -> LightningDataModule:
@@ -99,22 +96,32 @@ class SSLContainer(LightningContainer):
         if hasattr(self, "data_module"):
             return self.data_module
 
-        return self._create_ssl_data_modules()
+        return self._create_ssl_data_modules(augmentation_config=self.yaml_config,
+                                             dataset_name=self.dataset_name,
+                                             dataset_path=self.local_dataset,
+                                             batch_size=self.batch_size)
 
-    def _create_ssl_data_modules(self) -> LightningDataModule:
+    def _create_ssl_data_modules(self,
+                                 augmentation_config: ConfigNode,
+                                 dataset_name: str,
+                                 batch_size: int,
+                                 dataset_path: Path) -> LightningDataModule:
         """
         Returns torch lightning data module.
         """
         num_devices = max(1, self.get_num_gpus_to_use())
-        if self.dataset_name == "RSNAKaggle":
-            assert self.local_dataset is not None
-            dm = RSNAKaggleDataModule(augmentation_config=self.yaml_config,
-                                      model_config=self,
-                                      dataset_path=self.local_dataset,
+        if dataset_name == "RSNAKaggle":
+            assert dataset_path is not None
+            dm = RSNAKaggleDataModule(augmentation_config=augmentation_config,
+                                      batch_size=batch_size,
+                                      num_workers=self.num_workers,
+                                      random_seed=self.random_seed,
+                                      use_balanced_binary_loss_for_linear_head=self.use_balanced_binary_loss_for_linear_head,
+                                      dataset_path=dataset_path,
                                       num_devices=num_devices)  # type: ignore
-        elif self.dataset_name == "CIFAR10":
+        elif dataset_name == "CIFAR10":
             dm = CIFARIEDataModule(num_workers=self.num_workers,
-                                   batch_size=self.batch_size // num_devices,
+                                   batch_size=batch_size // num_devices,
                                    seed=1234)
             dm.prepare_data()
             dm.setup('fit')
@@ -124,6 +131,12 @@ class SSLContainer(LightningContainer):
         return dm
 
     def get_trainer_arguments(self):
+        # Create linear head callback for online monitoring of embedding quality.
+        self.online_eval = SSLOnlineEvaluatorInnerEye(class_weights=self.data_module.class_weights,  # type: ignore
+                                                      z_dim=self.encoder_output_dim,
+                                                      num_classes=self.data_module.num_classes,  # type: ignore
+                                                      dataset=self.dataset_name,
+                                                      drop_p=0.2)  # type: ignore
         trained_kwargs = {"callbacks": self.online_eval}
         if self.debug:
             trained_kwargs.update({"limit_train_batches": 2, "limit_val_batches": 2})
