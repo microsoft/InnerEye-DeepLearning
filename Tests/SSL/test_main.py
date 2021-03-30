@@ -6,21 +6,24 @@ from pathlib import Path
 from random import randint
 from unittest import mock
 
-import pytest
 import torch
 
-from InnerEye.Common.fixed_paths import SSL_EXPERIMENT_DIR, repository_root_directory
-from InnerEye.ML.configs.ssl.ssl_base import SSLContainer, WrapBYOLInnerEye, WrapSimCLRInnerEye
+from InnerEye.Common import fixed_paths
+from InnerEye.Common.fixed_paths import repository_root_directory
+from InnerEye.ML.runner import Runner
 from InnerEye.SSL.datamodules.rsna_cxr_dataset import RSNAKaggleCXR
-from InnerEye.SSL.main import cli_main, get_last_checkpoint_path
-from InnerEye.SSL.utils import create_ssl_image_classifier, load_ssl_model_config
-from Tests.ML.util import default_runner
+
+def default_runner() -> Runner:
+    """
+    Create an InnerEye Runner object with the default settings, pointing to the repository root and
+    default settings files.
+    """
+    return Runner(project_root=repository_root_directory(),
+                  yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
 
 
 def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
-    path_to_config = repository_root_directory() / "InnerEye" / "SSL" / "configs" / "cifar10_simclr.yaml"
-    args = ["", "--model=DummySSLContainerResnet18", f"--path_yaml_config={str(path_to_config)}",
-            "--model_configs_namespace=Tests.ML.configs"]
+    args = ["", "--model=CIFARBYOL", "--debug=True", "--num_epochs=2"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = default_runner().run()
 
@@ -28,9 +31,7 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
 # todo container with linear head is missing. Implement and re-add to test to recover train & recover
 # todo functionality
 def test_innereye_ssl_container_cifar10_densenet() -> None:
-    path_to_config = repository_root_directory() / "InnerEye" / "SSL" / "configs" / "cifar10_byol.yaml"
-    args = ["", "--model=DummySSLContainerDenseNet121", f"--path_yaml_config={str(path_to_config)}",
-            "--model_configs_namespace=Tests.ML.configs"]
+    args = ["", "--model=CIFARBYOL", "--debug=True", "--num_epochs=2", "--ssl_encoder=densenet121"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = default_runner().run()
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
@@ -75,9 +76,9 @@ def test_innereye_ssl_container_rsna():
     """
     runner = default_runner()
     path_to_test_dataset = str(repository_root_directory() / "Tests" / "SSL" / "test_dataset")
-    path_to_config = repository_root_directory() / "InnerEye" / "SSL" / "configs" / "rsna_byol.yaml"
-    args = ["", "--model=DummySSLContainerResnet18", f"--path_yaml_config={str(path_to_config)}",
-            "--model_configs_namespace=Tests.ML.configs", f"--local_dataset={path_to_test_dataset}"]
+    path_to_config = repository_root_directory() / "InnerEye" / "ML" / "configs"/ "ssl"/ "rsna_augmentations.yaml"
+    args = ["", "--model=RSNAKaggleBYOL", f"--path_augmentation_config={str(path_to_config)}",
+            f"--local_dataset={path_to_test_dataset}", "--debug=True", "--num_epochs=1", "--batch_size=25"]
     with mock.patch("sys.argv", args):
         dummy_rsna_train_dataloader, dummy_rsna_val_dataloader = _get_dummy_val_train_rsna_dataloaders()
         with mock.patch("InnerEye.SSL.datamodules.chestxray_datamodule.RSNAKaggleDataModule.train_dataloader",

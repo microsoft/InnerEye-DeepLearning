@@ -1,18 +1,3 @@
-dataset:
-  name: RSNAKaggle
-  dataset_dir: /datadrive/rsna_train
-train:
-  seed: 3
-  batch_size: 1600
-  base_lr: 1e-3
-  output_dir: kaggle/ssup
-  resume_from_last_checkpoint: False
-  self_supervision:
-    type: simclr
-    encoder_name: resnet50
-    use_balanced_binary_loss_for_linear_head: True
-scheduler:
-  epochs: 1500
 preprocess:
   center_crop_size: 224
   resize: 256
@@ -28,7 +13,7 @@ augmentation:
   random_horizontal_flip:
     prob: 0.5
   random_erasing:
-      scale: (0.005, 0.08)
+      scale: (0.15, 0.4)
       ratio: (0.33, 3)
   random_affine:
     max_angle: 180
@@ -44,4 +29,6 @@ augmentation:
     contrast: 0.2
     saturation: 0.0
   random_crop:
-    scale: (0.6, 1.0)
+    scale: (0.4, 1.0)
+  gaussian_noise:
+    std: 0.05

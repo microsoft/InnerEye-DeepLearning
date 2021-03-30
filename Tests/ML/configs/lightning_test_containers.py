@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.configs.ssl.ssl_base import SSLContainer
+from InnerEye.SSL.lightning_containers.ssl_base import SSLContainer
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 from InnerEye.SSL.utils import load_ssl_model_config
 
@@ -168,33 +168,6 @@ class DummyContainerWithModel(LightningContainer):
 class DummyContainerWithInvalidTrainerArguments(DummyContainerWithModel):
     def get_trainer_arguments(self):
         return {"no_such_argument": 1}
-
-
-def _dummy_yaml_config_overrides(path_yaml_config):
-    yaml_config = load_ssl_model_config(path_yaml_config)
-    yaml_config.defrost()
-    yaml_config.train.batch_size = 25
-    yaml_config.scheduler.epochs = 2
-    yaml_config.train.checkpoint_period = 1
-    yaml_config.train.self_supervision.encoder_name = "resnet18"
-    return yaml_config
-
-
-class DummySSLContainerResnet18(SSLContainer):
-
-    def _load_config(self):
-        self.yaml_config = _dummy_yaml_config_overrides(self.path_yaml_config)
-
-    def get_trainer_arguments(self):
-        trained_kwargs = super().get_trainer_arguments()
-        trained_kwargs.update({"limit_train_batches": 2, "limit_val_batches": 2})
-        return trained_kwargs
-
-
-class DummySSLContainerDenseNet121(DummySSLContainerResnet18):
-    def _load_config(self):
-        super()._load_config()
-        self.yaml_config.train.self_supervision.encoder_name = "densenet121"
 
 
 """

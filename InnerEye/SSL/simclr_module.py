@@ -7,6 +7,9 @@ from typing import Any, Dict, Tuple, List, Union
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
 from torch import Tensor as T
 
+from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.lightning_container import LightningWithInference
+
 from InnerEye.SSL.utils import SSLModule
 from InnerEye.SSL.byol.byol_models import SSLEncoder
 
@@ -63,3 +66,14 @@ class SimCLRInnerEye(SimCLR):
         loss = self.nt_xent_loss(z1, z2, self.temperature)
 
         return loss
+
+
+class WrapSimCLRInnerEye(SimCLRInnerEye, LightningWithInference):
+    def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
+        pass
+
+    def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor):
+        pass
+
+    def on_inference_epoch_end(self) -> None:
+        pass
