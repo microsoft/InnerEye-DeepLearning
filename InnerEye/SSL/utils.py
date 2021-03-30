@@ -6,8 +6,9 @@ from typing import Optional
 import torch
 
 from InnerEye.ML.lightning_container import LightningWithInference
-from InnerEye.SSL.configs import ssl_model_config
-from InnerEye.SSL.configs.config_node import ConfigNode
+from InnerEye.SSL import ssl_model_config
+from InnerEye.SSL.config_node import ConfigNode
+
 from InnerEye.SSL.encoders import DenseNet121Encoder
 
 

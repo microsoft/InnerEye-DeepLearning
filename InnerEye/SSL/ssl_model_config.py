@@ -1,4 +1,4 @@
-from InnerEye.SSL.configs.config_node import ConfigNode
+from InnerEye.SSL.config_node import ConfigNode
 
 config = ConfigNode()
 

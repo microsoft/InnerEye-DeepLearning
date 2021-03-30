@@ -82,7 +82,7 @@ class RSNAKaggleCXR(Dataset):
         logging.info(f"Proportion of positive labels - {dataset_type}: {np.mean(self.targets)}")
         logging.info(f"Number samples - {dataset_type}: {self.targets.shape[0]}")
 
-    def __getitem__(self, index: int) -> Union[Tuple[int, PIL.Image.Image, int], Tuple[PIL.Image.Image, int]]:
+    def __getitem__(self, index: int) -> Tuple[PIL.Image.Image, int]:
         """
 
         :param index: The index of the sample to be fetched

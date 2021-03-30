@@ -12,7 +12,7 @@ import torchvision
 from pl_bolts.models.self_supervised.simclr import SimCLREvalDataTransform, SimCLRTrainDataTransform
 from torchvision.transforms import ToTensor
 
-from InnerEye.SSL.configs.config_node import ConfigNode
+from InnerEye.SSL.config_node import ConfigNode
 from scipy.ndimage import gaussian_filter, map_coordinates
 import numpy as np
 
