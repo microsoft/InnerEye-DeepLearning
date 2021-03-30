@@ -115,6 +115,8 @@ def create_scalar_loss_function(config: ScalarModelBase) -> torch.nn.Module:
             num_train_samples=config.get_total_number_of_training_samples())
     elif config.loss_type == ScalarLoss.MeanSquaredError:
         return MSELoss()
+    elif config.loss_type == ScalarLoss.CustomClassification or config.loss_type == ScalarLoss.CustomRegression:
+        return config.get_loss_function()  # type: ignore
     else:
         raise NotImplementedError(f"Loss type {config.loss_type} is not implemented")
 

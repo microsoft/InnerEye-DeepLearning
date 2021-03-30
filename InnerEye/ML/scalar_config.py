@@ -44,12 +44,15 @@ class ScalarLoss(Enum):
     BinaryCrossEntropyWithLogits = "BinaryCrossEntropyWithLogits"
     WeightedCrossEntropyWithLogits = "WeightedCrossEntropyWithLogits"
     MeanSquaredError = "MeanSquaredError"
+    CustomClassification = "CustomClassification"
+    CustomRegression = "CustomRegression"
 
     def is_classification_loss(self) -> bool:
-        return self == self.BinaryCrossEntropyWithLogits or self == self.WeightedCrossEntropyWithLogits
+        return self in {self.BinaryCrossEntropyWithLogits, self.WeightedCrossEntropyWithLogits,
+                        self.CustomClassification}
 
     def is_regression_loss(self) -> bool:
-        return self == self.MeanSquaredError
+        return self in {self.MeanSquaredError, self.CustomRegression}
 
 
 @unique
@@ -409,6 +412,11 @@ class ScalarModelBase(ModelConfigBase):
 
     def create_model(self) -> Any:
         pass
+
+    def get_loss_function(self) -> Callable:
+        assert self.loss_type in {ScalarLoss.CustomClassification, ScalarLoss.CustomRegression}, \
+            f"get_loss_function() should be called only for custom loss types (received {self.loss_type})"
+        raise NotImplementedError(f"get_loss_function() must be implemented for loss type {self.loss_type}")
 
     def get_post_loss_logits_normalization_function(self) -> Callable:
         """
