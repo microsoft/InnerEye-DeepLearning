@@ -185,6 +185,10 @@ class MLRunner:
         # This call needs to happen before the LightningModule is created, because the output parameters of the
         # container will be copied into the module.
         self.container.create_filesystem(self.project_root)
+        # A lot of the code for the built-in InnerEye models expects the output paths directly in the config files.
+        if isinstance(self.container, InnerEyeContainer):
+            self.container.config.local_dataset = self.container.local_dataset
+            self.container.file_system_config = self.container.file_system_config
         # For the InnerEye built-in models: If should_write_dataset_files is True, and the present code is running on
         # distributed training rank zero, the method also writes the dataset files to disk.
         self.container.setup()
@@ -302,9 +306,8 @@ class MLRunner:
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    trainer, _ = model_train(self.model_config,
-                                             checkpoint_handler,
-                                             lightning_container=self.container,
+                    trainer, _ = model_train(checkpoint_handler,
+                                             container=self.container,
                                              num_nodes=self.azure_config.num_nodes)
                 # log the number of epochs used for model training
                 RUN_CONTEXT.log(name="Train epochs", value=self.container.num_epochs)

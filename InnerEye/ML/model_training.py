@@ -14,20 +14,16 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
-from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
+from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, cleanup_checkpoint_folder
-from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import ARGS_TXT, DeepLearningConfig, OutputParams, VISUALIZATION_FOLDER
+from InnerEye.ML.deep_learning_config import ARGS_TXT, VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
-from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
-from InnerEye.ML.utils.model_util import generate_and_print_model_summary
-from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
 TEMP_PREFIX = "temp/"
 
@@ -152,7 +148,7 @@ def create_lightning_trainer(container: LightningContainer,
     return trainer, storing_logger
 
 
-def start_resource_monitor(config: OutputParams) -> ResourceMonitor:
+def start_resource_monitor(config: LightningContainer) -> ResourceMonitor:
     # initialize and start GPU monitoring
     gpu_tensorboard = config.logs_folder / "gpu_utilization"
     # Result file in CSV format should NOT live in the logs folder, the streaming upload that is
@@ -168,18 +164,16 @@ def start_resource_monitor(config: OutputParams) -> ResourceMonitor:
     return resource_monitor
 
 
-def model_train(config: DeepLearningConfig,
-                checkpoint_handler: CheckpointHandler,
-                lightning_container: LightningContainer,
+def model_train(checkpoint_handler: CheckpointHandler,
+                container: LightningContainer,
                 num_nodes: int = 1) -> Tuple[Trainer, Optional[StoringLogger]]:
     """
     The main training loop. It creates the Pytorch model based on the configuration options passed in,
     creates a Pytorch Lightning trainer, and trains the model.
     If a checkpoint was specified, then it loads the checkpoint before resuming training.
-    :param config: The arguments which specify all required information.
     :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     :param num_nodes: The number of nodes to use in distributed training.
-    :param lightning_container: A container object that holds the training data in PyTorch Lightning format
+    :param container: A container object that holds the training data in PyTorch Lightning format
     and the model to train.
     :return: A tuple of [Trainer, StoringLogger]. Trainer is the Lightning Trainer object that was used for fitting
     the model. The StoringLogger object is returned when training an InnerEye built-in model, this is None when
@@ -187,7 +181,7 @@ def model_train(config: DeepLearningConfig,
     """
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
-    lightning_model = lightning_container.model
+    lightning_model = container.model
 
     # This reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
     # for categorical features, that need to be available before creating the model.
@@ -195,11 +189,10 @@ def model_train(config: DeepLearningConfig,
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
     # training in the unit tests.d
     old_environ = dict(os.environ)
-    seed_everything(lightning_container.get_effective_random_seed())
-    trainer, storing_logger = create_lightning_trainer(lightning_container,
+    trainer, storing_logger = create_lightning_trainer(container,
                                                        checkpoint_path,
                                                        num_nodes=num_nodes,
-                                                       **lightning_container.get_trainer_arguments())
+                                                       **container.get_trainer_arguments())
 
     logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
                  f"trainer.global_rank: {trainer.global_rank}")
@@ -211,31 +204,20 @@ def model_train(config: DeepLearningConfig,
     resource_monitor: Optional[ResourceMonitor] = None
     # Execute some bookkeeping tasks only once if running distributed:
     if is_rank_zero():
-        write_args_file(config if isinstance(config, DeepLearningConfig) else lightning_container,
-                        outputs_folder=lightning_container.outputs_folder)
-        logging.info(f"Model checkpoints are saved at {lightning_container.checkpoint_folder}")
-
-        # set the random seed for all libraries
-        ml_util.set_random_seed(lightning_container.get_effective_random_seed(), "Patch visualization")
-        # Visualize how patches are sampled for segmentation models. This changes the random generator, but we don't
-        # want training to depend on how many patients we visualized, and hence set the random seed again right after.
-        if isinstance(config, SegmentationModelBase):
-            with logging_section("Visualizing the effect of sampling random crops for training"):
-                visualize_random_crops_for_dataset(config)
-
-        if isinstance(lightning_model, InnerEyeLightning):
-            # Print out a detailed breakdown of layers, memory consumption and time.
-            # TODO antonsc: Can we do better here, and print a model summary for all models? Read the first item
-            # of the dataset and do forward propagation?
-            generate_and_print_model_summary(config, lightning_model.model)
-
-        if lightning_container.monitoring_interval_seconds > 0:
-            resource_monitor = start_resource_monitor(config)
+        logging.info(f"Model checkpoints are saved at {container.checkpoint_folder}")
+        container.before_training_on_rank_zero()
+        write_args_file(container.config if isinstance(container, InnerEyeContainer) else container,
+                        outputs_folder=container.outputs_folder)
+        if container.monitoring_interval_seconds > 0:
+            resource_monitor = start_resource_monitor(container)
 
     # Training loop
     logging.info("Starting training")
 
-    trainer.fit(lightning_model, datamodule=lightning_container.get_data_module())
+    # Set random seeds just before training. For segmentation models, we have
+    # something that changes the random seed in the before_training_on_rank_zero hook.
+    seed_everything(container.get_effective_random_seed())
+    trainer.fit(lightning_model, datamodule=container.get_data_module())
     trainer.logger.close()  # type: ignore
     lightning_model.close_all_loggers()
     world_size = getattr(trainer, "world_size", 0)
@@ -243,8 +225,8 @@ def model_train(config: DeepLearningConfig,
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
     # Each thread per rank will come here, and upload its files to the run outputs. Rank 0 will later download them.
     if is_azureml_run and world_size > 1 and isinstance(lightning_model, ScalarLightning):
-        upload_output_file_as_temp(lightning_model.train_subject_outputs_logger.csv_path, config.outputs_folder)
-        upload_output_file_as_temp(lightning_model.val_subject_outputs_logger.csv_path, config.outputs_folder)
+        upload_output_file_as_temp(lightning_model.train_subject_outputs_logger.csv_path, container.outputs_folder)
+        upload_output_file_as_temp(lightning_model.val_subject_outputs_logger.csv_path, container.outputs_folder)
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
     # We can now use the global_rank of the Lightining model, rather than environment variables, because DDP has set
     # all necessary properties.
@@ -253,7 +235,7 @@ def model_train(config: DeepLearningConfig,
         sys.exit()
 
     logging.info("Choosing the best checkpoint and removing redundant files.")
-    cleanup_checkpoint_folder(lightning_container.checkpoint_folder)
+    cleanup_checkpoint_folder(container.checkpoint_folder)
     # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
     # those environment variables will mislead the training runs in the test suite, and make them crash.
     # Hence, restore the original environment after training.
@@ -268,11 +250,11 @@ def model_train(config: DeepLearningConfig,
             for rank in range(world_size):
                 for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
                     file = mode.value + "/" + get_subject_output_file_per_rank(rank)
-                    RUN_CONTEXT.download_file(name=TEMP_PREFIX + file, output_file_path=config.outputs_folder / file)
+                    RUN_CONTEXT.download_file(name=TEMP_PREFIX + file, output_file_path=container.outputs_folder / file)
         # Concatenate all temporary file per execution mode
         for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
-            temp_files = (config.outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
-            result_file = config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
+            temp_files = (container.outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
+            result_file = container.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
             for i, file in enumerate(temp_files):
                 temp_file_contents = file.read_text()
                 if i == 0:
@@ -289,9 +271,9 @@ def model_train(config: DeepLearningConfig,
     checkpoint_handler.additional_training_done()
 
     # Upload visualization directory to AML run context to be able to see it in the Azure UI.
-    if isinstance(config, DeepLearningConfig):
-        if config.max_batch_grad_cam > 0 and config.visualization_folder.exists():
-            RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(config.visualization_folder))
+    if isinstance(container, InnerEyeContainer):
+        if container.config.max_batch_grad_cam > 0 and container.visualization_folder.exists():
+            RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(container.visualization_folder))
 
     if resource_monitor:
         logging.info("Shutting down the resource monitor process.")

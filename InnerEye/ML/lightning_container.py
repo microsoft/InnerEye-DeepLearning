@@ -135,6 +135,7 @@ class LightningWithInference(LightningModule, LightningInference):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         LightningModule.__init__(self, *args, **kwargs)
+        # These 3 fields get populated from the enclosing LightningContainer
         self.optimizer_params = OptimizerParams()
         self.output_params = OutputParams()
         self.trainer_params = TrainerParams()
@@ -280,3 +281,10 @@ class LightningContainer(GenericConfig,
         self._model.output_params = create_from_matching_params(self, OutputParams)
         self._model.optimizer_params = create_from_matching_params(self, OptimizerParams)
         self._model.trainer_params = create_from_matching_params(self, TrainerParams)
+
+    def before_training_on_rank_zero(self) -> None:
+        """
+        A hook that will be called before starting model training, before creating the Lightning Trainer object.
+        In distributed training, this is only run on rank zero.
+        """
+        pass

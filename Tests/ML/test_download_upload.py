@@ -15,7 +15,7 @@ from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_section,
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.lightning_base import InnerEyeContainer
-from InnerEye.ML.lightning_container import LightningWithInference
+from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.run_recovery import RunRecovery
@@ -125,24 +125,24 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
                                         is_offline_run: bool,
                                         local_dataset: Optional[Path],
                                         azure_dataset: str,
-                                        is_lightning_model: bool) -> Optional[Path]:
+                                        is_lightning_model: bool) -> LightningContainer:
     if is_lightning_model:
-        lightning_container = DummyContainerWithDatasets()
-        lightning_container.azure_dataset_id = azure_dataset
-        lightning_container.local_dataset = local_dataset
-        config = LightningWithInference()
+        container = DummyContainerWithDatasets()
+        container.azure_dataset_id = azure_dataset
+        container.local_dataset = local_dataset
+        config = None
     else:
         config = DummyModel()
         config.azure_dataset_id = azure_dataset
         config.local_dataset = local_dataset
-        lightning_container = InnerEyeContainer(config)
+        container = None
     with mock.patch("InnerEye.ML.run_ml.MLRunner.is_offline_run", is_offline_run):
         with mock.patch("InnerEye.ML.run_ml.download_dataset", return_value=Path("download")):
             with mock.patch("InnerEye.ML.run_ml.try_to_mount_input_dataset", return_value=Path("mount")):
-                runner = MLRunner(config, container=lightning_container,
+                runner = MLRunner(config, container=container,
                                   azure_config=None, project_root=test_output_dirs.root_dir)
                 runner.setup()
-                return runner.container.local_dataset
+                return runner.container
 
 
 @pytest.mark.parametrize(("is_offline_run", "is_lightning_model", "expected_error"),
@@ -176,7 +176,7 @@ def test_mount_failing(test_output_dirs: OutputFolderForTests,
             run()
         assert expected_error in str(ex)
     else:
-        assert run() is None
+        assert run().local_dataset is None
 
 
 def test_mount_or_download(test_output_dirs: OutputFolderForTests) -> None:
@@ -186,20 +186,32 @@ def test_mount_or_download(test_output_dirs: OutputFolderForTests) -> None:
     root = test_output_dirs.root_dir
     for is_lightning_model in [True, False]:
         # With runs outside of AzureML, an AML dataset should get downloaded.
-        assert _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
-                                                   is_offline_run=True,
-                                                   local_dataset=None,
-                                                   azure_dataset="foo",
-                                                   is_lightning_model=is_lightning_model) == Path("download")
+        container = _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
+                                                        is_offline_run=True,
+                                                        local_dataset=None,
+                                                        azure_dataset="foo",
+                                                        is_lightning_model=is_lightning_model)
+        assert container.local_dataset == Path("download")
+        # For all InnerEye built-in models, the paths from container level need to be copied down to legacy config
+        # level.
+        if not is_lightning_model:
+            assert container.config.local_dataset == container.local_dataset
         # With runs in AzureML, an AML dataset should get mounted.
-        assert _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
-                                                   is_offline_run=False,
-                                                   local_dataset=None,
-                                                   azure_dataset="foo",
-                                                   is_lightning_model=is_lightning_model) == Path("mount")
+        runner = _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
+                                                     is_offline_run=False,
+                                                     local_dataset=None,
+                                                     azure_dataset="foo",
+                                                     is_lightning_model=is_lightning_model)
+        assert runner.local_dataset == Path("mount")
+        if not is_lightning_model:
+            assert container.config.local_dataset == container.local_dataset
+
         # With runs outside of AzureML, a local dataset should be used as-is. Azure dataset ID is ignored here.
-        assert _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
-                                                   is_offline_run=True,
-                                                   local_dataset=root,
-                                                   azure_dataset="",
-                                                   is_lightning_model=is_lightning_model) == root
+        runner = _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
+                                                     is_offline_run=True,
+                                                     local_dataset=root,
+                                                     azure_dataset="",
+                                                     is_lightning_model=is_lightning_model)
+        assert runner.local_dataset == root
+        if not is_lightning_model:
+            assert container.config.local_dataset == container.local_dataset

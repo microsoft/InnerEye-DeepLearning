@@ -249,8 +249,8 @@ def model_train_unittest(config: DeepLearningConfig,
         checkpoint_handler = CheckpointHandler(azure_config=azure_config,
                                                container=lightning_container,
                                                project_root=dirs.root_dir)
-    _, storing_logger = model_train(config, checkpoint_handler=checkpoint_handler,
-                                    lightning_container=lightning_container)
+    _, storing_logger = model_train(checkpoint_handler=checkpoint_handler,
+                                    container=lightning_container)
     return storing_logger, checkpoint_handler
 
 
