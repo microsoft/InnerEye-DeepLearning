@@ -17,9 +17,12 @@ from InnerEye.SSL.datamodules.transforms_utils import DualViewTransformWrapper, 
 class RSNAKaggleDataModule(LightningDataModule):
     def __init__(self,
                  augmentation_config: ConfigNode,
-                 model_config: LightningContainer,
                  dataset_path: Path,
                  num_devices: int,
+                 batch_size: int,
+                 num_workers: int,
+                 random_seed: int,
+                 use_balanced_binary_loss_for_linear_head: bool,
                  dataset_class: Any = RSNAKaggleCXR,
                  *args: Any, **kwargs: Any) -> None:
         """
@@ -32,18 +35,20 @@ class RSNAKaggleDataModule(LightningDataModule):
         :param num_workers: The number of cpu dataloader workers.
         """
         super().__init__(*args, **kwargs)
-        self.seed = model_config.random_seed
+        self.seed = random_seed
+        self.num_workers = num_workers
+
         self._dataset_class = dataset_class
         self.augmentation_config = augmentation_config
         self.dataset_path = dataset_path
-        self.batch_size = model_config.batch_size // num_devices
-        self.num_workers = model_config.num_workers
+        self.batch_size = batch_size // num_devices
+
         self.train_transforms = DualViewTransformWrapper(create_chest_xray_transform(self.augmentation_config, is_train=True))
         self.train_dataset = self._dataset_class(self.dataset_path,
                                                  use_training_split=True,
                                                  transform=self.train_transforms)
         self.class_weights: Optional[torch.Tensor] = None
-        if model_config.use_balanced_binary_loss_for_linear_head and hasattr(self.train_dataset,
+        if use_balanced_binary_loss_for_linear_head and hasattr(self.train_dataset,
                                                                                               "targets"):
             # Weight = inverse class proportion.
             class_weights = len(self.train_dataset.targets) / np.bincount(self.train_dataset.targets)
