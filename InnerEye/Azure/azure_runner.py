@@ -313,7 +313,7 @@ def create_run_config(azure_config: AzureConfig,
         dataset_consumptions.update({dataset_consumption.name: dataset_consumption})
     if extra_azure_dataset_ids is not None:
         for i, dataset_id in enumerate(extra_azure_dataset_ids, 1):
-            dataset_consumption = get_dataset_consumption(azure_config, azure_dataset_id, i)
+            dataset_consumption = get_dataset_consumption(azure_config, dataset_id, i)
             dataset_consumptions.update({dataset_consumption.name: dataset_consumption})
     # AzureML seems to sometimes expect the entry script path in Linux format, hence convert to posix path
     entry_script_relative_path = source_config.entry_script.relative_to(source_config.root_folder).as_posix()

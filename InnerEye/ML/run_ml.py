@@ -193,8 +193,8 @@ class MLRunner:
                         raise ValueError("The values of extra_local_dataset_ids and extra_azure_dataset_ids are "
                                          "incompatible, you provided two non-empty lists of different length.")
                 elif self.container.extra_azure_dataset_ids is not None:
-                    for azure_id in self.container.extra_azure_dataset_ids:
-                        extra_locals.append(self.mount_or_download_dataset(azure_id, None))
+                    for i, azure_id in enumerate(self.container.extra_azure_dataset_ids, 1):
+                        extra_locals.append(self.mount_or_download_dataset(azure_id, None, idx=i))
                 self.container.extra_local_dataset_ids = extra_locals
 
         # Ensure that we use fixed seeds before initializing the PyTorch models
@@ -427,7 +427,7 @@ class MLRunner:
             activation_maps.extract_activation_maps(self.model_config)
             logging.info("Successfully extracted and saved activation maps")
 
-    def mount_or_download_dataset(self, azure_dataset_id, local_dataset) -> Optional[Path]:
+    def mount_or_download_dataset(self, azure_dataset_id, local_dataset, idx: int = 0) -> Optional[Path]:
         """
         Makes the dataset that the model uses available on the executing machine. If the present training run is outside
         of AzureML, it expects that either the model has a `local_dataset` field set, in which case no action will be
@@ -466,7 +466,7 @@ class MLRunner:
         if is_dataset_required and not azure_dataset_id:
             raise ValueError("The model must contain azure_dataset_id for running on AML")
         if azure_dataset_id:
-            mounted = try_to_mount_input_dataset()
+            mounted = try_to_mount_input_dataset(idx)
             if not mounted:
                 raise ValueError("Unable to mount or download input dataset.")
             return mounted
