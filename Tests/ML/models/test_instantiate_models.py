@@ -12,9 +12,8 @@ from azureml.core import Run
 from InnerEye.Common.common_util import logging_to_stdout, namespace_to_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.lightning_container import LightningContainer
-from InnerEye.ML.model_training import generate_and_print_model_summary
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
-from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, generate_and_print_model_summary
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithInvalidTrainerArguments, \
     DummyContainerWithParameters
