@@ -353,6 +353,12 @@ class ScalarModelBase(ModelConfigBase):
         """
         return LabelTransformation.identity
 
+    def get_posthoc_label_transform(self) -> Callable:
+        """Return a transformation or list of transformation to apply to the labels after they are
+        loaded, for computing losses, metrics, and reports.
+        """
+        return lambda x: x  # no-op by default
+
     def read_dataset_into_dataframe_and_pre_process(self) -> None:
         assert self.local_dataset is not None
         file_path = self.local_dataset / self.dataset_csv
