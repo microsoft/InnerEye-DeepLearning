@@ -745,7 +745,7 @@ class MLRunner:
                         val_metrics=path_to_best_epoch_val,
                         test_metrics=path_to_best_epoch_test)
 
-                    if len(config.class_names) > 1:
+                    if config.should_generate_multilabel_report():
                         generate_classification_multilabel_notebook(
                             result_notebook=reports_dir / get_ipynb_report_name(f"{config.model_category.value}_multilabel"),
                             config=config,

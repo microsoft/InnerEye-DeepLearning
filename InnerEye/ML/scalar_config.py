@@ -252,6 +252,9 @@ class ScalarModelBase(ModelConfigBase):
         """
         return len(self.image_channels) == 0
 
+    def should_generate_multilabel_report(self) -> bool:
+        return len(self.class_names) > 1
+
     def get_total_number_of_non_imaging_features(self) -> int:
         """Returns the total number of non imaging features expected in the input"""
         return self.get_total_number_of_numerical_non_imaging_features() + \
