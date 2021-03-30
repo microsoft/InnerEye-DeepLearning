@@ -126,7 +126,7 @@ def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase) 
     Given the csv written during inference time and the model config,
     plot the ROC and PR curves for all prediction targets.
     """
-    for prediction_target in config.class_names:
+    for prediction_target in config.target_names:
         print_header(f"Class {prediction_target}", level=3)
         metrics = get_labels_and_predictions(metrics_csv, prediction_target)
         plot_pr_and_roc_curves(metrics)
@@ -244,8 +244,7 @@ def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
                            or are floating point numbers.
     """
-
-    for prediction_target in config.class_names:
+    for prediction_target in config.target_names:
         print_header(f"Class {prediction_target}", level=3)
         val_metrics = get_labels_and_predictions(val_metrics_csv, prediction_target)
         test_metrics = get_labels_and_predictions(test_metrics_csv, prediction_target)

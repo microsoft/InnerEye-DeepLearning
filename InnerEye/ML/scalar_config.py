@@ -117,6 +117,11 @@ class ScalarModelBase(ModelConfigBase):
                                             "For binary classification, this field must be a list of size 1, and "
                                             "is by default ['Default'], but can optionally be set to a more descriptive "
                                             "name for the positive class.")
+    target_names: List[str] = param.List(class_=str,
+                                         default=None,
+                                         bounds=(1, None),
+                                         doc="The label names for each output target, used for reporting results. "
+                                             "By default this matches class_names.")
     aggregation_type: AggregationType = param.ClassSelector(default=AggregationType.Average, class_=AggregationType,
                                                             doc="The type of global pooling aggregation to use between"
                                                                 " the encoder and the classifier.")
@@ -219,6 +224,8 @@ class ScalarModelBase(ModelConfigBase):
                          "num_dataset_reader_workers to 0 as this is an AML run.")
         else:
             self.num_dataset_reader_workers = num_dataset_reader_workers
+        if self.target_names is None:
+            self.target_names = self.class_names
 
     def validate(self) -> None:
         if len(self.class_names) > 1 and not self.is_classification_model:

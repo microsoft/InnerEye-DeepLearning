@@ -185,7 +185,7 @@ class ScalarLightning(InnerEyeLightning):
         else:
             self.loss_fn = raw_loss
             self.target_indices = []
-            self.target_names = config.class_names
+            self.target_names = config.target_names
         self.is_classification_model = config.is_classification_model
         self.use_mean_teacher_model = config.compute_mean_teacher_model
         self.is_binary_classification_or_regression = True if len(config.class_names) == 1 else False
