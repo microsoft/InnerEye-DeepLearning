@@ -262,7 +262,7 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
     ds = dicom.dcmread(path)
     pixels = ds.pixel_array
     bits_stored = ds.BitsStored
-    if ds.PhotometricInterpretation == "MONOCHROME1":
+    if ds.PhotometricInterpretation == PhotometricInterpretation.MONOCHROME1.value:
         pixel_repr = ds.PixelRepresentation
         if pixel_repr == 0:  # unsigned
             pixels = 2 ** bits_stored - 1 - pixels
