@@ -6,6 +6,7 @@ from io import StringIO
 from unittest import mock
 
 import pandas as pd
+import pytest
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
@@ -14,7 +15,7 @@ from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
-from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
+from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel, DummyContainerWithPlainLightning
 from Tests.ML.util import default_runner
 
 
@@ -60,6 +61,27 @@ Train,1e-7"""))
     assert "adam_betas" in args_file
 
 
+def test_run_container_with_plain_lightning_in_situ(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if we can train a plain Lightning model, without any additional methods defined, end-to-end.
+    """
+    runner = default_runner()
+    local_dataset = test_output_dirs.root_dir / "dataset"
+    local_dataset.mkdir()
+    args = ["", "--model=DummyContainerWithPlainLightning", "--model_configs_namespace=Tests.ML.configs",
+            f"--output_to={test_output_dirs.root_dir}", f"--local_dataset={local_dataset}"]
+    with mock.patch("sys.argv", args):
+        loaded_config, actual_run = runner.run()
+    assert actual_run is None
+    assert isinstance(runner.lightning_container, DummyContainerWithPlainLightning)
+    # Test if the outputs folder is relative to the folder that we specified via the commandline
+    runner.lightning_container.outputs_folder.relative_to(test_output_dirs.root_dir)
+    results = runner.lightning_container.outputs_folder
+    # Test if all the files that are written during inference exist.
+    assert not (results / "on_inference_start.txt").is_file()
+    assert (results / "test_step.txt").is_file()
+
+
 def test_innereye_container_init() -> None:
     """
     Test if the constructor of the InnerEye container copies attributes as expected.
@@ -85,9 +107,11 @@ def test_create_fastmri_container() -> None:
     VarNetWithInference()
 
 
+@pytest.mark.gpu
 def test_run_fastmri_container(test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test if we can get run the fastMRI model end-to-end.
+    Test if we can get run the fastMRI model end-to-end. This takes about 2min on a CPU machine, hence only run
+    in AzureML
     """
     runner = default_runner()
     dataset_dir = test_output_dirs.root_dir / "dataset"

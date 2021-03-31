@@ -211,7 +211,7 @@ def model_train(checkpoint_handler: CheckpointHandler,
         lightning_model.storing_logger = storing_logger
 
     logging.info("Starting training")
-    # When training models that are not built-in InnerEye models, we have not guarantee that they write
+    # When training models that are not built-in InnerEye models, we have no guarantee that they write
     # files to the right folder. Best guess is to change the current working directory to where files should go.
     with change_working_directory(container.outputs_folder):
         trainer.fit(lightning_model, datamodule=container.get_data_module())

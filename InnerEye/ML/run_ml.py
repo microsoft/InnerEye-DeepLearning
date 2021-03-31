@@ -31,7 +31,8 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
     OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
-    get_epoch_results_path, is_windows, logging_section, logging_to_file, print_exception, remove_file_or_directory
+    change_working_directory, get_epoch_results_path, is_windows, logging_section, logging_to_file, print_exception, \
+    remove_file_or_directory
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -341,8 +342,9 @@ class MLRunner:
         if len(checkpoint_paths) != 1:
             raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
         lightning_model = self.container.model
+        # Run the customized inference code only if the the "inference" step has been overridden
         if isinstance(lightning_model, LightningInference) and \
-                lightning_model.inference_step != LightningInference.inference_step:
+                type(lightning_model).inference_step != LightningInference.inference_step:
             logging.info("Running inference via the LightningInference.inference_step method")
             data = self.container.get_inference_data_module()
             dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
@@ -364,12 +366,16 @@ class MLRunner:
                     lightning_model.inference_step(item, batch_idx, model_output=model_output)
                 lightning_model.on_inference_epoch_end()
             lightning_model.on_inference_end()
-        elif lightning_model.test_step != LightningModule.test_step:
+        elif type(lightning_model).test_step != LightningModule.test_step:
+            # Run Lightning's built-in test procedure if the `test_step` method has been overridden
             logging.info("Running inference via the LightningModule.test_step method")
             trainer = trainer or create_lightning_trainer(self.container)
-            trainer.test(self.container.model,
-                         test_dataloaders=self.container.get_data_module().test_dataloader(),
-                         ckpt_path=str(checkpoint_paths[0]))
+            # When training models that are not built-in InnerEye models, we have no guarantee that they write
+            # files to the right folder. Best guess is to change the current working directory to where files should go.
+            with change_working_directory(self.container.outputs_folder):
+                trainer.test(self.container.model,
+                             test_dataloaders=self.container.get_data_module().test_dataloader(),
+                             ckpt_path=str(checkpoint_paths[0]))
             logging.info("Finished inference.")
         else:
             logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
