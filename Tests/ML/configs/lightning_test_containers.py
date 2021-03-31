@@ -2,12 +2,13 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from pathlib import Path
 from typing import Dict, List, Tuple
 
 import pandas as pd
 import param
 import torch
-from pytorch_lightning import LightningDataModule
+from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.metrics import MeanSquaredError
 from torch import Tensor
 from torch.nn import Identity
@@ -64,9 +65,48 @@ class DummyContainerWithParameters(LightningContainer):
         return InferenceWithParameters(self.container_param)
 
 
-class DummyRegression(LightningWithInference):
+class DummyRegressionPlainLightning(LightningWithInference):
+    """
+    A class that only implements plain Lightning training and test. Ideally, we want to support importing any plain
+    Lightning module without further methods added. This class here inherits LightningWithInference, but does not
+    implement the inference_step method
+    """
     def __init__(self, in_features: int = 1, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.l_rate = 1e-1
+        activation = Identity()
+        layers = [
+            torch.nn.Linear(in_features=in_features, out_features=1, bias=True),
+            activation
+        ]
+        self.model = torch.nn.Sequential(*layers)  # type: ignore
+
+    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+        return self.model(x)
+
+    def training_step(self, batch, *args, **kwargs):
+        input, target = batch
+        prediction = self.forward(input)
+        loss = torch.nn.functional.mse_loss(prediction, target)
+        self.log("loss", loss, on_epoch=True, on_step=True)
+        return loss
+
+    def test_step(self, batch, batch_idx) -> torch.Tensor:
+        Path("test_step.txt").touch()
+        input, target = batch
+        prediction = self.forward(input)
+        loss = torch.nn.functional.mse_loss(prediction, target)
+        self.log("test_loss", loss, on_epoch=True, on_step=True)
+        return loss
+
+    def on_test_epoch_end(self) -> None:
+        Path("on_test_epoch_end.txt").touch()
+        pass
+
+
+class DummyRegression(DummyRegressionPlainLightning):
+    def __init__(self, in_features: int = 1, *args, **kwargs):
+        super().__init__(in_features=in_features, *args, **kwargs)
         self.l_rate = 1e-1
         self.dataset_split = ModelExecutionMode.TRAIN
         activation = Identity()
@@ -166,3 +206,17 @@ class DummyContainerWithModel(LightningContainer):
 class DummyContainerWithInvalidTrainerArguments(DummyContainerWithModel):
     def get_trainer_arguments(self):
         return {"no_such_argument": 1}
+
+
+class DummyContainerWithPlainLightning(LightningContainer):
+    def __init__(self):
+        super().__init__()
+        self.num_epochs = 100
+        self.l_rate = 1e-2
+
+    def create_model(self) -> LightningWithInference:
+        return DummyRegressionPlainLightning()
+
+    def get_data_module(self) -> LightningDataModule:
+        return FixedRegressionData()
+

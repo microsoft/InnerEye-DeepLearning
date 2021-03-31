@@ -16,7 +16,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Run
 from azureml.core.model import Model
 from azureml.data import FileDataset
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import LightningModule, Trainer, seed_everything
 from pytorch_lightning.utilities.cloud_io import load as pl_load
 from torch.utils.data import DataLoader
 
@@ -43,7 +43,7 @@ from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentatio
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
-from InnerEye.ML.model_training import model_train
+from InnerEye.ML.model_training import create_lightning_trainer, model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook, \
     generate_classification_notebook, generate_segmentation_notebook, get_ipynb_report_name, reports_folder
 from InnerEye.ML.runner import LOG_FILE_NAME, ModelDeploymentHookSignature, PostCrossValidationHookSignature, \
@@ -188,7 +188,7 @@ class MLRunner:
         # A lot of the code for the built-in InnerEye models expects the output paths directly in the config files.
         if isinstance(self.container, InnerEyeContainer):
             self.container.config.local_dataset = self.container.local_dataset
-            self.container.file_system_config = self.container.file_system_config
+            self.container.config.file_system_config = self.container.file_system_config
         self.container.setup()
         self.container.create_lightning_module_and_store()
         self._has_setup_run = True
@@ -341,29 +341,38 @@ class MLRunner:
         if len(checkpoint_paths) != 1:
             raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
         lightning_model = self.container.model
-        assert isinstance(lightning_model, LightningInference), \
-            f"Expected an instance of LightningInference, but got {type(lightning_model)}"
-        data = self.container.get_inference_data_module()
-        dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
-        if self.container.perform_validation_and_test_set_inference:
-            dataloaders.append((data.test_dataloader(), ModelExecutionMode.TEST))
-            dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))
-        if self.container.perform_training_set_inference:
-            dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))
-        map_location = "gpu" if self.container.use_gpu else "cpu"
-        checkpoint = pl_load(checkpoint_paths[0], map_location=map_location)
-        lightning_model.load_state_dict(checkpoint['state_dict'])
-        lightning_model.eval()
-        lightning_model.on_inference_start()
-        for loader, split in dataloaders:
-            logging.info(f"Starting inference on {split.value} set")
-            lightning_model.on_inference_epoch_start(dataset_split=split, is_ensemble_model=False)
-            for batch_idx, item in enumerate(loader):
-                model_output = lightning_model.forward(item[0])
-                lightning_model.inference_step(item, batch_idx, model_output=model_output)
-            lightning_model.on_inference_epoch_end()
-        lightning_model.on_inference_end()
-        logging.info("Finished inference.")
+        if isinstance(lightning_model, LightningInference) and \
+                lightning_model.inference_step != LightningInference.inference_step:
+            logging.info("Running inference via the LightningInference.inference_step method")
+            data = self.container.get_inference_data_module()
+            dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
+            if self.container.perform_validation_and_test_set_inference:
+                dataloaders.append((data.test_dataloader(), ModelExecutionMode.TEST))
+                dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))
+            if self.container.perform_training_set_inference:
+                dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))
+            map_location = "gpu" if self.container.use_gpu else "cpu"
+            checkpoint = pl_load(checkpoint_paths[0], map_location=map_location)
+            lightning_model.load_state_dict(checkpoint['state_dict'])
+            lightning_model.eval()
+            lightning_model.on_inference_start()
+            for loader, split in dataloaders:
+                logging.info(f"Starting inference on {split.value} set")
+                lightning_model.on_inference_epoch_start(dataset_split=split, is_ensemble_model=False)
+                for batch_idx, item in enumerate(loader):
+                    model_output = lightning_model.forward(item[0])
+                    lightning_model.inference_step(item, batch_idx, model_output=model_output)
+                lightning_model.on_inference_epoch_end()
+            lightning_model.on_inference_end()
+        elif lightning_model.test_step != LightningModule.test_step:
+            logging.info("Running inference via the LightningModule.test_step method")
+            trainer = trainer or create_lightning_trainer(self.container)
+            trainer.test(self.container.model,
+                         test_dataloaders=self.container.get_data_module().test_dataloader(),
+                         ckpt_path=str(checkpoint_paths[0]))
+            logging.info("Finished inference.")
+        else:
+            logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
 
     def run_inference_and_register_model(self, checkpoint_handler: CheckpointHandler,
                                          model_proc: ModelProcessing) -> None:
