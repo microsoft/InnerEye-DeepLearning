@@ -5,7 +5,7 @@
 import os
 from pathlib import Path
 import shutil
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Optional, Tuple
 from unittest import mock
 import zipfile
 
@@ -21,7 +21,7 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sample import PatientDatasetSource, PatientMetadata
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
-from InnerEye.ML.utils.io_util import DicomTags, ImageAndSegmentations, ImageHeader, PhotometricInterpretation, \
+from InnerEye.ML.utils.io_util import ImageAndSegmentations, ImageHeader, PhotometricInterpretation, \
     is_dicom_file_path, is_nifti_file_path, is_numpy_file_path, load_dicom_image, load_image_in_known_formats, \
     load_images_and_stack, load_numpy_image, reverse_tuple_float3, load_dicom_series_and_save
 from Tests.ML.util import assert_file_contains_string
