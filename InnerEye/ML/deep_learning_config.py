@@ -649,7 +649,7 @@ class DeepLearningConfig(EssentialParams,
         # Avoid callable params, the bindings that are printed out can be humongous.
         # Avoid dataframes
         skip_params = {name for name, value in self.param.params().items()
-                       if isinstance(value, (param.Callable, DataFrame))}
+                       if isinstance(value, (param.Callable, param.DataFrame))}
         for key, value in self.param.get_param_values():
             if key not in skip_params:
                 arguments_str += f"\t{key:40}: {value}\n"

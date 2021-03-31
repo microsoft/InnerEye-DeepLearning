@@ -48,7 +48,7 @@ class StoringLogger(LightningLoggerBase):
         self.hyperparams = params
 
     def experiment(self) -> Any:
-        return ""
+        return None
 
     def name(self) -> Any:
         return ""
@@ -161,7 +161,7 @@ class AzureMLLogger(LightningLoggerBase):
         pass
 
     def experiment(self) -> Any:
-        return ""
+        return None
 
     def name(self) -> Any:
         return ""

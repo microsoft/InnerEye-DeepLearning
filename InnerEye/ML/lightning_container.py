@@ -6,6 +6,7 @@ import abc
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
+import param
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 # Problem: We need to know
@@ -258,6 +259,22 @@ class LightningContainer(GenericConfig,
         """
         return dict()
 
+    def before_training_on_rank_zero(self) -> None:
+        """
+        A hook that will be called before starting model training, before creating the Lightning Trainer object.
+        In distributed training, this is only run on rank zero. It is executed after the before_training_on_all_ranks
+        hook.
+        """
+        pass
+
+    def before_training_on_all_ranks(self) -> None:
+        """
+        A hook that will be called before starting model training.
+        In distributed training, this hook will be called on all ranks. It is executed before the
+        the before_training_on_rank_zero hook.
+        """
+        pass
+
     # The code from here onwards does not need to be modified.
 
     @property
@@ -280,18 +297,20 @@ class LightningContainer(GenericConfig,
         self._model.optimizer_params = create_from_matching_params(self, OptimizerParams)
         self._model.trainer_params = create_from_matching_params(self, TrainerParams)
 
-    def before_training_on_rank_zero(self) -> None:
-        """
-        A hook that will be called before starting model training, before creating the Lightning Trainer object.
-        In distributed training, this is only run on rank zero. It is executed after the before_training_on_all_ranks
-        hook.
-        """
-        pass
-
-    def before_training_on_all_ranks(self) -> None:
-        """
-        A hook that will be called before starting model training.
-        In distributed training, this hook will be called on all ranks. It is executed before the
-        the before_training_on_rank_zero hook.
-        """
-        pass
+    def __str__(self) -> str:
+        """Returns a string describing the present object, as a list of key: value strings."""
+        arguments_str = "\nContainer:\n"
+        # Avoid callable params, the bindings that are printed out can be humongous.
+        # Avoid dataframes
+        skip_params = {name for name, value in self.param.params().items()
+                       if isinstance(value, (param.Callable, param.DataFrame))}
+        for key, value in self.param.get_param_values():
+            if key not in skip_params:
+                arguments_str += f"\t{key:40}: {value}\n"
+        # Print out all other separate vars that are not under the guidance of the params library,
+        # skipping the two that are introduced by params
+        skip_vars = {"param", "initialized"}
+        for key, value in vars(self).items():
+            if key not in skip_vars and key[0] != "_":
+                arguments_str += f"\t{key:40}: {value}\n"
+        return arguments_str

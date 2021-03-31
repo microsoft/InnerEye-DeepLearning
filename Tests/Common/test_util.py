@@ -2,11 +2,14 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import os
+from pathlib import Path
 
 import pytest
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import check_is_any_of, is_private_field_name, namespace_to_path, \
+from InnerEye.Common.common_util import change_working_directory, check_is_any_of, is_private_field_name, \
+    namespace_to_path, \
     path_to_namespace, print_exception
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -106,3 +109,18 @@ def test_path_to_namespace(is_external: bool, test_output_dirs: OutputFolderForT
             path=full_ml_test_data_path(),
             root=tests_root_directory().parent
         ) == test_data.__name__
+
+
+def test_change_dir(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test the context manager for changing directories.
+    """
+    os.chdir(test_output_dirs.root_dir)
+    assert Path.cwd() == test_output_dirs.root_dir
+    new_dir = test_output_dirs.root_dir / "foo"
+    new_dir.mkdir()
+    with change_working_directory(new_dir):
+        assert Path.cwd() == new_dir
+        Path("bar.txt").touch()
+    assert Path.cwd() == test_output_dirs.root_dir
+    assert (new_dir / "bar.txt").is_file()
