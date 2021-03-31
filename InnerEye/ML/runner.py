@@ -175,7 +175,7 @@ class Runner:
                                             args=previous_parser_result.unknown,
                                             fail_on_unknown_args=True)
             # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
-            c.apply_overrides(parser_result.unknown_settings_from_yaml)
+            c.apply_overrides(parser_result.known_settings_from_yaml)
             c.apply_overrides(parser_result.overrides)
             c.validate()
             return parser_result

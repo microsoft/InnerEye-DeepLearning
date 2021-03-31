@@ -11,20 +11,17 @@ from pathlib import Path
 from typing import Any, Optional
 
 import torch
-from _pytest import monkeypatch
 from _pytest.monkeypatch import MonkeyPatch
 from pytorch_lightning import LightningDataModule
 
-from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed
-from InnerEye.Common.fixed_paths import DATASETS_DIR_NAME
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
-from fastmri.data import SliceDataset
-from fastmri.data.subsample import create_mask_for_mask_type
-from fastmri.data.transforms import VarNetDataTransform
 
 add_folder_to_sys_path_if_needed("fastMRI")
 
+from fastmri.data import SliceDataset
+from fastmri.data.subsample import create_mask_for_mask_type
+from fastmri.data.transforms import VarNetDataTransform
 from fastmri.pl_modules import VarNetModule
 from fastmri.pl_modules import FastMriDataModule
 from tests.create_temp_data import create_temp_data
