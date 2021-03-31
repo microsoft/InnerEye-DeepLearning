@@ -256,7 +256,7 @@ def load_numpy_image(path: PathOrString, image_type: Optional[Type] = None) -> n
 
 def load_dicom_image(path: PathOrString) -> np.ndarray:
     """
-    Loads an array from a single dicom file. Returns an image
+    Loads an array from a single dicom file.
     :param path: The path to the dicom file.
     """
     ds = dicom.dcmread(path)
