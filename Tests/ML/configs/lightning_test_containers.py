@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple
 import pandas as pd
 import param
 import torch
-from pytorch_lightning import LightningDataModule, LightningModule
+from pytorch_lightning import LightningDataModule
 from pytorch_lightning.metrics import MeanSquaredError
 from torch import Tensor
 from torch.nn import Identity
@@ -71,6 +71,7 @@ class DummyRegressionPlainLightning(LightningWithInference):
     Lightning module without further methods added. This class here inherits LightningWithInference, but does not
     implement the inference_step method
     """
+
     def __init__(self, in_features: int = 1, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.l_rate = 1e-1
@@ -219,4 +220,3 @@ class DummyContainerWithPlainLightning(LightningContainer):
 
     def get_data_module(self) -> LightningDataModule:
         return FixedRegressionData()
-
