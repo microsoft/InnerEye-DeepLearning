@@ -228,6 +228,13 @@ class Runner:
         """
         return self._get_property_from_config_or_container("azure_dataset_id")
 
+    @property
+    def extra_azure_dataset_ids(self) -> List[str]:
+        """
+        Returns the name of the Azure dataset that should be used.
+        """
+        return self._get_property_from_config_or_container("extra_azure_dataset_ids")
+
     def run(self) -> Tuple[DeepLearningConfig, Optional[Run]]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
@@ -270,7 +277,7 @@ class Runner:
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
-        azure_run = submit_to_azureml(self.azure_config, source_config, self.azure_dataset_id)
+        azure_run = submit_to_azureml(self.azure_config, source_config, self.azure_dataset_id, self.extra_azure_dataset_ids)
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.

@@ -3,15 +3,20 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from io import StringIO
+from pathlib import Path
+from typing import List, Optional
 from unittest import mock
 
 import pandas as pd
+import pytest
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.configs.classification.GlaucomaPublic import AZURE_DATASET_ID
 from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithInference, FastMriDemoContainer
 from InnerEye.ML.deep_learning_config import DatasetParams, EssentialParams
 from InnerEye.ML.lightning_base import InnerEyeContainer
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
@@ -99,3 +104,28 @@ def test_model_name_is_set(test_output_dirs: OutputFolderForTests) -> None:
     assert runner.container._model_name == expected_name
     assert runner.container.model.output_params._model_name == expected_name
     assert expected_name in str(runner.container.model.outputs_folder)
+
+
+def test_extra_directory_available(test_output_dirs: OutputFolderForTests) -> None:
+    def _create_container(extra_local_dataset_ids: Optional[List[Path]] = None,
+                          extra_azure_dataset_ids: Optional[List[str]] = None) -> LightningContainer:
+        container = DummyContainerWithModel()
+        container.local_dataset = test_output_dirs.root_dir
+        container.extra_local_dataset_ids = extra_local_dataset_ids
+        container.extra_azure_dataset_ids = extra_azure_dataset_ids
+        runner = MLRunner(model_config=None, container=container)
+        runner.setup()
+        return runner.container
+
+    extra_local_dataset_ids = [test_output_dirs.root_dir, test_output_dirs.root_dir]
+    container = _create_container(extra_local_dataset_ids)
+    assert container.extra_local_dataset_ids == [test_output_dirs.root_dir, test_output_dirs.root_dir]
+
+    # Should fail as azure_ids of length 1 and local paths of length 2
+    with pytest.raises(ValueError):
+        _create_container(extra_local_dataset_ids = [test_output_dirs.root_dir, test_output_dirs.root_dir],
+                          extra_azure_dataset_ids = ["id1"])
+
+    # Check default behavior (no extra datasets)
+    container = _create_container()
+    assert container.extra_local_dataset_ids == []
