@@ -11,6 +11,7 @@ from pathlib import Path
 # flake8: noqa
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
+
 print("Starting InnerEye runner.")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
@@ -20,24 +21,24 @@ if (innereye_root / "InnerEye").is_dir():
         sys.path.insert(0, innereye_root_str)
 
 import logging
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from azureml._base_sdk_common import user_agent
-from azureml.core import Model, Run
+from azureml.core import Run
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables, \
     parse_arguments, set_environment_variables_for_multi_node, submit_to_azureml
-from InnerEye.Azure.azure_util import is_run_and_child_runs_completed
+from InnerEye.Azure.azure_util import get_all_environment_files, is_run_and_child_runs_completed
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    ModelProcessing, disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout
+    disable_logging_to_file, is_linux, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
-from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, EssentialParams
+from InnerEye.ML.config import ModelDeploymentHookSignature, PostCrossValidationHookSignature
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 
@@ -49,11 +50,6 @@ try:
     has_torch = True
 except ModuleNotFoundError as ex:
     has_torch = False
-
-LOG_FILE_NAME = "stdout.txt"
-
-PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
-ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, ModelProcessing], Any]
 
 
 def may_initialize_rpdb() -> None:
@@ -92,21 +88,6 @@ def suppress_logging_noise() -> None:
     # This is working around a spurious error message thrown by MKL, see
     # https://github.com/pytorch/pytorch/issues/37377
     os.environ['MKL_THREADING_LAYER'] = 'GNU'
-
-
-def get_all_environment_files(project_root: Path) -> List[Path]:
-    """
-    Returns a list of all Conda environment files that should be used. This is firstly the InnerEye conda file,
-    and possibly a second environment.yml file that lives at the project root folder.
-    :param project_root: The root folder of the code that starts the present training run.
-    :return: A list with 1 or 2 entries that are conda environment files.
-    """
-    innereye_yaml = fixed_paths.get_environment_yaml_file()
-    project_yaml = project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
-    files = [innereye_yaml]
-    if innereye_yaml != project_yaml:
-        files.append(project_yaml)
-    return files
 
 
 class Runner:
