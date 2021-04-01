@@ -157,6 +157,16 @@ class DualViewTransformWrapper:
         xj = transform(sample)
         return xi, xj
 
+def get_cxr_ssl_transforms(config: ConfigNode):
+    """
+    Applies wrapper around transforms to return two augmented versions of the
+    same image
+    """
+    train_transforms = DualViewTransformWrapper(
+                    create_chest_xray_transform(config, is_train=True))
+    val_transforms = DualViewTransformWrapper(
+                    create_chest_xray_transform(config, is_train=False))
+    return train_transforms, val_transforms
 
 def create_chest_xray_transform(config: ConfigNode,
                                 is_train: bool) -> Callable:
@@ -200,6 +210,16 @@ class InnerEyeCIFARTrainTransform(SimCLRTrainDataTransform):
     """
     def __call__(self, sample):
         transform = self.train_transform
+        xi = transform(sample)
+        xj = transform(sample)
+        return xi, xj
+
+class InnerEyeCIFARLinearHeadTransform(SimCLRTrainDataTransform):
+    """
+    Overload lightning-bolts SimCLRTrainDataTransform, to avoid return unused eval transform.
+    """
+    def __call__(self, sample):
+        transform = self.online_transform
         xi = transform(sample)
         xj = transform(sample)
         return xi, xj

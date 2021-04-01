@@ -7,7 +7,7 @@ from pathlib import Path
 import torch
 
 from InnerEye.Common.fixed_paths import repository_root_directory
-from InnerEye.SSL.datamodules.chestxray_datamodule import RSNAKaggleDataModule
+
 from InnerEye.SSL.utils import load_ssl_model_config
 
 

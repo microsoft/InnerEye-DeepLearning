@@ -70,7 +70,7 @@ def create_ssl_encoder(encoder_name: str, dataset_name: Optional[str] = None) ->
         raise ValueError("Unknown model type")
 
     if dataset_name is not None:
-        if dataset_name == ["CIFAR10"]:
+        if dataset_name.startswith("CIFAR"):
             logging.info("Updating the initial convolution in order not to shrink CIFAR10 images")
             encoder.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
 

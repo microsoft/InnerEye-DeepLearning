@@ -348,8 +348,7 @@ class MLRunner:
             dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))
         if self.container.perform_training_set_inference:
             dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))
-        map_location = "gpu" if self.container.use_gpu else "cpu"
-        checkpoint = pl_load(checkpoint_paths[0], map_location=map_location)
+        checkpoint = pl_load(checkpoint_paths[0], map_location=lambda storage, loc: storage)
         lightning_model.load_state_dict(checkpoint['state_dict'])
         lightning_model.eval()
         lightning_model.on_inference_start()

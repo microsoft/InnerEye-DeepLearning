@@ -1,3 +1,4 @@
+import logging
 from typing import Any, List, Optional, Tuple, Union, Dict
 
 import pytorch_lightning as pl
@@ -16,13 +17,16 @@ from InnerEye.SSL.utils import SSLModule
 SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLModule, SingleBatchType], SingleBatchType]
 
+
 class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
-    def __init__(self, class_weights: Optional[torch.Tensor] = None, **kwargs: Any) -> None:
+    def __init__(self, class_weights: Optional[torch.Tensor] = None,
+                 **kwargs: Any) -> None:
         """
         Creates a hook to evaluate a linear model on top of an SSL embedding.
 
         :param class_weights: The class weights to use when computing the cross entropy loss. If set to None,
                               no weighting will be done.
+        :param length_linear_head_loader: The maximum number of batches in the dataloader for the linear head.
         """
 
         super().__init__(**kwargs)
@@ -31,9 +35,9 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         self.learning_rate = 1e-4
 
         self.train_metrics = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()] \
-                             if self.num_classes == 2 else [Accuracy05()]
+            if self.num_classes == 2 else [Accuracy05()]
         self.val_metrics = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()] \
-                             if self.num_classes == 2 else [Accuracy05()]
+            if self.num_classes == 2 else [Accuracy05()]
         self.class_weights = class_weights
 
     def on_pretrain_routine_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
@@ -63,10 +67,16 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         head, disregard the others inputs.
         :param device: device to move the batch to.
         """
-        (x1, x2), y = batch
+        _, (x1, x2), y = batch
         x1 = x1.to(device)
         y = y.to(device)
         return x1, y
+
+    def on_train_epoch_start(self, trainer, pl_module: pl.LightningModule) -> None:
+        self.visited_ids = set()
+
+    def on_validation_epoch_start(self, trainer, pl_module: pl.LightningModule) -> None:
+        self.visited_ids = set()
 
     def shared_step(self, batch: BatchType, pl_module: pl.LightningModule, is_training: bool) -> T:
         """
@@ -97,29 +107,35 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
         Get and log validation metrics.
         """
-        loss = self.shared_step(batch, pl_module, is_training=False)
-        pl_module.log('ssl/online_val_loss', loss, on_step=False, on_epoch=True, sync_dist=False)
-        for metric in self.val_metrics:
-            pl_module.log(f"ssl/online_val_{metric.name}", metric, on_epoch=True, on_step=False)
+        ids_linear_head = tuple(batch[SSLModule.LINEAR_HEAD][0].tolist())
+        if ids_linear_head not in self.visited_ids:
+            self.visited_ids.add(ids_linear_head)
+            loss = self.shared_step(batch, pl_module, is_training=False)
+            pl_module.log('ssl/online_val_loss', loss, on_step=False, on_epoch=True, sync_dist=False)
+            for metric in self.val_metrics:
+                pl_module.log(f"ssl/online_val_{metric.name}", metric, on_epoch=True, on_step=False)
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
         """
         Get and log training metrics, perform network update.
         """
-        logger = trainer.logger.experiment  # type: ignore 
-        loss = self.shared_step(batch, pl_module, is_training=True)
+        ids_linear_head = tuple(batch[SSLModule.LINEAR_HEAD][0].tolist())
+        if ids_linear_head not in self.visited_ids:
+            self.visited_ids.add(ids_linear_head)
+            loss = self.shared_step(batch, pl_module, is_training=True)
+            # update finetune weights
+            loss.backward()
+            self.optimizer.step()
+            self.optimizer.zero_grad()
+            self.training_step += 1
 
-        # update finetune weights
-        loss.backward()
-        self.optimizer.step()
-        self.optimizer.zero_grad()
-        self.training_step += 1
-
-        # log metrics
-        pl_module.log('ssl/online_train_loss', loss)
-        for metric in self.train_metrics:
-            pl_module.log(f"ssl/online_train_{metric.name}", metric, on_epoch=True, on_step=False)
-
+            # log metrics
+            pl_module.log('ssl/batch_id', batch_idx)
+            pl_module.log('ssl/online_train_loss', loss)
+            for metric in self.train_metrics:
+                pl_module.log(f"ssl/online_train_{metric.name}", metric, on_epoch=True, on_step=False)
+        else:
+            logging.info(f"Batch {batch_idx} ignored")
 
 class SSLClassifier(LightningWithInference):
     """
@@ -164,6 +180,7 @@ class SSLClassifier(LightningWithInference):
     def on_inference_epoch_end(self) -> None:
         pass
 
+
 def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module],
                            dm: Optional[pl.LightningDataModule] = None) -> int:
     """
@@ -179,7 +196,7 @@ def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module]
     # Create a dummy input image
     if dm is not None:
         dataloader = dm.train_dataloader()
-        dataloader = dataloader[SSLModule.ENCODER] if isinstance(dataloader, dict) else dataloader
+        dataloader = dataloader[SSLModule.LINEAR_HEAD] if isinstance(dataloader, dict) else dataloader
         batch = iter(dataloader).next()  # type: ignore 
         x, _ = SSLOnlineEvaluatorInnerEye.to_device(batch, device)
     else:
