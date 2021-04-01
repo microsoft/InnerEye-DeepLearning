@@ -17,8 +17,14 @@ innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
     innereye_root_str = str(innereye_root)
     if innereye_root_str not in sys.path:
-        print(f"Adding to sys.path: {innereye_root_str}")
+        print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
         sys.path.insert(0, innereye_root_str)
+# We change the current working directory before starting the actual training. However, this throws off starting
+# the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
+# path.
+runner_path = Path(sys.argv[0])
+if not runner_path.is_absolute():
+    sys.argv[0] = str(runner_path.absolute())
 
 import logging
 from typing import Any, Optional, Tuple
