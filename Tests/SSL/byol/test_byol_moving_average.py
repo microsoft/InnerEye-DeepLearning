@@ -4,6 +4,8 @@
 #  ------------------------------------------------------------------------------------------
 import copy
 import math
+from pathlib import Path
+from random import randint
 from unittest import mock
 import numpy as np
 import torch
@@ -11,13 +13,25 @@ from pytorch_lightning import Trainer
 
 from InnerEye.SSL.byol.byol_module import BYOLInnerEye
 from InnerEye.SSL.byol.byol_moving_average import BYOLMAWeightUpdate
-from Tests.SSL.test_main import _get_dummy_val_train_rsna_dataloaders
-
+from InnerEye.SSL.datamodules.cxr_datasets import RSNAKaggleCXR
 
 def test_update_tau() -> None:
+    class DummyRSNADataset(RSNAKaggleCXR):
+        def __getitem__(self, item):
+            return (torch.rand([3, 224, 224], dtype=torch.float32),
+                    torch.rand([3, 224, 224], dtype=torch.float32)), \
+                   randint(0, 1)
+
+    dataset_dir = str(Path(__file__).parent.parent / "test_dataset")
+    dummy_rsna_train_dataloader = torch.utils.data.DataLoader(
+        DummyRSNADataset(dataset_dir, True),
+        batch_size=20,
+        num_workers=0,
+        drop_last=True)
+
     byol_weight_update = BYOLMAWeightUpdate(initial_tau=0.99)
     trainer = Trainer()
-    trainer.train_dataloader = _get_dummy_val_train_rsna_dataloaders()
+    trainer.train_dataloader = dummy_rsna_train_dataloader
     trainer.max_epochs = 5
     n_steps_per_epoch = len(trainer.train_dataloader)
     total_steps = n_steps_per_epoch * trainer.max_epochs
