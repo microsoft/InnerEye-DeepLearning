@@ -102,8 +102,9 @@ def test_create_fastmri_container() -> None:
     Test if we can create a model that uses the fastMRI submodule. This is effectively just testing module imports,
     and if the submodule is created correctly.
     """
-    from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithImageLogging, FastMriDemo
-    FastMriDemo()
+    from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithImageLogging
+    from Tests.ML.configs.fastmri_random import FastMriOnRandomData
+    FastMriOnRandomData()
     VarNetWithImageLogging()
 
 
@@ -116,14 +117,14 @@ def test_run_fastmri_container(test_output_dirs: OutputFolderForTests) -> None:
     runner = default_runner()
     dataset_dir = test_output_dirs.root_dir / "dataset"
     dataset_dir.mkdir(parents=True)
-    args = ["", "--model=FastMriDemo",
+    args = ["", "--model=FastMriOnRandomData",
             f"--output_to={test_output_dirs.root_dir}",
             f"--local_dataset={dataset_dir}"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = runner.run()
     assert actual_run is None
-    from InnerEye.ML.configs.other.fastmri_varnet import FastMriDemo
-    assert isinstance(runner.lightning_container, FastMriDemo)
+    from Tests.ML.configs.fastmri_random import FastMriOnRandomData
+    assert isinstance(runner.lightning_container, FastMriOnRandomData)
 
 
 def test_model_name_is_set(test_output_dirs: OutputFolderForTests) -> None:
