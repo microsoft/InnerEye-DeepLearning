@@ -8,11 +8,12 @@
 # flake8: noqa
 import shutil
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import torch
 from _pytest.monkeypatch import MonkeyPatch
 from pytorch_lightning import LightningDataModule
+from torch.utils.tensorboard import SummaryWriter
 
 from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
@@ -27,11 +28,18 @@ from fastmri.pl_modules import FastMriDataModule
 from tests.create_temp_data import create_temp_data
 
 
-class VarNetWithInference(LightningWithInference,
-                          VarNetModule):
+class VarNetWithImageLogging(VarNetModule):
+    """
+    A clone of the VarNet model that logs images to only the Tensorboard loggers. The original VarNet hardcodes
+    a single logger that must be Tensorboard.
+    """
 
-    def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor):
-        pass
+    def log_image(self, name: str, image: torch.Tensor):
+        experiments = self.logger.experiment if isinstance(self.logger.experiment, list) \
+            else [self.logger.experiment]
+        for experiment in experiments:
+            if isinstance(experiment, SummaryWriter):
+                experiment.add_image(name, image, global_step=self.global_step)
 
 
 class FastMriRandomData(FastMriDataModule):
@@ -77,7 +85,7 @@ class FastMriDemo(LightningContainer):
         self.max_num_gpus = 1
 
     def create_model(self) -> LightningWithInference:
-        return VarNetModule()
+        return VarNetWithImageLogging()
 
     def get_data_module(self) -> LightningDataModule:
         # Local_dataset is set via the commandline to a random folder for unit testss

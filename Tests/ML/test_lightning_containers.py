@@ -102,9 +102,9 @@ def test_create_fastmri_container() -> None:
     Test if we can create a model that uses the fastMRI submodule. This is effectively just testing module imports,
     and if the submodule is created correctly.
     """
-    from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithInference, FastMriDemo
+    from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithImageLogging, FastMriDemo
     FastMriDemo()
-    VarNetWithInference()
+    VarNetWithImageLogging()
 
 
 @pytest.mark.gpu
