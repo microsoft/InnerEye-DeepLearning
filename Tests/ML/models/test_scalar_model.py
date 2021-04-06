@@ -144,7 +144,7 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
 """
     check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
 
-
+@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 @pytest.mark.cpu_and_gpu
 def test_train_classification_multilabel_model(test_output_dirs: OutputFolderForTests) -> None:
     """
@@ -307,7 +307,7 @@ def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) 
     azure_config.train = True
     MLRunner(config, azure_config).run()
 
-
+@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test starting a classification model via the commandline runner. Test if we can provide overrides
@@ -338,7 +338,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     assert str(config.outputs_folder).startswith(output_root)
     assert (config.logs_folder / runner.LOG_FILE_NAME).exists()
 
-
+@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner2(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test starting a classification model via the commandline runner, and provide the same arguments
