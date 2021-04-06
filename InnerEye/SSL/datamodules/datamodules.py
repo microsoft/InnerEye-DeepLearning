@@ -5,7 +5,7 @@ import torch
 from pl_bolts.datamodules.vision_datamodule import VisionDataModule
 from pytorch_lightning import LightningDataModule
 from pytorch_lightning.trainer.supporters import CombinedLoader
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset, random_split
 
 from InnerEye.SSL.utils import SSLModule
 
@@ -23,6 +23,7 @@ class InnerEyeVisionDataModule(VisionDataModule):
                  val_split: Union[int, float] = 0.2,
                  num_workers: int = 16,
                  batch_size: int = 32,
+                 seed: int = 42,
                  *args: Any, **kwargs: Any) -> None:
         """
         Wrapper around VisionDatamodule to load torchvision dataset into a pytorch-lightning module.
@@ -37,6 +38,7 @@ class InnerEyeVisionDataModule(VisionDataModule):
         :param val_split: proportion of training dataset to use for validation
         :param num_workers: number of processes for dataloaders.
         :param batch_size: batch size for training & validation.
+        :param seed: random seed for dataset splitting
         """
         super().__init__(data_dir=data_dir,
                          val_split=val_split,
@@ -45,10 +47,25 @@ class InnerEyeVisionDataModule(VisionDataModule):
                          drop_last=True,
                          train_transforms=train_transforms,
                          val_transforms=val_transforms,
+                         seed=seed,
                          *args,
                          **kwargs)
         self.dataset_cls = dataset_cls
         self.EXTRA_ARGS = {"return_index": return_index}
+
+    def _split_dataset(self, dataset: Dataset, train: bool = True) -> Dataset:
+        """
+        Splits the dataset into train and validation set
+        """
+        if hasattr(dataset, "_split_dataset"):
+            # If the dataset implements a more complex logic than just splitting randomly by index.
+            # The dataset class can implements its own _split_dataset function.
+            dataset_train, dataset_val = dataset._split_dataset(val_split = self.val_split,
+                                                                seed = self.seed)
+            return dataset_train if train else dataset_val
+        else:
+            return super()._split_dataset(dataset, train)
+
 
 
 class CombinedDataModule(LightningDataModule):
