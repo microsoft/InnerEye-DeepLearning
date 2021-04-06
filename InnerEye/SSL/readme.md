@@ -7,7 +7,7 @@ The code present in this folder allows you to train self-supervised models using
 
 We provide torch lightning datamodules and config examples for two datasets: [CIFAR10](https://www.cs.toronto.edu/~kriz/cifar.html) and [RSNA Pneumonia Detection Challenge](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge/overview) to get you kickstarted with self-supervised models. To use this code with your own data, you simply need to adapt one of the existing [configs](../ML/configs/ssl/yaml_configs) 
 and create a PyTorch lightning datamodule for your dataset. Details about the meaning of each config arguments can be found 
-in the [ssl_model_config.py](ssl_model_config.py) file.
+in the [ssl_model_config.py](ssl_augmentation_config.py) file.
 
 ### Multi-dataset Support
 

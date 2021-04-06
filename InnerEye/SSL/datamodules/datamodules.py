@@ -51,6 +51,7 @@ class InnerEyeVisionDataModule(VisionDataModule):
                          *args,
                          **kwargs)
         self.dataset_cls = dataset_cls
+        self.class_weights = None
         self.EXTRA_ARGS = {"return_index": return_index}
 
     def _split_dataset(self, dataset: Dataset, train: bool = True) -> Dataset:
@@ -66,6 +67,15 @@ class InnerEyeVisionDataModule(VisionDataModule):
         else:
             return super()._split_dataset(dataset, train)
 
+    def compute_class_weights(self):
+        dataset = self.dataset_train.dataset
+        class_weights = None
+        if hasattr(dataset, "targets"):
+            class_weights = len(dataset.targets) / np.bincount(dataset.targets)
+            # Normalized class weights
+            class_weights /= class_weights.sum()
+            class_weights = torch.tensor(class_weights, dtype=torch.float32)
+        return class_weights
 
 
 class CombinedDataModule(LightningDataModule):
@@ -86,13 +96,8 @@ class CombinedDataModule(LightningDataModule):
         self.encoder_module = encoder_module
         self.linear_head_module = linear_head_module
         self.class_weights = None
-        dataset = self.linear_head_module.dataset_train.dataset
-        if use_balanced_loss_linear_head and hasattr(dataset, "targets"):
-            # Weight = inverse class proportion.
-            class_weights = len(dataset.targets) / np.bincount(dataset.targets)
-            # Normalized class weights
-            class_weights /= class_weights.sum()
-            self.class_weights = torch.tensor(class_weights, dtype=torch.float32)
+        if use_balanced_loss_linear_head:
+            self.class_weights = self.linear_head_module.compute_class_weights()
         self.batch_size = self.encoder_module.batch_size
 
     def prepare_data(self, *args: Any, **kwargs: Any) -> None:

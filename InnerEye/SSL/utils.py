@@ -1,12 +1,12 @@
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 
 from InnerEye.ML.lightning_container import LightningWithInference
-from InnerEye.SSL import ssl_model_config
+from InnerEye.SSL import ssl_augmentation_config
 from InnerEye.SSL.config_node import ConfigNode
 
 from InnerEye.SSL.encoders import DenseNet121Encoder
@@ -17,36 +17,19 @@ class SSLModule(Enum):
     LINEAR_HEAD = 'linear_head'
 
 
+class SSLType(Enum):
+    SimCLR = "SimCLR"
+    BYOL = "BYOL"
+
+
 def load_ssl_model_config(config_path: Path) -> ConfigNode:
     """
     Loads configs required for self supervised learning. Does not setup cudann as this is being
     taken care of by lightning.
     """
-    config = ssl_model_config.get_default_model_config()
+    config = ssl_augmentation_config.get_default_model_config()
     config.merge_from_file(config_path)
-    update_model_config(config)
-
-    # Freeze config entries
     config.freeze()
-
-    return config
-
-
-def update_model_config(config: ConfigNode) -> ConfigNode:
-    """
-    Adds dataset specific parameters in model config for CIFAR10 and CIFAR100. For other datasets simply return
-    the config.
-    """
-    if config.dataset.name in ['CIFAR10', 'CIFAR100']:
-        dataset_dir = f'~/.torch/datasets/{config.dataset.name}'
-        config.dataset.dataset_dir = dataset_dir
-        config.dataset.image_size = 32
-        config.dataset.n_channels = 3
-        config.dataset.n_classes = int(config.dataset.name[5:])
-
-    if not torch.cuda.is_available():
-        config.device = 'cpu'
-
     return config
 
 
@@ -77,28 +60,30 @@ def create_ssl_encoder(encoder_name: str, dataset_name: Optional[str] = None) ->
     return encoder
 
 
-def create_ssl_image_classifier(num_classes: int, pl_checkpoint_path: str) -> LightningWithInference:
+def create_ssl_image_classifier(num_classes: int, freeze_encoder: bool, pl_checkpoint_path: Union[str, Path],
+                                class_weights: Optional[torch.Tensor]) -> LightningWithInference:
     """
     Creates a SSL image classifier from a frozen encoder trained on in an unsupervised manner.
     """
     from InnerEye.SSL.byol.byol_module import BYOLInnerEye
     from InnerEye.SSL.simclr_module import SimCLRInnerEye
-    from InnerEye.SSL.ssl_classifier_module import SSLClassifier, WrapSSL
-    ssl_type = torch.load(pl_checkpoint_path, map_location=lambda storage, loc: storage)["hyper_parameters"]["ssl_type"]
+    from InnerEye.SSL.ssl_online_evaluator import WrapSSL
+    from InnerEye.SSL.lightning_containers.ssl_image_classifier import SSLClassifier
+
+    ssl_type = torch.load(str(pl_checkpoint_path), map_location=lambda storage, loc: storage)["hyper_parameters"]["ssl_type"]
     logging.info(f"Creating a {ssl_type} based image classifier")
     logging.info(f"Loading pretrained {ssl_type} weights from:\n {pl_checkpoint_path}")
 
-    if ssl_type == "byol":
+    if ssl_type == SSLType.BYOL:
         byol_module = WrapSSL(BYOLInnerEye, num_classes).load_from_checkpoint(pl_checkpoint_path)
-        model = SSLClassifier(num_classes=num_classes, encoder=byol_module.target_network.encoder,
-                              projection=byol_module.target_network.projector_normalised)
-    elif ssl_type == "simclr":
+        encoder = byol_module.target_network.encoder
+    elif ssl_type == SSLType.SimCLR:
         simclr_module = WrapSSL(SimCLRInnerEye, num_classes).load_from_checkpoint(pl_checkpoint_path)
-        model = SSLClassifier(num_classes=num_classes, encoder=simclr_module.encoder,
-                              projection=simclr_module.projection)
+        encoder = simclr_module.encoder
     else:
         raise NotImplementedError(f"Unknown unsupervised model: {ssl_type}")
 
+    model = SSLClassifier(num_classes=num_classes, encoder=encoder,
+                          freeze_encoder=freeze_encoder, class_weights=class_weights)
+
     return model
-
-

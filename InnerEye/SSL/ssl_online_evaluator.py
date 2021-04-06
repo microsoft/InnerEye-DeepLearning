@@ -1,3 +1,8 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 import logging
 from typing import Any, List, Optional, Tuple, Union, Dict
 
@@ -9,8 +14,6 @@ from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
 from torch import Tensor as T
 from torch.nn import functional as F
 
-from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.lightning_container import LightningWithInference
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 from InnerEye.SSL.utils import SSLModule
 
@@ -59,18 +62,11 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
     @staticmethod
     def to_device(batch: BatchType, device: Union[str, torch.device]) -> Tuple[T, T]:
         """
-        Moves batch to device, only use the first augmented version of the image for linear head, disregard the others.
-        :param batch: assumed to be a batch a Tuple(List[tensor, tensor, tensor], tensor) to match lightning-bolts
-        SimCLRTrainDataTransform API; the first tuple element contains a list of three tensor where the two first
-        elements contain two are two strong augmented versions  of the original images in the batch and the last
-        is a milder augmentation. Here, only use the first augmented version of the image for linear
-        head, disregard the others inputs.
+        Moves batch to device.
         :param device: device to move the batch to.
         """
-        _, (x1, x2), y = batch
-        x1 = x1.to(device)
-        y = y.to(device)
-        return x1, y
+        _, x, y = batch
+        return x.to(device), y.to(device)
 
     def on_train_epoch_start(self, trainer, pl_module: pl.LightningModule) -> None:
         self.visited_ids = set()
@@ -136,49 +132,6 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                 pl_module.log(f"ssl/online_train_{metric.name}", metric, on_epoch=True, on_step=False)
         else:
             logging.info(f"Batch {batch_idx} ignored")
-
-class SSLClassifier(LightningWithInference):
-    """
-    SSL Image classifier that combines pre-trained SSL encoder with a trainable linear-head.
-    """
-
-    def __init__(self, num_classes: int, encoder: torch.nn.Module, projection: torch.nn.Module):
-        super().__init__()
-        self.encoder = encoder
-        self.projection = projection
-        self.encoder.eval(), self.projection.eval()
-        self.classifier_head = SSLEvaluator(n_input=get_encoder_output_dim(self.encoder),
-                                            n_hidden=None,
-                                            n_classes=num_classes,
-                                            p=0.20)
-
-    def train(self, mode: bool = True) -> Any:
-        self.classifier_head.train(mode)
-        return self
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        assert isinstance(self.encoder.avgpool, torch.nn.Module)
-        with torch.no_grad():
-            # Generate representations
-            repr = self.encoder(x)
-
-            # Generate image embeddings
-            self.projection(repr)
-
-            # Generate class logits
-            agg_repr = self.encoder.avgpool(repr) if repr.ndim > 2 else repr
-            agg_repr = agg_repr.reshape(agg_repr.size(0), -1).detach()
-
-        return self.classifier_head(agg_repr)
-
-    def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
-        pass
-
-    def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor):
-        pass
-
-    def on_inference_epoch_end(self) -> None:
-        pass
 
 
 def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module],

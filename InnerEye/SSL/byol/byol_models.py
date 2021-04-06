@@ -5,7 +5,7 @@ from torch import Tensor as T
 from torch import nn
 
 from InnerEye.SSL.encoders import Lambda
-from InnerEye.SSL.ssl_classifier_module import get_encoder_output_dim
+from InnerEye.SSL.ssl_online_evaluator import get_encoder_output_dim
 from InnerEye.SSL.utils import create_ssl_encoder
 
 
