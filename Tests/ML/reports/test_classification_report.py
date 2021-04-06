@@ -71,41 +71,44 @@ def test_functions_with_invalid_csv(test_output_dirs: OutputFolderForTests) -> N
 
 def test_get_metric() -> None:
     reports_folder = Path(__file__).parent
-    test_metrics_file = reports_folder / "test_metrics_classification.csv"
-    val_metrics_file = reports_folder / "val_metrics_classification.csv"
+    test_results = get_results(reports_folder / "test_metrics_classification.csv")
+    val_results = get_results(reports_folder / "val_metrics_classification.csv")
 
-    optimal_threshold = get_metric(test_metrics_csv=test_metrics_file,
-                                   val_metrics_csv=val_metrics_file,
+    optimal_threshold = get_metric(test_results=test_results,
+                                   val_results=val_results,
                                    metric=ReportedMetrics.OptimalThreshold)
 
     assert optimal_threshold == 0.6
 
-    auc_roc = get_metric(test_metrics_csv=test_metrics_file,
-                         val_metrics_csv=val_metrics_file,
+    auc_roc = get_metric(test_results=test_results,
+                         val_results=val_results,
                          metric=ReportedMetrics.AUC_ROC)
     assert auc_roc == 0.5
 
-    auc_pr = get_metric(test_metrics_csv=test_metrics_file,
-                        val_metrics_csv=val_metrics_file,
+    auc_pr = get_metric(test_results=test_results,
+                        val_results=val_results,
                         metric=ReportedMetrics.AUC_PR)
 
     assert math.isclose(auc_pr, 13 / 24, abs_tol=1e-15)
 
-    accuracy = get_metric(test_metrics_csv=test_metrics_file,
-                          val_metrics_csv=val_metrics_file,
-                          metric=ReportedMetrics.Accuracy)
+    accuracy = get_metric(test_results=test_results,
+                          val_results=val_results,
+                          metric=ReportedMetrics.Accuracy,
+                          threshold=optimal_threshold)
 
     assert accuracy == 0.5
 
-    fpr = get_metric(test_metrics_csv=test_metrics_file,
-                     val_metrics_csv=val_metrics_file,
-                     metric=ReportedMetrics.FalsePositiveRate)
+    fpr = get_metric(test_results=test_results,
+                     val_results=val_results,
+                     metric=ReportedMetrics.FalsePositiveRate,
+                     threshold=optimal_threshold)
 
     assert fpr == 0.5
 
-    fnr = get_metric(test_metrics_csv=test_metrics_file,
-                     val_metrics_csv=val_metrics_file,
-                     metric=ReportedMetrics.FalseNegativeRate)
+    fnr = get_metric(test_results=test_results,
+                     val_results=val_results,
+                     metric=ReportedMetrics.FalseNegativeRate,
+                     threshold=optimal_threshold)
 
     assert fnr == 0.5
 

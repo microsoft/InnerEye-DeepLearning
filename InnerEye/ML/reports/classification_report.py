@@ -112,37 +112,37 @@ def plot_pr_and_roc_curves(labels: np.ndarray, model_outputs: np.ndarray, axs: O
     plot_auc(recall, precision, "PR Curve", axs[1], **plot_kwargs)
 
 
-def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMetrics) -> float:
+def get_metric(val_results: LabelsAndPredictions, test_results: LabelsAndPredictions, metric: ReportedMetrics,
+               threshold: Optional[float] = None) -> float:
     """
     Given a csv file, read the predicted values and ground truth labels and return the specified metric.
     """
-    results_val = get_results(val_metrics_csv)
-    fpr, tpr, thresholds = roc_curve(results_val.labels, results_val.model_outputs)
-    optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
-    optimal_threshold = thresholds[optimal_idx]
+    if metric is ReportedMetrics.OptimalThreshold or threshold is None:
+        fpr, tpr, thresholds = roc_curve(val_results.labels, val_results.model_outputs)
+        optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
+        threshold = thresholds[optimal_idx]
 
-    if metric is ReportedMetrics.OptimalThreshold:
-        return optimal_threshold
+        if metric is ReportedMetrics.OptimalThreshold:
+            return threshold
 
-    results_test = get_results(test_metrics_csv)
-    only_one_class_present = len(set(results_test.labels)) < 2
+    only_one_class_present = len(set(test_results.labels)) < 2
 
     if metric is ReportedMetrics.AUC_ROC:
-        return math.nan if only_one_class_present else roc_auc_score(results_test.labels, results_test.model_outputs)
+        return math.nan if only_one_class_present else roc_auc_score(test_results.labels, test_results.model_outputs)
     elif metric is ReportedMetrics.AUC_PR:
         if only_one_class_present:
             return math.nan
-        precision, recall, _ = precision_recall_curve(results_test.labels, results_test.model_outputs)
+        precision, recall, _ = precision_recall_curve(test_results.labels, test_results.model_outputs)
         return auc(recall, precision)
     elif metric is ReportedMetrics.Accuracy:
-        return binary_classification_accuracy(model_output=results_test.model_outputs,
-                                              label=results_test.labels,
-                                              threshold=optimal_threshold)
+        return binary_classification_accuracy(model_output=test_results.model_outputs,
+                                              label=test_results.labels,
+                                              threshold=threshold)
     elif metric is ReportedMetrics.FalsePositiveRate:
-        tnr = recall_score(results_test.labels, results_test.model_outputs >= optimal_threshold, pos_label=0)
+        tnr = recall_score(test_results.labels, test_results.model_outputs >= threshold, pos_label=0)
         return 1 - tnr
     elif metric is ReportedMetrics.FalseNegativeRate:
-        return 1 - recall_score(results_test.labels, results_test.model_outputs >= optimal_threshold)
+        return 1 - recall_score(test_results.labels, test_results.model_outputs >= threshold)
     else:
         raise ValueError("Unknown metric")
 
@@ -151,35 +151,41 @@ def print_metrics(val_metrics_csv: Path, test_metrics_csv: Path) -> None:
     """
     Given a csv file, read the predicted values and ground truth labels and print out some metrics.
     """
-    roc_auc = get_metric(val_metrics_csv=val_metrics_csv,
-                         test_metrics_csv=test_metrics_csv,
+    val_results = get_results(val_metrics_csv)
+    test_results = get_results(test_metrics_csv)
+
+    roc_auc = get_metric(val_results=val_results,
+                         test_results=test_results,
                          metric=ReportedMetrics.AUC_ROC)
     print_header(f"Area under ROC Curve: {roc_auc:.4f}", level=4)
 
-    pr_auc = get_metric(val_metrics_csv=val_metrics_csv,
-                        test_metrics_csv=test_metrics_csv,
+    pr_auc = get_metric(val_results=val_results,
+                        test_results=test_results,
                         metric=ReportedMetrics.AUC_PR)
     print_header(f"Area under PR Curve: {pr_auc:.4f}", level=4)
 
-    optimal_threshold = get_metric(val_metrics_csv=val_metrics_csv,
-                                   test_metrics_csv=test_metrics_csv,
+    optimal_threshold = get_metric(val_results=val_results,
+                                   test_results=test_results,
                                    metric=ReportedMetrics.OptimalThreshold)
 
     print_header(f"Optimal threshold: {optimal_threshold: .4f}", level=4)
 
-    accuracy = get_metric(val_metrics_csv=val_metrics_csv,
-                          test_metrics_csv=test_metrics_csv,
-                          metric=ReportedMetrics.Accuracy)
+    accuracy = get_metric(val_results=val_results,
+                          test_results=test_results,
+                          metric=ReportedMetrics.Accuracy,
+                          threshold=optimal_threshold)
     print_header(f"Accuracy at optimal threshold: {accuracy:.4f}", level=4)
 
-    fpr = get_metric(val_metrics_csv=val_metrics_csv,
-                     test_metrics_csv=test_metrics_csv,
-                     metric=ReportedMetrics.FalsePositiveRate)
+    fpr = get_metric(val_results=val_results,
+                     test_results=test_results,
+                     metric=ReportedMetrics.FalsePositiveRate,
+                     threshold=optimal_threshold)
     print_header(f"Specificity at optimal threshold: {1 - fpr:.4f}", level=4)
 
-    fnr = get_metric(val_metrics_csv=val_metrics_csv,
-                     test_metrics_csv=test_metrics_csv,
-                     metric=ReportedMetrics.FalseNegativeRate)
+    fnr = get_metric(val_results=val_results,
+                     test_results=test_results,
+                     metric=ReportedMetrics.FalseNegativeRate,
+                     threshold=optimal_threshold)
     print_header(f"Sensitivity at optimal threshold: {1 - fnr:.4f}", level=4)
 
 
