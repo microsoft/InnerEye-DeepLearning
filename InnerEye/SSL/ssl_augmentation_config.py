@@ -1,51 +1,12 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 from InnerEye.SSL.config_node import ConfigNode
 
 config = ConfigNode()
 
-config.dataset = ConfigNode()
-# Dataset name. Available choices: "CIFAR10", "RSNAKaggle"
-config.dataset.name = 'CIFAR10'
-# Local Path to dataset directory. Automatically set for CIFAR10.
-config.dataset.dataset_dir = ''
-# Number of cpu workers to use in dataloaders.
-config.dataset.num_workers = None
-
-
-config.train = ConfigNode()
-# Training seed.
-config.train.seed = None
-# Batch size for both training and validation
-config.train.batch_size = None
-# Runs will be saved to repo_root / SSL_EXPERIMENT_DIR / output_dir.
-config.train.output_dir = None
-# Whether to continue training from the last checkpoint of a run.
-# The checkpoint is assumed to be already placed repo_root / SSL_EXPERIMENT_DIR / output_dir and named last_checkpoint
-config.train.resume_from_last_checkpoint = False
-# Starting learning rate
-config.train.base_lr = None
-
-
-config.train.self_supervision = ConfigNode()
-# Which algorithm to use for SSL training. Choices: "byol", "sim_clr".
-config.train.self_supervision.type = None
-# Encoder to use: resnet18, resnet50, resnet101 or densenet121.
-config.train.self_supervision.encoder_name = None
-# Whether to use balanced binary cross-entropy loss for linear head training.
-# Weights are calculated based on statistics of the training set.
-config.train.self_supervision.use_balanced_binary_loss_for_linear_head = False
-# At which frequency to save checkpoints.
-config.train.checkpoint_period = 200
-
-
-config.scheduler = ConfigNode()
-# Total number of epochs to train for.
-config.scheduler.epochs = None
-
-
-# The parameters below are used to specify which preprocessing and augmentations to use and their strength for
-# RSNAKaggle dataset.
-# WARNING: all the parameters are IGNORED for CIFAR10 training where we use the default  SimCLRTrainDataTransform from
-# lightning-bolts.
 config.preprocess = ConfigNode()
 config.preprocess.use_center_crop = False
 config.preprocess.center_crop_size = 224
