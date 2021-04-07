@@ -16,7 +16,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Run
 from azureml.core.model import Model
 from azureml.data import FileDataset
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import LightningModule, Trainer, seed_everything
 from pytorch_lightning.utilities.cloud_io import load as pl_load
 from torch.utils.data import DataLoader
 
@@ -26,15 +26,17 @@ from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, INPUT_DATA_KEY, get
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, \
     MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
-    RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, is_offline_run_context, merge_conda_files
+    RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, get_all_environment_files, is_offline_run_context, \
+    merge_conda_files
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
     OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
-    get_epoch_results_path, is_windows, logging_section, logging_to_file, print_exception, remove_file_or_directory
-from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
+    change_working_directory, get_epoch_results_path, is_windows, logging_section, logging_to_file, print_exception, \
+    remove_file_or_directory
+from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, LOG_FILE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.config import ModelDeploymentHookSignature, PostCrossValidationHookSignature, SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
     FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod
 from InnerEye.ML.lightning_base import InnerEyeContainer
@@ -43,11 +45,9 @@ from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentatio
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
-from InnerEye.ML.model_training import model_train
+from InnerEye.ML.model_training import create_lightning_trainer, model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook, \
     generate_classification_notebook, generate_segmentation_notebook, get_ipynb_report_name, reports_folder
-from InnerEye.ML.runner import LOG_FILE_NAME, ModelDeploymentHookSignature, PostCrossValidationHookSignature, \
-    get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
@@ -134,17 +134,20 @@ def log_metrics(val_metrics: Optional[InferenceMetricsForSegmentation],
 class MLRunner:
 
     def __init__(self,
-                 model_config: DeepLearningConfig,
+                 model_config: Optional[DeepLearningConfig],
                  azure_config: Optional[AzureConfig] = None,
                  container: Optional[LightningContainer] = None,
                  project_root: Optional[Path] = None,
                  post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
-                 model_deployment_hook: Optional[ModelDeploymentHookSignature] = None) -> None:
+                 model_deployment_hook: Optional[ModelDeploymentHookSignature] = None,
+                 output_subfolder: str = "") -> None:
         """
         Driver class to run a ML experiment. Note that the project root argument MUST be supplied when using InnerEye
         as a package!
-        :param model_config: Model related configurations
-        :param container: The LightningContainer object
+        :param model_config: If None, run the training as per the `container` argument (bring-your-own-model). If not
+        None, this is the model configuration for a built-in InnerEye model.
+        :param container: The LightningContainer object to use for training. If None, assume that the training is
+        for a built-in InnerEye model.
         :param azure_config: Azure related configurations
         :param project_root: Project root. This should only be omitted if calling run_ml from the test suite. Supplying
         it is crucial when using InnerEye as a package or submodule!
@@ -153,7 +156,11 @@ class MLRunner:
         :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
         If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
         Model as arguments, and return an optional Path and a further object of any type.
+        :param output_subfolder: If provided, the output folder structure will have an additional subfolder,
+        when running outside AzureML.
         """
+        if model_config is not None and container is not None:
+            raise ValueError("One of the two arguments 'model_config', 'container' must be provided.")
         self.model_config = model_config
         if container is None:
             assert isinstance(model_config, ModelConfigBase), \
@@ -164,6 +171,7 @@ class MLRunner:
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
+        self.output_subfolder = output_subfolder
         self._has_setup_run = False
 
     def setup(self) -> None:
@@ -206,11 +214,18 @@ class MLRunner:
 
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
-        # This call needs to happen before the LightningModule is created, because the output parameters of the
-        # container will be copied into the module.
-        self.container.create_filesystem(self.project_root)
-        # For the InnerEye built-in models: If should_write_dataset_files is True, and the present code is running on
-        # distributed training rank zero, the method also writes the dataset files to disk.
+        # Creating the folder structure must happen before the LightningModule is created, because the output
+        # parameters of the container will be copied into the module.
+        if self.output_subfolder:
+            # This codepath is only executed for cross validation runs outside AzureML: The folder structure
+            # uses an existing folder structure set by the caller, and just a subfolder is added.
+            self.container.file_system_config = self.container.file_system_config.add_subfolder(self.output_subfolder)
+        else:
+            self.container.create_filesystem(self.project_root)
+        # A lot of the code for the built-in InnerEye models expects the output paths directly in the config files.
+        if isinstance(self.container, InnerEyeContainer):
+            self.container.config.local_dataset = self.container.local_dataset
+            self.container.config.file_system_config = self.container.file_system_config
         self.container.setup()
         self.container.create_lightning_module_and_store()
         self._has_setup_run = True
@@ -246,20 +261,16 @@ class MLRunner:
         parent_run_file_system = _config.file_system_config
 
         def _spawn_run(cross_val_split_index: int) -> None:
-            split_model_config = copy.deepcopy(_config)
-            assert isinstance(split_model_config, ScalarModelBase)
-            split_model_config.cross_validation_split_index = cross_val_split_index
-
-            _local_split_folder_name = str(cross_val_split_index)
-            split_model_config.file_system_config = parent_run_file_system.add_subfolder(_local_split_folder_name)
-
+            split_config = copy.deepcopy(_config)
+            split_config.cross_validation_split_index = cross_val_split_index
             logging.info(f"Running model train and test on cross validation split: {cross_val_split_index}")
-            split_ml_runner = MLRunner(model_config=split_model_config,
-                                       container=self.container,
+            split_ml_runner = MLRunner(model_config=split_config,
+                                       container=None,
                                        azure_config=self.azure_config,
                                        project_root=self.project_root,
                                        post_cross_validation_hook=self.post_cross_validation_hook,
-                                       model_deployment_hook=self.model_deployment_hook)
+                                       model_deployment_hook=self.model_deployment_hook,
+                                       output_subfolder=str(cross_val_split_index))
             split_ml_runner.run()
 
         for i in range(_config.number_of_cross_validation_splits):
@@ -323,9 +334,8 @@ class MLRunner:
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    trainer, _ = model_train(self.model_config,
-                                             self.checkpoint_handler,
-                                             lightning_container=self.container,
+                    trainer, _ = model_train(self.checkpoint_handler,
+                                             container=self.container,
                                              num_nodes=self.azure_config.num_nodes)
                 # log the number of epochs used for model training
                 RUN_CONTEXT.log(name="Train epochs", value=self.container.num_epochs)
@@ -361,28 +371,43 @@ class MLRunner:
         if len(checkpoint_paths) != 1:
             raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
         lightning_model = self.container.model
-        assert isinstance(lightning_model, LightningInference), \
-            f"Expected an instance of LightningInference, but got {type(lightning_model)}"
-        data = self.container.get_inference_data_module()
-        dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
-        if self.container.perform_validation_and_test_set_inference:
-            dataloaders.append((data.test_dataloader(), ModelExecutionMode.TEST))
-            dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))
-        if self.container.perform_training_set_inference:
-            dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))
-        checkpoint = pl_load(checkpoint_paths[0], map_location=lambda storage, loc: storage)
-        lightning_model.load_state_dict(checkpoint['state_dict'])
-        lightning_model.eval()
-        lightning_model.on_inference_start()
-        for loader, split in dataloaders:
-            logging.info(f"Starting inference on {split.value} set")
-            lightning_model.on_inference_epoch_start(dataset_split=split, is_ensemble_model=False)
-            for batch_idx, item in enumerate(loader):
-                model_output = lightning_model.forward(item[0])
-                lightning_model.inference_step(item, batch_idx, model_output=model_output)
-            lightning_model.on_inference_epoch_end()
-        lightning_model.on_inference_end()
-        logging.info("Finished inference.")
+        # Run the customized inference code only if the the "inference" step has been overridden
+        if isinstance(lightning_model, LightningInference) and \
+                type(lightning_model).inference_step != LightningInference.inference_step:
+            logging.info("Running inference via the LightningInference.inference_step method")
+            data = self.container.get_inference_data_module()
+            dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
+            if self.container.perform_validation_and_test_set_inference:
+                dataloaders.append((data.test_dataloader(), ModelExecutionMode.TEST))
+                dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))
+            if self.container.perform_training_set_inference:
+                dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))
+            map_location = lambda storage, loc: storage
+            checkpoint = pl_load(checkpoint_paths[0], map_location=map_location)
+            lightning_model.load_state_dict(checkpoint['state_dict'])
+            lightning_model.eval()
+            lightning_model.on_inference_start()
+            for loader, split in dataloaders:
+                logging.info(f"Starting inference on {split.value} set")
+                lightning_model.on_inference_epoch_start(dataset_split=split, is_ensemble_model=False)
+                for batch_idx, item in enumerate(loader):
+                    model_output = lightning_model.forward(item[0])
+                    lightning_model.inference_step(item, batch_idx, model_output=model_output)
+                lightning_model.on_inference_epoch_end()
+            lightning_model.on_inference_end()
+        elif type(lightning_model).test_step != LightningModule.test_step:
+            # Run Lightning's built-in test procedure if the `test_step` method has been overridden
+            logging.info("Running inference via the LightningModule.test_step method")
+            trainer = trainer or create_lightning_trainer(self.container)
+            # When training models that are not built-in InnerEye models, we have no guarantee that they write
+            # files to the right folder. Best guess is to change the current working directory to where files should go.
+            with change_working_directory(self.container.outputs_folder):
+                trainer.test(self.container.model,
+                             test_dataloaders=self.container.get_data_module().test_dataloader(),
+                             ckpt_path=str(checkpoint_paths[0]))
+            logging.info("Finished inference.")
+        else:
+            logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
 
     def run_inference_and_register_model(self, checkpoint_handler: CheckpointHandler,
                                          model_proc: ModelProcessing) -> None:

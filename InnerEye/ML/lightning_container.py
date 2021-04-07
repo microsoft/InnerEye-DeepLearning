@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import abc
-from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
@@ -73,7 +72,6 @@ class LightningInference(abc.ABC):
         """
         pass
 
-    @abstractmethod
     def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
         """
         Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
@@ -85,7 +83,6 @@ class LightningInference(abc.ABC):
         """
         pass
 
-    @abstractmethod
     def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor) -> None:
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
@@ -93,9 +90,10 @@ class LightningInference(abc.ABC):
         :param batch: The batch of data for which the model made a prediction.
         :param model_output: The model outputs. This would usually be a torch.Tensor, but can be any datatype.
         """
-        pass
+        # We don't want abstract methods here, it avoids class creation for unit tests, and we also want this
+        # method to be left optional (it should be possible to also use Lightning's native test_step method)
+        raise NotImplementedError("Method on_inference_start must be overwritten in a derived class.")
 
-    @abstractmethod
     def on_inference_epoch_end(self) -> None:
         """
         Called when the inference on one of the dataset splits (train/val/test) has finished.
@@ -136,6 +134,7 @@ class LightningWithInference(LightningModule, LightningInference):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         LightningModule.__init__(self, *args, **kwargs)
+        # These 3 fields get populated from the enclosing LightningContainer
         self.optimizer_params = OptimizerParams()
         self.output_params = OutputParams()
         self.trainer_params = TrainerParams()
@@ -260,6 +259,22 @@ class LightningContainer(GenericConfig,
         """
         return dict()
 
+    def before_training_on_rank_zero(self) -> None:
+        """
+        A hook that will be called before starting model training, before creating the Lightning Trainer object.
+        In distributed training, this is only run on rank zero. It is executed after the before_training_on_all_ranks
+        hook.
+        """
+        pass
+
+    def before_training_on_all_ranks(self) -> None:
+        """
+        A hook that will be called before starting model training.
+        In distributed training, this hook will be called on all ranks. It is executed before the
+        the before_training_on_rank_zero hook.
+        """
+        pass
+
     # The code from here onwards does not need to be modified.
 
     @property
@@ -281,3 +296,21 @@ class LightningContainer(GenericConfig,
         self._model.output_params = create_from_matching_params(self, OutputParams)
         self._model.optimizer_params = create_from_matching_params(self, OptimizerParams)
         self._model.trainer_params = create_from_matching_params(self, TrainerParams)
+
+    def __str__(self) -> str:
+        """Returns a string describing the present object, as a list of key: value strings."""
+        arguments_str = "\nContainer:\n"
+        # Avoid callable params, the bindings that are printed out can be humongous.
+        # Avoid dataframes
+        skip_params = {name for name, value in self.param.params().items()
+                       if isinstance(value, (param.Callable, param.DataFrame))}
+        for key, value in self.param.get_param_values():
+            if key not in skip_params:
+                arguments_str += f"\t{key:40}: {value}\n"
+        # Print out all other separate vars that are not under the guidance of the params library,
+        # skipping the two that are introduced by params
+        skip_vars = {"param", "initialized"}
+        for key, value in vars(self).items():
+            if key not in skip_vars and key[0] != "_":
+                arguments_str += f"\t{key:40}: {value}\n"
+        return arguments_str

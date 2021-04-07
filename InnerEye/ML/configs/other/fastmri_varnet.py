@@ -2,41 +2,64 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any
 
+# Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
+# individual warnings only.
+# flake8: noqa
+from typing import Optional
+
+import param
 import torch
 from pytorch_lightning import LightningDataModule
+from torch.utils.tensorboard import SummaryWriter
 
 from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed
-from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 
 add_folder_to_sys_path_if_needed("fastMRI")
 
-from fastmri.pl_modules import VarNetModule
+from fastmri.data.subsample import create_mask_for_mask_type
+from fastmri.data.transforms import VarNetDataTransform
+from fastmri.pl_modules import FastMriDataModule, VarNetModule
 
 
-class VarNetWithInference(LightningWithInference,
-                          VarNetModule):
-    def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
-        pass
+class VarNetWithImageLogging(VarNetModule):
+    """
+    A clone of the VarNet model that logs images to only the Tensorboard loggers. The original VarNet hardcodes
+    a single logger that must be Tensorboard.
+    """
 
-    def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor):
-        pass
+    def log_image(self, name: str, image: torch.Tensor):
+        experiments = self.logger.experiment if isinstance(self.logger.experiment, list) \
+            else [self.logger.experiment]
+        for experiment in experiments:
+            if isinstance(experiment, SummaryWriter):
+                experiment.add_image(name, image, global_step=self.global_step)
 
-    def on_inference_epoch_end(self) -> None:
-        pass
 
+class FastMri(LightningContainer):
+    # All fields that are declared here will be automatically available as commandline arguments.
+    challenge: str = param.String(default="multicoil")
+    sample_rate: Optional[float] = param.Number(default=None, allow_None=True)
 
-class FastMriDemoContainer(LightningContainer):
+    def __init__(self):
+        super().__init__()
+        self.azure_dataset_id = "fastmrimini_brain"
 
     def create_model(self) -> LightningWithInference:
-        return VarNetWithInference()
+        return VarNetWithImageLogging()
 
     def get_data_module(self) -> LightningDataModule:
-        return 1
+        mask = create_mask_for_mask_type(mask_type_str="equispaced",
+                                         center_fractions=[0.08],
+                                         accelerations=[4])
+        # use random masks for train transform, fixed masks for val transform
+        train_transform = VarNetDataTransform(mask_func=mask, use_seed=False)
+        val_transform = VarNetDataTransform(mask_func=mask)
+        test_transform = VarNetDataTransform()
 
-# Invoke via: runner.py --model FastMriDemoContainer
-
-# Things to add: type checks in loader. Is the model derived from LightningWithInference? Derived from LightningModule?
-# Get the code that uses .fit back in.
+        return FastMriDataModule(data_path=self.local_dataset,
+                                 challenge=self.challenge,
+                                 train_transform=train_transform,
+                                 val_transform=val_transform,
+                                 test_transform=test_transform)

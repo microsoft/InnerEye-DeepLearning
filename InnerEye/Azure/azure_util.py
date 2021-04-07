@@ -284,6 +284,21 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
 
 
+def get_all_environment_files(project_root: Path) -> List[Path]:
+    """
+    Returns a list of all Conda environment files that should be used. This is firstly the InnerEye conda file,
+    and possibly a second environment.yml file that lives at the project root folder.
+    :param project_root: The root folder of the code that starts the present training run.
+    :return: A list with 1 or 2 entries that are conda environment files.
+    """
+    innereye_yaml = fixed_paths.get_environment_yaml_file()
+    project_yaml = project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
+    files = [innereye_yaml]
+    if innereye_yaml != project_yaml:
+        files.append(project_yaml)
+    return files
+
+
 def merge_conda_dependencies(files: List[Path]) -> Tuple[CondaDependencies, str]:
     """
     Creates a CondaDependencies object from the Conda environments specified in one or more files.

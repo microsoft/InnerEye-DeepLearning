@@ -12,14 +12,17 @@ import pytest
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.deep_learning_config import ARGS_TXT, DatasetParams, EssentialParams
 from InnerEye.ML.configs.classification.GlaucomaPublic import AZURE_DATASET_ID
 from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithInference, FastMriDemoContainer
 from InnerEye.ML.deep_learning_config import DatasetParams, EssentialParams
 from InnerEye.ML.lightning_base import InnerEyeContainer
+from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
-from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
+from Tests.ML.configs.DummyModel import DummyModel
+from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel, DummyContainerWithPlainLightning
 from Tests.ML.util import default_runner
 
 
@@ -53,11 +56,37 @@ def test_run_container_in_situ(test_output_dirs: OutputFolderForTests) -> None:
         result_lines = [line for line in step_results.read_text().splitlines() if line.strip()]
         assert len(result_lines) >= 5
     metrics_per_split = pd.read_csv(results / "metrics_per_split.csv")
+    # Training should have reduced the MSE to pretty much zero.
     expected = pd.read_csv(StringIO("""Split,MSE
 Test,1e-7
 Val,1e-7
 Train,1e-7"""))
     pd.testing.assert_frame_equal(metrics_per_split, expected, check_less_precise=True)
+    # Test if we have an args file that lists all parameters
+    args_file = (results / ARGS_TXT).read_text()
+    assert "Container:" in args_file
+    assert "adam_betas" in args_file
+
+
+def test_run_container_with_plain_lightning_in_situ(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if we can train a plain Lightning model, without any additional methods defined, end-to-end.
+    """
+    runner = default_runner()
+    local_dataset = test_output_dirs.root_dir / "dataset"
+    local_dataset.mkdir()
+    args = ["", "--model=DummyContainerWithPlainLightning", "--model_configs_namespace=Tests.ML.configs",
+            f"--output_to={test_output_dirs.root_dir}", f"--local_dataset={local_dataset}"]
+    with mock.patch("sys.argv", args):
+        loaded_config, actual_run = runner.run()
+    assert actual_run is None
+    assert isinstance(runner.lightning_container, DummyContainerWithPlainLightning)
+    # Test if the outputs folder is relative to the folder that we specified via the commandline
+    runner.lightning_container.outputs_folder.relative_to(test_output_dirs.root_dir)
+    results = runner.lightning_container.outputs_folder
+    # Test if all the files that are written during inference exist.
+    assert not (results / "on_inference_start.txt").is_file()
+    assert (results / "test_step.txt").is_file()
 
 
 def test_innereye_container_init() -> None:
@@ -77,22 +106,32 @@ def test_innereye_container_init() -> None:
 
 def test_create_fastmri_container() -> None:
     """
-    Test if we can create a model that uses the fastMRI submodule.
+    Test if we can create a model that uses the fastMRI submodule. This is effectively just testing module imports,
+    and if the submodule is created correctly.
     """
-    FastMriDemoContainer()
-    VarNetWithInference()
+    from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithImageLogging
+    from Tests.ML.configs.fastmri_random import FastMriOnRandomData
+    FastMriOnRandomData()
+    VarNetWithImageLogging()
 
 
+@pytest.mark.gpu
 def test_run_fastmri_container(test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test if we can get run the fastMRI model end-to-end.
+    Test if we can get run the fastMRI model end-to-end. This takes about 2min on a CPU machine, hence only run
+    in AzureML
     """
     runner = default_runner()
-    args = ["", "--model=FastMriDemoContainer", f"--output_to={test_output_dirs.root_dir}"]
+    dataset_dir = test_output_dirs.root_dir / "dataset"
+    dataset_dir.mkdir(parents=True)
+    args = ["", "--model=FastMriOnRandomData",
+            f"--output_to={test_output_dirs.root_dir}",
+            f"--local_dataset={dataset_dir}"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = runner.run()
     assert actual_run is None
-    assert isinstance(runner.lightning_container, FastMriDemoContainer)
+    from Tests.ML.configs.fastmri_random import FastMriOnRandomData
+    assert isinstance(runner.lightning_container, FastMriOnRandomData)
 
 
 def test_model_name_is_set(test_output_dirs: OutputFolderForTests) -> None:
@@ -104,6 +143,65 @@ def test_model_name_is_set(test_output_dirs: OutputFolderForTests) -> None:
     assert runner.container._model_name == expected_name
     assert runner.container.model.output_params._model_name == expected_name
     assert expected_name in str(runner.container.model.outputs_folder)
+
+
+def test_model_name_for_innereye_container() -> None:
+    """
+    Test if the InnerEye container picks up the name of the model correctly. The name will impact the output folder
+    structure that is created.
+    """
+    expected_name = "DummyModel"
+    model = DummyModel()
+    assert model.model_name == expected_name
+    container = InnerEyeContainer(model)
+    assert container.model_name == expected_name
+
+
+class DummyContainerWithFields(LightningContainer):
+
+    def __init__(self):
+        super().__init__()
+        self.perform_training_set_inference = True
+        self.num_epochs = 123456
+        self.l_rate = 1e-2
+
+    def create_model(self) -> LightningWithInference:
+        return LightningWithInference()
+
+
+def test_container_to_str() -> None:
+    """
+    Test how a string representation of a container looks like.
+    """
+    c = DummyContainerWithFields()
+    # Set any other field that is not done via the params library
+    c.foo = "bar"
+    s = str(c)
+    print(s)
+    assert "foo" in s
+    assert "bar" in s
+    assert "param" not in s
+    assert "initialized" not in s
+    assert "123456" in s
+
+
+def test_file_system_with_subfolders(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if a subfolder can be created within the output folder structure, for use with cross validation.
+    """
+    model = DummyModel()
+    model.set_output_to(test_output_dirs.root_dir)
+    container = InnerEyeContainer(model)
+    # File system should be copied from model config to container
+    assert container.file_system_config == model.file_system_config
+    runner = MLRunner(model_config=model)
+    runner.setup()
+    assert str(runner.container.outputs_folder).endswith(model.model_name)
+    output_subfolder = "foo"
+    expected_folder = model.outputs_folder / output_subfolder
+    runner = MLRunner(model_config=model, output_subfolder=output_subfolder)
+    runner.setup()
+    assert runner.container.outputs_folder == expected_folder
 
 
 def test_extra_directory_available(test_output_dirs: OutputFolderForTests) -> None:

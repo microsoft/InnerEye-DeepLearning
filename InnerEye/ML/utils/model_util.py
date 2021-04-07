@@ -19,7 +19,7 @@ from InnerEye.ML.config import ModelArchitectureConfig, PaddingMode, Segmentatio
     basic_size_shrinkage
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, OptimizerParams, OptimizerType
+from InnerEye.ML.deep_learning_config import OptimizerParams, OptimizerType
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.models.architectures.complex import ComplexModel

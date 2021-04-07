@@ -1,6 +1,7 @@
 steps:
   - checkout: self
     lfs: true
+    submodules: true
 
   - bash: |
       if [ $(Agent.OS) = 'Windows_NT' ]

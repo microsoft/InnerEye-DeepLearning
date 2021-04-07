@@ -184,8 +184,8 @@ class DeepLearningFileSystemConfig(Parameterized):
                 logs_folder=logs_folder,
                 project_root=self.project_root
             )
-        raise ValueError("This method should only be called for offline runs, when the logs folder is inside the "
-                         "outputs folder.")
+        raise ValueError("This method should only be called for runs outside AzureML, when the logs folder is "
+                         "inside the outputs folder.")
 
 
 class EssentialParams(param.Parameterized):
@@ -671,7 +671,7 @@ class DeepLearningConfig(EssentialParams,
         # Avoid callable params, the bindings that are printed out can be humongous.
         # Avoid dataframes
         skip_params = {name for name, value in self.param.params().items()
-                       if isinstance(value, (param.Callable, DataFrame))}
+                       if isinstance(value, (param.Callable, param.DataFrame))}
         for key, value in self.param.get_param_values():
             if key not in skip_params:
                 arguments_str += f"\t{key:40}: {value}\n"

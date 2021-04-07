@@ -32,6 +32,9 @@ Files written into this folder will get uploaded to blob storage at the end of t
 Additional log files need to go into the folder `self.logs_folder` (of type `pathlib.Path`). These files will be
 streamed to blob storage during training in AzureML.
 
+If respecting those guidelines is not feasible, we advise that all output files should go to the current working 
+directory, rather than an absolute path.
+
 ### Trainer arguments
 The Lightning model returned by `create_lightning_module` needs to inherit the fields defined in `TrainerParams`.
 This defines all arguments that control the PyTorch Lightning `Trainer` object that will be created by the InnerEye

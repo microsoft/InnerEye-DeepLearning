@@ -14,10 +14,11 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader, Dataset
 
-from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME
+from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, logging_section
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import DatasetParams, DeepLearningConfig, EssentialParams, OutputParams, \
     TrainerParams
 from InnerEye.ML.lightning_container import LightningContainer
@@ -29,6 +30,8 @@ from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed, validate_dataset_paths
+from InnerEye.ML.utils.model_util import generate_and_print_model_summary
+from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
 
 class TrainAndValDataLightning(LightningDataModule):
@@ -112,12 +115,13 @@ class InnerEyeContainer(LightningContainer):
     def __init__(self, config: ModelConfigBase):
         super().__init__()
         self.config = config
+        self._model_name = config.model_name
         # Fields like cross validation index are defined at container level, but the InnerEye models define them
         # at model level. Copy everything over.
         for type_to_copy in [EssentialParams, DatasetParams, TrainerParams, OutputParams]:
             assert issubclass(type_to_copy, param.Parameterized)
             self.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},
-                                   should_validate=False)
+                                 should_validate=False)
 
     def create_model(self) -> LightningModule:  # type: ignore
         from InnerEye.ML.lightning_models import create_lightning_model
@@ -128,6 +132,26 @@ class InnerEyeContainer(LightningContainer):
 
     def get_inference_data_module(self) -> LightningDataModule:
         return InferenceDataLightning(self.config)
+
+    def before_training_on_rank_zero(self) -> None:
+        # Save the dataset files for later use in cross validation analysis
+        self.config.write_dataset_files()
+        if isinstance(self.config, SegmentationModelBase):
+            with logging_section("Visualizing the effect of sampling random crops for training"):
+                visualize_random_crops_for_dataset(self.config)
+
+        # Print out a detailed breakdown of layers, memory consumption and time.
+        # TODO antonsc: Can we do better here, and print a model summary for all models? Read the first item
+        # of the dataset and do forward propagation?
+        assert isinstance(self.model, InnerEyeLightning)
+        generate_and_print_model_summary(self.config, self.model.model)
+
+    def before_training_on_all_ranks(self):
+        """
+        This hook reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
+        for categorical features, that need to be available before creating the model.
+        """
+        self.config.read_dataset_if_needed()
 
 
 class InnerEyeLightning(LightningModule):

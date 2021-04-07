@@ -405,3 +405,14 @@ def add_folder_to_sys_path_if_needed(folder_under_repo_root: str) -> None:
     print(f"Adding {full_folder} to sys.path")
     sys.path.append(str(full_folder))
 
+
+@contextmanager
+def change_working_directory(path_or_str: PathOrString):
+    """
+    Context manager for changing the current working directory
+    """
+    new_path = Path(path_or_str).expanduser()
+    old_path = Path.cwd()
+    os.chdir(new_path)
+    yield
+    os.chdir(old_path)

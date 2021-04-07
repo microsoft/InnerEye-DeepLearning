@@ -11,33 +11,40 @@ from pathlib import Path
 # flake8: noqa
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
-print("Starting InnerEye runner.")
+
+print(f"Starting InnerEye runner at {sys.argv[0]}")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
     innereye_root_str = str(innereye_root)
     if innereye_root_str not in sys.path:
-        print(f"Adding to sys.path: {innereye_root_str}")
+        print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
         sys.path.insert(0, innereye_root_str)
+# We change the current working directory before starting the actual training. However, this throws off starting
+# the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
+# path.
+runner_path = Path(sys.argv[0])
+if not runner_path.is_absolute():
+    sys.argv[0] = str(runner_path.absolute())
 
 import logging
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from azureml._base_sdk_common import user_agent
-from azureml.core import Model, Run
+from azureml.core import Run
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables, \
     parse_arguments, set_environment_variables_for_multi_node, submit_to_azureml
-from InnerEye.Azure.azure_util import is_run_and_child_runs_completed
+from InnerEye.Azure.azure_util import get_all_environment_files, is_run_and_child_runs_completed
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    ModelProcessing, disable_logging_to_file, is_linux, logging_to_file, logging_to_stdout
+    disable_logging_to_file, is_linux, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
-from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, EssentialParams
+from InnerEye.ML.config import ModelDeploymentHookSignature, PostCrossValidationHookSignature
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 
@@ -49,11 +56,6 @@ try:
     has_torch = True
 except ModuleNotFoundError as ex:
     has_torch = False
-
-LOG_FILE_NAME = "stdout.txt"
-
-PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
-ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, ModelProcessing], Any]
 
 
 def may_initialize_rpdb() -> None:
@@ -94,21 +96,6 @@ def suppress_logging_noise() -> None:
     os.environ['MKL_THREADING_LAYER'] = 'GNU'
 
 
-def get_all_environment_files(project_root: Path) -> List[Path]:
-    """
-    Returns a list of all Conda environment files that should be used. This is firstly the InnerEye conda file,
-    and possibly a second environment.yml file that lives at the project root folder.
-    :param project_root: The root folder of the code that starts the present training run.
-    :return: A list with 1 or 2 entries that are conda environment files.
-    """
-    innereye_yaml = fixed_paths.get_environment_yaml_file()
-    project_yaml = project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
-    files = [innereye_yaml]
-    if innereye_yaml != project_yaml:
-        files.append(project_yaml)
-    return files
-
-
 class Runner:
     """
     This class contains the high-level logic to start a training run: choose a model configuration by name,
@@ -134,7 +121,7 @@ class Runner:
         self.model_deployment_hook = model_deployment_hook
         # model_config and azure_config are placeholders for now, and are set properly when command line args are
         # parsed.
-        self.model_config: DeepLearningConfig = DeepLearningConfig(azure_dataset_id="")
+        self.model_config: Optional[DeepLearningConfig] = None
         self.azure_config: AzureConfig = AzureConfig()
         # This should be typed as LightningContainer, but we don't always have that imported
         self.lightning_container: Any = None
@@ -156,7 +143,7 @@ class Runner:
         azure_config = AzureConfig(**parser_result.args)
         azure_config.project_root = self.project_root
         self.azure_config = azure_config
-        self.model_config = None  # type: ignore
+        self.model_config = None
         self.lightning_container = None
         if not azure_config.model:
             return None
@@ -175,7 +162,7 @@ class Runner:
                                             args=previous_parser_result.unknown,
                                             fail_on_unknown_args=True)
             # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
-            c.apply_overrides(parser_result.unknown_settings_from_yaml)
+            c.apply_overrides(parser_result.known_settings_from_yaml)
             c.apply_overrides(parser_result.overrides)
             c.validate()
             return parser_result
@@ -235,7 +222,7 @@ class Runner:
         """
         return self._get_property_from_config_or_container("extra_azure_dataset_ids")
 
-    def run(self) -> Tuple[DeepLearningConfig, Optional[Run]]:
+    def run(self) -> Tuple[Optional[DeepLearningConfig], Optional[Run]]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
         via a commandline argument, runs training or testing, and writes all required info to disk and logs.

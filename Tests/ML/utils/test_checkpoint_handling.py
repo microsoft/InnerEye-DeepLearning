@@ -120,13 +120,13 @@ def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None
     checkpoint_handler.container.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.local_weights_path == expected_path
-    config.start_epoch = 0
+    checkpoint_handler.container.start_epoch = 0
     assert checkpoint_handler.get_recovery_path_train() == expected_path
     # Can't resume training from an external checkpoint
-    config.start_epoch = 20
+    checkpoint_handler.container.start_epoch = 20
     with pytest.raises(ValueError) as ex:
         checkpoint_handler.get_recovery_path_train()
-        assert ex.value.args == "Start epoch is > 0, but no run recovery object has been provided to resume training."
+    assert ex.value.args[0] == "Start epoch is > 0, but no run recovery object has been provided to resume training."
 
     # Set a local_weights_path to get checkpoint from
     checkpoint_handler.container.weights_url = ""
@@ -135,13 +135,13 @@ def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None
     checkpoint_handler.container.local_weights_path = local_weights_path
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.local_weights_path == expected_path
-    config.start_epoch = 0
+    checkpoint_handler.container.start_epoch = 0
     assert checkpoint_handler.get_recovery_path_train() == expected_path
     # Can't resume training from an external checkpoint
-    config.start_epoch = 20
+    checkpoint_handler.container.start_epoch = 20
     with pytest.raises(ValueError) as ex:
         checkpoint_handler.get_recovery_path_train()
-        assert ex.value.args == "Start epoch is > 0, but no run recovery object has been provided to resume training."
+    assert ex.value.args[0] == "Start epoch is > 0, but no run recovery object has been provided to resume training."
 
 
 @pytest.mark.after_training_single_run
@@ -162,7 +162,7 @@ def test_get_recovery_path_train_single_run(test_output_dirs: OutputFolderForTes
         assert "Run recovery set, but start epoch is 0" in ex.value.args[0]
 
     # Run recovery with start epoch provided should succeed
-    config.start_epoch = 20
+    checkpoint_handler.container.start_epoch = 20
     expected_path = create_recovery_checkpoint_path(path=config.checkpoint_folder / run_recovery_id.split(":")[1])
     assert checkpoint_handler.get_recovery_path_train() == expected_path
 
@@ -200,7 +200,7 @@ def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) 
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
     checkpoint_handler.download_recovery_checkpoints_or_weights()
 
-    config.start_epoch = 1
+    checkpoint_handler.container.start_epoch = 1
     # There is no checkpoint in the current run - use the one from run_recovery
     checkpoint_paths = checkpoint_handler.get_best_checkpoint()
     expected_checkpoint = config.checkpoint_folder / run_recovery_id.split(":")[1] \
@@ -253,9 +253,9 @@ def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None
     assert len(checkpoint_and_paths) == 1
     assert checkpoint_and_paths[0] == manage_recovery.output_params.outputs_folder / WEIGHTS_FILE
 
-    config.start_epoch = 1
+    manage_recovery.container.start_epoch = 1
     manage_recovery.additional_training_done()
-    config.checkpoint_folder.mkdir()
+    manage_recovery.container.checkpoint_folder.mkdir()
 
     # Copy checkpoint to make it seem like training has happened
     expected_checkpoint = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
