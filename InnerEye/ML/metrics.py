@@ -331,17 +331,30 @@ def store_epoch_metrics(metrics: DictStrFloat,
                         epoch: int,
                         file_logger: DataframeLogger) -> None:
     """
-    Writes all metrics into a CSV file, with an additional columns for epoch number.
+    Writes all metrics (apart from ones that measure run time) into a CSV file,
+    with an additional columns for epoch number.
     :param file_logger: An instance of DataframeLogger, for logging results to csv.
     :param epoch: The epoch corresponding to the results.
     :param metrics: The metrics of the specified epoch, averaged along its batches.
     """
     logger_row = {}
     for key, value in metrics.items():
-        if key in INTERNAL_TO_LOGGING_COLUMN_NAMES.keys():
-            logger_row[INTERNAL_TO_LOGGING_COLUMN_NAMES[key].value] = value
+        tokens = key.split("/")
+        if len(tokens) == 1:
+            metric_name = tokens[0]
+            hue_suffix = ""
+        elif len(tokens) == 2:
+            metric_name = tokens[0]
+            hue_suffix = "/" + tokens[1]
         else:
-            logger_row[key] = value
+            raise ValueError(f"Expected key to have format 'metric_name[/optional_suffix_for_hue]', got {key}")
+
+        if metric_name == MetricType.SECONDS_PER_BATCH.value or metric_name == MetricType.SECONDS_PER_EPOCH.value:
+            continue
+        if metric_name in INTERNAL_TO_LOGGING_COLUMN_NAMES.keys():
+            logger_row[INTERNAL_TO_LOGGING_COLUMN_NAMES[metric_name].value + hue_suffix] = value
+        else:
+            logger_row[metric_name + hue_suffix] = value
     logger_row[LoggingColumns.Epoch.value] = epoch
     file_logger.add_record(logger_row)
     file_logger.flush()

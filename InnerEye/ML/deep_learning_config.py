@@ -19,10 +19,10 @@ from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import ModelExecutionMode, create_recovery_checkpoint_path, create_unique_timestamp_id, \
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode,\
+    create_recovery_checkpoint_path, create_unique_timestamp_id,\
     get_best_checkpoint_path
 
-VISUALIZATION_FOLDER = "Visualizations"
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
 FINAL_MODEL_FOLDER = "final_model"
 FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
@@ -30,6 +30,8 @@ FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
 # The checkpoints must be stored inside of the final model folder, if we want to avoid copying
 # them before registration.
 CHECKPOINT_FOLDER = "checkpoints"
+VISUALIZATION_FOLDER = "visualizations"
+
 ARGS_TXT = "args.txt"
 WEIGHTS_FILE = "weights.pth"
 
@@ -376,6 +378,13 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
                           "you may see training speed increases.")
+
+    #: Name of the csv file providing information on the dataset to be used.
+    dataset_csv: str = param.String(
+            DATASET_CSV_FILE_NAME,
+            doc="Name of the csv file providing information on the dataset "
+                "to be used, containing at least the fields: "
+                "subject, channel, filePath.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__

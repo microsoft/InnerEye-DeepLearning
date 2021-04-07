@@ -10,8 +10,7 @@ import torch
 import torch.nn.functional as F
 from pytorch_lightning import metrics
 from pytorch_lightning.metrics import Metric
-from pytorch_lightning.metrics.functional import roc
-from pytorch_lightning.metrics.functional.classification import accuracy, auc, auroc, precision_recall_curve
+from pytorch_lightning.metrics.functional import accuracy, auc, auroc, precision_recall_curve, roc
 from torch.nn import ModuleList
 
 from InnerEye.Common.metrics_constants import AVERAGE_DICE_SUFFIX, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
@@ -119,11 +118,12 @@ class ScalarMetricsBase(Metric):
     and labels (field `targets`). Derived classes need to override the `compute` method.
     """
 
-    def __init__(self, name: str = ""):
+    def __init__(self, name: str = "", compute_from_logits: bool = False):
         super().__init__(dist_sync_on_step=False)
         self.add_state("preds", default=[], dist_reduce_fx=None)
         self.add_state("targets", default=[], dist_reduce_fx=None)
         self.name = name
+        self.compute_from_logits = compute_from_logits
 
     def update(self, preds: torch.Tensor, targets: torch.Tensor) -> None:  # type: ignore
         self.preds.append(preds)  # type: ignore
@@ -161,6 +161,9 @@ class ScalarMetricsBase(Metric):
         if torch.unique(targets).numel() == 1:
             return torch.tensor(np.nan), torch.tensor(np.nan), torch.tensor(np.nan), torch.tensor(np.nan)
         fpr, tpr, thresholds = roc(preds, targets)
+        assert isinstance(fpr, torch.Tensor)
+        assert isinstance(tpr, torch.Tensor)
+        assert isinstance(thresholds, torch.Tensor)
         optimal_idx = torch.argmax(tpr - fpr)
         optimal_threshold = thresholds[optimal_idx]
         acc = accuracy(preds > optimal_threshold, targets)
@@ -245,20 +248,22 @@ class AreaUnderPrecisionRecallCurve(ScalarMetricsBase):
         if torch.unique(targets).numel() == 1:
             return torch.tensor(np.nan)
         prec, recall, _ = precision_recall_curve(preds, targets)
-        return auc(recall, prec)
+        return auc(recall, prec)  # type: ignore
 
 
-class BinaryCrossEntropy(ScalarMetricsBase):
+class BinaryCrossEntropyWithLogits(ScalarMetricsBase):
     """
     Computes the cross entropy for binary classification.
+    This metric must be computed off the model output logits.
     """
 
     def __init__(self) -> None:
-        super().__init__(name=MetricType.CROSS_ENTROPY.value)
+        super().__init__(name=MetricType.CROSS_ENTROPY.value, compute_from_logits=True)
 
     def compute(self) -> torch.Tensor:
         preds, targets = self._get_preds_and_targets()
-        return F.binary_cross_entropy(input=preds, target=targets)
+        # All classification metrics work with integer targets, but this one does not. Convert to float.
+        return F.binary_cross_entropy_with_logits(input=preds, target=targets.to(dtype=preds.dtype))
 
 
 class MetricForMultipleStructures(torch.nn.Module):
@@ -318,5 +323,12 @@ class MetricForMultipleStructures(torch.nn.Module):
         of (metric name, metric value) tuples. This will automatically also call .reset() on the metrics.
         The first returned metric is the average across all structures, then come the per-structure values.
         """
-        for d in iter(self):
+        for d in self:
             yield d.name, d.compute()  # type: ignore
+
+    def reset(self) -> None:
+        """
+        Calls the .reset() method on all the metrics that the present object holds.
+        """
+        for d in self:
+            d.reset()

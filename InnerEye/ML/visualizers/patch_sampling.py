@@ -15,7 +15,6 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.cropping_dataset import CroppingDataset
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import Sample
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
 from InnerEye.ML.utils import augmentation, io_util, ml_util
 from InnerEye.ML.utils.config_util import ModelConfigLoader
@@ -108,8 +107,7 @@ def visualize_random_crops(sample: Sample,
     return heatmap
 
 
-def visualize_random_crops_for_dataset(config: DeepLearningConfig,
-                                       output_folder: Optional[Path] = None) -> None:
+def visualize_random_crops_for_dataset(config: SegmentationModelBase, output_folder: Optional[Path] = None) -> None:
     """
     For segmentation models only: This function generates visualizations of the effect of sampling random patches
     for training. Visualizations are stored in both Nifti format, and as 3 PNG thumbnail files, in the output folder.
@@ -117,8 +115,6 @@ def visualize_random_crops_for_dataset(config: DeepLearningConfig,
     :param output_folder: The folder in which the visualizations should be written. If not provided, use a subfolder
     "patch_sampling" in the models's default output folder
     """
-    if not isinstance(config, SegmentationModelBase):
-        return
     dataset_splits = config.get_dataset_splits()
     # Load a sample using the full image data loader
     full_image_dataset = FullImageDataset(config, dataset_splits.train)

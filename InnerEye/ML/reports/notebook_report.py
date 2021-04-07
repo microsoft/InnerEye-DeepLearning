@@ -5,13 +5,40 @@
 from pathlib import Path
 from typing import Dict, Optional, Union
 
+import codecs
 import nbformat
 import papermill
+import pickle
 from IPython.display import Markdown, display
 from nbconvert import HTMLExporter
 from nbconvert.writers import FilesWriter
 
 from InnerEye.Common import fixed_paths
+from InnerEye.ML.scalar_config import ScalarModelBase
+
+
+REPORT_PREFIX = "report"
+REPORT_IPYNB_SUFFIX = ".ipynb"
+REPORT_HTML_SUFFIX = ".html"
+reports_folder = "reports"
+
+
+def get_ipynb_report_name(report_type: str) -> str:
+    """
+    Constructs the name of the report (as an ipython notebook).
+    :param report_type: suffix describing the report, added to the filename
+    :return:
+    """
+    return f"{REPORT_PREFIX}_{report_type}{REPORT_IPYNB_SUFFIX}"
+
+
+def get_html_report_name(report_type: str) -> str:
+    """
+    Constructs the name of the report (as an html file).
+    :param report_type: suffix describing the report, added to the filename
+    :return:
+    """
+    return f"{REPORT_PREFIX}_{report_type}{REPORT_HTML_SUFFIX}"
 
 
 def str_or_empty(p: Union[None, str, Path]) -> str:
@@ -41,7 +68,9 @@ def generate_notebook(template_notebook: Path, notebook_params: Dict, result_not
     papermill.execute_notebook(input_path=str(template_notebook),
                                output_path=str(result_notebook),
                                parameters=notebook_params,
-                               progress_bar=False)
+                               progress_bar=False,
+                               # Unit tests often fail with cell timeouts when default of 4 is used.
+                               iopub_timeout=10)
     return convert_to_html(result_notebook)
 
 
@@ -89,12 +118,10 @@ def generate_segmentation_notebook(result_notebook: Path,
 
 
 def generate_classification_notebook(result_notebook: Path,
+                                     config: ScalarModelBase,
                                      train_metrics: Optional[Path] = None,
                                      val_metrics: Optional[Path] = None,
-                                     test_metrics: Optional[Path] = None,
-                                     dataset_csv_path: Optional[Path] = None,
-                                     dataset_subject_column: Optional[str] = None,
-                                     dataset_file_column: Optional[str] = None) -> Path:
+                                     test_metrics: Optional[Path] = None) -> Path:
     """
     Creates a reporting notebook for a classification model, using the given training, validation, and test set metrics.
     Returns the report file after HTML conversion.
@@ -106,9 +133,7 @@ def generate_classification_notebook(result_notebook: Path,
             'train_metrics_csv': str_or_empty(train_metrics),
             'val_metrics_csv': str_or_empty(val_metrics),
             'test_metrics_csv': str_or_empty(test_metrics),
-            'dataset_csv_path': str_or_empty(dataset_csv_path),
-            "dataset_subject_column": str_or_empty(dataset_subject_column),
-            "dataset_file_column": str_or_empty(dataset_file_column)
+            "config": codecs.encode(pickle.dumps(config), "base64").decode()
         }
     template = Path(__file__).absolute().parent / "classification_report.ipynb"
     return generate_notebook(template,
@@ -126,6 +151,32 @@ def generate_classification_cross_validation_notebook(result_notebook: Path, ful
         'metrics_across_all_runs_file': str(full_csv_file),
     }
     template = Path(__file__).absolute().parent / "classification_crossval_report.ipynb"
+    return generate_notebook(template,
+                             notebook_params=notebook_params,
+                             result_notebook=result_notebook)
+
+
+def generate_classification_multilabel_notebook(result_notebook: Path,
+                                                config: ScalarModelBase,
+                                                train_metrics: Optional[Path] = None,
+                                                val_metrics: Optional[Path] = None,
+                                                test_metrics: Optional[Path] = None) -> Path:
+    """
+    Creates a reporting notebook for a multilabel classification model, using the given training, validation,
+    and test set metrics. This report adds metrics specific to the multilabel task, and is meant to be used in
+    addition to the standard report created for all classification models.
+    Returns the report file after HTML conversion.
+    """
+
+    notebook_params = \
+        {
+            'innereye_path': str(fixed_paths.repository_root_directory()),
+            'train_metrics_csv': str_or_empty(train_metrics),
+            'val_metrics_csv': str_or_empty(val_metrics),
+            'test_metrics_csv': str_or_empty(test_metrics),
+            "config": codecs.encode(pickle.dumps(config), "base64").decode()
+        }
+    template = Path(__file__).absolute().parent / "classification_multilabel_report.ipynb"
     return generate_notebook(template,
                              notebook_params=notebook_params,
                              result_notebook=result_notebook)

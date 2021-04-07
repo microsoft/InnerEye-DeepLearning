@@ -35,7 +35,7 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_checkpoint_handler
+from Tests.ML.util import get_default_checkpoint_handler, machine_has_gpu
 
 config_path = full_ml_test_data_path()
 base_path = full_ml_test_data_path()
@@ -73,14 +73,15 @@ def _test_model_train(output_dirs: OutputFolderForTests,
             assert np.array_equal(patch_centers_epoch1, diagnostic) == should_equal
 
     def _check_voxel_count(results_per_epoch: List[Dict[str, float]],
-                           expected_voxel_count_per_epoch: List[float]) -> None:
+                           expected_voxel_count_per_epoch: List[float],
+                           prefix: str) -> None:
         assert len(results_per_epoch) == len(expected_voxel_count_per_epoch)
-        for (results, voxel_count) in zip(results_per_epoch, expected_voxel_count_per_epoch):
+        for epoch, (results, voxel_count) in enumerate(zip(results_per_epoch, expected_voxel_count_per_epoch)):
             # In the test data, both structures "region" and "region_1" are read from the same nifti file, hence
             # their voxel counts must be identical.
             for structure in ["region", "region_1"]:
                 assert results[f"{MetricType.VOXEL_COUNT.value}/{structure}"] == pytest.approx(voxel_count, abs=1e-2), \
-                    f"Voxel count mismatch for '{structure}'"
+                    f"{prefix} voxel count mismatch for '{structure}' epoch {epoch}"
 
     def _mean(a: List[float]) -> float:
         return sum(a) / len(a)
@@ -100,8 +101,12 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.store_dataset_sample = True
     train_config.recovery_checkpoint_save_interval = 1
 
-    expected_train_losses = [0.4552295, 0.4548622]
-    expected_val_losses = [0.4553889, 0.4553044]
+    if machine_has_gpu:
+        expected_train_losses = [0.4553468, 0.454904]
+        expected_val_losses = [0.4553881, 0.4553041]
+    else:
+        expected_train_losses = [0.4553469, 0.4548947]
+        expected_val_losses = [0.4553880, 0.4553041]
     loss_absolute_tolerance = 1e-6
     expected_learning_rates = [train_config.l_rate, 5.3589e-4]
 
@@ -129,10 +134,11 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # Simple regression test: Voxel counts should be the same in both epochs on the validation set,
     # and be the same across 'region' and 'region_1' because they derive from the same Nifti files.
     # The following values are read off directly from the results of compute_dice_across_patches in the training loop
-    train_voxels = [[83014.0, 83255.0, 82946.0], [83000.0, 82881.0, 83309.0]]
+    # This checks that averages are computed correctly, and that metric computers are reset after each epoch.
+    train_voxels = [[83092.0, 83212.0, 82946.0], [83000.0, 82881.0, 83309.0]]
     val_voxels = [[82765.0, 83212.0], [82765.0, 83212.0]]
-    _check_voxel_count(model_training_result.train_results_per_epoch, _mean_list(train_voxels))
-    _check_voxel_count(model_training_result.val_results_per_epoch, _mean_list(val_voxels))
+    _check_voxel_count(model_training_result.train_results_per_epoch, _mean_list(train_voxels), "Train")
+    _check_voxel_count(model_training_result.val_results_per_epoch, _mean_list(val_voxels), "Val")
 
     actual_train_losses = model_training_result.get_training_metric(MetricType.LOSS.value)
     actual_val_losses = model_training_result.get_validation_metric(MetricType.LOSS.value)
@@ -145,17 +151,20 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     tracked_metric = TrackedMetrics.Val_Loss.value[len(VALIDATION_PREFIX):]
     for val_result in model_training_result.val_results_per_epoch:
         assert tracked_metric in val_result
-    # The following values are read off directly from the results of compute_dice_across_patches in the training loop
-    train_dice_region = [[0.0, 0.0, 0.0], [0.01922884, 0.01918082, 0.07752819]]
-    train_dice_region1 = [[0.48280242, 0.48337635, 0.4974504], [0.5024475, 0.5007884, 0.48952717]]
+
+    # The following values are read off directly from the results of compute_dice_across_patches in the
+    # training loop. Results are slightly different for CPU, hence use a larger tolerance there.
+    dice_tolerance = 1e-4 if machine_has_gpu else 4.5e-4
+    train_dice_region = [[0.0, 0.0, 4.0282e-04], [0.0309, 0.0334, 0.0961]]
+    train_dice_region1 = [[0.4806, 0.4800, 0.4832], [0.4812, 0.4842, 0.4663]]
     # There appears to be some amount of non-determinism here: When using a tolerance of 1e-4, we get occasional
     # test failures on Linux in the cloud (not on Windows, not on AzureML) Unclear where it comes from. Even when
     # failing here, the losses match up to the expected tolerance.
-    assert_all_close("Dice/region", _mean_list(train_dice_region), atol=1.3e-4)
-    assert_all_close("Dice/region_1", _mean_list(train_dice_region1), atol=1.3e-4)
+    assert_all_close("Dice/region", _mean_list(train_dice_region), atol=dice_tolerance)
+    assert_all_close("Dice/region_1", _mean_list(train_dice_region1), atol=dice_tolerance)
     expected_average_dice = [_mean(train_dice_region[i] + train_dice_region1[i])  # type: ignore
                              for i in range(len(train_dice_region))]
-    assert_all_close("Dice/AverageAcrossStructures", expected_average_dice, atol=1e-4)
+    assert_all_close("Dice/AverageAcrossStructures", expected_average_dice, atol=dice_tolerance)
 
     # check output files/directories
     assert train_config.outputs_folder.is_dir()
@@ -186,9 +195,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     model_training_result.get_training_metric(MetricType.SECONDS_PER_EPOCH.value)
     model_training_result.get_validation_metric(MetricType.SECONDS_PER_EPOCH.value)
     model_training_result.get_validation_metric(MetricType.SECONDS_PER_BATCH.value)
-    # We should have time per batch also for training, but it does not appear in the logs somehow?
-    # Logging the metric is called, but they never make it to the logger object.
-    # model_training_result.get_training_metric(MetricType.SECONDS_PER_BATCH.value)
+    model_training_result.get_training_metric(MetricType.SECONDS_PER_BATCH.value)
 
     # Issue #372
     # # Test for saving of example images

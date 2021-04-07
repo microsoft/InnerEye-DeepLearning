@@ -4,11 +4,14 @@
 #  ------------------------------------------------------------------------------------------
 import os
 from pathlib import Path
-from typing import Any, Callable, Optional, Tuple
+import shutil
+from typing import Any, Optional, Tuple
 from unittest import mock
+import zipfile
 
 import SimpleITK as sitk
 import numpy as np
+import pydicom
 import pytest
 import torch
 from skimage.transform import resize
@@ -18,7 +21,7 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sample import PatientDatasetSource, PatientMetadata
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
-from InnerEye.ML.utils.io_util import DicomTags, ImageAndSegmentations, ImageHeader, PhotometricInterpretation, \
+from InnerEye.ML.utils.io_util import ImageAndSegmentations, ImageHeader, PhotometricInterpretation, \
     is_dicom_file_path, is_nifti_file_path, is_numpy_file_path, load_dicom_image, load_image_in_known_formats, \
     load_images_and_stack, load_numpy_image, reverse_tuple_float3, load_dicom_series_and_save
 from Tests.ML.util import assert_file_contains_string
@@ -238,37 +241,27 @@ def test_is_dicom_file(input: Tuple[str, bool]) -> None:
     assert is_dicom_file_path(Path(file)) == expected
 
 
-def write_test_dicom(array: np.ndarray, path: Path) -> None:
+def write_test_dicom(array: np.ndarray, path: Path, is_monochrome2: bool = True,
+                     bits_stored: Optional[int] = None) -> None:
     """
     This saves the input array as a Dicom file.
     This function DOES NOT create a usable Dicom file and is meant only for testing: tags are set to
     random/default values so that pydicom does not complain when reading the file.
     """
+
+    # Write a file directly with pydicom is cumbersome (all tags need to be set by hand). Hence using simpleITK to
+    # create the file. However SimpleITK does not let you set the tags directly, so using pydicom so set them after.
     image = sitk.GetImageFromArray(array)
     writer = sitk.ImageFileWriter()
     writer.SetFileName(str(path))
     writer.Execute(image)
 
-
-def get_mock_function(is_monochrome2: bool, bits_stored: Optional[int] = None) -> Callable:
-    """
-    SimpleITK does not allow us to set the Photometric Interpretation and Stored Bits tags when writing the Dicom image.
-    In these tests, if the image should be MONOCHROME1 we write an inverted image with tag MONOCHROME2
-    and use this wrapper around the SimpleITK metadata reader to make it look to the test like the tag was MONOCHROME1.
-    Similarly, we write images with StoredBits set to 16, but use this wrapper to change StoredBits while reading.
-    """
-    get_metadata_function = sitk.ImageFileReader.GetMetaData
-
-    def mock_function(image_reader: sitk.ImageFileReader, key: str) -> str:
-        if bits_stored and key == DicomTags.BitsStored.value:
-            return str(bits_stored)
-        elif not is_monochrome2 and key == DicomTags.PhotometricInterpretation.value:
-            return PhotometricInterpretation.MONOCHROME1.value
-        else:
-            return get_metadata_function(image_reader, key)
-
-    return mock_function
-
+    ds = pydicom.dcmread(path)
+    ds.PhotometricInterpretation = PhotometricInterpretation.MONOCHROME2.value if is_monochrome2 else \
+        PhotometricInterpretation.MONOCHROME1.value
+    if bits_stored is not None:
+        ds.BitsStored = bits_stored
+    ds.save_as(path)
 
 @pytest.mark.parametrize("is_signed", [True, False])
 @pytest.mark.parametrize("is_monochrome2", [True, False])
@@ -299,17 +292,15 @@ def test_load_dicom_image_ones(test_output_dirs: OutputFolderForTests,
 
     dcm_file = test_output_dirs.root_dir / "file.dcm"
     assert is_dicom_file_path(dcm_file)
-    write_test_dicom(array=to_write, path=dcm_file)
+    write_test_dicom(array=to_write, path=dcm_file, is_monochrome2=is_monochrome2, bits_stored=1)
 
-    with mock.patch.object(sitk.ImageFileReader, 'GetMetaData',
-                           new=get_mock_function(is_monochrome2=is_monochrome2, bits_stored=1)):
-        image = load_dicom_image(dcm_file)
-        assert image.ndim == 3 and image.shape == (1,) + array_size
-        assert np.array_equal(image, array[None, ...])
+    image = load_dicom_image(dcm_file)
+    assert image.ndim == 2 and image.shape == array_size
+    assert np.array_equal(image, array)
 
-        image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
-        assert image_and_segmentation.images.ndim == 3 and image_and_segmentation.images.shape == (1,) + array_size
-        assert np.array_equal(image_and_segmentation.images, array[None, ...])
+    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
+    assert image_and_segmentation.images.ndim == 2 and image_and_segmentation.images.shape == array_size
+    assert np.array_equal(image_and_segmentation.images, array)
 
 
 @pytest.mark.parametrize("is_signed", [True, False])
@@ -337,17 +328,15 @@ def test_load_dicom_image_random(test_output_dirs: OutputFolderForTests,
 
     dcm_file = test_output_dirs.root_dir / "file.dcm"
     assert is_dicom_file_path(dcm_file)
-    write_test_dicom(array=to_write, path=dcm_file)
+    write_test_dicom(array=to_write, path=dcm_file, is_monochrome2=is_monochrome2, bits_stored=bits_stored)
 
-    with mock.patch.object(sitk.ImageFileReader, 'GetMetaData',
-                           new=get_mock_function(is_monochrome2=is_monochrome2, bits_stored=bits_stored)):
-        image = load_dicom_image(dcm_file)
-        assert image.ndim == 3 and image.shape == (1,) + array_size
-        assert np.array_equal(image, array[None, ...])
+    image = load_dicom_image(dcm_file)
+    assert image.ndim == 2 and image.shape == array_size
+    assert np.array_equal(image, array)
 
-        image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
-        assert image_and_segmentation.images.ndim == 3 and image_and_segmentation.images.shape == (1,) + array_size
-        assert np.array_equal(image_and_segmentation.images, array[None, ...])
+    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
+    assert image_and_segmentation.images.ndim == 2 and image_and_segmentation.images.shape == array_size
+    assert np.array_equal(image_and_segmentation.images, array)
 
 
 @pytest.mark.parametrize(["file_path", "expected_shape"],
@@ -625,3 +614,63 @@ def test_load_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
     assert image_header.image.shape == expected_shape
     assert image_header.header.spacing is not None
     np.testing.assert_allclose(image_header.header.spacing, (2.5, 1.269531, 1.269531), rtol=0.1)
+
+
+def zip_known_dicom_series(zip_file_path: Path) -> None:
+    """
+    Create a zipped reference DICOM series.
+
+    Zip the reference DICOM series from test_data into zip_file_path.
+
+    :param zip_file_path: Target zip file.
+    """
+    zip_file_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.make_archive(str(zip_file_path.with_suffix('')), 'zip', str(dicom_series_folder))
+
+
+def test_create_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that a DICOM series can be created.
+
+    :param test_output_dirs: Test output directories.
+    :return: None.
+    """
+    test_shape = (24, 36, 48)  # (#slices, #rows, #columns)
+    test_spacing = (1.0, 1.0, 2.5)  # (column spacing, row spacing, slice spacing)
+    series_folder = test_output_dirs.root_dir / "series"
+    series_folder.mkdir()
+    # Create the series
+    image_data = io_util.create_dicom_series(series_folder, test_shape, test_spacing)
+    # Load it in
+    loaded_image = io_util.load_dicom_series(series_folder)
+    # GetSize returns (width, height, depth)
+    assert loaded_image.GetSize() == reverse_tuple_float3(test_shape)
+    assert loaded_image.GetSpacing() == test_spacing
+    # Get the data from the loaded series and compare it.
+    loaded_image_data = sitk.GetArrayFromImage(loaded_image).astype(np.float)
+    assert loaded_image_data.shape == test_shape
+    # Data is saved 16 bit, so need a generous tolerance.
+    assert np.allclose(loaded_image_data, image_data, atol=1e-1)
+
+
+def test_zip_random_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that a DICOM series can be created.
+        :param test_output_dirs: Test output directories.
+    :return: None.
+    """
+    test_shape = (24, 36, 48)  # (#slices, #rows, #columns)
+    test_spacing = (1.0, 1.0, 2.5)  # (column spacing, row spacing, slice spacing)
+    zip_file_path = test_output_dirs.root_dir / "pack" / "random.zip"
+    scratch_folder = test_output_dirs.root_dir / "scratch"
+    io_util.zip_random_dicom_series(test_shape, test_spacing, zip_file_path, scratch_folder)
+
+    assert zip_file_path.is_file()
+    series_folder = test_output_dirs.root_dir / "unpack"
+    with zipfile.ZipFile(zip_file_path, 'r') as zip_file:
+        zip_file.extractall(series_folder)
+    # Load it in
+    loaded_image = io_util.load_dicom_series(series_folder)
+    # GetSize returns (width, height, depth)
+    assert loaded_image.GetSize() == reverse_tuple_float3(test_shape)
+    assert loaded_image.GetSpacing() == test_spacing

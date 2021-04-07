@@ -16,9 +16,9 @@ from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.lightning_base import InnerEyeLightning
 from InnerEye.ML.lightning_metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
-    AreaUnderRocCurve, BinaryCrossEntropy, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
+    AreaUnderRocCurve, BinaryCrossEntropyWithLogits, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
     FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, MetricForMultipleStructures, \
-    OptimalThreshold
+    OptimalThreshold, ScalarMetricsBase
 from InnerEye.ML.metrics import compute_dice_across_patches
 from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, SequenceMetricsDict
 from InnerEye.ML.scalar_config import ScalarModelBase
@@ -148,12 +148,14 @@ class SegmentationLightning(InnerEyeLightning):
         """
         Writes all training or validation metrics that were aggregated over the epoch to the loggers.
         """
-        dice = list((self.train_dice if is_training else self.val_dice).compute_all())
-        for name, value in dice:
+        dice = self.train_dice if is_training else self.val_dice
+        for name, value in dice.compute_all():
             self.log(name, value)
-        voxel_count = list((self.train_voxels if is_training else self.val_voxels).compute_all())
-        for name, value in voxel_count:
+        dice.reset()
+        voxel_count = self.train_voxels if is_training else self.val_voxels
+        for name, value in voxel_count.compute_all():
             self.log(name, value)
+        voxel_count.reset()
         super().training_or_validation_epoch_end(is_training=is_training)
 
 
@@ -183,9 +185,10 @@ class ScalarLightning(InnerEyeLightning):
         else:
             self.loss_fn = raw_loss
             self.target_indices = []
-            self.target_names = [MetricsDict.DEFAULT_HUE_KEY]
+            self.target_names = config.class_names
         self.is_classification_model = config.is_classification_model
         self.use_mean_teacher_model = config.compute_mean_teacher_model
+        self.is_binary_classification_or_regression = True if len(config.class_names) == 1 else False
         self.logits_to_posterior_fn = config.get_post_loss_logits_normalization_function()
         self.loss_type = config.loss_type
         # These two fields store the PyTorch Lightning Metrics objects that will compute metrics on validation
@@ -222,7 +225,7 @@ class ScalarLightning(InnerEyeLightning):
                                FalseNegativeRateOptimalThreshold(),
                                AreaUnderRocCurve(),
                                AreaUnderPrecisionRecallCurve(),
-                               BinaryCrossEntropy()])
+                               BinaryCrossEntropyWithLogits()])
         else:
             return ModuleList([MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()])
 
@@ -301,13 +304,18 @@ class ScalarLightning(InnerEyeLightning):
                 logits[:, i, ...], targets[:, i, ...], subject_ids)
             # compute metrics on valid masked tensors only
             if masked is not None:
-                _posteriors = self.logits_to_posterior(masked.model_outputs.data)
-                # Image encoders already prepare images in float16, but the labels are not yet in that dtype
-                _labels = masked.labels.data.to(dtype=_posteriors.dtype)
+                _logits = masked.model_outputs.data
+                _posteriors = self.logits_to_posterior(_logits)
+                # Classification metrics expect labels as integers, but they are float throughout the rest of the code
+                labels_dtype = torch.int if self.is_classification_model else _posteriors.dtype
+                _labels = masked.labels.data.to(dtype=labels_dtype)
                 _subject_ids = masked.subject_ids
                 assert _subject_ids is not None
                 for metric in metric_list:
-                    metric(_posteriors, _labels)
+                    if isinstance(metric, ScalarMetricsBase) and metric.compute_from_logits:
+                        metric(_logits, _labels)
+                    else:
+                        metric(_posteriors, _labels)
                 per_subject_outputs.extend(
                     zip(_subject_ids, [prediction_target] * len(_subject_ids), _posteriors.tolist(), _labels.tolist()))
         # Write a full breakdown of per-subject predictions and labels to a file. These files are local to the current
@@ -331,17 +339,19 @@ class ScalarLightning(InnerEyeLightning):
         metric_computers = self.train_metric_computers if is_training else self.val_metric_computers
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         for prediction_target, metric_list in metric_computers.items():
-            target_suffix = "" if prediction_target == MetricsDict.DEFAULT_HUE_KEY else f"/{prediction_target}"
+            target_suffix = "" if (prediction_target == MetricsDict.DEFAULT_HUE_KEY
+                                   or self.is_binary_classification_or_regression) else f"/{prediction_target}"
             for metric in metric_list:
                 if metric.has_predictions:
                     # Sequence models can have no predictions at all for particular positions, depending on the data.
-                    # Hence, only log if anything really has been accumula
+                    # Hence, only log if anything has been accumulated.
                     self.log(name=prefix + metric.name + target_suffix, value=metric.compute())
+                    metric.reset()
         logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger
         logger.flush()
         super().training_or_validation_epoch_end(is_training)
 
-    def transfer_batch_to_device(self, batch: Any, device: torch.device) -> Any:
+    def transfer_batch_to_device(self, batch: Any, device: torch.device) -> Any:  # type: ignore
         """
         For sequence models, transfer the nested lists of items to the given GPU device.
         For all other models, this relies on the superclass to move the batch of data to the GPU.
