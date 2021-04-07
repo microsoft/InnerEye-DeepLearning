@@ -13,8 +13,12 @@ from typing import Optional
 from _pytest.monkeypatch import MonkeyPatch
 from pytorch_lightning import LightningDataModule
 
+from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed
 from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithImageLogging
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
+
+
+add_folder_to_sys_path_if_needed("fastMRI")
 
 from fastmri.data import SliceDataset
 from fastmri.data.subsample import create_mask_for_mask_type
