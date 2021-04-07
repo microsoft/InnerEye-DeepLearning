@@ -91,6 +91,7 @@ refactoring, to use PyTorch Lightning as the foundation for all training. As a c
 This is because patch sampling is expensive to compute, taking 1min per large CT scan.
 - ([#336](https://github.com/microsoft/InnerEye-DeepLearning/pull/336)) Renamed `HeadAndNeckBase` to `HeadAndNeckPaper`,
 and `ProstateBase` to `ProstatePaper`.
+- ([#427](https://github.com/microsoft/InnerEye-DeepLearning/pull/427)) Move dicom loading function from SimpleITK to pydicom. Loading time improved by 30x.
 
 ### Fixed
 - When registering a model, it now has a consistent folder structured, described [here](docs/deploy_on_aml.md). This
