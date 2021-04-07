@@ -75,6 +75,9 @@ class AzureConfig(GenericConfig):
                                         "('--pytest_mark gpu' will run all tests marked with 'pytest.mark.gpu')")
     run_recovery_id: str = param.String(doc="A run recovery id string in the form 'experiment name:run id'"
                                             " to use for inference or recovering a model training run.")
+    extra_run_recovery_id: str = param.String(default=None,
+                                              allow_None=True,
+                                              doc="Extra run to download checkpoints from for custom modules")
     experiment_name: str = param.String(doc="If provided, use this string as the name of the AzureML experiment. "
                                             "If not provided, create the experiment off the git branch name.")
     build_number: int = param.Integer(0, doc="The numeric ID of the Azure pipeline that triggered this training run.")

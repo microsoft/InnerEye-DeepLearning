@@ -3,14 +3,12 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import logging
-from typing import Any, List, Optional, Tuple, Union, Dict
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pytorch_lightning as pl
 import torch
 from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
-
 from torch import Tensor as T
 from torch.nn import functional as F
 
@@ -22,7 +20,8 @@ BatchType = Union[Dict[SSLModule, SingleBatchType], SingleBatchType]
 
 
 class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
-    def __init__(self, class_weights: Optional[torch.Tensor] = None,
+    def __init__(self, learning_rate: float,
+                 class_weights: Optional[torch.Tensor] = None,
                  **kwargs: Any) -> None:
         """
         Creates a hook to evaluate a linear model on top of an SSL embedding.
@@ -35,7 +34,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         super().__init__(**kwargs)
         self.training_step = int(0)
         self.weight_decay = 1e-4
-        self.learning_rate = 1e-4
+        self.learning_rate = learning_rate
 
         self.train_metrics = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()] \
             if self.num_classes == 2 else [Accuracy05()]
@@ -126,12 +125,9 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             self.training_step += 1
 
             # log metrics
-            pl_module.log('ssl/batch_id', batch_idx)
             pl_module.log('ssl/online_train_loss', loss)
             for metric in self.train_metrics:
                 pl_module.log(f"ssl/online_train_{metric.name}", metric, on_epoch=True, on_step=False)
-        else:
-            logging.info(f"Batch {batch_idx} ignored")
 
 
 def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module],

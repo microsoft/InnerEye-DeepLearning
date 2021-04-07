@@ -10,15 +10,12 @@ import param
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 from InnerEye.SSL.byol.byol_module import WrapBYOLInnerEye
 from InnerEye.SSL.config_node import ConfigNode
-
 from InnerEye.SSL.datamodules.cifar_datasets import InnerEyeCIFAR10, InnerEyeCIFAR100
-from InnerEye.SSL.datamodules.datamodules import CombinedDataModule, InnerEyeVisionDataModule
 from InnerEye.SSL.datamodules.cxr_datasets import NIH, RSNAKaggleCXR
-from InnerEye.SSL.datamodules.transforms_utils import InnerEyeCIFARValTransform, \
-    InnerEyeCIFARLinearHeadTransform, InnerEyeCIFARTrainTransform, \
-    get_cxr_ssl_transforms
+from InnerEye.SSL.datamodules.datamodules import CombinedDataModule, InnerEyeVisionDataModule
+from InnerEye.SSL.datamodules.transforms_utils import InnerEyeCIFARLinearHeadTransform, InnerEyeCIFARTrainTransform, \
+    InnerEyeCIFARValTransform, get_cxr_ssl_transforms
 from InnerEye.SSL.simclr_module import WrapSimCLRInnerEye
-
 from InnerEye.SSL.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye, get_encoder_output_dim
 from InnerEye.SSL.utils import SSLModule, SSLType, load_ssl_model_config
 
@@ -67,7 +64,8 @@ class SSLContainer(LightningContainer):
                                                             "augmentations")
     classifier_dataset_name = param.ClassSelector(class_=SSLDatasetName,
                                                   doc="Name of the dataset to use for the linear head training")
-    classifier_batch_size = param.Integer(default=64, doc="Batch size for linear head tuning")
+    classifier_batch_size = param.Integer(default=256, doc="Batch size for linear head tuning")
+    online_evaluator_lr = param.Number(default=1e-4, doc="Learning rate for linear head training during SSL training.")
 
     def setup(self):
         self._load_config()
@@ -122,7 +120,7 @@ class SSLContainer(LightningContainer):
                                      batch_size=self.data_module.batch_size,
                                      learning_rate=self.l_rate,
                                      warmup_epochs=10)
-        model.hparams.update({'ssl_type': self.ssl_training_type})
+        model.hparams.update({'ssl_type': self.ssl_training_type.value})
 
         self.encoder_output_dim = get_encoder_output_dim(model, self.data_module)
 
@@ -183,7 +181,8 @@ class SSLContainer(LightningContainer):
                                                       z_dim=self.encoder_output_dim,
                                                       num_classes=self.data_module.num_classes,  # type: ignore
                                                       dataset=self.classifier_dataset_name.value,  # type: ignore
-                                                      drop_p=0.2)
+                                                      drop_p=0.2,
+                                                      learning_rate=self.online_evaluator_lr)
         # logging.info(f"Linear head {}")
         trained_kwargs = {"callbacks": self.online_eval}
         if self.debug:

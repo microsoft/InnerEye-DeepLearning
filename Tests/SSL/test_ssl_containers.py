@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from unittest import mock
+
 import numpy as np
 import pytest
 
@@ -78,16 +79,10 @@ def test_innereye_ssl_container_rsna(use_binary_loss_linear_head: bool):
             'InnerEye.SSL.datamodules.cxr_datasets.InnerEyeCXRDatasetBase.read_dicom',
             return_value=np.ones([256, 256])):
         loaded_config, actual_run = runner.run()
-    """
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
     args = common_test_args + ["--model=CXRImageClassifier", f"--extra_local_dataset_ids={path_to_test_dataset}",
                                f"--use_balanced_binary_loss_for_linear_head={use_binary_loss_linear_head}",
                                f"--local_ssl_weights_path={checkpoint_path}"]
-    """
-    args = common_test_args + ["--model=CXRImageClassifier", f"--extra_local_dataset_ids={path_to_test_dataset}",
-                               f"--use_balanced_binary_loss_for_linear_head={use_binary_loss_linear_head}",
-                               f"--ssl_run_id=melanibe_private_cxr_modules_1617293908_4164717f"]
-
     with mock.patch("sys.argv", args), mock.patch(
             'InnerEye.SSL.datamodules.cxr_datasets.InnerEyeCXRDatasetBase.read_dicom',
             return_value=np.ones([256, 256])):
