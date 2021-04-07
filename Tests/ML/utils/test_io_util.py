@@ -5,12 +5,13 @@
 import os
 from pathlib import Path
 import shutil
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Optional, Tuple
 from unittest import mock
 import zipfile
 
 import SimpleITK as sitk
 import numpy as np
+import pydicom
 import pytest
 import torch
 from skimage.transform import resize
@@ -20,7 +21,7 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.dataset.sample import PatientDatasetSource, PatientMetadata
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
-from InnerEye.ML.utils.io_util import DicomTags, ImageAndSegmentations, ImageHeader, PhotometricInterpretation, \
+from InnerEye.ML.utils.io_util import ImageAndSegmentations, ImageHeader, PhotometricInterpretation, \
     is_dicom_file_path, is_nifti_file_path, is_numpy_file_path, load_dicom_image, load_image_in_known_formats, \
     load_images_and_stack, load_numpy_image, reverse_tuple_float3, load_dicom_series_and_save
 from Tests.ML.util import assert_file_contains_string
@@ -240,37 +241,27 @@ def test_is_dicom_file(input: Tuple[str, bool]) -> None:
     assert is_dicom_file_path(Path(file)) == expected
 
 
-def write_test_dicom(array: np.ndarray, path: Path) -> None:
+def write_test_dicom(array: np.ndarray, path: Path, is_monochrome2: bool = True,
+                     bits_stored: Optional[int] = None) -> None:
     """
     This saves the input array as a Dicom file.
     This function DOES NOT create a usable Dicom file and is meant only for testing: tags are set to
     random/default values so that pydicom does not complain when reading the file.
     """
+
+    # Write a file directly with pydicom is cumbersome (all tags need to be set by hand). Hence using simpleITK to
+    # create the file. However SimpleITK does not let you set the tags directly, so using pydicom so set them after.
     image = sitk.GetImageFromArray(array)
     writer = sitk.ImageFileWriter()
     writer.SetFileName(str(path))
     writer.Execute(image)
 
-
-def get_mock_function(is_monochrome2: bool, bits_stored: Optional[int] = None) -> Callable:
-    """
-    SimpleITK does not allow us to set the Photometric Interpretation and Stored Bits tags when writing the Dicom image.
-    In these tests, if the image should be MONOCHROME1 we write an inverted image with tag MONOCHROME2
-    and use this wrapper around the SimpleITK metadata reader to make it look to the test like the tag was MONOCHROME1.
-    Similarly, we write images with StoredBits set to 16, but use this wrapper to change StoredBits while reading.
-    """
-    get_metadata_function = sitk.ImageFileReader.GetMetaData
-
-    def mock_function(image_reader: sitk.ImageFileReader, key: str) -> str:
-        if bits_stored and key == DicomTags.BitsStored.value:
-            return str(bits_stored)
-        elif not is_monochrome2 and key == DicomTags.PhotometricInterpretation.value:
-            return PhotometricInterpretation.MONOCHROME1.value
-        else:
-            return get_metadata_function(image_reader, key)
-
-    return mock_function
-
+    ds = pydicom.dcmread(path)
+    ds.PhotometricInterpretation = PhotometricInterpretation.MONOCHROME2.value if is_monochrome2 else \
+        PhotometricInterpretation.MONOCHROME1.value
+    if bits_stored is not None:
+        ds.BitsStored = bits_stored
+    ds.save_as(path)
 
 @pytest.mark.parametrize("is_signed", [True, False])
 @pytest.mark.parametrize("is_monochrome2", [True, False])
@@ -301,17 +292,15 @@ def test_load_dicom_image_ones(test_output_dirs: OutputFolderForTests,
 
     dcm_file = test_output_dirs.root_dir / "file.dcm"
     assert is_dicom_file_path(dcm_file)
-    write_test_dicom(array=to_write, path=dcm_file)
+    write_test_dicom(array=to_write, path=dcm_file, is_monochrome2=is_monochrome2, bits_stored=1)
 
-    with mock.patch.object(sitk.ImageFileReader, 'GetMetaData',
-                           new=get_mock_function(is_monochrome2=is_monochrome2, bits_stored=1)):
-        image = load_dicom_image(dcm_file)
-        assert image.ndim == 3 and image.shape == (1,) + array_size
-        assert np.array_equal(image, array[None, ...])
+    image = load_dicom_image(dcm_file)
+    assert image.ndim == 2 and image.shape == array_size
+    assert np.array_equal(image, array)
 
-        image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
-        assert image_and_segmentation.images.ndim == 3 and image_and_segmentation.images.shape == (1,) + array_size
-        assert np.array_equal(image_and_segmentation.images, array[None, ...])
+    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
+    assert image_and_segmentation.images.ndim == 2 and image_and_segmentation.images.shape == array_size
+    assert np.array_equal(image_and_segmentation.images, array)
 
 
 @pytest.mark.parametrize("is_signed", [True, False])
@@ -339,17 +328,15 @@ def test_load_dicom_image_random(test_output_dirs: OutputFolderForTests,
 
     dcm_file = test_output_dirs.root_dir / "file.dcm"
     assert is_dicom_file_path(dcm_file)
-    write_test_dicom(array=to_write, path=dcm_file)
+    write_test_dicom(array=to_write, path=dcm_file, is_monochrome2=is_monochrome2, bits_stored=bits_stored)
 
-    with mock.patch.object(sitk.ImageFileReader, 'GetMetaData',
-                           new=get_mock_function(is_monochrome2=is_monochrome2, bits_stored=bits_stored)):
-        image = load_dicom_image(dcm_file)
-        assert image.ndim == 3 and image.shape == (1,) + array_size
-        assert np.array_equal(image, array[None, ...])
+    image = load_dicom_image(dcm_file)
+    assert image.ndim == 2 and image.shape == array_size
+    assert np.array_equal(image, array)
 
-        image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
-        assert image_and_segmentation.images.ndim == 3 and image_and_segmentation.images.shape == (1,) + array_size
-        assert np.array_equal(image_and_segmentation.images, array[None, ...])
+    image_and_segmentation = load_image_in_known_formats(dcm_file, load_segmentation=False)
+    assert image_and_segmentation.images.ndim == 2 and image_and_segmentation.images.shape == array_size
+    assert np.array_equal(image_and_segmentation.images, array)
 
 
 @pytest.mark.parametrize(["file_path", "expected_shape"],
