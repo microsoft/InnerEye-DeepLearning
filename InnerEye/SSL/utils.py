@@ -1,14 +1,13 @@
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
 import torch
 
 from InnerEye.ML.lightning_container import LightningWithInference
 from InnerEye.SSL import ssl_augmentation_config
 from InnerEye.SSL.config_node import ConfigNode
-
 from InnerEye.SSL.encoders import DenseNet121Encoder
 
 
@@ -52,15 +51,14 @@ def create_ssl_encoder(encoder_name: str, dataset_name: Optional[str] = None) ->
     else:
         raise ValueError("Unknown model type")
 
-    if dataset_name is not None:
-        if dataset_name.startswith("CIFAR"):
-            logging.info("Updating the initial convolution in order not to shrink CIFAR10 images")
-            encoder.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+    if dataset_name is not None and dataset_name.startswith("CIFAR"):
+        logging.info("Updating the initial convolution in order not to shrink CIFAR10 images")
+        encoder.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
 
     return encoder
 
 
-def create_ssl_image_classifier(num_classes: int, freeze_encoder: bool, pl_checkpoint_path: Union[str, Path],
+def create_ssl_image_classifier(num_classes: int, freeze_encoder: bool, pl_checkpoint_path: str,
                                 class_weights: Optional[torch.Tensor]) -> LightningWithInference:
     """
     Creates a SSL image classifier from a frozen encoder trained on in an unsupervised manner.
@@ -70,14 +68,18 @@ def create_ssl_image_classifier(num_classes: int, freeze_encoder: bool, pl_check
     from InnerEye.SSL.ssl_online_evaluator import WrapSSL
     from InnerEye.SSL.lightning_containers.ssl_image_classifier import SSLClassifier
 
-    ssl_type = torch.load(str(pl_checkpoint_path), map_location=lambda storage, loc: storage)["hyper_parameters"]["ssl_type"]
+    logging.info(f"Size of ckpt {Path(pl_checkpoint_path).stat().st_size}")
+
+    # ssl_type = torch.load(pl_checkpoint_path, map_location=lambda storage, loc: storage)["hyper_parameters"][
+    #    "ssl_type"]
+    ssl_type = SSLType.BYOL.value
     logging.info(f"Creating a {ssl_type} based image classifier")
     logging.info(f"Loading pretrained {ssl_type} weights from:\n {pl_checkpoint_path}")
 
-    if ssl_type == SSLType.BYOL:
+    if ssl_type == SSLType.BYOL.value or ssl_type == SSLType.BYOL:
         byol_module = WrapSSL(BYOLInnerEye, num_classes).load_from_checkpoint(pl_checkpoint_path)
         encoder = byol_module.target_network.encoder
-    elif ssl_type == SSLType.SimCLR:
+    elif ssl_type == SSLType.SimCLR.value or ssl_type == SSLType.SimCLR:
         simclr_module = WrapSSL(SimCLRInnerEye, num_classes).load_from_checkpoint(pl_checkpoint_path)
         encoder = simclr_module.encoder
     else:
