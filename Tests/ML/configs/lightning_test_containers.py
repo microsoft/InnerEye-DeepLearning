@@ -15,9 +15,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.SSL.lightning_containers.ssl_base import SSLContainer
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
-from InnerEye.SSL.utils import load_ssl_model_config
 
 
 class DummyContainerWithDatasets(LightningContainer):
@@ -168,17 +166,3 @@ class DummyContainerWithModel(LightningContainer):
 class DummyContainerWithInvalidTrainerArguments(DummyContainerWithModel):
     def get_trainer_arguments(self):
         return {"no_such_argument": 1}
-
-
-"""
-class DummyLinearImageClassifier(SSLLinearImageClassifierContainer):
-    def _load_config(self):
-        self.yaml_config = _dummy_yaml_config_overrides(self.path_yaml_config)
-
-    def get_trainer_arguments(self):
-        trained_kwargs = super().get_trainer_arguments()
-        overfit_batches = max(1, 0.05 * (
-            min(len(self.data_module.val_dataloader()), len(self.data_module.train_dataloader()))))
-        trained_kwargs.update({"overfit_batches": overfit_batches})
-        return trained_kwargs
-"""
