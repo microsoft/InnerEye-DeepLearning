@@ -115,6 +115,7 @@ class InnerEyeContainer(LightningContainer):
     def __init__(self, config: ModelConfigBase):
         super().__init__()
         self.config = config
+        self._model_name = config.model_name
         # Fields like cross validation index are defined at container level, but the InnerEye models define them
         # at model level. Copy everything over.
         for type_to_copy in [EssentialParams, DatasetParams, TrainerParams, OutputParams]:

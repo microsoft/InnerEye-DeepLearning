@@ -137,7 +137,8 @@ class MLRunner:
                  container: Optional[LightningContainer] = None,
                  project_root: Optional[Path] = None,
                  post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
-                 model_deployment_hook: Optional[ModelDeploymentHookSignature] = None) -> None:
+                 model_deployment_hook: Optional[ModelDeploymentHookSignature] = None,
+                 output_subfolder: str = "") -> None:
         """
         Driver class to run a ML experiment. Note that the project root argument MUST be supplied when using InnerEye
         as a package!
@@ -153,6 +154,8 @@ class MLRunner:
         :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
         If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
         Model as arguments, and return an optional Path and a further object of any type.
+        :param output_subfolder: If provided, the output folder structure will have an additional subfolder,
+        when running outside AzureML.
         """
         if model_config is not None and container is not None:
             raise ValueError("One of the two arguments 'model_config', 'container' must be provided.")
@@ -166,6 +169,7 @@ class MLRunner:
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
+        self.output_subfolder = output_subfolder
         self._has_setup_run = False
 
     def setup(self) -> None:
@@ -182,9 +186,14 @@ class MLRunner:
             self.container.local_dataset = self.mount_or_download_dataset()
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
-        # This call needs to happen before the LightningModule is created, because the output parameters of the
-        # container will be copied into the module.
-        self.container.create_filesystem(self.project_root)
+        # Creating the folder structure must happen before the LightningModule is created, because the output
+        # parameters of the container will be copied into the module.
+        if self.output_subfolder:
+            # This codepath is only executed for cross validation runs outside AzureML: The folder structure
+            # uses an existing folder structure set by the caller, and just a subfolder is added.
+            self.container.file_system_config = self.container.file_system_config.add_subfolder(self.output_subfolder)
+        else:
+            self.container.create_filesystem(self.project_root)
         # A lot of the code for the built-in InnerEye models expects the output paths directly in the config files.
         if isinstance(self.container, InnerEyeContainer):
             self.container.config.local_dataset = self.container.local_dataset
@@ -226,15 +235,14 @@ class MLRunner:
         def _spawn_run(cross_val_split_index: int) -> None:
             split_config = copy.deepcopy(_config)
             split_config.cross_validation_split_index = cross_val_split_index
-            _local_split_folder_name = str(cross_val_split_index)
-            split_config.file_system_config = parent_run_file_system.add_subfolder(_local_split_folder_name)
             logging.info(f"Running model train and test on cross validation split: {cross_val_split_index}")
             split_ml_runner = MLRunner(model_config=split_config,
                                        container=None,
                                        azure_config=self.azure_config,
                                        project_root=self.project_root,
                                        post_cross_validation_hook=self.post_cross_validation_hook,
-                                       model_deployment_hook=self.model_deployment_hook)
+                                       model_deployment_hook=self.model_deployment_hook,
+                                       output_subfolder=str(cross_val_split_index))
             split_ml_runner.run()
 
         for i in range(_config.number_of_cross_validation_splits):

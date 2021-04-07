@@ -183,8 +183,8 @@ class DeepLearningFileSystemConfig(Parameterized):
                 logs_folder=logs_folder,
                 project_root=self.project_root
             )
-        raise ValueError("This method should only be called for offline runs, when the logs folder is inside the "
-                         "outputs folder.")
+        raise ValueError("This method should only be called for runs outside AzureML, when the logs folder is "
+                         "inside the outputs folder.")
 
 
 class EssentialParams(param.Parameterized):

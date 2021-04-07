@@ -15,6 +15,7 @@ from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
+from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel, DummyContainerWithPlainLightning
 from Tests.ML.util import default_runner
 
@@ -138,6 +139,18 @@ def test_model_name_is_set(test_output_dirs: OutputFolderForTests) -> None:
     assert expected_name in str(runner.container.model.outputs_folder)
 
 
+def test_model_name_for_innereye_container() -> None:
+    """
+    Test if the InnerEye container picks up the name of the model correctly. The name will impact the output folder
+    structure that is created.
+    """
+    expected_name = "DummyModel"
+    model = DummyModel()
+    assert model.model_name == expected_name
+    container = InnerEyeContainer(model)
+    assert container.model_name == expected_name
+
+
 class DummyContainerWithFields(LightningContainer):
 
     def __init__(self):
@@ -164,3 +177,22 @@ def test_container_to_str() -> None:
     assert "param" not in s
     assert "initialized" not in s
     assert "123456" in s
+
+
+def test_file_system_with_subfolders(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if a subfolder can be created within the output folder structure, for use with cross validation.
+    """
+    model = DummyModel()
+    model.set_output_to(test_output_dirs.root_dir)
+    container = InnerEyeContainer(model)
+    # File system should be copied from model config to container
+    assert container.file_system_config == model.file_system_config
+    runner = MLRunner(model_config=model)
+    runner.setup()
+    assert str(runner.container.outputs_folder).endswith(model.model_name)
+    output_subfolder = "foo"
+    expected_folder = model.outputs_folder / output_subfolder
+    runner = MLRunner(model_config=model, output_subfolder=output_subfolder)
+    runner.setup()
+    assert runner.container.outputs_folder == expected_folder
