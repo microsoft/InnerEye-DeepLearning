@@ -69,6 +69,13 @@ class CheckpointHandler:
         else:
             self.run_recovery = None
 
+        if self.azure_config.extra_run_recovery_id is not None:
+            run_to_recover = self.azure_config.fetch_run(self.azure_config.extra_run_recovery_id.strip())
+            self.container.extra_recovery_id = RunRecovery.download_all_checkpoints_from_run(self.output_params,
+                                                                                             run_to_recover)
+        else:
+            self.container.extra_recovery_id = None
+
         if self.container.weights_url or self.container.local_weights_path:
             self.local_weights_path = self.get_and_save_modified_weights()
 

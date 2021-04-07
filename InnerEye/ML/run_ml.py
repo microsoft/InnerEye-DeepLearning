@@ -197,6 +197,13 @@ class MLRunner:
                         extra_locals.append(self.mount_or_download_dataset(azure_id, None, idx=i))
                 self.container.extra_local_dataset_ids = extra_locals
 
+            # configure recovery container if provided
+            self.checkpoint_handler = CheckpointHandler(container=self.container,
+                                                        azure_config=self.azure_config,
+                                                        project_root=self.project_root,
+                                                        run_context=RUN_CONTEXT)
+            self.checkpoint_handler.download_recovery_checkpoints_or_weights()
+
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
         # This call needs to happen before the LightningModule is created, because the output parameters of the
@@ -309,12 +316,6 @@ class MLRunner:
         # Set data loader start method
         self.set_multiprocessing_start_method()
 
-        # configure recovery container if provided
-        checkpoint_handler = CheckpointHandler(container=self.container,
-                                               azure_config=self.azure_config,
-                                               project_root=self.project_root,
-                                               run_context=RUN_CONTEXT)
-        checkpoint_handler.download_recovery_checkpoints_or_weights()
         trainer: Optional[Trainer] = None
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
@@ -323,7 +324,7 @@ class MLRunner:
             if self.azure_config.train:
                 with logging_section("Model training"):
                     trainer, _ = model_train(self.model_config,
-                                             checkpoint_handler,
+                                             self.checkpoint_handler,
                                              lightning_container=self.container,
                                              num_nodes=self.azure_config.num_nodes)
                 # log the number of epochs used for model training
@@ -336,7 +337,7 @@ class MLRunner:
             # Inference for the InnerEye built-in models
             # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
             # the current run is a single one. See the documentation of ModelProcessing for more details.
-            self.run_inference_and_register_model(checkpoint_handler, ModelProcessing.DEFAULT)
+            self.run_inference_and_register_model(self.checkpoint_handler, ModelProcessing.DEFAULT)
 
             if self.container.generate_report:
                 self.generate_report(ModelProcessing.DEFAULT)
@@ -351,7 +352,7 @@ class MLRunner:
                     self.create_ensemble_model_and_run_inference()
         else:
             # Inference for all models that are specified via LightningContainers
-            self.run_inference_for_lightning_models(checkpoint_handler.get_checkpoints_to_test(), trainer)
+            self.run_inference_for_lightning_models(self.checkpoint_handler.get_checkpoints_to_test(), trainer)
 
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path], trainer: Optional[Trainer]) -> None:
         """
