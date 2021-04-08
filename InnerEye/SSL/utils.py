@@ -69,18 +69,19 @@ def create_ssl_image_classifier(num_classes: int, freeze_encoder: bool, pl_check
     from InnerEye.SSL.lightning_containers.ssl_image_classifier import SSLClassifier
 
     logging.info(f"Size of ckpt {Path(pl_checkpoint_path).stat().st_size}")
+    loaded_params = torch.load(pl_checkpoint_path, map_location=lambda storage, loc: storage)["hyper_parameters"]
+    ssl_type = loaded_params["ssl_type"]
 
-    # ssl_type = torch.load(pl_checkpoint_path, map_location=lambda storage, loc: storage)["hyper_parameters"][
-    #    "ssl_type"]
-    ssl_type = SSLType.BYOL.value
     logging.info(f"Creating a {ssl_type} based image classifier")
     logging.info(f"Loading pretrained {ssl_type} weights from:\n {pl_checkpoint_path}")
 
     if ssl_type == SSLType.BYOL.value or ssl_type == SSLType.BYOL:
-        byol_module = WrapSSL(BYOLInnerEye, num_classes).load_from_checkpoint(pl_checkpoint_path)
+        # Here we need to indicate how many classes where used for linear evaluator at training time, to load the
+        # checkpoint (incl. linear evaluator) with strict = True
+        byol_module = WrapSSL(BYOLInnerEye, loaded_params["num_classes"]).load_from_checkpoint(pl_checkpoint_path)
         encoder = byol_module.target_network.encoder
     elif ssl_type == SSLType.SimCLR.value or ssl_type == SSLType.SimCLR:
-        simclr_module = WrapSSL(SimCLRInnerEye, num_classes).load_from_checkpoint(pl_checkpoint_path)
+        simclr_module = WrapSSL(SimCLRInnerEye, loaded_params["num_classes"]).load_from_checkpoint(pl_checkpoint_path)
         encoder = simclr_module.encoder
     else:
         raise NotImplementedError(f"Unknown unsupervised model: {ssl_type}")
