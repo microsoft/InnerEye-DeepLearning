@@ -38,12 +38,11 @@ Here we described how to quickly start a training job with our ready made config
 To kick-off a training for a SimCLR and BYOL models on CIFAR10, simply run
 
 ```
-python main.py --config configs/cifar10_simclr.yaml
-python main.py --config configs/cifar10_byol.yaml
+python ML/runner.py --model=CIFAR10BYOL
+python ML/runner.py --model=CIFAR10SimCLR
 ```
 
-If you're running this locally, it will automatically take care of downloading the dataset to your machine prior to
-starting training.
+For this dataset, it will automatically take care of downloading the dataset to your machine prior to starting training.
 
 ### Example 2: training a BYOL model on Chest-Xray data
 
@@ -54,34 +53,55 @@ Prior to starting training a model on this dataset, you will need to download it
 * To use the RSNA Pneumonia Detection Challenge data: please download from
   [here](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge/data?select=stage_2_train_images). Make sure to
   download all images and the `dataset.csv` file to your data folder. Please note that the labels are here merely used
-  for monitoring purposes. Indeed, additionally to train the self-supervised model, we fit a linear head on top of the
-  embeddings during training to monitor the embeddings quality.
-* To get the NIH dataset TODO
+  for monitoring purposes.
+* To get the NIH dataset: please download from [here] https://www.kaggle.com/nih-chest-xrays/data. Make sure you include
+  also the csv files in your data folder.
 
-#### Step 1: Update your model config (TO UPDATE)
+#### Step 1: Update your model config
 
 We provide sample configs to train models on NIH data both for BYOL and SimCLR. You can use them as they are except for
-the `local_dataset` field that needs to be updated with your local path to your data folder (if your running locally),
-otherwise if running on AML you need to update the XXX and YYY variables to point to the name of the NIH and Kaggle
-dataset in your workspace. After this, you're ready to train!
+the dataset location fields:
 
-#### Step 3: Launch the training job (TO UPDATE)
+* If you're running locally set the `local_dataset` parameter to point to your data folder.
+* If you're running on AML: you need to update the `RSNA_AZURE_DATASET_ID` and `NIH_AZURE_DATASET_ID` variables to point
+  to the name of the NIH and Kaggle dataset in your own workspace.
 
-Example to train a model on RSNA dataset with BYOL:
+After this, you're ready to train!
+
+#### Step 2: Launch the training job
+
+Example to train a model on NIH dataset with BYOL and monitor the embeddings quality on Kaggle RSNA Pneumonia Challenge
+classification task:
 
 ```
-python main.py --config configs/rsna_byol.yaml
+python ML/runner.py --model=NIH_RSNA_BYOL
 ```
 
-## About SSLContainer(add-link-here) model configuration
+## About SSLContainer(add-link-here) configuration
 
-All SSL models are instances of the SSLcontainer class. See the config class in [ML/configs/ssl](link) for some examples
+All SSL models are derived from the SSLcontainer class. See the config class in [ML/configs/ssl](link) for some examples
 of specific model configurations (all derived from this container).
 
 If you wish to create your own model config for SSL training, you will need to parametrize it with the following
 available arguments:
 
-* Make a list of arguments here
+* `ssl_training_dataset_name`: the name of the dataset to train the SSL encoder on, a member of the SSLDatasetName
+  class (don't forget to update this class if you're adding a new dataset ;)),
+* `classifier_dataset_name`: the name of the dataset to train to linear head on top of the classifier for monitoring
+  purposes,
+* `azure_dataset_id`: the id of the AML dataset to use for SSL training,
+* `extra_azure_dataset_ids`: dataset_id to use for linear head training, expected to be provided as a list [data-id],
+* `ssl_encoder`: name of the encoder to train, member of `EncoderName` class, currently supported are resnet50,
+  resnet101 and densenet121,
+* `ssl_training_type`: which SSL algorithm to use, member of `SSLType` choice between BYOL and SimCLR,
+* `ssl_training_batch_size`: batch size of SSL training=1200,
+* `ssl_training_path_augmentation_config`: path to yaml config for augmentation to use during SSL training. Only used
+  for NIH/Kaggle datasets.
+* `classifier_augmentations_path`: path to yaml config for augmentation to use for linear head training. Only used for
+  NIH/Kaggle datasets,
+* `use_balanced_binary_loss_for_linear_head`: whether to use balanced loss for linear head training,
+* `random_seed`: seed for the run,
+* `num_epochs`: number of epochs to train for.
 
 ### About the augmentation configuration yaml file
 
@@ -89,5 +109,6 @@ The augmentations used for SSL training for all Chest-X-rays models are parametr
 this config as to be passed in the model config (cf. section above). We provide two defaults
 configs: ``rsna_aumgentations.yaml`` is used to define the augmentations used for BYOL/SimCLR training;
 the ``linear_head.yaml`` config defines the augmentations to used for the training of the linear head (used for
-monitoring purposes). WARNING: this file will be ignored for CIFAR examples where we use the default pl-bolts
-augmentations.
+monitoring purposes). The meaning of each config argument is detailed in `ssl_model_config.py`(add-link)
+
+WARNING: this file will be ignored for CIFAR examples where we use the default pl-bolts augmentations.
