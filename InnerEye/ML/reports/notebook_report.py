@@ -3,13 +3,13 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Sequence, Union
 
 import codecs
 import nbformat
 import papermill
 import pickle
-from IPython.display import Markdown, display
+from IPython.display import HTML, Markdown, display
 from nbconvert import HTMLExporter
 from nbconvert.writers import FilesWriter
 
@@ -54,6 +54,25 @@ def print_header(message: str, level: int = 2) -> None:
     """
     prefix = "#" * level
     display(Markdown(f"{prefix} {message}"))
+
+
+def print_table(rows: Sequence[Sequence[str]], header: Optional[Sequence[str]] = None) -> None:
+    """
+    Displays the provided content in a formatted HTML table, with optional column headers.
+    :param rows: List of rows, where each row is a list of string-valued cell contents.
+    :param header: List of column headers. If given, this special first row is rendered with emphasis.
+    """
+    if any(len(row) != len(rows[0]) for row in rows[1:]):
+        raise ValueError("All rows in the table should have the same length")
+    if header and len(header) != len(rows[0]):
+        raise ValueError("Table header and rows should have the same length")
+    table_html = "<table>\n"
+    if header:
+        table_html += "\t<tr><th>" + "</th><th>".join(header) + "</th></tr>\n"
+    for row in rows:
+        table_html += "\t<tr><td>" + "</td><td>".join(row) + "</td></tr>\n"
+    table_html += "</table>"
+    display(HTML(table_html))
 
 
 def generate_notebook(template_notebook: Path, notebook_params: Dict, result_notebook: Path) -> Path:
