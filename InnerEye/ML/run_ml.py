@@ -205,13 +205,6 @@ class MLRunner:
                         extra_locals.append(self.mount_or_download_dataset(azure_id, None, idx=i))
                 self.container.extra_local_dataset_ids = extra_locals
 
-            # configure recovery container if provided
-            self.checkpoint_handler = CheckpointHandler(container=self.container,
-                                                        azure_config=self.azure_config,
-                                                        project_root=self.project_root,
-                                                        run_context=RUN_CONTEXT)
-            self.checkpoint_handler.download_recovery_checkpoints_or_weights()
-
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
         # Creating the folder structure must happen before the LightningModule is created, because the output
@@ -222,10 +215,21 @@ class MLRunner:
             self.container.file_system_config = self.container.file_system_config.add_subfolder(self.output_subfolder)
         else:
             self.container.create_filesystem(self.project_root)
+
+        # configure recovery container if provided
+        self.checkpoint_handler = CheckpointHandler(container=self.container,
+                                                    azure_config=self.azure_config,
+                                                    project_root=self.project_root,
+                                                    run_context=RUN_CONTEXT)
+        self.checkpoint_handler.download_recovery_checkpoints_or_weights()
+        # Needed because AML is not fast enough to download
+        time.sleep(120)
+
         # A lot of the code for the built-in InnerEye models expects the output paths directly in the config files.
         if isinstance(self.container, InnerEyeContainer):
             self.container.config.local_dataset = self.container.local_dataset
             self.container.config.file_system_config = self.container.file_system_config
+            self.container.config.extra_downloaded_run_id = self.container.extra_downloaded_run_id
         self.container.setup()
         self.container.create_lightning_module_and_store()
         self._has_setup_run = True

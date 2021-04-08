@@ -211,6 +211,7 @@ class LightningContainer(GenericConfig,
         super().__init__(**kwargs)
         self._model: Optional[LightningWithInference] = None
         self._model_name = type(self).__name__
+        self.extra_downloaded_run_id = None
 
     def setup(self) -> None:
         """

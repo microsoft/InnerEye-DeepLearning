@@ -27,7 +27,7 @@ if not runner_path.is_absolute():
     sys.argv[0] = str(runner_path.absolute())
 
 import logging
-from typing import Any, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run
