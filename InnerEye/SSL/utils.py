@@ -59,7 +59,7 @@ def create_ssl_encoder(encoder_name: str, dataset_name: Optional[str] = None) ->
 
 
 def create_ssl_image_classifier(num_classes: int, freeze_encoder: bool, pl_checkpoint_path: str,
-                                class_weights: Optional[torch.Tensor]) -> LightningWithInference:
+                                class_weights: Optional[torch.Tensor] = None) -> LightningWithInference:
     """
     Creates a SSL image classifier from a frozen encoder trained on in an unsupervised manner.
     """
