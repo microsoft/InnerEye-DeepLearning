@@ -12,7 +12,8 @@ import math
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.scalar_config import ScalarModelBase
-from InnerEye.ML.reports.classification_report import LabelsAndPredictions, print_metrics, get_labels_and_predictions, \
+from InnerEye.ML.reports.classification_report import LabelsAndPredictions, get_labels_and_predictions_from_dataframe, \
+    print_metrics, get_labels_and_predictions, \
     get_metric, ReportedMetrics
 from InnerEye.ML.reports.notebook_report import print_header
 
@@ -127,10 +128,7 @@ def get_labels_and_predictions_for_prediction_target_set(csv: Path,
                                                 all_prediction_targets=all_prediction_targets,
                                                 thresholds_per_prediction_target=thresholds_per_prediction_target)
 
-    labels = df[LoggingColumns.Label.value].to_numpy()
-    model_outputs = df[LoggingColumns.ModelOutput.value].to_numpy()
-    subjects = df[LoggingColumns.Patient.value].to_numpy()
-    return LabelsAndPredictions(subject_ids=subjects, labels=labels, model_outputs=model_outputs)
+    return get_labels_and_predictions_from_dataframe(df)
 
 
 def print_metrics_for_thresholded_output_for_all_prediction_targets(val_metrics_csv: Path,

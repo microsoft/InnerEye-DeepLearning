@@ -78,6 +78,19 @@ def get_labels_and_predictions(csv: Path, prediction_target: str) -> LabelsAndPr
 
     """
     df = read_csv_and_filter_prediction_target(csv, prediction_target)
+    return get_labels_and_predictions_from_dataframe(df)
+
+
+def get_labels_and_predictions_from_dataframe(df: pd.DataFrame) -> LabelsAndPredictions:
+    """
+    Given a dataframe, reads the subject IDs, ground truth labels and model outputs for each subject.
+    NOTE: This dataframe should have results from a single epoch, as in the metrics files written during inference, not
+    like the ones written while training. It must have at least the following columns (defined in the LoggingColumns
+    enum):
+    LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
+    If present, the LoggingColumns.CrossValidationSplitIndex column will be read into the resulting crossval_folds
+    field, otherwise it will be filled with -1 by default.
+    """
     labels = df[LoggingColumns.Label.value].to_numpy()
     model_outputs = df[LoggingColumns.ModelOutput.value].to_numpy()
     subjects = df[LoggingColumns.Patient.value].to_numpy()
