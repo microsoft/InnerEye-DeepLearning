@@ -198,6 +198,59 @@ def get_metric(val_labels_and_predictions: LabelsAndPredictions,
         raise ValueError("Unknown metric")
 
 
+def get_all_metrics(val_labels_and_predictions: LabelsAndPredictions,
+                    test_labels_and_predictions: LabelsAndPredictions,
+                    is_thresholded: bool = False) -> Dict[str, float]:
+    """
+    Given LabelsAndPredictions objects for the validation and test sets, compute some metrics.
+    :param val_labels_and_predictions: LabelsAndPredictions object for the val set. This is used to determine the
+    optimal threshold for classification.
+    :param test_labels_and_predictions: LabelsAndPredictions object for the test set. Metrics are calculated for this
+    set.
+    :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
+                           or are floating point numbers.
+    :return:
+    """
+    optimal_threshold = 0.5 if is_thresholded else None
+
+    metrics = {}
+    if not is_thresholded:
+        roc_auc = get_metric(val_labels_and_predictions=val_labels_and_predictions,
+                             test_labels_and_predictions=test_labels_and_predictions,
+                             metric=ReportedMetrics.AUC_ROC)
+        metrics["Area under ROC Curve"] = roc_auc
+
+        pr_auc = get_metric(val_labels_and_predictions=val_labels_and_predictions,
+                            test_labels_and_predictions=test_labels_and_predictions,
+                            metric=ReportedMetrics.AUC_PR)
+        metrics["Area under PR Curve"] = pr_auc
+
+        optimal_threshold = get_metric(val_labels_and_predictions=val_labels_and_predictions,
+                                       test_labels_and_predictions=test_labels_and_predictions,
+                                       metric=ReportedMetrics.OptimalThreshold)
+        metrics["Optimal threshold"] = optimal_threshold
+
+    accuracy = get_metric(val_labels_and_predictions=val_labels_and_predictions,
+                          test_labels_and_predictions=test_labels_and_predictions,
+                          metric=ReportedMetrics.Accuracy,
+                          optimal_threshold=optimal_threshold)
+    metrics["Accuracy at optimal threshold"] = accuracy
+
+    fpr = get_metric(val_labels_and_predictions=val_labels_and_predictions,
+                     test_labels_and_predictions=test_labels_and_predictions,
+                     metric=ReportedMetrics.FalsePositiveRate,
+                     optimal_threshold=optimal_threshold)
+    metrics["Specificity at optimal threshold"] = 1 - fpr
+
+    fnr = get_metric(val_labels_and_predictions=val_labels_and_predictions,
+                     test_labels_and_predictions=test_labels_and_predictions,
+                     metric=ReportedMetrics.FalseNegativeRate,
+                     optimal_threshold=optimal_threshold)
+    metrics["Sensitivity at optimal threshold"] = 1 - fnr
+
+    return metrics
+
+
 def print_metrics(val_labels_and_predictions: LabelsAndPredictions,
                   test_labels_and_predictions: LabelsAndPredictions,
                   is_thresholded: bool = False) -> None:
@@ -211,44 +264,8 @@ def print_metrics(val_labels_and_predictions: LabelsAndPredictions,
                            or are floating point numbers.
     :return:
     """
-
-    optimal_threshold = 0.5 if is_thresholded else None
-
-    rows = []
-    if not is_thresholded:
-        roc_auc = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                             test_labels_and_predictions=test_labels_and_predictions,
-                             metric=ReportedMetrics.AUC_ROC)
-        rows.append(["Area under ROC Curve", f"{roc_auc:.4f}"])
-
-        pr_auc = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                            test_labels_and_predictions=test_labels_and_predictions,
-                            metric=ReportedMetrics.AUC_PR)
-        rows.append(["Area under PR Curve", f"{pr_auc:.4f}"])
-
-        optimal_threshold = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                                       test_labels_and_predictions=test_labels_and_predictions,
-                                       metric=ReportedMetrics.OptimalThreshold)
-        rows.append(["Optimal threshold", f"{optimal_threshold:.4f}"])
-
-    accuracy = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                          test_labels_and_predictions=test_labels_and_predictions,
-                          metric=ReportedMetrics.Accuracy,
-                          optimal_threshold=optimal_threshold)
-    rows.append(["Accuracy at optimal threshold", f"{accuracy:.4f}"])
-
-    fpr = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                     test_labels_and_predictions=test_labels_and_predictions,
-                     metric=ReportedMetrics.FalsePositiveRate,
-                     optimal_threshold=optimal_threshold)
-    rows.append(["Specificity at optimal threshold", f"{1 - fpr:.4f}"])
-
-    fnr = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                     test_labels_and_predictions=test_labels_and_predictions,
-                     metric=ReportedMetrics.FalseNegativeRate,
-                     optimal_threshold=optimal_threshold)
-    rows.append(["Sensitivity at optimal threshold", f"{1 - fnr:.4f}"])
-
+    metrics = get_all_metrics(val_labels_and_predictions, test_labels_and_predictions, is_thresholded)
+    rows = [[description, f"{value:.4f}"] for description, value in metrics.items()]
     print_table(rows)
 
 
