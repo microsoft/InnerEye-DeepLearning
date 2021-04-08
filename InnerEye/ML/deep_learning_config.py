@@ -560,6 +560,7 @@ class DeepLearningConfig(EssentialParams,
         super().__init__(throw_if_unknown_param=True, **params)
         logging.info("Creating the default output folder structure.")
         self.create_filesystem(fixed_paths.repository_root_directory())
+        self.extra_downloaded_run_id = None
 
     def validate(self) -> None:
         """
