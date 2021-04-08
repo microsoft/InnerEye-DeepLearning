@@ -172,7 +172,6 @@ class Runner:
 
         if has_torch and isinstance(config_or_container, LightningContainer):
             self.lightning_container = config_or_container
-            self.model_config = config_or_container
         elif isinstance(config_or_container, DeepLearningConfig):
             # Built-in InnerEye models: A fake container for these models will be created in MLRunner
             self.model_config = config_or_container
@@ -243,6 +242,8 @@ class Runner:
             run_object = self.submit_to_azureml()
         else:
             self.run_in_situ()
+        if self.model_config is None:
+            return self.lightning_container, run_object
         return self.model_config, run_object
 
     def submit_to_azureml(self) -> Run:
