@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 import param
 import torch
@@ -11,15 +11,17 @@ from pl_bolts.models.self_supervised import SSLEvaluator
 from torch.nn import functional as F
 
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.lightning_container import LightningWithInference
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
+from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.SSL.datamodules.datamodules import InnerEyeVisionDataModule
 from InnerEye.SSL.lightning_containers.ssl_container import SSLContainer
 from InnerEye.SSL.ssl_online_evaluator import get_encoder_output_dim
 from InnerEye.SSL.utils import create_ssl_image_classifier
 
 
-class SSLClassifier(LightningWithInference):
+class SSLClassifier(LightningWithInference, DeviceAwareModule):
     """
     SSL Image classifier that combines pre-trained SSL encoder with a trainable linear-head.
     """
@@ -97,6 +99,12 @@ class SSLClassifier(LightningWithInference):
     def on_inference_epoch_end(self) -> None:
         pass
 
+    def get_input_tensors(self, item: ScalarItem) -> List[torch.Tensor]:
+        """
+        Not used for CXRImageClassifier container. This is just need if we use this model within a InnerEyeContainer.
+        """
+        return [item.images]
+
 
 class SSLClassifierContainer(SSLContainer):
     """
@@ -113,11 +121,11 @@ class SSLClassifierContainer(SSLContainer):
         This method must create the actual Lightning model that will be trained.
         """
         if self.local_ssl_weights_path is None:
-            assert self.extra_recovery_id is not None
+            assert self.extra_downloaded_run_id is not None
             try:
-                path_to_checkpoint = self.extra_recovery_id.get_best_checkpoint_paths()
+                path_to_checkpoint = self.extra_downloaded_run_id.get_best_checkpoint_paths()
             except FileNotFoundError:
-                path_to_checkpoint = self.extra_recovery_id.get_recovery_checkpoint_paths()
+                path_to_checkpoint = self.extra_downloaded_run_id.get_recovery_checkpoint_paths()
             path_to_checkpoint = path_to_checkpoint[0]
         else:
             path_to_checkpoint = self.local_ssl_weights_path

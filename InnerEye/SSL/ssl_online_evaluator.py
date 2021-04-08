@@ -165,6 +165,8 @@ def WrapSSL(ssl_class: Any, num_classes: int) -> Any:
     :param num_classes: Number of target classes for the linear head.
     :param ssl_class:   SSL object either BYOL or SimCLR.
     """
+    # for running with InnerEyeContainer
+    num_classes = 2 if num_classes == 1 else num_classes
 
     class _wrap(ssl_class):  # type: ignore
         def __init__(self, **kwargs: Any) -> None:
