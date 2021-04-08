@@ -452,7 +452,7 @@ class ScalarItemAugmentation(Transform3D[ScalarItem]):
         self.transform = transform
 
     def __call__(self, item: ScalarItem) -> ScalarItem:
-        if self.transform.for_segmentation_input_maps:
+        if hasattr(self.transform, "for_segmentation_input_maps") and self.transform.for_segmentation_input_maps:
             if item.segmentations is None:
                 raise ValueError("A segmentation data augmentation transform has been"
                                  "specified but no segmentations has been loaded.")
