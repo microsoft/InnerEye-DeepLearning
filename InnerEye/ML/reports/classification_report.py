@@ -52,15 +52,19 @@ class ReportedMetrics(Enum):
     FalseNegativeRate = "false_negative_rate"
 
 
-def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str) -> pd.DataFrame:
+def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str,
+                                          crossval_split_index: Optional[int] = None) -> pd.DataFrame:
     """
     Given one of the csv files written during inference time, read it and select only those rows which belong to the
-    given prediction_target. Also check that there is only a single entry per prediction_target per subject in the file.
+    given prediction_target. If crossval_split_index is provided, will additionally filter rows only for the respective
+    run. Also check that there is only a single entry per prediction_target per subject in the file.
     The csv must have at least the following columns (defined in the LoggingColumns enum):
-    LoggingColumns.Hue, LoggingColumns.Patient.
+    LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.CrossValidationSplitIndex (if crossval_split_index given)
     """
     df = pd.read_csv(csv)
     df = df[df[LoggingColumns.Hue.value] == prediction_target]  # Filter by prediction target
+    if crossval_split_index is not None:
+        df = df[df[LoggingColumns.CrossValidationSplitIndex] == crossval_split_index]  # Filter by crossval split index
     if not df[LoggingColumns.Patient.value].is_unique:
         raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
                          f"in column {LoggingColumns.Patient.value} in the csv file.")
