@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import math
-import torch
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -12,17 +11,18 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import torch
 from IPython.display import display
 from PIL import Image
 from matplotlib.axes import Axes
 from sklearn.metrics import auc, precision_recall_curve, recall_score, roc_auc_score, roc_curve
 
 from InnerEye.Common.metrics_constants import LoggingColumns
-from InnerEye.ML.metrics_dict import MetricsDict, binary_classification_accuracy
-from InnerEye.ML.reports.notebook_report import print_header
-from InnerEye.ML.utils.io_util import load_image_in_known_formats
-from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
+from InnerEye.ML.metrics_dict import MetricsDict, binary_classification_accuracy
+from InnerEye.ML.reports.notebook_report import print_header, print_table
+from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.utils.io_util import load_image_in_known_formats
 
 
 @dataclass
@@ -197,41 +197,42 @@ def print_metrics(val_labels_and_predictions: LabelsAndPredictions,
 
     optimal_threshold = 0.5 if is_thresholded else None
 
+    rows = []
     if not is_thresholded:
         roc_auc = get_metric(val_labels_and_predictions=val_labels_and_predictions,
                              test_labels_and_predictions=test_labels_and_predictions,
                              metric=ReportedMetrics.AUC_ROC)
-        print_header(f"Area under ROC Curve: {roc_auc:.4f}", level=4)
+        rows.append(["Area under ROC Curve", f"{roc_auc:.4f}"])
 
         pr_auc = get_metric(val_labels_and_predictions=val_labels_and_predictions,
                             test_labels_and_predictions=test_labels_and_predictions,
                             metric=ReportedMetrics.AUC_PR)
-        print_header(f"Area under PR Curve: {pr_auc:.4f}", level=4)
+        rows.append(["Area under PR Curve", f"{pr_auc:.4f}"])
 
         optimal_threshold = get_metric(val_labels_and_predictions=val_labels_and_predictions,
                                        test_labels_and_predictions=test_labels_and_predictions,
                                        metric=ReportedMetrics.OptimalThreshold)
-
-        print_header(f"Optimal threshold: {optimal_threshold: .4f}", level=4)
+        rows.append(["Optimal threshold", f"{optimal_threshold:.4f}"])
 
     accuracy = get_metric(val_labels_and_predictions=val_labels_and_predictions,
                           test_labels_and_predictions=test_labels_and_predictions,
                           metric=ReportedMetrics.Accuracy,
                           optimal_threshold=optimal_threshold)
-    print_header(f"Accuracy at optimal threshold: {accuracy:.4f}", level=4)
+    rows.append(["Accuracy at optimal threshold", f"{accuracy:.4f}"])
 
     fpr = get_metric(val_labels_and_predictions=val_labels_and_predictions,
                      test_labels_and_predictions=test_labels_and_predictions,
                      metric=ReportedMetrics.FalsePositiveRate,
                      optimal_threshold=optimal_threshold)
-    print_header(f"Specificity at optimal threshold: {1 - fpr:.4f}", level=4)
+    rows.append(["Specificity at optimal threshold", f"{1 - fpr:.4f}"])
 
     fnr = get_metric(val_labels_and_predictions=val_labels_and_predictions,
                      test_labels_and_predictions=test_labels_and_predictions,
                      metric=ReportedMetrics.FalseNegativeRate,
                      optimal_threshold=optimal_threshold)
-    print_header(f"Sensitivity at optimal threshold: {1 - fnr:.4f}", level=4)
-    print_header("", level=4)
+    rows.append(["Sensitivity at optimal threshold", f"{1 - fnr:.4f}"])
+
+    print_table(rows)
 
 
 def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
