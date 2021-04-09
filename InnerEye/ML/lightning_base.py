@@ -123,6 +123,13 @@ class InnerEyeContainer(LightningContainer):
             self.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},
                                  should_validate=False)
 
+    def setup(self):
+        """
+        This hook reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
+        for categorical features, that need to be available before creating the model.
+        """
+        self.config.read_dataset_if_needed()
+
     def create_model(self) -> LightningModule:  # type: ignore
         from InnerEye.ML.lightning_models import create_lightning_model
         return create_lightning_model(self.config)
@@ -145,13 +152,6 @@ class InnerEyeContainer(LightningContainer):
         # of the dataset and do forward propagation?
         assert isinstance(self.model, InnerEyeLightning)
         generate_and_print_model_summary(self.config, self.model.model)
-
-    def before_training_on_all_ranks(self):
-        """
-        This hook reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
-        for categorical features, that need to be available before creating the model.
-        """
-        self.config.read_dataset_if_needed()
 
 
 class InnerEyeLightning(LightningModule):

@@ -118,7 +118,7 @@ def test_run_fastmri_container(test_output_dirs: OutputFolderForTests) -> None:
     runner = default_runner()
     dataset_dir = test_output_dirs.root_dir / "dataset"
     dataset_dir.mkdir(parents=True)
-    args = ["", "--model=FastMriOnRandomData",
+    args = ["", "--model=FastMriRandomData",
             f"--output_to={test_output_dirs.root_dir}",
             f"--local_dataset={dataset_dir}"]
     with mock.patch("sys.argv", args):

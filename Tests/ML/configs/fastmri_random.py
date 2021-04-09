@@ -24,7 +24,8 @@ from fastmri.data import SliceDataset
 from fastmri.data.subsample import create_mask_for_mask_type
 from fastmri.data.transforms import VarNetDataTransform
 from fastmri.pl_modules import FastMriDataModule
-from tests.create_temp_data import create_temp_data
+# This import can fail if written as "from tests.create_temp_data, even though fastMRI is already in the path.
+from fastMRI.tests.create_temp_data import create_temp_data
 
 
 class FastMriRandomData(FastMriDataModule):
