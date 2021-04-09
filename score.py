@@ -218,7 +218,12 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, s
         out_file=dicom_rt_file_path,
         struct_names=config.ground_truth_ids_display_names,
         struct_colors=[convert_rgb_colour_to_hex(rgb) for rgb in config.colours],
-        fill_holes=config.fill_holes)
+        fill_holes=config.fill_holes,
+        roi_interpreted_types=config.roi_interpreted_types,
+        manufacturer=config.roi_interpreted_types,
+        interpreter=config.interpreter,
+        #modelId= TODO
+    )
     # Log stdout, stderr from DICOM-RT conversion.
     logging.debug("stdout: %s", stdout)
     logging.debug("stderr: %s", stderr)

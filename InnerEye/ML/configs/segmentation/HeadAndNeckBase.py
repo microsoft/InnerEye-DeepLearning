@@ -115,6 +115,7 @@ class HeadAndNeckBase(SegmentationModelBase):
             largest_connected_component_foreground_classes=ground_truth_ids,
             colours=colours,
             fill_holes=fill_holes,
+            roi_intepreted_types=["ORGAN"] * len(self.fill_holes),
             class_weights=class_weights,
             slice_exclusion_rules=slice_exclusion_rules,
             summed_probability_rules=summed_probability_rules,

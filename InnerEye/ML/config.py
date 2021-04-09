@@ -433,6 +433,11 @@ class SegmentationModelBase(ModelConfigBase):
                                             "output of the model for that class includes postprocessing to fill holes, "
                                             "in the same order as in ground_truth_ids_display_names")
 
+    roi_interpreted_types: List[str] = param.List(None, class_=str, bounds=(1, None), instantiate=False,
+                                                    allow_None=True,
+                                                    doc="List of str with the ROI interpreted Types. Possible values "
+                                                        "(None, CTV, ORGAN, EXTERNAL)")
+
     _inference_stride_size: Optional[TupleInt3] = IntTuple(None, length=3, allow_None=True,
                                                            doc="The stride size in the inference pipeline. "
                                                                "At most, this should be the output_size to "
