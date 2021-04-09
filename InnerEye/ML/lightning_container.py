@@ -134,7 +134,7 @@ class LightningWithInference(LightningModule, LightningInference):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         LightningModule.__init__(self, *args, **kwargs)
-        # These 3 fields get populated from the enclosing LightningContainer
+        # These 3 fields get populated from the enclosing LightningContainer, in create_lightning_module_and_store
         self.optimizer_params = OptimizerParams()
         self.output_params = OutputParams()
         self.trainer_params = TrainerParams()

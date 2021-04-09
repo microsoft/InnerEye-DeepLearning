@@ -191,8 +191,8 @@ class DummyContainerWithModel(LightningContainer):
     def __init__(self):
         super().__init__()
         self.perform_training_set_inference = True
-        self.num_epochs = 100
-        self.l_rate = 1e-2
+        self.num_epochs = 50
+        self.l_rate = 1e-1
 
     def setup(self) -> None:
         (self.local_dataset / "setup.txt").touch()

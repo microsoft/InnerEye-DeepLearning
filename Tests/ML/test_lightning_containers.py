@@ -196,3 +196,31 @@ def test_file_system_with_subfolders(test_output_dirs: OutputFolderForTests) -> 
     runner = MLRunner(model_config=model, output_subfolder=output_subfolder)
     runner.setup()
     assert runner.container.outputs_folder == expected_folder
+
+
+def test_optim_params1(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if the optimizer parameters are read correctly for InnerEye configs.
+    """
+    model = DummyModel()
+    model.set_output_to(test_output_dirs.root_dir)
+    runner = MLRunner(model_config=model)
+    runner.setup()
+    lightning_model = runner.container.model
+    optim, _ = lightning_model.configure_optimizers()
+    assert optim[0].param_groups[0]["lr"] == 1e-3
+
+
+def test_optim_params2(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if the optimizer parameters are read correctly for containers.
+    """
+    container = DummyContainerWithModel()
+    container.local_dataset = test_output_dirs.root_dir
+    runner = MLRunner(model_config=None, container=container)
+    runner.setup()
+    lightning_model = runner.container.model
+    optim, _ = lightning_model.configure_optimizers()
+    expected_lr = 1e-1
+    assert container.l_rate == expected_lr
+    assert optim[0].param_groups[0]["lr"] == expected_lr
