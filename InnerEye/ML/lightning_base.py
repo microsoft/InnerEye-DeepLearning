@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import numbers
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import param
@@ -152,6 +153,9 @@ class InnerEyeContainer(LightningContainer):
         # of the dataset and do forward propagation?
         assert isinstance(self.model, InnerEyeLightning)
         generate_and_print_model_summary(self.config, self.model.model)
+
+    def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:
+        return self.config.load_checkpoint_and_modify(path_to_checkpoint=path_to_checkpoint)
 
 
 class InnerEyeLightning(LightningModule):

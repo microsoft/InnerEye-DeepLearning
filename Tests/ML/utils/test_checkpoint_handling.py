@@ -5,6 +5,7 @@
 
 import os
 from pathlib import Path
+from unittest import mock
 from urllib.parse import urlparse
 
 import pytest
@@ -369,39 +370,42 @@ def test_get_and_modify_local_weights(test_output_dirs: OutputFolderForTests) ->
     # Test that weights are properly modified when a local_weights_path is set
 
     # set a method to modify weights:
-    ModelConfigBase.load_checkpoint_and_modify = lambda self, path_to_checkpoint: {"modified": "local",  # type: ignore
-                                                                                   "path": path_to_checkpoint}
-    # Set the local_weights_path to an empty file, which will be passed to modify_checkpoint
-    local_weights_path = manage_recovery.project_root / "exist.pth"
-    create_checkpoint_file(local_weights_path)
-    manage_recovery.container.local_weights_path = local_weights_path
-    weights_path = manage_recovery.get_and_save_modified_weights()
-    expected_path = manage_recovery.output_params.outputs_folder / WEIGHTS_FILE
-    # read from weights_path and check that the dict has been written
-    assert weights_path.is_file()
-    assert expected_path == weights_path
-    read = torch.load(str(weights_path))
-    assert read.keys() == {"modified", "path"}
-    assert read["modified"] == "local"
-    assert read["path"] == local_weights_path
-    # clean up
-    weights_path.unlink()
+    with mock.patch.object(ModelConfigBase,
+                           'load_checkpoint_and_modify',
+                           lambda self, path_to_checkpoint: {"modified": "local",  # type: ignore
+                                                             "path": path_to_checkpoint}):
+        # Set the local_weights_path to an empty file, which will be passed to modify_checkpoint
+        local_weights_path = manage_recovery.project_root / "exist.pth"
+        create_checkpoint_file(local_weights_path)
+        manage_recovery.container.local_weights_path = local_weights_path
+        weights_path = manage_recovery.get_and_save_modified_weights()
+        expected_path = manage_recovery.output_params.outputs_folder / WEIGHTS_FILE
+        # read from weights_path and check that the dict has been written
+        assert weights_path.is_file()
+        assert expected_path == weights_path
+        read = torch.load(str(weights_path))
+        assert read.keys() == {"modified", "path"}
+        assert read["modified"] == "local"
+        assert read["path"] == local_weights_path
+        # clean up
+        weights_path.unlink()
 
     # Test that weights are properly modified when weights_url is set
 
     # set a different method to modify weights, to avoid using old files from other tests:
-    ModelConfigBase.load_checkpoint_and_modify = lambda self, path_to_checkpoint: {"modified": "url",  # type: ignore
-                                                                                   "path": path_to_checkpoint}
-    # Set the weights_url to the sample pytorch URL, which will be passed to modify_checkpoint
-    manage_recovery.container.local_weights_path = None
-    manage_recovery.container.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
-    weights_path = manage_recovery.get_and_save_modified_weights()
-    expected_path = manage_recovery.output_params.outputs_folder / WEIGHTS_FILE
-    # read from weights_path and check that the dict has been written
-    assert weights_path.is_file()
-    assert expected_path == weights_path
-    read = torch.load(str(weights_path))
-    assert read.keys() == {"modified", "path"}
-    assert read["modified"] == "url"
-    assert read["path"] == manage_recovery.project_root / MODEL_WEIGHTS_DIR_NAME / \
-           os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)
+    with mock.patch.object(ModelConfigBase,
+                           'load_checkpoint_and_modify',
+                           lambda self, path_to_checkpoint: {"modified": "url", "path": path_to_checkpoint}):
+        # Set the weights_url to the sample pytorch URL, which will be passed to modify_checkpoint
+        manage_recovery.container.local_weights_path = None
+        manage_recovery.container.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
+        weights_path = manage_recovery.get_and_save_modified_weights()
+        expected_path = manage_recovery.output_params.outputs_folder / WEIGHTS_FILE
+        # read from weights_path and check that the dict has been written
+        assert weights_path.is_file()
+        assert expected_path == weights_path
+        read = torch.load(str(weights_path))
+        assert read.keys() == {"modified", "path"}
+        assert read["modified"] == "url"
+        assert read["path"] == manage_recovery.project_root / MODEL_WEIGHTS_DIR_NAME / \
+                os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)
