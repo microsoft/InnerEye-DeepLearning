@@ -13,6 +13,7 @@ from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
 from InnerEye.ML.runner import Runner
+from Tests.ML.configs.DummyModel import DummyModel
 
 
 @pytest.mark.parametrize("is_container", [True, False])
@@ -28,6 +29,10 @@ def test_create_ml_runner_args(is_container: bool,
     in local runs and in AzureML."""
     logging_to_stdout()
     model_name = "DummyContainerWithPlainLightning" if is_container else "DummyModel"
+    if is_container:
+        dataset_folder = Path("download")
+    else:
+        dataset_folder = DummyModel().local_dataset
     outputs_folder = test_output_dirs.root_dir
     project_root = fixed_paths.repository_root_directory()
     model_configs_namespace = "Tests.ML.configs"
@@ -47,7 +52,7 @@ def test_create_ml_runner_args(is_container: bool,
     with mock.patch("sys.argv", [""] + args_list):
         with mock.patch("InnerEye.ML.deep_learning_config.is_offline_run_context", return_value=is_offline_run):
             with mock.patch("InnerEye.ML.run_ml.MLRunner.run", return_value=None):
-                with mock.patch("InnerEye.ML.run_ml.MLRunner.mount_or_download_dataset", return_value=Path("download")):
+                with mock.patch("InnerEye.ML.run_ml.MLRunner.mount_or_download_dataset", return_value=dataset_folder):
                     runner = Runner(project_root=project_root, yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
                     runner.parse_and_load_model()
                     # Only when calling config.create_filesystem we expect to see the correct paths, and this happens
