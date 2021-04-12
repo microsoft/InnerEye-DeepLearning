@@ -7,17 +7,18 @@ from pathlib import Path
 from typing import Callable, Optional, Tuple, Union
 
 import PIL
-from PIL import Image
-
 import numpy as np
 import pandas as pd
-from torchvision.datasets import VisionDataset
 import pydicom as dicom
+from PIL import Image
+from torchvision.datasets import VisionDataset
+
 
 class InnerEyeCXRDatasetBase(VisionDataset):
     """
     Base class for dataset with Chest X-ray data. Implements reading of dicom as well as png.
     """
+
     def __init__(self,
                  data_directory: str,
                  train: bool,
@@ -36,10 +37,10 @@ class InnerEyeCXRDatasetBase(VisionDataset):
         self.seed = seed
         self.random_state = np.random.RandomState(seed)
         self._prepare_dataset()
-        dataset_type = "TRAIN" if self.train else "VAL"
+        dataset_type = "train + val" if self.train else "test"
         logging.info(f"Number samples - {dataset_type}: {len(self)}")
         if self.targets is not None:
-            logging.info(f"Proportion of positive labels - {dataset_type}: {np.mean(self.targets)}")
+            logging.info(f"Proportion of positive labels {dataset_type}: {np.mean(self.targets)}")
 
     def _prepare_dataset(self):
         self.indices = None
@@ -107,14 +108,21 @@ class NIH(InnerEyeCXRDatasetBase):
 
 class RSNAKaggleCXR(InnerEyeCXRDatasetBase):
     """
-    Dataset class to load the RSNA Chest-Xray training dataset. Use all the data for train and val. No test data.
+    Dataset class to load the RSNA Chest-Xray training dataset. Use all the data for train and val. No test data
+    implemented.
     """
+
     def _prepare_dataset(self):
-        self.dataset_dataframe = pd.read_csv(self.root / "dataset.csv")
-        self.targets = self.dataset_dataframe.label.values.astype(np.int64)
-        self.subject_ids = self.dataset_dataframe.subject.values
-        self.indices = np.arange(len(self.dataset_dataframe))
-        self.filenames = [self.root / f"{subject_id}.dcm" for subject_id in self.subject_ids]
+        if self.train:
+            self.dataset_dataframe = pd.read_csv(self.root / "dataset.csv")
+            self.targets = self.dataset_dataframe.label.values.astype(np.int64)
+            self.subject_ids = self.dataset_dataframe.subject.values
+            self.indices = np.arange(len(self.dataset_dataframe))
+            self.filenames = [self.root / f"{subject_id}.dcm" for subject_id in self.subject_ids]
+        else:
+            self.indices = []
+            self.targets = []
+            self.filenames = []
 
     @property
     def num_classes(self) -> int:
