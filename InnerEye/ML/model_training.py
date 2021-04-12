@@ -253,14 +253,16 @@ def model_train(config: ModelConfigBase,
         for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
             temp_files = (config.outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
             result_file = config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
+            result_file = result_file.open("a")
             for i, file in enumerate(temp_files):
                 temp_file_contents = file.read_text()
                 if i == 0:
                     # Copy the first file as-is, including the first line with the column headers
-                    result_file.write_text(temp_file_contents)
+                    result_file.write(temp_file_contents)
                 else:
                     # For all files but the first one, cut off the header line.
-                    result_file.write_text(os.linesep.join(temp_file_contents.splitlines()[1:]))
+                    result_file.write(os.linesep.join(temp_file_contents.splitlines()[1:]))
+            result_file.close()
 
     model_training_results = ModelTrainingResults(
         train_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values()),
