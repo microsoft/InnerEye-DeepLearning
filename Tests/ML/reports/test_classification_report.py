@@ -16,7 +16,8 @@ from InnerEye.Common.common_util import is_windows
 from InnerEye.ML.reports.classification_report import ReportedMetrics, get_correct_and_misclassified_examples, \
     get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_labels_and_predictions, \
     plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id
-from InnerEye.ML.reports.notebook_report import generate_classification_notebook
+from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
+    generate_classification_notebook
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.metrics_dict import MetricsDict
@@ -61,6 +62,47 @@ def test_generate_classification_report(test_output_dirs: OutputFolderForTests) 
                                                    config=config,
                                                    val_metrics=val_metrics_file,
                                                    test_metrics=test_metrics_file)
+    assert result_file.is_file()
+    assert result_html.is_file()
+    assert result_html.suffix == ".html"
+
+
+@pytest.mark.skipif(is_windows(), reason="Random timeout errors on windows.")
+def test_generate_classification_crossval_report(test_output_dirs: OutputFolderForTests) -> None:
+    reports_folder = Path(__file__).parent
+    crossval_metrics_file = reports_folder / "crossval_metrics_classification.csv"
+
+    config = ScalarModelBase(label_value_column="label",
+                             image_file_column="filePath",
+                             subject_column="subject",
+                             number_of_cross_validation_splits=3)
+    config.local_dataset = test_output_dirs.root_dir / "dataset"
+    config.local_dataset.mkdir()
+    dataset_csv = config.local_dataset / "dataset.csv"
+    image_file_name = "image.npy"
+    dataset_csv.write_text("subject,filePath,label\n"
+                           f"0,0_{image_file_name},0\n"
+                           f"1,1_{image_file_name},0\n"
+                           f"2,0_{image_file_name},0\n"
+                           f"3,1_{image_file_name},0\n"
+                           f"4,0_{image_file_name},0\n"
+                           f"5,1_{image_file_name},0\n"
+                           f"6,0_{image_file_name},0\n"
+                           f"7,1_{image_file_name},0\n"
+                           f"8,0_{image_file_name},0\n"
+                           f"9,1_{image_file_name},0\n"
+                           f"10,0_{image_file_name},0\n"
+                           f"11,1_{image_file_name},0\n")
+
+    np.save(str(Path(config.local_dataset / f"0_{image_file_name}")),
+            np.random.randint(0, 255, [5, 4]))
+    np.save(str(Path(config.local_dataset / f"1_{image_file_name}")),
+            np.random.randint(0, 255, [5, 4]))
+
+    result_file = test_output_dirs.root_dir / "report.ipynb"
+    result_html = generate_classification_crossval_notebook(result_notebook=result_file,
+                                                            config=config,
+                                                            crossval_metrics=crossval_metrics_file)
     assert result_file.is_file()
     assert result_html.is_file()
     assert result_html.suffix == ".html"
