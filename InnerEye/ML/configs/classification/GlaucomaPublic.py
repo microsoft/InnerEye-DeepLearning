@@ -98,4 +98,3 @@ class GlaucomaPublic(ScalarModelBase):
                 return x
 
         return ModelFromPaper()
-    
