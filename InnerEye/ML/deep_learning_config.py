@@ -295,9 +295,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                          "to that set.",
                      allow_None=True)
     perform_training_set_inference: bool = \
-        param.Boolean(False,
-                      doc="If False (default), run full image inference on validation and test set after training. If "
-                          "True, also run full image inference on the training set")
+        param.Boolean(True, doc="If True, run full image inference on the training set at the end of training.")
     perform_validation_and_test_set_inference: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on validation and test set after training.")

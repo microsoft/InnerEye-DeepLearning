@@ -305,7 +305,6 @@ def run_recovery_id_suffix(tags: Dict[str, Any]) -> str:
 def download_metrics_file(config: PlotCrossValidationConfig,
                           run: Run,
                           destination: Path,
-                          epoch: Optional[int],
                           mode: ModelExecutionMode) -> Optional[Path]:
     """
     Downloads a metrics.csv file from an Azure run (or local results), and stores it in a local folder.
@@ -313,21 +312,13 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     :param config: The cross validation configuration.
     :param run: The AzureML run to download from.
     :param destination: The folder to download into.
-    :param epoch: The epoch that plot_cross_validation is running for. This is mandatory for segmentation models,
-    and ignored for classification models.
     :param mode: The dataset split to read from.
     :return: The path to the local file, or None if no metrics.csv file was found.
     """
     # setup the appropriate paths and readers for the metrics
-    if config.model_category == ModelCategory.Segmentation:
-        if epoch is None:
-            raise ValueError("Epoch must be provided in segmentation runs")
-        src = get_epoch_results_path(mode) / SUBJECT_METRICS_FILE_NAME
-    else:
-        src = Path(mode.value) / SUBJECT_METRICS_FILE_NAME
-
+    src = get_epoch_results_path(mode) / SUBJECT_METRICS_FILE_NAME
     # download (or copy from local disc) subject level metrics for the given epoch
-    local_src_subdir = Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME if is_parent_run(run) else None
+    local_src_subdir = get_epoch_results_path(mode) if is_parent_run(run) else None
     return config.download_or_get_local_file(
         blob_to_download=src,
         destination=destination,
@@ -341,7 +332,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
                                    splits_to_evaluate: Optional[List[str]] = None) -> Tuple[List[RunResultFiles], Path]:
     """
     Given an AzureML run, downloads all files that are necessary for doing an analysis of cross validation runs.
-    It will download the metrics.csv file for each dataset split (,Test, Val) and all of the run's children.
+    It will download the metrics.csv file for each dataset split (Train,Test, Val) and all of the run's children.
     When running in segmentation mode, it also downloads the dataset.csv and adds the institutionId and seriesId
     information for each subject found in the metrics files.
     :param config: PlotCrossValidationConfig
@@ -412,7 +403,7 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         for mode in config.execution_modes_to_download():
             # download metrics.csv file for each split. metrics_file can be None if the file does not exist
             # (for example, if no output was written for execution mode Test)
-            metrics_file = download_metrics_file(config, run, folder_for_run, -1, mode)
+            metrics_file = download_metrics_file(config, run, folder_for_run, mode)
             if metrics_file:
                 result.append(RunResultFiles(execution_mode=mode,
                                              dataset_csv_file=dataset_file,
