@@ -183,8 +183,6 @@ def build_net(args: SegmentationModelBase) -> BaseSegmentationModel:
     return network
 
 
-def build_glaucoma_net(args: ScalarModelBase) -> DeviceAwareModule:
-    return ModelFromPaper()
 def summary_for_segmentation_models(config: ModelConfigBase, model: DeviceAwareModule) -> None:
     """
     Generates a human readable summary of the present segmentation model, writes it to logging.info, and
