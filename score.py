@@ -222,7 +222,7 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, s
         roi_interpreted_types=config.roi_interpreted_types,
         manufacturer=config.roi_interpreted_types,
         interpreter=config.interpreter,
-        #modelId= TODO
+        modelId="TODO"
     )
     # Log stdout, stderr from DICOM-RT conversion.
     logging.debug("stdout: %s", stdout)
