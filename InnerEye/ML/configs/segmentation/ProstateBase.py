@@ -22,6 +22,7 @@ class ProstateBase(SegmentationModelBase):
                  ground_truth_ids_display_names: Optional[List[str]] = None,
                  colours: Optional[List[TupleInt3]] = None,
                  fill_holes: Optional[List[bool]] = None,
+                 roi_interpreted_types: Optional[List[str]] = None,
                  class_weights: Optional[List[float]] = None,
                  largest_connected_component_foreground_classes: Optional[List[str]] = None,
                  **kwargs: Any) -> None:
@@ -34,6 +35,8 @@ class ProstateBase(SegmentationModelBase):
         present then must be of the same length as ground_truth_ids.
         :param fill_holes: Optional list of fill hole flags. If
         present then must be of the same length as ground_truth_ids.
+        :param interpreted_types: Optional list of interpreted_types. If
+        present then must be of the same length as ground_truth_ids.
         :param class_weights: Optional list of class weights. If
         present then must be of the same length as ground_truth_ids + 1.
         :param kwargs: Additional arguments that will be passed through to the SegmentationModelBase constructor.
@@ -41,6 +44,7 @@ class ProstateBase(SegmentationModelBase):
         ground_truth_ids_display_names = ground_truth_ids_display_names or [f"zz_{name}" for name in ground_truth_ids]
         colours = colours or [(255, 0, 0)] * len(ground_truth_ids)
         fill_holes = fill_holes or [True] * len(ground_truth_ids)
+        roi_interpreted_types = roi_interpreted_types or ["ORGAN"] * len(ground_truth_ids)
         class_weights = class_weights or equally_weighted_classes(ground_truth_ids, background_weight=0.02)
         largest_connected_component_foreground_classes = largest_connected_component_foreground_classes or \
                                                          ground_truth_ids
@@ -55,7 +59,7 @@ class ProstateBase(SegmentationModelBase):
             ground_truth_ids_display_names=ground_truth_ids_display_names,
             colours=colours,
             fill_holes=fill_holes,
-            roi_intepreted_types=["ORGAN"] * len(fill_holes),
+            roi_intepreted_types=roi_interpreted_types,
             image_channels=["ct"],
             inference_batch_size=1,
             inference_stride_size=(64, 256, 256),
