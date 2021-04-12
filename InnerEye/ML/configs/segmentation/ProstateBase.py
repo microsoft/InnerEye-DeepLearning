@@ -59,7 +59,7 @@ class ProstateBase(SegmentationModelBase):
             ground_truth_ids_display_names=ground_truth_ids_display_names,
             colours=colours,
             fill_holes=fill_holes,
-            roi_intepreted_types=roi_interpreted_types,
+            roi_interpreted_types=roi_interpreted_types,
             image_channels=["ct"],
             inference_batch_size=1,
             inference_stride_size=(64, 256, 256),
