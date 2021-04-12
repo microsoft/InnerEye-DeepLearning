@@ -48,5 +48,5 @@ class GlaucomaPublic(ScalarModelBase):
 
     def create_model(self) -> Any:
         # Use a local import so that we don't need to import pytorch when creating configs in the runner
-        from InnerEye.ML.models.architectures.classification.model_paper_glaucoma import ModelFromPaper
-        return ModelFromPaper()
+        from InnerEye.ML.utils.model_util import build_glaucoma_net
+        return build_glaucoma_net(self)
