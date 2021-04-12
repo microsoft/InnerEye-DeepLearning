@@ -250,19 +250,7 @@ def model_train(config: ModelConfigBase,
                     file = mode.value + "/" + get_subject_output_file_per_rank(rank)
                     RUN_CONTEXT.download_file(name=TEMP_PREFIX + file, output_file_path=config.outputs_folder / file)
         # Concatenate all temporary file per execution mode
-        for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
-            temp_files = (config.outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
-            result_file = config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
-            result_file = result_file.open("a")
-            for i, file in enumerate(temp_files):
-                temp_file_contents = file.read_text()
-                if i == 0:
-                    # Copy the first file as-is, including the first line with the column headers
-                    result_file.write(temp_file_contents)
-                else:
-                    # For all files but the first one, cut off the header line.
-                    result_file.write(os.linesep.join(temp_file_contents.splitlines()[1:]))
-            result_file.close()
+        aggregate_and_create_subject_metrics_file(config)
 
     model_training_results = ModelTrainingResults(
         train_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values()),
@@ -292,3 +280,18 @@ def model_train(config: ModelConfigBase,
         resource_monitor.kill()
 
     return model_training_results
+
+def aggregate_and_create_subject_metrics_file(config: ModelConfigBase) -> None:
+    for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
+        temp_files = (config.outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
+        result_file = config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
+        result_file = result_file.open("a")
+        for i, file in enumerate(temp_files):
+            temp_file_contents = file.read_text()
+            if i == 0:
+                # Copy the first file as-is, including the first line with the column headers
+                result_file.write(temp_file_contents+"\n")
+            else:
+                # For all files but the first one, cut off the header line.
+                result_file.write(os.linesep.join(temp_file_contents.splitlines()[1:]))
+        result_file.close()

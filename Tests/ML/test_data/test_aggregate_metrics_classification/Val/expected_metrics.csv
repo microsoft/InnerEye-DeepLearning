@@ -1,0 +1,17 @@
+epoch,subject,prediction_target,model_output,label,data_split,cross_validation_split_index
+0,S5,Default,0.092429,0.000000,Val,1
+0,S7,Default,0.095273,0.000000,Val,1
+1,S5,Default,0.091557,0.000000,Val,1
+1,S7,Default,0.094306,0.000000,Val,1
+2,S5,Default,0.090680,0.000000,Val,1
+2,S7,Default,0.093331,0.000000,Val,1
+3,S7,Default,0.092348,0.000000,Val,1
+3,S5,Default,0.089795,0.000000,Val,1
+0,S6,Default,0.192429,0.000000,Val,1
+0,S8,Default,0.195273,0.000000,Val,1
+1,S6,Default,0.191557,0.000000,Val,1
+1,S8,Default,0.194306,0.000000,Val,1
+2,S6,Default,0.190680,0.000000,Val,1
+2,S8,Default,0.193331,0.000000,Val,1
+3,S6,Default,0.192348,0.000000,Val,1
+3,S8,Default,0.189795,0.000000,Val,1
