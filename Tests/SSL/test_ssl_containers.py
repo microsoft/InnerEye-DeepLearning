@@ -15,7 +15,7 @@ from InnerEye.SSL.byol.byol_module import WrapBYOLInnerEye
 from InnerEye.SSL.encoders import DenseNet121Encoder
 from InnerEye.SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
 from InnerEye.SSL.simclr_module import WrapSimCLRInnerEye
-from InnerEye.SSL.utils import SSLType
+from InnerEye.SSL.utils import SSLModule, SSLType
 
 
 def default_runner() -> Runner:
@@ -114,3 +114,18 @@ def test_innereye_ssl_container_rsna(use_binary_loss_linear_head: bool):
             'InnerEye.SSL.datamodules.cxr_datasets.InnerEyeCXRDatasetBase.read_dicom',
             return_value=np.ones([256, 256])):
         loaded_config, actual_run = runner.run()
+    assert loaded_config.online_eval.dataset == SSLDatasetName.RSNAKaggle.value
+    assert loaded_config.online_eval.num_classes == 2
+    assert loaded_config.ssl_training_dataset_name == SSLDatasetName.RSNAKaggle
+    assert loaded_config.ssl_training_type == SSLType.BYOL
+    assert loaded_config.encoder_output_dim == 2048
+    # Check model params
+    assert loaded_config.model.hparams["batch_size"] == 10
+    assert loaded_config.model.hparams["dataset_name"] == SSLDatasetName.RSNAKaggle.value
+    assert loaded_config.model.hparams["encoder_name"] == EncoderName.resnet50.value
+    assert loaded_config.model.hparams["learning_rate"] == 1e-4
+    assert loaded_config.model.hparams["num_samples"] == 240
+    # Check some augmentation params
+    assert loaded_config.datamodule_args[SSLModule.ENCODER]["augmentation_config"].preprocess.center_crop_size == 224
+    assert loaded_config.datamodule_args[SSLModule.ENCODER]["augmentation_config"].augmentation.use_random_crop
+    assert loaded_config.datamodule_args[SSLModule.ENCODER]["augmentation_config"].augmentation.use_random_affine
