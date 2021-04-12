@@ -8,7 +8,6 @@ from InnerEye.SSL.config_node import ConfigNode
 config = ConfigNode()
 
 config.preprocess = ConfigNode()
-config.preprocess.use_center_crop = False
 config.preprocess.center_crop_size = 224
 config.preprocess.resize = 256
 
