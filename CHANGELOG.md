@@ -10,7 +10,9 @@ created.
  
 ## Upcoming
 
-### Added 
+### Added
+- ([#430](https://github.com/microsoft/InnerEye-DeepLearning/pull/430)) Update conversion to 1.0.1 InnerEye-DICOM-RT to add:  manufacturer, 
+  SoftwareVersions and ROIInterpretedTypes.
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Add the ability to train a model on multiple
 nodes in AzureML. Example: Add `--num_nodes=2` to the commandline arguments to train on 2 nodes.
 - ([#366](https://github.com/microsoft/InnerEye-DeepLearning/pull/366)) and
