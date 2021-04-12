@@ -36,7 +36,7 @@ from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_AGGREGATES_FILE, logging_section, logging_to_stdout
+    METRICS_AGGREGATES_FILE, ModelProcessing, logging_section, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.metrics_constants import INTERNAL_TO_LOGGING_COLUMN_NAMES, LoggingColumns, MetricsFileColumns
 from InnerEye.Common.type_annotations import PathOrString
@@ -315,8 +315,21 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     :param mode: The dataset split to read from.
     :return: The path to the local file, or None if no metrics.csv file was found.
     """
-    # setup the appropriate paths and readers for the metrics
-    src = get_epoch_results_path(mode) / SUBJECT_METRICS_FILE_NAME
+    # setup the appropriate paths and readers for the metrics.
+    # For classification models:
+    #           For train / val: we save metrics during training for all epochs in output / mode folder.
+    #           For test / ensemble: we save metrics in get_epoch_results_path(mode) after running inference on the
+    #           best epoch.
+    # For segmentation models: we save all metrics in get_epoch_results_path(mode) after running inference on the
+    #                          best epoch.
+    is_ensemble_run = is_parent_run(run)
+    is_train_or_val = mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]
+    if config.model_category.is_scalar and is_train_or_val and not is_ensemble_run:
+        src = Path(mode.value) / SUBJECT_METRICS_FILE_NAME
+    else:
+        src = get_epoch_results_path(mode,
+                                     model_proc=ModelProcessing.ENSEMBLE_CREATION if is_ensemble_run else
+                                     ModelProcessing.DEFAULT) / SUBJECT_METRICS_FILE_NAME
     return config.download_or_get_local_file(
         blob_to_download=src,
         destination=destination,

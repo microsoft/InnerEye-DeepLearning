@@ -26,8 +26,8 @@ from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
 from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
-from InnerEye.ML.reports.notebook_report import get_ipynb_report_name, get_html_report_name, \
-    generate_classification_notebook, generate_classification_multilabel_notebook
+from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook, \
+    generate_classification_notebook, get_html_report_name, get_ipynb_report_name
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
@@ -278,10 +278,9 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
         # recognizes run_recovery_id == None as the signal to read from the local_run_results folder.
         config_and_files = get_config_and_results_for_offline_runs(config)
         result_files = config_and_files.files
-        # One file for VAL and one for TRAIN for each child run
-        assert len(result_files) == config.get_total_number_of_cross_validation_runs() * 2
+        # One file for VAL, one for TRAIN and one for TEST for each child run
+        assert len(result_files) == config.get_total_number_of_cross_validation_runs() * 3
         for file in result_files:
-            assert file.execution_mode != ModelExecutionMode.TEST
             assert file.dataset_csv_file is not None
             assert file.dataset_csv_file.exists()
             assert file.metrics_file is not None
