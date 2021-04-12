@@ -103,26 +103,6 @@ jobs:
           pytest_mark: after_training_ensemble_run
           test_run_title: tests_after_training_ensemble_run
 
-  # Train a cross-validation classification model
-  - job: TrainClassificationCV
-    variables:
-      - name: model
-        value: 'GlaucomaPublic'
-      - name: number_of_cross_validation_splits
-        value: 2
-      - name: tag
-        value: 'TrainClassificationCV'
-      - name: more_switches
-          value: '--num_epochs=2'
-    pool:
-      vmImage: 'ubuntu-18.04'
-    steps:
-      - template: train_template.yml
-        parameters:
-          wait_for_completion: 'True'
-          pytest_mark: ''
-          max_run_duration: '1h'
-
   # Train a model on 2 nodes
   - job: Train2Nodes
     variables:
