@@ -117,23 +117,6 @@ def get_labels_and_predictions_from_dataframe(df: pd.DataFrame) -> LabelsAndPred
     return LabelsAndPredictions(subject_ids=subjects, labels=labels, model_outputs=model_outputs)
 
 
-def plot_auc(x_values: np.ndarray, y_values: np.ndarray, ax: Axes, print_coords: bool = False,
-             **plot_kwargs: Any) -> None:
-    """
-    Plot a curve given the x and y values of each point.
-    :param x_values: x coordinate of each data point to be plotted
-    :param y_values: y coordinate of each data point to be plotted
-    :param ax: matplotlib.axes.Axes object for plotting
-    :param print_coords: If true, prints out the coordinates of each point on the graph.
-    """
-    ax.plot(x_values, y_values, **plot_kwargs)
-
-    if print_coords:
-        # write values of points
-        for x, y in zip(x_values, y_values):
-            ax.annotate(f"{x:0.3f}, {y:0.3f}", xy=(x, y), xytext=(15, 0), textcoords='offset points')
-
-
 def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
     if plot_type == 'pr':
         title, xlabel, ylabel = "PR Curve", "Recall", "Precision"
@@ -160,12 +143,12 @@ def plot_pr_and_roc_curves(labels_and_model_outputs: LabelsAndPredictions, axs: 
         plot_kwargs = {}
 
     fpr, tpr, thresholds = roc_curve(labels_and_model_outputs.labels, labels_and_model_outputs.model_outputs)
-    plot_auc(fpr, tpr, axs[0], **plot_kwargs)
+    axs[0].plot(fpr, tpr, **plot_kwargs)
     format_pr_or_roc_axes('roc', axs[0])
 
     precision, recall, thresholds = precision_recall_curve(labels_and_model_outputs.labels,
                                                            labels_and_model_outputs.model_outputs)
-    plot_auc(recall, precision, axs[1], **plot_kwargs)
+    axs[1].plot(recall, precision, **plot_kwargs)
     format_pr_or_roc_axes('pr', axs[1])
 
     plt.show()
