@@ -54,7 +54,7 @@ class ReportedMetrics(Enum):
     FalseNegativeRate = "false_negative_rate"
 
 
-def quantile(x, q, axis=-1):
+def quantile(x: Any, q: Any, axis: int = -1) -> np.ndarray:
     x = np.sort(x, axis=axis)
     rank = np.linspace(0, 1, x.shape[axis])
     return scipy.interpolate.interp1d(rank, x, axis=axis)(q)
@@ -117,7 +117,7 @@ def get_labels_and_predictions_from_dataframe(df: pd.DataFrame) -> LabelsAndPred
     return LabelsAndPredictions(subject_ids=subjects, labels=labels, model_outputs=model_outputs)
 
 
-def plot_auc(x_values: np.ndarray, y_values: np.ndarray,  ax: Axes, print_coords: bool = False,
+def plot_auc(x_values: np.ndarray, y_values: np.ndarray, ax: Axes, print_coords: bool = False,
              **plot_kwargs: Any) -> None:
     """
     Plot a curve given the x and y values of each point.
@@ -399,14 +399,14 @@ def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
                 header.append(f"Split {crossval_split}")
         else:
             all_metrics.append(get_metrics_for_fold(prediction_target))
-            header = None
+            header = None  # type: ignore
         rows = [[metric] + [f"{fold_metrics[metric]:.4f}" for fold_metrics in all_metrics]
                 for metric in all_metrics[0]]
         if is_crossval_report:
             for row, metric in zip(rows, all_metrics[0]):
                 values = [fold_metrics[metric] for fold_metrics in all_metrics]
                 row.append(f"{np.mean(values):.4f} ({np.std(values):.4f})")
-            header.append(f"Mean (std)")
+            header.append("Mean (std)")
         print_table(rows, header)
 
 
