@@ -36,7 +36,7 @@ from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_AGGREGATES_FILE, ModelProcessing, logging_section, logging_to_stdout
+    METRICS_AGGREGATES_FILE, OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.metrics_constants import INTERNAL_TO_LOGGING_COLUMN_NAMES, LoggingColumns, MetricsFileColumns
 from InnerEye.Common.type_annotations import PathOrString
@@ -327,13 +327,13 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     if config.model_category.is_scalar and is_train_or_val and not is_ensemble_run:
         src = Path(mode.value) / SUBJECT_METRICS_FILE_NAME
     else:
-        src = get_epoch_results_path(mode,
-                                     model_proc=ModelProcessing.ENSEMBLE_CREATION if is_ensemble_run else
-                                     ModelProcessing.DEFAULT) / SUBJECT_METRICS_FILE_NAME
+        src = get_epoch_results_path(mode) / SUBJECT_METRICS_FILE_NAME
+    local_src_subdir = Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME if is_ensemble_run else None
     return config.download_or_get_local_file(
         blob_to_download=src,
         destination=destination,
-        run=run)
+        run=run,
+        local_src_subdir=local_src_subdir)
 
 
 def download_crossval_result_files(config: PlotCrossValidationConfig,
