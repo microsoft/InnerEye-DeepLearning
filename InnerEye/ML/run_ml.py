@@ -27,7 +27,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.build_config import ExperimentResultLocation, build_information_to_dot_net_json_file
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
-    CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
+    CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, ModelProcessing, \
     OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
     get_epoch_results_path, is_windows, logging_section, print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
@@ -40,9 +40,9 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import model_train
-from InnerEye.ML.reports.notebook_report import get_ipynb_report_name, generate_classification_notebook, \
-    generate_segmentation_notebook, \
-    generate_classification_multilabel_notebook, reports_folder
+from InnerEye.ML.reports.notebook_report import get_ipynb_report_name, generate_classification_crossval_notebook, \
+    generate_classification_multilabel_notebook, generate_classification_notebook, generate_segmentation_notebook, \
+    reports_folder
 from InnerEye.ML.runner import ModelDeploymentHookSignature, PostCrossValidationHookSignature, get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
@@ -694,6 +694,10 @@ class MLRunner:
         plot_crossval_config.outputs_directory = self.model_config.outputs_folder
         plot_crossval_config.azure_config = self.azure_config
         cross_val_results_root = plot_cross_validation(plot_crossval_config, is_ensemble_run=True)
+        if isinstance(self.model_config, ScalarModelBase) and not isinstance(self.model_config, SequenceModelBase):
+            notebook_path = cross_val_results_root / get_ipynb_report_name("classification_crossval")
+            full_metrics_csv = cross_val_results_root / FULL_METRICS_DATAFRAME_FILE
+            generate_classification_crossval_notebook(notebook_path, self.model_config, full_metrics_csv)
         if self.post_cross_validation_hook:
             self.post_cross_validation_hook(self.model_config, cross_val_results_root)
         # upload results to the parent run's outputs so that the files are visible inside the AzureML UI.

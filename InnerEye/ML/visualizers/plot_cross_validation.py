@@ -44,8 +44,6 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, ModelCategory
 from InnerEye.ML.metrics_dict import DataframeLogger, ScalarMetricsDict
 from InnerEye.ML.model_testing import SUBJECT_METRICS_FILE_NAME, get_epoch_results_path
-from InnerEye.ML.reports.notebook_report import generate_classification_cross_validation_notebook
-from InnerEye.ML.runner import REPORT_IPYNB
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER, CSV_SUBJECT_HEADER, OutlierType, \
     extract_outliers
 from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_directory
@@ -838,8 +836,6 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
         val_and_test_metrics = initial_metrics.loc[
             initial_metrics[LoggingColumns.DataSplit.value] != ModelExecutionMode.TRAIN.value]
         val_and_test_metrics.to_csv(full_csv_file, index=False)
-        notebook_path = root_folder / REPORT_IPYNB
-        generate_classification_cross_validation_notebook(notebook_path, full_csv_file)
 
         # Copy one instance of the dataset.CSV files to the root of the results folder. It is possible
         # that the different CV folds run with different dataset files, but not expected for classification
