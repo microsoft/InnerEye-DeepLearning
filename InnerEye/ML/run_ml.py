@@ -228,12 +228,10 @@ class MLRunner:
         Trains and Tests k models based on their respective data splits sequentially.
         Stores the results on the Validation set to the outputs directory of the parent run.
         """
-        _config = self.model_config
-        assert isinstance(_config, ScalarModelBase)
-        parent_run_file_system = _config.file_system_config
+        assert isinstance(self.model_config, ScalarModelBase)
 
         def _spawn_run(cross_val_split_index: int) -> None:
-            split_config = copy.deepcopy(_config)
+            split_config = copy.deepcopy(self.model_config)
             split_config.cross_validation_split_index = cross_val_split_index
             logging.info(f"Running model train and test on cross validation split: {cross_val_split_index}")
             split_ml_runner = MLRunner(model_config=split_config,
@@ -245,7 +243,7 @@ class MLRunner:
                                        output_subfolder=str(cross_val_split_index))
             split_ml_runner.run()
 
-        for i in range(_config.number_of_cross_validation_splits):
+        for i in range(self.model_config.number_of_cross_validation_splits):
             _spawn_run(i)
 
         config_and_files = get_config_and_results_for_offline_runs(self.model_config)
