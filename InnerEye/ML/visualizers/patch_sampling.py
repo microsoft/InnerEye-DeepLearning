@@ -123,24 +123,3 @@ def visualize_random_crops_for_dataset(config: SegmentationModelBase, output_fol
     for sample_index in range(count):
         sample = full_image_dataset.get_samples_at_index(index=sample_index)[0]
         visualize_random_crops(sample, config, output_folder=output_folder)
-
-
-def main(args: CheckPatchSamplingConfig) -> None:
-    # Identify paths to inputs and outputs
-    commandline_args = {
-        "train_batch_size": 1,
-        "local_dataset": Path(args.local_dataset)
-    }
-    output_folder = Path(args.output_folder)
-    output_folder.mkdir(parents=True, exist_ok=True)
-
-    # Create a config file
-    config = ModelConfigLoader().create_model_config_from_name(
-        args.model_name, overrides=commandline_args)
-    config.show_patch_sampling = args.number_samples
-    ml_util.set_random_seed(config.random_seed)
-    visualize_random_crops_for_dataset(config, output_folder=output_folder)
-
-
-if __name__ == "__main__":
-    main(CheckPatchSamplingConfig.parse_args())
