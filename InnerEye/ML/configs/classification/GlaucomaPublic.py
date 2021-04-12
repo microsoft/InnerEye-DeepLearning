@@ -48,7 +48,6 @@ class GlaucomaPublic(ScalarModelBase):
 
     def create_model(self) -> Any:
         # Use a local import so that we don't need to import pytorch when creating configs in the runner
-        import torch
         from InnerEye.ML.config import PaddingMode
         from InnerEye.ML.dataset.scalar_sample import ScalarItem
         from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
@@ -60,7 +59,7 @@ class GlaucomaPublic(ScalarModelBase):
 
             def __init__(self) -> None:
                 super().__init__()
-
+                import torch
                 num_classes = 1
                 num_conv_layers = 5
                 kernel_size = [7, 5, 3, 3, 3]
