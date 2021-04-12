@@ -36,7 +36,7 @@ class DummyModel(SegmentationModelBase):
             ground_truth_ids_display_names=self.fg_ids,
             colours=[(255, 255, 255)] * len(self.fg_ids),
             fill_holes=[False] * len(self.fg_ids),
-            roi_intepreted_types=["Organ"] * len(self.fg_ids),
+            roi_interpreted_types=["Organ"] * len(self.fg_ids),
             mask_id="mask",
             dataset_expected_spacing_xyz=(1.0, 1.0, 1.0),
             norm_method=PhotometricNormalizationMethod.CtWindow,
