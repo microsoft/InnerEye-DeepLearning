@@ -19,8 +19,8 @@ from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode,\
-    create_recovery_checkpoint_path, create_unique_timestamp_id,\
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, \
+    create_recovery_checkpoint_path, create_unique_timestamp_id, \
     get_best_checkpoint_path
 
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
@@ -295,7 +295,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                          "to that set.",
                      allow_None=True)
     perform_training_set_inference: bool = \
-        param.Boolean(True, doc="If True, run full image inference on the training set at the end of training.")
+        param.Boolean(False, doc="If True, run full image inference on the training set at the end of training.")
     perform_validation_and_test_set_inference: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on validation and test set after training.")
