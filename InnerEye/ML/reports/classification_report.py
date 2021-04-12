@@ -211,7 +211,9 @@ def plot_pr_and_roc_curves_crossval(all_labels_and_model_outputs: Sequence[Label
         return recall[::-1], precision[::-1]  # inverted to be in ascending order
 
     confidence_interval_width = .8
-    line_handles, summary_handle = plot_scores_and_summary(all_labels_and_model_outputs, get_roc_xy, axs[0])
+    line_handles, summary_handle = plot_scores_and_summary(all_labels_and_model_outputs,
+                                                           scoring_fn=get_roc_xy, ax=axs[0],
+                                                           confidence_interval_width=confidence_interval_width)
     plot_scores_and_summary(all_labels_and_model_outputs, scoring_fn=get_pr_xy, ax=axs[1],
                             confidence_interval_width=confidence_interval_width)
 
