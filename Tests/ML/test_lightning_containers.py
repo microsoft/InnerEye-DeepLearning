@@ -37,6 +37,7 @@ def test_run_container_in_situ(test_output_dirs: OutputFolderForTests) -> None:
     runner.lightning_container.outputs_folder.relative_to(test_output_dirs.root_dir)
     results = runner.lightning_container.outputs_folder
     # Test that the setup method has been called
+    assert runner.lightning_container.local_dataset is not None
     assert (runner.lightning_container.local_dataset / "setup.txt").is_file()
     # Test if all the files that are written during inference exist. Data for all 3 splits must be processed
     assert (results / "on_inference_start.txt").is_file()
@@ -153,7 +154,7 @@ def test_model_name_for_innereye_container() -> None:
 
 class DummyContainerWithFields(LightningContainer):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.perform_training_set_inference = True
         self.num_epochs = 123456

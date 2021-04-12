@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 
 import pandas as pd
 import param
@@ -30,7 +30,7 @@ class DummyContainerWithDatasets(LightningContainer):
 
 
 class DummyContainerWithAzureDataset(DummyContainerWithDatasets):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(has_azure_dataset=True)
 
 
@@ -39,12 +39,12 @@ class DummyContainerWithoutDataset(DummyContainerWithDatasets):
 
 
 class DummyContainerWithLocalDataset(DummyContainerWithDatasets):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(has_local_dataset=True)
 
 
 class DummyContainerWithAzureAndLocalDataset(DummyContainerWithDatasets):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(has_local_dataset=True, has_azure_dataset=True)
 
 
@@ -58,7 +58,7 @@ class InferenceWithParameters(LightningWithInference):
 class DummyContainerWithParameters(LightningContainer):
     container_param = param.String(default="foo")
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def create_model(self) -> LightningWithInference:
@@ -72,7 +72,7 @@ class DummyRegressionPlainLightning(LightningWithInference):
     implement the inference_step method
     """
 
-    def __init__(self, in_features: int = 1, *args, **kwargs):
+    def __init__(self, in_features: int = 1, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.l_rate = 1e-1
         activation = Identity()
@@ -85,7 +85,7 @@ class DummyRegressionPlainLightning(LightningWithInference):
     def forward(self, x: Tensor) -> Tensor:  # type: ignore
         return self.model(x)
 
-    def training_step(self, batch, *args, **kwargs):
+    def training_step(self, batch, *args: Any, **kwargs: Any):
         input, target = batch
         prediction = self.forward(input)
         loss = torch.nn.functional.mse_loss(prediction, target)
@@ -170,25 +170,25 @@ class FixedDataset(Dataset):
 
 
 class FixedRegressionData(LightningDataModule):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.train_data = [(i, i) for i in range(1, 20, 3)]
         self.val_data = [(i, i) for i in range(2, 20, 3)]
         self.test_data = [(i, i) for i in range(3, 20, 3)]
 
-    def train_dataloader(self, *args, **kwargs) -> DataLoader:
+    def train_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
         return DataLoader(FixedDataset(self.train_data))
 
-    def val_dataloader(self, *args, **kwargs) -> DataLoader:
+    def val_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
         return DataLoader(FixedDataset(self.val_data))
 
-    def test_dataloader(self, *args, **kwargs) -> DataLoader:
+    def test_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
         return DataLoader(FixedDataset(self.test_data))
 
 
 class DummyContainerWithModel(LightningContainer):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.perform_training_set_inference = True
         self.num_epochs = 50

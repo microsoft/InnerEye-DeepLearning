@@ -70,7 +70,7 @@ def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1,
                              **kwargs: Dict[str, Any]) -> \
-        Tuple[Trainer, StoringLogger]:
+        Tuple[Trainer, Optional[StoringLogger]]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
     and loggers. That includes a diagnostic logger for use in unit tests, that is also returned as the second
@@ -110,6 +110,7 @@ def create_lightning_trainer(container: LightningContainer,
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger()]
+    storing_logger: Optional[StoringLogger]
     if isinstance(container, InnerEyeContainer):
         storing_logger = StoringLogger()
         loggers.append(storing_logger)
@@ -208,6 +209,8 @@ def model_train(checkpoint_handler: CheckpointHandler,
                  f"trainer.global_rank: {trainer.global_rank}")
     # InnerEye models use this logger for diagnostics
     if isinstance(lightning_model, InnerEyeLightning):
+        if storing_logger is None:
+            raise ValueError("InnerEye models require the storing_logger for diagnostics")
         lightning_model.storing_logger = storing_logger
 
     logging.info("Starting training")

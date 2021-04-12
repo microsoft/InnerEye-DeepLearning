@@ -124,7 +124,7 @@ class InnerEyeContainer(LightningContainer):
             self.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},
                                  should_validate=False)
 
-    def setup(self):
+    def setup(self) -> None:
         """
         This hook reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
         for categorical features, that need to be available before creating the model.

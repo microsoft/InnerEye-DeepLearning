@@ -92,7 +92,7 @@ def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> Non
     # Pointing the model to a dataset folder that does not exist should raise an Exception
     fake_folder = runner.project_root / "foo"
     runner.container.local_dataset = fake_folder
-    with pytest.raises(FileNotFoundError) as ex:
+    with pytest.raises(FileNotFoundError):
         runner.mount_or_download_dataset()
 
     # If the local dataset folder exists, mount_or_download_dataset should not do anything.
@@ -125,6 +125,8 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
                                         local_dataset: Optional[Path],
                                         azure_dataset: str,
                                         is_lightning_model: bool) -> LightningContainer:
+    config: Optional[DeepLearningConfig]
+    container: Optional[LightningContainer]
     if is_lightning_model:
         container = DummyContainerWithDatasets()
         container.azure_dataset_id = azure_dataset
