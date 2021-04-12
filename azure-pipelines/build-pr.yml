@@ -113,7 +113,7 @@ jobs:
       - name: tag
         value: 'TrainClassificationCV'
       - name: more_switches
-          value: '--num_epochs=2'
+        value: '--num_epochs=2'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
