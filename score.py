@@ -220,7 +220,7 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, s
         struct_colors=[convert_rgb_colour_to_hex(rgb) for rgb in config.colours],
         fill_holes=config.fill_holes,
         roi_interpreted_types=config.roi_interpreted_types,
-        manufacturer=config.roi_interpreted_types,
+        manufacturer=config.manufacturer,
         interpreter=config.interpreter,
         modelId="TODO"
     )

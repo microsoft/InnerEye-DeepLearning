@@ -438,6 +438,10 @@ class SegmentationModelBase(ModelConfigBase):
                                                     doc="List of str with the ROI interpreted Types. Possible values "
                                                         "(None, CTV, ORGAN, EXTERNAL)")
 
+    interpreter: str = param.String("", doc="The interpreter that created the DICOM-RT file")
+
+    manufacturer: str = param.String("", doc="The manufacturer that created the DICOM-RT file")
+
     _inference_stride_size: Optional[TupleInt3] = IntTuple(None, length=3, allow_None=True,
                                                            doc="The stride size in the inference pipeline. "
                                                                "At most, this should be the output_size to "
