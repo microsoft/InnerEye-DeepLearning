@@ -365,18 +365,36 @@ def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
     in the config.
 
     :param val_metrics_csv: Csv written during inference time for the val set. This is used to determine the
-    optimal threshold for classification. 
+    optimal threshold for classification.
     :param test_metrics_csv: Csv written during inference time for the test set. Metrics are calculated for this csv.
     :param config: Model config
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
                            or are floating point numbers.
     """
+    def get_metrics_for_fold(prediction_target: str, crossval_split: Optional[int] = None) -> Dict[str, float]:
+        val_labels_and_predictions = get_labels_and_predictions(val_metrics_csv, prediction_target, crossval_split)
+        test_labels_and_predictions = get_labels_and_predictions(test_metrics_csv, prediction_target, crossval_split)
+        return get_all_metrics(val_labels_and_predictions, test_labels_and_predictions, is_thresholded)
 
     for prediction_target in config.class_names:
-        print_header(f"Class {prediction_target}", level=3)
-        val_metrics = get_labels_and_predictions(val_metrics_csv, prediction_target)
-        test_metrics = get_labels_and_predictions(test_metrics_csv, prediction_target)
-        print_metrics(val_labels_and_predictions=val_metrics, test_labels_and_predictions=test_metrics, is_thresholded=is_thresholded)
+        print_header(f"Class: {prediction_target}", level=3)
+        all_metrics = []
+        if config.number_of_cross_validation_splits > 0:
+            header = ["Metric"]
+            for crossval_split in range(config.number_of_cross_validation_splits):
+                all_metrics.append(get_metrics_for_fold(prediction_target, crossval_split))
+                header.append(f"Split {crossval_split}")
+        else:
+            all_metrics.append(get_metrics_for_fold(prediction_target))
+            header = None
+        rows = [[metric] + [f"{fold_metrics[metric]:.4f}" for fold_metrics in all_metrics]
+                for metric in all_metrics[0]]
+        if config.number_of_cross_validation_splits > 0:
+            for row, metric in zip(rows, all_metrics[0]):
+                values = [fold_metrics[metric] for fold_metrics in all_metrics]
+                row.append(f"{np.mean(values):.4f} ({np.std(values):.4f})")
+            header.append(f"Mean (std)")
+        print_table(rows, header)
 
 
 def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path,
