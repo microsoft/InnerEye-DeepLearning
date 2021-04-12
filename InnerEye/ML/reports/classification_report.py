@@ -229,14 +229,15 @@ def plot_pr_and_roc_curves_crossval(all_labels_and_model_outputs: Sequence[Label
 
 
 def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase,
-                                    data_split: Optional[ModelExecutionMode] = None) -> None:
+                                    data_split: Optional[ModelExecutionMode] = None,
+                                    is_crossval_report: bool = False) -> None:
     """
     Given the csv written during inference time and the model config,
     plot the ROC and PR curves for all prediction targets.
     """
     for prediction_target in config.class_names:
         print_header(f"Class: {prediction_target}", level=3)
-        if config.number_of_cross_validation_splits > 0:
+        if is_crossval_report:
             all_metrics = [get_labels_and_predictions(metrics_csv, prediction_target,
                                                       crossval_split_index=crossval_split, data_split=data_split)
                            for crossval_split in range(config.number_of_cross_validation_splits)]
@@ -366,7 +367,8 @@ def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
                                              config: ScalarModelBase,
                                              val_data_split: Optional[ModelExecutionMode] = None,
                                              test_data_split: Optional[ModelExecutionMode] = None,
-                                             is_thresholded: bool = False) -> None:
+                                             is_thresholded: bool = False,
+                                             is_crossval_report: bool = False) -> None:
     """
     Given csvs written during inference for the validation and test sets, print out metrics for every prediction target
     in the config.
@@ -390,7 +392,7 @@ def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
     for prediction_target in config.class_names:
         print_header(f"Class: {prediction_target}", level=3)
         all_metrics = []
-        if config.number_of_cross_validation_splits > 0:
+        if is_crossval_report:
             header = ["Metric"]
             for crossval_split in range(config.number_of_cross_validation_splits):
                 all_metrics.append(get_metrics_for_fold(prediction_target, crossval_split))
@@ -400,7 +402,7 @@ def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
             header = None
         rows = [[metric] + [f"{fold_metrics[metric]:.4f}" for fold_metrics in all_metrics]
                 for metric in all_metrics[0]]
-        if config.number_of_cross_validation_splits > 0:
+        if is_crossval_report:
             for row, metric in zip(rows, all_metrics[0]):
                 values = [fold_metrics[metric] for fold_metrics in all_metrics]
                 row.append(f"{np.mean(values):.4f} ({np.std(values):.4f})")

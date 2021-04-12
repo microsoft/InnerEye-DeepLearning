@@ -152,23 +152,32 @@ def generate_classification_notebook(result_notebook: Path,
             'train_metrics_csv': str_or_empty(train_metrics),
             'val_metrics_csv': str_or_empty(val_metrics),
             'test_metrics_csv': str_or_empty(test_metrics),
-            "config": codecs.encode(pickle.dumps(config), "base64").decode()
+            "config": codecs.encode(pickle.dumps(config), "base64").decode(),
+            "is_crossval_report": False
         }
-    template = Path(__file__).absolute().parent / "classification_report.ipynb"
+    template = Path(__file__).absolute().parent / "classification_crossval_report.ipynb"
     return generate_notebook(template,
                              notebook_params=notebook_params,
                              result_notebook=result_notebook)
 
 
-def generate_classification_cross_validation_notebook(result_notebook: Path, full_csv_file: Path) -> Path:
+def generate_classification_crossval_notebook(result_notebook: Path,
+                                              config: ScalarModelBase,
+                                              crossval_metrics: Path) -> Path:
     """
-    Creates a reporting notebook for cross-validation metrics of a classification model.
+    Creates a reporting notebook for a classification model, using the given training, validation, and test set metrics.
     Returns the report file after HTML conversion.
     """
-    notebook_params = {
-        'innereye_path': str(fixed_paths.repository_root_directory()),
-        'metrics_across_all_runs_file': str(full_csv_file),
-    }
+
+    notebook_params = \
+        {
+            'innereye_path': str(fixed_paths.repository_root_directory()),
+            'train_metrics_csv': "",
+            'val_metrics_csv': str_or_empty(crossval_metrics),
+            'test_metrics_csv': str_or_empty(crossval_metrics),
+            "config": codecs.encode(pickle.dumps(config), "base64").decode(),
+            "is_crossval_report": True
+        }
     template = Path(__file__).absolute().parent / "classification_crossval_report.ipynb"
     return generate_notebook(template,
                              notebook_params=notebook_params,
