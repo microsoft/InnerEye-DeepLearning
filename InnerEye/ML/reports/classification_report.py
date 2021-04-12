@@ -6,11 +6,12 @@ import math
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scipy.interpolate
 import torch
 from IPython.display import display
 from PIL import Image
@@ -50,6 +51,12 @@ class ReportedMetrics(Enum):
     Accuracy = "accuracy"
     FalsePositiveRate = "false_positive_rate"
     FalseNegativeRate = "false_negative_rate"
+
+
+def quantile(x, q, axis=-1):
+    x = np.sort(x, axis=axis)
+    rank = np.linspace(0, 1, x.shape[axis])
+    return scipy.interpolate.interp1d(rank, x, axis=axis)(q)
 
 
 def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str, crossval_split_index: Optional[int] = None,
@@ -163,15 +170,75 @@ def plot_pr_and_roc_curves(labels_and_model_outputs: LabelsAndPredictions, axs: 
     plt.show()
 
 
+def plot_scores_and_summary(all_labels_and_model_outputs: Sequence[LabelsAndPredictions],
+                            scoring_fn: Callable[[LabelsAndPredictions], Tuple[np.ndarray, np.ndarray]],
+                            confidence_interval_width: float = .8,
+                            ax: Optional[Axes] = None) -> Tuple[List, Any]:
+    if ax is None:
+        ax = plt.gca()
+    x_grid = np.linspace(0, 1, 101)
+    interp_ys = []
+    line_handles = []
+    for index, labels_and_model_outputs in enumerate(all_labels_and_model_outputs):
+        x_values, y_values = scoring_fn(labels_and_model_outputs)
+        interp_ys.append(np.interp(x_grid, x_values, y_values))
+        handle, = ax.plot(x_values, y_values, lw=1)
+        line_handles.append(handle)
+
+    confidence_interval_quantiles = [.5 - confidence_interval_width / 2, .5, .5 + confidence_interval_width / 2]
+    y_lo, y_mid, y_hi = quantile(interp_ys, confidence_interval_quantiles, axis=0)
+    h1 = ax.fill_between(x_grid, y_lo, y_hi, color='k', alpha=.2, lw=0)
+    h2, = ax.plot(x_grid, y_mid, 'k', lw=2)
+    summary_handle = (h1, h2)
+    return line_handles, summary_handle
+
+
+def plot_pr_and_roc_curves_crossval(all_labels_and_model_outputs: Sequence[LabelsAndPredictions],
+                                    axs: Optional[Sequence[Axes]] = None) -> None:
+    """
+    Given a list of LabelsAndPredictions objects, plot the ROC and PR curves.
+    """
+    if axs is None:
+        _, axs = plt.subplots(1, 2)
+
+    def get_roc_xy(labels_and_model_outputs: LabelsAndPredictions) -> Tuple[np.ndarray, np.ndarray]:
+        fpr, tpr, thresholds = roc_curve(labels_and_model_outputs.labels, labels_and_model_outputs.model_outputs)
+        return fpr, tpr
+
+    def get_pr_xy(labels_and_model_outputs: LabelsAndPredictions) -> Tuple[np.ndarray, np.ndarray]:
+        precision, recall, thresholds = precision_recall_curve(labels_and_model_outputs.labels,
+                                                               labels_and_model_outputs.model_outputs)
+        return recall[::-1], precision[::-1]  # inverted to be in ascending order
+
+    confidence_interval_width = .8
+    line_handles, summary_handle = plot_scores_and_summary(all_labels_and_model_outputs, get_roc_xy, axs[0])
+    plot_scores_and_summary(all_labels_and_model_outputs, scoring_fn=get_pr_xy, ax=axs[1],
+                            confidence_interval_width=confidence_interval_width)
+
+    line_labels = [f"Split {split_index}" for split_index in range(len(all_labels_and_model_outputs))]
+    axs[0].legend(line_handles + [summary_handle],
+                  line_labels + [f"Median, {100 * confidence_interval_width:g}% CI"])
+
+    format_pr_or_roc_axes('roc', axs[0])
+    format_pr_or_roc_axes('pr', axs[1])
+
+    plt.show()
+
+
 def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase) -> None:
     """
     Given the csv written during inference time and the model config,
     plot the ROC and PR curves for all prediction targets.
     """
     for prediction_target in config.class_names:
-        print_header(f"Class {prediction_target}", level=3)
-        metrics = get_labels_and_predictions(metrics_csv, prediction_target)
-        plot_pr_and_roc_curves(metrics)
+        print_header(f"Class: {prediction_target}", level=3)
+        if config.number_of_cross_validation_splits > 0:
+            all_metrics = [get_labels_and_predictions(metrics_csv, prediction_target, crossval_split)
+                           for crossval_split in range(config.number_of_cross_validation_splits)]
+            plot_pr_and_roc_curves_crossval(all_metrics)
+        else:
+            metrics = get_labels_and_predictions(metrics_csv, prediction_target)
+            plot_pr_and_roc_curves(metrics)
 
 
 def get_metric(val_labels_and_predictions: LabelsAndPredictions,
