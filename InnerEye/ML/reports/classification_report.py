@@ -19,6 +19,7 @@ from matplotlib.axes import Axes
 from sklearn.metrics import auc, precision_recall_curve, recall_score, roc_auc_score, roc_curve
 
 from InnerEye.Common.metrics_constants import LoggingColumns
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics_dict import MetricsDict, binary_classification_accuracy
 from InnerEye.ML.reports.notebook_report import print_header, print_table
@@ -60,7 +61,7 @@ def quantile(x, q, axis=-1):
 
 
 def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str, crossval_split_index: Optional[int] = None,
-                                          data_split: Optional[str] = None) -> pd.DataFrame:
+                                          data_split: Optional[ModelExecutionMode] = None) -> pd.DataFrame:
     """
     Given one of the csv files written during inference time, read it and select only those rows which belong to the
     given prediction_target. If crossval_split_index is provided, will additionally filter rows only for the respective
@@ -79,7 +80,7 @@ def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str, cro
     if data_split is not None:
         if LoggingColumns.DataSplit.value not in df:
             raise ValueError(f"Missing {LoggingColumns.DataSplit.value} column.")
-        df = df[df[LoggingColumns.DataSplit.value] == data_split]  # Filter by Train/Val/Test
+        df = df[df[LoggingColumns.DataSplit.value] == data_split.value]  # Filter by Train/Val/Test
     if not df[LoggingColumns.Patient.value].is_unique:
         raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
                          f"in column {LoggingColumns.Patient.value} in the csv file.")
@@ -87,7 +88,7 @@ def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str, cro
 
 
 def get_labels_and_predictions(csv: Path, prediction_target: str, crossval_split_index: Optional[int] = None,
-                               data_split: Optional[str] = None) -> LabelsAndPredictions:
+                               data_split: Optional[ModelExecutionMode] = None) -> LabelsAndPredictions:
     """
     Given a CSV file, reads the subject IDs, ground truth labels and model outputs for each subject
     for the given prediction target.
@@ -227,7 +228,8 @@ def plot_pr_and_roc_curves_crossval(all_labels_and_model_outputs: Sequence[Label
     plt.show()
 
 
-def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase) -> None:
+def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase,
+                                    data_split: Optional[ModelExecutionMode] = None) -> None:
     """
     Given the csv written during inference time and the model config,
     plot the ROC and PR curves for all prediction targets.
@@ -235,11 +237,12 @@ def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase) 
     for prediction_target in config.class_names:
         print_header(f"Class: {prediction_target}", level=3)
         if config.number_of_cross_validation_splits > 0:
-            all_metrics = [get_labels_and_predictions(metrics_csv, prediction_target, crossval_split)
+            all_metrics = [get_labels_and_predictions(metrics_csv, prediction_target,
+                                                      crossval_split_index=crossval_split, data_split=data_split)
                            for crossval_split in range(config.number_of_cross_validation_splits)]
             plot_pr_and_roc_curves_crossval(all_metrics)
         else:
-            metrics = get_labels_and_predictions(metrics_csv, prediction_target)
+            metrics = get_labels_and_predictions(metrics_csv, prediction_target, data_split=data_split)
             plot_pr_and_roc_curves(metrics)
 
 
@@ -361,6 +364,8 @@ def print_metrics(val_labels_and_predictions: LabelsAndPredictions,
 def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
                                              test_metrics_csv: Path,
                                              config: ScalarModelBase,
+                                             val_data_split: Optional[ModelExecutionMode] = None,
+                                             test_data_split: Optional[ModelExecutionMode] = None,
                                              is_thresholded: bool = False) -> None:
     """
     Given csvs written during inference for the validation and test sets, print out metrics for every prediction target
@@ -374,8 +379,12 @@ def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
                            or are floating point numbers.
     """
     def get_metrics_for_fold(prediction_target: str, crossval_split: Optional[int] = None) -> Dict[str, float]:
-        val_labels_and_predictions = get_labels_and_predictions(val_metrics_csv, prediction_target, crossval_split)
-        test_labels_and_predictions = get_labels_and_predictions(test_metrics_csv, prediction_target, crossval_split)
+        val_labels_and_predictions = get_labels_and_predictions(val_metrics_csv, prediction_target,
+                                                                crossval_split_index=crossval_split,
+                                                                data_split=val_data_split)
+        test_labels_and_predictions = get_labels_and_predictions(test_metrics_csv, prediction_target,
+                                                                 crossval_split_index=crossval_split,
+                                                                 data_split=test_data_split)
         return get_all_metrics(val_labels_and_predictions, test_labels_and_predictions, is_thresholded)
 
     for prediction_target in config.class_names:
