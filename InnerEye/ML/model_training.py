@@ -281,6 +281,7 @@ def model_train(config: ModelConfigBase,
 
     return model_training_results
 
+
 def aggregate_and_create_subject_metrics_file(config: ModelConfigBase) -> None:
     for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
         temp_files = (config.outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
@@ -290,8 +291,8 @@ def aggregate_and_create_subject_metrics_file(config: ModelConfigBase) -> None:
             temp_file_contents = file.read_text()
             if i == 0:
                 # Copy the first file as-is, including the first line with the column headers
-                result_file.write(temp_file_contents+"\n")
+                result_file.write(temp_file_contents)
             else:
                 # For all files but the first one, cut off the header line.
-                result_file.write(os.linesep.join(temp_file_contents.splitlines()[1:]))
+                result_file.write("\n" + os.linesep.join(temp_file_contents.splitlines()[1:]))
         result_file.close()
