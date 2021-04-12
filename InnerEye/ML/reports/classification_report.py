@@ -54,10 +54,18 @@ class ReportedMetrics(Enum):
     FalseNegativeRate = "false_negative_rate"
 
 
-def quantile(x: Any, q: Any, axis: int = -1) -> np.ndarray:
-    x = np.sort(x, axis=axis)
-    rank = np.linspace(0, 1, x.shape[axis])
-    return scipy.interpolate.interp1d(rank, x, axis=axis)(q)
+def quantile(data: Any, quantiles: Any, axis: int = -1) -> np.ndarray:
+    """
+    Computes quantiles of an array along a given axis using linear interpolation.
+    :param data: N-dimensional array-like.
+    :param quantiles: Single or sequence of float values in [0, 1].
+    :param axis: Index of the axis along which to compute the quantiles (default: last).
+    :return: Array of interpolated values, with the same shape as `data` except for the `axis` dimension, which
+    coincides with the shape of `quantiles`.
+    """
+    data = np.sort(data, axis=axis)
+    rank = np.linspace(0, 1, data.shape[axis])
+    return scipy.interpolate.interp1d(rank, data, axis=axis)(quantiles)
 
 
 def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str, crossval_split_index: Optional[int] = None,
@@ -108,8 +116,6 @@ def get_labels_and_predictions_from_dataframe(df: pd.DataFrame) -> LabelsAndPred
     like the ones written while training. It must have at least the following columns (defined in the LoggingColumns
     enum):
     LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
-    If present, the LoggingColumns.CrossValidationSplitIndex column will be read into the resulting crossval_folds
-    field, otherwise it will be filled with -1 by default.
     """
     labels = df[LoggingColumns.Label.value].to_numpy()
     model_outputs = df[LoggingColumns.ModelOutput.value].to_numpy()
@@ -118,6 +124,11 @@ def get_labels_and_predictions_from_dataframe(df: pd.DataFrame) -> LabelsAndPred
 
 
 def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
+    """
+    Format PR or ROC plot with appropriate title, axis labels, limits, and grid.
+    :param plot_type: Either 'pr' or 'roc'.
+    :param ax: Axes object to format.
+    """
     if plot_type == 'pr':
         title, xlabel, ylabel = "PR Curve", "Recall", "Precision"
     elif plot_type == 'roc':
@@ -135,7 +146,11 @@ def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
 def plot_pr_and_roc_curves(labels_and_model_outputs: LabelsAndPredictions, axs: Optional[Sequence[Axes]] = None,
                            plot_kwargs: Optional[Dict[str, Any]] = None) -> None:
     """
-    Given a LabelsAndPredictions object, plot the ROC and PR curves.
+    Given labels and model outputs, plot the ROC and PR curves.
+    :param labels_and_model_outputs:
+    :param axs: Pair of axes objects onto which to plot the ROC and PR curves, respectively. New axes are created by
+    default.
+    :param plot_kwargs: Plotting options to be passed to both `ax.plot(...)` calls.
     """
     if axs is None:
         _, axs = plt.subplots(1, 2)
@@ -158,6 +173,21 @@ def plot_scores_and_summary(all_labels_and_model_outputs: Sequence[LabelsAndPred
                             scoring_fn: Callable[[LabelsAndPredictions], Tuple[np.ndarray, np.ndarray]],
                             confidence_interval_width: float = .8,
                             ax: Optional[Axes] = None) -> Tuple[List, Any]:
+    """
+    Plot a collection of score curves along with the (vertical) median and confidence interval (CI).
+
+    Each plotted curve is interpolated onto a common horizontal grid, and the median and CI are computed vertically
+    at each horizontal location.
+    :param all_labels_and_model_outputs: Collection of ground-truth labels and model predictions (e.g. for various
+    cross-validation runs).
+    :param scoring_fn: A scoring function mapping a `LabelsAndPredictions` object to X and Y coordinates for plotting.
+    :param confidence_interval_width: A value in [0, 1] representing what fraction of the data should be contained in
+    the shaded area. The edges of the CI are `median +/- confidence_interval_width/2`.
+    :param ax: Axes object onto which to plot (default: use current axes).
+    :return: A tuple of `(line_handles, summary_handle)` to use in setting a legend for the plot: `line_handles` is a
+    list corresponding to the curves for each `LabelsAndPredictions`, and `summary_handle` references the median line
+    and shaded CI area.
+    """
     if ax is None:
         ax = plt.gca()
     x_grid = np.linspace(0, 1, 101)
@@ -180,7 +210,12 @@ def plot_scores_and_summary(all_labels_and_model_outputs: Sequence[LabelsAndPred
 def plot_pr_and_roc_curves_crossval(all_labels_and_model_outputs: Sequence[LabelsAndPredictions],
                                     axs: Optional[Sequence[Axes]] = None) -> None:
     """
-    Given a list of LabelsAndPredictions objects, plot the ROC and PR curves.
+    Given a list of LabelsAndPredictions objects, plot the corresponding ROC and PR curves, along with median line and
+    shaded 80% confidence interval (computed over TPRs and precisions for each fixed FPR and recall value).
+    :param all_labels_and_model_outputs: Collection of ground-truth labels and model predictions (e.g. for various
+    cross-validation runs).
+    :param axs: Pair of axes objects onto which to plot the ROC and PR curves, respectively. New axes are created by
+    default.
     """
     if axs is None:
         _, axs = plt.subplots(1, 2)
@@ -215,8 +250,13 @@ def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase,
                                     data_split: Optional[ModelExecutionMode] = None,
                                     is_crossval_report: bool = False) -> None:
     """
-    Given the csv written during inference time and the model config,
-    plot the ROC and PR curves for all prediction targets.
+    Given the CSV written during inference time and the model config, plot the ROC and PR curves for all prediction
+    targets.
+    :param metrics_csv: Path to the metrics CSV file.
+    :param config: Model config.
+    :param data_split: Whether to filter the CSV file for Train, Val, or Test results (default: no filtering).
+    :param is_crossval_report: If True, assumes CSV contains results for multiple cross-validation runs and plots the
+    curves with median and confidence intervals. Otherwise, plots curves for a single run.
     """
     for prediction_target in config.class_names:
         print_header(f"Class: {prediction_target}", level=3)
@@ -285,7 +325,7 @@ def get_all_metrics(val_labels_and_predictions: LabelsAndPredictions,
     set.
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
                            or are floating point numbers.
-    :return:
+    :return: Dictionary mapping metric descriptions to computed values.
     """
     optimal_threshold = 0.5 if is_thresholded else None
 
@@ -338,7 +378,6 @@ def print_metrics(val_labels_and_predictions: LabelsAndPredictions,
     set.
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
                            or are floating point numbers.
-    :return:
     """
     metrics = get_all_metrics(val_labels_and_predictions, test_labels_and_predictions, is_thresholded)
     rows = [[description, f"{value:.4f}"] for description, value in metrics.items()]
@@ -360,8 +399,13 @@ def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
     optimal threshold for classification.
     :param test_metrics_csv: Csv written during inference time for the test set. Metrics are calculated for this csv.
     :param config: Model config
+    :param val_data_split: Whether to filter the validation CSV file for Train, Val, or Test results (default: no
+    filtering).
+    :param test_data_split: Whether to filter the test CSV file for Train, Val, or Test results (default: no filtering).
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
                            or are floating point numbers.
+    :param is_crossval_report: If True, assumes CSVs contain results for multiple cross-validation runs and prints the
+    metrics along with means and standard deviations. Otherwise, prints metrics for a single run.
     """
     def get_metrics_for_fold(prediction_target: str, crossval_split: Optional[int] = None) -> Dict[str, float]:
         val_labels_and_predictions = get_labels_and_predictions(val_metrics_csv, prediction_target,
@@ -394,7 +438,7 @@ def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
 
 
 def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path,
-                                           prediction_target: str = "Default") -> Results:
+                                           prediction_target: str = MetricsDict.DEFAULT_HUE_KEY) -> Results:
     """
     Given the paths to the metrics files for the validation and test sets, get a list of true positives,
     false positives, false negatives and true negatives.
@@ -402,7 +446,6 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
     label predictions.
     The validation and test csvs must have at least the following columns (defined in the LoggingColumns enum):
     LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
-
     """
     df_val = read_csv_and_filter_prediction_target(val_metrics_csv, prediction_target)
 
@@ -457,8 +500,8 @@ def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: P
                             performing subjects will not be printed out for this csv.
     :param test_metrics_csv: Path to one of the metrics csvs written during inference. This is the csv for which
                             best and worst performing subjects will be printed out.
-   :param k: Number of subjects of each category to print out.
-   :param prediction_target: The class label to filter on
+    :param k: Number of subjects of each category to print out.
+    :param prediction_target: The class label to filter on
     """
     results = get_k_best_and_worst_performing(val_metrics_csv=val_metrics_csv,
                                               test_metrics_csv=test_metrics_csv,
@@ -635,7 +678,6 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
     :param k: Number of subjects of each category to print out.
     :param prediction_target: The class label to filter on
     :param config: scalar model config object
-
     """
     results = get_k_best_and_worst_performing(val_metrics_csv=val_metrics_csv,
                                               test_metrics_csv=test_metrics_csv,
