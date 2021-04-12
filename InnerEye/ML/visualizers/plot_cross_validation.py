@@ -36,7 +36,7 @@ from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_AGGREGATES_FILE, OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
+    METRICS_AGGREGATES_FILE, logging_section, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.metrics_constants import INTERNAL_TO_LOGGING_COLUMN_NAMES, LoggingColumns, MetricsFileColumns
 from InnerEye.Common.type_annotations import PathOrString
@@ -317,13 +317,10 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     """
     # setup the appropriate paths and readers for the metrics
     src = get_epoch_results_path(mode) / SUBJECT_METRICS_FILE_NAME
-    # download (or copy from local disc) subject level metrics for the given epoch
-    local_src_subdir = get_epoch_results_path(mode) if is_parent_run(run) else None
     return config.download_or_get_local_file(
         blob_to_download=src,
         destination=destination,
-        run=run,
-        local_src_subdir=local_src_subdir)
+        run=run)
 
 
 def download_crossval_result_files(config: PlotCrossValidationConfig,
