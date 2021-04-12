@@ -233,7 +233,7 @@ def test_convert_nifti_to_zipped_dicom_rt(test_output_dirs: OutputFolderForTests
     convert_zipped_dicom_to_nifti(zipped_dicom_series_path, reference_series_folder, nifti_filename)
     model_config = PassThroughModel()
     result_dst = convert_nifti_to_zipped_dicom_rt(HNSEGMENTATION_FILE, reference_series_folder, model_folder,
-                                                  model_config, DEFAULT_RESULT_ZIP_DICOM_NAME)
+                                                  model_config, DEFAULT_RESULT_ZIP_DICOM_NAME, model_id="test_model:1")
     assert_zip_file_contents(result_dst, HN_DICOM_RT_ZIPPED, model_folder)
 
 
