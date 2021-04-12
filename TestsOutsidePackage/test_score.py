@@ -27,7 +27,6 @@ from score import create_inference_pipeline, is_spacing_valid, run_inference, sc
     extract_zipped_files_and_flatten, convert_zipped_dicom_to_nifti, \
     convert_nifti_to_zipped_dicom_rt
 
-
 test_image = full_ml_test_data_path("train_and_test_data") / "id1_channel1.nii.gz"
 img_nii_path = full_ml_test_data_path("test_img.nii.gz")
 # Expected zipped DICOM-RT file contents, just DEFAULT_RESULT_ZIP_DICOM_NAME without the final suffix.
@@ -119,7 +118,8 @@ TEST_ZIP_FILE_PATHS_ALL2: List[List[Path]] = [
 @pytest.mark.parametrize("zip_file_contents", TEST_ZIP_FILE_PATHS_ALL2)
 def test_unpack_two_distinct_sets_zip(zip_file_contents: List[Path], test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test that a zip file containing two distinct set of files in two folders, but possibly in a series of nesting folders,
+    Test that a zip file containing two distinct set of files in two folders, but possibly in a series of nesting
+    folders,
     can be extracted into a folder containing only the files.
 
     :param zip_file_contents: List of relative file paths to create and test.
@@ -253,7 +253,8 @@ def test_score_image_dicom_two_inputs(test_output_dirs: OutputFolderForTests) ->
         image_files=[str(zipped_dicom_series_path), str(zipped_dicom_series_path)],
         result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
-        use_dicom=True)
+        use_dicom=True,
+        model_id="Dummy:1")
 
     with pytest.raises(ValueError) as e:
         score_image(score_pipeline_config)
@@ -278,7 +279,8 @@ def test_score_image_dicom_not_zip_input(test_output_dirs: OutputFolderForTests)
         image_files=[str(test_file)],
         result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
-        use_dicom=True)
+        use_dicom=True,
+        model_id="Dummy:1")
 
     with pytest.raises(zipfile.BadZipFile):
         score_image(score_pipeline_config)
@@ -309,7 +311,8 @@ def test_score_image_dicom_mock_all(test_output_dirs: OutputFolderForTests) -> N
         image_files=[str(zipped_dicom_series_path)],
         result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
-        use_dicom=True)
+        use_dicom=True,
+        model_id="Dummy:1")
 
     with mock.patch('score.init_from_model_inference_json',
                     return_value=(mock_pipeline_base, model_config)) as mock_init_from_model_inference_json:
@@ -356,7 +359,8 @@ def test_score_image_dicom_mock_run_store(test_output_dirs: OutputFolderForTests
         image_files=[str(zipped_dicom_series_path)],
         result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
-        use_dicom=True)
+        use_dicom=True,
+        model_id="Dummy:1")
 
     with mock.patch('score.run_inference',
                     return_value=mock_segmentation) as mock_run_inference:
@@ -398,7 +402,8 @@ def test_score_image_dicom_mock_run(test_output_dirs: OutputFolderForTests) -> N
         image_files=[str(zipped_dicom_series_path)],
         result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
-        use_dicom=True)
+        use_dicom=True,
+        model_id="Dummy:1")
 
     image_with_header = io_util.load_nifti_image(HNSEGMENTATION_FILE)
 
@@ -438,7 +443,8 @@ def test_score_image_dicom_mock_none(test_output_dirs: OutputFolderForTests) -> 
         image_files=[str(zipped_dicom_series_path)],
         result_image_name=HNSEGMENTATION_FILE.name,
         use_gpu=False,
-        use_dicom=True)
+        use_dicom=True,
+        model_id="Dummy:1")
 
     segmentation = score_image(score_pipeline_config)
     assert_zip_file_contents(segmentation, HN_DICOM_RT_ZIPPED, model_folder)
