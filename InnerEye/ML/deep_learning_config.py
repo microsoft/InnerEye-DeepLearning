@@ -275,10 +275,10 @@ class DatasetParams(param.Parameterized):
                                                         "and made available as a list of paths in "
                                                         "'extra_local_datasets' "
                                                         "when running in AzureML.")
-    extra_local_dataset_ids: List[Path] = param.List(class_=Path, default=None, allow_None=True,
-                                                     doc="This can be used to feed in additional datasets "
-                                                         "to your custom datamodules when running outside of Azure "
-                                                         "AML.")
+    extra_local_dataset_paths: List[Path] = param.List(class_=Path, default=None, allow_None=True,
+                                                       doc="This can be used to feed in additional datasets "
+                                                           "to your custom datamodules when running outside of Azure "
+                                                           "AML.")
 
 
 class OutputParams(param.Parameterized):

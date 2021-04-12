@@ -71,14 +71,15 @@ class SSLContainer(LightningContainer):
         self._load_config()
         # If you're using the same data for training and linear head you don't need to specify an extra dataset in the
         # config.
-        if (self.classifier_dataset_name == self.ssl_training_dataset_name) and len(self.extra_local_dataset_ids) == 0 \
+        if (self.classifier_dataset_name == self.ssl_training_dataset_name) and len(self.extra_local_dataset_paths) \
+                == 0 \
                 and self.local_dataset is not None:
-            self.extra_local_dataset_ids = [self.local_dataset]
+            self.extra_local_dataset_paths = [self.local_dataset]
 
         self.datamodule_args = {SSLModule.LINEAR_HEAD: {
             "augmentation_config": self.linear_head_yaml_config,
             "dataset_name": self.classifier_dataset_name.value,
-            "dataset_path": self.extra_local_dataset_ids[0] if len(self.extra_local_dataset_ids) > 0 else None,
+            "dataset_path": self.extra_local_dataset_paths[0] if len(self.extra_local_dataset_paths) > 0 else None,
             "batch_size": self.classifier_batch_size}}
         if self.ssl_training_dataset_name is not None:
             self.datamodule_args.update({SSLModule.ENCODER: {

@@ -189,21 +189,21 @@ class MLRunner:
                                                                           self.container.local_dataset)
             if not isinstance(self.container, InnerEyeContainer):
                 extra_locals = []
-                if self.is_offline_run and self.container.extra_local_dataset_ids is not None:
+                if self.is_offline_run and self.container.extra_local_dataset_paths is not None:
                     if self.container.extra_azure_dataset_ids is None:
-                        for local in self.container.extra_local_dataset_ids:
+                        for local in self.container.extra_local_dataset_paths:
                             extra_locals.append(self.mount_or_download_dataset(None, local))
-                    elif len(self.container.extra_azure_dataset_ids) == len(self.container.extra_local_dataset_ids):
+                    elif len(self.container.extra_azure_dataset_ids) == len(self.container.extra_local_dataset_paths):
                         for azure_id, local in zip(self.container.extra_azure_dataset_ids,
-                                                   self.container.extra_local_dataset_ids):
+                                                   self.container.extra_local_dataset_paths):
                             extra_locals.append(self.mount_or_download_dataset(azure_id, local))
                     else:
-                        raise ValueError("The values of extra_local_dataset_ids and extra_azure_dataset_ids are "
+                        raise ValueError("The values of extra_local_dataset_paths and extra_azure_dataset_ids are "
                                          "incompatible, you provided two non-empty lists of different length.")
                 elif self.container.extra_azure_dataset_ids is not None:
                     for i, azure_id in enumerate(self.container.extra_azure_dataset_ids, 1):
                         extra_locals.append(self.mount_or_download_dataset(azure_id, None, idx=i))
-                self.container.extra_local_dataset_ids = extra_locals
+                self.container.extra_local_dataset_paths = extra_locals
 
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
