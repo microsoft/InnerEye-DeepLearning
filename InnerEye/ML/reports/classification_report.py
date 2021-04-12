@@ -109,20 +109,16 @@ def get_labels_and_predictions_from_dataframe(df: pd.DataFrame) -> LabelsAndPred
     return LabelsAndPredictions(subject_ids=subjects, labels=labels, model_outputs=model_outputs)
 
 
-def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, print_coords: bool = False,
+def plot_auc(x_values: np.ndarray, y_values: np.ndarray,  ax: Axes, print_coords: bool = False,
              **plot_kwargs: Any) -> None:
     """
     Plot a curve given the x and y values of each point.
     :param x_values: x coordinate of each data point to be plotted
     :param y_values: y coordinate of each data point to be plotted
-    :param title: Title of the plot
     :param ax: matplotlib.axes.Axes object for plotting
     :param print_coords: If true, prints out the coordinates of each point on the graph.
     """
     ax.plot(x_values, y_values, **plot_kwargs)
-    ax.set_xlim(left=0, right=1)
-    ax.set_ylim(bottom=0, top=1)
-    ax.set_title(title)
 
     if print_coords:
         # write values of points
@@ -130,23 +126,39 @@ def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, p
             ax.annotate(f"{x:0.3f}, {y:0.3f}", xy=(x, y), xytext=(15, 0), textcoords='offset points')
 
 
+def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
+    if plot_type == 'pr':
+        title, xlabel, ylabel = "PR Curve", "Recall", "Precision"
+    elif plot_type == 'roc':
+        title, xlabel, ylabel = "ROC Curve", "False positive rate", "True positive rate"
+    else:
+        raise ValueError(f"Plot type must be either 'pr' or 'roc' (received '{plot_type}')")
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.grid(lw=1, color='lightgray')
+
+
 def plot_pr_and_roc_curves(labels_and_model_outputs: LabelsAndPredictions, axs: Optional[Sequence[Axes]] = None,
                            plot_kwargs: Optional[Dict[str, Any]] = None) -> None:
     """
     Given a LabelsAndPredictions object, plot the ROC and PR curves.
     """
-    print_header("ROC and PR curves", level=3)
     if axs is None:
         _, axs = plt.subplots(1, 2)
     if plot_kwargs is None:
         plot_kwargs = {}
 
     fpr, tpr, thresholds = roc_curve(labels_and_model_outputs.labels, labels_and_model_outputs.model_outputs)
+    plot_auc(fpr, tpr, axs[0], **plot_kwargs)
+    format_pr_or_roc_axes('roc', axs[0])
 
-    plot_auc(fpr, tpr, "ROC Curve", axs[0], **plot_kwargs)
     precision, recall, thresholds = precision_recall_curve(labels_and_model_outputs.labels,
                                                            labels_and_model_outputs.model_outputs)
-    plot_auc(recall, precision, "PR Curve", axs[1], **plot_kwargs)
+    plot_auc(recall, precision, axs[1], **plot_kwargs)
+    format_pr_or_roc_axes('pr', axs[1])
 
     plt.show()
 
