@@ -33,7 +33,7 @@ from InnerEye.ML.utils.model_util import create_segmentation_loss_function
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import machine_has_gpu, model_train_unittest
+from Tests.ML.util import machine_has_gpu, model_train_unittest, get_default_checkpoint_handler
 
 config_path = full_ml_test_data_path()
 base_path = full_ml_test_data_path()
@@ -318,7 +318,7 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
 
     # First round of training
     config.num_epochs = 2
-    _, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
+    model_train_unittest(config, dirs=test_output_dirs)
     assert len(list(config.checkpoint_folder.glob("*.*"))) == 2
 
     # Restart training from previous run
@@ -329,6 +329,10 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
     # make if seem like run recovery objects have been downloaded
     checkpoint_root = config.checkpoint_folder / "old_run"
     shutil.copytree(str(original_checkpoint_folder), str(checkpoint_root))
+
+    # Create a new checkpoint handler and set run_recovery to the copied checkpoints
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
     checkpoint_handler.run_recovery = RunRecovery([checkpoint_root])
 
     model_train_unittest(config, dirs=test_output_dirs, checkpoint_handler=checkpoint_handler)
