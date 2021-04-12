@@ -27,7 +27,7 @@ class BasicModel2Epochs(SegmentationModelBase):
             ground_truth_ids_display_names=fg_classes,
             colours=[(255, 255, 255)] * len(fg_classes),
             fill_holes=[False] * len(fg_classes),
-            roi_intepreted_types=["ORGAN"] * len(self.fg_ids),
+            roi_intepreted_types=["ORGAN"] * len(self.fg_classes),
             mask_id="heart",
             norm_method=PhotometricNormalizationMethod.CtWindow,
             level=50,
