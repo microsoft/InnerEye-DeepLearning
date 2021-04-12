@@ -52,26 +52,35 @@ class ReportedMetrics(Enum):
     FalseNegativeRate = "false_negative_rate"
 
 
-def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str,
-                                          crossval_split_index: Optional[int] = None) -> pd.DataFrame:
+def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str, crossval_split_index: Optional[int] = None,
+                                          data_split: Optional[str] = None) -> pd.DataFrame:
     """
     Given one of the csv files written during inference time, read it and select only those rows which belong to the
     given prediction_target. If crossval_split_index is provided, will additionally filter rows only for the respective
-    run. Also check that there is only a single entry per prediction_target per subject in the file.
+    run, and data_split can further filter by Train/Val/Test. Also check that the final subject IDs are unique.
     The csv must have at least the following columns (defined in the LoggingColumns enum):
-    LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.CrossValidationSplitIndex (if crossval_split_index given)
+    LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.CrossValidationSplitIndex (if crossval_split_index is
+    given), LoggingColumns.DataSplit (if data_split is given).
     """
     df = pd.read_csv(csv)
     df = df[df[LoggingColumns.Hue.value] == prediction_target]  # Filter by prediction target
     if crossval_split_index is not None:
-        df = df[df[LoggingColumns.CrossValidationSplitIndex] == crossval_split_index]  # Filter by crossval split index
+        if LoggingColumns.CrossValidationSplitIndex.value not in df:
+            raise ValueError(f"Missing {LoggingColumns.CrossValidationSplitIndex.value} column.")
+        # Filter by crossval split index
+        df = df[df[LoggingColumns.CrossValidationSplitIndex.value] == crossval_split_index]
+    if data_split is not None:
+        if LoggingColumns.DataSplit.value not in df:
+            raise ValueError(f"Missing {LoggingColumns.DataSplit.value} column.")
+        df = df[df[LoggingColumns.DataSplit.value] == data_split]  # Filter by Train/Val/Test
     if not df[LoggingColumns.Patient.value].is_unique:
         raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
                          f"in column {LoggingColumns.Patient.value} in the csv file.")
     return df
 
 
-def get_labels_and_predictions(csv: Path, prediction_target: str) -> LabelsAndPredictions:
+def get_labels_and_predictions(csv: Path, prediction_target: str, crossval_split_index: Optional[int] = None,
+                               data_split: Optional[str] = None) -> LabelsAndPredictions:
     """
     Given a CSV file, reads the subject IDs, ground truth labels and model outputs for each subject
     for the given prediction target.
@@ -79,9 +88,8 @@ def get_labels_and_predictions(csv: Path, prediction_target: str) -> LabelsAndPr
     like the ones written while training. It must have at least the following columns (defined in the LoggingColumns
     enum):
     LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
-
     """
-    df = read_csv_and_filter_prediction_target(csv, prediction_target)
+    df = read_csv_and_filter_prediction_target(csv, prediction_target, crossval_split_index, data_split)
     return get_labels_and_predictions_from_dataframe(df)
 
 
