@@ -6,10 +6,14 @@ from unittest import mock
 
 import numpy as np
 import pytest
+from pl_bolts.models.self_supervised.resnets import ResNet
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.ML.runner import Runner
+from InnerEye.SSL.byol.byol_module import WrapBYOLInnerEye
+from InnerEye.SSL.encoders import DenseNet121Encoder
+from InnerEye.SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
 from InnerEye.SSL.simclr_module import WrapSimCLRInnerEye
 from InnerEye.SSL.utils import SSLType
 
@@ -28,6 +32,13 @@ common_test_args = ["", "--debug=True", "--num_epochs=1", "--ssl_training_batch_
 
 
 def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
+    """
+    Tests:
+        - training of SSL model on cifar10 for one epoch
+        - checkpoint saving
+        - checkpoint loading and ImageClassifier module creation
+        - training of image classifier for one epoch.
+    """
     args = common_test_args + ["--model=CIFAR10SimCLR"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = default_runner().run()
@@ -42,26 +53,42 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     args = common_test_args + ["--model=SSLClassifierCIFAR", f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = default_runner().run()
-    print("hello")
 
 
 def test_innereye_ssl_container_cifar10_resnet_byol() -> None:
-    args = ["", "--model=CIFAR10BYOL", "--debug=True", "--num_epochs=1", "--ssl_training_batch_size=20"]
+    args = common_test_args + ["--model=CIFAR10BYOL"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = default_runner().run()
+    assert loaded_config.ssl_training_type == SSLType.BYOL
+    assert isinstance(loaded_config.model, WrapBYOLInnerEye)
+    assert loaded_config.online_eval.num_classes == 10
+    assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value
+    assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
 
 
 def test_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
-    args = ["", "--model=CIFAR10CIFAR100BYOL", "--debug=True", "--num_epochs=1", "--ssl_training_batch_size=20"]
+    """
+    Tests that the parameters feed into the BYOL model and online evaluator are
+    indeed the one we fed through our command line args
+    """
+    args = common_test_args + ["--model=CIFAR10CIFAR100BYOL"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = default_runner().run()
-
+    assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR100.value
+    assert loaded_config.online_eval.num_classes == 100
+    assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
+    assert loaded_config.ssl_training_type == SSLType.BYOL
+    assert loaded_config.model.hparams["batch_size"] == 10
+    assert loaded_config.model.hparams["dataset_name"] == SSLDatasetName.CIFAR10.value
+    assert loaded_config.model.hparams["encoder_name"] == EncoderName.resnet50.value
+    assert loaded_config.model.hparams["learning_rate"] == 1e-4
+    assert isinstance(loaded_config.model.online_network.encoder.cnn_model, ResNet)
 
 def test_innereye_ssl_container_cifar10_densenet() -> None:
-    args = ["", "--model=CIFARBYOL", "--debug=True", "--num_epochs=2", "--ssl_encoder=densenet121",
-            "--ssl_training_batch_size=20"]
+    args = common_test_args + ["--model=CIFAR10BYOL", f"--ssl_encoder={EncoderName.densenet121.value}"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = default_runner().run()
+    assert isinstance(loaded_config.model.online_network.encoder.cnn_model, DenseNet121Encoder)
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
     assert checkpoint_path.exists()
 
@@ -80,7 +107,7 @@ def test_innereye_ssl_container_rsna(use_binary_loss_linear_head: bool):
             return_value=np.ones([256, 256])):
         loaded_config, actual_run = runner.run()
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
-    args = common_test_args + ["--model=CXRImageClassifier", f"--extra_local_dataset_ids={path_to_test_dataset}",
+    args = common_test_args + ["--model=CXRImageClassifier", f"--extra_local_dataset_paths={path_to_test_dataset}",
                                f"--use_balanced_binary_loss_for_linear_head={use_binary_loss_linear_head}",
                                f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args), mock.patch(

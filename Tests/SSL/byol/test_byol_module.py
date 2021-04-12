@@ -1,7 +1,8 @@
-import torch
 import pytest
+import torch
 
 from InnerEye.SSL.byol.byol_module import BYOLInnerEye
+
 
 # Test cosine loss
 def test_cosine_loss() -> None:
@@ -35,8 +36,8 @@ def test_encoder_init(encoder_name: str) -> None:
 def test_shared_forward_step() -> None:
     byol = BYOLInnerEye(num_samples=16, learning_rate=1e-3, batch_size=4, warmup_epochs=10, encoder_name="resnet50")
     imgs = torch.rand((4, 3, 32, 32))
-    lbls = torch.rand((4, ))
-    batch = ([imgs, imgs, None], lbls)
+    lbls = torch.rand((4,))
+    batch = ([imgs, imgs], lbls)
 
     loss = byol.shared_step(batch=batch, batch_idx=0)
     assert torch.le(loss, 1.0)
