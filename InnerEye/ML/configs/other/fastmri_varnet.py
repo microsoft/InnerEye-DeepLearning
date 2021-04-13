@@ -29,7 +29,7 @@ class VarNetWithImageLogging(VarNetModule):
     a single logger that must be Tensorboard.
     """
 
-    def log_image(self, name: str, image: torch.Tensor):
+    def log_image(self, name: str, image: torch.Tensor) -> None:
         experiments = self.logger.experiment if isinstance(self.logger.experiment, list) \
             else [self.logger.experiment]
         for experiment in experiments:
@@ -42,7 +42,7 @@ class FastMri(LightningContainer):
     challenge: str = param.String(default="multicoil")
     sample_rate: Optional[float] = param.Number(default=None, allow_None=True)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.azure_dataset_id = "fastmrimini_brain"
 

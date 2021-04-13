@@ -32,7 +32,9 @@ def test_create_ml_runner_args(is_container: bool,
     if is_container:
         dataset_folder = Path("download")
     else:
-        dataset_folder = DummyModel().local_dataset
+        local_dataset = DummyModel().local_dataset
+        assert local_dataset is not None
+        dataset_folder = local_dataset
     outputs_folder = test_output_dirs.root_dir
     project_root = fixed_paths.repository_root_directory()
     model_configs_namespace = "Tests.ML.configs"

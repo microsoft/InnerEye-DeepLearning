@@ -85,14 +85,14 @@ class DummyRegressionPlainLightning(LightningWithInference):
     def forward(self, x: Tensor) -> Tensor:  # type: ignore
         return self.model(x)
 
-    def training_step(self, batch, *args: Any, **kwargs: Any):
+    def training_step(self, batch: Any, *args: Any, **kwargs: Any) -> torch.Tensor:  # type: ignore
         input, target = batch
         prediction = self.forward(input)
         loss = torch.nn.functional.mse_loss(prediction, target)
         self.log("loss", loss, on_epoch=True, on_step=True)
         return loss
 
-    def test_step(self, batch, batch_idx) -> torch.Tensor:
+    def test_step(self, batch, batch_idx) -> torch.Tensor:  # type: ignore
         Path("test_step.txt").touch()
         input, target = batch
         prediction = self.forward(input)
@@ -106,8 +106,8 @@ class DummyRegressionPlainLightning(LightningWithInference):
 
 
 class DummyRegression(DummyRegressionPlainLightning):
-    def __init__(self, in_features: int = 1, *args, **kwargs):
-        super().__init__(in_features=in_features, *args, **kwargs)
+    def __init__(self, in_features: int = 1, *args, **kwargs) -> None:  # type: ignore
+        super().__init__(in_features=in_features, *args, **kwargs)  # type: ignore
         self.l_rate = 1e-1
         self.dataset_split = ModelExecutionMode.TRAIN
         activation = Identity()
@@ -120,7 +120,7 @@ class DummyRegression(DummyRegressionPlainLightning):
     def forward(self, x: Tensor) -> Tensor:  # type: ignore
         return self.model(x)
 
-    def training_step(self, batch, *args, **kwargs):
+    def training_step(self, batch, *args, **kwargs) -> torch.Tensor:  # type: ignore
         input, target = batch
         prediction = self.forward(input)
         loss = torch.nn.functional.mse_loss(prediction, target)
@@ -136,7 +136,7 @@ class DummyRegression(DummyRegressionPlainLightning):
         (self.outputs_folder / f"on_inference_start_{self.dataset_split.value}.txt").touch()
         self.mse = MeanSquaredError()
 
-    def inference_step(self, item: Tuple[Tensor, Tensor], batch_idx, **kwargs):
+    def inference_step(self, item: Tuple[Tensor, Tensor], batch_idx: int, model_output: torch.Tensor) -> None:
         input, target = item
         prediction = self.forward(input)
         self.mse(prediction, target)
@@ -156,7 +156,7 @@ class DummyRegression(DummyRegressionPlainLightning):
 
 
 class FixedDataset(Dataset):
-    def __init__(self, inputs_and_targets: List[Tuple]):
+    def __init__(self, inputs_and_targets: List[Tuple[Any,Any]]):
         super().__init__()
         self.inputs_and_targets = inputs_and_targets
 
@@ -177,13 +177,13 @@ class FixedRegressionData(LightningDataModule):
         self.test_data = [(i, i) for i in range(3, 20, 3)]
 
     def train_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
-        return DataLoader(FixedDataset(self.train_data))
+        return DataLoader(FixedDataset(self.train_data))  # type: ignore
 
     def val_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
-        return DataLoader(FixedDataset(self.val_data))
+        return DataLoader(FixedDataset(self.val_data))  # type: ignore
 
     def test_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
-        return DataLoader(FixedDataset(self.test_data))
+        return DataLoader(FixedDataset(self.test_data))  # type: ignore
 
 
 class DummyContainerWithModel(LightningContainer):
@@ -195,13 +195,14 @@ class DummyContainerWithModel(LightningContainer):
         self.l_rate = 1e-1
 
     def setup(self) -> None:
+        assert self.local_dataset is not None
         (self.local_dataset / "setup.txt").touch()
 
     def create_model(self) -> LightningWithInference:
         return DummyRegression()
 
     def get_data_module(self) -> LightningDataModule:
-        return FixedRegressionData()
+        return FixedRegressionData()  # type: ignore
 
 
 class DummyContainerWithInvalidTrainerArguments(LightningContainer):
@@ -209,12 +210,12 @@ class DummyContainerWithInvalidTrainerArguments(LightningContainer):
     def create_model(self) -> LightningWithInference:
         return DummyRegression()
 
-    def get_trainer_arguments(self):
+    def get_trainer_arguments(self) -> Dict[str, Any]:
         return {"no_such_argument": 1}
 
 
 class DummyContainerWithPlainLightning(LightningContainer):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.num_epochs = 100
         self.l_rate = 1e-2
@@ -223,4 +224,4 @@ class DummyContainerWithPlainLightning(LightningContainer):
         return DummyRegressionPlainLightning()
 
     def get_data_module(self) -> LightningDataModule:
-        return FixedRegressionData()
+        return FixedRegressionData()  # type: ignore
