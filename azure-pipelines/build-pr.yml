@@ -124,3 +124,21 @@ jobs:
         parameters:
           pytest_mark: after_training_2node
           test_run_title: tests_after_training_2node_run
+
+  # Train a model on 2 nodes
+  - job: TrainGlaucomaCV
+    variables:
+      - name: model
+        value: 'GlaucomaPublic'
+      - name: tag
+        value: 'GlaucomaPR'
+      - name: more_switches
+        value: '--num_epochs=2 --number_of_cross_validation_splits=2'
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          pytest_mark: ''
+          max_run_duration: '1h'
