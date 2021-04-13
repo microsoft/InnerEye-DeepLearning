@@ -229,8 +229,7 @@ def test_check_result_file_counts() -> None:
     """
     More tests on the function that checks the number of files of each ModeExecutionMode.
     """
-    val_files, plotting_config = load_result_files_for_classification_with_ensemble() if with_ensemble_run else \
-        load_result_files_for_classification()
+    val_files, plotting_config = load_result_files_for_classification()
     # This test assumes that the loaded val_files all have mode Val
     assert all(file.execution_mode == ModelExecutionMode.VAL for file in val_files)
     plotting_config.number_of_cross_validation_splits = len(val_files)
