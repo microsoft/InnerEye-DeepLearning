@@ -34,9 +34,9 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, down
     is_offline_run_context, is_parent_run
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
-from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
+from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_AGGREGATES_FILE, OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
+    METRICS_AGGREGATES_FILE, ModelProcessing, logging_section, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.metrics_constants import INTERNAL_TO_LOGGING_COLUMN_NAMES, LoggingColumns, MetricsFileColumns
 from InnerEye.Common.type_annotations import PathOrString
@@ -210,6 +210,8 @@ class PlotCrossValidationConfig(GenericConfig):
         if blob_parent != Path("."):
             destination = destination / blob_parent
         downloaded_file = destination / blob_path.name
+        if local_src_subdir is not None:
+            blob_path = local_src_subdir / blob_path
         # If we've already downloaded the data, leave it as it is
         if downloaded_file.exists():
             logging.info(f"Download of '{blob_path}' to '{downloaded_file}: not needed, already exists'")
@@ -227,8 +229,6 @@ class PlotCrossValidationConfig(GenericConfig):
                     local_src = local_src / self.local_run_result_split_suffix
             else:
                 local_src = self.outputs_directory
-            if local_src_subdir is not None:
-                local_src = local_src / local_src_subdir
             local_src = local_src / blob_path
             if local_src.exists():
                 logging.info(f"Copying files from {local_src} to {destination}")
@@ -322,18 +322,21 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     #           best epoch.
     # For segmentation models: we save all metrics in get_epoch_results_path(mode) after running inference on the
     #                          best epoch.
+    # For all models metrics are gathered in the CROSS_VAL_FOLDER / mode
+
     is_ensemble_run = is_parent_run(run)
-    is_train_or_val = mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]
-    if config.model_category.is_scalar and is_train_or_val and not is_ensemble_run:
-        src = Path(mode.value) / SUBJECT_METRICS_FILE_NAME
-    else:
-        src = get_best_epoch_results_path(mode) / SUBJECT_METRICS_FILE_NAME
-    local_src_subdir = Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME if is_ensemble_run else None
+    local_src = None
+    if config.model_category == ModelCategory.Segmentation or is_ensemble_run or mode == ModelExecutionMode.TEST:
+        local_src = get_best_epoch_results_path(mode,
+                                                model_proc=ModelProcessing.ENSEMBLE_CREATION if is_ensemble_run else
+                                                ModelProcessing.DEFAULT).parent
+    logging.info(f"Local_src contains {local_src}")
+    src = Path(mode.value) / SUBJECT_METRICS_FILE_NAME
     return config.download_or_get_local_file(
         blob_to_download=src,
         destination=destination,
         run=run,
-        local_src_subdir=local_src_subdir)
+        local_src_subdir=local_src)
 
 
 def download_crossval_result_files(config: PlotCrossValidationConfig,
@@ -778,14 +781,12 @@ def check_result_file_counts(config_and_files: OfflineCrossvalConfigAndFiles, is
     for result_file in config_and_files.files:
         result_files_by_mode[result_file.execution_mode].append(result_file)
     n_splits = config_and_files.config.number_of_cross_validation_splits
-    if is_ensemble_run:
-        n_splits += 1
     failing_modes = []
     for mode, files in result_files_by_mode.items():
-        # By default inference is not run on the training set for ensemble models, hence for train it is normal to
-        # have n_splits == number_cross_validation_splits
-        if len(files) != n_splits and not \
-                (is_ensemble_run and mode == ModelExecutionMode.TRAIN and len(files) == (n_splits - 1)):
+        # By default inference is not run on the training / val set for ensemble models but for test we might have the
+        # result on the test set as well for ensemble.
+        if len(files) != n_splits or (
+                is_ensemble_run and mode == ModelExecutionMode.TEST and len(files) != (n_splits + 1)):
             failing_modes.append(mode)
     if not failing_modes:
         return
