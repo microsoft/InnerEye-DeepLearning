@@ -599,8 +599,10 @@ class MLRunner:
         if config.perform_validation_and_test_set_inference:
             # perform inference on test set
             test_metrics = run_model_test(ModelExecutionMode.TEST)
-            # perform inference on validation set
-            val_metrics = run_model_test(ModelExecutionMode.VAL)
+            # perform inference on validation set (not for ensemble as current val is in the training fold
+            # for at least one of the models).
+            if model_proc != ModelProcessing.ENSEMBLE_CREATION:
+                val_metrics = run_model_test(ModelExecutionMode.VAL)
 
         if config.perform_training_set_inference:
             # perform inference on training set if required
@@ -692,7 +694,7 @@ class MLRunner:
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
         plot_crossval_config.outputs_directory = self.model_config.outputs_folder
         plot_crossval_config.azure_config = self.azure_config
-        cross_val_results_root = plot_cross_validation(plot_crossval_config, is_ensemble_run=True)
+        cross_val_results_root = plot_cross_validation(plot_crossval_config)
         if self.post_cross_validation_hook:
             self.post_cross_validation_hook(self.model_config, cross_val_results_root)
         # upload results to the parent run's outputs so that the files are visible inside the AzureML UI.
