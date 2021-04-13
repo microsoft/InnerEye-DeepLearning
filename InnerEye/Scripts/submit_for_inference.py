@@ -174,7 +174,8 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
                        # is then just the file relative to the data_folder
                        "--data_folder", image.parent.name,
                        "--image_files", image.name,
-                       "--use_dicom", str(args.use_dicom)],
+                       "--use_dicom", str(args.use_dicom),
+                       "--model_id", model_id],
         conda_dependencies_files=conda_files,
     )
     run_config = create_run_config(azure_config, source_config, environment_name=python_environment_name)
