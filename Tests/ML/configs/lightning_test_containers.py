@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Dict, List, Tuple, Any
+from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 import param
@@ -204,7 +204,11 @@ class DummyContainerWithModel(LightningContainer):
         return FixedRegressionData()
 
 
-class DummyContainerWithInvalidTrainerArguments(DummyContainerWithModel):
+class DummyContainerWithInvalidTrainerArguments(LightningContainer):
+
+    def create_model(self) -> LightningWithInference:
+        return DummyRegression()
+
     def get_trainer_arguments(self):
         return {"no_such_argument": 1}
 

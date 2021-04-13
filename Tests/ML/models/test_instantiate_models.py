@@ -172,7 +172,6 @@ def test_run_model_with_invalid_trainer_arguments(test_output_dirs: OutputFolder
     Test if the trainer_arguments in a LightningContainer are passed to the trainer.
     """
     container = DummyContainerWithInvalidTrainerArguments()
-    container.create_lightning_module_and_store()
     with pytest.raises(Exception) as ex:
-        model_train_unittest(container.model, dirs=test_output_dirs, lightning_container=container)
+        model_train_unittest(config=None, dirs=test_output_dirs, lightning_container=container)
     assert "no_such_argument" in str(ex)

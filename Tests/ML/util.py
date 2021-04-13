@@ -226,7 +226,7 @@ def get_default_workspace() -> Workspace:
     return get_default_azure_config().get_workspace()
 
 
-def model_train_unittest(config: DeepLearningConfig,
+def model_train_unittest(config: Optional[DeepLearningConfig],
                          dirs: OutputFolderForTests,
                          checkpoint_handler: Optional[CheckpointHandler] = None,
                          lightning_container: Optional[LightningContainer] = None) -> \

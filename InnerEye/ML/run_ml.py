@@ -132,7 +132,7 @@ def log_metrics(val_metrics: Optional[InferenceMetricsForSegmentation],
 class MLRunner:
 
     def __init__(self,
-                 model_config: Optional[DeepLearningConfig],
+                 model_config: Optional[DeepLearningConfig] = None,
                  azure_config: Optional[AzureConfig] = None,
                  container: Optional[LightningContainer] = None,
                  project_root: Optional[Path] = None,
@@ -158,7 +158,7 @@ class MLRunner:
         when running outside AzureML.
         """
         if model_config is not None and container is not None:
-            raise ValueError("One of the two arguments 'model_config', 'container' must be provided.")
+            raise ValueError("Only one of the two arguments 'model_config', 'container' must be provided.")
         self.model_config = model_config
         if container is None:
             assert isinstance(model_config, ModelConfigBase), \
