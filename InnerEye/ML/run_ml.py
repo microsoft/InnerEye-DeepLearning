@@ -339,6 +339,7 @@ class MLRunner:
         else:
             # Inference for all models that are specified via LightningContainers
             self.run_inference_for_lightning_models(checkpoint_handler.get_checkpoints_to_test(), trainer)
+            self.container.create_report()
 
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path], trainer: Optional[Trainer]) -> None:
         """
@@ -374,7 +375,7 @@ class MLRunner:
         elif type(lightning_model).test_step != LightningModule.test_step:
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
             logging.info("Running inference via the LightningModule.test_step method")
-            trainer = trainer or create_lightning_trainer(self.container)
+            trainer = trainer or create_lightning_trainer(self.container)[0]
             # When training models that are not built-in InnerEye models, we have no guarantee that they write
             # files to the right folder. Best guess is to change the current working directory to where files should go.
             with change_working_directory(self.container.outputs_folder):

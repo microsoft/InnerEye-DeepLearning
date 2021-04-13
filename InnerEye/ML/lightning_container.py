@@ -18,7 +18,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 
 from InnerEye.Common.generic_parsing import GenericConfig, create_from_matching_params
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.deep_learning_config import DatasetParams, EssentialParams, OptimizerParams, OutputParams, \
+from InnerEye.ML.deep_learning_config import DatasetParams, WorkflowParams, OptimizerParams, OutputParams, \
     TrainerParams, load_checkpoint
 # Do we want to support ensembles at inference time? Not now
 from InnerEye.ML.utils import model_util
@@ -201,7 +201,7 @@ class LightningWithInference(LightningModule, LightningInference):
 
 
 class LightningContainer(GenericConfig,
-                         EssentialParams,
+                         WorkflowParams,
                          DatasetParams,
                          OutputParams,
                          TrainerParams,
@@ -211,6 +211,10 @@ class LightningContainer(GenericConfig,
         super().__init__()
         self._model: Optional[LightningWithInference] = None
         self._model_name = type(self).__name__
+
+    def validate(self) -> None:
+        WorkflowParams.validate(self)
+        OptimizerParams.validate(self)
 
     def setup(self) -> None:
         """
@@ -258,6 +262,13 @@ class LightningContainer(GenericConfig,
         Gets additional parameters that will be passed on to the PL trainer.
         """
         return dict()
+
+    def create_report(self) -> None:
+        """
+        This method is called after training and testing has been completed. It can aggregate all files that were
+        written during training and testing, and compile them into some helpful overarching output.
+        """
+        pass
 
     def before_training_on_rank_zero(self) -> None:
         """

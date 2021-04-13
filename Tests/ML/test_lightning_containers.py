@@ -10,7 +10,7 @@ import pytest
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.deep_learning_config import ARGS_TXT, DatasetParams, EssentialParams
+from InnerEye.ML.deep_learning_config import ARGS_TXT, DatasetParams, WorkflowParams
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -90,7 +90,7 @@ def test_innereye_container_init() -> None:
     """
     # The constructor should copy all fields that belong to either EssentialParams or DatasetParams from the
     # config object to the container.
-    for (attrib, type_) in [("weights_url", EssentialParams), ("azure_dataset_id", DatasetParams)]:
+    for (attrib, type_) in [("weights_url", WorkflowParams), ("azure_dataset_id", DatasetParams)]:
         config = ModelConfigBase()
         assert hasattr(type_, attrib)
         assert hasattr(config, attrib)

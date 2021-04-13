@@ -187,7 +187,10 @@ class DeepLearningFileSystemConfig(Parameterized):
                          "inside the outputs folder.")
 
 
-class EssentialParams(param.Parameterized):
+class WorkflowParams(param.Parameterized):
+    """
+    This class contains all parameters that affect how the whole training and testing workflow is executed.
+    """
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     number_of_cross_validation_splits: int = param.Integer(0, bounds=(0, None),
                                                            doc="Number of cross validation splits for k-fold cross "
@@ -215,7 +218,6 @@ class EssentialParams(param.Parameterized):
     # The default multiprocessing start_method in both PyTorch and the Python standard library is "fork" for Linux and
     # "spawn" (the only available method) for Windows. There is some evidence that using "forkserver" on Linux
     # can reduce the chance of stuck jobs.
-    # TODO antonsc: Remove that.
     multiprocessing_start_method: MultiprocessingStartMethod = \
         param.ClassSelector(class_=MultiprocessingStartMethod,
                             default=(MultiprocessingStartMethod.spawn if is_windows()
@@ -226,6 +228,21 @@ class EssentialParams(param.Parameterized):
     monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
                                                             "statistics. If 0 or less, do not log any resource "
                                                             "statistics.")
+
+    def validate(self) -> None:
+        if self.weights_url and self.local_weights_path:
+            raise ValueError("Cannot specify both local_weights_path and weights_url.")
+
+        if self.number_of_cross_validation_splits == 1:
+            raise ValueError(f"At least two splits required to perform cross validation found "
+                             f"number_of_cross_validation_splits={self.number_of_cross_validation_splits}")
+        if 0 < self.number_of_cross_validation_splits <= self.cross_validation_split_index:
+            raise ValueError(f"Cross validation split index is out of bounds: {self.cross_validation_split_index}, "
+                             f"which is invalid for CV with {self.number_of_cross_validation_splits} splits.")
+        elif self.number_of_cross_validation_splits == 0 and self.cross_validation_split_index != -1:
+            raise ValueError(f"Cross validation split index must be -1 for a non cross validation run, "
+                             f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
+                             f"and cross_validation_split_index={self.cross_validation_split_index}")
 
     @property
     def is_offline_run(self) -> bool:
@@ -385,6 +402,20 @@ class OptimizerParams(param.Parameterized):
     momentum: float = param.Number(0.6, doc="The momentum parameter of the optimizers")
     weight_decay: float = param.Number(1e-4, doc="The weight decay used to control L2 regularization")
 
+    def validate(self) -> None:
+        if len(self.adam_betas) < 2:
+            raise ValueError(
+                "The adam_betas parameter should be the coefficients used for computing running averages of "
+                "gradient and its square")
+
+        if self.l_rate_scheduler == LRSchedulerType.MultiStep:
+            if not self.l_rate_multi_step_milestones:
+                raise ValueError("Must specify l_rate_multi_step_milestones to use LR scheduler MultiStep")
+            if sorted(set(self.l_rate_multi_step_milestones)) != self.l_rate_multi_step_milestones:
+                raise ValueError("l_rate_multi_step_milestones must be a strictly increasing list")
+            if self.l_rate_multi_step_milestones[0] <= 0:
+                raise ValueError("l_rate_multi_step_milestones cannot be negative or 0.")
+
     @property
     def min_l_rate(self) -> float:
         return self._min_l_rate
@@ -422,7 +453,7 @@ class TrainerParams(CudaAwareConfig):
                                                               " from a checkpoint.")
 
 
-class DeepLearningConfig(EssentialParams,
+class DeepLearningConfig(WorkflowParams,
                          DatasetParams,
                          OutputParams,
                          OptimizerParams,
@@ -518,35 +549,11 @@ class DeepLearningConfig(EssentialParams,
         """
         Validates the parameters stored in the present object.
         """
-        if len(self.adam_betas) < 2:
-            raise ValueError(
-                "The adam_betas parameter should be the coefficients used for computing running averages of "
-                "gradient and its square")
+        WorkflowParams.validate(self)
+        OptimizerParams.validate(self)
 
         if self.azure_dataset_id is None and self.local_dataset is None:
             raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
-
-        if self.weights_url and self.local_weights_path:
-            raise ValueError("Cannot specify both local_weights_path and weights_url.")
-
-        if self.number_of_cross_validation_splits == 1:
-            raise ValueError(f"At least two splits required to perform cross validation found "
-                             f"number_of_cross_validation_splits={self.number_of_cross_validation_splits}")
-        if 0 < self.number_of_cross_validation_splits <= self.cross_validation_split_index:
-            raise ValueError(f"Cross validation split index is out of bounds: {self.cross_validation_split_index}, "
-                             f"which is invalid for CV with {self.number_of_cross_validation_splits} splits.")
-        elif self.number_of_cross_validation_splits == 0 and self.cross_validation_split_index != -1:
-            raise ValueError(f"Cross validation split index must be -1 for a non cross validation run, "
-                             f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
-                             f"and cross_validation_split_index={self.cross_validation_split_index}")
-
-        if self.l_rate_scheduler == LRSchedulerType.MultiStep:
-            if not self.l_rate_multi_step_milestones:
-                raise ValueError("Must specify l_rate_multi_step_milestones to use LR scheduler MultiStep")
-            if sorted(set(self.l_rate_multi_step_milestones)) != self.l_rate_multi_step_milestones:
-                raise ValueError("l_rate_multi_step_milestones must be a strictly increasing list")
-            if self.l_rate_multi_step_milestones[0] <= 0:
-                raise ValueError("l_rate_multi_step_milestones cannot be negative or 0.")
 
     @property
     def model_category(self) -> ModelCategory:

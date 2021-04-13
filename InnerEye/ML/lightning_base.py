@@ -20,7 +20,7 @@ from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import DatasetParams, DeepLearningConfig, EssentialParams, OutputParams, \
+from InnerEye.ML.deep_learning_config import DatasetParams, DeepLearningConfig, WorkflowParams, OutputParams, \
     TrainerParams
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
@@ -119,7 +119,7 @@ class InnerEyeContainer(LightningContainer):
         self._model_name = config.model_name
         # Fields like cross validation index are defined at container level, but the InnerEye models define them
         # at model level. Copy everything over.
-        for type_to_copy in [EssentialParams, DatasetParams, TrainerParams, OutputParams]:
+        for type_to_copy in [WorkflowParams, DatasetParams, TrainerParams, OutputParams]:
             assert issubclass(type_to_copy, param.Parameterized)
             self.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},
                                  should_validate=False)

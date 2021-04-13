@@ -167,6 +167,20 @@ def test_load_container_with_arguments() -> None:
     assert "model_param" in str(ex)
 
 
+def test_load_invalid_container() -> None:
+    """
+    Test if we loading a container fails if one of the parameters is not valid.
+    """
+    DummyContainerWithParameters()
+    runner = default_runner()
+    args = ["", "--model=DummyContainerWithParameters", "--number_of_cross_validation_splits=1",
+            "--model_configs_namespace=Tests.ML.configs"]
+    with pytest.raises(ValueError) as ex:
+        with mock.patch("sys.argv", args):
+            runner.parse_and_load_model()
+    assert "number_of_cross_validation_splits=1" in str(ex)
+
+
 def test_run_model_with_invalid_trainer_arguments(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if the trainer_arguments in a LightningContainer are passed to the trainer.
