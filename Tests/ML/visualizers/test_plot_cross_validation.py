@@ -77,16 +77,9 @@ def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str) 
     full_folder = full_ml_test_data_path("plot_cross_validation") / folder
     files: List[RunResultFiles] = []
     previous_dataset_file = None
-    splits = ["0", "1", ENSEMBLE_SPLIT_NAME] if (full_folder / ENSEMBLE_SPLIT_NAME).exists() else ["0", "1"]
-    for split in splits:
+    for split in ["0", "1"]:
         for mode in config.execution_modes_to_download():
-            # Metrics coming from inference runs (test or ensemble) are stored in
-            # full_folder / split / best_epoch_validation / mode
-            if mode == ModelExecutionMode.TEST or split == ENSEMBLE_SPLIT_NAME:
-                metrics_file = full_folder / split / get_best_epoch_results_path(mode) / SUBJECT_METRICS_FILE_NAME
-            # Metrics stored during training are stored in full_folder / split / mode
-            else:
-                metrics_file = full_folder / split / mode.value / SUBJECT_METRICS_FILE_NAME
+            metrics_file = full_folder / split / mode.value / SUBJECT_METRICS_FILE_NAME
             dataset_file: Optional[Path] = full_folder / split / DATASET_CSV_FILE_NAME
             if dataset_file.exists():  # type: ignore
                 # Reduce amount of checked-in large files. dataset files can be large, and usually duplicate across
@@ -138,17 +131,6 @@ def load_result_files_for_classification() -> \
     )
     files = create_run_result_file_list(config=plotting_config,
                                         folder="HD_cfff5ceb-a227-41d6-a23c-0ebbc33b6301")
-    return files, plotting_config
-
-
-def load_result_files_for_classification_with_ensemble() -> Tuple[List[RunResultFiles], PlotCrossValidationConfig]:
-    plotting_config = PlotCrossValidationConfig(
-        run_recovery_id="local_branch:HD_88690fc6-b283-460d-8a86-105e3f0d18e1",
-        epoch=3,
-        model_category=ModelCategory.Classification
-    )
-    files = create_run_result_file_list(config=plotting_config,
-                                        folder="HD_88690fc6-b283-460d-8a86-105e3f0d18e1")
     return files, plotting_config
 
 
@@ -258,25 +240,6 @@ def test_check_result_file_counts() -> None:
     with pytest.raises(ValueError):
         check_result_file_counts(config_and_files3)
 
-
-def test_check_result_file_counts_with_ensemble() -> None:
-    """
-    More tests on the function that checks the number of files of each ModeExecutionMode,
-    when the CrossValFolder contains Test metrics and Ensemble metrics
-    """
-    files, plotting_config = load_result_files_for_classification_with_ensemble()
-    plotting_config.number_of_cross_validation_splits = 2
-    config_and_files = OfflineCrossvalConfigAndFiles(config=plotting_config, files=files)
-    # Should pass fine
-    check_result_file_counts(config_and_files, is_ensemble_run=True)
-    # For val & test we should have the ensemble result files
-    assert len([r for r in files if r.execution_mode == ModelExecutionMode.VAL]) == 3
-    assert len([r for r in files if r.execution_mode == ModelExecutionMode.TEST]) == 3
-    # For train we just have the result for individual folds, not for the ensemble (as we
-    # don't run inference on train set by default.
-    assert len([r for r in files if r.execution_mode == ModelExecutionMode.TRAIN]) == 2
-
-
 def test_result_aggregation_for_classification_all_epochs(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test how metrics are aggregated for classification models, when no epoch is specified.
@@ -291,7 +254,6 @@ def test_result_aggregation_for_classification_all_epochs(test_output_dirs: Outp
     _test_result_aggregation_for_classification(files, plotting_config,
                                                 expected_aggregate_metrics=expected_aggregates,
                                                 expected_epochs={1, 2, 3})
-
 
 @pytest.mark.after_training_ensemble_run
 def test_add_comparison_data(test_config_comparison: PlotCrossValidationConfig) -> None:
