@@ -13,9 +13,10 @@ import pytest
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.common_util import is_windows
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.reports.classification_report import ReportedMetrics, get_correct_and_misclassified_examples, \
     get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_labels_and_predictions, \
-    plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id
+    plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id, quantile
 from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
     generate_classification_notebook
 from InnerEye.ML.scalar_config import ScalarModelBase
@@ -108,6 +109,30 @@ def test_generate_classification_crossval_report(test_output_dirs: OutputFolderF
     assert result_html.suffix == ".html"
 
 
+def test_quantile() -> None:
+    data = np.array([[0., 2., 3., 5.],
+                     [4., 6., 7., 9.]])
+
+    result = quantile(data, .5, axis=0)
+    assert result.shape == (data.shape[1],)
+    assert np.allclose(result, np.array([2., 4., 5., 7.]))
+
+    result = quantile(data, .5, axis=1)
+    assert result.shape == (data.shape[0],)
+    assert np.allclose(result, np.array([2.5, 6.5]))
+
+    result = quantile(data, [.25, .5, .75], axis=0)
+    assert result.shape == (3, data.shape[1])
+    assert np.allclose(result, np.array([[1., 3., 4., 6.],
+                                         [2., 4., 5., 7.],
+                                         [3., 5., 6., 8.]]))
+
+    result = quantile(data, [.25, .5, .75], axis=1)
+    assert result.shape == (data.shape[0], 3)
+    assert np.allclose(result, np.array([[1.5, 2.5, 3.5],
+                                         [5.5, 6.5, 7.5]]))
+
+
 def test_get_labels_and_predictions() -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
@@ -137,6 +162,37 @@ def test_functions_with_invalid_csv(test_output_dirs: OutputFolderForTests) -> N
     with pytest.raises(ValueError) as ex:
         get_correct_and_misclassified_examples(val_metrics_file, invalid_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
     assert "Subject IDs should be unique" in str(ex)
+
+
+def test_get_labels_and_predictions_with_filters() -> None:
+    reports_folder = Path(__file__).parent
+    crossval_metrics_file = reports_folder / "crossval_metrics_classification.csv"
+
+    with pytest.raises(ValueError) as ex:
+        get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
+    assert "Subject IDs should be unique" in str(ex)
+
+    with pytest.raises(ValueError) as ex:
+        get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY,
+                                   crossval_split_index=0)
+    assert "Subject IDs should be unique" in str(ex)
+
+    with pytest.raises(ValueError) as ex:
+        get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY,
+                                   data_split=ModelExecutionMode.VAL)
+    assert "Subject IDs should be unique" in str(ex)
+
+    results = get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY,
+                                         crossval_split_index=0, data_split=ModelExecutionMode.VAL)
+    assert len(results.subject_ids) > 0, "Expected non-empty results for valid crossval_split_index and data_split"
+
+    results = get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY,
+                                         crossval_split_index=100, data_split=ModelExecutionMode.VAL)
+    assert len(results.subject_ids) == 0, "Expected empty results for unavailable crossval_split_index"
+
+    results = get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY,
+                                         crossval_split_index=0, data_split=ModelExecutionMode.TRAIN)
+    assert len(results.subject_ids) == 0, "Expected empty results for unavailable data_split"
 
 
 def test_get_metric() -> None:
