@@ -258,6 +258,7 @@ def test_check_result_file_counts() -> None:
     with pytest.raises(ValueError):
         check_result_file_counts(config_and_files3)
 
+
 def test_check_result_file_counts_with_ensemble() -> None:
     """
     More tests on the function that checks the number of files of each ModeExecutionMode,
@@ -274,6 +275,7 @@ def test_check_result_file_counts_with_ensemble() -> None:
     # For train we just have the result for individual folds, not for the ensemble (as we
     # don't run inference on train set by default.
     assert len([r for r in files if r.execution_mode == ModelExecutionMode.TRAIN]) == 2
+
 
 def test_result_aggregation_for_classification_all_epochs(test_output_dirs: OutputFolderForTests) -> None:
     """
