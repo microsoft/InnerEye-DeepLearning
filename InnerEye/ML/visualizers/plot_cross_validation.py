@@ -785,8 +785,8 @@ def check_result_file_counts(config_and_files: OfflineCrossvalConfigAndFiles, is
     for mode, files in result_files_by_mode.items():
         # By default inference is not run on the training / val set for ensemble models but for test we might have the
         # result on the test set as well for ensemble.
-        if len(files) != n_splits or (
-                is_ensemble_run and mode == ModelExecutionMode.TEST and len(files) != (n_splits + 1)):
+        if len(files) != n_splits and not (
+                is_ensemble_run and mode == ModelExecutionMode.TEST and len(files) == (n_splits + 1)):
             failing_modes.append(mode)
     if not failing_modes:
         return
