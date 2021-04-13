@@ -172,14 +172,16 @@ class MLRunner:
         self.output_subfolder = output_subfolder
         self._has_setup_run = False
 
-    def setup(self) -> None:
+    def setup(self, use_mount_or_download_dataset: bool = True) -> None:
         """
         If the present object is using one of the InnerEye built-in models, create a (fake) container for it
         and call the setup method. It sets the random seeds, and then creates the actual Lightning modules.
+        :param use_mount_or_download_dataset: If True, try to download or mount the dataset that is used by the model.
+        If False, assume that the dataset is already available (this should only be used for unit tests).
         """
         if self._has_setup_run:
             return
-        if not self.azure_config.only_register_model:
+        if (not self.azure_config.only_register_model) and use_mount_or_download_dataset:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
             # This must happen before container setup because that could already read datasets.

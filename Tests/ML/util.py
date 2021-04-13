@@ -244,7 +244,7 @@ def model_train_unittest(config: Optional[DeepLearningConfig],
     runner = MLRunner(model_config=config, container=lightning_container)
     # Setup will set random seeds before model creation, and set the model in the container.
     # It will also set random seeds correctly. Later we use so initialized container.
-    runner.setup()
+    runner.setup(use_mount_or_download_dataset=False)
     if checkpoint_handler is None:
         azure_config = get_default_azure_config()
         checkpoint_handler = CheckpointHandler(azure_config=azure_config,
