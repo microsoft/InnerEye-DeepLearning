@@ -49,7 +49,9 @@ class ScorePipelineConfig(GenericConfig):
                                                "containing a set of DICOM files.")
     result_zip_dicom_name: str = param.String(DEFAULT_RESULT_ZIP_DICOM_NAME,
                                               doc="The name of the zipped DICOM-RT file if use_dicom set.")
-    model_id: str = param.String(allow_None=False, doc="The AzureML model ID.")
+    model_id: str = param.String(allow_None=False,
+                                 doc="The AzureML model ID. This is added to the SoftwareVersions DICOM tag in the "
+                                     "DICOM-RT output")
 
 
 def init_from_model_inference_json(model_folder: Path, use_gpu: bool = True) -> Tuple[FullImageInferencePipelineBase,
