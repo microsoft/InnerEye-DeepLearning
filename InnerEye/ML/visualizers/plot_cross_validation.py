@@ -34,7 +34,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, down
     is_offline_run_context, is_parent_run
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
-from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
+from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     FULL_METRICS_DATAFRAME_FILE, \
     METRICS_AGGREGATES_FILE, OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
@@ -362,8 +362,9 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
         parent = config.azure_config.fetch_run(run_recovery_id)
         runs_to_evaluate = fetch_child_runs(
             run=parent, expected_number_cross_validation_splits=config.number_of_cross_validation_splits)
-        logging.info("Adding parent run to the list of runs to evaluate.")
-        runs_to_evaluate.append(parent)
+        if config.model_category == ModelCategory.Segmentation:
+            logging.info("Segmentation run: Adding parent run to the list of runs to evaluate for ensemble metrics.")
+            runs_to_evaluate.append(parent)
         logging.info(f"Will evaluate results for runs: {[x.id for x in runs_to_evaluate]}")
     else:
         runs_to_evaluate = []
@@ -798,25 +799,21 @@ def check_result_file_counts(config_and_files: OfflineCrossvalConfigAndFiles, is
     raise ValueError(f"Unexpected number(s) of runs to evaluate for mode(s) {mode_string}")
 
 
-def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndFiles,
-                                     root_folder: Path,
-                                     is_ensemble_run: bool = False) -> None:
+def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndFiles, root_folder: Path) -> None:
     """
     Runs various plots for the results of a cross validation run, and writes them to a given folder.
     :param config_and_files: The setup for plotting results and the set of data files to analyse.
     :param root_folder: The folder into which the results should be written.
-    :param is_ensemble_run: If True, assume that this run of cross validation analysis is for an ensemble model
-    and assert that there are N+1 data files available. If false, this analysis only concerns the cross
-    validation runs, and check that the number of files is N.
     """
     config = config_and_files.config
+    is_segmentation_run = config.model_category == ModelCategory.Segmentation
     if config.number_of_cross_validation_splits > 1:
-        check_result_file_counts(config_and_files, is_ensemble_run=is_ensemble_run)
+        check_result_file_counts(config_and_files, is_ensemble_run=is_segmentation_run)
     result_files = config_and_files.files
     metrics_dfs = load_dataframes(result_files, config)
     full_csv_file = root_folder / FULL_METRICS_DATAFRAME_FILE
     initial_metrics = pd.concat(list(metrics_dfs.values()))
-    if config.model_category == ModelCategory.Segmentation:
+    if is_segmentation_run:
         if config.create_plots:
             plot_metrics(config, metrics_dfs, root_folder)
         save_outliers(config, metrics_dfs, root_folder)
@@ -824,8 +821,7 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
         all_metrics.to_csv(full_csv_file, index=False)
         run_statistical_tests_on_file(root_folder, full_csv_file, config, focus_splits)
     else:
-        # For classification runs, we also want to compute the aggregated training metrics for
-        # each fold.
+        # For classification runs, we also want to compute the aggregated training metrics for each fold.
         metrics = ScalarMetricsDict.load_execution_mode_metrics_from_df(
             initial_metrics,
             config.model_category == ModelCategory.Classification)
@@ -896,11 +892,9 @@ def unroll_aggregate_metrics(df: pd.DataFrame) -> List[EpochMetricValues]:
     return result
 
 
-# In runner we set is_ensemble_run = True always.
-def plot_cross_validation(config: PlotCrossValidationConfig, is_ensemble_run: bool = False) -> Path:
+def plot_cross_validation(config: PlotCrossValidationConfig) -> Path:
     """
     Collects results from an AzureML cross validation run, and writes aggregate metrics files.
-    :param is_ensemble_run: If True, assume that this run of cross validation analysis is for an ensemble model
     and assert that there are N+1 data files available. If false, this analysis only concerns the cross
     validation runs, and check that the number of files is N.
     :param config: The settings for plotting cross validation results.
@@ -911,7 +905,7 @@ def plot_cross_validation(config: PlotCrossValidationConfig, is_ensemble_run: bo
         result_files, root_folder = download_crossval_result_files(config)
     config_and_files = OfflineCrossvalConfigAndFiles(config=config, files=result_files)
     with logging_section("Plotting cross-validation results"):
-        plot_cross_validation_from_files(config_and_files, root_folder, is_ensemble_run=is_ensemble_run)
+        plot_cross_validation_from_files(config_and_files, root_folder)
     return root_folder
 
 
