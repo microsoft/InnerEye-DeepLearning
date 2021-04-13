@@ -21,7 +21,7 @@ from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.Common.metrics_constants import INTERNAL_TO_LOGGING_COLUMN_NAMES, LoggingColumns, MetricType, \
     MetricTypeOrStr, SEQUENCE_POSITION_HUE_NAME_PREFIX
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.scalar_config import DEFAULT_HUE_KEY_NAME
+from InnerEye.ML.scalar_config import DEFAULT_KEY
 from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, \
     mean_squared_error, r2_score
 
@@ -183,7 +183,7 @@ class MetricsDict:
     structure, to perform independent aggregations.
     """
 
-    DEFAULT_HUE_KEY = DEFAULT_HUE_KEY_NAME
+    DEFAULT_HUE_KEY = DEFAULT_KEY
     # the columns used when metrics dict is converted to a data frame/string representation
     DATAFRAME_COLUMNS = [LoggingColumns.Hue.value, "metrics"]
 

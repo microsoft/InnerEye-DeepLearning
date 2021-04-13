@@ -20,8 +20,7 @@ from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExe
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
-KEY_FOR_DEFAULT_CHANNEL = "default"
-DEFAULT_HUE_KEY_NAME = "Default"
+DEFAULT_KEY = "Default"
 
 class AggregationType(Enum):
     """
@@ -286,7 +285,7 @@ class ScalarModelBase(ModelConfigBase):
             return {}
 
         if isinstance(self.non_image_feature_channels, List):
-            non_image_feature_channels_dict = {KEY_FOR_DEFAULT_CHANNEL: self.non_image_feature_channels}
+            non_image_feature_channels_dict = {DEFAULT_KEY: self.non_image_feature_channels}
         else:
             non_image_feature_channels_dict = self.non_image_feature_channels.copy()
         all_non_image_features = self.numerical_columns.copy()
@@ -297,12 +296,12 @@ class ScalarModelBase(ModelConfigBase):
         for column in all_non_image_features:
             if column not in self.non_image_feature_channels:
                 try:
-                    non_image_feature_channels_dict[column] = non_image_feature_channels_dict[KEY_FOR_DEFAULT_CHANNEL]
+                    non_image_feature_channels_dict[column] = non_image_feature_channels_dict[DEFAULT_KEY]
                 except KeyError:
                     raise KeyError(f"The column {column} is not present in the non_image_features dictionary and the"
-                                   f"default key {KEY_FOR_DEFAULT_CHANNEL} is missing.")
+                                   f"default key {DEFAULT_KEY} is missing.")
         # Delete default key
-        non_image_feature_channels_dict.pop(KEY_FOR_DEFAULT_CHANNEL, None)
+        non_image_feature_channels_dict.pop(DEFAULT_KEY, None)
         return non_image_feature_channels_dict
 
     def filter_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -448,7 +447,7 @@ def get_non_image_features_dict(default_channels: List[str],
     :param specific_channels: a dictionary mapping feature names to channels for all features that do
     not use the default channels
     """
-    non_imaging_features_dict = {KEY_FOR_DEFAULT_CHANNEL: default_channels}
+    non_imaging_features_dict = {DEFAULT_KEY: default_channels}
     if specific_channels is not None:
         non_imaging_features_dict.update(specific_channels)
     return non_imaging_features_dict
