@@ -22,7 +22,6 @@ from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, OptimizerType
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
-from InnerEye.ML.models.architectures.classification.model_paper_glaucoma import ModelFromPaper
 from InnerEye.ML.models.architectures.complex import ComplexModel
 from InnerEye.ML.models.architectures.unet_2d import UNet2D
 from InnerEye.ML.models.architectures.unet_3d import UNet3D

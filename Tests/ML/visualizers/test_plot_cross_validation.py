@@ -133,6 +133,17 @@ def load_result_files_for_classification() -> \
     return files, plotting_config
 
 
+def load_result_files_for_classification_with_ensemble() -> Tuple[List[RunResultFiles], PlotCrossValidationConfig]:
+    plotting_config = PlotCrossValidationConfig(
+        run_recovery_id="local_branch:HD_88690fc6-b283-460d-8a86-105e3f0d18e1",
+        epoch=3,
+        model_category=ModelCategory.Classification
+    )
+    files = create_run_result_file_list(config=plotting_config,
+                                        folder="HD_88690fc6-b283-460d-8a86-105e3f0d18e1")
+    return files, plotting_config
+
+
 def test_metrics_preparation_for_classification() -> None:
     """
     Test if metrics from classification models can be loaded and prepared. The files in question are checked in,
@@ -218,7 +229,8 @@ def test_check_result_file_counts() -> None:
     """
     More tests on the function that checks the number of files of each ModeExecutionMode.
     """
-    val_files, plotting_config = load_result_files_for_classification()
+    val_files, plotting_config = load_result_files_for_classification_with_ensemble() if with_ensemble_run else \
+        load_result_files_for_classification()
     # This test assumes that the loaded val_files all have mode Val
     assert all(file.execution_mode == ModelExecutionMode.VAL for file in val_files)
     plotting_config.number_of_cross_validation_splits = len(val_files)
@@ -239,6 +251,20 @@ def test_check_result_file_counts() -> None:
     with pytest.raises(ValueError):
         check_result_file_counts(config_and_files3)
 
+def test_check_result_file_counts_with_ensemble() -> None:
+    """
+    More tests on the function that checks the number of files of each ModeExecutionMode.
+    """
+    files, plotting_config = load_result_files_for_classification_with_ensemble()
+    plotting_config.number_of_cross_validation_splits = 2
+    config_and_files = OfflineCrossvalConfigAndFiles(config=plotting_config, files=files)
+    # Should pass fine
+    check_result_file_counts(config_and_files)
+    # For val & test we should have the ensemble result files
+    assert len([r for r in files if r.execution_mode == ModelExecutionMode.VAL]) == 3
+    assert len([r for r in files if r.execution_mode == ModelExecutionMode.TEST]) == 3
+    # For train we just have the result for individual folds
+    assert len([r for r in files if r.execution_mode == ModelExecutionMode.TRAIN]) == 2
 
 def test_result_aggregation_for_classification_all_epochs(test_output_dirs: OutputFolderForTests) -> None:
     """
