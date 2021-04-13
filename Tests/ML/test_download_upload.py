@@ -16,6 +16,7 @@ from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_section,
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
@@ -127,18 +128,16 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
                                         local_dataset: Optional[Path],
                                         azure_dataset: str,
                                         is_lightning_model: bool) -> LightningContainer:
-    config: Optional[DeepLearningConfig]
-    container: Optional[LightningContainer]
+    config: Optional[DeepLearningConfig] = None
+    container: Optional[LightningContainer] = None
     if is_lightning_model:
         container = DummyContainerWithDatasets()
         container.azure_dataset_id = azure_dataset
         container.local_dataset = local_dataset
-        config = None
     else:
         config = DummyModel()
         config.azure_dataset_id = azure_dataset
         config.local_dataset = local_dataset
-        container = None
     # The legacy InnerEye models require an existing dataset_csv file present in the dataset folder. Create that.
     download_path = test_output_dirs.root_dir / "downloaded"
     mount_path = test_output_dirs.root_dir / "mounted"
@@ -155,28 +154,24 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
                 return runner.container
 
 
-@pytest.mark.parametrize(("is_offline_run", "is_lightning_model", "expected_error"),
+@pytest.mark.parametrize(("is_lightning_model", "expected_error"),
                          [
                              # A built-in InnerEye model must have either local dataset or azure dataset provided.
-                             (True, False, "The model must contain either local_dataset or azure_dataset_id"),
+                             (False, "The model must contain either local_dataset or azure_dataset_id"),
                              # ... but this is OK for Lightning container models. A Lightning container could simply
                              # download its data from the web before training.
-                             (True, True, ""),
-                             # A built-in InnerEye model must have an azure dataset provided when running in AzureML
-                             (False, False, "The model must contain azure_dataset_id for running on AML"),
-                             # ... but this is OK for Lightning container models.
-                             (False, True, "")])
-def test_mount_failing(test_output_dirs: OutputFolderForTests,
-                       is_offline_run: bool,
-                       is_lightning_model: bool,
-                       expected_error: str):
+                             (True, "")
+                         ])
+def test_mount_failing_offline_runs(test_output_dirs: OutputFolderForTests,
+                                    is_lightning_model: bool,
+                                    expected_error: str):
     """
-    Test cases when MLRunner.mount_or_download_dataset raises an exception.
+    Test cases when MLRunner.mount_or_download_dataset raises an exception, when running outside AzureML.
     """
 
     def run() -> Any:
         return _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
-                                                   is_offline_run=is_offline_run,
+                                                   is_offline_run=True,
                                                    local_dataset=None,
                                                    azure_dataset="",
                                                    is_lightning_model=is_lightning_model)
@@ -187,6 +182,30 @@ def test_mount_failing(test_output_dirs: OutputFolderForTests,
         assert expected_error in str(ex)
     else:
         assert run().local_dataset is None
+
+
+def test_mount_in_azureml1(test_output_dirs: OutputFolderForTests):
+    """
+    Test cases when MLRunner.mount_or_download_dataset runs inside AzureML.
+    """
+    container = _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
+                                                    is_offline_run=False,
+                                                    local_dataset=None,
+                                                    azure_dataset="foo",
+                                                    is_lightning_model=False)
+    assert "mounted" in str(container.local_dataset)
+
+
+def test_mount_in_azureml2(test_output_dirs: OutputFolderForTests):
+    """
+    Test cases when MLRunner.mount_or_download_dataset runs inside AzureML.
+    """
+    container = _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
+                                                    is_offline_run=False,
+                                                    local_dataset=None,
+                                                    azure_dataset="",
+                                                    is_lightning_model=True)
+    assert container.local_dataset is None
 
 
 def test_mount_or_download(test_output_dirs: OutputFolderForTests) -> None:

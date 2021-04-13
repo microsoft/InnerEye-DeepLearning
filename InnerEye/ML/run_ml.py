@@ -440,11 +440,11 @@ class MLRunner:
         """
         azure_dataset_id = self.container.azure_dataset_id
         local_dataset = self.container.local_dataset
-        # A dataset, either local or in Azure, is required for the built-in InnerEye models. When models are
-        # specified via a LightningContainer, these dataset fields are optional, because the container datasets
-        # could be downloaded even from the web.
-        is_dataset_required = isinstance(self.container, InnerEyeContainer)
         if self.is_offline_run:
+            # A dataset, either local or in Azure, is required for the built-in InnerEye models. When models are
+            # specified via a LightningContainer, these dataset fields are optional, because the container datasets
+            # could be downloaded even from the web.
+            is_dataset_required = isinstance(self.container, InnerEyeContainer)
             # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
             # Otherwise, download the dataset specified by the azure_dataset_id
             if is_dataset_required:
@@ -466,8 +466,6 @@ class MLRunner:
             return None
 
         # Inside of AzureML, datasets can be either mounted or downloaded.
-        if is_dataset_required and not azure_dataset_id:
-            raise ValueError("The model must contain azure_dataset_id for running on AML")
         if azure_dataset_id:
             mounted = try_to_mount_input_dataset()
             if not mounted:
