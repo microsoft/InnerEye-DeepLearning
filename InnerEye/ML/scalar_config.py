@@ -16,13 +16,12 @@ from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.common import ModelExecutionMode, OneHotEncoderBase
 from InnerEye.ML.deep_learning_config import ModelCategory
-from InnerEye.ML.metrics_dict import MetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 KEY_FOR_DEFAULT_CHANNEL = "default"
-
+DEFAULT_HUE_KEY_NAME = "Default"
 
 class AggregationType(Enum):
     """
@@ -104,7 +103,7 @@ class LabelTransformation(Enum):
 
 class ScalarModelBase(ModelConfigBase):
     class_names: List[str] = param.List(class_=str,
-                                        default=[MetricsDict.DEFAULT_HUE_KEY],
+                                        default=[DEFAULT_HUE_KEY_NAME],
                                         bounds=(1, None),
                                         doc="The label names for each label class in the dataset and model output "
                                             "in the case of binary and multi-label classification tasks."
