@@ -72,6 +72,7 @@ class HelloWorld(SegmentationModelBase):
             # Post-processing - in this section we define our post processing configurations, in this case
             # we are filling holes in the generated segmentation masks for all of the foreground classes.
             fill_holes=[True] * len(fg_classes),
+            roi_interpreted_types=["ORGAN"] * len(fg_classes),
 
             # Output - in this section we define settings that determine how our output looks like in this case
             # we define the structure names and colours to use.
