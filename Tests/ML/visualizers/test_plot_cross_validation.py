@@ -11,8 +11,9 @@ from azureml.core import Run
 from pandas.core.dtypes.common import is_string_dtype
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
-from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    SUBJECT_METRICS_FILE_NAME, logging_to_stdout
+from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE, \
+    METRICS_AGGREGATES_FILE, \
+    SUBJECT_METRICS_FILE_NAME, get_epoch_results_path, logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns
@@ -76,9 +77,16 @@ def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str) 
     full_folder = full_ml_test_data_path("plot_cross_validation") / folder
     files: List[RunResultFiles] = []
     previous_dataset_file = None
-    for split in ["0", "1"]:
+    splits = ["0", "1", ENSEMBLE_SPLIT_NAME] if (full_folder / ENSEMBLE_SPLIT_NAME).exists() else ["0", "1"]
+    for split in splits:
         for mode in config.execution_modes_to_download():
-            metrics_file = full_folder / split / mode.value / SUBJECT_METRICS_FILE_NAME
+            # Metrics coming from inference runs (test or ensemble) are stored in
+            # full_folder / split / best_epoch_validation / mode
+            if mode == ModelExecutionMode.TEST or split == ENSEMBLE_SPLIT_NAME:
+                metrics_file = full_folder / split / get_epoch_results_path(mode) / SUBJECT_METRICS_FILE_NAME
+            # Metrics stored during training are stored in full_folder / split / mode
+            else:
+                metrics_file = full_folder / split / mode.value / SUBJECT_METRICS_FILE_NAME
             dataset_file: Optional[Path] = full_folder / split / DATASET_CSV_FILE_NAME
             if dataset_file.exists():  # type: ignore
                 # Reduce amount of checked-in large files. dataset files can be large, and usually duplicate across
@@ -252,17 +260,19 @@ def test_check_result_file_counts() -> None:
 
 def test_check_result_file_counts_with_ensemble() -> None:
     """
-    More tests on the function that checks the number of files of each ModeExecutionMode.
+    More tests on the function that checks the number of files of each ModeExecutionMode,
+    when the CrossValFolder contains Test metrics and Ensemble metrics
     """
     files, plotting_config = load_result_files_for_classification_with_ensemble()
     plotting_config.number_of_cross_validation_splits = 2
     config_and_files = OfflineCrossvalConfigAndFiles(config=plotting_config, files=files)
     # Should pass fine
-    check_result_file_counts(config_and_files)
+    check_result_file_counts(config_and_files, is_ensemble_run=True)
     # For val & test we should have the ensemble result files
     assert len([r for r in files if r.execution_mode == ModelExecutionMode.VAL]) == 3
     assert len([r for r in files if r.execution_mode == ModelExecutionMode.TEST]) == 3
-    # For train we just have the result for individual folds
+    # For train we just have the result for individual folds, not for the ensemble (as we
+    # don't run inference on train set by default.
     assert len([r for r in files if r.execution_mode == ModelExecutionMode.TRAIN]) == 2
 
 def test_result_aggregation_for_classification_all_epochs(test_output_dirs: OutputFolderForTests) -> None:
