@@ -16,8 +16,7 @@ from InnerEye.ML.dataset.cropping_dataset import CroppingDataset
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import Sample
 from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
-from InnerEye.ML.utils import augmentation, io_util, ml_util
-from InnerEye.ML.utils.config_loader import ModelConfigLoader
+from InnerEye.ML.utils import augmentation, io_util
 # The name of the folder inside the default outputs folder that will holds plots that show the effect of
 # sampling random patches
 from InnerEye.ML.utils.image_util import get_unit_image_header
