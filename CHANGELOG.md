@@ -10,10 +10,12 @@ created.
  
 ## Upcoming
 
-### Added 
+### Added
 - ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417)) Added a generic way of adding PyTorch Lightning
 models to the toolbox. It is now possible to train almost any Lightning model with the InnerEye toolbox in AzureML,
 with only minimum code changes required. See [the MD documentation](docs/bring_your_own_model.md) for details.
+- ([#430](https://github.com/microsoft/InnerEye-DeepLearning/pull/430)) Update conversion to 1.0.1 InnerEye-DICOM-RT to add:  manufacturer, 
+  SoftwareVersions, Interpreter and ROIInterpretedTypes.
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Add the ability to train a model on multiple
 nodes in AzureML. Example: Add `--num_nodes=2` to the commandline arguments to train on 2 nodes.
 - ([#366](https://github.com/microsoft/InnerEye-DeepLearning/pull/366)) and

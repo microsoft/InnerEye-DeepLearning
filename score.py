@@ -49,6 +49,9 @@ class ScorePipelineConfig(GenericConfig):
                                                "containing a set of DICOM files.")
     result_zip_dicom_name: str = param.String(DEFAULT_RESULT_ZIP_DICOM_NAME,
                                               doc="The name of the zipped DICOM-RT file if use_dicom set.")
+    model_id: str = param.String(allow_None=False,
+                                 doc="The AzureML model ID. This is added to the SoftwareVersions DICOM tag in the "
+                                     "DICOM-RT output")
 
 
 def init_from_model_inference_json(model_folder: Path, use_gpu: bool = True) -> Tuple[FullImageInferencePipelineBase,
@@ -195,7 +198,7 @@ def convert_rgb_colour_to_hex(colour: TupleInt3) -> str:
 
 
 def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, scratch_folder: Path,
-                                     config: SegmentationModelBase, dicom_rt_zip_file_name: str) -> Path:
+                                     config: SegmentationModelBase, dicom_rt_zip_file_name: str, model_id: str) -> Path:
     """
     Given a Nifti file and a reference DICOM series, create zip file containing a DICOM-RT file.
 
@@ -208,6 +211,7 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, s
     :param scratch_folder: Scratch folder to extract files into.
     :param config: Model config.
     :param dicom_rt_zip_file_name: Target DICOM-RT zip file name, ending in .dcm.zip.
+    :param model_id: The AzureML model ID <model_name>:<ID>
     :return: Path to DICOM-RT file.
     """
     dicom_rt_file_path = scratch_folder / Path(dicom_rt_zip_file_name).with_suffix("")
@@ -217,7 +221,12 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, s
         out_file=dicom_rt_file_path,
         struct_names=config.ground_truth_ids_display_names,
         struct_colors=[convert_rgb_colour_to_hex(rgb) for rgb in config.colours],
-        fill_holes=config.fill_holes)
+        fill_holes=config.fill_holes,
+        roi_interpreted_types=config.roi_interpreted_types,
+        manufacturer=config.manufacturer,
+        interpreter=config.interpreter,
+        modelId=model_id
+    )
     # Log stdout, stderr from DICOM-RT conversion.
     logging.debug("stdout: %s", stdout)
     logging.debug("stderr: %s", stderr)
@@ -285,7 +294,7 @@ def score_image(args: ScorePipelineConfig) -> Path:
 
     if args.use_dicom:
         result_dst = convert_nifti_to_zipped_dicom_rt(result_dst, reference_series_folder, model_folder,
-                                                      config, args.result_zip_dicom_name)
+                                                      config, args.result_zip_dicom_name, args.model_id)
 
     if not is_offline_run_context(run_context):
         upload_file_name = args.result_zip_dicom_name if args.use_dicom else args.result_image_name
