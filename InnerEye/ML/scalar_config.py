@@ -102,7 +102,7 @@ class LabelTransformation(Enum):
 
 class ScalarModelBase(ModelConfigBase):
     class_names: List[str] = param.List(class_=str,
-                                        default=[DEFAULT_HUE_KEY_NAME],
+                                        default=[DEFAULT_KEY],
                                         bounds=(1, None),
                                         doc="The label names for each label class in the dataset and model output "
                                             "in the case of binary and multi-label classification tasks."
