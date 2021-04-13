@@ -33,6 +33,7 @@ class GbmBase(SegmentationModelBase):
             ground_truth_ids_display_names=fg_classes,
             colours=[(255, 255, 255)] * len(fg_classes),
             fill_holes=[False] * len(fg_classes),
+            roi_interpreted_types=["ORGAN"] * len(fg_classes),
             num_dataload_workers=8,
             mask_id=None,
             norm_method=PhotometricNormalizationMethod.MriWindow,
