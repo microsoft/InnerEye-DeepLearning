@@ -15,7 +15,7 @@ import torch
 
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, METRICS_AGGREGATES_FILE, \
-    SUBJECT_METRICS_FILE_NAME, get_epoch_results_path, logging_to_stdout
+    SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -135,7 +135,7 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     check_log_file(metrics_path, metrics_expected, ignore_columns=[])
     # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
     # Normally, we would run it on the Test and Val splits, but for convenience we test on the train split here.
-    inference_metrics_path = config.outputs_folder / get_epoch_results_path(ModelExecutionMode.TRAIN) / \
+    inference_metrics_path = config.outputs_folder / get_best_epoch_results_path(ModelExecutionMode.TRAIN) / \
                              SUBJECT_METRICS_FILE_NAME
     inference_metrics_expected = \
         f"""prediction_target,subject,model_output,label,cross_validation_split_index,data_split
@@ -207,7 +207,7 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
                                                             hue=class_name), 1e-4)
 
     def get_epoch_path(mode: ModelExecutionMode) -> Path:
-        p = get_epoch_results_path(mode=mode)
+        p = get_best_epoch_results_path(mode=mode)
         return config.outputs_folder / p / SUBJECT_METRICS_FILE_NAME
 
     path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)

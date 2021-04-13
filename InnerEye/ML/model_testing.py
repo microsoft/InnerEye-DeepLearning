@@ -15,7 +15,7 @@ import numpy as np
 
 from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
 from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, ModelProcessing, SUBJECT_METRICS_FILE_NAME, \
-    get_epoch_results_path, is_linux, logging_section
+    get_best_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.metrics_constants import MetricType, MetricsFileColumns
 from InnerEye.ML import metrics, plotting
@@ -91,7 +91,7 @@ def segmentation_model_test(config: SegmentationModelBase,
     if not checkpoints_to_test:
         raise ValueError("There were no checkpoints available for model testing.")
 
-    epoch_results_folder = config.outputs_folder / get_epoch_results_path(data_split, model_proc)
+    epoch_results_folder = config.outputs_folder / get_best_epoch_results_path(data_split, model_proc)
     # save the datasets.csv used
     config.write_dataset_files(root=epoch_results_folder)
     epoch_and_split = f"{data_split.value} set"
@@ -108,7 +108,7 @@ def segmentation_model_test(config: SegmentationModelBase,
         logging.info(f"Mean Dice: {epoch_average_dice:4f}")
         if model_proc == ModelProcessing.ENSEMBLE_CREATION:
             # For the upload, we want the path without the "OTHER_RUNS/ENSEMBLE" prefix.
-            name = str(get_epoch_results_path(data_split, ModelProcessing.DEFAULT))
+            name = str(get_best_epoch_results_path(data_split, ModelProcessing.DEFAULT))
             PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
     return InferenceMetricsForSegmentation(data_split=data_split, metrics=result)
 
@@ -452,7 +452,7 @@ def classification_model_test(config: ScalarModelBase,
         raise ValueError("There was no single checkpoint file available for model testing.")
     else:
         if isinstance(result, ScalarMetricsDict):
-            results_folder = config.outputs_folder / get_epoch_results_path(data_split, model_proc)
+            results_folder = config.outputs_folder / get_best_epoch_results_path(data_split, model_proc)
             csv_file = results_folder / SUBJECT_METRICS_FILE_NAME
 
             logging.info(f"Writing {data_split.value} metrics to file {str(csv_file)}")

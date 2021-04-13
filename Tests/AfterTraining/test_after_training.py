@@ -25,7 +25,7 @@ from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
 from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, get_comparison_baseline_paths, \
     is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
-from InnerEye.Common.common_util import get_epoch_results_path
+from InnerEye.Common.common_util import get_best_epoch_results_path
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME, \
     PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
@@ -131,7 +131,7 @@ def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
     Check that metrics.csv and dataset.csv are created after the second epoch, if running on Azure.
     """
     run = get_most_recent_run()
-    blob_path = get_epoch_results_path(ModelExecutionMode.TEST)
+    blob_path = get_best_epoch_results_path(ModelExecutionMode.TEST)
     (comparison_dataset_path, comparison_metrics_path) = get_comparison_baseline_paths(test_output_dirs.root_dir,
                                                                                        blob_path, run,
                                                                                        DATASET_CSV_FILE_NAME)

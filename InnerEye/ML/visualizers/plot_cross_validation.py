@@ -43,7 +43,7 @@ from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, ModelCategory
 from InnerEye.ML.metrics_dict import DataframeLogger, ScalarMetricsDict
-from InnerEye.ML.model_testing import SUBJECT_METRICS_FILE_NAME, get_epoch_results_path
+from InnerEye.ML.model_testing import SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER, CSV_SUBJECT_HEADER, OutlierType, \
     extract_outliers
 from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_directory
@@ -327,7 +327,7 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     if config.model_category.is_scalar and is_train_or_val and not is_ensemble_run:
         src = Path(mode.value) / SUBJECT_METRICS_FILE_NAME
     else:
-        src = get_epoch_results_path(mode) / SUBJECT_METRICS_FILE_NAME
+        src = get_best_epoch_results_path(mode) / SUBJECT_METRICS_FILE_NAME
     local_src_subdir = Path(OTHER_RUNS_SUBDIR_NAME) / ENSEMBLE_SPLIT_NAME if is_ensemble_run else None
     return config.download_or_get_local_file(
         blob_to_download=src,
@@ -896,6 +896,7 @@ def unroll_aggregate_metrics(df: pd.DataFrame) -> List[EpochMetricValues]:
     return result
 
 
+# In runner we set is_ensemble_run = True always.
 def plot_cross_validation(config: PlotCrossValidationConfig, is_ensemble_run: bool = False) -> Path:
     """
     Collects results from an AzureML cross validation run, and writes aggregate metrics files.
