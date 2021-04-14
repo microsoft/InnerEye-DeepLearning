@@ -447,7 +447,6 @@ class TrainerParams(CudaAwareConfig):
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
                           "you may see training speed increases.")
-    # TODO antonsc: This should be removed.
     start_epoch: int = param.Integer(0, bounds=(0, None), doc="The first epoch to train. Set to 0 to start a new "
                                                               "training. Set to a value larger than zero for starting"
                                                               " from a checkpoint.")

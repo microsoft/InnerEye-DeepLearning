@@ -18,37 +18,12 @@ from torch.optim.lr_scheduler import _LRScheduler
 
 from InnerEye.Common.generic_parsing import GenericConfig, create_from_matching_params
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.deep_learning_config import DatasetParams, WorkflowParams, OptimizerParams, OutputParams, \
-    TrainerParams, load_checkpoint
+from InnerEye.ML.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
+    WorkflowParams, load_checkpoint
 # Do we want to support ensembles at inference time? Not now
 from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 
-
-# Biggest problem: We don't want to rely on torch being available when submitting a job.
-# A simple conda env costs 1min 30sec to create, the full one 4min 30sec in Linux.
-# Could rely on only the class name when submitting to check that the model exists, skipping checks for
-# the commandline overrides. Or better: Try to instantiate the class. If we can, all good. If not, just check that
-# the python file exists, but proceed to submission. This will work fine for everyone working off the commandline.
-# flake8: noqa
-# What do we want from InnerEye?
-# - datasets (optional - this means all dataset fields can potentially be left empty)
-# - Do we want ensembles?
-# - checkpoint recovery: checkpoints must be written to
-# We are inheriting from LightningModule here, this will fail in the smaller environment
-# Goals:
-# run experiments by config name
-# AzureML submission framework
-# Consuming datasets from Azure blob storage
-
-# rename from inference_... to test_step
-# How to define parameters?
-# Can we simplify score.py by re-using code here?
-# automatic regression testing
-
-# We can restrict inference to only the test set for pretty much all models. Only in segmentation models we
-# are presently doing something different than in training.
-# If that is not enough: Can pass in inference mode (single model / ensemble) and which dataset we are running on.
 
 class LightningInference(abc.ABC):
     """

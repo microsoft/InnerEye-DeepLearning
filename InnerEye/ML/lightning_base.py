@@ -152,8 +152,6 @@ class InnerEyeContainer(LightningContainer):
                 visualize_random_crops_for_dataset(self.config)
 
         # Print out a detailed breakdown of layers, memory consumption and time.
-        # TODO antonsc: Can we do better here, and print a model summary for all models? Read the first item
-        # of the dataset and do forward propagation?
         assert isinstance(self.model, InnerEyeLightning)
         generate_and_print_model_summary(self.config, self.model.model)
 
