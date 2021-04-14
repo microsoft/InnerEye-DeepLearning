@@ -57,7 +57,7 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
 
 def write_args_file(config: Any, outputs_folder: Path) -> None:
     """
-    Writes the given object to disk in the default output folder.
+    Writes the given config to disk in plain text in the default output folder.
     """
     output = str(config)
     outputs_folder.mkdir(exist_ok=True, parents=True)
