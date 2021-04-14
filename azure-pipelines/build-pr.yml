@@ -132,8 +132,10 @@ jobs:
         value: 'GlaucomaPublic'
       - name: tag
         value: 'GlaucomaPR'
+      - name: number_of_cross_validation_splits
+        value: 2
       - name: more_switches
-        value: '--num_epochs=2 --number_of_cross_validation_splits=2'
+        value: '--num_epochs=2'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
