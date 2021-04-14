@@ -9,6 +9,9 @@ from InnerEye.Azure.azure_config import AzureConfig
 
 def test_validate() -> None:
     with pytest.raises(ValueError) as ex:
+        AzureConfig()
+    assert ex.value.args[0] == "Parameter 'model' needs to be set to tell InnerEye which model to run."
+    with pytest.raises(ValueError) as ex:
         AzureConfig(model="")
     assert ex.value.args[0] == "Parameter 'model' needs to be set to tell InnerEye which model to run."
     with pytest.raises(ValueError) as ex:
