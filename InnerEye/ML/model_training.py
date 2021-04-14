@@ -283,6 +283,11 @@ def model_train(config: ModelConfigBase,
 
 
 def aggregate_and_create_subject_metrics_file(config: ModelConfigBase) -> None:
+    """
+    This functions takes all the subject metrics file written by each GPU (one file per GPU) and aggregates them into
+    one single metrics file. Results is saved in config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
+    :param config: model config
+    """
     for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
         temp_files = (config.outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
         result_file = config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
