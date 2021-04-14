@@ -118,6 +118,8 @@ class AzureConfig(GenericConfig):
         self.git_information: Optional[GitInformation] = None
 
     def validate(self) -> None:
+        if not self.model:
+            raise ValueError("Parameter 'model' needs to be set to tell InnerEye which model to run.")
         if self.only_register_model and not self.run_recovery_id:
             raise ValueError("If only_register_model is set, must also provide a valid run_recovery_id")
 

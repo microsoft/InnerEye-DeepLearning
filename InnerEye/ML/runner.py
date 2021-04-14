@@ -147,8 +147,6 @@ class Runner:
         azure_config.project_root = self.project_root
         self.azure_config = azure_config
         self.model_config = None  # type: ignore
-        if not azure_config.model:
-            return None
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser1_result.args)
         # Create the model as per the "model" commandline option
         model_config = model_config_loader.create_model_config_from_name(
