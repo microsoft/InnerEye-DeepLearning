@@ -12,6 +12,7 @@ import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.plugins import DDPPlugin
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
@@ -140,7 +141,8 @@ def create_lightning_trainer(config: ModelConfigBase,
                       precision=precision,
                       sync_batchnorm=True,
                       terminate_on_nan=config.detect_anomaly,
-                      resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None
+                      resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
+                      plugins=[DDPPlugin(find_unused_parameters=True)]
                       )
     return trainer, storing_logger
 
