@@ -295,7 +295,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                          "to that set.",
                      allow_None=True)
     perform_training_set_inference: bool = \
-        param.Boolean(False, doc="If True, run full image inference on the training set at the end of training.")
+        param.Boolean(False,
+                      doc="If True, run full image inference on the training set at the end of training. If False and "
+                          "perform_validation_and_test_set_inference is True (default), only run inference on "
+                          "validation and test set. If both flags are False do not run inference.")
     perform_validation_and_test_set_inference: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on validation and test set after training.")
@@ -379,10 +382,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     #: Name of the csv file providing information on the dataset to be used.
     dataset_csv: str = param.String(
-            DATASET_CSV_FILE_NAME,
-            doc="Name of the csv file providing information on the dataset "
-                "to be used, containing at least the fields: "
-                "subject, channel, filePath.")
+        DATASET_CSV_FILE_NAME,
+        doc="Name of the csv file providing information on the dataset "
+            "to be used, containing at least the fields: "
+            "subject, channel, filePath.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
