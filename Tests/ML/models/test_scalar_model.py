@@ -268,7 +268,7 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
     config.set_output_to(test_output_dirs.root_dir)
     # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
     config.max_num_gpus = 1
-    MLRunner(config, azure_config).run()
+    MLRunner(config, azure_config=azure_config).run()
     _check_offline_cross_validation_output_files(config)
 
     if config.perform_cross_validation:
@@ -304,7 +304,7 @@ def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) 
     config.set_output_to(test_output_dirs.root_dir)
     azure_config = get_default_azure_config()
     azure_config.train = True
-    MLRunner(config, azure_config).run()
+    MLRunner(config, azure_config=azure_config).run()
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner1(test_output_dirs: OutputFolderForTests) -> None:

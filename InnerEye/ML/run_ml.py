@@ -133,8 +133,8 @@ class MLRunner:
 
     def __init__(self,
                  model_config: Optional[DeepLearningConfig] = None,
-                 azure_config: Optional[AzureConfig] = None,
                  container: Optional[LightningContainer] = None,
+                 azure_config: Optional[AzureConfig] = None,
                  project_root: Optional[Path] = None,
                  post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
                  model_deployment_hook: Optional[ModelDeploymentHookSignature] = None,

@@ -83,7 +83,7 @@ def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> Non
     config.local_dataset = None
     config.azure_dataset_id = ""
     azure_config = get_default_azure_config()
-    runner = MLRunner(config, azure_config)
+    runner = MLRunner(config, azure_config=azure_config)
     # If the model has neither local_dataset or azure_dataset_id, mount_or_download_dataset should fail.
     # This mounting call must happen before any other operations on the container, because already the model
     # creation may need access to the dataset.

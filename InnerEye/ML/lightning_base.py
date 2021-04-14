@@ -38,6 +38,9 @@ from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_da
 class TrainAndValDataLightning(LightningDataModule):
     """
     A class that wraps training and validation data from an InnerEye model configuration to a Lightning data module.
+    When doing inference on the trained models, we use InferenceDataLightning. This is particularly important for
+    segmentation models, where training and validation happens on equal sized patches, but inference is running on
+    images of arbitrary size.
     """
 
     def __init__(self, config: ModelConfigBase) -> None:
@@ -80,6 +83,7 @@ class TrainAndValDataLightning(LightningDataModule):
 class InferenceDataLightning(LightningDataModule):
     """
     A class that wraps data for running model inference on InnerEye models, as a Lightning data module.
+    Note that training and validation data is handled by TrainAndValDataLightning.
     """
 
     def __init__(self, config: ModelConfigBase) -> None:

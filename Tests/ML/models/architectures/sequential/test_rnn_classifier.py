@@ -245,7 +245,7 @@ def test_run_ml_with_sequence_model(use_combined_model: bool,
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         azure_config = get_default_azure_config()
         azure_config.train = True
-        MLRunner(config, azure_config).run()
+        MLRunner(config, azure_config=azure_config).run()
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -452,7 +452,7 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: OutputFolderFo
     config.max_batch_grad_cam = 1
     azure_config = get_default_azure_config()
     azure_config.train = True
-    MLRunner(config, azure_config).run()
+    MLRunner(config, azure_config=azure_config).run()
     # The metrics file should have one entry per epoch per subject per prediction target,
     # for all the 3 prediction targets.
     metrics_file = config.outputs_folder / "Train" / SUBJECT_METRICS_FILE_NAME

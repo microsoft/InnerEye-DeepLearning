@@ -39,8 +39,10 @@ class VarNetWithImageLogging(VarNetModule):
 
 class FastMri(LightningContainer):
     # All fields that are declared here will be automatically available as commandline arguments.
-    challenge: str = param.String(default="multicoil")
-    sample_rate: Optional[float] = param.Number(default=None, allow_None=True)
+    challenge: str = param.String(default="multicoil", doc="Chooses between the singlecoil or multicoil"
+                                                           "acquisition setup.")
+    sample_rate: Optional[float] = param.Number(default=None, doc="Fraction of slices of the training data split to "
+                                                                  "use. Default: 1.0")
 
     def __init__(self) -> None:
         super().__init__()
@@ -60,6 +62,7 @@ class FastMri(LightningContainer):
 
         return FastMriDataModule(data_path=self.local_dataset,
                                  challenge=self.challenge,
+                                 sample_rate=self.sample_rate,
                                  train_transform=train_transform,
                                  val_transform=val_transform,
                                  test_transform=test_transform)

@@ -234,8 +234,9 @@ class WorkflowParams(param.Parameterized):
             raise ValueError("Cannot specify both local_weights_path and weights_url.")
 
         if self.number_of_cross_validation_splits == 1:
-            raise ValueError(f"At least two splits required to perform cross validation found "
-                             f"number_of_cross_validation_splits={self.number_of_cross_validation_splits}")
+            raise ValueError("At least two splits required to perform cross validation, but got "
+                             f"{self.number_of_cross_validation_splits}. To train without cross validation, set "
+                             "number_of_cross_validation_splits=0.")
         if 0 < self.number_of_cross_validation_splits <= self.cross_validation_split_index:
             raise ValueError(f"Cross validation split index is out of bounds: {self.cross_validation_split_index}, "
                              f"which is invalid for CV with {self.number_of_cross_validation_splits} splits.")

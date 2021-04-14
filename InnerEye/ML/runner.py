@@ -229,6 +229,8 @@ class Runner:
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
         if self.perform_cross_validation:
+            if self.lightning_container is not None:
+                raise NotImplementedError("Cross validation for LightingContainer models is not yet supported.")
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None

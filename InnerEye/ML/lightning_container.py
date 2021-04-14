@@ -9,10 +9,6 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 import param
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
-# Problem: We need to know
-# azure_dataset_id
-# model_config.get_hyperdrive_config
-# model_config.perform_crossvalidation
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
@@ -20,7 +16,6 @@ from InnerEye.Common.generic_parsing import GenericConfig, create_from_matching_
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
     WorkflowParams, load_checkpoint
-# Do we want to support ensembles at inference time? Not now
 from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 
@@ -132,13 +127,6 @@ class LightningWithInference(LightningModule, LightningInference):
         """
         raise NotImplementedError("This method must be overridden in a derived class.")
 
-    def create_report(self) -> None:
-        """
-        This method should look through all files that training and inference wrote, and cook that into a
-        nice human readable report. Report should go into self.outputs folder.
-        """
-        pass
-
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         """
         This is the default implementation of the method that provides the optimizer and LR scheduler for
@@ -181,6 +169,11 @@ class LightningContainer(GenericConfig,
                          OutputParams,
                          TrainerParams,
                          OptimizerParams):
+    """
+    A LightningContainer contains all information to train a user-specified PyTorch Lightning model. The model that
+    should be trained is returned by the `create_model` method. The training data must be returned in the form of
+    a LightningDataModule, by the `get_data_module` method.
+    """
 
     def __init__(self) -> None:
         super().__init__()
@@ -215,7 +208,7 @@ class LightningContainer(GenericConfig,
         sets takes cross validation with a given number of splits is correctly taken care of.
         :return: A LightningDataModule
         """
-        pass
+        None  # type: ignore
 
     def get_inference_data_module(self) -> LightningDataModule:
         """
@@ -242,6 +235,7 @@ class LightningContainer(GenericConfig,
         """
         This method is called after training and testing has been completed. It can aggregate all files that were
         written during training and testing, and compile them into some helpful overarching output.
+        The report should be written to self.
         """
         pass
 
