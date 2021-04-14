@@ -42,7 +42,7 @@ If respecting those guidelines is not feasible, we advise that all output files 
 directory, rather than an absolute path.
 
 ### Trainer arguments
-A The Lightning model returned by `create_model` can optionally inherit the fields defined in `TrainerParams`.
+The Lightning model returned by `create_model` can optionally inherit the fields defined in `TrainerParams`.
 This defines all arguments that control the PyTorch Lightning `Trainer` object that will be created by the InnerEye
 toolbox. Most importantly, the `num_epochs` controls the `max_epochs` argument of the `Trainer`.
 For further details how the `TrainerParams` are used, refer to the `create_lightning_trainer` method in 
@@ -95,6 +95,5 @@ training, you can add a flag like `--container_param=bar`.
 
 
 ## Examples
-
 
 
