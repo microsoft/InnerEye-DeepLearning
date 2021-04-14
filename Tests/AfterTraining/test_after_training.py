@@ -15,7 +15,6 @@ import shutil
 import sys
 from pathlib import Path
 from typing import List
-from unittest import mock
 
 import numpy as np
 import pytest
@@ -24,7 +23,7 @@ from azureml.core import Model, Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
-from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_outputs_from_run, get_comparison_baseline_paths, \
+from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, get_comparison_baseline_paths, \
     is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, get_best_epoch_results_path
@@ -34,13 +33,9 @@ from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
-from InnerEye.ML.configs.classification.GlaucomaPublic import GlaucomaPublic
-from InnerEye.ML.configs.segmentation.BasicModel2Epochs import BasicModel2Epochs
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import zip_random_dicom_series
-from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
-    download_crossval_result_files
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape
 
@@ -185,8 +180,10 @@ def test_submit_for_inference(use_dicom: bool, test_output_dirs: OutputFolderFor
     submit_for_inference.main(args, project_root=fixed_paths.repository_root_directory())
     assert seg_path.exists(), f"Result file {seg_path} was not created"
 
+
 def _check_presence_cross_val_metrics_file(split: str, mode: ModelExecutionMode, available_files: List[str]):
     return f"{CROSSVAL_RESULTS_FOLDER}/{split}/{mode.value}/metrics.csv" in available_files
+
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
 @pytest.mark.after_training_glaucoma_cv_run
@@ -202,6 +199,7 @@ def test_download_cv_files_classification(test_output_dirs: OutputFolderForTests
     for mode in [ModelExecutionMode.TEST, ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
         assert not _check_presence_cross_val_metrics_file(ENSEMBLE_SPLIT_NAME, mode, available_files)
 
+
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
 @pytest.mark.after_training_ensemble_run
 def test_download_cv_files_segmentation() -> None:
@@ -215,6 +213,7 @@ def test_download_cv_files_segmentation() -> None:
     # For ensemble we should have the test metrics only
     assert _check_presence_cross_val_metrics_file(ENSEMBLE_SPLIT_NAME, ModelExecutionMode.TEST, available_files)
     assert not _check_presence_cross_val_metrics_file(ENSEMBLE_SPLIT_NAME, ModelExecutionMode.VAL, available_files)
+
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
 @pytest.mark.after_training_ensemble_run
