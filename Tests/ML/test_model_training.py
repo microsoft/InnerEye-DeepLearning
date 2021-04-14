@@ -350,7 +350,7 @@ def test_script_names_correct() -> None:
         assert full_file.exists(), f"{file} does not exist."
 
 
-def test_aggregate_and_create_subject_metrics_file(test_output_dirs: OutputFolderForTests):
+def test_aggregate_and_create_subject_metrics_file(test_output_dirs: OutputFolderForTests) -> None:
     config = DummyClassification()
     config.set_output_to(test_output_dirs.root_dir)
     shutil.copytree(str(full_ml_test_data_path("test_aggregate_metrics_classification")), str(config.outputs_folder))

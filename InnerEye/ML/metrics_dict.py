@@ -689,7 +689,7 @@ class ScalarMetricsDict(MetricsDict):
         if has_hue_column:
             group_columns.append(LoggingColumns.Hue.value)
         grouped = df.groupby(group_columns)
-        result: Dict[ModelExecutionMode, Dict[int, ScalarMetricsDict]] = dict()
+        result: Dict[ModelExecutionMode, Dict[Union[int, str], ScalarMetricsDict]] = dict()
         hues = []
         if has_hue_column:
             hues = [h for h in df[LoggingColumns.Hue.value].unique() if h]

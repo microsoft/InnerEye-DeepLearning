@@ -181,7 +181,7 @@ def test_submit_for_inference(use_dicom: bool, test_output_dirs: OutputFolderFor
     assert seg_path.exists(), f"Result file {seg_path} was not created"
 
 
-def _check_presence_cross_val_metrics_file(split: str, mode: ModelExecutionMode, available_files: List[str]):
+def _check_presence_cross_val_metrics_file(split: str, mode: ModelExecutionMode, available_files: List[str]) -> bool:
     return f"{CROSSVAL_RESULTS_FOLDER}/{split}/{mode.value}/metrics.csv" in available_files
 
 
