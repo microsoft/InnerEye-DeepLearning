@@ -12,7 +12,6 @@ import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.plugins import DDPPlugin
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
