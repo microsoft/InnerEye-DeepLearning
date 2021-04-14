@@ -39,7 +39,7 @@ from InnerEye.ML.utils.io_util import zip_random_dicom_series
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape
 
-FALLBACK_ENSEMBLE_RUN = "refs_pull_385_merge:HD_2850254e-4ecf-4425-9245-70fa98f50d81"
+FALLBACK_ENSEMBLE_RUN = "refs_pull_432_merge:HD_3af84e4a-0043-4260-8be2-04ce9ab09b1f"
 FALLBACK_SINGLE_RUN = "refs_pull_407_merge_1614271518_cdbeb28e"
 FALLBACK_2NODE_RUN = "refs_pull_385_merge:refs_pull_385_merge_1612421371_ba12a007"
 FALLBACK_CV_GLAUCOMA = "refs_pull_432_merge_1618332810_b5d10d74"
@@ -187,9 +187,8 @@ def _check_presence_cross_val_metrics_file(split: str, mode: ModelExecutionMode,
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
 @pytest.mark.after_training_glaucoma_cv_run
-def test_download_cv_files_classification(test_output_dirs: OutputFolderForTests) -> None:
-    run = get_most_recent_run(
-        fallback_run_id_for_local_execution="melanibe_fix_cv_classification:HD_23ab268a-8a11-418d-8843-c7ef6cbbbb3e")
+def test_expected_cv_files_classification(test_output_dirs: OutputFolderForTests) -> None:
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_CV_GLAUCOMA)
     assert run is not None
     available_files = run.get_file_names()
     for split in ["0", "1"]:
@@ -202,9 +201,8 @@ def test_download_cv_files_classification(test_output_dirs: OutputFolderForTests
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
 @pytest.mark.after_training_ensemble_run
-def test_download_cv_files_segmentation() -> None:
-    run = get_most_recent_run(
-        fallback_run_id_for_local_execution="melanibe_fix_cv_classification:HD_5cb73b4b-7a9c-47d2-8efc-016c802e09c5")
+def test_expected_cv_files_segmentation() -> None:
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
     assert run is not None
     available_files = run.get_file_names()
     for split in ["0", "1"]:
