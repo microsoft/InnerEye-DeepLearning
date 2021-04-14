@@ -142,3 +142,7 @@ jobs:
           wait_for_completion: 'True'
           pytest_mark: ''
           max_run_duration: '1h'
+      - template: tests_after_training.yml
+        parameters:
+          pytest_mark: after_training_glaucoma_cv_run
+          test_run_title: tests_after_training_glaucoma_cv_run
