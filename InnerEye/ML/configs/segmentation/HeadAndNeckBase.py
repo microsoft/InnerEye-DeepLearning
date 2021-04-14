@@ -39,6 +39,7 @@ class HeadAndNeckBase(SegmentationModelBase):
                  ground_truth_ids_display_names: Optional[List[str]] = None,
                  colours: Optional[List[TupleInt3]] = None,
                  fill_holes: Optional[List[bool]] = None,
+                 roi_interpreted_types: Optional[List[str]] = None,
                  class_weights: Optional[List[float]] = None,
                  slice_exclusion_rules: Optional[List[SliceExclusionRule]] = None,
                  summed_probability_rules: Optional[List[SummedProbabilityRule]] = None,
@@ -53,6 +54,8 @@ class HeadAndNeckBase(SegmentationModelBase):
         present then must be of the same length as ground_truth_ids.
         :param fill_holes: Optional list of fill hole flags. If
         present then must be of the same length as ground_truth_ids.
+        :param roi_interpreted_types: Optional list of roi_interpreted_types. If
+        present then must be of the same length as ground_truth_ids.
         :param class_weights: Optional list of class weights. If
         present then must be of the same length as ground_truth_ids + 1.
         :param slice_exclusion_rules: Optional list of SliceExclusionRules.
@@ -65,6 +68,7 @@ class HeadAndNeckBase(SegmentationModelBase):
         num_structures = len(ground_truth_ids)
         colours = colours or generate_random_colours_list(RANDOM_COLOUR_GENERATOR, num_structures)
         fill_holes = fill_holes or [True] * num_structures
+        roi_interpreted_types = roi_interpreted_types or ["ORGAN"] * num_structures
         ground_truth_ids_display_names = ground_truth_ids_display_names or [f"zz_{x}" for x in ground_truth_ids]
         # The amount of GPU memory required increases with both the number of structures and the
         # number of feature channels. The following is a sensible default to avoid out-of-memory,
@@ -115,6 +119,7 @@ class HeadAndNeckBase(SegmentationModelBase):
             largest_connected_component_foreground_classes=ground_truth_ids,
             colours=colours,
             fill_holes=fill_holes,
+            roi_interpreted_types=roi_interpreted_types,
             class_weights=class_weights,
             slice_exclusion_rules=slice_exclusion_rules,
             summed_probability_rules=summed_probability_rules,
