@@ -8,7 +8,7 @@
 # flake8: noqa
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from _pytest.monkeypatch import MonkeyPatch
 from pytorch_lightning import LightningDataModule
@@ -16,7 +16,6 @@ from pytorch_lightning import LightningDataModule
 from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed
 from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithImageLogging
 from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
-
 
 add_folder_to_sys_path_if_needed("fastMRI")
 
@@ -29,14 +28,14 @@ from fastMRI.tests.create_temp_data import create_temp_data
 
 
 class FastMriRandomData(FastMriDataModule):
-    def __init__(self):
+    def __init__(self) -> None:
         data_path = Path.cwd() / "data"
         if data_path.is_dir():
             shutil.rmtree(str(data_path))
         data_path.mkdir(exist_ok=False, parents=True)
         _, _, metadata = create_temp_data(data_path)
 
-        def retrieve_metadata_mock(a, fname):
+        def retrieve_metadata_mock(a: Any, fname: Any) -> Any:
             return metadata[str(fname)]
 
         # That's a bit flaky, we should be un-doing that after, but there's no obvious place of doing so.
@@ -57,15 +56,15 @@ class FastMriRandomData(FastMriDataModule):
                                    val_transform=val_transform,
                                    test_transform=test_transform)
 
-    def prepare_data(self, *args, **kwargs):
+    def prepare_data(self, *args: Any, **kwargs: Any) -> None:
         print("FastMriRandomData.prepare_data")
 
-    def setup(self, stage: Optional[str] = None):
+    def setup(self, stage: Optional[str] = None) -> None:
         print("FastMriRandomData.setup")
 
 
 class FastMriOnRandomData(LightningContainer):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.num_epochs = 1
         # Restrict to a single GPU, because we have code in dataset creation that could cause race conditions

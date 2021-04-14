@@ -156,7 +156,7 @@ class DummyRegression(DummyRegressionPlainLightning):
 
 
 class FixedDataset(Dataset):
-    def __init__(self, inputs_and_targets: List[Tuple[Any,Any]]):
+    def __init__(self, inputs_and_targets: List[Tuple[Any, Any]]):
         super().__init__()
         self.inputs_and_targets = inputs_and_targets
 

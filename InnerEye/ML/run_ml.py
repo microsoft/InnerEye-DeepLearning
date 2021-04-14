@@ -204,11 +204,6 @@ class MLRunner:
         self.container.create_lightning_module_and_store()
         self._has_setup_run = True
 
-    def start_logging_to_file(self) -> None:
-        if self.container is None:
-            self.setup()
-        logging_to_file(self.container.logs_folder / LOG_FILE_NAME)
-
     @property
     def is_offline_run(self) -> bool:
         """
@@ -216,6 +211,22 @@ class MLRunner:
         :return:
         """
         return is_offline_run_context(RUN_CONTEXT)
+
+    @property
+    def innereye_config(self) -> DeepLearningConfig:
+        """
+        Gets the model configuration object for all built-in InnerEye models. Raises an exception if the present
+        object trains a LightningContainer that is not a built-in InnerEye model.
+        """
+        if self.model_config is None or not isinstance(self.model_config, DeepLearningConfig):
+            raise ValueError("This property should only be used with built-in InnerEye models, but model "
+                             f"configuration is of type {type(self.model_config)}")
+        return self.model_config
+
+    def start_logging_to_file(self) -> None:
+        if self.container is None:
+            self.setup()
+        logging_to_file(self.container.logs_folder / LOG_FILE_NAME)
 
     def is_offline_cross_val_parent_run(self) -> bool:
         """
@@ -230,10 +241,10 @@ class MLRunner:
         Trains and Tests k models based on their respective data splits sequentially.
         Stores the results on the Validation set to the outputs directory of the parent run.
         """
-        assert isinstance(self.model_config, ScalarModelBase)
+        assert isinstance(self.innereye_config, ScalarModelBase)
 
         def _spawn_run(cross_val_split_index: int) -> None:
-            split_config = copy.deepcopy(self.model_config)
+            split_config = copy.deepcopy(self.innereye_config)
             split_config.cross_validation_split_index = cross_val_split_index
             logging.info(f"Running model train and test on cross validation split: {cross_val_split_index}")
             split_ml_runner = MLRunner(model_config=split_config,
@@ -245,10 +256,10 @@ class MLRunner:
                                        output_subfolder=str(cross_val_split_index))
             split_ml_runner.run()
 
-        for i in range(self.model_config.number_of_cross_validation_splits):
+        for i in range(self.innereye_config.number_of_cross_validation_splits):
             _spawn_run(i)
 
-        config_and_files = get_config_and_results_for_offline_runs(self.model_config)
+        config_and_files = get_config_and_results_for_offline_runs(self.innereye_config)
         plot_cross_validation_from_files(config_and_files, Path(config_and_files.config.outputs_directory))
 
     def set_run_tags_from_parent(self) -> None:
@@ -286,7 +297,7 @@ class MLRunner:
         """
         self.setup()
         if self.is_offline_cross_val_parent_run():
-            if self.model_config.is_segmentation_model:
+            if self.innereye_config.is_segmentation_model:
                 raise NotImplementedError("Offline cross validation is only supported for classification models.")
             self.spawn_offline_cross_val_classification_child_runs()
             return
@@ -318,7 +329,7 @@ class MLRunner:
                 # log the number of epochs used for model training
                 RUN_CONTEXT.log(name="Train epochs", value=self.container.num_epochs)
             elif isinstance(self.container, InnerEyeContainer):
-                self.model_config.write_dataset_files()
+                self.innereye_config.write_dataset_files()
                 self.create_activation_maps()
 
         if isinstance(self.container, InnerEyeContainer):
@@ -357,10 +368,10 @@ class MLRunner:
             data = self.container.get_inference_data_module()
             dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
             if self.container.perform_validation_and_test_set_inference:
-                dataloaders.append((data.test_dataloader(), ModelExecutionMode.TEST))
-                dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))
+                dataloaders.append((data.test_dataloader(), ModelExecutionMode.TEST))  # type: ignore
+                dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))  # type: ignore
             if self.container.perform_training_set_inference:
-                dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))
+                dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))  # type: ignore
             map_location = "gpu" if self.container.use_gpu else "cpu"
             checkpoint = pl_load(checkpoint_paths[0], map_location=map_location)
             lightning_model.load_state_dict(checkpoint['state_dict'])
@@ -426,9 +437,9 @@ class MLRunner:
         return self.azure_config.train or self.azure_config.only_register_model
 
     def create_activation_maps(self) -> None:
-        if self.model_config.is_segmentation_model and self.model_config.activation_map_layers is not None:
+        if self.innereye_config.is_segmentation_model and self.innereye_config.activation_map_layers is not None:
             logging.info("Extracting activation maps for layer")
-            activation_maps.extract_activation_maps(self.model_config)
+            activation_maps.extract_activation_maps(self.innereye_config)  # type: ignore
             logging.info("Successfully extracted and saved activation maps")
 
     def mount_or_download_dataset(self) -> Optional[Path]:
@@ -550,7 +561,7 @@ class MLRunner:
         model_subfolder = FINAL_MODEL_FOLDER if model_proc == ModelProcessing.DEFAULT else FINAL_ENSEMBLE_MODEL_FOLDER
         # This is the path under which AzureML will know the files: Either "final_model" or "final_ensemble_model"
         artifacts_path = model_subfolder
-        final_model_folder = self.model_config.file_system_config.run_folder / model_subfolder
+        final_model_folder = self.innereye_config.file_system_config.run_folder / model_subfolder
         # Copy all code from project and InnerEye into the model folder, and copy over checkpoints.
         # This increases the size of the data stored for the run. The other option would be to store all checkpoints
         # right in the final model folder - however, then that would also contain any other checkpoints that the model
@@ -570,7 +581,7 @@ class MLRunner:
         # When registering the model on the run, we need to provide a relative path inside of the run's output
         # folder in `model_path`
         model = run_to_register_on.register_model(
-            model_name=self.model_config.model_name,
+            model_name=self.innereye_config.model_name,
             model_path=artifacts_path,
             tags=RUN_CONTEXT.get_tags(),
             description=model_description
@@ -590,9 +601,9 @@ class MLRunner:
         logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
         # create a version of the model for deployment if the hook is provided
         if self.model_deployment_hook is not None:
-            assert isinstance(self.model_config, SegmentationModelBase)
+            assert isinstance(self.innereye_config, SegmentationModelBase)
             deployment_result = self.model_deployment_hook(
-                self.model_config, self.azure_config, model, model_proc)
+                self.innereye_config, self.azure_config, model, model_proc)
         return model, deployment_result
 
     @staticmethod
@@ -642,17 +653,17 @@ class MLRunner:
                 try:
                     # Checkpoints live in a folder structure in the checkpoint folder. There can be multiple of
                     # them, with identical names, coming from an ensemble run. Hence, preserve their folder structure.
-                    checkpoint_relative = checkpoint.relative_to(self.model_config.checkpoint_folder)
+                    checkpoint_relative = checkpoint.relative_to(self.innereye_config.checkpoint_folder)
                 except ValueError:
                     raise ValueError(f"Checkpoint file {checkpoint} was expected to be in a subfolder of "
-                                     f"{self.model_config.checkpoint_folder}")
+                                     f"{self.innereye_config.checkpoint_folder}")
                 # Checkpoints go into a newly created folder "checkpoints" inside of the model folder
                 relative_checkpoint_paths.append(str(Path(CHECKPOINT_FOLDER) / checkpoint_relative))
             else:
                 raise ValueError(f"Expected an absolute path to a checkpoint file, but got: {checkpoint}")
         model_folder.mkdir(parents=True, exist_ok=True)
-        model_inference_config = ModelInferenceConfig(model_name=self.model_config.model_name,
-                                                      model_configs_namespace=self.model_config.__class__.__module__,
+        model_inference_config = ModelInferenceConfig(model_name=self.innereye_config.model_name,
+                                                      model_configs_namespace=self.innereye_config.__class__.__module__,
                                                       checkpoint_paths=relative_checkpoint_paths)
         # Inference configuration must live in the root folder of the registered model
         full_path_to_config = model_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
@@ -694,10 +705,10 @@ class MLRunner:
         val_metrics = None
         test_metrics = None
 
-        config = self.model_config
+        config = self.innereye_config
 
         def run_model_test(data_split: ModelExecutionMode) -> Optional[InferenceMetrics]:
-            return model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler,
+            return model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler,  # type: ignore
                               model_proc=model_proc)
 
         if config.perform_validation_and_test_set_inference:
@@ -737,7 +748,7 @@ class MLRunner:
         """
         if (not self.is_offline_run) \
                 and (azure_util.is_cross_validation_child_run(RUN_CONTEXT)):
-            n_splits = self.model_config.get_total_number_of_cross_validation_runs()
+            n_splits = self.innereye_config.get_total_number_of_cross_validation_runs()
             child_runs = azure_util.fetch_child_runs(PARENT_RUN_CONTEXT,
                                                      expected_number_cross_validation_splits=n_splits)
             pending_runs = [x.id for x in child_runs
@@ -767,13 +778,13 @@ class MLRunner:
                                               model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
         crossval_dir = self.plot_cross_validation_and_upload_results()
-        if self.model_config.generate_report:
+        if self.innereye_config.generate_report:
             self.generate_report(ModelProcessing.ENSEMBLE_CREATION)
         # CrossValResults should have been uploaded to the parent run, so we don't need it here.
         remove_file_or_directory(crossval_dir)
         # We can also remove OTHER_RUNS under the root, as it is no longer useful and only contains copies of files
         # available elsewhere. However, first we need to upload relevant parts of OTHER_RUNS/ENSEMBLE.
-        other_runs_dir = self.model_config.outputs_folder / OTHER_RUNS_SUBDIR_NAME
+        other_runs_dir = self.innereye_config.outputs_folder / OTHER_RUNS_SUBDIR_NAME
         other_runs_ensemble_dir = other_runs_dir / ENSEMBLE_SPLIT_NAME
         if PARENT_RUN_CONTEXT is not None:
             if other_runs_ensemble_dir.exists():
@@ -792,16 +803,16 @@ class MLRunner:
         from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
             plot_cross_validation, unroll_aggregate_metrics
         # perform aggregation as cross val splits are now ready
-        plot_crossval_config = crossval_config_from_model_config(self.model_config)
+        plot_crossval_config = crossval_config_from_model_config(self.innereye_config)
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
-        plot_crossval_config.outputs_directory = self.model_config.outputs_folder
+        plot_crossval_config.outputs_directory = self.innereye_config.outputs_folder
         plot_crossval_config.azure_config = self.azure_config
         cross_val_results_root = plot_cross_validation(plot_crossval_config, is_ensemble_run=True)
         if self.post_cross_validation_hook:
-            self.post_cross_validation_hook(self.model_config, cross_val_results_root)
+            self.post_cross_validation_hook(self.innereye_config, cross_val_results_root)
         # upload results to the parent run's outputs so that the files are visible inside the AzureML UI.
         PARENT_RUN_CONTEXT.upload_folder(name=CROSSVAL_RESULTS_FOLDER, path=str(cross_val_results_root))
-        if self.model_config.is_scalar_model:
+        if self.innereye_config.is_scalar_model:
             try:
                 aggregates = pd.read_csv(cross_val_results_root / METRICS_AGGREGATES_FILE)
                 unrolled_aggregate_metrics = unroll_aggregate_metrics(aggregates)
@@ -812,7 +823,7 @@ class MLRunner:
         return cross_val_results_root
 
     def generate_report(self, model_proc: ModelProcessing) -> None:
-        config = self.model_config
+        config = self.innereye_config
         if config.model_category not in [ModelCategory.Segmentation, ModelCategory.Classification]:
             logging.info(f"No reporting available for a model with category {config.model_category}")
             return

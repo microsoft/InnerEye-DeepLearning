@@ -250,11 +250,12 @@ class Runner:
         if isinstance(self.model_config, DeepLearningConfig) and not self.azure_dataset_id:
             raise ValueError("When running an InnerEye built-in model in AzureML, the 'azure_dataset_id' "
                              "property must be set.")
+        hyperdrive_func = lambda run_config: self.model_config.get_hyperdrive_config(run_config)  # type: ignore
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
             conda_dependencies_files=get_all_environment_files(self.project_root),
-            hyperdrive_config_func=lambda run_config: self.model_config.get_hyperdrive_config(run_config),
+            hyperdrive_config_func=hyperdrive_func,
             # For large jobs, upload of results can time out because of large checkpoint files. Default is 600
             upload_timeout_seconds=86400,
         )
@@ -348,7 +349,7 @@ def run(project_root: Path,
         yaml_config_file: Path,
         post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
         model_deployment_hook: Optional[ModelDeploymentHookSignature] = None) -> \
-        Tuple[ModelConfigBase, Optional[Run]]:
+        Tuple[Optional[DeepLearningConfig], Optional[Run]]:
     """
     The main entry point for training and testing models from the commandline. This chooses a model to train
     via a commandline argument, runs training or testing, and writes all required info to disk and logs.

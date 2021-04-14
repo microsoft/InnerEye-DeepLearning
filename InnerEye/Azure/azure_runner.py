@@ -476,7 +476,7 @@ def run_duration_string_to_seconds(s: str) -> Optional[int]:
     elif suffix == "d":
         multiplier = 24 * 60 * 60
     else:
-        raise ArgumentError("s", f"Invalid suffix: Must be one of 's', 'm', 'h', 'd', but got: {s}")
+        raise ArgumentError("s", f"Invalid suffix: Must be one of 's', 'm', 'h', 'd', but got: {s}")  # type: ignore
     return int(float(s[:-1]) * multiplier)
 
 

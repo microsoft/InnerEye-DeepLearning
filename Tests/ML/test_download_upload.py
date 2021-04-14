@@ -164,7 +164,7 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
                          ])
 def test_mount_failing_offline_runs(test_output_dirs: OutputFolderForTests,
                                     is_lightning_model: bool,
-                                    expected_error: str):
+                                    expected_error: str) -> None:
     """
     Test cases when MLRunner.mount_or_download_dataset raises an exception, when running outside AzureML.
     """
@@ -184,7 +184,7 @@ def test_mount_failing_offline_runs(test_output_dirs: OutputFolderForTests,
         assert run().local_dataset is None
 
 
-def test_mount_in_azureml1(test_output_dirs: OutputFolderForTests):
+def test_mount_in_azureml1(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test cases when MLRunner.mount_or_download_dataset runs inside AzureML.
     """
@@ -196,7 +196,7 @@ def test_mount_in_azureml1(test_output_dirs: OutputFolderForTests):
     assert "mounted" in str(container.local_dataset)
 
 
-def test_mount_in_azureml2(test_output_dirs: OutputFolderForTests):
+def test_mount_in_azureml2(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test cases when MLRunner.mount_or_download_dataset runs inside AzureML.
     """

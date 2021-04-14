@@ -32,7 +32,8 @@ def run_mypy(files: List[str], mypy_executable_path: str) -> int:
         for index, dir in enumerate(dirs, 1):
             # Adding "--no-site-packages" might be necessary if there are errors in site packages,
             # but it may stop inconsistencies with site packages being spotted.
-            command = [mypy_executable_path, "--config=mypy.ini", "--verbose", dir]
+            dir_as_package = dir.replace(os.path.sep, ".")
+            command = [mypy_executable_path, "--config=mypy.ini", "--verbose", "-p", dir_as_package]
             print(f"Processing directory {index:2d} of {len(dirs)}: {Path(dir).absolute()}")
             # We pipe stdout and then print it, otherwise lines can appear in the wrong order in builds.
             process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)

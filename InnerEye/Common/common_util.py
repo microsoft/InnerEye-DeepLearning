@@ -407,7 +407,7 @@ def add_folder_to_sys_path_if_needed(folder_under_repo_root: str) -> None:
 
 
 @contextmanager
-def change_working_directory(path_or_str: PathOrString) -> None:
+def change_working_directory(path_or_str: PathOrString) -> Generator:
     """
     Context manager for changing the current working directory
     """

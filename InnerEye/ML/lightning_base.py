@@ -107,6 +107,9 @@ class InferenceDataLightning(LightningDataModule):
     def test_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
         return DataLoader(self.test_data)
 
+    def prepare_data(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
 
 class InnerEyeContainer(LightningContainer):
     """
@@ -121,7 +124,7 @@ class InnerEyeContainer(LightningContainer):
         # at model level. Copy everything over.
         for type_to_copy in [WorkflowParams, DatasetParams, TrainerParams, OutputParams]:
             assert issubclass(type_to_copy, param.Parameterized)
-            self.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},
+            self.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},  # type: ignore
                                  should_validate=False)
 
     def setup(self) -> None:
@@ -136,10 +139,10 @@ class InnerEyeContainer(LightningContainer):
         return create_lightning_model(self.config)
 
     def get_data_module(self) -> LightningDataModule:
-        return TrainAndValDataLightning(self.config)
+        return TrainAndValDataLightning(self.config)  # type: ignore
 
     def get_inference_data_module(self) -> LightningDataModule:
-        return InferenceDataLightning(self.config)
+        return InferenceDataLightning(self.config)  # type: ignore
 
     def before_training_on_rank_zero(self) -> None:
         # Save the dataset files for later use in cross validation analysis
