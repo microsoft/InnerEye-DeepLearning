@@ -45,12 +45,13 @@ Python execution environment is added as a tag. This tag is read when running in
 is re-used.
 - ([#411](https://github.com/microsoft/InnerEye-DeepLearning/pull/411)) Upgraded to PyTorch 1.8.0, PyTorch-Lightning 
 1.1.8 and AzureML SDK 1.23.0
-
+- ([#432](https://github.com/microsoft/InnerEye-DeepLearning/pull/432)) Upgraded to PyTorch-Lightning 1.2.7. 
+  Add end-to-end test for classification cross-validation.
 ### Fixed
 - ([#422](https://github.com/microsoft/InnerEye-DeepLearning/pull/422)) Documentation - clarified `setting_up_aml.md`
   datastore creation instructions and fixed small typos in `hello_world_model.md`
 - ([#432](https://github.com/microsoft/InnerEye-DeepLearning/pull/432)) Fixed cross-validation for classification
-  models (metrics paths).
+  models. Fixed multi-node metrics aggregation. Add end-to-end test for classification cross-validation.
 ### Removed
 
 ### Deprecated
