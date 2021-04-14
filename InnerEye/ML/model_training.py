@@ -141,8 +141,7 @@ def create_lightning_trainer(config: ModelConfigBase,
                       precision=precision,
                       sync_batchnorm=True,
                       terminate_on_nan=config.detect_anomaly,
-                      resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
-                      plugins=[DDPPlugin(find_unused_parameters=True)]
+                      resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None
                       )
     return trainer, storing_logger
 
