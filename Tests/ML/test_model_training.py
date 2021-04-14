@@ -149,8 +149,8 @@ def _test_model_train(output_dirs: OutputFolderForTests,
         assert tracked_metric in val_result
 
     # The following values are read off directly from the results of compute_dice_across_patches in the
-    # training loop. Results are slightly different for CPU, hence use a larger tolerance there.
-    dice_tolerance = 1e-4 if machine_has_gpu else 4.5e-4
+    # training loop. Results are slightly different for GPU, hence use a larger tolerance there.
+    dice_tolerance = 1e-3 if machine_has_gpu else 4.5e-4
     train_dice_region = [[0.0, 0.0, 4.0282e-04], [0.0372, 0.0388, 0.1091]]
     train_dice_region1 = [[0.4785, 0.4807, 0.4834], [0.4832, 0.4800, 0.4628]]
     # There appears to be some amount of non-determinism here: When using a tolerance of 1e-4, we get occasional
