@@ -100,8 +100,8 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.recovery_checkpoint_save_interval = 1
 
     if machine_has_gpu:
-        expected_train_losses = [0.4553468, 0.454904]
-        expected_val_losses = [0.4553881, 0.4553041]
+        expected_train_losses = [0.4552919, 0.4548529]
+        expected_val_losses = [0.455389, 0.455306]
     else:
         expected_train_losses = [0.4552919, 0.4548538]
         expected_val_losses = [0.4553891, 0.4553060]

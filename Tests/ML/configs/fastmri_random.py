@@ -29,7 +29,8 @@ from fastMRI.tests.create_temp_data import create_temp_data
 
 
 class FastMriRandomData(FastMriDataModule):
-    def __init__(self, data_path: Path):
+    def __init__(self):
+        data_path = Path.cwd() / "data"
         if data_path.is_dir():
             shutil.rmtree(str(data_path))
         data_path.mkdir(exist_ok=False, parents=True)
@@ -75,4 +76,4 @@ class FastMriOnRandomData(LightningContainer):
 
     def get_data_module(self) -> LightningDataModule:
         # Local_dataset is set via the commandline to a random folder for unit testss
-        return FastMriRandomData(data_path=self.local_dataset)
+        return FastMriRandomData()
