@@ -12,8 +12,7 @@ from pandas.core.dtypes.common import is_string_dtype
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_AGGREGATES_FILE, \
-    SUBJECT_METRICS_FILE_NAME, logging_to_stdout
+    METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns

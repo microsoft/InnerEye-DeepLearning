@@ -15,8 +15,7 @@ import torch
 
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, \
-    METRICS_AGGREGATES_FILE, \
-    SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, logging_to_stdout
+    METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
