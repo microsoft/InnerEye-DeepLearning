@@ -7,12 +7,13 @@ from unittest import mock
 
 import pandas as pd
 import pytest
+from pytorch_lightning import LightningModule
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ARGS_TXT, DatasetParams, WorkflowParams
 from InnerEye.ML.lightning_base import InnerEyeContainer
-from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.DummyModel import DummyModel
@@ -136,8 +137,7 @@ def test_model_name_is_set(test_output_dirs: OutputFolderForTests) -> None:
     runner.setup()
     expected_name = "DummyContainerWithModel"
     assert runner.container._model_name == expected_name
-    assert runner.container.model.output_params._model_name == expected_name
-    assert expected_name in str(runner.container.model.outputs_folder)
+    assert expected_name in str(runner.container.outputs_folder)
 
 
 def test_model_name_for_innereye_container() -> None:
@@ -160,8 +160,8 @@ class DummyContainerWithFields(LightningContainer):
         self.num_epochs = 123456
         self.l_rate = 1e-2
 
-    def create_model(self) -> LightningWithInference:
-        return LightningWithInference()
+    def create_model(self) -> LightningModule:
+        return LightningModule()
 
 
 def test_container_to_str() -> None:
@@ -193,7 +193,7 @@ def test_file_system_with_subfolders(test_output_dirs: OutputFolderForTests) -> 
     runner.setup()
     assert str(runner.container.outputs_folder).endswith(model.model_name)
     output_subfolder = "foo"
-    expected_folder = model.outputs_folder / output_subfolder
+    expected_folder = runner.container.outputs_folder / output_subfolder
     runner = MLRunner(model_config=model, output_subfolder=output_subfolder)
     runner.setup()
     assert runner.container.outputs_folder == expected_folder

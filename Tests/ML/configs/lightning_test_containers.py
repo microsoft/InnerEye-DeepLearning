@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Tuple
 import pandas as pd
 import param
 import torch
-from pytorch_lightning import LightningDataModule
+from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.metrics import MeanSquaredError
 from torch import Tensor
 from torch.nn import Identity
@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
+from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer, LightningModuleWithOptimizer
 
 
 class DummyContainerWithDatasets(LightningContainer):
@@ -25,8 +25,8 @@ class DummyContainerWithDatasets(LightningContainer):
         self.local_dataset = full_ml_test_data_path("lightning_module_data") if has_local_dataset else None
         self.azure_dataset_id = "azure_dataset" if has_azure_dataset else ""
 
-    def create_model(self) -> LightningWithInference:
-        return LightningWithInference()
+    def create_model(self) -> LightningModule:
+        return LightningModuleWithOptimizer()
 
 
 class DummyContainerWithAzureDataset(DummyContainerWithDatasets):
@@ -48,7 +48,7 @@ class DummyContainerWithAzureAndLocalDataset(DummyContainerWithDatasets):
         super().__init__(has_local_dataset=True, has_azure_dataset=True)
 
 
-class InferenceWithParameters(LightningWithInference):
+class InferenceWithParameters(LightningModule):
     model_param = param.String(default="bar")
 
     def __init__(self, container_param: str):
@@ -61,11 +61,11 @@ class DummyContainerWithParameters(LightningContainer):
     def __init__(self) -> None:
         super().__init__()
 
-    def create_model(self) -> LightningWithInference:
+    def create_model(self) -> LightningModule:
         return InferenceWithParameters(self.container_param)
 
 
-class DummyRegressionPlainLightning(LightningWithInference):
+class DummyRegressionPlainLightning(LightningModuleWithOptimizer):
     """
     A class that only implements plain Lightning training and test. Ideally, we want to support importing any plain
     Lightning module without further methods added. This class here inherits LightningWithInference, but does not
@@ -105,7 +105,7 @@ class DummyRegressionPlainLightning(LightningWithInference):
         pass
 
 
-class DummyRegression(DummyRegressionPlainLightning):
+class DummyRegression(DummyRegressionPlainLightning, InnerEyeInference):
     def __init__(self, in_features: int = 1, *args, **kwargs) -> None:  # type: ignore
         super().__init__(in_features=in_features, *args, **kwargs)  # type: ignore
         self.l_rate = 1e-1
@@ -128,31 +128,31 @@ class DummyRegression(DummyRegressionPlainLightning):
         return loss
 
     def on_inference_start(self) -> None:
-        (self.outputs_folder / "on_inference_start.txt").touch()
+        Path("on_inference_start.txt").touch()
         self.inference_mse: Dict[ModelExecutionMode, float] = {}
 
     def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
         self.dataset_split = dataset_split
-        (self.outputs_folder / f"on_inference_start_{self.dataset_split.value}.txt").touch()
+        Path(f"on_inference_start_{self.dataset_split.value}.txt").touch()
         self.mse = MeanSquaredError()
 
     def inference_step(self, item: Tuple[Tensor, Tensor], batch_idx: int, model_output: torch.Tensor) -> None:
         input, target = item
         prediction = self.forward(input)
         self.mse(prediction, target)
-        with (self.outputs_folder / f"inference_step_{self.dataset_split.value}.txt").open(mode="a") as f:
+        with Path(f"inference_step_{self.dataset_split.value}.txt").open(mode="a") as f:
             f.write(f"{prediction.item()},{target.item()}\n")
 
     def on_inference_epoch_end(self) -> None:
-        (self.outputs_folder / f"on_inference_end_{self.dataset_split.value}.txt").touch()
+        Path(f"on_inference_end_{self.dataset_split.value}.txt").touch()
         self.inference_mse[self.dataset_split] = self.mse.compute().item()
         self.mse.reset()
 
     def on_inference_end(self) -> None:
-        (self.outputs_folder / "on_inference_end.txt").touch()
+        Path("on_inference_end.txt").touch()
         df = pd.DataFrame(columns=["Split", "MSE"],
                           data=[[split.value, mse] for split, mse in self.inference_mse.items()])
-        df.to_csv(self.outputs_folder / "metrics_per_split.csv", index=False)
+        df.to_csv("metrics_per_split.csv", index=False)
 
 
 class FixedDataset(Dataset):
@@ -198,7 +198,7 @@ class DummyContainerWithModel(LightningContainer):
         assert self.local_dataset is not None
         (self.local_dataset / "setup.txt").touch()
 
-    def create_model(self) -> LightningWithInference:
+    def create_model(self) -> LightningModule:
         return DummyRegression()
 
     def get_data_module(self) -> LightningDataModule:
@@ -207,7 +207,7 @@ class DummyContainerWithModel(LightningContainer):
 
 class DummyContainerWithInvalidTrainerArguments(LightningContainer):
 
-    def create_model(self) -> LightningWithInference:
+    def create_model(self) -> LightningModule:
         return DummyRegression()
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
@@ -220,7 +220,7 @@ class DummyContainerWithPlainLightning(LightningContainer):
         self.num_epochs = 100
         self.l_rate = 1e-2
 
-    def create_model(self) -> LightningWithInference:
+    def create_model(self) -> LightningModule:
         return DummyRegressionPlainLightning()
 
     def get_data_module(self) -> LightningDataModule:

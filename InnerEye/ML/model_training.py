@@ -19,7 +19,7 @@ from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, cleanup_checkpoint_folder
 from InnerEye.ML.deep_learning_config import ARGS_TXT, VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
-from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
@@ -216,12 +216,10 @@ def model_train(checkpoint_handler: CheckpointHandler,
     logging.info("Starting training")
     # When training models that are not built-in InnerEye models, we have no guarantee that they write
     # files to the right folder. Best guess is to change the current working directory to where files should go.
+    data_module = container.get_data_module()
     with change_working_directory(container.outputs_folder):
-        trainer.fit(lightning_model, datamodule=container.get_data_module())
+        trainer.fit(lightning_model, datamodule=data_module)
         trainer.logger.close()  # type: ignore
-        # Handle the case when someone wants to train a native LightningModule
-        if isinstance(lightning_model, LightningWithInference):
-            lightning_model.close_all_loggers()
     world_size = getattr(trainer, "world_size", 0)
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.

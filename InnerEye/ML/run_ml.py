@@ -40,7 +40,7 @@ from InnerEye.ML.config import ModelDeploymentHookSignature, PostCrossValidation
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
     FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod
 from InnerEye.ML.lightning_base import InnerEyeContainer
-from InnerEye.ML.lightning_container import LightningContainer, LightningInference
+from InnerEye.ML.lightning_container import LightningContainer, InnerEyeInference
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -362,9 +362,9 @@ class MLRunner:
             raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
         lightning_model = self.container.model
         # Run the customized inference code only if the the "inference" step has been overridden
-        if isinstance(lightning_model, LightningInference) and \
-                type(lightning_model).inference_step != LightningInference.inference_step:
-            logging.info("Running inference via the LightningInference.inference_step method")
+        if isinstance(lightning_model, InnerEyeInference) and \
+                type(lightning_model).inference_step != InnerEyeInference.inference_step:
+            logging.info("Running inference via the InnerEyeInference.inference_step method")
             data = self.container.get_inference_data_module()
             dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
             if self.container.perform_validation_and_test_set_inference:
@@ -376,15 +376,16 @@ class MLRunner:
             checkpoint = pl_load(checkpoint_paths[0], map_location=map_location)
             lightning_model.load_state_dict(checkpoint['state_dict'])
             lightning_model.eval()
-            lightning_model.on_inference_start()
-            for loader, split in dataloaders:
-                logging.info(f"Starting inference on {split.value} set")
-                lightning_model.on_inference_epoch_start(dataset_split=split, is_ensemble_model=False)
-                for batch_idx, item in enumerate(loader):
-                    model_output = lightning_model.forward(item[0])
-                    lightning_model.inference_step(item, batch_idx, model_output=model_output)
-                lightning_model.on_inference_epoch_end()
-            lightning_model.on_inference_end()
+            with change_working_directory(self.container.outputs_folder):
+                lightning_model.on_inference_start()
+                for loader, split in dataloaders:
+                    logging.info(f"Starting inference on {split.value} set")
+                    lightning_model.on_inference_epoch_start(dataset_split=split, is_ensemble_model=False)
+                    for batch_idx, item in enumerate(loader):
+                        model_output = lightning_model.forward(item[0])
+                        lightning_model.inference_step(item, batch_idx, model_output=model_output)
+                    lightning_model.on_inference_epoch_end()
+                lightning_model.on_inference_end()
         elif type(lightning_model).test_step != LightningModule.test_step:
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
             logging.info("Running inference via the LightningModule.test_step method")

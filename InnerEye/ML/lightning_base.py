@@ -208,7 +208,7 @@ class InnerEyeLightning(LightningModule):
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         return [self.optimizer], [self.l_rate_scheduler]  # type: ignore
 
-    def close_all_loggers(self) -> None:
+    def on_fit_end(self) -> None:
         """
         Flushes all logger objects that the present object holds.
         """

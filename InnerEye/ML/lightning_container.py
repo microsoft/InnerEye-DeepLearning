@@ -20,12 +20,15 @@ from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 
 
-class LightningInference(abc.ABC):
+class InnerEyeInference(abc.ABC):
     """
-    A base class that defines the methods that need to be present for doing inference on a trained model.
+    A base class that defines the methods that need to be present for doing inference on a trained model. This
+    form of inference is slightly different from what PyTorch Lightning does in its `Trainer.test` method. In
+    particular, this inference can be executed on any of the training, validation, or test set.
+
     The inference code calls the methods in this order:
 
-    model.inference_start()
+    model.on_inference_start()
     for dataset_split in [Train, Val, Test]
         model.on_inference_epoch_start(dataset_split, is_ensemble_model=False)
         for batch_idx, item in enumerate(dataloader[dataset_split])):
@@ -100,32 +103,17 @@ class LightningInference(abc.ABC):
         return aggregate_output
 
 
-class LightningWithInference(LightningModule, LightningInference):
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        LightningModule.__init__(self, *args, **kwargs)
-        # These 3 fields get populated from the enclosing LightningContainer, in create_lightning_module_and_store
-        self.optimizer_params = OptimizerParams()
-        self.output_params = OutputParams()
-        self.trainer_params = TrainerParams()
-        pass
-
-    def forward(self, *args: Any, **kwargs: Any) -> torch.Tensor:
-        """
-        Run an item through the model at prediction time. This overrides LightningModule.forward, and
-        has the same expected use.
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        raise NotImplementedError("This method must be overridden in a derived class.")
-
-    def training_step(self, *args: Any, **kwargs: Any) -> Any:
-        """
-        Implements the PyTorch Lightning training step. This overrides LightningModule.training_step, and
-        has the same expected use.
-        """
-        raise NotImplementedError("This method must be overridden in a derived class.")
+class LightningModuleWithOptimizer(LightningModule):
+    """
+    A base class that supplies a method to configure optimizers and LR schedulers. To use this in your model,
+    inherit from this class instead of from LightningModule.
+    If this class is used, all configuration options for the optimizers and LR schedulers will be also available as
+    commandline arguments (for example, you can supply the InnerEye runner with "--l_rate=1e-2" to change the learning
+    rate.
+    """
+    # These fields will be set by the LightningContainer when the model is created.
+    _optimizer_params = OptimizerParams()
+    _trainer_params = TrainerParams()
 
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         """
@@ -135,32 +123,10 @@ class LightningWithInference(LightningModule, LightningInference):
         Override this method for full flexibility to define any optimizer and scheduler.
         :return: A tuple of (optimizer, LR scheduler)
         """
-        optimizer = model_util.create_optimizer(self.optimizer_params, self.parameters())
-        l_rate_scheduler = SchedulerWithWarmUp(self.optimizer_params, optimizer,
-                                               num_epochs=self.trainer_params.num_epochs)
+        optimizer = model_util.create_optimizer(self._optimizer_params, self.parameters())
+        l_rate_scheduler = SchedulerWithWarmUp(self._optimizer_params, optimizer,
+                                               num_epochs=self._trainer_params.num_epochs)
         return [optimizer], [l_rate_scheduler]
-
-    def close_all_loggers(self) -> None:
-        """
-        This method should close all objects that were used during training to write additional data.
-        """
-        pass
-
-    @property
-    def outputs_folder(self) -> Path:
-        """
-        Gets the folder into which all output of the model training should be written. Output files in this folder
-        will be available in AzureML at the end of training.
-        """
-        return self.output_params.outputs_folder
-
-    @property
-    def logs_folder(self) -> Path:
-        """
-        Gets the folder into which all log files from model training should be written. Log files will be streamed
-        to AzureML during training already.
-        """
-        return self.output_params.logs_folder
 
 
 class LightningContainer(GenericConfig,
@@ -177,7 +143,7 @@ class LightningContainer(GenericConfig,
 
     def __init__(self) -> None:
         super().__init__()
-        self._model: Optional[LightningWithInference] = None
+        self._model: Optional[LightningModule] = None
         self._model_name = type(self).__name__
 
     def validate(self) -> None:
@@ -192,7 +158,7 @@ class LightningContainer(GenericConfig,
         """
         pass
 
-    def create_model(self) -> LightningWithInference:
+    def create_model(self) -> LightningModule:
         """
         This method must create the actual Lightning model that will be trained. It can read out parameters from the
         container and pass them into the model, for example.
@@ -227,7 +193,7 @@ class LightningContainer(GenericConfig,
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
         """
-        Gets additional parameters that will be passed on to the PL trainer.
+        Gets additional parameters that will be passed on to the PyTorch Lightning trainer.
         """
         return dict()
 
@@ -288,7 +254,7 @@ class LightningContainer(GenericConfig,
     # The code from here on does not need to be modified.
 
     @property
-    def model(self) -> LightningWithInference:
+    def model(self) -> LightningModule:
         """
         Returns the PyTorch Lightning module that the present container object manages.
         :return: A PyTorch Lightning module
@@ -303,9 +269,9 @@ class LightningContainer(GenericConfig,
         property.
         """
         self._model = self.create_model()
-        self._model.output_params = create_from_matching_params(self, OutputParams)
-        self._model.optimizer_params = create_from_matching_params(self, OptimizerParams)
-        self._model.trainer_params = create_from_matching_params(self, TrainerParams)
+        if isinstance(self._model, LightningModuleWithOptimizer):
+            self._model._optimizer_params = create_from_matching_params(self, OptimizerParams)
+            self._model._trainer_params = create_from_matching_params(self, TrainerParams)
 
     def __str__(self) -> str:
         """Returns a string describing the present object, as a list of key: value strings."""

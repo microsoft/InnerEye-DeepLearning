@@ -11,11 +11,11 @@ from pathlib import Path
 from typing import Any, Optional
 
 from _pytest.monkeypatch import MonkeyPatch
-from pytorch_lightning import LightningDataModule
+from pytorch_lightning import LightningDataModule, LightningModule
 
 from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed
 from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithImageLogging
-from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
+from InnerEye.ML.lightning_container import LightningContainer
 
 add_folder_to_sys_path_if_needed("fastMRI")
 
@@ -70,7 +70,7 @@ class FastMriOnRandomData(LightningContainer):
         # Restrict to a single GPU, because we have code in dataset creation that could cause race conditions
         self.max_num_gpus = 1
 
-    def create_model(self) -> LightningWithInference:
+    def create_model(self) -> LightningModule:
         return VarNetWithImageLogging()
 
     def get_data_module(self) -> LightningDataModule:

@@ -178,7 +178,7 @@ def test_load_invalid_container() -> None:
     with pytest.raises(ValueError) as ex:
         with mock.patch("sys.argv", args):
             runner.parse_and_load_model()
-    assert "number_of_cross_validation_splits=1" in str(ex)
+    assert "At least two splits required to perform cross validation, but got 1" in str(ex)
 
 
 def test_run_model_with_invalid_trainer_arguments(test_output_dirs: OutputFolderForTests) -> None:

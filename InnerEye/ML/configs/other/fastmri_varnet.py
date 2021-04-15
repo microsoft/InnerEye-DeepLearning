@@ -10,11 +10,11 @@ from typing import Optional
 
 import param
 import torch
-from pytorch_lightning import LightningDataModule
+from pytorch_lightning import LightningDataModule, LightningModule
 from torch.utils.tensorboard import SummaryWriter
 
 from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed
-from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
+from InnerEye.ML.lightning_container import LightningContainer
 
 add_folder_to_sys_path_if_needed("fastMRI")
 
@@ -48,7 +48,7 @@ class FastMri(LightningContainer):
         super().__init__()
         self.azure_dataset_id = "fastmrimini_brain"
 
-    def create_model(self) -> LightningWithInference:
+    def create_model(self) -> LightningModule:
         return VarNetWithImageLogging()
 
     def get_data_module(self) -> LightningDataModule:
