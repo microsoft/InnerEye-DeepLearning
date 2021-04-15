@@ -351,7 +351,7 @@ def test_script_names_correct() -> None:
 
 
 def test_aggregate_and_create_subject_metrics_file(test_output_dirs: OutputFolderForTests) -> None:
-    outputs_folder = test_output_dirs.root_dir
+    outputs_folder = test_output_dirs.root_dir / "outputs"
     shutil.copytree(str(full_ml_test_data_path("test_aggregate_metrics_classification")), str(outputs_folder))
     aggregate_and_create_subject_metrics_file(outputs_folder)
     for mode in [ModelExecutionMode.TRAIN.value, ModelExecutionMode.VAL.value]:
