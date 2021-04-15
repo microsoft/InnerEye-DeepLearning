@@ -276,7 +276,7 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
 
 
 # @pytest.mark.after_training_2node
-@pytest.skip("2 nodes training hangs with PL 1.2.7")
+@pytest.mark.skip("2 nodes training hangs with PL 1.2.7")
 def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if a job running on 2 nodes trains correctly.
