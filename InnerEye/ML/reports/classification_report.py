@@ -407,22 +407,30 @@ def print_metrics_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
 
     for prediction_target in config.class_names:
         print_header(f"Class: {prediction_target}", level=3)
-        all_metrics = []
+
+        # Compute metrics for all crossval splits or single run, and initialise table header
+        all_metrics: List[Dict[str, float]] = []
+        header = ["Metric"]
         if is_crossval_report:
-            header = ["Metric"]
             for crossval_split in range(config.number_of_cross_validation_splits):
                 all_metrics.append(get_metrics_for_fold(prediction_target, crossval_split))
                 header.append(f"Split {crossval_split}")
         else:
             all_metrics.append(get_metrics_for_fold(prediction_target))
-            header = None  # type: ignore
+            header.append("Value")
+        computed_metrics = all_metrics[0].keys()
+
+        # Format table rows
         rows = [[metric] + [f"{fold_metrics[metric]:.4f}" for fold_metrics in all_metrics]
-                for metric in all_metrics[0]]
+                for metric in computed_metrics]
+
+        # Add aggregation column and header
         if is_crossval_report:
-            for row, metric in zip(rows, all_metrics[0]):
+            for row, metric in zip(rows, computed_metrics):
                 values = [fold_metrics[metric] for fold_metrics in all_metrics]
                 row.append(f"{np.mean(values):.4f} ({np.std(values):.4f})")
             header.append("Mean (std)")
+
         print_table(rows, header)
 
 
