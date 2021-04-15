@@ -11,7 +11,6 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy.interpolate
 import torch
 from IPython.display import display
 from PIL import Image
@@ -53,7 +52,7 @@ class ReportedScalarMetrics(Enum):
     Sensitivity = "Sensitivity at optimal threshold", True
     Specificity = "Specificity at optimal threshold", True
 
-    def __init__(self, description, requires_threshold):
+    def __init__(self, description, requires_threshold) -> None:
         self.description = description
         self.requires_threshold = requires_threshold
 
