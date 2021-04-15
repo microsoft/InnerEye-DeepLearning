@@ -300,5 +300,5 @@ def aggregate_and_create_subject_metrics_file(outputs_folder: Path) -> None:
                 result_file.write(temp_file_contents)
             else:
                 # For all files but the first one, cut off the header line.
-                result_file.write("\n" + os.linesep.join(temp_file_contents.splitlines()[1:]))
+                result_file.write(os.linesep + os.linesep.join(temp_file_contents.splitlines()[1:]))
         result_file.close()
