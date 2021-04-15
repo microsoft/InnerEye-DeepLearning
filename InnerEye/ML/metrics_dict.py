@@ -671,10 +671,7 @@ class ScalarMetricsDict(MetricsDict):
 
     @staticmethod
     def load_execution_mode_metrics_from_df(df: pd.DataFrame,
-                                            is_classification_metrics: bool) -> Dict[ModelExecutionMode,
-                                                                                     Dict[Union[
-                                                                                              int, str],
-                                                                                          ScalarMetricsDict]]:
+                                            is_classification_metrics: bool) -> MetricsPerExecutionModeAndEpoch:
         """
         Helper function to create BinaryClassificationMetricsDict grouped by ModelExecutionMode and epoch
         from a given dataframe. The following columns must exist in the provided data frame:
@@ -689,7 +686,7 @@ class ScalarMetricsDict(MetricsDict):
         if has_hue_column:
             group_columns.append(LoggingColumns.Hue.value)
         grouped = df.groupby(group_columns)
-        result: Dict[ModelExecutionMode, Dict[Union[int, str], ScalarMetricsDict]] = dict()
+        result: MetricsPerExecutionModeAndEpoch = dict()
         hues = []
         if has_hue_column:
             hues = [h for h in df[LoggingColumns.Hue.value].unique() if h]
@@ -714,7 +711,7 @@ class ScalarMetricsDict(MetricsDict):
 
     @staticmethod
     def aggregate_and_save_execution_mode_metrics(
-            metrics: Dict[ModelExecutionMode, Dict[Union[int, str], ScalarMetricsDict]],
+            metrics: MetricsPerExecutionModeAndEpoch,
             data_frame_logger: DataframeLogger,
             log_info: bool = True) -> None:
         """
@@ -830,3 +827,6 @@ class DataframeLogger:
         if log_info:
             s = df.to_string(index=False, float_format="%.6f")
             logging.info(f"\n{s}")
+
+
+MetricsPerExecutionModeAndEpoch = Dict[ModelExecutionMode, Dict[Union[int, str], ScalarMetricsDict]]
