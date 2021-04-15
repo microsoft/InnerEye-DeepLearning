@@ -52,7 +52,7 @@ class MyContainer(LightningContainer):
         super().__init__()
         self.num_epochs = 42
 
-    def create_lightning_module(self) -> LightningModule:
+    def create_model(self) -> LightningModule:
         return MyLightningModel()
 ```
 
@@ -102,7 +102,7 @@ class DummyContainerWithParameters(LightningContainer):
     def __init__(self):
         super().__init__()
 
-    def create_lightning_module(self) -> LightningModule:
+    def create_model(self) -> LightningModule:
         return MyLightningModel(self.container_param)
 ```
 All parameters added in this form will be automatically accessible from the commandline: When starting
@@ -111,4 +111,48 @@ training, you can add a flag like `--container_param=bar`.
 
 ## Examples
 
+### 
+```python
+from pytorch_lightning import LightningModule, LightningDataModule
+from InnerEye.ML.lightning_container import LightningContainer
+class Container1(LightningContainer):
+    def __init__(self):
+        super().__init__()
+        self.azure_dataset_id = "azure_dataset"
+        self.num_epochs = 20
+
+    def create_model(self) -> LightningModule:
+        return MyLightningModel()
+
+    def get_data_module(self) -> LightningDataModule:
+        # This should read data from self.local_dataset. Before training, the data folder "azure_dataset
+        # (given by self.azure_dataset_id) will be downloaded for mounted, and its local path set in
+        # self.local_dataset
+        return MyDataModule(root_folder=self.local_dataset) 
+```
+
+
+```python
+from typing import Dict, Any
+from pytorch_lightning import LightningModule, LightningDataModule
+from InnerEye.ML.lightning_container import LightningContainer
+class Container1(LightningContainer):
+    def __init__(self):
+        super().__init__()
+        self.azure_dataset_id = "azure_dataset"
+        self.num_epochs = 20
+
+    def create_model(self) -> LightningModule:
+        return MyLightningModel()
+
+    def get_data_module(self) -> LightningDataModule:
+        # This should read data from self.local_dataset. Before training, the data folder "azure_dataset
+        # (given by self.azure_dataset_id) will be downloaded for mounted, and its local path set in
+        # self.local_dataset
+        return MyDataModule(root_folder=self.local_dataset) 
+
+    def get_trainer_arguments(self) -> Dict[str, Any]:
+        # These arguments will be passed through to the Lightning trainer.
+        return {"gradient_clip_val": 1, "limit_train_batches": 10}
+```
 

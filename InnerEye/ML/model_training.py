@@ -255,8 +255,8 @@ def model_train(checkpoint_handler: CheckpointHandler,
         for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
             temp_files = (container.outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
             result_file = container.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
-            for i, file in enumerate(temp_files):
-                temp_file_contents = file.read_text()
+            for i, temp_file in enumerate(temp_files):
+                temp_file_contents = temp_file.read_text()
                 if i == 0:
                     # Copy the first file as-is, including the first line with the column headers
                     result_file.write_text(temp_file_contents)
