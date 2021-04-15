@@ -216,31 +216,31 @@ def test_get_metric() -> None:
 
     assert accuracy == 0.5
 
-    fpr = get_metric(predictions_to_compute_metrics=test_metrics,
-                     predictions_to_set_optimal_threshold=val_metrics,
-                     metric=ReportedMetrics.FalsePositiveRate)
+    specificity = get_metric(predictions_to_compute_metrics=test_metrics,
+                             predictions_to_set_optimal_threshold=val_metrics,
+                             metric=ReportedMetrics.Specificity)
 
-    assert fpr == 0.5
+    assert specificity == 0.5
 
-    fpr = get_metric(predictions_to_compute_metrics=test_metrics,
-                     predictions_to_set_optimal_threshold=val_metrics,
-                     metric=ReportedMetrics.FalsePositiveRate,
-                     optimal_threshold=0.1)
+    specificity = get_metric(predictions_to_compute_metrics=test_metrics,
+                             predictions_to_set_optimal_threshold=val_metrics,
+                             metric=ReportedMetrics.Specificity,
+                             optimal_threshold=0.1)
 
-    assert fpr == 5 / 6
+    assert specificity == 1 / 6
 
-    fnr = get_metric(predictions_to_compute_metrics=test_metrics,
-                     predictions_to_set_optimal_threshold=val_metrics,
-                     metric=ReportedMetrics.FalseNegativeRate)
+    sensitivity = get_metric(predictions_to_compute_metrics=test_metrics,
+                             predictions_to_set_optimal_threshold=val_metrics,
+                             metric=ReportedMetrics.Sensitivity)
 
-    assert fnr == 0.5
+    assert sensitivity == 0.5
 
-    fnr = get_metric(predictions_to_compute_metrics=test_metrics,
-                     predictions_to_set_optimal_threshold=val_metrics,
-                     metric=ReportedMetrics.FalseNegativeRate,
-                     optimal_threshold=0.1)
+    sensitivity = get_metric(predictions_to_compute_metrics=test_metrics,
+                             predictions_to_set_optimal_threshold=val_metrics,
+                             metric=ReportedMetrics.Sensitivity,
+                             optimal_threshold=0.1)
 
-    assert math.isclose(fnr, 1 / 6, abs_tol=1e-15)
+    assert math.isclose(sensitivity, 5 / 6, abs_tol=1e-15)
 
 
 def test_get_correct_and_misclassified_examples() -> None:

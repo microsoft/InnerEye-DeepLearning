@@ -46,12 +46,14 @@ class ReportedMetrics(Enum):
     """
     Different metrics displayed in the report.
     """
-    OptimalThreshold = "optimal_threshold"
-    AUC_PR = "auc_pr"
-    AUC_ROC = "auc_roc"
-    Accuracy = "accuracy"
+    OptimalThreshold = "Optimal threshold"
+    AUC_PR = "Area under RP Curve"
+    AUC_ROC = "Area under ROC Curve"
+    Accuracy = "Accuracy at optimal threshold"
     FalsePositiveRate = "false_positive_rate"
     FalseNegativeRate = "false_negative_rate"
+    Sensitivity = "Sensitivity at optimal threshold"
+    Specificity = "Specificity at optimal threshold"
 
 
 def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str, crossval_split_index: Optional[int] = None,
@@ -301,6 +303,12 @@ def get_metric(predictions_to_set_optimal_threshold: LabelsAndPredictions,
     elif metric is ReportedMetrics.FalseNegativeRate:
         return 1 - recall_score(predictions_to_compute_metrics.labels,
                                 predictions_to_compute_metrics.model_outputs >= optimal_threshold)
+    elif metric is ReportedMetrics.Specificity:
+        return recall_score(predictions_to_compute_metrics.labels,
+                            predictions_to_compute_metrics.model_outputs >= optimal_threshold, pos_label=0)
+    elif metric is ReportedMetrics.Sensitivity:
+        return recall_score(predictions_to_compute_metrics.labels,
+                            predictions_to_compute_metrics.model_outputs >= optimal_threshold)
     else:
         raise ValueError("Unknown metric")
 
@@ -341,17 +349,17 @@ def get_all_metrics(predictions_to_set_optimal_threshold: LabelsAndPredictions,
                           optimal_threshold=optimal_threshold)
     metrics["Accuracy at optimal threshold"] = accuracy
 
-    fpr = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
-                     predictions_to_compute_metrics=predictions_to_compute_metrics,
-                     metric=ReportedMetrics.FalsePositiveRate,
-                     optimal_threshold=optimal_threshold)
-    metrics["Specificity at optimal threshold"] = 1 - fpr
+    specificity = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                             predictions_to_compute_metrics=predictions_to_compute_metrics,
+                             metric=ReportedMetrics.Specificity,
+                             optimal_threshold=optimal_threshold)
+    metrics["Specificity at optimal threshold"] = specificity
 
-    fnr = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
-                     predictions_to_compute_metrics=predictions_to_compute_metrics,
-                     metric=ReportedMetrics.FalseNegativeRate,
-                     optimal_threshold=optimal_threshold)
-    metrics["Sensitivity at optimal threshold"] = 1 - fnr
+    sensitivity = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                             predictions_to_compute_metrics=predictions_to_compute_metrics,
+                             metric=ReportedMetrics.Sensitivity,
+                             optimal_threshold=optimal_threshold)
+    metrics["Sensitivity at optimal threshold"] = sensitivity
 
     return metrics
 
