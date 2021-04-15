@@ -131,17 +131,18 @@ def get_labels_and_predictions_for_prediction_target_set(csv: Path,
     return get_labels_and_predictions_from_dataframe(df)
 
 
-def print_metrics_for_thresholded_output_for_all_prediction_targets(val_metrics_csv: Path,
-                                                                    test_metrics_csv: Path,
+def print_metrics_for_thresholded_output_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
+                                                                    csv_to_compute_metrics: Path,
                                                                     config: ScalarModelBase) -> None:
 
     """
     Given csvs written during inference for the validation and test sets, print out metrics for every combination of
     prediction targets that exist in the dataset (i.e. for every subset of classes that occur in the dataset).
 
-    :param val_metrics_csv: Csv written during inference time for the val set. This is used to determine the
-    optimal threshold for classification.
-    :param test_metrics_csv: Csv written during inference time for the test set. Metrics are calculated for this csv.
+    :param csv_to_set_optimal_threshold: Csv written during inference time for the val set. This is used to determine
+    the optimal threshold for classification.
+    :param csv_to_compute_metrics: Csv written during inference time for the test set. Metrics are calculated for
+    this csv.
     :param config: Model config
     """
 
@@ -152,22 +153,23 @@ def print_metrics_for_thresholded_output_for_all_prediction_targets(val_metrics_
 
     thresholds_per_prediction_target = []
     for label in config.class_names:
-        val_metrics = get_labels_and_predictions(val_metrics_csv, label)
-        test_metrics = get_labels_and_predictions(test_metrics_csv, label)
-        thresholds_per_prediction_target.append(get_metric(val_labels_and_predictions=val_metrics,
-                                                test_labels_and_predictions=test_metrics,
-                                                metric=ReportedMetrics.OptimalThreshold))
+        predictions_to_set_optimal_threshold = get_labels_and_predictions(csv_to_set_optimal_threshold, label)
+        predictions_to_compute_metrics = get_labels_and_predictions(csv_to_compute_metrics, label)
+        thresholds_per_prediction_target.append(get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                                                           predictions_to_compute_metrics=predictions_to_compute_metrics,
+                                                           metric=ReportedMetrics.OptimalThreshold))
 
     for labels in all_prediction_target_combinations:
         print_header(f"Class {'|'.join(labels) or 'Negative'}", level=3)
-        val_metrics = get_labels_and_predictions_for_prediction_target_set(
-                            csv=val_metrics_csv,
+        predictions_to_set_optimal_threshold = get_labels_and_predictions_for_prediction_target_set(
+                            csv=csv_to_set_optimal_threshold,
                             prediction_target_set_to_match=list(labels),
                             all_prediction_targets=config.class_names,
                             thresholds_per_prediction_target=thresholds_per_prediction_target)
-        test_metrics = get_labels_and_predictions_for_prediction_target_set(
-                            csv=test_metrics_csv,
+        predictions_to_compute_metrics = get_labels_and_predictions_for_prediction_target_set(
+                            csv=csv_to_compute_metrics,
                             prediction_target_set_to_match=list(labels),
                             all_prediction_targets=config.class_names,
                             thresholds_per_prediction_target=thresholds_per_prediction_target)
-        print_metrics(val_labels_and_predictions=val_metrics, test_labels_and_predictions=test_metrics, is_thresholded=True)
+        print_metrics(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                      predictions_to_compute_metrics=predictions_to_compute_metrics, is_thresholded=True)

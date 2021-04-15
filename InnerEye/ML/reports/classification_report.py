@@ -256,20 +256,21 @@ def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase,
             plot_pr_and_roc_curves(metrics)
 
 
-def get_metric(val_labels_and_predictions: LabelsAndPredictions,
-               test_labels_and_predictions: LabelsAndPredictions,
+def get_metric(predictions_to_set_optimal_threshold: LabelsAndPredictions,
+               predictions_to_compute_metrics: LabelsAndPredictions,
                metric: ReportedMetrics,
                optimal_threshold: Optional[float] = None) -> float:
     """
     Given LabelsAndPredictions objects for the validation and test sets, return the specified metric.
-    :param val_labels_and_predictions: This set of ground truth labels and model predictions is used to determine the
-    optimal threshold for classification.
-    :param test_labels_and_predictions: The set of labels and model outputs to calculate metrics for.
+    :param predictions_to_set_optimal_threshold: This set of ground truth labels and model predictions is used to
+    determine the optimal threshold for classification.
+    :param predictions_to_compute_metrics: The set of labels and model outputs to calculate metrics for.
     :param metric: The name of the metric to calculate.
     :param optimal_threshold: If provided, use this threshold instead of calculating an optimal threshold.
     """
     if not optimal_threshold:
-        fpr, tpr, thresholds = roc_curve(val_labels_and_predictions.labels, val_labels_and_predictions.model_outputs)
+        fpr, tpr, thresholds = roc_curve(predictions_to_set_optimal_threshold.labels,
+                                         predictions_to_set_optimal_threshold.model_outputs)
         optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
         optimal_threshold = thresholds[optimal_idx]
 
@@ -278,37 +279,39 @@ def get_metric(val_labels_and_predictions: LabelsAndPredictions,
     if metric is ReportedMetrics.OptimalThreshold:
         return optimal_threshold
 
-    only_one_class_present = len(set(test_labels_and_predictions.labels)) < 2
+    only_one_class_present = len(set(predictions_to_compute_metrics.labels)) < 2
 
     if metric is ReportedMetrics.AUC_ROC:
-        return math.nan if only_one_class_present else roc_auc_score(test_labels_and_predictions.labels, test_labels_and_predictions.model_outputs)
+        return math.nan if only_one_class_present else roc_auc_score(predictions_to_compute_metrics.labels,
+                                                                     predictions_to_compute_metrics.model_outputs)
     elif metric is ReportedMetrics.AUC_PR:
         if only_one_class_present:
             return math.nan
-        precision, recall, _ = precision_recall_curve(test_labels_and_predictions.labels, test_labels_and_predictions.model_outputs)
+        precision, recall, _ = precision_recall_curve(predictions_to_compute_metrics.labels,
+                                                      predictions_to_compute_metrics.model_outputs)
         return auc(recall, precision)
     elif metric is ReportedMetrics.Accuracy:
-        return binary_classification_accuracy(model_output=test_labels_and_predictions.model_outputs,
-                                              label=test_labels_and_predictions.labels,
+        return binary_classification_accuracy(model_output=predictions_to_compute_metrics.model_outputs,
+                                              label=predictions_to_compute_metrics.labels,
                                               threshold=optimal_threshold)
     elif metric is ReportedMetrics.FalsePositiveRate:
-        tnr = recall_score(test_labels_and_predictions.labels, test_labels_and_predictions.model_outputs >= optimal_threshold, pos_label=0)
+        tnr = recall_score(predictions_to_compute_metrics.labels,
+                           predictions_to_compute_metrics.model_outputs >= optimal_threshold, pos_label=0)
         return 1 - tnr
     elif metric is ReportedMetrics.FalseNegativeRate:
-        return 1 - recall_score(test_labels_and_predictions.labels, test_labels_and_predictions.model_outputs >= optimal_threshold)
+        return 1 - recall_score(predictions_to_compute_metrics.labels,
+                                predictions_to_compute_metrics.model_outputs >= optimal_threshold)
     else:
         raise ValueError("Unknown metric")
 
 
-def get_all_metrics(val_labels_and_predictions: LabelsAndPredictions,
-                    test_labels_and_predictions: LabelsAndPredictions,
+def get_all_metrics(predictions_to_set_optimal_threshold: LabelsAndPredictions,
+                    predictions_to_compute_metrics: LabelsAndPredictions,
                     is_thresholded: bool = False) -> Dict[str, float]:
     """
     Given LabelsAndPredictions objects for the validation and test sets, compute some metrics.
-    :param val_labels_and_predictions: LabelsAndPredictions object for the val set. This is used to determine the
-    optimal threshold for classification.
-    :param test_labels_and_predictions: LabelsAndPredictions object for the test set. Metrics are calculated for this
-    set.
+    :param predictions_to_set_optimal_threshold: This is used to determine the optimal threshold for classification.
+    :param predictions_to_compute_metrics: Metrics are calculated for this set.
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
                            or are floating point numbers.
     :return: Dictionary mapping metric descriptions to computed values.
@@ -317,35 +320,35 @@ def get_all_metrics(val_labels_and_predictions: LabelsAndPredictions,
 
     metrics = {}
     if not is_thresholded:
-        roc_auc = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                             test_labels_and_predictions=test_labels_and_predictions,
+        roc_auc = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                             predictions_to_compute_metrics=predictions_to_compute_metrics,
                              metric=ReportedMetrics.AUC_ROC)
         metrics["Area under ROC Curve"] = roc_auc
 
-        pr_auc = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                            test_labels_and_predictions=test_labels_and_predictions,
+        pr_auc = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                            predictions_to_compute_metrics=predictions_to_compute_metrics,
                             metric=ReportedMetrics.AUC_PR)
         metrics["Area under PR Curve"] = pr_auc
 
-        optimal_threshold = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                                       test_labels_and_predictions=test_labels_and_predictions,
+        optimal_threshold = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                                       predictions_to_compute_metrics=predictions_to_compute_metrics,
                                        metric=ReportedMetrics.OptimalThreshold)
         metrics["Optimal threshold"] = optimal_threshold
 
-    accuracy = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                          test_labels_and_predictions=test_labels_and_predictions,
+    accuracy = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                          predictions_to_compute_metrics=predictions_to_compute_metrics,
                           metric=ReportedMetrics.Accuracy,
                           optimal_threshold=optimal_threshold)
     metrics["Accuracy at optimal threshold"] = accuracy
 
-    fpr = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                     test_labels_and_predictions=test_labels_and_predictions,
+    fpr = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                     predictions_to_compute_metrics=predictions_to_compute_metrics,
                      metric=ReportedMetrics.FalsePositiveRate,
                      optimal_threshold=optimal_threshold)
     metrics["Specificity at optimal threshold"] = 1 - fpr
 
-    fnr = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                     test_labels_and_predictions=test_labels_and_predictions,
+    fnr = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                     predictions_to_compute_metrics=predictions_to_compute_metrics,
                      metric=ReportedMetrics.FalseNegativeRate,
                      optimal_threshold=optimal_threshold)
     metrics["Sensitivity at optimal threshold"] = 1 - fnr
@@ -353,54 +356,54 @@ def get_all_metrics(val_labels_and_predictions: LabelsAndPredictions,
     return metrics
 
 
-def print_metrics(val_labels_and_predictions: LabelsAndPredictions,
-                  test_labels_and_predictions: LabelsAndPredictions,
+def print_metrics(predictions_to_set_optimal_threshold: LabelsAndPredictions,
+                  predictions_to_compute_metrics: LabelsAndPredictions,
                   is_thresholded: bool = False) -> None:
     """
     Given LabelsAndPredictions objects for the validation and test sets, print out some metrics.
-    :param val_labels_and_predictions: LabelsAndPredictions object for the val set. This is used to determine the
-    optimal threshold for classification.
-    :param test_labels_and_predictions: LabelsAndPredictions object for the test set. Metrics are calculated for this
-    set.
+    :param predictions_to_set_optimal_threshold: This is used to determine the optimal threshold for classification.
+    :param predictions_to_compute_metrics: Metrics are calculated for this set.
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
                            or are floating point numbers.
     """
-    metrics = get_all_metrics(val_labels_and_predictions, test_labels_and_predictions, is_thresholded)
+    metrics = get_all_metrics(predictions_to_set_optimal_threshold, predictions_to_compute_metrics, is_thresholded)
     rows = [[description, f"{value:.4f}"] for description, value in metrics.items()]
     print_table(rows)
 
 
-def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
-                                             test_metrics_csv: Path,
+def print_metrics_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
+                                             csv_to_compute_metrics: Path,
                                              config: ScalarModelBase,
-                                             val_data_split: Optional[ModelExecutionMode] = None,
-                                             test_data_split: Optional[ModelExecutionMode] = None,
+                                             data_split_to_set_optimal_threshold: Optional[ModelExecutionMode] = None,
+                                             data_split_to_compute_metrics: Optional[ModelExecutionMode] = None,
                                              is_thresholded: bool = False,
                                              is_crossval_report: bool = False) -> None:
     """
     Given csvs written during inference for the validation and test sets, print out metrics for every prediction target
     in the config.
 
-    :param val_metrics_csv: Csv written during inference time for the val set. This is used to determine the
-    optimal threshold for classification.
-    :param test_metrics_csv: Csv written during inference time for the test set. Metrics are calculated for this csv.
+    :param csv_to_set_optimal_threshold: Csv written during inference time for the val set. This is used to determine
+    the optimal threshold for classification.
+    :param csv_to_compute_metrics: Csv written during inference time for the test set. Metrics are calculated for
+    this csv.
     :param config: Model config
-    :param val_data_split: Whether to filter the validation CSV file for Train, Val, or Test results (default: no
-    filtering).
-    :param test_data_split: Whether to filter the test CSV file for Train, Val, or Test results (default: no filtering).
+    :param data_split_to_set_optimal_threshold: Whether to filter the validation CSV file for Train, Val, or Test
+    results (default: no filtering).
+    :param data_split_to_compute_metrics: Whether to filter the test CSV file for Train, Val, or Test results
+    (default: no filtering).
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
                            or are floating point numbers.
     :param is_crossval_report: If True, assumes CSVs contain results for multiple cross-validation runs and prints the
     metrics along with means and standard deviations. Otherwise, prints metrics for a single run.
     """
     def get_metrics_for_fold(prediction_target: str, crossval_split: Optional[int] = None) -> Dict[str, float]:
-        val_labels_and_predictions = get_labels_and_predictions(val_metrics_csv, prediction_target,
-                                                                crossval_split_index=crossval_split,
-                                                                data_split=val_data_split)
-        test_labels_and_predictions = get_labels_and_predictions(test_metrics_csv, prediction_target,
-                                                                 crossval_split_index=crossval_split,
-                                                                 data_split=test_data_split)
-        return get_all_metrics(val_labels_and_predictions, test_labels_and_predictions, is_thresholded)
+        predictions_to_set_optimal_threshold = get_labels_and_predictions(csv_to_set_optimal_threshold, prediction_target,
+                                                                          crossval_split_index=crossval_split,
+                                                                          data_split=data_split_to_set_optimal_threshold)
+        predictions_to_compute_metrics = get_labels_and_predictions(csv_to_compute_metrics, prediction_target,
+                                                                    crossval_split_index=crossval_split,
+                                                                    data_split=data_split_to_compute_metrics)
+        return get_all_metrics(predictions_to_set_optimal_threshold, predictions_to_compute_metrics, is_thresholded)
 
     for prediction_target in config.class_names:
         print_header(f"Class: {prediction_target}", level=3)

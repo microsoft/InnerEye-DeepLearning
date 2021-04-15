@@ -16,7 +16,7 @@ from InnerEye.Common.common_util import is_windows
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.reports.classification_report import ReportedMetrics, get_correct_and_misclassified_examples, \
     get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_labels_and_predictions, \
-    plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id, quantile
+    plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id
 from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
     generate_classification_notebook
 from InnerEye.ML.scalar_config import ScalarModelBase
@@ -179,64 +179,64 @@ def test_get_metric() -> None:
     val_metrics = get_labels_and_predictions(val_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
     test_metrics = get_labels_and_predictions(test_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
 
-    optimal_threshold = get_metric(test_labels_and_predictions=test_metrics,
-                                   val_labels_and_predictions=val_metrics,
+    optimal_threshold = get_metric(predictions_to_compute_metrics=test_metrics,
+                                   predictions_to_set_optimal_threshold=val_metrics,
                                    metric=ReportedMetrics.OptimalThreshold)
 
     assert optimal_threshold == 0.6
 
-    optimal_threshold = get_metric(test_labels_and_predictions=test_metrics,
-                                   val_labels_and_predictions=val_metrics,
+    optimal_threshold = get_metric(predictions_to_compute_metrics=test_metrics,
+                                   predictions_to_set_optimal_threshold=val_metrics,
                                    metric=ReportedMetrics.OptimalThreshold,
                                    optimal_threshold=0.3)
 
     assert optimal_threshold == 0.3
 
-    auc_roc = get_metric(test_labels_and_predictions=test_metrics,
-                         val_labels_and_predictions=val_metrics,
+    auc_roc = get_metric(predictions_to_compute_metrics=test_metrics,
+                         predictions_to_set_optimal_threshold=val_metrics,
                          metric=ReportedMetrics.AUC_ROC)
     assert auc_roc == 0.5
 
-    auc_pr = get_metric(test_labels_and_predictions=test_metrics,
-                        val_labels_and_predictions=val_metrics,
+    auc_pr = get_metric(predictions_to_compute_metrics=test_metrics,
+                        predictions_to_set_optimal_threshold=val_metrics,
                         metric=ReportedMetrics.AUC_PR)
 
     assert math.isclose(auc_pr, 13 / 24, abs_tol=1e-15)
 
-    accuracy = get_metric(test_labels_and_predictions=test_metrics,
-                          val_labels_and_predictions=val_metrics,
+    accuracy = get_metric(predictions_to_compute_metrics=test_metrics,
+                          predictions_to_set_optimal_threshold=val_metrics,
                           metric=ReportedMetrics.Accuracy)
 
     assert accuracy == 0.5
 
-    accuracy = get_metric(test_labels_and_predictions=test_metrics,
-                          val_labels_and_predictions=val_metrics,
+    accuracy = get_metric(predictions_to_compute_metrics=test_metrics,
+                          predictions_to_set_optimal_threshold=val_metrics,
                           metric=ReportedMetrics.Accuracy,
                           optimal_threshold=0.1)
 
     assert accuracy == 0.5
 
-    fpr = get_metric(test_labels_and_predictions=test_metrics,
-                     val_labels_and_predictions=val_metrics,
+    fpr = get_metric(predictions_to_compute_metrics=test_metrics,
+                     predictions_to_set_optimal_threshold=val_metrics,
                      metric=ReportedMetrics.FalsePositiveRate)
 
     assert fpr == 0.5
 
-    fpr = get_metric(test_labels_and_predictions=test_metrics,
-                     val_labels_and_predictions=val_metrics,
+    fpr = get_metric(predictions_to_compute_metrics=test_metrics,
+                     predictions_to_set_optimal_threshold=val_metrics,
                      metric=ReportedMetrics.FalsePositiveRate,
                      optimal_threshold=0.1)
 
     assert fpr == 5 / 6
 
-    fnr = get_metric(test_labels_and_predictions=test_metrics,
-                     val_labels_and_predictions=val_metrics,
+    fnr = get_metric(predictions_to_compute_metrics=test_metrics,
+                     predictions_to_set_optimal_threshold=val_metrics,
                      metric=ReportedMetrics.FalseNegativeRate)
 
     assert fnr == 0.5
 
-    fnr = get_metric(test_labels_and_predictions=test_metrics,
-                     val_labels_and_predictions=val_metrics,
+    fnr = get_metric(predictions_to_compute_metrics=test_metrics,
+                     predictions_to_set_optimal_threshold=val_metrics,
                      metric=ReportedMetrics.FalseNegativeRate,
                      optimal_threshold=0.1)
 
