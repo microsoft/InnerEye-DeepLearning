@@ -374,7 +374,7 @@ def print_metrics_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
     :param is_crossval_report: If True, assumes CSVs contain results for multiple cross-validation runs and prints the
     metrics along with means and standard deviations. Otherwise, prints metrics for a single run.
     """
-    def get_metrics_for_fold(prediction_target: str, crossval_split: Optional[int] = None) -> Dict[str, float]:
+    def get_metrics_for_crossval_split(prediction_target: str, crossval_split: Optional[int] = None) -> Dict[str, float]:
         predictions_to_set_optimal_threshold = get_labels_and_predictions(csv_to_set_optimal_threshold, prediction_target,
                                                                           crossval_split_index=crossval_split,
                                                                           data_split=data_split_to_set_optimal_threshold)
@@ -391,10 +391,10 @@ def print_metrics_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
         header = ["Metric"]
         if is_crossval_report:
             for crossval_split in range(config.number_of_cross_validation_splits):
-                all_metrics.append(get_metrics_for_fold(prediction_target, crossval_split))
+                all_metrics.append(get_metrics_for_crossval_split(prediction_target, crossval_split))
                 header.append(f"Split {crossval_split}")
         else:
-            all_metrics.append(get_metrics_for_fold(prediction_target))
+            all_metrics.append(get_metrics_for_crossval_split(prediction_target))
             header.append("Value")
         computed_metrics = all_metrics[0].keys()
 
