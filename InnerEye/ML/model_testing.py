@@ -15,8 +15,7 @@ import numpy as np
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARENT_RUN_CONTEXT
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
-    SUBJECT_METRICS_FILE_NAME, \
-    get_best_epoch_results_path, is_linux, logging_section
+    SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.metrics_constants import MetricType, MetricsFileColumns
 from InnerEye.ML import metrics, plotting
