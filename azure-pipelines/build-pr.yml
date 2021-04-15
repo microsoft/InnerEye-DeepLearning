@@ -125,7 +125,7 @@ jobs:
           pytest_mark: after_training_2node
           test_run_title: tests_after_training_2node_run
 
-  # Train a model on 2 nodes
+  # Train a classification model in cross validation mode
   - job: TrainGlaucomaCV
     variables:
       - name: model

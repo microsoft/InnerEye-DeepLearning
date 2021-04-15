@@ -383,9 +383,8 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
     #: Name of the csv file providing information on the dataset to be used.
     dataset_csv: str = param.String(
         DATASET_CSV_FILE_NAME,
-        doc="Name of the csv file providing information on the dataset "
-            "to be used, containing at least the fields: "
-            "subject, channel, filePath.")
+        doc="Name of the CSV file providing information on the dataset to be used. "
+            "For segmentation models, this file must contain at least the fields: `subject`, `channel`, `filePath`.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
