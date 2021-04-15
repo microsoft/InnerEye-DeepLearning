@@ -60,7 +60,8 @@ created.
 - ([#422](https://github.com/microsoft/InnerEye-DeepLearning/pull/422)) Documentation - clarified `setting_up_aml.md`
   datastore creation instructions and fixed small typos in `hello_world_model.md`
 - ([#432](https://github.com/microsoft/InnerEye-DeepLearning/pull/432)) Fixed cross-validation for classification
-  models. Fixed multi-node metrics aggregation. Add end-to-end test for classification cross-validation.
+  models. Fixed multi-gpu metrics aggregation. Add end-to-end test for classification cross-validation. Add fix to bug
+  in ddp setting when running multi-node with 1 gpu per node.
 
 ### Removed
 
