@@ -128,7 +128,7 @@ class Runner:
         self.model_config: ModelConfigBase = ModelConfigBase(azure_dataset_id="")
         self.azure_config: AzureConfig = AzureConfig()
 
-    def parse_and_load_model(self) -> Optional[ParserResult]:
+    def parse_and_load_model(self) -> ParserResult:
         """
         Parses the command line arguments, and creates configuration objects for the model itself, and for the
         Azure-related parameters. Sets self.azure_config and self.model_config to their proper values. Returns the
