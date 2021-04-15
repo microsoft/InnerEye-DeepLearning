@@ -66,13 +66,9 @@ def print_table(rows: Sequence[Sequence[str]], header: Optional[Sequence[str]] =
         raise ValueError("All rows in the table should have the same length")
     if header and len(header) != len(rows[0]):
         raise ValueError("Table header and rows should have the same length")
-    table_html = "<table>\n"
-    if header:
-        table_html += "\t<tr><th>" + "</th><th>".join(header) + "</th></tr>\n"
-    for row in rows:
-        table_html += "\t<tr><td>" + "</td><td>".join(row) + "</td></tr>\n"
-    table_html += "</table>"
-    display(HTML(table_html))
+    import pandas as pd
+    df = pd.DataFrame(data=rows, columns=header)
+    display(HTML(df.to_html(index=False)))
 
 
 def generate_notebook(template_notebook: Path, notebook_params: Dict, result_notebook: Path) -> Path:
