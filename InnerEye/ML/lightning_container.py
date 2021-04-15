@@ -208,7 +208,7 @@ class LightningContainer(GenericConfig,
         sets takes cross validation with a given number of splits is correctly taken care of.
         :return: A LightningDataModule
         """
-        None  # type: ignore
+        return None  # type: ignore
 
     def get_inference_data_module(self) -> LightningDataModule:
         """

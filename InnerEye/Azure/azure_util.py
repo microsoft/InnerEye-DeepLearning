@@ -36,7 +36,7 @@ AZUREML_RUN_FOLDER_PREFIX = "dcid."
 AZUREML_RUN_FOLDER = "azureml/ExperimentRun/" + AZUREML_RUN_FOLDER_PREFIX
 
 # Global variables for the Run context, to avoid repeated HTTP calls to get it.
-RUN_CONTEXT = Run.get_context().log_image
+RUN_CONTEXT = Run.get_context()
 # The Run context of the Hyperdrive parent run. This must be cached to avoid issues with the AzureML SDK,
 # which creates worker pools for each call to .parent.
 PARENT_RUN_CONTEXT = getattr(RUN_CONTEXT, "parent", None)
