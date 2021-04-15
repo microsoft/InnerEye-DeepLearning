@@ -14,7 +14,7 @@ from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.reports.classification_report import LabelsAndPredictions, get_labels_and_predictions_from_dataframe, \
     print_metrics, get_labels_and_predictions, \
-    get_metric, ReportedMetrics
+    get_metric, ReportedScalarMetrics
 from InnerEye.ML.reports.notebook_report import print_header
 
 
@@ -157,7 +157,7 @@ def print_metrics_for_thresholded_output_for_all_prediction_targets(csv_to_set_o
         predictions_to_compute_metrics = get_labels_and_predictions(csv_to_compute_metrics, label)
         thresholds_per_prediction_target.append(get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
                                                            predictions_to_compute_metrics=predictions_to_compute_metrics,
-                                                           metric=ReportedMetrics.OptimalThreshold))
+                                                           metric=ReportedScalarMetrics.OptimalThreshold))
 
     for labels in all_prediction_target_combinations:
         print_header(f"Class {'|'.join(labels) or 'Negative'}", level=3)

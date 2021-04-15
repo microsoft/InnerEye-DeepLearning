@@ -42,18 +42,20 @@ class Results:
     false_negatives: pd.DataFrame
 
 
-class ReportedMetrics(Enum):
+class ReportedScalarMetrics(Enum):
     """
     Different metrics displayed in the report.
     """
-    OptimalThreshold = "Optimal threshold"
-    AUC_PR = "Area under RP Curve"
-    AUC_ROC = "Area under ROC Curve"
-    Accuracy = "Accuracy at optimal threshold"
-    FalsePositiveRate = "false_positive_rate"
-    FalseNegativeRate = "false_negative_rate"
-    Sensitivity = "Sensitivity at optimal threshold"
-    Specificity = "Specificity at optimal threshold"
+    AUC_PR = "Area under PR Curve", False
+    AUC_ROC = "Area under ROC Curve", False
+    OptimalThreshold = "Optimal threshold", False
+    Accuracy = "Accuracy at optimal threshold", True
+    Sensitivity = "Sensitivity at optimal threshold", True
+    Specificity = "Specificity at optimal threshold", True
+
+    def __init__(self, description, requires_threshold):
+        self.description = description
+        self.requires_threshold = requires_threshold
 
 
 def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str, crossval_split_index: Optional[int] = None,
@@ -260,7 +262,7 @@ def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase,
 
 def get_metric(predictions_to_set_optimal_threshold: LabelsAndPredictions,
                predictions_to_compute_metrics: LabelsAndPredictions,
-               metric: ReportedMetrics,
+               metric: ReportedScalarMetrics,
                optimal_threshold: Optional[float] = None) -> float:
     """
     Given LabelsAndPredictions objects for the validation and test sets, return the specified metric.
@@ -278,35 +280,28 @@ def get_metric(predictions_to_set_optimal_threshold: LabelsAndPredictions,
 
     assert optimal_threshold  # for mypy, we have already calculated optimal threshold if it was set to None
 
-    if metric is ReportedMetrics.OptimalThreshold:
+    if metric is ReportedScalarMetrics.OptimalThreshold:
         return optimal_threshold
 
     only_one_class_present = len(set(predictions_to_compute_metrics.labels)) < 2
 
-    if metric is ReportedMetrics.AUC_ROC:
+    if metric is ReportedScalarMetrics.AUC_ROC:
         return math.nan if only_one_class_present else roc_auc_score(predictions_to_compute_metrics.labels,
                                                                      predictions_to_compute_metrics.model_outputs)
-    elif metric is ReportedMetrics.AUC_PR:
+    elif metric is ReportedScalarMetrics.AUC_PR:
         if only_one_class_present:
             return math.nan
         precision, recall, _ = precision_recall_curve(predictions_to_compute_metrics.labels,
                                                       predictions_to_compute_metrics.model_outputs)
         return auc(recall, precision)
-    elif metric is ReportedMetrics.Accuracy:
+    elif metric is ReportedScalarMetrics.Accuracy:
         return binary_classification_accuracy(model_output=predictions_to_compute_metrics.model_outputs,
                                               label=predictions_to_compute_metrics.labels,
                                               threshold=optimal_threshold)
-    elif metric is ReportedMetrics.FalsePositiveRate:
-        tnr = recall_score(predictions_to_compute_metrics.labels,
-                           predictions_to_compute_metrics.model_outputs >= optimal_threshold, pos_label=0)
-        return 1 - tnr
-    elif metric is ReportedMetrics.FalseNegativeRate:
-        return 1 - recall_score(predictions_to_compute_metrics.labels,
-                                predictions_to_compute_metrics.model_outputs >= optimal_threshold)
-    elif metric is ReportedMetrics.Specificity:
+    elif metric is ReportedScalarMetrics.Specificity:
         return recall_score(predictions_to_compute_metrics.labels,
                             predictions_to_compute_metrics.model_outputs >= optimal_threshold, pos_label=0)
-    elif metric is ReportedMetrics.Sensitivity:
+    elif metric is ReportedScalarMetrics.Sensitivity:
         return recall_score(predictions_to_compute_metrics.labels,
                             predictions_to_compute_metrics.model_outputs >= optimal_threshold)
     else:
@@ -324,42 +319,18 @@ def get_all_metrics(predictions_to_set_optimal_threshold: LabelsAndPredictions,
                            or are floating point numbers.
     :return: Dictionary mapping metric descriptions to computed values.
     """
-    optimal_threshold = 0.5 if is_thresholded else None
+    optimal_threshold = 0.5 if is_thresholded else \
+        get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                   predictions_to_compute_metrics=predictions_to_compute_metrics,
+                   metric=ReportedScalarMetrics.OptimalThreshold)
 
     metrics = {}
-    if not is_thresholded:
-        roc_auc = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
-                             predictions_to_compute_metrics=predictions_to_compute_metrics,
-                             metric=ReportedMetrics.AUC_ROC)
-        metrics["Area under ROC Curve"] = roc_auc
-
-        pr_auc = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
-                            predictions_to_compute_metrics=predictions_to_compute_metrics,
-                            metric=ReportedMetrics.AUC_PR)
-        metrics["Area under PR Curve"] = pr_auc
-
-        optimal_threshold = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
-                                       predictions_to_compute_metrics=predictions_to_compute_metrics,
-                                       metric=ReportedMetrics.OptimalThreshold)
-        metrics["Optimal threshold"] = optimal_threshold
-
-    accuracy = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
-                          predictions_to_compute_metrics=predictions_to_compute_metrics,
-                          metric=ReportedMetrics.Accuracy,
-                          optimal_threshold=optimal_threshold)
-    metrics["Accuracy at optimal threshold"] = accuracy
-
-    specificity = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
-                             predictions_to_compute_metrics=predictions_to_compute_metrics,
-                             metric=ReportedMetrics.Specificity,
-                             optimal_threshold=optimal_threshold)
-    metrics["Specificity at optimal threshold"] = specificity
-
-    sensitivity = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
-                             predictions_to_compute_metrics=predictions_to_compute_metrics,
-                             metric=ReportedMetrics.Sensitivity,
-                             optimal_threshold=optimal_threshold)
-    metrics["Sensitivity at optimal threshold"] = sensitivity
+    for metric in ReportedScalarMetrics:  # type: ReportedScalarMetrics
+        if is_thresholded and not metric.requires_threshold:
+            continue
+        metrics[metric.description] = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                                                 predictions_to_compute_metrics=predictions_to_compute_metrics,
+                                                 metric=metric, optimal_threshold=optimal_threshold)
 
     return metrics
 

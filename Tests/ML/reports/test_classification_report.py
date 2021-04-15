@@ -14,7 +14,7 @@ from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.common_util import is_windows
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.reports.classification_report import ReportedMetrics, get_correct_and_misclassified_examples, \
+from InnerEye.ML.reports.classification_report import ReportedScalarMetrics, get_correct_and_misclassified_examples, \
     get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_labels_and_predictions, \
     plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id
 from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
@@ -181,63 +181,63 @@ def test_get_metric() -> None:
 
     optimal_threshold = get_metric(predictions_to_compute_metrics=test_metrics,
                                    predictions_to_set_optimal_threshold=val_metrics,
-                                   metric=ReportedMetrics.OptimalThreshold)
+                                   metric=ReportedScalarMetrics.OptimalThreshold)
 
     assert optimal_threshold == 0.6
 
     optimal_threshold = get_metric(predictions_to_compute_metrics=test_metrics,
                                    predictions_to_set_optimal_threshold=val_metrics,
-                                   metric=ReportedMetrics.OptimalThreshold,
+                                   metric=ReportedScalarMetrics.OptimalThreshold,
                                    optimal_threshold=0.3)
 
     assert optimal_threshold == 0.3
 
     auc_roc = get_metric(predictions_to_compute_metrics=test_metrics,
                          predictions_to_set_optimal_threshold=val_metrics,
-                         metric=ReportedMetrics.AUC_ROC)
+                         metric=ReportedScalarMetrics.AUC_ROC)
     assert auc_roc == 0.5
 
     auc_pr = get_metric(predictions_to_compute_metrics=test_metrics,
                         predictions_to_set_optimal_threshold=val_metrics,
-                        metric=ReportedMetrics.AUC_PR)
+                        metric=ReportedScalarMetrics.AUC_PR)
 
     assert math.isclose(auc_pr, 13 / 24, abs_tol=1e-15)
 
     accuracy = get_metric(predictions_to_compute_metrics=test_metrics,
                           predictions_to_set_optimal_threshold=val_metrics,
-                          metric=ReportedMetrics.Accuracy)
+                          metric=ReportedScalarMetrics.Accuracy)
 
     assert accuracy == 0.5
 
     accuracy = get_metric(predictions_to_compute_metrics=test_metrics,
                           predictions_to_set_optimal_threshold=val_metrics,
-                          metric=ReportedMetrics.Accuracy,
+                          metric=ReportedScalarMetrics.Accuracy,
                           optimal_threshold=0.1)
 
     assert accuracy == 0.5
 
     specificity = get_metric(predictions_to_compute_metrics=test_metrics,
                              predictions_to_set_optimal_threshold=val_metrics,
-                             metric=ReportedMetrics.Specificity)
+                             metric=ReportedScalarMetrics.Specificity)
 
     assert specificity == 0.5
 
     specificity = get_metric(predictions_to_compute_metrics=test_metrics,
                              predictions_to_set_optimal_threshold=val_metrics,
-                             metric=ReportedMetrics.Specificity,
+                             metric=ReportedScalarMetrics.Specificity,
                              optimal_threshold=0.1)
 
     assert specificity == 1 / 6
 
     sensitivity = get_metric(predictions_to_compute_metrics=test_metrics,
                              predictions_to_set_optimal_threshold=val_metrics,
-                             metric=ReportedMetrics.Sensitivity)
+                             metric=ReportedScalarMetrics.Sensitivity)
 
     assert sensitivity == 0.5
 
     sensitivity = get_metric(predictions_to_compute_metrics=test_metrics,
                              predictions_to_set_optimal_threshold=val_metrics,
-                             metric=ReportedMetrics.Sensitivity,
+                             metric=ReportedScalarMetrics.Sensitivity,
                              optimal_threshold=0.1)
 
     assert math.isclose(sensitivity, 5 / 6, abs_tol=1e-15)
