@@ -351,11 +351,10 @@ def test_script_names_correct() -> None:
 
 
 def test_aggregate_and_create_subject_metrics_file(test_output_dirs: OutputFolderForTests) -> None:
-    config = DummyClassification()
-    config.set_output_to(test_output_dirs.root_dir)
-    shutil.copytree(str(full_ml_test_data_path("test_aggregate_metrics_classification")), str(config.outputs_folder))
-    aggregate_and_create_subject_metrics_file(config)
+    outputs_folder = test_output_dirs.root_dir
+    shutil.copytree(str(full_ml_test_data_path("test_aggregate_metrics_classification")), str(outputs_folder))
+    aggregate_and_create_subject_metrics_file(outputs_folder)
     for mode in [ModelExecutionMode.TRAIN.value, ModelExecutionMode.VAL.value]:
-        written_lines = pd.read_csv(config.outputs_folder / mode / SUBJECT_METRICS_FILE_NAME)
-        expected_lines = pd.read_csv(config.outputs_folder / mode / "expected_metrics.csv")
+        written_lines = pd.read_csv(outputs_folder / mode / SUBJECT_METRICS_FILE_NAME)
+        expected_lines = pd.read_csv(outputs_folder / mode / "expected_metrics.csv")
         assert written_lines.equals(expected_lines)

@@ -250,7 +250,7 @@ def model_train(config: ModelConfigBase,
                     file = mode.value + "/" + get_subject_output_file_per_rank(rank)
                     RUN_CONTEXT.download_file(name=TEMP_PREFIX + file, output_file_path=config.outputs_folder / file)
         # Concatenate all temporary file per execution mode
-        aggregate_and_create_subject_metrics_file(config)
+        aggregate_and_create_subject_metrics_file(config.outputs_folder)
 
     model_training_results = ModelTrainingResults(
         train_results_per_epoch=list(storing_logger.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values()),
@@ -282,7 +282,7 @@ def model_train(config: ModelConfigBase,
     return model_training_results
 
 
-def aggregate_and_create_subject_metrics_file(config: ModelConfigBase) -> None:
+def aggregate_and_create_subject_metrics_file(outputs_folder: Path) -> None:
     """
     This functions takes all the subject metrics file written by each GPU (one file per GPU) and aggregates them into
     one single metrics file. Results is saved in config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME.
@@ -290,8 +290,8 @@ def aggregate_and_create_subject_metrics_file(config: ModelConfigBase) -> None:
     :param config: model config
     """
     for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
-        temp_files = (config.outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
-        result_file = config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
+        temp_files = (outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
+        result_file = outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
         result_file = result_file.open("a")
         for i, file in enumerate(temp_files):
             temp_file_contents = file.read_text()
