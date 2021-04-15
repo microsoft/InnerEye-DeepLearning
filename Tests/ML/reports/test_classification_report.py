@@ -109,30 +109,6 @@ def test_generate_classification_crossval_report(test_output_dirs: OutputFolderF
     assert result_html.suffix == ".html"
 
 
-def test_quantile() -> None:
-    data = np.array([[0., 2., 3., 5.],
-                     [4., 6., 7., 9.]])
-
-    result = quantile(data, .5, axis=0)
-    assert result.shape == (data.shape[1],)
-    assert np.allclose(result, np.array([2., 4., 5., 7.]))
-
-    result = quantile(data, .5, axis=1)
-    assert result.shape == (data.shape[0],)
-    assert np.allclose(result, np.array([2.5, 6.5]))
-
-    result = quantile(data, [.25, .5, .75], axis=0)
-    assert result.shape == (3, data.shape[1])
-    assert np.allclose(result, np.array([[1., 3., 4., 6.],
-                                         [2., 4., 5., 7.],
-                                         [3., 5., 6., 8.]]))
-
-    result = quantile(data, [.25, .5, .75], axis=1)
-    assert result.shape == (data.shape[0], 3)
-    assert np.allclose(result, np.array([[1.5, 2.5, 3.5],
-                                         [5.5, 6.5, 7.5]]))
-
-
 def test_get_labels_and_predictions() -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"

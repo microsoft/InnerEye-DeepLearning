@@ -54,20 +54,6 @@ class ReportedMetrics(Enum):
     FalseNegativeRate = "false_negative_rate"
 
 
-def quantile(data: Any, quantiles: Any, axis: int = -1) -> np.ndarray:
-    """
-    Computes quantiles of an array along a given axis using linear interpolation.
-    :param data: N-dimensional array-like.
-    :param quantiles: Single or sequence of float values in [0, 1].
-    :param axis: Index of the axis along which to compute the quantiles (default: last).
-    :return: Array of interpolated values, with the same shape as `data` except for the `axis` dimension, which
-    coincides with the shape of `quantiles`.
-    """
-    data = np.sort(data, axis=axis)
-    rank = np.linspace(0, 1, data.shape[axis])
-    return scipy.interpolate.interp1d(rank, data, axis=axis)(quantiles)
-
-
 def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str, crossval_split_index: Optional[int] = None,
                                           data_split: Optional[ModelExecutionMode] = None) -> pd.DataFrame:
     """
@@ -200,7 +186,7 @@ def plot_scores_and_summary(all_labels_and_model_outputs: Sequence[LabelsAndPred
         line_handles.append(handle)
 
     confidence_interval_quantiles = [.5 - confidence_interval_width / 2, .5, .5 + confidence_interval_width / 2]
-    y_lo, y_mid, y_hi = quantile(interp_ys, confidence_interval_quantiles, axis=0)
+    y_lo, y_mid, y_hi = np.quantile(interp_ys, confidence_interval_quantiles, axis=0)
     h1 = ax.fill_between(x_grid, y_lo, y_hi, color='k', alpha=.2, lw=0)
     h2, = ax.plot(x_grid, y_mid, 'k', lw=2)
     summary_handle = (h1, h2)
