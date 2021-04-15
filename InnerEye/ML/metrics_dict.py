@@ -27,6 +27,7 @@ from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_
 
 FloatOrInt = Union[float, int]
 T = TypeVar('T', np.ndarray, float)
+MetricsPerExecutionModeAndEpoch = Dict[ModelExecutionMode, Dict[Union[int, str], 'ScalarMetricsDict']]
 
 
 def average_metric_values(values: List[float], skip_nan_when_averaging: bool) -> float:
@@ -827,6 +828,3 @@ class DataframeLogger:
         if log_info:
             s = df.to_string(index=False, float_format="%.6f")
             logging.info(f"\n{s}")
-
-
-MetricsPerExecutionModeAndEpoch = Dict[ModelExecutionMode, Dict[Union[int, str], ScalarMetricsDict]]
