@@ -196,7 +196,7 @@ class Container1(LightningContainer):
 
     def get_data_module(self) -> LightningDataModule:
         # This should read data from self.local_dataset. Before training, the data folder "azure_dataset
-        # (given by self.azure_dataset_id) will be downloaded for mounted, and its local path set in
+        # (given by self.azure_dataset_id) will be downloaded or mounted, and its local path set in
         # self.local_dataset
         return MyDataModule(root_folder=self.local_dataset) 
 ```
@@ -218,7 +218,7 @@ class Container2(LightningContainer):
 
     def get_data_module(self) -> LightningDataModule:
         # This should read data from self.local_dataset. Before training, the data folder "azure_dataset
-        # (given by self.azure_dataset_id) will be downloaded for mounted, and its local path set in
+        # (given by self.azure_dataset_id) will be downloaded or mounted, and its local path set in
         # self.local_dataset
         return MyDataModule(root_folder=self.local_dataset) 
 
