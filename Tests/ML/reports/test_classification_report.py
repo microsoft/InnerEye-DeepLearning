@@ -104,7 +104,7 @@ def test_functions_with_invalid_csv(test_output_dirs: OutputFolderForTests) -> N
     shutil.copyfile(test_metrics_file, invalid_metrics_file)
     # Duplicate a subject
     with open(invalid_metrics_file, "a") as file:
-        file.write(f"{MetricsDict.DEFAULT_HUE_KEY},1,5,1.0,1,-1,Test")
+        file.write(f"{MetricsDict.DEFAULT_HUE_KEY},0,5,1.0,1,-1,Test")
     with pytest.raises(ValueError) as ex:
         get_labels_and_predictions(invalid_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
     assert "Subject IDs should be unique" in str(ex)
@@ -147,6 +147,17 @@ def test_get_labels_and_predictions_with_filters() -> None:
     results = get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY,
                                          crossval_split_index=0, data_split=ModelExecutionMode.TRAIN)
     assert len(results.subject_ids) == 0, "Expected empty results for unavailable data_split"
+
+    results = get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY,
+                                         crossval_split_index=0, data_split=ModelExecutionMode.VAL,
+                                         epoch=0)
+    assert len(results.subject_ids) > 0, "Expected non-empty results for valid crossval_split_index, " \
+                                         "data_split, and epoch"
+
+    results = get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY,
+                                         crossval_split_index=0, data_split=ModelExecutionMode.VAL,
+                                         epoch=100)
+    assert len(results.subject_ids) == 0, "Expected empty results for unavailable epoch"
 
 
 def test_get_metric() -> None:

@@ -110,17 +110,24 @@ def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str,
     return df
 
 
-def get_labels_and_predictions(csv: Path, prediction_target: str, crossval_split_index: Optional[int] = None,
-                               data_split: Optional[ModelExecutionMode] = None) -> LabelsAndPredictions:
+def get_labels_and_predictions(csv: Path, prediction_target: str,
+                               crossval_split_index: Optional[int] = None,
+                               data_split: Optional[ModelExecutionMode] = None,
+                               epoch: Optional[int] = None) -> LabelsAndPredictions:
     """
     Given a CSV file, reads the subject IDs, ground truth labels and model outputs for each subject
     for the given prediction target.
-    NOTE: This CSV file should have results from a single epoch, as in the metrics files written during inference, not
-    like the ones written while training. It must have at least the following columns (defined in the LoggingColumns
-    enum):
-    LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
+
+    :param csv: Path to the metrics CSV file. Must contain at least the following columns (defined in the LoggingColumns
+        enum): LoggingColumns.Patient, LoggingColumns.Hue.
+    :param prediction_target: Target ("hue") by which to filter.
+    :param crossval_split_index: If specified, filter rows only for the respective run (requires
+        LoggingColumns.CrossValidationSplitIndex).
+    :param data_split: If specified, filter rows by Train/Val/Test (requires LoggingColumns.DataSplit).
+    :param epoch: If specified, filter rows for given epoch (default: last epoch only; requires LoggingColumns.Epoch).
+    :return: Filtered labels and model outputs.
     """
-    df = read_csv_and_filter_prediction_target(csv, prediction_target, crossval_split_index, data_split)
+    df = read_csv_and_filter_prediction_target(csv, prediction_target, crossval_split_index, data_split, epoch)
     return get_labels_and_predictions_from_dataframe(df)
 
 
