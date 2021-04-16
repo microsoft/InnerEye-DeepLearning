@@ -52,7 +52,7 @@ class ReportedScalarMetrics(Enum):
     Sensitivity = "Sensitivity at optimal threshold", True
     Specificity = "Specificity at optimal threshold", True
 
-    def __init__(self, description, requires_threshold) -> None:
+    def __init__(self, description: str, requires_threshold: bool) -> None:
         self.description = description
         self.requires_threshold = requires_threshold
 
