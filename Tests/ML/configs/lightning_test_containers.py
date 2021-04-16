@@ -204,6 +204,9 @@ class DummyContainerWithModel(LightningContainer):
     def get_data_module(self) -> LightningDataModule:
         return FixedRegressionData()  # type: ignore
 
+    def create_report(self) -> None:
+        Path("create_report.txt").touch()
+
 
 class DummyContainerWithInvalidTrainerArguments(LightningContainer):
 

@@ -62,6 +62,8 @@ Train,1e-7"""))
     args_file = (results / ARGS_TXT).read_text()
     assert "Container:" in args_file
     assert "adam_betas" in args_file
+    # Report generation must run
+    assert (results / "create_report.txt").is_file()
 
 
 def test_run_container_with_plain_lightning_in_situ(test_output_dirs: OutputFolderForTests) -> None:

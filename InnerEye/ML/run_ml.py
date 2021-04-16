@@ -350,9 +350,11 @@ class MLRunner:
                     self.wait_for_runs_to_finish()
                     self.create_ensemble_model_and_run_inference()
         else:
-            # Inference for all models that are specified via LightningContainers
+            # Inference for all models that are specified via LightningContainers.
             self.run_inference_for_lightning_models(checkpoint_handler.get_checkpoints_to_test(), trainer)
-            self.container.create_report()
+            # We can't enforce that files are written to the output folder, hence change the working directory manually
+            with change_working_directory(self.container.outputs_folder):
+                self.container.create_report()
 
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path], trainer: Optional[Trainer]) -> None:
         """
@@ -365,6 +367,7 @@ class MLRunner:
         if isinstance(lightning_model, InnerEyeInference) and \
                 type(lightning_model).inference_step != InnerEyeInference.inference_step:
             logging.info("Running inference via the InnerEyeInference.inference_step method")
+            # Read the data modules before changing the working directory, in case the code relies on relative paths
             data = self.container.get_inference_data_module()
             dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
             if self.container.perform_validation_and_test_set_inference:

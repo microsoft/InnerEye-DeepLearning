@@ -1,6 +1,6 @@
 # Bring Your Own PyTorch Lightning Model
 
-The InnerEye toolbox is capable of training any PyTorch Lighting model inside of AzureML, making
+The InnerEye toolbox is capable of training any PyTorch Lighting (PL) model inside of AzureML, making
 use of all the usual InnerEye toolbox features:
 - Working with different model in the same codebase, and selecting one by name
 - Distributed training in AzureML
@@ -8,6 +8,13 @@ use of all the usual InnerEye toolbox features:
 - Training on a local GPU machine or inside of AzureML without code changes
 - Supply commandline overrides for model configuration elements, to quickly queue many jobs
 
+This can be used by
+- Defining a special container class, that encapsulates the PyTorch Lighting model to train, and the data that should
+be used for training and testing.
+- Adding essential trainer parameters like number of epochs to that container.
+- Invoking the InnerEye runner and providing the name of the container class, like this: 
+`python InnerEye/ML/runner.py --model=MyContainer`. To train in AzureML, just add a `--azureml=True` flag.
+ 
 ## Setup
 
 In order to use these capabilities, you need to implement a class deriving from `LightningContainer`. This class
@@ -26,8 +33,65 @@ Your class needs to be defined in a Python file in the `InnerEye/ML/configs` fol
 correctly. If you'd like to have your model defined in a different folder, please specify the Python namespace via
 the `--model_configs_namespace` argument. For example, use `--model_configs_namespace=My.Own.configs` if your
 model configuration classes reside in folder `My/Own/configs` from the repository root.
- 
-There are further requirements for the object returned by `create_model`, as described below.
+
+*Example*:
+```python
+from pathlib import Path
+from torch.utils.data import DataLoader
+from pytorch_lightning import LightningModule, LightningDataModule
+from InnerEye.ML.lightning_container import LightningContainer
+
+class MyLightningModel(LightningModule):
+    def __init__(self):
+        self.layer = ...
+    def training_step(self, *args, **kwargs):
+        ...
+    def forward(self, *args, **kwargs):
+        ...
+    def configure_optimizers(self):
+        ...
+    def test_step(self, *args, **kwargs):
+        ...
+
+class MyDataModule(LightningDataModule):
+    def __init__(self, root_path: Path):
+        # All data should be read from the folder given in self.root_path
+        self.root_path = root_path
+    def train_dataloader(self, *args, **kwargs) -> DataLoader:
+        ...
+    def val_dataloader(self, *args, **kwargs) -> DataLoader:
+        # The data should be read off self.root_path
+        ...
+    def test_dataloader(self, *args, **kwargs) -> DataLoader:
+        # The data should be read off self.root_path
+        ...
+        
+class MyContainer(LightningContainer):
+    def __init__(self):
+        super().__init__()
+        self.azure_dataset_id = "folder_name_in_azure_blob_storage"
+        self.local_dataset = "/some/local/path"
+        self.num_epochs = 42
+
+    def create_model(self) -> LightningModule:
+        return MyLightningModel()
+
+    def get_data_module(self) -> LightningDataModule:
+        return MyDataModule(root_path=self.local_dataset)
+```
+
+Where does the data for training come from?
+- When training a model on a local box or VM, the data is read from the `local_dataset` folder that you define in the 
+container.
+- When training a model in AzureML, the code searches for a folder called `folder_name_in_azure_blob_storage` in
+Azure blob storage. That is then downloaded or mounted. The local download path is then copied over the `local_dataset`
+field in the container, and hence you can always read data from `self.local_dataset`
+- Alternatively, you can use the `prepare_data` method of a `LightningDataModule` to download data from the web,
+for example. In this case, you don't need to define any of the `local_dataset` or `azure_dataset_id` fields.
+
+In the above example, training is done for 42 epochs. After the model is trained, it will be evaluated on the test set,
+via PyTorch Lightning's [built-in test functionality](https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html?highlight=trainer.test#test).
+See below for an alternative way of running the evaluation on the test set.
 
 ### Outputting files during training
 
@@ -45,7 +109,7 @@ the `max_epochs` argument of the `Trainer`.
 
 Usage example:
 ```python
-from pytorch_lightning import LightningModule
+from pytorch_lightning import LightningModule, LightningDataModule
 from InnerEye.ML.lightning_container import LightningContainer
 class MyContainer(LightningContainer):
     def __init__(self):
@@ -54,10 +118,13 @@ class MyContainer(LightningContainer):
 
     def create_model(self) -> LightningModule:
         return MyLightningModel()
+
+    def get_data_module(self) -> LightningDataModule:
+        return MyDataModule(root_path=self.local_dataset)
 ```
 
 For further details how the `TrainerParams` are used, refer to the `create_lightning_trainer` method in 
-`InnerEye/ML/model_training.py`
+[InnerEye/ML/model_training.py](../InnerEye/ML/model_training.py)
 
 ### Optimizer and LR scheduler arguments
 There are two possible ways of choosing the optimizer and LR scheduler:
@@ -98,16 +165,14 @@ import param
 from pytorch_lightning import LightningModule
 from InnerEye.ML.lightning_container import LightningContainer
 class DummyContainerWithParameters(LightningContainer):
-    container_param = param.String(default="foo")
-    def __init__(self):
-        super().__init__()
+    num_layers = param.Integer(default=4)
 
     def create_model(self) -> LightningModule:
-        return MyLightningModel(self.container_param)
+        return MyLightningModel(self.num_layers)
+    ...
 ```
-All parameters added in this form will be automatically accessible from the commandline: When starting
-training, you can add a flag like `--container_param=bar`.
-
+All parameters added in this form will be automatically accessible from the commandline, there is no need to define
+a separate argument parser: When starting training, you can add a flag like `--num_layers=7`.
 
 ## Examples
 
@@ -115,6 +180,7 @@ training, you can add a flag like `--container_param=bar`.
 ```python
 from pytorch_lightning import LightningModule, LightningDataModule
 from InnerEye.ML.lightning_container import LightningContainer
+
 class Container1(LightningContainer):
     def __init__(self):
         super().__init__()
@@ -154,5 +220,7 @@ class Container1(LightningContainer):
     def get_trainer_arguments(self) -> Dict[str, Any]:
         # These arguments will be passed through to the Lightning trainer.
         return {"gradient_clip_val": 1, "limit_train_batches": 10}
+
+    def 
 ```
 
