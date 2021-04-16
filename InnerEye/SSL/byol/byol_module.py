@@ -1,10 +1,14 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 from copy import deepcopy
-from typing import Any, Dict, Iterator, List, Tuple, Optional, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
-
 from pl_bolts.optimizers.lars_scheduling import LARSWrapper
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from torch import Tensor as T
@@ -12,13 +16,13 @@ from torch.optim import Adam
 
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.lightning_container import LightningWithInference
-
 from InnerEye.SSL.byol.byol_models import SiameseArm
 from InnerEye.SSL.byol.byol_moving_average import BYOLMAWeightUpdate
 from InnerEye.SSL.utils import SSLModule
 
 SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLModule, SingleBatchType], SingleBatchType]
+
 
 class BYOLInnerEye(pl.LightningModule):
     """
@@ -87,8 +91,8 @@ class BYOLInnerEye(pl.LightningModule):
         with torch.no_grad():
             _, z_img1, _ = self.target_network(img_1)
             _, z_img2, _ = self.target_network(img_2)
-        loss = 0.5 * (self.cosine_loss(h_img1, z_img2.detach()) 
-                    + self.cosine_loss(h_img2, z_img1.detach()))
+        loss = 0.5 * (self.cosine_loss(h_img1, z_img2.detach())
+                      + self.cosine_loss(h_img2, z_img1.detach()))
 
         return loss
 

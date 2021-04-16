@@ -1,20 +1,24 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
+from typing import Any, Dict, List, Tuple, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Any, Dict, Tuple, List, Union
-
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
 from torch import Tensor as T
 
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.lightning_container import LightningWithInference
-
-from InnerEye.SSL.utils import SSLModule
 from InnerEye.SSL.byol.byol_models import SSLEncoder
+from InnerEye.SSL.utils import SSLModule
 
 SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLModule, SingleBatchType], SingleBatchType]
+
 
 class _Projection(nn.Module):
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int) -> None:

@@ -7,14 +7,14 @@ from collections import Callable
 from typing import Any, List, Tuple
 
 import PIL
+import numpy as np
 import torch
 import torchvision
 from pl_bolts.models.self_supervised.simclr import SimCLREvalDataTransform, SimCLRTrainDataTransform
+from scipy.ndimage import gaussian_filter, map_coordinates
 from torchvision.transforms import ToTensor
 
 from InnerEye.SSL.config_node import ConfigNode
-from scipy.ndimage import gaussian_filter, map_coordinates
-import numpy as np
 
 
 class BaseTransform:
@@ -86,6 +86,7 @@ class ExpandChannels:
     3 channels by copying pixel intensities of the image along
     the 0 dimension.
     """
+
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
         return torch.repeat_interleave(data, 3, dim=0)
 
@@ -157,6 +158,7 @@ class DualViewTransformWrapper:
         xj = transform(sample)
         return xi, xj
 
+
 def get_cxr_ssl_transforms(config: ConfigNode, linear_head_module: bool):
     """
     Applies wrapper around transforms to return two augmented versions of the
@@ -169,6 +171,7 @@ def get_cxr_ssl_transforms(config: ConfigNode, linear_head_module: bool):
     train_transforms = DualViewTransformWrapper(train_transforms)
     val_transforms = DualViewTransformWrapper(val_transforms)
     return train_transforms, val_transforms
+
 
 def create_chest_xray_transform(config: ConfigNode,
                                 is_train: bool) -> Callable:
@@ -210,18 +213,22 @@ class InnerEyeCIFARTrainTransform(SimCLRTrainDataTransform):
     """
     Overload lightning-bolts SimCLRTrainDataTransform, to avoid return unused eval transform.
     """
+
     def __call__(self, sample):
         transform = self.train_transform
         xi = transform(sample)
         xj = transform(sample)
         return xi, xj
 
+
 class InnerEyeCIFARLinearHeadTransform(SimCLRTrainDataTransform):
     """
     Overload lightning-bolts SimCLRTrainDataTransform, to avoid return unused eval transform.
     """
+
     def __call__(self, sample):
         return self.online_transform(sample)
+
 
 class InnerEyeCIFARValTransform(SimCLREvalDataTransform):
     def __call__(self, sample):

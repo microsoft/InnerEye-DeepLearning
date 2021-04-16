@@ -48,7 +48,7 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.num_epochs == 1
     assert loaded_config.recovery_checkpoint_save_interval == 200
     assert loaded_config.ssl_training_type == SSLType.SimCLR
-    assert loaded_config.use_balanced_binary_loss_for_linear_head == False
+    assert not loaded_config.use_balanced_binary_loss_for_linear_head
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
     args = common_test_args + ["--model=SSLClassifierCIFAR", f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args):

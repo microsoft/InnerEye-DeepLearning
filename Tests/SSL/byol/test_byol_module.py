@@ -1,3 +1,8 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 import pytest
 import torch
 
@@ -30,7 +35,7 @@ def test_module_param_eq() -> None:
 # Test initialisation with different encoder types.
 @pytest.mark.parametrize("encoder_name", ["resnet18", "resnet50", "resnet101", "densenet121"])
 def test_encoder_init(encoder_name: str) -> None:
-    byol = BYOLInnerEye(num_samples=16, learning_rate=1e-3, batch_size=4, warmup_epochs=10, encoder_name=encoder_name)
+    BYOLInnerEye(num_samples=16, learning_rate=1e-3, batch_size=4, warmup_epochs=10, encoder_name=encoder_name)
 
 # Test shared step - loss should be bounded between some value and cannot be outside that value.
 def test_shared_forward_step() -> None:

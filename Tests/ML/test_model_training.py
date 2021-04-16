@@ -28,7 +28,6 @@ from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.model_training import aggregate_and_create_subject_metrics_file
-from InnerEye.ML.model_training import aggregate_and_create_subject_metrics_file, model_train
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.utils.model_util import create_segmentation_loss_function

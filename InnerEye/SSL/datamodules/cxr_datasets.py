@@ -9,9 +9,10 @@ from typing import Callable, Optional, Tuple, Union
 import PIL
 import numpy as np
 import pandas as pd
-import pydicom as dicom
 from PIL import Image
 from torchvision.datasets import VisionDataset
+
+from InnerEye.ML.utils.io_util import load_dicom_image
 
 
 class InnerEyeCXRDatasetBase(VisionDataset):
@@ -46,7 +47,7 @@ class InnerEyeCXRDatasetBase(VisionDataset):
         self.indices = None
         self.filenames = None
         self.targets = None
-        raise  NotImplementedError("_prepare_dataset needs to be implemented by the child classes.")
+        raise NotImplementedError("_prepare_dataset needs to be implemented by the child classes.")
 
     def __getitem__(self, index: int) -> Union[Tuple[PIL.Image.Image, int], Tuple[int, PIL.Image.Image, int]]:
         """
@@ -56,7 +57,7 @@ class InnerEyeCXRDatasetBase(VisionDataset):
         filename = self.filenames[index]
         target = self.targets[index] if self.targets is not None else 0
         if str(filename).endswith("dcm"):
-            scan_image = self.read_dicom(filename)
+            scan_image = load_dicom_image(filename)
             scan_image = (scan_image - scan_image.min()) * 255. / (scan_image.max() - scan_image.min())
             scan_image = Image.fromarray(scan_image).convert("L")
         else:
@@ -77,21 +78,12 @@ class InnerEyeCXRDatasetBase(VisionDataset):
     def num_classes(self) -> int:
         raise NotImplementedError
 
-    #todo switch to proper innereye function when it is merged
-    @staticmethod
-    def read_dicom(filepath) -> np.array:
-        ds = dicom.dcmread(filepath)
-        f = ds.pixel_array
-        if ds.PhotometricInterpretation == "MONOCHROME1":
-            f = np.invert(f)
-        return f
-
-
 class NIH(InnerEyeCXRDatasetBase):
     """
     Dataset class to load the NIH Chest-Xray dataset. Use the full data for training and validation (including
     the official test set).
     """
+
     def _prepare_dataset(self):
         self.dataset_dataframe = pd.read_csv(self.root / "Data_Entry_2017.csv")
         self.indices = np.arange(len(self.dataset_dataframe))

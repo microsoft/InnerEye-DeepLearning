@@ -2,11 +2,11 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import copy
 import math
 from pathlib import Path
 from random import randint
 from unittest import mock
+
 import numpy as np
 import torch
 from pytorch_lightning import Trainer
@@ -14,6 +14,7 @@ from pytorch_lightning import Trainer
 from InnerEye.SSL.byol.byol_module import BYOLInnerEye
 from InnerEye.SSL.byol.byol_moving_average import BYOLMAWeightUpdate
 from InnerEye.SSL.datamodules.cxr_datasets import RSNAKaggleCXR
+
 
 def test_update_tau() -> None:
     class DummyRSNADataset(RSNAKaggleCXR):

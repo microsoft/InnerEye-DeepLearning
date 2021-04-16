@@ -1,15 +1,19 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 import logging
 from typing import Any, Callable, Dict, Optional, Union
 
+import numpy as np
 import torch
 from pl_bolts.datamodules.vision_datamodule import VisionDataModule
 from pytorch_lightning import LightningDataModule
 from pytorch_lightning.trainer.supporters import CombinedLoader
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, Dataset
 
 from InnerEye.SSL.utils import SSLModule
-
-import numpy as np
 
 
 class InnerEyeVisionDataModule(VisionDataModule):
@@ -61,8 +65,8 @@ class InnerEyeVisionDataModule(VisionDataModule):
         if hasattr(dataset, "_split_dataset"):
             # If the dataset implements a more complex logic than just splitting randomly by index.
             # The dataset class can implements its own _split_dataset function.
-            dataset_train, dataset_val = dataset._split_dataset(val_split = self.val_split,
-                                                                seed = self.seed)
+            dataset_train, dataset_val = dataset._split_dataset(val_split=self.val_split,
+                                                                seed=self.seed)
             return dataset_train if train else dataset_val
         else:
             return super()._split_dataset(dataset, train)

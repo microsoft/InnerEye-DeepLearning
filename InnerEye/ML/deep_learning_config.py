@@ -467,8 +467,11 @@ class TrainerParams(CudaAwareConfig):
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
                           "you may see training speed increases.")
-    start_epoch: int = param.Integer(0, bounds=(0, None), doc="The first epoch to train. Set to 0 to start a new "                                                         "training. Set to a value larger than zero for starting"
-                                                              " from a checkpoint.")
+    start_epoch: int = param.Integer(0, bounds=(0, None),
+                                     doc="The first epoch to train. Set to 0 to start a new "
+                                         "training. Set to a value larger than zero for starting"
+                                         " from a checkpoint.")
+
     def get_num_gpus_to_use(self):
         num_gpus = torch.cuda.device_count() if self.use_gpu else 0
         logging.info(f"Number of available GPUs: {num_gpus}")
