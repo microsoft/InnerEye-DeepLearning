@@ -138,7 +138,7 @@ def create_lightning_trainer(container: LightningContainer,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       callbacks=[best_checkpoint_callback, recovery_checkpoint_callback],
                       logger=loggers,
-                      progress_bar_refresh_rate=0,  # Disable the progress bar completely
+                      progress_bar_refresh_rate=container.pl_progress_bar_refresh_rate,
                       num_nodes=num_nodes,
                       gpus=num_gpus,
                       precision=precision,

@@ -441,9 +441,14 @@ class TrainerParams(CudaAwareConfig):
                                                          "training.")
     max_num_gpus: int = param.Integer(default=-1, doc="The maximum number of GPUS to use. If set to a value < 0, use"
                                                       "all available GPUs.")
+    pl_progress_bar_refresh_rate: Optional[int] = \
+        param.Integer(default=None,
+                      doc="PyTorch Lightning trainer flag 'progress_bar_refresh_rate': How often to refresh progress "
+                          "bar (in steps). Value 0 disables progress bar. Value None chooses automatically.")
     pl_num_sanity_val_steps: int = \
-        param.Integer(default=0, doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
-                                     "steps to run before training, to identify possible problems")
+        param.Integer(default=0,
+                      doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
+                          "steps to run before training, to identify possible problems")
     pl_deterministic: bool = \
         param.Integer(default=True,
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
@@ -544,6 +549,8 @@ class DeepLearningConfig(WorkflowParams,
         super().__init__(throw_if_unknown_param=True, **params)
         logging.info("Creating the default output folder structure.")
         self.create_filesystem(fixed_paths.repository_root_directory())
+        # Disable the PL progress bar because all InnerEye models have their own console output
+        self.pl_progress_bar_refresh_rate = 0
 
     def validate(self) -> None:
         """
