@@ -145,7 +145,7 @@ def create_lightning_trainer(config: ModelConfigBase,
                       sync_batchnorm=True,
                       terminate_on_nan=config.detect_anomaly,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
-                      plugins=[InnerEyeDDPPlugin(num_nodes=2, sync_batchnorm=True)]
+                      plugins=[InnerEyeDDPPlugin(num_nodes=num_nodes, sync_batchnorm=True)]
                       )
     return trainer, storing_logger
 
