@@ -160,7 +160,7 @@ def plot_pr_and_roc_curves(labels_and_model_outputs: LabelsAndPredictions, axs: 
 
 def plot_scores_and_summary(all_labels_and_model_outputs: Sequence[LabelsAndPredictions],
                             scoring_fn: Callable[[LabelsAndPredictions], Tuple[np.ndarray, np.ndarray]],
-                            confidence_interval_width: float = .8,
+                            interval_width: float = .8,
                             ax: Optional[Axes] = None) -> Tuple[List, Any]:
     """
     Plot a collection of score curves along with the (vertical) median and confidence interval (CI).
@@ -170,8 +170,8 @@ def plot_scores_and_summary(all_labels_and_model_outputs: Sequence[LabelsAndPred
     :param all_labels_and_model_outputs: Collection of ground-truth labels and model predictions (e.g. for various
     cross-validation runs).
     :param scoring_fn: A scoring function mapping a `LabelsAndPredictions` object to X and Y coordinates for plotting.
-    :param confidence_interval_width: A value in [0, 1] representing what fraction of the data should be contained in
-    the shaded area. The edges of the CI are `median +/- confidence_interval_width/2`.
+    :param interval_width: A value in [0, 1] representing what fraction of the data should be contained in
+    the shaded area. The edges of the interval are `median +/- interval_width/2`.
     :param ax: Axes object onto which to plot (default: use current axes).
     :return: A tuple of `(line_handles, summary_handle)` to use in setting a legend for the plot: `line_handles` is a
     list corresponding to the curves for each `LabelsAndPredictions`, and `summary_handle` references the median line
@@ -188,8 +188,8 @@ def plot_scores_and_summary(all_labels_and_model_outputs: Sequence[LabelsAndPred
         handle, = ax.plot(x_values, y_values, lw=1)
         line_handles.append(handle)
 
-    confidence_interval_quantiles = [.5 - confidence_interval_width / 2, .5, .5 + confidence_interval_width / 2]
-    y_lo, y_mid, y_hi = np.quantile(interp_ys, confidence_interval_quantiles, axis=0)
+    interval_quantiles = [.5 - interval_width / 2, .5, .5 + interval_width / 2]
+    y_lo, y_mid, y_hi = np.quantile(interp_ys, interval_quantiles, axis=0)
     h1 = ax.fill_between(x_grid, y_lo, y_hi, color='k', alpha=.2, lw=0)
     h2, = ax.plot(x_grid, y_mid, 'k', lw=2)
     summary_handle = (h1, h2)
@@ -218,16 +218,16 @@ def plot_pr_and_roc_curves_crossval(all_labels_and_model_outputs: Sequence[Label
                                                                labels_and_model_outputs.model_outputs)
         return recall[::-1], precision[::-1]  # inverted to be in ascending order
 
-    confidence_interval_width = .8
+    interval_width = .8
     line_handles, summary_handle = plot_scores_and_summary(all_labels_and_model_outputs,
                                                            scoring_fn=get_roc_xy, ax=axs[0],
-                                                           confidence_interval_width=confidence_interval_width)
+                                                           interval_width=interval_width)
     plot_scores_and_summary(all_labels_and_model_outputs, scoring_fn=get_pr_xy, ax=axs[1],
-                            confidence_interval_width=confidence_interval_width)
+                            interval_width=interval_width)
 
     line_labels = [f"Split {split_index}" for split_index in range(len(all_labels_and_model_outputs))]
     axs[0].legend(line_handles + [summary_handle],
-                  line_labels + [f"Median, {100 * confidence_interval_width:g}% CI"])
+                  line_labels + [f"Median \u00b1 {50 * interval_width:g}%"])
 
     format_pr_or_roc_axes('roc', axs[0])
     format_pr_or_roc_axes('pr', axs[1])
