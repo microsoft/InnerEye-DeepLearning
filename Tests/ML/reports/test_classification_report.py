@@ -77,28 +77,6 @@ def test_generate_classification_crossval_report(test_output_dirs: OutputFolderF
                              image_file_column="filePath",
                              subject_column="subject",
                              number_of_cross_validation_splits=3)
-    config.local_dataset = test_output_dirs.root_dir / "dataset"
-    config.local_dataset.mkdir()
-    dataset_csv = config.local_dataset / "dataset.csv"
-    image_file_name = "image.npy"
-    dataset_csv.write_text("subject,filePath,label\n"
-                           f"0,0_{image_file_name},0\n"
-                           f"1,1_{image_file_name},0\n"
-                           f"2,0_{image_file_name},0\n"
-                           f"3,1_{image_file_name},0\n"
-                           f"4,0_{image_file_name},0\n"
-                           f"5,1_{image_file_name},0\n"
-                           f"6,0_{image_file_name},0\n"
-                           f"7,1_{image_file_name},0\n"
-                           f"8,0_{image_file_name},0\n"
-                           f"9,1_{image_file_name},0\n"
-                           f"10,0_{image_file_name},0\n"
-                           f"11,1_{image_file_name},0\n")
-
-    np.save(str(Path(config.local_dataset / f"0_{image_file_name}")),
-            np.random.randint(0, 255, [5, 4]))
-    np.save(str(Path(config.local_dataset / f"1_{image_file_name}")),
-            np.random.randint(0, 255, [5, 4]))
 
     result_file = test_output_dirs.root_dir / "report.ipynb"
     result_html = generate_classification_crossval_notebook(result_notebook=result_file,

@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,6 +17,7 @@ from PIL import Image
 from matplotlib.axes import Axes
 from sklearn.metrics import auc, precision_recall_curve, recall_score, roc_auc_score, roc_curve
 
+from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
@@ -57,27 +58,51 @@ class ReportedScalarMetrics(Enum):
         self.requires_threshold = requires_threshold
 
 
-def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str, crossval_split_index: Optional[int] = None,
-                                          data_split: Optional[ModelExecutionMode] = None) -> pd.DataFrame:
+def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str,
+                                          crossval_split_index: Optional[int] = None,
+                                          data_split: Optional[ModelExecutionMode] = None,
+                                          epoch: Optional[int] = None) -> pd.DataFrame:
     """
-    Given one of the csv files written during inference time, read it and select only those rows which belong to the
-    given prediction_target. If crossval_split_index is provided, will additionally filter rows only for the respective
-    run, and data_split can further filter by Train/Val/Test. Also check that the final subject IDs are unique.
-    The csv must have at least the following columns (defined in the LoggingColumns enum):
-    LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.CrossValidationSplitIndex (if crossval_split_index is
-    given), LoggingColumns.DataSplit (if data_split is given).
+    Given one of the CSV files written during inference time, read it and select only those rows which belong to the
+    given prediction_target. Also check that the final subject IDs are unique.
+
+    :param csv: Path to the metrics CSV file. Must contain at least the following columns (defined in the LoggingColumns
+        enum): LoggingColumns.Patient, LoggingColumns.Hue.
+    :param prediction_target: Target ("hue") by which to filter.
+    :param crossval_split_index: If specified, filter rows only for the respective run (requires
+        LoggingColumns.CrossValidationSplitIndex).
+    :param data_split: If specified, filter rows by Train/Val/Test (requires LoggingColumns.DataSplit).
+    :param epoch: If specified, filter rows for given epoch (default: last epoch only; requires LoggingColumns.Epoch).
+    :return: Filtered dataframe.
     """
+    def check_column_present(dataframe: pd.DataFrame, column: LoggingColumns):
+        if column.value not in dataframe:
+            raise ValueError(f"Missing {column.value} column.")
+
     df = pd.read_csv(csv)
     df = df[df[LoggingColumns.Hue.value] == prediction_target]  # Filter by prediction target
+
+    # Filter by crossval split index
     if crossval_split_index is not None:
-        if LoggingColumns.CrossValidationSplitIndex.value not in df:
-            raise ValueError(f"Missing {LoggingColumns.CrossValidationSplitIndex.value} column.")
-        # Filter by crossval split index
+        check_column_present(df, LoggingColumns.CrossValidationSplitIndex)
         df = df[df[LoggingColumns.CrossValidationSplitIndex.value] == crossval_split_index]
+
+    # Filter by Train/Val/Test
     if data_split is not None:
-        if LoggingColumns.DataSplit.value not in df:
-            raise ValueError(f"Missing {LoggingColumns.DataSplit.value} column.")
-        df = df[df[LoggingColumns.DataSplit.value] == data_split.value]  # Filter by Train/Val/Test
+        check_column_present(df, LoggingColumns.DataSplit)
+        df = df[df[LoggingColumns.DataSplit.value] == data_split.value]
+
+    # Filter by epoch
+    if LoggingColumns.Epoch.value in df:
+        # In a FULL_METRICS_DATAFRAME_FILE, the epoch column will be BEST_EPOCH_FOLDER_NAME (string) for the Test split.
+        # Here we cast the whole column to integer, mapping BEST_EPOCH_FOLDER_NAME to -1.
+        epochs = df[LoggingColumns.Epoch.value].apply(lambda e: -1 if e == BEST_EPOCH_FOLDER_NAME else int(e))
+        if epoch is None:
+            epoch = epochs.max()  # Take last epoch if unspecified
+        df = df[epochs == epoch]
+    elif epoch is not None:
+        raise ValueError(f"Specified epoch {epoch} but missing {LoggingColumns.Epoch.value} column.")
+
     if not df[LoggingColumns.Patient.value].is_unique:
         raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
                          f"in column {LoggingColumns.Patient.value} in the csv file.")
