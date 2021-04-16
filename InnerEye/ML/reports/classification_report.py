@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -75,7 +75,7 @@ def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str,
     :param epoch: If specified, filter rows for given epoch (default: last epoch only; requires LoggingColumns.Epoch).
     :return: Filtered dataframe.
     """
-    def check_column_present(dataframe: pd.DataFrame, column: LoggingColumns):
+    def check_column_present(dataframe: pd.DataFrame, column: LoggingColumns) -> None:
         if column.value not in dataframe:
             raise ValueError(f"Missing {column.value} column.")
 
