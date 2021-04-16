@@ -316,7 +316,7 @@ class InnerEyeDDPPlugin(DDPPlugin):
     Hopefully we can remove it once it is fixed in Pytorch-Lightning.
     """
 
-    def _call_children_scripts(self):
+    def _call_children_scripts(self) -> None:
         # This is the only line changed compared to DDPPlugin
         assert self.local_rank == 0
 
