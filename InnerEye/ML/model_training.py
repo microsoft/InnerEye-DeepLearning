@@ -106,7 +106,7 @@ def create_lightning_trainer(config: ModelConfigBase,
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
     # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if num_gpus * num_nodes > 1 else None
-    plugins = [InnerEyeDDPPlugin(num_nodes=num_nodes, sync_batchnorm=True)] if num_gpus * num_nodes > 1 else []
+    plugins = [InnerEyeDDPPlugin(num_nodes=num_nodes, sync_batchnorm=True)] if num_gpus * num_nodes > 1 else None
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
     storing_logger = StoringLogger()
     tensorboard_logger = TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")
