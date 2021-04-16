@@ -24,6 +24,7 @@ dependencies:
       - joblib==0.16.0
       - jupyter==1.0.0
       - jupyter-client==6.1.5
+      - lightning-bolts==0.3.1
       - matplotlib==3.3.0
       - mlflow==1.12.1
       - mypy==0.812
@@ -43,7 +44,7 @@ dependencies:
       - pytest-cov==2.10.1
       - pytest-forked==1.3.0
       - pytest-xdist==1.34.0
-      - pytorch-lightning==1.1.8
+      - pytorch-lightning==1.2.7
       - rich==5.1.1
       - rpdb==0.1.6
       - runstats==1.8.0

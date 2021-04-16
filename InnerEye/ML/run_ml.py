@@ -32,7 +32,7 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
     OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
-    change_working_directory, get_epoch_results_path, is_windows, logging_section, logging_to_file, print_exception, \
+    change_working_directory, is_windows, logging_section, logging_to_file, print_exception, \
     remove_file_or_directory
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, LOG_FILE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.ML.common import ModelExecutionMode
@@ -40,7 +40,7 @@ from InnerEye.ML.config import ModelDeploymentHookSignature, PostCrossValidation
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
     FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod
 from InnerEye.ML.lightning_base import InnerEyeContainer
-from InnerEye.ML.lightning_container import LightningContainer, InnerEyeInference
+from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -718,8 +718,10 @@ class MLRunner:
         if config.perform_validation_and_test_set_inference:
             # perform inference on test set
             test_metrics = run_model_test(ModelExecutionMode.TEST)
-            # perform inference on validation set
-            val_metrics = run_model_test(ModelExecutionMode.VAL)
+            # perform inference on validation set (not for ensemble as current val is in the training fold
+            # for at least one of the models).
+            if model_proc != ModelProcessing.ENSEMBLE_CREATION:
+                val_metrics = run_model_test(ModelExecutionMode.VAL)
 
         if config.perform_training_set_inference:
             # perform inference on training set if required
@@ -811,7 +813,7 @@ class MLRunner:
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
         plot_crossval_config.outputs_directory = self.innereye_config.outputs_folder
         plot_crossval_config.azure_config = self.azure_config
-        cross_val_results_root = plot_cross_validation(plot_crossval_config, is_ensemble_run=True)
+        cross_val_results_root = plot_cross_validation(plot_crossval_config)
         if self.post_cross_validation_hook:
             self.post_cross_validation_hook(self.innereye_config, cross_val_results_root)
         # upload results to the parent run's outputs so that the files are visible inside the AzureML UI.
@@ -834,7 +836,7 @@ class MLRunner:
         logging.info("Saving report in HTML")
         try:
             def get_epoch_path(mode: ModelExecutionMode) -> Path:
-                p = get_epoch_results_path(mode=mode, model_proc=model_proc)
+                p = get_best_epoch_results_path(mode=mode, model_proc=model_proc)
                 return config.outputs_folder / p / SUBJECT_METRICS_FILE_NAME
 
             path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)

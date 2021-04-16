@@ -11,8 +11,8 @@ from azureml.core import Run
 from pandas.core.dtypes.common import is_string_dtype
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
-from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    SUBJECT_METRICS_FILE_NAME, logging_to_stdout
+from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, \
+    METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns
@@ -239,7 +239,6 @@ def test_check_result_file_counts() -> None:
     with pytest.raises(ValueError):
         check_result_file_counts(config_and_files3)
 
-
 def test_result_aggregation_for_classification_all_epochs(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test how metrics are aggregated for classification models, when no epoch is specified.
@@ -254,7 +253,6 @@ def test_result_aggregation_for_classification_all_epochs(test_output_dirs: Outp
     _test_result_aggregation_for_classification(files, plotting_config,
                                                 expected_aggregate_metrics=expected_aggregates,
                                                 expected_epochs={1, 2, 3})
-
 
 @pytest.mark.after_training_ensemble_run
 def test_add_comparison_data(test_config_comparison: PlotCrossValidationConfig) -> None:

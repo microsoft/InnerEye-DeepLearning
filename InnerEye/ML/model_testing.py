@@ -13,9 +13,9 @@ from typing import List, Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 
-from InnerEye.Azure.azure_util import PARENT_RUN_CONTEXT
-from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, ModelProcessing, SUBJECT_METRICS_FILE_NAME, \
-    get_epoch_results_path, is_linux, logging_section
+from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARENT_RUN_CONTEXT
+from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
+    SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.Common.metrics_constants import MetricType, MetricsFileColumns
 from InnerEye.ML import metrics, plotting
@@ -69,7 +69,8 @@ def model_test(config: ModelConfigBase,
         if isinstance(config, SegmentationModelBase):
             return segmentation_model_test(config, data_split, checkpoint_handler, model_proc)
         if isinstance(config, ScalarModelBase):
-            return classification_model_test(config, data_split, checkpoint_handler, model_proc)
+            return classification_model_test(config, data_split, checkpoint_handler, model_proc,
+                                             config.cross_validation_split_index)
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 
@@ -91,7 +92,7 @@ def segmentation_model_test(config: SegmentationModelBase,
     if not checkpoints_to_test:
         raise ValueError("There were no checkpoints available for model testing.")
 
-    epoch_results_folder = config.outputs_folder / get_epoch_results_path(data_split, model_proc)
+    epoch_results_folder = config.outputs_folder / get_best_epoch_results_path(data_split, model_proc)
     # save the datasets.csv used
     config.write_dataset_files(root=epoch_results_folder)
     epoch_and_split = f"{data_split.value} set"
@@ -108,7 +109,7 @@ def segmentation_model_test(config: SegmentationModelBase,
         logging.info(f"Mean Dice: {epoch_average_dice:4f}")
         if model_proc == ModelProcessing.ENSEMBLE_CREATION:
             # For the upload, we want the path without the "OTHER_RUNS/ENSEMBLE" prefix.
-            name = str(get_epoch_results_path(data_split, ModelProcessing.DEFAULT))
+            name = str(get_best_epoch_results_path(data_split, ModelProcessing.DEFAULT))
             PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
     return InferenceMetricsForSegmentation(data_split=data_split, metrics=result)
 
@@ -394,7 +395,8 @@ def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> \
 def classification_model_test(config: ScalarModelBase,
                               data_split: ModelExecutionMode,
                               checkpoint_handler: CheckpointHandler,
-                              model_proc: ModelProcessing) -> InferenceMetricsForClassification:
+                              model_proc: ModelProcessing,
+                              cross_val_split_index: int) -> InferenceMetricsForClassification:
     """
     The main testing loop for classification models. It runs a loop over all epochs for which testing should be done.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
@@ -452,7 +454,7 @@ def classification_model_test(config: ScalarModelBase,
         raise ValueError("There was no single checkpoint file available for model testing.")
     else:
         if isinstance(result, ScalarMetricsDict):
-            results_folder = config.outputs_folder / get_epoch_results_path(data_split, model_proc)
+            results_folder = config.outputs_folder / get_best_epoch_results_path(data_split, model_proc)
             csv_file = results_folder / SUBJECT_METRICS_FILE_NAME
 
             logging.info(f"Writing {data_split.value} metrics to file {str(csv_file)}")
@@ -463,10 +465,13 @@ def classification_model_test(config: ScalarModelBase,
             if not csv_file.exists():
                 os.makedirs(str(results_folder), exist_ok=False)
                 df_logger = DataframeLogger(csv_file)
-
-                # cross validation split index not relevant during test time
+                # For test if ensemble split should be default, else record which fold produced this prediction
+                cv_index = DEFAULT_CROSS_VALIDATION_SPLIT_INDEX if model_proc == ModelProcessing.ENSEMBLE_CREATION \
+                    else cross_val_split_index
                 result.store_metrics_per_subject(df_logger=df_logger,
-                                                 mode=data_split)
+                                                 mode=data_split,
+                                                 cross_validation_split_index=cv_index,
+                                                 epoch=BEST_EPOCH_FOLDER_NAME)
                 # write to disk
                 df_logger.flush()
 

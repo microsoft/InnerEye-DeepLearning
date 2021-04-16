@@ -106,7 +106,7 @@ def create_lightning_trainer(container: LightningContainer,
         logging.info(f"Restricting the number of GPUs to {num_gpus}")
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
     # For unit tests, only "ddp_spawn" works
-    accelerator = "ddp" if num_gpus > 1 else None
+    accelerator = "ddp" if num_gpus * num_nodes > 1 else None
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger()]
@@ -252,17 +252,7 @@ def model_train(checkpoint_handler: CheckpointHandler,
                     file = mode.value + "/" + get_subject_output_file_per_rank(rank)
                     RUN_CONTEXT.download_file(name=TEMP_PREFIX + file, output_file_path=container.outputs_folder / file)
         # Concatenate all temporary file per execution mode
-        for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
-            temp_files = (container.outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
-            result_file = container.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
-            for i, temp_file in enumerate(temp_files):
-                temp_file_contents = temp_file.read_text()
-                if i == 0:
-                    # Copy the first file as-is, including the first line with the column headers
-                    result_file.write_text(temp_file_contents)
-                else:
-                    # For all files but the first one, cut off the header line.
-                    result_file.write_text(os.linesep.join(temp_file_contents.splitlines()[1:]))
+        aggregate_and_create_subject_metrics_file(container.outputs_folder)
 
     logging.info("Finished training")
 
@@ -284,3 +274,25 @@ def model_train(checkpoint_handler: CheckpointHandler,
         resource_monitor.kill()
 
     return trainer, storing_logger
+
+
+def aggregate_and_create_subject_metrics_file(outputs_folder: Path) -> None:
+    """
+    This functions takes all the subject metrics file written by each GPU (one file per GPU) and aggregates them into
+    one single metrics file. Results is saved in config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME.
+    This is done for the metrics files for training and for validation data separately.
+    :param config: model config
+    """
+    for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
+        temp_files = (outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
+        result_file = outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
+        result_file = result_file.open("a")
+        for i, file in enumerate(temp_files):
+            temp_file_contents = file.read_text()
+            if i == 0:
+                # Copy the first file as-is, including the first line with the column headers
+                result_file.write(temp_file_contents)
+            else:
+                # For all files but the first one, cut off the header line.
+                result_file.write(os.linesep + os.linesep.join(temp_file_contents.splitlines()[1:]))
+        result_file.close()
