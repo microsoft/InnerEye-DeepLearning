@@ -126,7 +126,7 @@ class Runner:
         # This should be typed as LightningContainer, but we don't always have that imported
         self.lightning_container: Any = None
 
-    def parse_and_load_model(self) -> Optional[ParserResult]:
+    def parse_and_load_model(self) -> ParserResult:
         """
         Parses the command line arguments, and creates configuration objects for the model itself, and for the
         Azure-related parameters. Sets self.azure_config and self.model_config to their proper values. Returns the
@@ -146,7 +146,7 @@ class Runner:
         self.model_config = None
         self.lightning_container = None
         if not azure_config.model:
-            return None
+            raise ValueError("Parameter 'model' needs to be set to tell InnerEye which model to run.")
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser_result.args)
         # Create the model as per the "model" commandline option. This can return either a built-in config
         # of type DeepLearningConfig, or a LightningContainer.

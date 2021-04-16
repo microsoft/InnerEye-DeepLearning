@@ -14,6 +14,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
+from typing import List
 
 import numpy as np
 import pytest
@@ -25,7 +26,7 @@ from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
 from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, get_comparison_baseline_paths, \
     is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
-from InnerEye.Common.common_util import get_epoch_results_path
+from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, get_best_epoch_results_path
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME, \
     PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
@@ -42,6 +43,7 @@ from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_ni
 FALLBACK_ENSEMBLE_RUN = "refs_pull_385_merge:HD_2850254e-4ecf-4425-9245-70fa98f50d81"
 FALLBACK_SINGLE_RUN = "refs_pull_407_merge:refs_pull_407_merge_1614271518_cdbeb28e"
 FALLBACK_2NODE_RUN = "refs_pull_385_merge:refs_pull_385_merge_1612421371_ba12a007"
+FALLBACK_CV_GLAUCOMA = "refs_pull_432_merge_1618332810_b5d10d74"
 
 
 def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> str:
@@ -131,7 +133,7 @@ def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
     Check that metrics.csv and dataset.csv are created after the second epoch, if running on Azure.
     """
     run = get_most_recent_run()
-    blob_path = get_epoch_results_path(ModelExecutionMode.TEST)
+    blob_path = get_best_epoch_results_path(ModelExecutionMode.TEST)
     (comparison_dataset_path, comparison_metrics_path) = get_comparison_baseline_paths(test_output_dirs.root_dir,
                                                                                        blob_path, run,
                                                                                        DATASET_CSV_FILE_NAME)
@@ -178,6 +180,38 @@ def test_submit_for_inference(use_dicom: bool, test_output_dirs: OutputFolderFor
     assert not seg_path.exists(), f"Result file {seg_path} should not yet exist"
     submit_for_inference.main(args, project_root=fixed_paths.repository_root_directory())
     assert seg_path.exists(), f"Result file {seg_path} was not created"
+
+
+def _check_presence_cross_val_metrics_file(split: str, mode: ModelExecutionMode, available_files: List[str]) -> bool:
+    return f"{CROSSVAL_RESULTS_FOLDER}/{split}/{mode.value}/metrics.csv" in available_files
+
+
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
+@pytest.mark.after_training_glaucoma_cv_run
+def test_expected_cv_files_classification(test_output_dirs: OutputFolderForTests) -> None:
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_CV_GLAUCOMA)
+    assert run is not None
+    available_files = run.get_file_names()
+    for split in ["0", "1"]:
+        for mode in [ModelExecutionMode.TEST, ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
+            assert _check_presence_cross_val_metrics_file(split, mode, available_files)
+    # We should not have any ensemble metrics in CV folder
+    for mode in [ModelExecutionMode.TEST, ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
+        assert not _check_presence_cross_val_metrics_file(ENSEMBLE_SPLIT_NAME, mode, available_files)
+
+
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
+@pytest.mark.after_training_ensemble_run
+def test_expected_cv_files_segmentation() -> None:
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
+    assert run is not None
+    available_files = run.get_file_names()
+    for split in ["0", "1"]:
+        for mode in [ModelExecutionMode.TEST, ModelExecutionMode.VAL]:
+            assert _check_presence_cross_val_metrics_file(split, mode, available_files)
+    # For ensemble we should have the test metrics only
+    assert _check_presence_cross_val_metrics_file(ENSEMBLE_SPLIT_NAME, ModelExecutionMode.TEST, available_files)
+    assert not _check_presence_cross_val_metrics_file(ENSEMBLE_SPLIT_NAME, ModelExecutionMode.VAL, available_files)
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
@@ -242,7 +276,8 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
     assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [3], np.ubyte)
 
 
-@pytest.mark.after_training_2node
+# @pytest.mark.after_training_2node
+@pytest.mark.skip("2 nodes training hangs with PL 1.2.7")
 def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if a job running on 2 nodes trains correctly.

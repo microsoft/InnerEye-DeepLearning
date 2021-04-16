@@ -104,14 +104,38 @@ jobs:
           test_run_title: tests_after_training_ensemble_run
 
   # Train a model on 2 nodes
-  - job: Train2Nodes
+  # - job: Train2Nodes
+  #   variables:
+  #     - name: model
+  #       value: 'BasicModel2EpochsMoreData'
+  #     - name: tag
+  #       value: 'Train2Nodes'
+  #     - name: more_switches
+  #       value: '--log_level=DEBUG --num_nodes=2'
+  #   pool:
+  #     vmImage: 'ubuntu-18.04'
+  #   steps:
+  #     - template: train_template.yml
+  #       parameters:
+  #         wait_for_completion: 'True'
+  #         pytest_mark: ''
+  #         max_run_duration: '1h'
+  #     - template: tests_after_training.yml
+  #       parameters:
+  #         pytest_mark: after_training_2node
+  #         test_run_title: tests_after_training_2node_run
+
+  # Train a classification model in cross validation mode
+  - job: TrainGlaucomaCV
     variables:
       - name: model
-        value: 'BasicModel2EpochsMoreData'
+        value: 'GlaucomaPublic'
       - name: tag
-        value: 'Train2Nodes'
+        value: 'GlaucomaPR'
+      - name: number_of_cross_validation_splits
+        value: 2
       - name: more_switches
-        value: '--log_level=DEBUG --num_nodes=2'
+        value: '--num_epochs=2'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -122,5 +146,5 @@ jobs:
           max_run_duration: '1h'
       - template: tests_after_training.yml
         parameters:
-          pytest_mark: after_training_2node
-          test_run_title: tests_after_training_2node_run
+          pytest_mark: after_training_glaucoma_cv_run
+          test_run_title: tests_after_training_glaucoma_cv_run

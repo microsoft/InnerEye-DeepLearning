@@ -148,7 +148,6 @@ def test_parsing_with_custom_yaml(test_output_dirs: OutputFolderForTests) -> Non
         runner = Runner(project_root=fixed_paths.repository_root_directory(),
                         yaml_config_file=yaml_file)
         loader_result = runner.parse_and_load_model()
-    assert loader_result is not None
     assert runner.azure_config is not None
     # This is only present in yaml
     # This is present in yaml and command line, and the latter should be used.

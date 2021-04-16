@@ -505,6 +505,14 @@ class DeepLearningConfig(EssentialParams,
                          "limit test set to 5. If any of i,j,k is '+', discarded members of the other sets are added "
                          "to that set.",
                      allow_None=True)
+    perform_training_set_inference: bool = \
+        param.Boolean(False,
+                      doc="If True, run full image inference on the training set at the end of training. If False and "
+                          "perform_validation_and_test_set_inference is True (default), only run inference on "
+                          "validation and test set. If both flags are False do not run inference.")
+    perform_validation_and_test_set_inference: bool = \
+        param.Boolean(True,
+                      doc="If True (default), run full image inference on validation and test set after training.")
     _dataset_data_frame: Optional[DataFrame] = \
         param.DataFrame(default=None,
                         doc="The dataframe that contains the dataset for the model. This is usually read from disk "
@@ -548,9 +556,8 @@ class DeepLearningConfig(EssentialParams,
     #: Name of the csv file providing information on the dataset to be used.
     dataset_csv: str = param.String(
         DATASET_CSV_FILE_NAME,
-        doc="Name of the csv file providing information on the dataset "
-            "to be used, containing at least the fields: "
-            "subject, channel, filePath.")
+        doc="Name of the CSV file providing information on the dataset to be used. "
+            "For segmentation models, this file must contain at least the fields: `subject`, `channel`, `filePath`.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__
