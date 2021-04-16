@@ -325,12 +325,12 @@ class InnerEyeDDPPlugin(DDPPlugin):
         self._has_spawned_children = True
 
         # DDP Environment variables
-        os.environ["MASTER_ADDR"] = self.cluster_environment.master_address()
-        os.environ["MASTER_PORT"] = str(self.cluster_environment.master_port())
+        os.environ["MASTER_ADDR"] = self.cluster_environment.master_address()  # type: ignore
+        os.environ["MASTER_PORT"] = str(self.cluster_environment.master_port())  # type: ignore
 
         # allow the user to pass the node rank
-        os.environ["NODE_RANK"] = str(self.cluster_environment.node_rank())
-        os.environ["LOCAL_RANK"] = str(self.cluster_environment.local_rank())
+        os.environ["NODE_RANK"] = str(self.cluster_environment.node_rank())  # type: ignore
+        os.environ["LOCAL_RANK"] = str(self.cluster_environment.local_rank())  # type: ignore
 
         path_lib = os.path.abspath
 
@@ -363,7 +363,7 @@ class InnerEyeDDPPlugin(DDPPlugin):
 
         self.interactive_ddp_procs = []
 
-        for local_rank in range(1, self.num_processes):
+        for local_rank in range(1, self.num_processes):  # type: ignore
             env_copy = os.environ.copy()
             env_copy["LOCAL_RANK"] = f"{local_rank}"
 
