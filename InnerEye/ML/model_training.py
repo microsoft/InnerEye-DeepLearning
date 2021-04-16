@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from time import sleep
 from typing import Optional, Tuple, TypeVar
 
 import numpy as np
