@@ -25,6 +25,7 @@ from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.model_training import model_train
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
+from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import Runner
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
@@ -225,7 +226,7 @@ def get_default_workspace() -> Workspace:
     return get_default_azure_config().get_workspace()
 
 
-def model_train_unittest(config: DeepLearningConfig,
+def model_train_unittest(config: Optional[DeepLearningConfig],
                          dirs: OutputFolderForTests,
                          checkpoint_handler: Optional[CheckpointHandler] = None,
                          lightning_container: Optional[LightningContainer] = None) -> \
@@ -240,18 +241,20 @@ def model_train_unittest(config: DeepLearningConfig,
     created via get_default_checkpoint_handler.
     :return: Tuple[StoringLogger, CheckpointHandler]
     """
-    if lightning_container is None:
-        lightning_container = InnerEyeContainer(config)
-        lightning_container.setup()
-        lightning_container.create_lightning_module_and_store()
+    runner = MLRunner(model_config=config, container=lightning_container)
+    # Setup will set random seeds before model creation, and set the model in the container.
+    # It will also set random seeds correctly. Later we use so initialized container.
+    # For all tests running in AzureML, we need to skip the downloading of datasets that would otherwise happen,
+    # because all unit test configs come with their own local dataset already.
+    runner.setup(use_mount_or_download_dataset=False)
     if checkpoint_handler is None:
         azure_config = get_default_azure_config()
         checkpoint_handler = CheckpointHandler(azure_config=azure_config,
-                                               container=lightning_container,
+                                               container=runner.container,
                                                project_root=dirs.root_dir)
     _, storing_logger = model_train(checkpoint_handler=checkpoint_handler,
-                                    container=lightning_container)
-    return storing_logger, checkpoint_handler
+                                    container=runner.container)
+    return storing_logger, checkpoint_handler  # type: ignore
 
 
 def default_runner() -> Runner:

@@ -16,8 +16,7 @@ from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
-from InnerEye.ML.deep_learning_config import OutputParams, WEIGHTS_FILE, \
-    load_checkpoint_and_modify
+from InnerEye.ML.deep_learning_config import OutputParams, WEIGHTS_FILE
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.utils.run_recovery import RunRecovery
 
@@ -236,7 +235,7 @@ class CheckpointHandler:
         if not weights_path or not weights_path.is_file():
             raise FileNotFoundError(f"Could not find the weights file at {weights_path}")
 
-        modified_weights = load_checkpoint_and_modify(weights_path, use_gpu=self.container.use_gpu)
+        modified_weights = self.container.load_checkpoint_and_modify(weights_path)
         target_file = self.output_params.outputs_folder / WEIGHTS_FILE
         torch.save(modified_weights, target_file)
         return target_file

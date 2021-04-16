@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import numbers
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import param
@@ -19,7 +20,7 @@ from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import DatasetParams, DeepLearningConfig, EssentialParams, OutputParams, \
+from InnerEye.ML.deep_learning_config import DatasetParams, DeepLearningConfig, WorkflowParams, OutputParams, \
     TrainerParams
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
@@ -37,6 +38,9 @@ from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_da
 class TrainAndValDataLightning(LightningDataModule):
     """
     A class that wraps training and validation data from an InnerEye model configuration to a Lightning data module.
+    When doing inference on the trained models, we use InferenceDataLightning. This is particularly important for
+    segmentation models, where training and validation happens on equal sized patches, but inference is running on
+    images of arbitrary size.
     """
 
     def __init__(self, config: ModelConfigBase) -> None:
@@ -79,6 +83,7 @@ class TrainAndValDataLightning(LightningDataModule):
 class InferenceDataLightning(LightningDataModule):
     """
     A class that wraps data for running model inference on InnerEye models, as a Lightning data module.
+    Note that training and validation data is handled by TrainAndValDataLightning.
     """
 
     def __init__(self, config: ModelConfigBase) -> None:
@@ -106,6 +111,9 @@ class InferenceDataLightning(LightningDataModule):
     def test_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
         return DataLoader(self.test_data)
 
+    def prepare_data(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
 
 class InnerEyeContainer(LightningContainer):
     """
@@ -118,20 +126,27 @@ class InnerEyeContainer(LightningContainer):
         self._model_name = config.model_name
         # Fields like cross validation index are defined at container level, but the InnerEye models define them
         # at model level. Copy everything over.
-        for type_to_copy in [EssentialParams, DatasetParams, TrainerParams, OutputParams]:
+        for type_to_copy in [WorkflowParams, DatasetParams, TrainerParams, OutputParams]:
             assert issubclass(type_to_copy, param.Parameterized)
-            self.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},
+            self.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},  # type: ignore
                                  should_validate=False)
+
+    def setup(self) -> None:
+        """
+        This hook reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
+        for categorical features, that need to be available before creating the model.
+        """
+        self.config.read_dataset_if_needed()
 
     def create_model(self) -> LightningModule:  # type: ignore
         from InnerEye.ML.lightning_models import create_lightning_model
         return create_lightning_model(self.config)
 
     def get_data_module(self) -> LightningDataModule:
-        return TrainAndValDataLightning(self.config)
+        return TrainAndValDataLightning(self.config)  # type: ignore
 
     def get_inference_data_module(self) -> LightningDataModule:
-        return InferenceDataLightning(self.config)
+        return InferenceDataLightning(self.config)  # type: ignore
 
     def before_training_on_rank_zero(self) -> None:
         # Save the dataset files for later use in cross validation analysis
@@ -141,17 +156,11 @@ class InnerEyeContainer(LightningContainer):
                 visualize_random_crops_for_dataset(self.config)
 
         # Print out a detailed breakdown of layers, memory consumption and time.
-        # TODO antonsc: Can we do better here, and print a model summary for all models? Read the first item
-        # of the dataset and do forward propagation?
         assert isinstance(self.model, InnerEyeLightning)
         generate_and_print_model_summary(self.config, self.model.model)
 
-    def before_training_on_all_ranks(self):
-        """
-        This hook reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
-        for categorical features, that need to be available before creating the model.
-        """
-        self.config.read_dataset_if_needed()
+    def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:
+        return self.config.load_checkpoint_and_modify(path_to_checkpoint=path_to_checkpoint)
 
 
 class InnerEyeLightning(LightningModule):
@@ -199,7 +208,7 @@ class InnerEyeLightning(LightningModule):
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         return [self.optimizer], [self.l_rate_scheduler]  # type: ignore
 
-    def close_all_loggers(self) -> None:
+    def on_fit_end(self) -> None:
         """
         Flushes all logger objects that the present object holds.
         """

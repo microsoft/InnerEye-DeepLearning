@@ -39,8 +39,7 @@ from InnerEye.ML.utils.io_util import zip_random_dicom_series
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape
 
-
-FALLBACK_ENSEMBLE_RUN = "refs_pull_385_merge:HD_2850254e-4ecf-4425-9245-70fa98f50d81"
+FALLBACK_ENSEMBLE_RUN = "refs_pull_432_merge:HD_3af84e4a-0043-4260-8be2-04ce9ab09b1f"
 FALLBACK_SINGLE_RUN = "refs_pull_407_merge:refs_pull_407_merge_1614271518_cdbeb28e"
 FALLBACK_2NODE_RUN = "refs_pull_385_merge:refs_pull_385_merge_1612421371_ba12a007"
 FALLBACK_CV_GLAUCOMA = "refs_pull_432_merge_1618332810_b5d10d74"

@@ -23,51 +23,24 @@ def run_mypy(files: List[str], mypy_executable_path: str) -> int:
     :return: maximum return code from any of the mypy runs
     """
     return_code = 0
-    iteration = 1
-    while files:
-        dirs = sorted(set(os.path.dirname(file) or "." for file in files))
-        print(f"Iteration {iteration}: running mypy on {len(files)} files in {len(dirs)} directories")
-        # Set of files we are hoping to see mentioned in the mypy log.
-        files_to_do = set(files)
-        for index, dir in enumerate(dirs, 1):
-            # Adding "--no-site-packages" might be necessary if there are errors in site packages,
-            # but it may stop inconsistencies with site packages being spotted.
-            command = [mypy_executable_path, "--config=mypy.ini", "--verbose", dir]
-            print(f"Processing directory {index:2d} of {len(dirs)}: {Path(dir).absolute()}")
+    print(f"Running mypy on {len(files)} files")
+    for index, file in enumerate(files):
+        print(f"Processing {(index+1):2d} of {len(files)}: {file}")
+        file_path = Path(file)
+        mypy_args = []
+        if file_path.is_file():
+            mypy_args = [file]
+        elif file_path.is_dir():
+            # There is a bug in recent mypy versions, complaining about duplicate files when telling
+            # mypy to scan a directory. Telling it to scan a namespace avoids this bug.
+            mypy_args = ["-p", file.replace(os.path.sep, ".")]
+        else:
+            print("Skipping.")
+        if mypy_args:
+            command = [mypy_executable_path, "--config=mypy.ini", *mypy_args]
             # We pipe stdout and then print it, otherwise lines can appear in the wrong order in builds.
-            process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            process = subprocess.run(command)
             return_code = max(return_code, process.returncode)
-            for line in process.stdout.split("\n"):
-                if line and not line.startswith("Success: "):
-                    tokens = line.split(":")
-                    if line.startswith("Found") or len(tokens) < 2:
-                        print(line)
-                    else:
-                        print(f"{Path.cwd() / tokens[0]}:{':'.join(tokens[1:])}")
-
-            # Remove from files_to_do every Python file that's reported as processed in the log.
-            for line in process.stderr.split("\n"):
-                tokens = line.split()
-                if len(tokens) == 4 and tokens[0] == "LOG:" and tokens[1] == "Parsing":
-                    name = tokens[2]
-                elif len(tokens) == 7 and tokens[:4] == ["LOG:", "Metadata", "fresh", "for"]:
-                    name = tokens[-1]
-                else:
-                    continue
-                if name.endswith(".py"):
-                    if name.startswith("./") or name.startswith(".\\"):
-                        name = name[2:]
-                    files_to_do.discard(name)
-        # If we didn't manage to discard any files, there's no point continuing. This should not occur, but if
-        # it does, we don't want to continue indefinitely.
-        if len(files_to_do) == len(files):
-            print("No further files appear to have been checked! Unchecked files are:")
-            for file in sorted(files_to_do):
-                print(f"  {file}")
-            return_code = max(return_code, 1)
-            break
-        files = sorted(files_to_do)
-        iteration += 1
     return return_code
 
 
@@ -83,17 +56,11 @@ def main() -> int:
     args = parser.parse_args()
     current_dir = Path(".")
     if args.files:
-        file_list = [Path(arg) for arg in args.files if arg.endswith(".py")]
+        file_list = args.files
     else:
-        # We don't want to check the files in the submodule if any, partly because they should already have
-        # been checked in the original repo, and partly because we don't want the module name clashes mypy would
-        # otherwise report.
-        excluded_folders = {"innereye-deeplearning", "fastMRI"}
-        files = set(current_dir.glob('*.py'))
-        for path in current_dir.glob('*'):
-            if path.name not in excluded_folders:
-                files.update(path.rglob('*.py'))
-        file_list = list(files)
+        file_list = list(str(f) for f in current_dir.glob('*.py'))
+        for dir in ["InnerEye", "Tests", "TestsOutsidePackage", "TestSubmodule"]:
+            file_list.append(dir)
 
     mypy = args.mypy or which("mypy")
     if not mypy:

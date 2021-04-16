@@ -9,53 +9,26 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 import param
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
-# Problem: We need to know
-# azure_dataset_id
-# model_config.get_hyperdrive_config
-# model_config.perform_crossvalidation
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
 from InnerEye.Common.generic_parsing import GenericConfig, create_from_matching_params
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.deep_learning_config import DatasetParams, EssentialParams, OptimizerParams, OutputParams, \
-    TrainerParams
-# Do we want to support ensembles at inference time? Not now
+from InnerEye.ML.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
+    WorkflowParams, load_checkpoint
 from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 
 
-# Biggest problem: We don't want to rely on torch being available when submitting a job.
-# A simple conda env costs 1min 30sec to create, the full one 4min 30sec in Linux.
-# Could rely on only the class name when submitting to check that the model exists, skipping checks for
-# the commandline overrides. Or better: Try to instantiate the class. If we can, all good. If not, just check that
-# the python file exists, but proceed to submission. This will work fine for everyone working off the commandline.
-# flake8: noqa
-# What do we want from InnerEye?
-# - datasets (optional - this means all dataset fields can potentially be left empty)
-# - Do we want ensembles?
-# - checkpoint recovery: checkpoints must be written to
-# We are inheriting from LightningModule here, this will fail in the smaller environment
-# Goals:
-# run experiments by config name
-# AzureML submission framework
-# Consuming datasets from Azure blob storage
-
-# rename from inference_... to test_step
-# How to define parameters?
-# Can we simplify score.py by re-using code here?
-# automatic regression testing
-
-# We can restrict inference to only the test set for pretty much all models. Only in segmentation models we
-# are presently doing something different than in training.
-# If that is not enough: Can pass in inference mode (single model / ensemble) and which dataset we are running on.
-
-class LightningInference(abc.ABC):
+class InnerEyeInference(abc.ABC):
     """
-    A base class that defines the methods that need to be present for doing inference on a trained model.
+    A base class that defines the methods that need to be present for doing inference on a trained model. This
+    form of inference is slightly different from what PyTorch Lightning does in its `Trainer.test` method. In
+    particular, this inference can be executed on any of the training, validation, or test set.
+
     The inference code calls the methods in this order:
 
-    model.inference_start()
+    model.on_inference_start()
     for dataset_split in [Train, Val, Test]
         model.on_inference_epoch_start(dataset_split, is_ensemble_model=False)
         for batch_idx, item in enumerate(dataloader[dataset_split])):
@@ -130,39 +103,17 @@ class LightningInference(abc.ABC):
         return aggregate_output
 
 
-class LightningWithInference(LightningModule, LightningInference):
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        LightningModule.__init__(self, *args, **kwargs)
-        # These 3 fields get populated from the enclosing LightningContainer
-        self.optimizer_params = OptimizerParams()
-        self.output_params = OutputParams()
-        self.trainer_params = TrainerParams()
-        pass
-
-    def forward(self, *args: Any, **kwargs: Any) -> torch.Tensor:
-        """
-        Run an item through the model at prediction time. This overrides LightningModule.forward, and
-        has the same expected use.
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        raise NotImplementedError("This method must be overridden in a derived class.")
-
-    def training_step(self, *args: Any, **kwargs: Any) -> Any:
-        """
-        Implements the PyTorch Lightning training step. This overrides LightningModule.training_step, and
-        has the same expected use.
-        """
-        raise NotImplementedError("This method must be overridden in a derived class.")
-
-    def create_report(self) -> None:
-        """
-        This method should look through all files that training and inference wrote, and cook that into a
-        nice human readable report. Report should go into self.outputs folder.
-        """
-        pass
+class LightningModuleWithOptimizer(LightningModule):
+    """
+    A base class that supplies a method to configure optimizers and LR schedulers. To use this in your model,
+    inherit from this class instead of from LightningModule.
+    If this class is used, all configuration options for the optimizers and LR schedulers will be also available as
+    commandline arguments (for example, you can supply the InnerEye runner with "--l_rate=1e-2" to change the learning
+    rate.
+    """
+    # These fields will be set by the LightningContainer when the model is created.
+    _optimizer_params = OptimizerParams()
+    _trainer_params = TrainerParams()
 
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         """
@@ -172,46 +123,33 @@ class LightningWithInference(LightningModule, LightningInference):
         Override this method for full flexibility to define any optimizer and scheduler.
         :return: A tuple of (optimizer, LR scheduler)
         """
-        optimizer = model_util.create_optimizer(self.optimizer_params, self.parameters())
-        l_rate_scheduler = SchedulerWithWarmUp(self.optimizer_params, optimizer,
-                                               num_epochs=self.trainer_params.num_epochs)
+        optimizer = model_util.create_optimizer(self._optimizer_params, self.parameters())
+        l_rate_scheduler = SchedulerWithWarmUp(self._optimizer_params, optimizer,
+                                               num_epochs=self._trainer_params.num_epochs)
         return [optimizer], [l_rate_scheduler]
-
-    def close_all_loggers(self) -> None:
-        """
-        This method should close all objects that were used during training to write additional data.
-        """
-        pass
-
-    @property
-    def outputs_folder(self) -> Path:
-        """
-        Gets the folder into which all output of the model training should be written. Output files in this folder
-        will be available in AzureML at the end of training.
-        """
-        return self.output_params.outputs_folder
-
-    @property
-    def logs_folder(self) -> Path:
-        """
-        Gets the folder into which all log files from model training should be written. Log files will be streamed
-        to AzureML during training already.
-        """
-        return self.output_params.logs_folder
 
 
 class LightningContainer(GenericConfig,
-                         EssentialParams,
+                         WorkflowParams,
                          DatasetParams,
                          OutputParams,
                          TrainerParams,
                          OptimizerParams):
+    """
+    A LightningContainer contains all information to train a user-specified PyTorch Lightning model. The model that
+    should be trained is returned by the `create_model` method. The training data must be returned in the form of
+    a LightningDataModule, by the `get_data_module` method.
+    """
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self._model: Optional[LightningWithInference] = None
+        self._model: Optional[LightningModule] = None
         self._model_name = type(self).__name__
         self.extra_downloaded_run_id = None
+
+    def validate(self) -> None:
+        WorkflowParams.validate(self)
+        OptimizerParams.validate(self)
 
     def setup(self) -> None:
         """
@@ -221,7 +159,7 @@ class LightningContainer(GenericConfig,
         """
         pass
 
-    def create_model(self) -> LightningWithInference:
+    def create_model(self) -> LightningModule:
         """
         This method must create the actual Lightning model that will be trained. It can read out parameters from the
         container and pass them into the model, for example.
@@ -237,7 +175,7 @@ class LightningContainer(GenericConfig,
         sets takes cross validation with a given number of splits is correctly taken care of.
         :return: A LightningDataModule
         """
-        pass
+        return None  # type: ignore
 
     def get_inference_data_module(self) -> LightningDataModule:
         """
@@ -256,9 +194,17 @@ class LightningContainer(GenericConfig,
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
         """
-        Gets additional parameters that will be passed on to the PL trainer.
+        Gets additional parameters that will be passed on to the PyTorch Lightning trainer.
         """
         return dict()
+
+    def create_report(self) -> None:
+        """
+        This method is called after training and testing has been completed. It can aggregate all files that were
+        written during training and testing, and compile them into some helpful overarching output.
+        The report should be written to self.
+        """
+        pass
 
     def before_training_on_rank_zero(self) -> None:
         """
@@ -276,10 +222,40 @@ class LightningContainer(GenericConfig,
         """
         pass
 
-    # The code from here onwards does not need to be modified.
+    def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:
+        """
+        This method is called when a file with weights for network initialization is supplied at container level,
+        in the self.weights_url or self.local_weights_path fields. It can load that file as a Torch checkpoint,
+        and rename parameters.
+
+        By default, uses torch.load to read and return the state dict from the checkpoint file, and does no modification
+        of the checkpoint file.
+
+        Overloading this function:
+        When weights_url or local_weights_path is set, the file downloaded may not be in the exact
+        format expected by the model's load_state_dict() - for example, pretrained Imagenet weights for networks
+        may have mismatched layer names in different implementations.
+        In such cases, you can overload this function to extract the state dict from the checkpoint.
+
+        NOTE: The model checkpoint will be loaded using the torch function load_state_dict() with argument strict=False,
+        so extra care needs to be taken to check that the state dict is valid.
+        Check the logs for warnings related to missing and unexpected keys.
+        See https://pytorch.org/tutorials/beginner/saving_loading_models.html#warmstarting-model-using-parameters
+        -from-a-different-model
+        for an explanation on why strict=False is useful when loading parameters from other models.
+        :param path_to_checkpoint: Path to the checkpoint file.
+        :return: Dictionary with model and optimizer state dicts. The dict should have at least the following keys:
+        1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set to the model state dict.
+        2. Key ModelAndInfo.EPOCH_KEY and value set to the checkpoint epoch.
+        Other (optional) entries corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
+        ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported.
+        """
+        return load_checkpoint(path_to_checkpoint=path_to_checkpoint, use_gpu=self.use_gpu)
+
+    # The code from here on does not need to be modified.
 
     @property
-    def model(self) -> LightningWithInference:
+    def model(self) -> LightningModule:
         """
         Returns the PyTorch Lightning module that the present container object manages.
         :return: A PyTorch Lightning module
@@ -294,9 +270,9 @@ class LightningContainer(GenericConfig,
         property.
         """
         self._model = self.create_model()
-        self._model.output_params = create_from_matching_params(self, OutputParams)
-        self._model.optimizer_params = create_from_matching_params(self, OptimizerParams)
-        self._model.trainer_params = create_from_matching_params(self, TrainerParams)
+        if isinstance(self._model, LightningModuleWithOptimizer):
+            self._model._optimizer_params = create_from_matching_params(self, OptimizerParams)
+            self._model._trainer_params = create_from_matching_params(self, TrainerParams)
 
     def __str__(self) -> str:
         """Returns a string describing the present object, as a list of key: value strings."""

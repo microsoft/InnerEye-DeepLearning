@@ -19,7 +19,7 @@ from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, cleanup_checkpoint_folder
 from InnerEye.ML.deep_learning_config import ARGS_TXT, VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
-from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
@@ -57,7 +57,7 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
 
 def write_args_file(config: Any, outputs_folder: Path) -> None:
     """
-    Writes the given object to disk in the default output folder.
+    Writes the given config to disk in plain text in the default output folder.
     """
     output = str(config)
     outputs_folder.mkdir(exist_ok=True, parents=True)
@@ -70,7 +70,7 @@ def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1,
                              **kwargs: Dict[str, Any]) -> \
-        Tuple[Trainer, StoringLogger]:
+        Tuple[Trainer, Optional[StoringLogger]]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
     and loggers. That includes a diagnostic logger for use in unit tests, that is also returned as the second
@@ -106,6 +106,7 @@ def create_lightning_trainer(container: LightningContainer,
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger()]
+    storing_logger: Optional[StoringLogger]
     if isinstance(container, InnerEyeContainer):
         storing_logger = StoringLogger()
         loggers.append(storing_logger)
@@ -139,7 +140,7 @@ def create_lightning_trainer(container: LightningContainer,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       callbacks=callbacks,
                       logger=loggers,
-                      progress_bar_refresh_rate=0,  # Disable the progress bar completely
+                      progress_bar_refresh_rate=container.pl_progress_bar_refresh_rate,
                       num_nodes=num_nodes,
                       gpus=num_gpus,
                       precision=precision,
@@ -210,17 +211,17 @@ def model_train(checkpoint_handler: CheckpointHandler,
                  f"trainer.global_rank: {trainer.global_rank}")
     # InnerEye models use this logger for diagnostics
     if isinstance(lightning_model, InnerEyeLightning):
+        if storing_logger is None:
+            raise ValueError("InnerEye models require the storing_logger for diagnostics")
         lightning_model.storing_logger = storing_logger
 
     logging.info("Starting training")
     # When training models that are not built-in InnerEye models, we have no guarantee that they write
     # files to the right folder. Best guess is to change the current working directory to where files should go.
+    data_module = container.get_data_module()
     with change_working_directory(container.outputs_folder):
-        trainer.fit(lightning_model, datamodule=container.get_data_module())
+        trainer.fit(lightning_model, datamodule=data_module)
         trainer.logger.close()  # type: ignore
-        # Handle the case when someone wants to train a native LightningModule
-        if isinstance(lightning_model, LightningWithInference):
-            lightning_model.close_all_loggers()
     world_size = getattr(trainer, "world_size", 0)
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.

@@ -669,7 +669,7 @@ class SegmentationModelBase(ModelConfigBase):
         """
         Loads a dataset from the dataset_csv file, and stores it in the present object.
         """
-        assert self.local_dataset is not None  # for mypy
+        assert self.local_dataset is not None, "The dataset must be provided in self.local_dataset"
         self.dataset_data_frame = pd.read_csv(self.local_dataset / self.dataset_csv,
                                               dtype=str,
                                               converters=self.col_type_converters,

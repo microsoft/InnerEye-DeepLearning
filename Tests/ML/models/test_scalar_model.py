@@ -19,6 +19,7 @@ from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_F
 from InnerEye.Common.fixed_paths import LOG_FILE_NAME
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, \
     METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, logging_to_stdout
+from InnerEye.Common.fixed_paths import LOG_FILE_NAME
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -146,6 +147,7 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
 """
     check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
 
+
 @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 @pytest.mark.cpu_and_gpu
 def test_train_classification_multilabel_model(test_output_dirs: OutputFolderForTests) -> None:
@@ -270,7 +272,7 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
     config.set_output_to(test_output_dirs.root_dir)
     # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
     config.max_num_gpus = 1
-    MLRunner(config, azure_config).run()
+    MLRunner(config, azure_config=azure_config).run()
     _check_offline_cross_validation_output_files(config)
 
     if config.perform_cross_validation:
@@ -305,7 +307,7 @@ def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) 
     config.set_output_to(test_output_dirs.root_dir)
     azure_config = get_default_azure_config()
     azure_config.train = True
-    MLRunner(config, azure_config).run()
+    MLRunner(config, azure_config=azure_config).run()
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
@@ -488,12 +490,15 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
             _dataset_splits.train[train_config.subject_column].unique())
         _test_dataset_split_count = len(_dataset_splits.test[train_config.subject_column].unique())
         _aggregates_csv = pd.read_csv(aggregate_metrics_path)
-        _aggregates_csv_test = _aggregates_csv.loc[_aggregates_csv[LoggingColumns.DataSplit.value] == ModelExecutionMode.TEST.value]
-        _aggregates_csv_train_val = _aggregates_csv.loc[_aggregates_csv[LoggingColumns.DataSplit.value] != ModelExecutionMode.TEST.value]
+        _aggregates_csv_test = _aggregates_csv.loc[
+            _aggregates_csv[LoggingColumns.DataSplit.value] == ModelExecutionMode.TEST.value]
+        _aggregates_csv_train_val = _aggregates_csv.loc[
+            _aggregates_csv[LoggingColumns.DataSplit.value] != ModelExecutionMode.TEST.value]
         _counts_for_splits_train_val = list(_aggregates_csv_train_val[LoggingColumns.SubjectCount.value])
         _counts_for_splits_test = list(_aggregates_csv_test[LoggingColumns.SubjectCount.value])
         assert all([x == _val_dataset_split_count for x in _counts_for_splits_train_val])
-        assert all([x == _test_dataset_split_count * train_config.number_of_cross_validation_splits for x in _counts_for_splits_test])
+        assert all([x == _test_dataset_split_count * train_config.number_of_cross_validation_splits for x in
+                    _counts_for_splits_test])
         _epochs = list(_aggregates_csv_train_val[LoggingColumns.Epoch.value].astype(int))
         # Each epoch is recorded twice once for the training split and once for the validation
         # split

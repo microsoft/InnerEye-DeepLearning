@@ -188,7 +188,10 @@ class DeepLearningFileSystemConfig(Parameterized):
                          "inside the outputs folder.")
 
 
-class EssentialParams(param.Parameterized):
+class WorkflowParams(param.Parameterized):
+    """
+    This class contains all parameters that affect how the whole training and testing workflow is executed.
+    """
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     number_of_cross_validation_splits: int = param.Integer(0, bounds=(0, None),
                                                            doc="Number of cross validation splits for k-fold cross "
@@ -198,8 +201,9 @@ class EssentialParams(param.Parameterized):
                                                           "associated with when performing k-fold cross validation")
     perform_training_set_inference: bool = \
         param.Boolean(False,
-                      doc="If False (default), run full image inference on validation and test set after training. If "
-                          "True, also run full image inference on the training set")
+                      doc="If True, run full image inference on the training set at the end of training. If False and "
+                          "perform_validation_and_test_set_inference is True (default), only run inference on "
+                          "validation and test set. If both flags are False do not run inference.")
     perform_validation_and_test_set_inference: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on validation and test set after training.")
@@ -209,15 +213,13 @@ class EssentialParams(param.Parameterized):
                                                              default=None,
                                                              allow_None=True,
                                                              doc="The path to the weights to use for model "
-                                                                 "initialization, "
-                                                                 "when training is running outside Azure.")
+                                                                 "initialization, when training outside AzureML.")
     generate_report: bool = param.Boolean(default=True,
                                           doc="If True (default), write a modelling report in HTML format. If False,"
                                               "do not write that report.")
     # The default multiprocessing start_method in both PyTorch and the Python standard library is "fork" for Linux and
     # "spawn" (the only available method) for Windows. There is some evidence that using "forkserver" on Linux
     # can reduce the chance of stuck jobs.
-    # TODO antonsc: Remove that.
     multiprocessing_start_method: MultiprocessingStartMethod = \
         param.ClassSelector(class_=MultiprocessingStartMethod,
                             default=(MultiprocessingStartMethod.spawn if is_windows()
@@ -228,6 +230,22 @@ class EssentialParams(param.Parameterized):
     monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
                                                             "statistics. If 0 or less, do not log any resource "
                                                             "statistics.")
+
+    def validate(self) -> None:
+        if self.weights_url and self.local_weights_path:
+            raise ValueError("Cannot specify both local_weights_path and weights_url.")
+
+        if self.number_of_cross_validation_splits == 1:
+            raise ValueError("At least two splits required to perform cross validation, but got "
+                             f"{self.number_of_cross_validation_splits}. To train without cross validation, set "
+                             "number_of_cross_validation_splits=0.")
+        if 0 < self.number_of_cross_validation_splits <= self.cross_validation_split_index:
+            raise ValueError(f"Cross validation split index is out of bounds: {self.cross_validation_split_index}, "
+                             f"which is invalid for CV with {self.number_of_cross_validation_splits} splits.")
+        elif self.number_of_cross_validation_splits == 0 and self.cross_validation_split_index != -1:
+            raise ValueError(f"Cross validation split index must be -1 for a non cross validation run, "
+                             f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
+                             f"and cross_validation_split_index={self.cross_validation_split_index}")
 
     @property
     def is_offline_run(self) -> bool:
@@ -399,6 +417,20 @@ class OptimizerParams(param.Parameterized):
     momentum: float = param.Number(0.6, doc="The momentum parameter of the optimizers")
     weight_decay: float = param.Number(1e-4, doc="The weight decay used to control L2 regularization")
 
+    def validate(self) -> None:
+        if len(self.adam_betas) < 2:
+            raise ValueError(
+                "The adam_betas parameter should be the coefficients used for computing running averages of "
+                "gradient and its square")
+
+        if self.l_rate_scheduler == LRSchedulerType.MultiStep:
+            if not self.l_rate_multi_step_milestones:
+                raise ValueError("Must specify l_rate_multi_step_milestones to use LR scheduler MultiStep")
+            if sorted(set(self.l_rate_multi_step_milestones)) != self.l_rate_multi_step_milestones:
+                raise ValueError("l_rate_multi_step_milestones must be a strictly increasing list")
+            if self.l_rate_multi_step_milestones[0] <= 0:
+                raise ValueError("l_rate_multi_step_milestones cannot be negative or 0.")
+
     @property
     def min_l_rate(self) -> float:
         return self._min_l_rate
@@ -422,46 +454,21 @@ class TrainerParams(CudaAwareConfig):
                                                          "training.")
     max_num_gpus: int = param.Integer(default=-1, doc="The maximum number of GPUS to use. If set to a value < 0, use"
                                                       "all available GPUs.")
-    _use_gpu: Optional[bool] = param.Boolean(None,
-                                             doc="If true, a CUDA capable GPU with at least 1 device is "
-                                                 "available. If None, the use_gpu property has not yet been called.")
+    pl_progress_bar_refresh_rate: Optional[int] = \
+        param.Integer(default=None,
+                      doc="PyTorch Lightning trainer flag 'progress_bar_refresh_rate': How often to refresh progress "
+                          "bar (in steps). Value 0 disables progress bar. Value None chooses automatically.")
     pl_num_sanity_val_steps: int = \
-        param.Integer(default=0, doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
-                                     "steps to run before training, to identify possible problems")
+        param.Integer(default=0,
+                      doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
+                          "steps to run before training, to identify possible problems")
     pl_deterministic: bool = \
         param.Integer(default=True,
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
                           "you may see training speed increases.")
-    # TODO antonsc: This should be removed.
-    start_epoch: int = param.Integer(0, bounds=(0, None), doc="The first epoch to train. Set to 0 to start a new "
-                                                              "training. Set to a value larger than zero for starting"
+    start_epoch: int = param.Integer(0, bounds=(0, None), doc="The first epoch to train. Set to 0 to start a new "                                                         "training. Set to a value larger than zero for starting"
                                                               " from a checkpoint.")
-
-    @property  # type: ignore
-    def use_gpu(self) -> bool:  # type: ignore
-        """
-        Returns True if a CUDA capable GPU is present and should be used, False otherwise.
-        """
-        if self._use_gpu is None:
-            # Use a local import here because we don't want the whole file to depend on pytorch.
-            from InnerEye.ML.utils.ml_util import is_gpu_available
-            self._use_gpu = is_gpu_available()
-        return self._use_gpu
-
-    @use_gpu.setter
-    def use_gpu(self, value: bool) -> None:
-        """
-        Sets the flag that controls the use of the GPU. Raises a ValueError if the value is True, but no GPU is
-        present.
-        """
-        if value:
-            # Use a local import here because we don't want the whole file to depend on pytorch.
-            from InnerEye.ML.utils.ml_util import is_gpu_available
-            if not is_gpu_available():
-                raise ValueError("Can't set use_gpu to True if there is not CUDA capable GPU present.")
-        self._use_gpu = value
-
     def get_num_gpus_to_use(self):
         num_gpus = torch.cuda.device_count() if self.use_gpu else 0
         logging.info(f"Number of available GPUs: {num_gpus}")
@@ -471,7 +478,7 @@ class TrainerParams(CudaAwareConfig):
         return num_gpus
 
 
-class DeepLearningConfig(EssentialParams,
+class DeepLearningConfig(WorkflowParams,
                          DatasetParams,
                          OutputParams,
                          OptimizerParams,
@@ -505,14 +512,6 @@ class DeepLearningConfig(EssentialParams,
                          "limit test set to 5. If any of i,j,k is '+', discarded members of the other sets are added "
                          "to that set.",
                      allow_None=True)
-    perform_training_set_inference: bool = \
-        param.Boolean(False,
-                      doc="If True, run full image inference on the training set at the end of training. If False and "
-                          "perform_validation_and_test_set_inference is True (default), only run inference on "
-                          "validation and test set. If both flags are False do not run inference.")
-    perform_validation_and_test_set_inference: bool = \
-        param.Boolean(True,
-                      doc="If True (default), run full image inference on validation and test set after training.")
     _dataset_data_frame: Optional[DataFrame] = \
         param.DataFrame(default=None,
                         doc="The dataframe that contains the dataset for the model. This is usually read from disk "
@@ -567,41 +566,19 @@ class DeepLearningConfig(EssentialParams,
         super().__init__(throw_if_unknown_param=True, **params)
         logging.info("Creating the default output folder structure.")
         self.create_filesystem(fixed_paths.repository_root_directory())
+        # Disable the PL progress bar because all InnerEye models have their own console output
+        self.pl_progress_bar_refresh_rate = 0
         self.extra_downloaded_run_id = None
 
     def validate(self) -> None:
         """
         Validates the parameters stored in the present object.
         """
-        if len(self.adam_betas) < 2:
-            raise ValueError(
-                "The adam_betas parameter should be the coefficients used for computing running averages of "
-                "gradient and its square")
+        WorkflowParams.validate(self)
+        OptimizerParams.validate(self)
 
         if self.azure_dataset_id is None and self.local_dataset is None:
             raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
-
-        if self.weights_url and self.local_weights_path:
-            raise ValueError("Cannot specify both local_weights_path and weights_url.")
-
-        if self.number_of_cross_validation_splits == 1:
-            raise ValueError(f"At least two splits required to perform cross validation found "
-                             f"number_of_cross_validation_splits={self.number_of_cross_validation_splits}")
-        if 0 < self.number_of_cross_validation_splits <= self.cross_validation_split_index:
-            raise ValueError(f"Cross validation split index is out of bounds: {self.cross_validation_split_index}, "
-                             f"which is invalid for CV with {self.number_of_cross_validation_splits} splits.")
-        elif self.number_of_cross_validation_splits == 0 and self.cross_validation_split_index != -1:
-            raise ValueError(f"Cross validation split index must be -1 for a non cross validation run, "
-                             f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
-                             f"and cross_validation_split_index={self.cross_validation_split_index}")
-
-        if self.l_rate_scheduler == LRSchedulerType.MultiStep:
-            if not self.l_rate_multi_step_milestones:
-                raise ValueError("Must specify l_rate_multi_step_milestones to use LR scheduler MultiStep")
-            if sorted(set(self.l_rate_multi_step_milestones)) != self.l_rate_multi_step_milestones:
-                raise ValueError("l_rate_multi_step_milestones must be a strictly increasing list")
-            if self.l_rate_multi_step_milestones[0] <= 0:
-                raise ValueError("l_rate_multi_step_milestones cannot be negative or 0.")
 
     @property
     def model_category(self) -> ModelCategory:
@@ -685,33 +662,37 @@ class DeepLearningConfig(EssentialParams,
                 arguments_str += f"\t{key:40}: {value}\n"
         return arguments_str
 
+    def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:
+        """
+        By default, uses torch.load to read and return the state dict from the checkpoint file, and does no modification
+        of the checkpoint file.
 
-def load_checkpoint_and_modify(path_to_checkpoint: Path, use_gpu: bool = True) -> Dict[str, Any]:
+        Overloading this function:
+        When weights_url or local_weights_path is set, the file downloaded may not be in the exact
+        format expected by the model's load_state_dict() - for example, pretrained Imagenet weights for networks
+        may have mismatched layer names in different implementations.
+        In such cases, you can overload this function to extract the state dict from the checkpoint.
+
+        NOTE: The model checkpoint will be loaded using the torch function load_state_dict() with argument strict=False,
+        so extra care needs to be taken to check that the state dict is valid.
+        Check the logs for warnings related to missing and unexpected keys.
+        See https://pytorch.org/tutorials/beginner/saving_loading_models.html#warmstarting-model-using-parameters
+        -from-a-different-model
+        for an explanation on why strict=False is useful when loading parameters from other models.
+        :param path_to_checkpoint: Path to the checkpoint file.
+        :return: Dictionary with model and optimizer state dicts. The dict should have at least the following keys:
+        1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set to the model state dict.
+        2. Key ModelAndInfo.EPOCH_KEY and value set to the checkpoint epoch.
+        Other (optional) entries corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
+        ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported.
+        """
+        return load_checkpoint(path_to_checkpoint=path_to_checkpoint, use_gpu=self.use_gpu)
+
+
+def load_checkpoint(path_to_checkpoint: Path, use_gpu: bool = True) -> Dict[str, Any]:
     """
-    By default, uses torch.load to read and return the state dict from the checkpoint file, and does no modification
-    of the checkpoint file.
-
-    Overloading this function:
-    When weights_url or local_weights_path is set, the file downloaded may not be in the exact
-    format expected by the model's load_state_dict() - for example, pretrained Imagenet weights for networks
-    may have mismatched layer names in different implementations.
-    In such cases, you can overload this function to extract the state dict from the checkpoint.
-
-    NOTE: The model checkpoint will be loaded using the torch function load_state_dict() with argument strict=False,
-    so extra care needs to be taken to check that the state dict is valid.
-    Check the logs for warnings related to missing and unexpected keys.
-    See https://pytorch.org/tutorials/beginner/saving_loading_models.html#warmstarting-model-using-parameters
-    -from-a-different-model
-    for an explanation on why strict=False is useful when loading parameters from other models.
-
-    :param use_gpu: If True, do not modify the device of the loaded weights. If False, map all loaded weights to the
-    CPU.
-    :param path_to_checkpoint: Path to the checkpoint file.
-    :return: Dictionary with model and optimizer state dicts. The dict should have at least the following keys:
-    1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set to the model state dict.
-    2. Key ModelAndInfo.EPOCH_KEY and value set to the checkpoint epoch.
-    Other (optional) entries corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
-    ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported.
+    Loads a Torch checkpoint from the given file. If use_gpu==False, map all parameters to the GPU, otherwise
+    left the device of all parameters unchanged.
     """
     import torch
     map_location = None if use_gpu else 'cpu'

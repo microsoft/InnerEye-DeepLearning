@@ -10,11 +10,11 @@ from typing import Optional
 
 import param
 import torch
-from pytorch_lightning import LightningDataModule
+from pytorch_lightning import LightningDataModule, LightningModule
 from torch.utils.tensorboard import SummaryWriter
 
 from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed
-from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
+from InnerEye.ML.lightning_container import LightningContainer
 
 add_folder_to_sys_path_if_needed("fastMRI")
 
@@ -29,7 +29,7 @@ class VarNetWithImageLogging(VarNetModule):
     a single logger that must be Tensorboard.
     """
 
-    def log_image(self, name: str, image: torch.Tensor):
+    def log_image(self, name: str, image: torch.Tensor) -> None:
         experiments = self.logger.experiment if isinstance(self.logger.experiment, list) \
             else [self.logger.experiment]
         for experiment in experiments:
@@ -39,14 +39,16 @@ class VarNetWithImageLogging(VarNetModule):
 
 class FastMri(LightningContainer):
     # All fields that are declared here will be automatically available as commandline arguments.
-    challenge: str = param.String(default="multicoil")
-    sample_rate: Optional[float] = param.Number(default=None, allow_None=True)
+    challenge: str = param.String(default="multicoil", doc="Chooses between the singlecoil or multicoil"
+                                                           "acquisition setup.")
+    sample_rate: Optional[float] = param.Number(default=None, doc="Fraction of slices of the training data split to "
+                                                                  "use. Default: 1.0")
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.azure_dataset_id = "fastmrimini_brain"
 
-    def create_model(self) -> LightningWithInference:
+    def create_model(self) -> LightningModule:
         return VarNetWithImageLogging()
 
     def get_data_module(self) -> LightningDataModule:
@@ -60,6 +62,7 @@ class FastMri(LightningContainer):
 
         return FastMriDataModule(data_path=self.local_dataset,
                                  challenge=self.challenge,
+                                 sample_rate=self.sample_rate,
                                  train_transform=train_transform,
                                  val_transform=val_transform,
                                  test_transform=test_transform)

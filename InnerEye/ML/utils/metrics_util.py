@@ -125,7 +125,7 @@ def get_number_of_voxels_per_class(labels: torch.Tensor) -> torch.Tensor:
     if len(labels.shape) == 4:
         labels = labels[None, ...]
 
-    return torch.tensor(torch.count_nonzero(labels, dim=(2, 3, 4)))
+    return torch.count_nonzero(labels, dim=(2, 3, 4))
 
 
 def get_label_overlap_stats(labels: np.ndarray, label_names: List[str]) -> Dict[str, int]:

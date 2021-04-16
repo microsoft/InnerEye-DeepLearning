@@ -9,12 +9,15 @@ from unittest import mock
 
 import pandas as pd
 import pytest
+from pytorch_lightning import LightningModule
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.deep_learning_config import ARGS_TXT, DatasetParams, WorkflowParams
 from InnerEye.ML.deep_learning_config import ARGS_TXT
 from InnerEye.ML.deep_learning_config import DatasetParams, EssentialParams
 from InnerEye.ML.lightning_base import InnerEyeContainer
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_container import LightningWithInference
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -41,6 +44,7 @@ def test_run_container_in_situ(test_output_dirs: OutputFolderForTests) -> None:
     runner.lightning_container.outputs_folder.relative_to(test_output_dirs.root_dir)
     results = runner.lightning_container.outputs_folder
     # Test that the setup method has been called
+    assert runner.lightning_container.local_dataset is not None
     assert (runner.lightning_container.local_dataset / "setup.txt").is_file()
     # Test if all the files that are written during inference exist. Data for all 3 splits must be processed
     assert (results / "on_inference_start.txt").is_file()
@@ -64,6 +68,8 @@ Train,1e-7"""))
     args_file = (results / ARGS_TXT).read_text()
     assert "Container:" in args_file
     assert "adam_betas" in args_file
+    # Report generation must run
+    assert (results / "create_report.txt").is_file()
 
 
 def test_run_container_with_plain_lightning_in_situ(test_output_dirs: OutputFolderForTests) -> None:
@@ -93,7 +99,7 @@ def test_innereye_container_init() -> None:
     """
     # The constructor should copy all fields that belong to either EssentialParams or DatasetParams from the
     # config object to the container.
-    for (attrib, type_) in [("weights_url", EssentialParams), ("azure_dataset_id", DatasetParams)]:
+    for (attrib, type_) in [("weights_url", WorkflowParams), ("azure_dataset_id", DatasetParams)]:
         config = ModelConfigBase()
         assert hasattr(type_, attrib)
         assert hasattr(config, attrib)
@@ -124,7 +130,7 @@ def test_run_fastmri_container(test_output_dirs: OutputFolderForTests) -> None:
     dataset_dir.mkdir(parents=True)
     args = ["", "--model=FastMriOnRandomData",
             f"--output_to={test_output_dirs.root_dir}",
-            f"--local_dataset={dataset_dir}"]
+            "--model_configs_namespace=Tests.ML.configs"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = runner.run()
     assert actual_run is None
@@ -139,8 +145,7 @@ def test_model_name_is_set(test_output_dirs: OutputFolderForTests) -> None:
     runner.setup()
     expected_name = "DummyContainerWithModel"
     assert runner.container._model_name == expected_name
-    assert runner.container.model.output_params._model_name == expected_name
-    assert expected_name in str(runner.container.model.outputs_folder)
+    assert expected_name in str(runner.container.outputs_folder)
 
 
 def test_model_name_for_innereye_container() -> None:
@@ -157,14 +162,14 @@ def test_model_name_for_innereye_container() -> None:
 
 class DummyContainerWithFields(LightningContainer):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.perform_training_set_inference = True
         self.num_epochs = 123456
         self.l_rate = 1e-2
 
-    def create_model(self) -> LightningWithInference:
-        return LightningWithInference()
+    def create_model(self) -> LightningModule:
+        return LightningModule()
 
 
 def test_container_to_str() -> None:
@@ -196,10 +201,38 @@ def test_file_system_with_subfolders(test_output_dirs: OutputFolderForTests) -> 
     runner.setup()
     assert str(runner.container.outputs_folder).endswith(model.model_name)
     output_subfolder = "foo"
-    expected_folder = model.outputs_folder / output_subfolder
+    expected_folder = runner.container.outputs_folder / output_subfolder
     runner = MLRunner(model_config=model, output_subfolder=output_subfolder)
     runner.setup()
     assert runner.container.outputs_folder == expected_folder
+
+
+def test_optim_params1(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if the optimizer parameters are read correctly for InnerEye configs.
+    """
+    model = DummyModel()
+    model.set_output_to(test_output_dirs.root_dir)
+    runner = MLRunner(model_config=model)
+    runner.setup()
+    lightning_model = runner.container.model
+    optim, _ = lightning_model.configure_optimizers()
+    assert optim[0].param_groups[0]["lr"] == 1e-3
+
+
+def test_optim_params2(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if the optimizer parameters are read correctly for containers.
+    """
+    container = DummyContainerWithModel()
+    container.local_dataset = test_output_dirs.root_dir
+    runner = MLRunner(model_config=None, container=container)
+    runner.setup()
+    lightning_model = runner.container.model
+    optim, _ = lightning_model.configure_optimizers()
+    expected_lr = 1e-1
+    assert container.l_rate == expected_lr
+    assert optim[0].param_groups[0]["lr"] == expected_lr
 
 
 def test_extra_directory_available(test_output_dirs: OutputFolderForTests) -> None:

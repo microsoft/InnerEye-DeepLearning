@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import os
 import sys
+import warnings
 from pathlib import Path
 
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
@@ -58,7 +59,7 @@ except ModuleNotFoundError as ex:
     has_torch = False
 
 
-def may_initialize_rpdb() -> None:
+def initialize_rpdb() -> None:
     """
     On Linux only, import and initialize rpdb, to enable remote debugging if necessary.
     """
@@ -177,7 +178,6 @@ class Runner:
             self.model_config = config_or_container
         else:
             raise ValueError(f"Don't know how to handle a loaded configuration of type {type(config_or_container)}")
-
         if azure_config.extra_code_directory:
             exist = "exists" if Path(azure_config.extra_code_directory).exists() else "does not exist"
             logging.info(f"extra_code_directory is {azure_config.extra_code_directory}, which {exist}")
@@ -231,10 +231,12 @@ class Runner:
         # Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(logging.INFO)
-        may_initialize_rpdb()
+        initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
         if self.perform_cross_validation:
+            if self.lightning_container is not None:
+                raise NotImplementedError("Cross validation for LightingContainer models is not yet supported.")
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None
@@ -253,21 +255,24 @@ class Runner:
         """
         # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
         logging.getLogger('adal-python').setLevel(logging.WARNING)
+        # PyJWT prints out warnings that are beyond our control
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
         if isinstance(self.model_config, DeepLearningConfig) and not self.azure_dataset_id:
             raise ValueError("When running an InnerEye built-in model in AzureML, the 'azure_dataset_id' "
                              "property must be set.")
+        hyperdrive_func = lambda run_config: self.model_config.get_hyperdrive_config(run_config)  # type: ignore
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
             conda_dependencies_files=get_all_environment_files(self.project_root),
-            hyperdrive_config_func=lambda run_config: self.model_config.get_hyperdrive_config(run_config),
+            hyperdrive_config_func=hyperdrive_func,
             # For large jobs, upload of results can time out because of large checkpoint files. Default is 600
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
         azure_run = submit_to_azureml(self.azure_config, source_config, self.azure_dataset_id, self.extra_azure_dataset_ids)
         logging.info("Job submission to AzureML done.")
-        if self.azure_config.pytest_mark:
+        if self.azure_config.pytest_mark and self.azure_config.wait_for_completion:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
             # A build step will pick up that file and publish it to Azure DevOps.
             # If pytest_mark is set, this file must exist.
@@ -354,7 +359,7 @@ def run(project_root: Path,
         yaml_config_file: Path,
         post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
         model_deployment_hook: Optional[ModelDeploymentHookSignature] = None) -> \
-        Tuple[ModelConfigBase, Optional[Run]]:
+        Tuple[Optional[DeepLearningConfig], Optional[Run]]:
     """
     The main entry point for training and testing models from the commandline. This chooses a model to train
     via a commandline argument, runs training or testing, and writes all required info to disk and logs.

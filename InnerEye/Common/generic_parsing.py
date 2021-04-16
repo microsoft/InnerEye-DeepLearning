@@ -44,9 +44,7 @@ class IntTuple(param.NumericTuple):
                     raise ValueError("{}: tuple element at index {} with value {} in {} is not an integer"
                                      .format(self.name, i, n, val))
 
-# TODO antonsc: This class should go. get_cuda_devices is not used. The other method is used in transforms only.from
-# All moving to/from GPU should be done by Lightning.
-# Check when transforms are applied, compared to when data moves to GPU
+
 class CudaAwareConfig(param.Parameterized, Generic[T]):
     use_gpu: bool = param.Boolean(False, doc="The use_gpu flag will be "
                                              "set based upon the available GPU devices.")
