@@ -21,11 +21,13 @@ from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.Common.metrics_constants import INTERNAL_TO_LOGGING_COLUMN_NAMES, LoggingColumns, MetricType, \
     MetricTypeOrStr, SEQUENCE_POSITION_HUE_NAME_PREFIX
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.scalar_config import DEFAULT_KEY
 from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, \
     mean_squared_error, r2_score
 
 FloatOrInt = Union[float, int]
 T = TypeVar('T', np.ndarray, float)
+MetricsPerExecutionModeAndEpoch = Dict[ModelExecutionMode, Dict[Union[int, str], 'ScalarMetricsDict']]
 
 
 def average_metric_values(values: List[float], skip_nan_when_averaging: bool) -> float:
@@ -182,7 +184,7 @@ class MetricsDict:
     structure, to perform independent aggregations.
     """
 
-    DEFAULT_HUE_KEY = "Default"
+    DEFAULT_HUE_KEY = DEFAULT_KEY
     # the columns used when metrics dict is converted to a data frame/string representation
     DATAFRAME_COLUMNS = [LoggingColumns.Hue.value, "metrics"]
 
@@ -490,7 +492,7 @@ class MetricsDict:
         """
         predictions = self.get_predictions(hue)
         labels = self.get_labels(hue)
-        return log_loss(labels, predictions)
+        return log_loss(labels, predictions, labels=[0, 1])
 
     def get_mean_absolute_error(self, hue: str = DEFAULT_HUE_KEY) -> float:
         """
@@ -647,6 +649,7 @@ class ScalarMetricsDict(MetricsDict):
     def store_metrics_per_subject(self,
                                   df_logger: DataframeLogger,
                                   mode: ModelExecutionMode,
+                                  epoch: Union[int, str],
                                   cross_validation_split_index: int = DEFAULT_CROSS_VALIDATION_SPLIT_INDEX) -> None:
         """
         Store metrics using the provided df_logger at subject level for classification models.
@@ -662,14 +665,14 @@ class ScalarMetricsDict(MetricsDict):
                     LoggingColumns.Patient.value: prediction_entry.subject_id,
                     LoggingColumns.ModelOutput.value: prediction_entry.predictions,
                     LoggingColumns.Label.value: prediction_entry.labels,
+                    LoggingColumns.Epoch.value: epoch,
                     LoggingColumns.CrossValidationSplitIndex.value: cross_validation_split_index,
                     LoggingColumns.DataSplit.value: mode.value
                 })
 
     @staticmethod
     def load_execution_mode_metrics_from_df(df: pd.DataFrame,
-                                            is_classification_metrics: bool) -> Dict[ModelExecutionMode,
-                                                                                     Dict[int, ScalarMetricsDict]]:
+                                            is_classification_metrics: bool) -> MetricsPerExecutionModeAndEpoch:
         """
         Helper function to create BinaryClassificationMetricsDict grouped by ModelExecutionMode and epoch
         from a given dataframe. The following columns must exist in the provided data frame:
@@ -684,7 +687,7 @@ class ScalarMetricsDict(MetricsDict):
         if has_hue_column:
             group_columns.append(LoggingColumns.Hue.value)
         grouped = df.groupby(group_columns)
-        result: Dict[ModelExecutionMode, Dict[int, ScalarMetricsDict]] = dict()
+        result: MetricsPerExecutionModeAndEpoch = dict()
         hues = []
         if has_hue_column:
             hues = [h for h in df[LoggingColumns.Hue.value].unique() if h]
@@ -708,9 +711,10 @@ class ScalarMetricsDict(MetricsDict):
         return result
 
     @staticmethod
-    def aggregate_and_save_execution_mode_metrics(metrics: Dict[ModelExecutionMode, Dict[int, ScalarMetricsDict]],
-                                                  data_frame_logger: DataframeLogger,
-                                                  log_info: bool = True) -> None:
+    def aggregate_and_save_execution_mode_metrics(
+            metrics: MetricsPerExecutionModeAndEpoch,
+            data_frame_logger: DataframeLogger,
+            log_info: bool = True) -> None:
         """
         Given metrics dicts for execution modes and epochs, compute the aggregate metrics that are computed
         from the per-subject predictions. The metrics are written to the dataframe logger with the string labels

@@ -72,12 +72,11 @@ class ModelProcessing(Enum):
     ENSEMBLE_CREATION = 'ensemble_creation'
 
 
-def get_epoch_results_path(mode: ModelExecutionMode,
-                           model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Path:
+def get_best_epoch_results_path(mode: ModelExecutionMode,
+                                model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Path:
     """
-    For a given model execution mode, and an epoch index, creates the relative results path
-    in the form epoch_x/(Train, Test or Val)
-    :param epoch: epoch number
+    For a given model execution mode, creates the relative results path
+    in the form BEST_EPOCH_FOLDER_NAME/(Train, Test or Val)
     :param mode: model execution mode
     :param model_proc: whether this is for an ensemble or single model. If ensemble, we return a different path
     to avoid colliding with the results from the single model that may have been created earlier in the same run.
