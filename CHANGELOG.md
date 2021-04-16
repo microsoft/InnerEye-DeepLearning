@@ -51,6 +51,7 @@ is re-used.
 
 ### Fixed
 - ([#422](https://github.com/microsoft/InnerEye-DeepLearning/pull/422)) Documentation - clarified `setting_up_aml.md` datastore creation instructions and fixed small typos in `hello_world_model.md`
+- ([#435](https://github.com/microsoft/InnerEye-DeepLearning/pull/435)) If parameter `model` in `AzureConfig` is not set, display an error message and terminate the run.
 
 ### Removed
 - ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417)) Removed an output file that only contains metadata for a legacy consumer
