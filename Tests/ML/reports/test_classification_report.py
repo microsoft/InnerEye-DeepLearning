@@ -13,10 +13,12 @@ import pytest
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.common_util import is_windows
-from InnerEye.ML.reports.classification_report import ReportedMetrics, get_correct_and_misclassified_examples, \
+from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.reports.classification_report import ReportedScalarMetrics, get_correct_and_misclassified_examples, \
     get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_labels_and_predictions, \
     plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id
-from InnerEye.ML.reports.notebook_report import generate_classification_notebook
+from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
+    generate_classification_notebook
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.metrics_dict import MetricsDict
@@ -66,6 +68,25 @@ def test_generate_classification_report(test_output_dirs: OutputFolderForTests) 
     assert result_html.suffix == ".html"
 
 
+@pytest.mark.skipif(is_windows(), reason="Random timeout errors on windows.")
+def test_generate_classification_crossval_report(test_output_dirs: OutputFolderForTests) -> None:
+    reports_folder = Path(__file__).parent
+    crossval_metrics_file = reports_folder / "crossval_metrics_classification.csv"
+
+    config = ScalarModelBase(label_value_column="label",
+                             image_file_column="filePath",
+                             subject_column="subject",
+                             number_of_cross_validation_splits=3)
+
+    result_file = test_output_dirs.root_dir / "report.ipynb"
+    result_html = generate_classification_crossval_notebook(result_notebook=result_file,
+                                                            config=config,
+                                                            crossval_metrics=crossval_metrics_file)
+    assert result_file.is_file()
+    assert result_html.is_file()
+    assert result_html.suffix == ".html"
+
+
 def test_get_labels_and_predictions() -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
@@ -97,6 +118,37 @@ def test_functions_with_invalid_csv(test_output_dirs: OutputFolderForTests) -> N
     assert "Subject IDs should be unique" in str(ex)
 
 
+def test_get_labels_and_predictions_with_filters() -> None:
+    reports_folder = Path(__file__).parent
+    crossval_metrics_file = reports_folder / "crossval_metrics_classification.csv"
+
+    with pytest.raises(ValueError) as ex:
+        get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
+    assert "Subject IDs should be unique" in str(ex)
+
+    with pytest.raises(ValueError) as ex:
+        get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY,
+                                   crossval_split_index=0)
+    assert "Subject IDs should be unique" in str(ex)
+
+    with pytest.raises(ValueError) as ex:
+        get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY,
+                                   data_split=ModelExecutionMode.VAL)
+    assert "Subject IDs should be unique" in str(ex)
+
+    results = get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY,
+                                         crossval_split_index=0, data_split=ModelExecutionMode.VAL)
+    assert len(results.subject_ids) > 0, "Expected non-empty results for valid crossval_split_index and data_split"
+
+    results = get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY,
+                                         crossval_split_index=100, data_split=ModelExecutionMode.VAL)
+    assert len(results.subject_ids) == 0, "Expected empty results for unavailable crossval_split_index"
+
+    results = get_labels_and_predictions(crossval_metrics_file, MetricsDict.DEFAULT_HUE_KEY,
+                                         crossval_split_index=0, data_split=ModelExecutionMode.TRAIN)
+    assert len(results.subject_ids) == 0, "Expected empty results for unavailable data_split"
+
+
 def test_get_metric() -> None:
     reports_folder = Path(__file__).parent
     test_metrics_file = reports_folder / "test_metrics_classification.csv"
@@ -105,68 +157,68 @@ def test_get_metric() -> None:
     val_metrics = get_labels_and_predictions(val_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
     test_metrics = get_labels_and_predictions(test_metrics_file, MetricsDict.DEFAULT_HUE_KEY)
 
-    optimal_threshold = get_metric(test_labels_and_predictions=test_metrics,
-                                   val_labels_and_predictions=val_metrics,
-                                   metric=ReportedMetrics.OptimalThreshold)
+    optimal_threshold = get_metric(predictions_to_compute_metrics=test_metrics,
+                                   predictions_to_set_optimal_threshold=val_metrics,
+                                   metric=ReportedScalarMetrics.OptimalThreshold)
 
     assert optimal_threshold == 0.6
 
-    optimal_threshold = get_metric(test_labels_and_predictions=test_metrics,
-                                   val_labels_and_predictions=val_metrics,
-                                   metric=ReportedMetrics.OptimalThreshold,
+    optimal_threshold = get_metric(predictions_to_compute_metrics=test_metrics,
+                                   predictions_to_set_optimal_threshold=val_metrics,
+                                   metric=ReportedScalarMetrics.OptimalThreshold,
                                    optimal_threshold=0.3)
 
     assert optimal_threshold == 0.3
 
-    auc_roc = get_metric(test_labels_and_predictions=test_metrics,
-                         val_labels_and_predictions=val_metrics,
-                         metric=ReportedMetrics.AUC_ROC)
+    auc_roc = get_metric(predictions_to_compute_metrics=test_metrics,
+                         predictions_to_set_optimal_threshold=val_metrics,
+                         metric=ReportedScalarMetrics.AUC_ROC)
     assert auc_roc == 0.5
 
-    auc_pr = get_metric(test_labels_and_predictions=test_metrics,
-                        val_labels_and_predictions=val_metrics,
-                        metric=ReportedMetrics.AUC_PR)
+    auc_pr = get_metric(predictions_to_compute_metrics=test_metrics,
+                        predictions_to_set_optimal_threshold=val_metrics,
+                        metric=ReportedScalarMetrics.AUC_PR)
 
     assert math.isclose(auc_pr, 13 / 24, abs_tol=1e-15)
 
-    accuracy = get_metric(test_labels_and_predictions=test_metrics,
-                          val_labels_and_predictions=val_metrics,
-                          metric=ReportedMetrics.Accuracy)
+    accuracy = get_metric(predictions_to_compute_metrics=test_metrics,
+                          predictions_to_set_optimal_threshold=val_metrics,
+                          metric=ReportedScalarMetrics.Accuracy)
 
     assert accuracy == 0.5
 
-    accuracy = get_metric(test_labels_and_predictions=test_metrics,
-                          val_labels_and_predictions=val_metrics,
-                          metric=ReportedMetrics.Accuracy,
+    accuracy = get_metric(predictions_to_compute_metrics=test_metrics,
+                          predictions_to_set_optimal_threshold=val_metrics,
+                          metric=ReportedScalarMetrics.Accuracy,
                           optimal_threshold=0.1)
 
     assert accuracy == 0.5
 
-    fpr = get_metric(test_labels_and_predictions=test_metrics,
-                     val_labels_and_predictions=val_metrics,
-                     metric=ReportedMetrics.FalsePositiveRate)
+    specificity = get_metric(predictions_to_compute_metrics=test_metrics,
+                             predictions_to_set_optimal_threshold=val_metrics,
+                             metric=ReportedScalarMetrics.Specificity)
 
-    assert fpr == 0.5
+    assert specificity == 0.5
 
-    fpr = get_metric(test_labels_and_predictions=test_metrics,
-                     val_labels_and_predictions=val_metrics,
-                     metric=ReportedMetrics.FalsePositiveRate,
-                     optimal_threshold=0.1)
+    specificity = get_metric(predictions_to_compute_metrics=test_metrics,
+                             predictions_to_set_optimal_threshold=val_metrics,
+                             metric=ReportedScalarMetrics.Specificity,
+                             optimal_threshold=0.1)
 
-    assert fpr == 5 / 6
+    assert specificity == 1 / 6
 
-    fnr = get_metric(test_labels_and_predictions=test_metrics,
-                     val_labels_and_predictions=val_metrics,
-                     metric=ReportedMetrics.FalseNegativeRate)
+    sensitivity = get_metric(predictions_to_compute_metrics=test_metrics,
+                             predictions_to_set_optimal_threshold=val_metrics,
+                             metric=ReportedScalarMetrics.Sensitivity)
 
-    assert fnr == 0.5
+    assert sensitivity == 0.5
 
-    fnr = get_metric(test_labels_and_predictions=test_metrics,
-                     val_labels_and_predictions=val_metrics,
-                     metric=ReportedMetrics.FalseNegativeRate,
-                     optimal_threshold=0.1)
+    sensitivity = get_metric(predictions_to_compute_metrics=test_metrics,
+                             predictions_to_set_optimal_threshold=val_metrics,
+                             metric=ReportedScalarMetrics.Sensitivity,
+                             optimal_threshold=0.1)
 
-    assert math.isclose(fnr, 1 / 6, abs_tol=1e-15)
+    assert math.isclose(sensitivity, 5 / 6, abs_tol=1e-15)
 
 
 def test_get_correct_and_misclassified_examples() -> None:

@@ -41,6 +41,9 @@ created.
   (The minimum image size in any dimension when using a network of n layers is 2**n.)
 - ([#426](https://github.com/microsoft/InnerEye-DeepLearning/pull/426)) Flake8, mypy, and testing the HelloWorld model
   is now happening in a Github action, no longer in Azure Pipelines.
+- ([#405](https://github.com/microsoft/InnerEye-DeepLearning/pull/405)) Cross-validation runs for classification models
+  now also generate a report notebook summarising the metrics from the individual splits. Also includes minor formatting
+  improvements for standard classification reports.
 
 ### Changed
 
