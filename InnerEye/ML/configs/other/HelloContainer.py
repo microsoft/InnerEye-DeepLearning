@@ -43,7 +43,7 @@ class HelloDataset(Dataset):
     def __len__(self) -> int:
         return self.data.shape[0]
 
-    def __getitem__(self, item) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, item: int) -> Dict[str, torch.Tensor]:
         return {'x': self.data[item][0:1], 'y': self.data[item][1:2]}
 
 
@@ -74,7 +74,7 @@ class HelloRegression(LightningModule):
     def __init__(self) -> None:
         super().__init__()
         self.model = torch.nn.Linear(in_features=1, out_features=1, bias=True)
-        self.test_mse = []
+        self.test_mse: List[torch.Tensor] = []
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
         return self.model(x)
@@ -95,7 +95,7 @@ class HelloRegression(LightningModule):
     def on_test_epoch_start(self) -> None:
         self.test_mse = []
 
-    def test_step(self, batch: Dict[str, torch.Tensor], batch_idx, int) -> torch.Tensor:  # type: ignore
+    def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:  # type: ignore
         input = batch["x"]
         target = batch["y"]
         prediction = self.forward(input)
@@ -116,7 +116,7 @@ class HelloContainer(LightningContainer):
     You can train this model by running `python InnerEye/ML/runner.py --model=HelloContainer` on the local box,
     or via `python InnerEye/ML/runner.py --model=HelloContainer --azureml=True` in AzureML
     """
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.local_dataset = fixed_paths_for_tests.full_ml_test_data_path()
         self.num_epochs = 20
@@ -127,7 +127,8 @@ class HelloContainer(LightningContainer):
 
     # This method must be overridden by any subclass of LightningContainer
     def get_data_module(self) -> LightningDataModule:
-        return HelloDataModule(root_folder=self.local_dataset)
+        assert self.local_dataset is not None
+        return HelloDataModule(root_folder=self.local_dataset)  # type: ignore
 
     # This is an optional override: This report creation method can read out any files that were written during
     # training, and cook them into a nice looking report. Here, the report is a simple text file.

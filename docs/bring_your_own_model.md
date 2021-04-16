@@ -16,7 +16,7 @@ be used for training and testing.
 `python InnerEye/ML/runner.py --model=MyContainer`. To train in AzureML, just add a `--azureml=True` flag.
 
 There is a fully working example [HelloContainer](../InnerEye/ML/configs/other/HelloContainer.py), that implements
-a very simple 1-dimensional regression model off CSV data. You can run that
+a simple 1-dimensional regression model from data stored in a CSV file. You can run that
 from the command line by `python InnerEye/ML/runner.py --model=HelloContainer`.
 
 ## Setup
