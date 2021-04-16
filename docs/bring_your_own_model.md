@@ -188,14 +188,14 @@ from InnerEye.ML.lightning_container import LightningContainer
 class Container1(LightningContainer):
     def __init__(self):
         super().__init__()
-        self.azure_dataset_id = "azure_dataset"
+        self.azure_dataset_id = "some_folder_in_azure"
         self.num_epochs = 20
 
     def create_model(self) -> LightningModule:
         return MyLightningModel()
 
     def get_data_module(self) -> LightningDataModule:
-        # This should read data from self.local_dataset. Before training, the data folder "azure_dataset
+        # This should read data from self.local_dataset. Before training, the data folder "some_folder_in_azure"
         # (given by self.azure_dataset_id) will be downloaded or mounted, and its local path set in
         # self.local_dataset
         return MyDataModule(root_folder=self.local_dataset) 
@@ -210,14 +210,14 @@ from InnerEye.ML.lightning_container import LightningContainer
 class Container2(LightningContainer):
     def __init__(self):
         super().__init__()
-        self.azure_dataset_id = "azure_dataset"
+        self.azure_dataset_id = "some_folder_in_azure"
         self.num_epochs = 20
 
     def create_model(self) -> LightningModule:
         return MyLightningModel()
 
     def get_data_module(self) -> LightningDataModule:
-        # This should read data from self.local_dataset. Before training, the data folder "azure_dataset
+        # This should read data from self.local_dataset. Before training, the data folder "some_folder_in_azure"
         # (given by self.azure_dataset_id) will be downloaded or mounted, and its local path set in
         # self.local_dataset
         return MyDataModule(root_folder=self.local_dataset) 
