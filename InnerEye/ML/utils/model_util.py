@@ -162,14 +162,16 @@ def build_net(args: SegmentationModelBase) -> BaseSegmentationModel:
         network = UNet3D(input_image_channels=args.number_of_image_channels,
                          initial_feature_channels=args.feature_channels[0],
                          num_classes=args.number_of_classes,
-                         kernel_size=args.kernel_size)
+                         kernel_size=args.kernel_size,
+                         num_downsampling_paths=args.num_downsampling_paths)
         run_weight_initialization = False
 
     elif args.architecture == ModelArchitectureConfig.UNet2D:
         network = UNet2D(input_image_channels=args.number_of_image_channels,
                          initial_feature_channels=args.feature_channels[0],
                          num_classes=args.number_of_classes,
-                         padding_mode=PaddingMode.Edge)
+                         padding_mode=PaddingMode.Edge,
+                         num_downsampling_paths=args.num_downsampling_paths)
         run_weight_initialization = False
 
     else:

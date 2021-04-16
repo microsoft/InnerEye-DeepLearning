@@ -262,6 +262,10 @@ class SegmentationModelBase(ModelConfigBase):
     #: The size of the convolution kernels.
     kernel_size: int = param.Integer(3, bounds=(1, None), doc="The size of the convolution kernels.")
 
+    #: The number of image levels used in Unet (in encoding and decoding paths).
+    num_downsampling_paths: int = param.Integer(4, bounds=(1, None),
+        instantiate=False, doc="The number of levels used in a UNet architecture in encoding and decoding paths.")
+
     #: The size of the random crops that will be drawn from the input images during training. This is also the
     #: input size of the model.
     crop_size: TupleInt3 = IntTuple((1, 1, 1), length=3, doc="The size of the random crops that will be "
@@ -428,6 +432,15 @@ class SegmentationModelBase(ModelConfigBase):
                                         doc="List of bool specifiying if structures need filling holes. If True "
                                             "output of the model for that class includes postprocessing to fill holes, "
                                             "in the same order as in ground_truth_ids_display_names")
+
+    roi_interpreted_types: List[str] = param.List(None, class_=str, bounds=(1, None), instantiate=False,
+                                                    allow_None=True,
+                                                    doc="List of str with the ROI interpreted Types. Possible values "
+                                                        "(None, CTV, ORGAN, EXTERNAL)")
+
+    interpreter: str = param.String("Default_Interpreter", doc="The interpreter that created the DICOM-RT file")
+
+    manufacturer: str = param.String("Default_Manufacturer", doc="The manufacturer that created the DICOM-RT file")
 
     _inference_stride_size: Optional[TupleInt3] = IntTuple(None, length=3, allow_None=True,
                                                            doc="The stride size in the inference pipeline. "

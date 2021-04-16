@@ -44,6 +44,7 @@ class PassThroughModel(SegmentationModelBase):
             ground_truth_ids_display_names=fg_display_names,
             colours=generate_random_colours_list(RANDOM_COLOUR_GENERATOR, len(fg_classes)),
             fill_holes=[False] * len(fg_classes),
+            roi_interpreted_types=["ORGAN"] * len(fg_classes),
             inference_batch_size=1,
             class_weights=equally_weighted_classes(fg_classes, background_weight=0.02),
             feature_channels=[1],

@@ -26,31 +26,6 @@ steps:
     condition: succeeded()
     displayName: Create conda environment
 
-  - bash: |
-      source activate InnerEye
-      flake8
-    failOnStderr: true
-    condition: succeededOrFailed()
-    displayName: flake8
-
-  - bash: |
-      source activate InnerEye
-      python mypy_runner.py
-    failOnStderr: true
-    condition: succeededOrFailed()
-    displayName: mypy
-
-  # Build the HelloWorld model, without providing the secrets for the ServicePrincipal, to mimic running HelloWorld
-  # right after checking out. This must happen before we provide any additional information in settings.yml
-  - bash: |
-      source activate InnerEye
-      python ./InnerEye/ML/runner.py --model=HelloWorld
-    env:
-      PYTHONPATH: $(Build.SourcesDirectory)/
-    failOnStderr: false
-    condition: succeededOrFailed()
-    displayName: Run HelloWorld model
-
   # Pytest needs subscription information directly in settings.yml. Local package install will cause use of
   # the wrong default project root, hence InnerEyePrivateSettings.yml can't be picked up.
   - bash: |
@@ -74,7 +49,7 @@ steps:
   # hence don't set PYTHONPATH
   - bash: |
       source activate InnerEye
-      pytest ./Tests/ -m "not (gpu or azureml or after_training_single_run or after_training_ensemble_run or inference or after_training_2node)" --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc --cov-report=xml -n 2 --dist=loadscope --verbose
+      pytest ./Tests/ -m "not (gpu or azureml or after_training_single_run or after_training_ensemble_run or inference or after_training_2node or after_training_glaucoma_cv_run)" --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc --cov-report=xml -n 2 --dist=loadscope --verbose
     env:
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
       DATASETS_ACCOUNT_KEY: $(InnerEyePublicDatasetsStorageKey)

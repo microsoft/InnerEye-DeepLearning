@@ -14,8 +14,8 @@ import pytest
 import torch
 
 from InnerEye.Common import common_util, fixed_paths
-from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, METRICS_AGGREGATES_FILE, \
-    SUBJECT_METRICS_FILE_NAME, get_epoch_results_path, logging_to_stdout
+from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, \
+    METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -26,8 +26,8 @@ from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
 from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
-from InnerEye.ML.reports.notebook_report import get_ipynb_report_name, get_html_report_name, \
-    generate_classification_notebook, generate_classification_multilabel_notebook
+from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook, \
+    generate_classification_notebook, get_html_report_name, get_ipynb_report_name
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
@@ -135,16 +135,16 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     check_log_file(metrics_path, metrics_expected, ignore_columns=[])
     # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
     # Normally, we would run it on the Test and Val splits, but for convenience we test on the train split here.
-    inference_metrics_path = config.outputs_folder / get_epoch_results_path(ModelExecutionMode.TRAIN) / \
+    inference_metrics_path = config.outputs_folder / get_best_epoch_results_path(ModelExecutionMode.TRAIN) / \
                              SUBJECT_METRICS_FILE_NAME
     inference_metrics_expected = \
-        f"""prediction_target,subject,model_output,label,cross_validation_split_index,data_split
-{class_name},S2,0.5293986201286316,1.0,-1,Train
-{class_name},S4,0.5211275815963745,0.0,-1,Train
+        f"""prediction_target,subject,model_output,label,epoch,cross_validation_split_index,data_split
+{class_name},S2,0.5293986201286316,1.0,{BEST_EPOCH_FOLDER_NAME},-1,Train
+{class_name},S4,0.5211275815963745,0.0,{BEST_EPOCH_FOLDER_NAME},-1,Train
 """
     check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
 
-
+@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 @pytest.mark.cpu_and_gpu
 def test_train_classification_multilabel_model(test_output_dirs: OutputFolderForTests) -> None:
     """
@@ -202,30 +202,32 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     for i, class_name in enumerate(config.class_names):
         for metric in expected_metrics.keys():
             assert expected_metrics[metric][i] == pytest.approx(
-                                                        test_results.metrics.get_single_metric(
-                                                            metric_name=metric,
-                                                            hue=class_name), 1e-4)
+                test_results.metrics.get_single_metric(
+                    metric_name=metric,
+                    hue=class_name), 1e-4)
 
     def get_epoch_path(mode: ModelExecutionMode) -> Path:
-        p = get_epoch_results_path(mode=mode)
+        p = get_best_epoch_results_path(mode=mode)
         return config.outputs_folder / p / SUBJECT_METRICS_FILE_NAME
 
     path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
     path_to_best_epoch_val = get_epoch_path(ModelExecutionMode.VAL)
     path_to_best_epoch_test = get_epoch_path(ModelExecutionMode.TEST)
-    generate_classification_notebook(result_notebook=config.outputs_folder / get_ipynb_report_name(config.model_category.value),
-                                     config=config,
-                                     train_metrics=path_to_best_epoch_train,
-                                     val_metrics=path_to_best_epoch_val,
-                                     test_metrics=path_to_best_epoch_test)
+    generate_classification_notebook(
+        result_notebook=config.outputs_folder / get_ipynb_report_name(config.model_category.value),
+        config=config,
+        train_metrics=path_to_best_epoch_train,
+        val_metrics=path_to_best_epoch_val,
+        test_metrics=path_to_best_epoch_test)
     assert (config.outputs_folder / get_html_report_name(config.model_category.value)).exists()
 
     report_name_multilabel = f"{config.model_category.value}_multilabel"
-    generate_classification_multilabel_notebook(result_notebook=config.outputs_folder / get_ipynb_report_name(report_name_multilabel),
-                                                config=config,
-                                                train_metrics=path_to_best_epoch_train,
-                                                val_metrics=path_to_best_epoch_val,
-                                                test_metrics=path_to_best_epoch_test)
+    generate_classification_multilabel_notebook(
+        result_notebook=config.outputs_folder / get_ipynb_report_name(report_name_multilabel),
+        config=config,
+        train_metrics=path_to_best_epoch_train,
+        val_metrics=path_to_best_epoch_val,
+        test_metrics=path_to_best_epoch_test)
     assert (config.outputs_folder / get_html_report_name(report_name_multilabel)).exists()
 
 
@@ -278,10 +280,9 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
         # recognizes run_recovery_id == None as the signal to read from the local_run_results folder.
         config_and_files = get_config_and_results_for_offline_runs(config)
         result_files = config_and_files.files
-        # One file for VAL and one for TRAIN for each child run
-        assert len(result_files) == config.get_total_number_of_cross_validation_runs() * 2
+        # One file for VAL, one for TRAIN and one for TEST for each child run
+        assert len(result_files) == config.get_total_number_of_cross_validation_runs() * 3
         for file in result_files:
-            assert file.execution_mode != ModelExecutionMode.TEST
             assert file.dataset_csv_file is not None
             assert file.dataset_csv_file.exists()
             assert file.metrics_file is not None
@@ -308,6 +309,7 @@ def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) 
     MLRunner(config, azure_config).run()
 
 
+@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test starting a classification model via the commandline runner. Test if we can provide overrides
@@ -339,6 +341,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     assert (config.logs_folder / runner.LOG_FILE_NAME).exists()
 
 
+@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner2(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test starting a classification model via the commandline runner, and provide the same arguments
@@ -462,8 +465,11 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
     for x in range(train_config.get_total_number_of_cross_validation_runs()):
         expected_outputs_folder = root / str(x)
         assert expected_outputs_folder.exists()
-        for m in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
-            metrics_path = expected_outputs_folder / m.value / SUBJECT_METRICS_FILE_NAME
+        for m in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL, ModelExecutionMode.TEST]:
+            if m == ModelExecutionMode.TEST:
+                metrics_path = expected_outputs_folder / get_best_epoch_results_path(m) / SUBJECT_METRICS_FILE_NAME
+            else:
+                metrics_path = expected_outputs_folder / m.value / SUBJECT_METRICS_FILE_NAME
             assert metrics_path.exists()
             split_metrics = pd.read_csv(metrics_path)
             if m in metrics:
@@ -477,13 +483,17 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         # since we aggregate the outputs of each of the child folds
         # we need to compare the outputs w.r.t to the parent folds
         _dataset_splits = train_config.get_dataset_splits()
-
         _val_dataset_split_count = len(_dataset_splits.val[train_config.subject_column].unique()) + len(
             _dataset_splits.train[train_config.subject_column].unique())
+        _test_dataset_split_count = len(_dataset_splits.test[train_config.subject_column].unique())
         _aggregates_csv = pd.read_csv(aggregate_metrics_path)
-        _counts_for_splits = list(_aggregates_csv[LoggingColumns.SubjectCount.value])
-        assert all([x == _val_dataset_split_count for x in _counts_for_splits])
-        _epochs = list(_aggregates_csv[LoggingColumns.Epoch.value])
+        _aggregates_csv_test = _aggregates_csv.loc[_aggregates_csv[LoggingColumns.DataSplit.value] == ModelExecutionMode.TEST.value]
+        _aggregates_csv_train_val = _aggregates_csv.loc[_aggregates_csv[LoggingColumns.DataSplit.value] != ModelExecutionMode.TEST.value]
+        _counts_for_splits_train_val = list(_aggregates_csv_train_val[LoggingColumns.SubjectCount.value])
+        _counts_for_splits_test = list(_aggregates_csv_test[LoggingColumns.SubjectCount.value])
+        assert all([x == _val_dataset_split_count for x in _counts_for_splits_train_val])
+        assert all([x == _test_dataset_split_count * train_config.number_of_cross_validation_splits for x in _counts_for_splits_test])
+        _epochs = list(_aggregates_csv_train_val[LoggingColumns.Epoch.value].astype(int))
         # Each epoch is recorded twice once for the training split and once for the validation
         # split
         assert len(_epochs) == train_config.num_epochs * 2
@@ -507,7 +517,7 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
         assert len(unrolled) == train_config.num_epochs * len(expected_metrics)
         actual_metrics = set(m.metric_name for m in unrolled)
         assert actual_metrics == expected_metrics
-        actual_epochs = set(m.epoch for m in unrolled)
+        actual_epochs = set(int(m.epoch) for m in unrolled)
         assert actual_epochs == set(_epochs)
 
 

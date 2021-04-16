@@ -15,7 +15,7 @@ import pytest
 from torch.utils.data import DataLoader
 
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import is_windows, logging_to_stdout
+from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, is_windows, logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -27,7 +27,7 @@ from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.model_training import model_train
+from InnerEye.ML.model_training import aggregate_and_create_subject_metrics_file, model_train
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.utils.model_util import create_segmentation_loss_function
@@ -348,3 +348,13 @@ def test_script_names_correct() -> None:
     for file in [*fixed_paths.SCRIPTS_AT_ROOT, fixed_paths.RUN_SCORING_SCRIPT]:
         full_file = fixed_paths.repository_root_directory() / file
         assert full_file.exists(), f"{file} does not exist."
+
+
+def test_aggregate_and_create_subject_metrics_file(test_output_dirs: OutputFolderForTests) -> None:
+    outputs_folder = test_output_dirs.root_dir / "outputs"
+    shutil.copytree(str(full_ml_test_data_path("test_aggregate_metrics_classification")), str(outputs_folder))
+    aggregate_and_create_subject_metrics_file(outputs_folder)
+    for mode in [ModelExecutionMode.TRAIN.value, ModelExecutionMode.VAL.value]:
+        written_lines = pd.read_csv(outputs_folder / mode / SUBJECT_METRICS_FILE_NAME)
+        expected_lines = pd.read_csv(outputs_folder / mode / "expected_metrics.csv")
+        assert written_lines.equals(expected_lines)
