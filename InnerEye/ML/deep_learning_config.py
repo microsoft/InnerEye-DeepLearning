@@ -19,8 +19,8 @@ from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode,\
-    create_recovery_checkpoint_path, create_unique_timestamp_id,\
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, \
+    create_recovery_checkpoint_path, create_unique_timestamp_id, \
     get_best_checkpoint_path
 
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
@@ -296,8 +296,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                      allow_None=True)
     perform_training_set_inference: bool = \
         param.Boolean(False,
-                      doc="If False (default), run full image inference on validation and test set after training. If "
-                          "True, also run full image inference on the training set")
+                      doc="If True, run full image inference on the training set at the end of training. If False and "
+                          "perform_validation_and_test_set_inference is True (default), only run inference on "
+                          "validation and test set. If both flags are False do not run inference.")
     perform_validation_and_test_set_inference: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on validation and test set after training.")
@@ -381,10 +382,9 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
 
     #: Name of the csv file providing information on the dataset to be used.
     dataset_csv: str = param.String(
-            DATASET_CSV_FILE_NAME,
-            doc="Name of the csv file providing information on the dataset "
-                "to be used, containing at least the fields: "
-                "subject, channel, filePath.")
+        DATASET_CSV_FILE_NAME,
+        doc="Name of the CSV file providing information on the dataset to be used. "
+            "For segmentation models, this file must contain at least the fields: `subject`, `channel`, `filePath`.")
 
     def __init__(self, **params: Any) -> None:
         self._model_name = type(self).__name__

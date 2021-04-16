@@ -8,7 +8,7 @@ import pytest
 from pytorch_lightning import seed_everything
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import get_epoch_results_path
+from InnerEye.Common.common_util import get_best_epoch_results_path
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing
@@ -52,7 +52,7 @@ def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
     inference_results = model_testing.segmentation_model_test(config,
                                                               data_split=execution_mode,
                                                               checkpoint_handler=checkpoint_handler)
-    epoch_dir = config.outputs_folder / get_epoch_results_path(execution_mode)
+    epoch_dir = config.outputs_folder / get_best_epoch_results_path(execution_mode)
     assert inference_results.metrics == pytest.approx(0.66606902, abs=1e-6)
 
     assert config.outputs_folder.is_dir()

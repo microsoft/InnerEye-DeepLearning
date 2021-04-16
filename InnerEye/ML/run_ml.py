@@ -29,7 +29,7 @@ from InnerEye.Common.build_config import ExperimentResultLocation, build_informa
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, ModelProcessing, \
     OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
-    get_epoch_results_path, is_windows, logging_section, print_exception, remove_file_or_directory
+    get_best_epoch_results_path, is_windows, logging_section, print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -596,12 +596,13 @@ class MLRunner:
         def run_model_test(data_split: ModelExecutionMode) -> Optional[InferenceMetrics]:
             return model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler,
                               model_proc=model_proc)
-
         if config.perform_validation_and_test_set_inference:
             # perform inference on test set
             test_metrics = run_model_test(ModelExecutionMode.TEST)
-            # perform inference on validation set
-            val_metrics = run_model_test(ModelExecutionMode.VAL)
+            # perform inference on validation set (not for ensemble as current val is in the training fold
+            # for at least one of the models).
+            if model_proc != ModelProcessing.ENSEMBLE_CREATION:
+                val_metrics = run_model_test(ModelExecutionMode.VAL)
 
         if config.perform_training_set_inference:
             # perform inference on training set if required
@@ -693,7 +694,7 @@ class MLRunner:
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
         plot_crossval_config.outputs_directory = self.model_config.outputs_folder
         plot_crossval_config.azure_config = self.azure_config
-        cross_val_results_root = plot_cross_validation(plot_crossval_config, is_ensemble_run=True)
+        cross_val_results_root = plot_cross_validation(plot_crossval_config)
         if isinstance(self.model_config, ScalarModelBase) and not isinstance(self.model_config, SequenceModelBase):
             notebook_path = cross_val_results_root / get_ipynb_report_name("classification_crossval")
             full_metrics_csv = cross_val_results_root / FULL_METRICS_DATAFRAME_FILE
@@ -720,7 +721,7 @@ class MLRunner:
         logging.info("Saving report in HTML")
         try:
             def get_epoch_path(mode: ModelExecutionMode) -> Path:
-                p = get_epoch_results_path(mode=mode, model_proc=model_proc)
+                p = get_best_epoch_results_path(mode=mode, model_proc=model_proc)
                 return config.outputs_folder / p / SUBJECT_METRICS_FILE_NAME
 
             path_to_best_epoch_train = get_epoch_path(ModelExecutionMode.TRAIN)
