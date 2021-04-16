@@ -40,7 +40,7 @@ class HelloDataset(Dataset):
         raw_data = np.loadtxt(root_folder / "hellocontainer.csv", delimiter=",")[start_index:end_index]
         self.data = torch.tensor(raw_data, dtype=torch.float)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.data.shape[0]
 
     def __getitem__(self, item) -> Dict[str, torch.Tensor]:
@@ -57,13 +57,13 @@ class HelloDataModule(LightningDataModule):
         self.val = HelloDataset(root_folder, start_index=50, end_index=70)
         self.test = HelloDataset(root_folder, start_index=70, end_index=100)
 
-    def train_dataloader(self, *args, **kwargs) -> DataLoader:
+    def train_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
         return DataLoader(self.train, batch_size=5)
 
-    def val_dataloader(self, *args, **kwargs) -> DataLoader:
+    def val_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
         return DataLoader(self.val, batch_size=5)
 
-    def test_dataloader(self, *args, **kwargs) -> DataLoader:
+    def test_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
         return DataLoader(self.test, batch_size=5)
 
 
@@ -79,7 +79,7 @@ class HelloRegression(LightningModule):
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
         return self.model(x)
 
-    def training_step(self, batch: Any, *args: Any, **kwargs: Any) -> torch.Tensor:  # type: ignore
+    def training_step(self, batch: Dict[str, torch.Tensor], *args: Any, **kwargs: Any) -> torch.Tensor:  # type: ignore
         input = batch["x"]
         target = batch["y"]
         prediction = self.forward(input)
@@ -95,7 +95,7 @@ class HelloRegression(LightningModule):
     def on_test_epoch_start(self) -> None:
         self.test_mse = []
 
-    def test_step(self, batch, batch_idx) -> torch.Tensor:  # type: ignore
+    def test_step(self, batch: Dict[str, torch.Tensor], batch_idx, int) -> torch.Tensor:  # type: ignore
         input = batch["x"]
         target = batch["y"]
         prediction = self.forward(input)

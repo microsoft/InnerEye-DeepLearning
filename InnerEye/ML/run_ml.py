@@ -32,7 +32,8 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
     OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
-    change_working_directory, is_windows, logging_section, logging_to_file, print_exception, \
+    change_working_directory, get_best_epoch_results_path, is_windows, logging_section, logging_to_file, \
+    print_exception, \
     remove_file_or_directory
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, LOG_FILE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.ML.common import ModelExecutionMode
