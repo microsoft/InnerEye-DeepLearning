@@ -696,7 +696,8 @@ class MLRunner:
         plot_crossval_config.azure_config = self.azure_config
         cross_val_results_root = plot_cross_validation(plot_crossval_config)
         if isinstance(self.model_config, ScalarModelBase) and not isinstance(self.model_config, SequenceModelBase):
-            notebook_path = cross_val_results_root / get_ipynb_report_name("classification_crossval")
+            crossval_report_name = f"{ModelCategory.Classification.value}_crossval"
+            notebook_path = cross_val_results_root / get_ipynb_report_name(crossval_report_name)
             full_metrics_csv = cross_val_results_root / FULL_METRICS_DATAFRAME_FILE
             generate_classification_crossval_notebook(notebook_path, self.model_config, full_metrics_csv)
         if self.post_cross_validation_hook:
