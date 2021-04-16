@@ -14,7 +14,11 @@ be used for training and testing.
 - Adding essential trainer parameters like number of epochs to that container.
 - Invoking the InnerEye runner and providing the name of the container class, like this: 
 `python InnerEye/ML/runner.py --model=MyContainer`. To train in AzureML, just add a `--azureml=True` flag.
- 
+
+There is a fully working example [HelloContainer](../InnerEye/ML/configs/other/HelloContainer.py), that implements
+a very simple 1-dimensional regression model off CSV data. You can run that
+from the command line by `python InnerEye/ML/runner.py --model=HelloContainer`.
+
 ## Setup
 
 In order to use these capabilities, you need to implement a class deriving from `LightningContainer`. This class
@@ -176,7 +180,7 @@ a separate argument parser: When starting training, you can add a flag like `--n
 
 ## Examples
 
-### 
+### Setting only the required fields
 ```python
 from pytorch_lightning import LightningModule, LightningDataModule
 from InnerEye.ML.lightning_container import LightningContainer
@@ -197,12 +201,13 @@ class Container1(LightningContainer):
         return MyDataModule(root_folder=self.local_dataset) 
 ```
 
+### Adding additional arguments for the PyTorch Lightning trainer
 
 ```python
 from typing import Dict, Any
 from pytorch_lightning import LightningModule, LightningDataModule
 from InnerEye.ML.lightning_container import LightningContainer
-class Container1(LightningContainer):
+class Container2(LightningContainer):
     def __init__(self):
         super().__init__()
         self.azure_dataset_id = "azure_dataset"
@@ -220,7 +225,5 @@ class Container1(LightningContainer):
     def get_trainer_arguments(self) -> Dict[str, Any]:
         # These arguments will be passed through to the Lightning trainer.
         return {"gradient_clip_val": 1, "limit_train_batches": 10}
-
-    def 
 ```
 
