@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import io
 import logging
+import os
 from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -20,7 +21,9 @@ from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, model_training, runner
-from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_SUFFIX, \
+    ModelExecutionMode, \
+    RECOVERY_CHECKPOINT_FILE_NAME
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
@@ -309,7 +312,7 @@ def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) 
     MLRunner(config, azure_config).run()
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
+# @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test starting a classification model via the commandline runner. Test if we can provide overrides
@@ -328,7 +331,10 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
             "--random_seed", str(set_from_commandline),
             "--non_image_feature_channels", scalar1,
             "--output_to", output_root,
-            "--max_num_gpus", "1"
+            "--max_num_gpus", "1",
+            "--recovery_checkpoint_save_interval", "2",
+            "--save_last_k_recovery_checkpoints", "2",
+            "--num_epochs", "6",
             ]
     with mock.patch("sys.argv", args):
         config, _ = runner.run(project_root=fixed_paths.repository_root_directory(),
@@ -339,6 +345,12 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     assert config.non_image_feature_channels == ["label"]
     assert str(config.outputs_folder).startswith(output_root)
     assert (config.logs_folder / runner.LOG_FILE_NAME).exists()
+    # Check that we saved one checkpoint every second epoch and that we kept only that last 2 and that last.ckpt has
+    # been renamed to best.ckpt
+    assert len(os.listdir(config.checkpoint_folder)) == 3
+    assert (config.checkpoint_folder / str(RECOVERY_CHECKPOINT_FILE_NAME + "_epoch=3" + CHECKPOINT_SUFFIX)).exists()
+    assert (config.checkpoint_folder / str(RECOVERY_CHECKPOINT_FILE_NAME + "_epoch=5" + CHECKPOINT_SUFFIX)).exists()
+    assert (config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).exists()
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
