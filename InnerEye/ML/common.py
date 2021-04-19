@@ -95,7 +95,7 @@ def find_latest_recovery_checkpoint(path: Path) -> Optional[Path]:
     the pattern.
     """
     filenames = [f for f in path.glob(RECOVERY_CHECKPOINT_FILE_NAME + "*")]
-    if filenames == 0:
+    if filenames:
         return None
     # Checkpoints are saved as recovery_epoch={epoch}.ckpt, find the latest ckpt.
     recovery_epochs = [int(re.findall(r"[\d]+", f.stem)[0]) for f in filenames]

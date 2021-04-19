@@ -356,7 +356,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     assert (config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).exists()
 
 
-# @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
+@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if starting training from a folder where the checkpoints folder already has recovery checkpoints picks up
