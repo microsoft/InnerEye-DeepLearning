@@ -1,6 +1,6 @@
 # Model Deployment
 
-![img.png](deployment.png)
+![deployment.png](deployment.png)
 
 InnerEye segmentation models using a single DICOM series can be integrated with DICOM networks using the 
 [InnerEye-Gateway](https://github.com/microsoft/InnerEye-Gateway) and the [InnerEye-Inference](https://github.com/microsoft/InnerEye-Inference).

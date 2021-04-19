@@ -100,7 +100,7 @@ Further detailed instructions, including setup in Azure, are here:
 1. [Model diagnostics](docs/model_diagnostics.md)
 1. [Deployment](docs/deploy_on_aml.md)
 
-![img.png](docs/deployment.png)
+![docs/deployment.png](docs/deployment.png)
 
 ## More information
 
