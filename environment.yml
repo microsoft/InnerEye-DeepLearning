@@ -27,7 +27,7 @@ dependencies:
       - lightning-bolts==0.3.1
       - matplotlib==3.3.0
       - mlflow==1.12.1
-      - mypy==0.770
+      - mypy==0.812
       - mypy-extensions==0.4.3
       - numba==0.51.2
       - numpy==1.19.1
@@ -47,6 +47,7 @@ dependencies:
       - pytorch-lightning==1.2.8
       - rich==5.1.1
       - rpdb==0.1.6
+      - runstats==1.8.0
       - scikit-image==0.17.2
       - scikit-learn==0.23.2
       - scipy==1.5.2

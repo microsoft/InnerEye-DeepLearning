@@ -21,7 +21,7 @@ from InnerEye.ML.dataset.full_image_dataset import load_dataset_sources
 from InnerEye.ML.deep_learning_config import ARGS_TXT
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.run_ml import MLRunner
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.io_util import load_images_from_dataset_source
 
 
@@ -73,7 +73,7 @@ def main(yaml_file_path: Path) -> None:
     In addition, the arguments '--image_channel' and '--gt_channel' must be specified (see below).
     """
     config, runner_config, args = get_configs(SegmentationModelBase(should_validate=False), yaml_file_path)
-    local_dataset = MLRunner(config, runner_config).mount_or_download_dataset()
+    local_dataset = MLRunner(config, azure_config=runner_config).mount_or_download_dataset()
     assert local_dataset is not None
     dataframe = pd.read_csv(local_dataset / DATASET_CSV_FILE_NAME)
     normalizer_config = NormalizeAndVisualizeConfig(**args)

@@ -45,15 +45,6 @@ INNEREYE_SDK_NAME = "innereye"
 INNEREYE_SDK_VERSION = "1.0"
 
 
-def get_results_blob_path(run_id: str) -> str:
-    """
-    Creates the name of the top level folder that contains the results for a given AzureML run.
-    :param run_id: The AzureML run ID for which the folder should be created.
-    :return: A full Azure blob storage path, starting with the container name.
-    """
-    return AZUREML_RUN_FOLDER + run_id
-
-
 def create_run_recovery_id(run: Run) -> str:
     """
    Creates an recovery id for a run so it's checkpoints could be recovered for training/testing
@@ -291,6 +282,21 @@ def merge_conda_files(files: List[Path], result_file: Path) -> None:
         unified_definition[DEPENDENCIES] = deps
     with result_file.open("w") as f:
         ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
+
+
+def get_all_environment_files(project_root: Path) -> List[Path]:
+    """
+    Returns a list of all Conda environment files that should be used. This is firstly the InnerEye conda file,
+    and possibly a second environment.yml file that lives at the project root folder.
+    :param project_root: The root folder of the code that starts the present training run.
+    :return: A list with 1 or 2 entries that are conda environment files.
+    """
+    innereye_yaml = fixed_paths.get_environment_yaml_file()
+    project_yaml = project_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME
+    files = [innereye_yaml]
+    if innereye_yaml != project_yaml:
+        files.append(project_yaml)
+    return files
 
 
 def merge_conda_dependencies(files: List[Path]) -> Tuple[CondaDependencies, str]:

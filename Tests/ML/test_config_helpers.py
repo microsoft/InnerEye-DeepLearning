@@ -7,10 +7,13 @@ from typing import List, Optional, Union
 
 import pytest
 import torch
+from pandas import DataFrame
 
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import ModelArchitectureConfig, SegmentationModelBase, equally_weighted_classes
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
@@ -127,6 +130,35 @@ def test_equally_weighted_classes_fails(num_fg_clases: int, background_weight: O
         equally_weighted_classes(classes, background_weight)
 
 
+def test_fields_are_set() -> None:
+    """
+    Tests that expected fields are set when creating config classes.
+    """
+    expected = [("hello", None), ("world", None)]
+    config = SegmentationModelBase(
+        should_validate=False,
+        ground_truth_ids=[x[0] for x in expected],
+        largest_connected_component_foreground_classes=expected
+    )
+    assert hasattr(config, CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY)
+    assert config.largest_connected_component_foreground_classes == expected
+
+
+@pytest.mark.cpu_and_gpu
+def test_dataset_reader_workers() -> None:
+    """
+    Test to make sure the number of dataset reader workers are set correctly
+    """
+    config = ScalarModelBase(
+        should_validate=False,
+        num_dataset_reader_workers=-1
+    )
+    if config.is_offline_run:
+        assert config.num_dataset_reader_workers == -1
+    else:
+        assert config.num_dataset_reader_workers == 0
+
+
 def create_dataset_csv(test_output_dirs: OutputFolderForTests) -> Path:
     """Create dummy dataset csv file for tests,
     deleting any pre-existing file."""
@@ -176,34 +208,46 @@ def test_dataset_csv_with_ScalarModelBase(
     assert model_config.dataset_data_frame is not None
     validate_dataset_paths(model_config)
 
+
 def test_unet3_num_downsampling_paths() -> None:
     for num_downsampling_paths in range(1, 5):
-        j = int(2**num_downsampling_paths)
+        j = int(2 ** num_downsampling_paths)
 
         # Test that num_downsampling_paths for built UNet3D
         # is set via model configuration
         crop_size = (j, j, j)
         config = SegmentationModelBase(
-                architecture=ModelArchitectureConfig.UNet3D,
-                image_channels=["ct"],
-                feature_channels=[1],
-                crop_size=crop_size,
-                num_downsampling_paths=num_downsampling_paths,
-                should_validate=False)
+            architecture=ModelArchitectureConfig.UNet3D,
+            image_channels=["ct"],
+            feature_channels=[1],
+            crop_size=crop_size,
+            num_downsampling_paths=num_downsampling_paths,
+            should_validate=False)
         network = build_net(config)
         assert network.num_downsampling_paths == num_downsampling_paths
 
         # Test that exception is raised if crop size is smaller than is allowed
         # by num_downsampling_paths
-        too_small_crop_size = (j//2, j//2, j//2)
+        too_small_crop_size = (j // 2, j // 2, j // 2)
         ex_msg = f"Crop size is not valid. The required minimum is {crop_size}"
         config = SegmentationModelBase(
-                architecture=ModelArchitectureConfig.UNet3D,
-                image_channels=["ct"],
-                feature_channels=[1],
-                crop_size=too_small_crop_size,
-                num_downsampling_paths=num_downsampling_paths,
-                should_validate=False)
+            architecture=ModelArchitectureConfig.UNet3D,
+            image_channels=["ct"],
+            feature_channels=[1],
+            crop_size=too_small_crop_size,
+            num_downsampling_paths=num_downsampling_paths,
+            should_validate=False)
         with pytest.raises(ValueError) as ex:
-            network = build_net(config)
+            build_net(config)
         assert ex_msg in str(ex)
+
+
+def test_config_str() -> None:
+    """
+    Check if dataframe fields are omitted from the string conversion of a config object.
+    """
+    config = DeepLearningConfig()
+    df = DataFrame(columns=["foobar"], data=[1.0, 2.0])
+    config.dataset_data_frame = df
+    s = str(config)
+    assert "foobar" not in s, f"Incorrect output: {s}"
