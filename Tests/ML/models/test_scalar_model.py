@@ -312,7 +312,7 @@ def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) 
     MLRunner(config, azure_config).run()
 
 
-# @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
+@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test starting a classification model via the commandline runner. Test if we can provide overrides
