@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import os
+import re
 import uuid
 from pathlib import Path
 from typing import List, Optional
@@ -15,6 +16,7 @@ from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
+from InnerEye.ML.common import RECOVERY_CHECKPOINT_FILE_NAME, find_latest_checkpoint
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, WEIGHTS_FILE
 from InnerEye.ML.utils.run_recovery import RunRecovery
 
@@ -90,6 +92,17 @@ class CheckpointHandler:
                 raise ValueError(f"Recovering training of ensemble runs is not supported. Found more than one "
                                  f"checkpoint for epoch {self.model_config.start_epoch}")
             return checkpoints[0]
+
+        # If the run gets pre-empted and automatically restarted in AML, look first if we don't have a local 
+        # recovery checkpoint. If one recovery is present, take the latest recovery checkpoint and restart from
+        # this epoch.
+        local_recovery = find_latest_checkpoint(self.model_config.checkpoint_folder,
+                                                RECOVERY_CHECKPOINT_FILE_NAME + "*")
+        if local_recovery is not None:
+            recovery_epoch = re.findall(r"[\d]+", str(local_recovery))
+            self.model_config.start_epoch = recovery_epoch
+            return local_recovery
+
         elif self.local_weights_path:
             return self.local_weights_path
         else:
