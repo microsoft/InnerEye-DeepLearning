@@ -12,7 +12,8 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, LAST_CHECKPOINT_FILE_NAME, \
-    LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint, find_latest_checkpoint
+    LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint, \
+    find_latest_recovery_checkpoint
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.lightning_helpers import create_lightning_model, load_from_checkpoint_and_adjust_for_inference
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -97,28 +98,28 @@ def test_keep_latest(test_output_dirs: OutputFolderForTests) -> None:
     """
     folder = test_output_dirs.root_dir
     prefix = "foo"
-    pattern = prefix + "*"
+    pattern = RECOVERY_CHECKPOINT_FILE_NAME + "*"
     file1 = folder / (prefix + ".txt")
     file2 = folder / (prefix + "2.txt")
     # No file present yet
-    assert find_latest_checkpoint(folder, pattern) is None
+    assert find_latest_recovery_checkpoint(folder) is None
     # Single file present: This should be returned.
     file1.touch()
     # Without sleeping, the test can fail in Azure build agents
     time.sleep(0.1)
-    latest = find_latest_checkpoint(folder, pattern)
+    latest = find_latest_recovery_checkpoint(folder)
     assert latest == file1
     assert latest.is_file()
     # Two files present: keep file2 should be returned
     file2.touch()
     time.sleep(0.1)
-    latest = find_latest_checkpoint(folder, pattern)
+    latest = find_latest_recovery_checkpoint(folder)
     assert latest == file2
     assert latest.is_file()
     # Add file1 again: Now this one should be the most recent one
     file1.touch()
     time.sleep(0.1)
-    latest = find_latest_checkpoint(folder, pattern)
+    latest = find_latest_recovery_checkpoint(folder)
     assert latest == file1
     assert latest.is_file()
 

@@ -132,7 +132,6 @@ def test_parsing_with_custom_yaml(test_output_dirs: OutputFolderForTests) -> Non
     yaml_file = test_output_dirs.root_dir / "custom.yml"
     yaml_file.write_text("""variables:
   tenant_id: 'foo'
-  start_epoch: 7
   random_seed: 1
 """)
     # Arguments partly to be set in AzureConfig, and partly in model config.
@@ -149,8 +148,6 @@ def test_parsing_with_custom_yaml(test_output_dirs: OutputFolderForTests) -> Non
     # This is only present in yaml
     # This is present in yaml and command line, and the latter should be used.
     assert runner.azure_config.tenant_id == "bar"
-    # Settings in model config: start_epoch is only in yaml
-    assert runner.model_config.start_epoch == 7
     # Settings in model config: num_epochs is only on commandline
     assert runner.model_config.num_epochs == 42
     # Settings in model config: random_seed is both in yaml and command line, the latter should be used

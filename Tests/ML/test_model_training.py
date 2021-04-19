@@ -44,8 +44,6 @@ base_path = full_ml_test_data_path()
 def test_get_total_number_of_training_epochs() -> None:
     c = DeepLearningConfig(num_epochs=2, should_validate=False)
     assert c.get_total_number_of_training_epochs() == 2
-    c = DeepLearningConfig(num_epochs=10, start_epoch=5, should_validate=False)
-    assert c.get_total_number_of_training_epochs() == 5
 
 
 @pytest.mark.parametrize("image_channels", [["region"], ["random_123"]])
@@ -329,7 +327,6 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
     assert len(list(config.checkpoint_folder.glob("*.*"))) == 2
 
     # Restart training from previous run
-    config.start_epoch = 2
     config.num_epochs = 3
     config.set_output_to(test_output_dirs.root_dir / "recovered")
     os.makedirs(str(config.outputs_folder))

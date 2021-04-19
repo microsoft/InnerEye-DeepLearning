@@ -16,7 +16,7 @@ from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
-from InnerEye.ML.common import RECOVERY_CHECKPOINT_FILE_NAME, find_latest_checkpoint
+from InnerEye.ML.common import find_latest_recovery_checkpoint
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, WEIGHTS_FILE
 from InnerEye.ML.utils.run_recovery import RunRecovery
 
@@ -72,35 +72,16 @@ class CheckpointHandler:
 
     def get_recovery_path_train(self) -> Optional[Path]:
         """
-        Decides the checkpoint path to use for the current training run. If a run recovery object is used, use the
-        checkpoint from there, otherwise use the checkpoints from the current run.
+        Decides the checkpoint path to use for the current training run. Looks for the latest checkpoint in the
+        checkpoint folder. If run_recovery is provided, the checkpoints will have been downloaded to this folder
+        prior to calling this function. Else, if the run gets pre-empted and automatically restarted in AML,
+        the latest checkpoint will be present in this folder too.
         :return: Constructed checkpoint path to recover from.
         """
-
-        if self.model_config.start_epoch > 0 and not self.run_recovery:
-            raise ValueError("Start epoch is > 0, but no run recovery object has been provided to resume training.")
-
-        if self.run_recovery and self.model_config.start_epoch == 0:
-            raise ValueError("Run recovery set, but start epoch is 0. Please provide start epoch > 0 (for which a "
-                             "checkpoint was saved in the previous run) to resume training from that run.")
-
-        if self.run_recovery:
-            # run_recovery takes first precedence over local_weights_path.
-            # This is to allow easy recovery of runs which have either of these parameters set in the config:
-            checkpoints = self.run_recovery.get_recovery_checkpoint_paths()
-            if len(checkpoints) > 1:
-                raise ValueError(f"Recovering training of ensemble runs is not supported. Found more than one "
-                                 f"checkpoint for epoch {self.model_config.start_epoch}")
-            return checkpoints[0]
-
-        # If the run gets pre-empted and automatically restarted in AML, look first if we don't have a local 
-        # recovery checkpoint. If one recovery is present, take the latest recovery checkpoint and restart from
-        # this epoch.
-        local_recovery = find_latest_checkpoint(self.model_config.checkpoint_folder,
-                                                RECOVERY_CHECKPOINT_FILE_NAME + "*")
+        local_recovery = find_latest_recovery_checkpoint(self.model_config.checkpoint_folder)
         if local_recovery is not None:
             recovery_epoch = re.findall(r"[\d]+", local_recovery.stem)[0]
-            self.model_config.start_epoch = int(recovery_epoch)
+            self.model_config._start_epoch = int(recovery_epoch)
             return local_recovery
 
         elif self.local_weights_path:
@@ -236,9 +217,3 @@ class CheckpointHandler:
         target_file = self.model_config.outputs_folder / WEIGHTS_FILE
         torch.save(modified_weights, target_file)
         return target_file
-
-    def should_load_optimizer_checkpoint(self) -> bool:
-        """
-        Returns true if the optimizer should be loaded from checkpoint. Looks at the model config to determine this.
-        """
-        return self.model_config.start_epoch > 0

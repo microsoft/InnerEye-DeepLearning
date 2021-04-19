@@ -24,7 +24,6 @@ class RunRecovery:
     Class to encapsulate information relating to run recovery (eg: check point paths for parent and child runs)
     """
     checkpoints_roots: List[Path]
-    recovery_checkpoint_filename: str
 
     @staticmethod
     def download_best_checkpoints_from_child_runs(config: DeepLearningConfig, run: Run) -> RunRecovery:
@@ -64,8 +63,7 @@ class RunRecovery:
     @staticmethod
     def download_all_checkpoints_from_run(config: DeepLearningConfig, run: Run) -> RunRecovery:
         """
-        Downloads all checkpoints of the provided run: The best checkpoint and the recovery checkpoint.
-        A single folder inside the checkpoints folder will be created that contains the downloaded checkpoints.
+        Downloads all checkpoints of the provided run inside the checkpoints folder.
         :param config: Model related configs.
         :param run: Run whose checkpoints should be recovered
         :return: run recovery information
@@ -73,18 +71,15 @@ class RunRecovery:
         if fetch_child_runs(run):
             raise ValueError(f"AzureML run {run.id} has child runs, this method does not support those.")
 
-        root_output_dir = config.checkpoint_folder / run.id
         download_outputs_from_run(
             blobs_path=Path(CHECKPOINT_FOLDER),
-            destination=root_output_dir,
+            destination=config.checkpoint_folder,
             run=run
         )
-        return RunRecovery(checkpoints_roots=[root_output_dir],
-                           recovery_checkpoint_filename=[config.recovery_checkpoint_filename])
+        return RunRecovery(checkpoints_roots=[config.checkpoint_folder])
 
     def get_recovery_checkpoint_paths(self) -> List[Path]:
-        return [get_recovery_checkpoint_path(x, f) for x, f in
-                zip(self.checkpoints_roots, self.recovery_checkpoint_filename)]
+        return [get_recovery_checkpoint_path(x) for x in self.checkpoints_roots]
 
     def get_best_checkpoint_paths(self) -> List[Path]:
         return [get_best_checkpoint_path(x) for x in self.checkpoints_roots]

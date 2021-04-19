@@ -211,9 +211,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                   "does not give the same result as running with 1 worker process)")
     shuffle: bool = param.Boolean(True, doc="If true, the dataset will be shuffled randomly during training.")
     num_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
-    start_epoch: int = param.Integer(0, bounds=(0, None), doc="The first epoch to train. Set to 0 to start a new "
-                                                              "training. Set to a value larger than zero for starting"
-                                                              " from a checkpoint.")
 
     l_rate: float = param.Number(1e-4, doc="The initial learning rate", bounds=(0, None))
     _min_l_rate: float = param.Number(0.0, doc="The minimum learning rate for the Polynomial and Cosine schedulers.",
@@ -395,6 +392,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         # This should be annotated as torch.utils.data.Dataset, but we don't want to import torch here.
         self._datasets_for_training: Optional[Dict[ModelExecutionMode, Any]] = None
         self._datasets_for_inference: Optional[Dict[ModelExecutionMode, Any]] = None
+        self._start_epoch = 0
         super().__init__(throw_if_unknown_param=True, **params)
         logging.info("Creating the default output folder structure.")
         self.create_filesystem(fixed_paths.repository_root_directory())
@@ -553,7 +551,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         Returns the epochs for which training will be performed.
         :return:
         """
-        return list(range(self.start_epoch + 1, self.num_epochs + 1))
+        return list(range(self._start_epoch + 1, self.num_epochs + 1))
 
     def get_total_number_of_training_epochs(self) -> int:
         """

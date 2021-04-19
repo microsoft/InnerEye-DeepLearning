@@ -32,36 +32,6 @@ def enumerate_scheduler(scheduler: _LRScheduler, steps: int) -> List[float]:
     return lrs
 
 
-def test_create_lr_scheduler_last_epoch() -> None:
-    """
-    Test to check if the lr scheduler is initialized to the correct epoch
-    """
-    l_rate = 1e-3
-    gamma = 0.5
-    total_epochs = 5
-    expected_lrs_per_epoch = [l_rate * (gamma ** i) for i in range(total_epochs)]
-    config = DummyModel()
-    config.l_rate = l_rate
-    config.l_rate_scheduler = LRSchedulerType.Step
-    config.l_rate_step_step_size = 1
-    config.l_rate_step_gamma = gamma
-    # create lr scheduler
-    initial_scheduler, initial_optimizer = _create_lr_scheduler_and_optimizer(config)
-    # check lr scheduler initialization step
-    initial_epochs = 3
-    assert np.allclose(enumerate_scheduler(initial_scheduler, initial_epochs), expected_lrs_per_epoch[:initial_epochs])
-    # create lr scheduler for recovery checkpoint
-    config.start_epoch = initial_epochs
-    recovery_scheduler, recovery_optimizer = _create_lr_scheduler_and_optimizer(config)
-    # Both the scheduler and the optimizer need to be loaded from the checkpoint.
-    recovery_scheduler.load_state_dict(initial_scheduler.state_dict())
-    recovery_optimizer.load_state_dict(initial_optimizer.state_dict())
-    assert recovery_scheduler.last_epoch == config.start_epoch
-    # check lr scheduler initialization matches the checkpoint epoch
-    # as training will start for start_epoch + 1 in this case
-    assert np.allclose(enumerate_scheduler(recovery_scheduler, 2), expected_lrs_per_epoch[initial_epochs:])
-
-
 @pytest.mark.parametrize("lr_scheduler_type", [x for x in LRSchedulerType])
 def test_lr_monotonically_decreasing_function(lr_scheduler_type: LRSchedulerType) -> None:
     """
@@ -218,45 +188,6 @@ def test_lr_scheduler_with_warmup(warmup_epochs: int, expected_values: List[floa
     scheduler = SchedulerWithWarmUp(config, optimizer)
     lrs = enumerate_scheduler(scheduler, 4)
     assert lrs == expected_values
-
-
-# Exclude Polynomial scheduler because that uses lambdas, which we can't save to a state dict
-@pytest.mark.parametrize("lr_scheduler_type", [x for x in LRSchedulerType if x != LRSchedulerType.Polynomial])
-@pytest.mark.parametrize("warmup_epochs", [0, 3, 4, 5])
-def test_resume_from_saved_state(lr_scheduler_type: LRSchedulerType, warmup_epochs: int) -> None:
-    """
-    Tests if LR scheduler when restarted from an epoch continues as expected.
-    """
-    restart_from_epoch = 4
-    config = DummyModel(num_epochs=7,
-                        l_rate_scheduler=lr_scheduler_type,
-                        l_rate_exponential_gamma=0.9,
-                        l_rate_step_gamma=0.9,
-                        l_rate_step_step_size=2,
-                        l_rate_multi_step_gamma=0.9,
-                        l_rate_multi_step_milestones=[3, 5, 7],
-                        l_rate_polynomial_gamma=0.9,
-                        l_rate_warmup=LRWarmUpType.Linear if warmup_epochs > 0 else LRWarmUpType.NoWarmUp,
-                        l_rate_warmup_epochs=warmup_epochs)
-    # This scheduler mimics what happens if we train for the full set of epochs
-    scheduler_all_epochs, _ = _create_lr_scheduler_and_optimizer(config)
-    expected_lr_list = enumerate_scheduler(scheduler_all_epochs, config.num_epochs)
-
-    # Create a scheduler where training will be recovered
-    scheduler1, optimizer1 = _create_lr_scheduler_and_optimizer(config)
-    # Scheduler 1 is only run for 4 epochs, and then "restarted" to train the rest of the epochs.
-    result_lr_list = enumerate_scheduler(scheduler1, restart_from_epoch)
-    # resume state: This just means setting start_epoch in the config
-    config.start_epoch = restart_from_epoch
-    scheduler_resume, optimizer_resume = _create_lr_scheduler_and_optimizer(config)
-    # Load a "checkpoint" for both scheduler and optimizer
-    scheduler_resume.load_state_dict(scheduler1.state_dict())
-    optimizer_resume.load_state_dict(optimizer1.state_dict())
-    result_lr_list.extend(enumerate_scheduler(scheduler_resume, config.num_epochs - restart_from_epoch))
-    print(f"Actual   schedule: {result_lr_list}")
-    print(f"Expected schedule: {expected_lr_list}")
-    assert len(result_lr_list) == len(expected_lr_list)
-    assert np.allclose(result_lr_list, expected_lr_list)
 
 
 @pytest.mark.parametrize("lr_scheduler_type", [x for x in LRSchedulerType])

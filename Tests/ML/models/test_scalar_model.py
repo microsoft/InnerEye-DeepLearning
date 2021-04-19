@@ -356,7 +356,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     assert (config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).exists()
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
+# @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if starting training from a folder where the checkpoints folder already has recovery checkpoints picks up
@@ -371,7 +371,7 @@ def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     model_train(model_config, get_default_checkpoint_handler(model_config=model_config,
                                                              project_root=test_output_dirs.root_dir))
     # The start epoch is expected to have been updated when we picked up the recovery checkpoint
-    assert model_config.start_epoch == 3
+    assert model_config._start_epoch == 3
     # We expect to have 3 checkpoints, epoch 3, epoch 5 and best.
     assert len(os.listdir(model_config.checkpoint_folder)) == 3
 
