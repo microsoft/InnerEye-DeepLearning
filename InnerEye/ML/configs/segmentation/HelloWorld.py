@@ -7,7 +7,7 @@ from typing import Any
 
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import BanditPolicy, HyperDriveConfig, PrimaryMetricGoal, RandomParameterSampling, uniform
-from networkx.tests.test_convert_pandas import pd
+import pandas as pd
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import TrackedMetrics

@@ -2,12 +2,13 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
+from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.type_annotations import DictStrFloat
 
 
@@ -21,6 +22,9 @@ class StoringLogger(LightningLoggerBase):
         super().__init__()
         self.results: Dict[int, DictStrFloat] = {}
         self.hyperparams: Any = None
+        # Fields to store diagnostics for unit testing
+        self.train_diagnostics: List[Any] = []
+        self.val_diagnostics: List[Any] = []
 
     @rank_zero_only
     def log_metrics(self, metrics: DictStrFloat, step: Optional[int] = None) -> None:
@@ -44,7 +48,7 @@ class StoringLogger(LightningLoggerBase):
         self.hyperparams = params
 
     def experiment(self) -> Any:
-        return ""
+        return None
 
     def name(self) -> Any:
         return ""
@@ -93,6 +97,48 @@ class StoringLogger(LightningLoggerBase):
         """
         return {epoch: self.extract_by_prefix(epoch, prefix_filter) for epoch in self.epochs}
 
+    def get_metric(self, is_training: bool, metric_type: str) -> List[float]:
+        """
+        Gets a scalar metric out of either the list of training or the list of validation results. This returns
+        the value that a specific metric attains in all of the epochs.
+        :param is_training: If True, read metrics that have a "train/" prefix, otherwise those that have a "val/"
+        prefix.
+        :param metric_type: The metric to extract.
+        :return: A list of floating point numbers, with one entry per entry in the the training or validation results.
+        """
+        full_metric_name = (TRAIN_PREFIX if is_training else VALIDATION_PREFIX) + metric_type
+        return [self.results[epoch][full_metric_name] for epoch in self.epochs]
+
+    def get_train_metric(self, metric_type: str) -> List[float]:
+        """
+        Gets a scalar metric from the list of training results. This returns
+        the value that a specific metric attains in all of the epochs.
+        :param metric_type: The metric to extract.
+        :return: A list of floating point numbers, with one entry per entry in the the training results.
+        """
+        return self.get_metric(is_training=True, metric_type=metric_type)
+
+    def get_val_metric(self, metric_type: str) -> List[float]:
+        """
+        Gets a scalar metric from the list of validation results. This returns
+        the value that a specific metric attains in all of the epochs.
+        :param metric_type: The metric to extract.
+        :return: A list of floating point numbers, with one entry per entry in the the validation results.
+        """
+        return self.get_metric(is_training=False, metric_type=metric_type)
+
+    def train_results_per_epoch(self) -> List[DictStrFloat]:
+        """
+        Gets the full set of training metrics that the logger stores, as a list of dictionaries per epoch.
+        """
+        return list(self.to_metrics_dicts(prefix_filter=TRAIN_PREFIX).values())
+
+    def val_results_per_epoch(self) -> List[DictStrFloat]:
+        """
+        Gets the full set of validation metrics that the logger stores, as a list of dictionaries per epoch.
+        """
+        return list(self.to_metrics_dicts(prefix_filter=VALIDATION_PREFIX).values())
+
 
 class AzureMLLogger(LightningLoggerBase):
     """
@@ -115,7 +161,7 @@ class AzureMLLogger(LightningLoggerBase):
         pass
 
     def experiment(self) -> Any:
-        return ""
+        return None
 
     def name(self) -> Any:
         return ""

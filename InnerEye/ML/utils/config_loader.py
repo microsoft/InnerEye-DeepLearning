@@ -5,21 +5,19 @@
 import importlib
 import inspect
 import logging
-from importlib._bootstrap import ModuleSpec
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional
 
 import param
+from importlib._bootstrap import ModuleSpec
 
 from InnerEye.Common.common_util import path_to_namespace
 from InnerEye.Common.generic_parsing import GenericConfig
-from InnerEye.ML.model_config_base import ModelConfigBase
-
-C = TypeVar('C', bound=ModelConfigBase)
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 
 
-class ModelConfigLoader(GenericConfig, Generic[C]):
+class ModelConfigLoader(GenericConfig):
     """
     Helper class to manage model config loading
     """
@@ -43,20 +41,21 @@ class ModelConfigLoader(GenericConfig, Generic[C]):
         from InnerEye.ML import configs
         return configs.__name__
 
-    def create_model_config_from_name(self, model_name: str, overrides: Optional[Dict[str, Any]] = None) -> C:
+    def create_model_config_from_name(self, model_name: str) -> DeepLearningConfig:
         """
-        Returns a segmentation or classification model configuration for a model of the given name.
+        Returns a model configuration for a model of the given name. This can be either a segmentation or
+        classification configuration for an InnerEye built-in model, or a LightningContainer.
+        To avoid having to import torch here, there are no references to LightningContainer.
         Searching for a class member called <model_name> in the search modules provided recursively.
 
         :param model_name: Name of the model for which to get the configs for.
-        :param overrides: Model properties to override.
         """
         if not model_name:
             raise ValueError("Unable to load a model configuration because the model name is missing.")
 
-        configs: Dict[str, C] = {}
+        configs: Dict[str, DeepLearningConfig] = {}
 
-        def _get_model_config(module_spec: ModuleSpec) -> Optional[C]:
+        def _get_model_config(module_spec: ModuleSpec) -> Optional[DeepLearningConfig]:
             """
             Given a module specification check to see if it has a class property with
             the <model_name> provided, and instantiate that config class with the
@@ -66,6 +65,7 @@ class ModelConfigLoader(GenericConfig, Generic[C]):
             """
             # noinspection PyBroadException
             try:
+                logging.debug(f"Importing {module_spec.name}")
                 target_module = importlib.import_module(module_spec.name)
                 # The "if" clause checks that obj is a class, of the desired name, that is
                 # defined in this module rather than being imported into it (and hence potentially
@@ -74,7 +74,7 @@ class ModelConfigLoader(GenericConfig, Generic[C]):
                               if inspect.isclass(obj)
                               and name == model_name
                               and inspect.getmodule(obj) == target_module)
-                logging.info(f"Found class {_class.name} in file {module_spec.origin}")
+                logging.info(f"Found class {_class} in file {module_spec.origin}")
             # ignore the exception which will occur if the provided module cannot be loaded
             # or the loaded module does not have the required class as a member
             except Exception as e:
@@ -82,13 +82,7 @@ class ModelConfigLoader(GenericConfig, Generic[C]):
                 if exception_text != "":
                     logging.warning(f"(from attempt to import module {module_spec.name}): {exception_text}")
                 return None
-            model_config: ModelConfigBase = _class()
-
-            # apply the overrides to the model
-            if overrides is not None:
-                model_config.apply_overrides(overrides)
-                # The parameters have presumably changed, so we need to re-validate.
-                model_config.validate()
+            model_config: DeepLearningConfig = _class()
             return model_config
 
         def _search_recursively_and_store(module_search_spec: ModuleSpec) -> None:

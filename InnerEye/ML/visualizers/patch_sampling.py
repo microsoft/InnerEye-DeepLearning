@@ -16,8 +16,7 @@ from InnerEye.ML.dataset.cropping_dataset import CroppingDataset
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import Sample
 from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
-from InnerEye.ML.utils import augmentation, io_util, ml_util
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils import augmentation, io_util
 # The name of the folder inside the default outputs folder that will holds plots that show the effect of
 # sampling random patches
 from InnerEye.ML.utils.image_util import get_unit_image_header
@@ -113,7 +112,7 @@ def visualize_random_crops_for_dataset(config: SegmentationModelBase, output_fol
     for training. Visualizations are stored in both Nifti format, and as 3 PNG thumbnail files, in the output folder.
     :param config: The model configuration.
     :param output_folder: The folder in which the visualizations should be written. If not provided, use a subfolder
-    "patch_sampling" in the models's default output folder
+    "patch_sampling" in the model's default output folder
     """
     dataset_splits = config.get_dataset_splits()
     # Load a sample using the full image data loader
@@ -123,24 +122,3 @@ def visualize_random_crops_for_dataset(config: SegmentationModelBase, output_fol
     for sample_index in range(count):
         sample = full_image_dataset.get_samples_at_index(index=sample_index)[0]
         visualize_random_crops(sample, config, output_folder=output_folder)
-
-
-def main(args: CheckPatchSamplingConfig) -> None:
-    # Identify paths to inputs and outputs
-    commandline_args = {
-        "train_batch_size": 1,
-        "local_dataset": Path(args.local_dataset)
-    }
-    output_folder = Path(args.output_folder)
-    output_folder.mkdir(parents=True, exist_ok=True)
-
-    # Create a config file
-    config = ModelConfigLoader[SegmentationModelBase]().create_model_config_from_name(
-        args.model_name, overrides=commandline_args)
-    config.show_patch_sampling = args.number_samples
-    ml_util.set_random_seed(config.random_seed)
-    visualize_random_crops_for_dataset(config, output_folder=output_folder)
-
-
-if __name__ == "__main__":
-    main(CheckPatchSamplingConfig.parse_args())

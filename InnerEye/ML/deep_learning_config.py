@@ -182,36 +182,186 @@ class DeepLearningFileSystemConfig(Parameterized):
                 logs_folder=logs_folder,
                 project_root=self.project_root
             )
-        raise ValueError("This method should only be called for offline runs, when the logs folder is inside the "
-                         "outputs folder.")
+        raise ValueError("This method should only be called for runs outside AzureML, when the logs folder is "
+                         "inside the outputs folder.")
 
 
-class DeepLearningConfig(GenericConfig, CudaAwareConfig):
+class WorkflowParams(param.Parameterized):
     """
-    A class that holds all settings that are shared across segmentation models and regression/classification models.
+    This class contains all parameters that affect how the whole training and testing workflow is executed.
     """
-    _model_category: ModelCategory = param.ClassSelector(class_=ModelCategory,
-                                                         doc="The high-level model category described by this config.")
-    _model_name: str = param.String(None, doc="The human readable name of the model (for example, Liver). This is "
-                                              "usually set from the class name.")
-
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
-    azure_dataset_id: str = param.String(doc="If provided, the ID of the dataset to use. This dataset must exist as a "
-                                             "folder of the same name in the 'datasets' "
-                                             "container in the datasets storage account.")
-    local_dataset: Optional[Path] = param.ClassSelector(class_=Path,
-                                                        default=None,
-                                                        allow_None=True,
-                                                        doc="The path of the dataset to use, when training is running "
-                                                            "outside Azure.")
-    num_dataload_workers: int = param.Integer(8, bounds=(0, None),
-                                              doc="The number of data loading workers (processes). When set to 0,"
-                                                  "data loading is running in the same process (no process startup "
-                                                  "cost, hence good for use in unit testing. However, it "
-                                                  "does not give the same result as running with 1 worker process)")
-    shuffle: bool = param.Boolean(True, doc="If true, the dataset will be shuffled randomly during training.")
-    num_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
+    number_of_cross_validation_splits: int = param.Integer(0, bounds=(0, None),
+                                                           doc="Number of cross validation splits for k-fold cross "
+                                                               "validation")
+    cross_validation_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
+                                                      doc="The index of the cross validation fold this model is "
+                                                          "associated with when performing k-fold cross validation")
+    perform_training_set_inference: bool = \
+        param.Boolean(False,
+                      doc="If True, run full image inference on the training set at the end of training. If False and "
+                          "perform_validation_and_test_set_inference is True (default), only run inference on "
+                          "validation and test set. If both flags are False do not run inference.")
+    perform_validation_and_test_set_inference: bool = \
+        param.Boolean(True,
+                      doc="If True (default), run full image inference on validation and test set after training.")
+    weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
+                                        "initialization.")
+    local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
+                                                             default=None,
+                                                             allow_None=True,
+                                                             doc="The path to the weights to use for model "
+                                                                 "initialization, when training outside AzureML.")
+    generate_report: bool = param.Boolean(default=True,
+                                          doc="If True (default), write a modelling report in HTML format. If False,"
+                                              "do not write that report.")
+    # The default multiprocessing start_method in both PyTorch and the Python standard library is "fork" for Linux and
+    # "spawn" (the only available method) for Windows. There is some evidence that using "forkserver" on Linux
+    # can reduce the chance of stuck jobs.
+    multiprocessing_start_method: MultiprocessingStartMethod = \
+        param.ClassSelector(class_=MultiprocessingStartMethod,
+                            default=(MultiprocessingStartMethod.spawn if is_windows()
+                                     else MultiprocessingStartMethod.fork),
+                            doc="Method to be used to start child processes in pytorch. Should be one of forkserver, "
+                                "fork or spawn. If not specified, fork is used on Linux and spawn on Windows. "
+                                "Set to forkserver as a possible remedy for stuck jobs.")
+    monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
+                                                            "statistics. If 0 or less, do not log any resource "
+                                                            "statistics.")
 
+    def validate(self) -> None:
+        if self.weights_url and self.local_weights_path:
+            raise ValueError("Cannot specify both local_weights_path and weights_url.")
+
+        if self.number_of_cross_validation_splits == 1:
+            raise ValueError("At least two splits required to perform cross validation, but got "
+                             f"{self.number_of_cross_validation_splits}. To train without cross validation, set "
+                             "number_of_cross_validation_splits=0.")
+        if 0 < self.number_of_cross_validation_splits <= self.cross_validation_split_index:
+            raise ValueError(f"Cross validation split index is out of bounds: {self.cross_validation_split_index}, "
+                             f"which is invalid for CV with {self.number_of_cross_validation_splits} splits.")
+        elif self.number_of_cross_validation_splits == 0 and self.cross_validation_split_index != -1:
+            raise ValueError(f"Cross validation split index must be -1 for a non cross validation run, "
+                             f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
+                             f"and cross_validation_split_index={self.cross_validation_split_index}")
+
+    @property
+    def is_offline_run(self) -> bool:
+        """
+        Returns True if the run is executing outside AzureML, or False if inside AzureML.
+        """
+        return is_offline_run_context(RUN_CONTEXT)
+
+    @property
+    def perform_cross_validation(self) -> bool:
+        """
+        True if cross validation will be be performed as part of the training procedure.
+        :return:
+        """
+        return self.number_of_cross_validation_splits > 1
+
+    def get_effective_random_seed(self) -> int:
+        """
+        Returns the random seed set as part of this configuration. If the configuration corresponds
+        to a cross validation split, then the cross validation fold index will be added to the
+        set random seed in order to return the effective random seed.
+        :return:
+        """
+        seed = self.random_seed
+        if self.perform_cross_validation:
+            # offset the random seed based on the cross validation split index so each
+            # fold has a different initial random state.
+            seed += self.cross_validation_split_index
+        return seed
+
+
+class DatasetParams(param.Parameterized):
+    azure_dataset_id: str = param.String(doc="If provided, the ID of the dataset to use when running in AzureML. "
+                                             "This dataset must exist as a folder of the same name in the 'datasets' "
+                                             "container in the datasets storage account. This dataset will be mounted "
+                                             "and made available at the 'local_dataset' path when running in AzureML.")
+    local_dataset: Optional[Path] = \
+        param.ClassSelector(class_=Path, default=None, allow_None=True,
+                            doc="The path of the dataset to use, when training is running outside Azure.")
+
+
+class OutputParams(param.Parameterized):
+    output_to: str = param.String(default="",
+                                  doc="If provided, the run outputs will be written to the given folder. If not "
+                                      "provided, outputs will go into a subfolder of the project root folder.")
+    file_system_config: DeepLearningFileSystemConfig = param.ClassSelector(default=DeepLearningFileSystemConfig(),
+                                                                           class_=DeepLearningFileSystemConfig,
+                                                                           instantiate=False,
+                                                                           doc="File system related configs")
+    _model_name: str = param.String("", doc="The human readable name of the model (for example, Liver). This is "
+                                            "usually set from the class name.")
+
+    @property
+    def model_name(self) -> str:
+        """
+        Gets the human readable name of the model (e.g., Liver). This is usually set from the class name.
+        :return: A model name as a string.
+        """
+        return self._model_name
+
+    def set_output_to(self, output_to: PathOrString) -> None:
+        """
+        Adjusts the file system settings in the present object such that all outputs are written to the given folder.
+        :param output_to: The absolute path to a folder that should contain the outputs.
+        """
+        if isinstance(output_to, Path):
+            output_to = str(output_to)
+        self.output_to = output_to
+        self.create_filesystem()
+
+    def create_filesystem(self, project_root: Path = fixed_paths.repository_root_directory()) -> None:
+        """
+        Creates new file system settings (outputs folder, logs folder) based on the information stored in the
+        present object. If any of the folders do not yet exist, they are created.
+        :param project_root: The root folder for the codebase that triggers the training run.
+        """
+        self.file_system_config = DeepLearningFileSystemConfig.create(
+            project_root=project_root,
+            model_name=self.model_name,
+            is_offline_run=is_offline_run_context(RUN_CONTEXT),
+            output_to=self.output_to
+        )
+
+    @property
+    def outputs_folder(self) -> Path:
+        """Gets the full path in which the model outputs should be stored."""
+        return self.file_system_config.outputs_folder
+
+    @property
+    def logs_folder(self) -> Path:
+        """Gets the full path in which the model logs should be stored."""
+        return self.file_system_config.logs_folder
+
+    @property
+    def checkpoint_folder(self) -> Path:
+        """Gets the full path in which the model checkpoints should be stored during training."""
+        return self.outputs_folder / CHECKPOINT_FOLDER
+
+    @property
+    def visualization_folder(self) -> Path:
+        """Gets the full path in which the visualizations notebooks should be saved during training."""
+        return self.outputs_folder / VISUALIZATION_FOLDER
+
+    def get_path_to_checkpoint(self) -> Path:
+        """
+        Returns the full path to a recovery checkpoint.
+        """
+        return get_recovery_checkpoint_path(self.checkpoint_folder)
+
+    def get_path_to_best_checkpoint(self) -> Path:
+        """
+        Returns the full path to a checkpoint file that was found to be best during training, whatever criterion
+        was applied there.
+        """
+        return get_best_checkpoint_path(self.checkpoint_folder)
+
+
+class OptimizerParams(param.Parameterized):
     l_rate: float = param.Number(1e-4, doc="The initial learning rate", bounds=(0, None))
     _min_l_rate: float = param.Number(0.0, doc="The minimum learning rate for the Polynomial and Cosine schedulers.",
                                       bounds=(0.0, None))
@@ -252,6 +402,34 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  doc="The betas parameter of Adam, default is (0.9, 0.999)")
     momentum: float = param.Number(0.6, doc="The momentum parameter of the optimizers")
     weight_decay: float = param.Number(1e-4, doc="The weight decay used to control L2 regularization")
+
+    def validate(self) -> None:
+        if len(self.adam_betas) < 2:
+            raise ValueError(
+                "The adam_betas parameter should be the coefficients used for computing running averages of "
+                "gradient and its square")
+
+        if self.l_rate_scheduler == LRSchedulerType.MultiStep:
+            if not self.l_rate_multi_step_milestones:
+                raise ValueError("Must specify l_rate_multi_step_milestones to use LR scheduler MultiStep")
+            if sorted(set(self.l_rate_multi_step_milestones)) != self.l_rate_multi_step_milestones:
+                raise ValueError("l_rate_multi_step_milestones must be a strictly increasing list")
+            if self.l_rate_multi_step_milestones[0] <= 0:
+                raise ValueError("l_rate_multi_step_milestones cannot be negative or 0.")
+
+    @property
+    def min_l_rate(self) -> float:
+        return self._min_l_rate
+
+    @min_l_rate.setter
+    def min_l_rate(self, value: float) -> None:
+        if value > self.l_rate:
+            raise ValueError("l_rate must be >= min_l_rate, found: {}, {}".format(self.l_rate, value))
+        self._min_l_rate = value
+
+
+class TrainerParams(CudaAwareConfig):
+    num_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
     recovery_checkpoint_save_interval: int = param.Integer(10, bounds=(0, None),
                                                            doc="Save epoch checkpoints when epoch number is a multiple "
                                                                "of recovery_checkpoint_save_interval. The intended use "
@@ -261,31 +439,52 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                               "checkpoints will be stored as recovery_epoch:{"
                                                               "epoch}.ckpt. If set to -1 keep all recovery "
                                                               "checkpoints.")
-    train_batch_size: int = param.Integer(4, bounds=(0, None),
-                                          doc="The number of crops that make up one minibatch during training.")
     detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "
                                                     "training.")
     use_mixed_precision: bool = param.Boolean(False, doc="If true, mixed precision training is activated during "
                                                          "training.")
+    max_num_gpus: int = param.Integer(default=-1, doc="The maximum number of GPUS to use. If set to a value < 0, use"
+                                                      "all available GPUs.")
+    pl_progress_bar_refresh_rate: Optional[int] = \
+        param.Integer(default=None,
+                      doc="PyTorch Lightning trainer flag 'progress_bar_refresh_rate': How often to refresh progress "
+                          "bar (in steps). Value 0 disables progress bar. Value None chooses automatically.")
+    pl_num_sanity_val_steps: int = \
+        param.Integer(default=0,
+                      doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
+                          "steps to run before training, to identify possible problems")
+    pl_deterministic: bool = \
+        param.Integer(default=True,
+                      doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
+                          "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
+                          "you may see training speed increases.")
+
+
+class DeepLearningConfig(WorkflowParams,
+                         DatasetParams,
+                         OutputParams,
+                         OptimizerParams,
+                         TrainerParams,
+                         CudaAwareConfig,
+                         GenericConfig):
+    """
+    A class that holds all settings that are shared across segmentation models and regression/classification models.
+    """
+    _model_category: ModelCategory = param.ClassSelector(class_=ModelCategory,
+                                                         doc="The high-level model category described by this config.")
+
+    num_dataload_workers: int = param.Integer(8, bounds=(0, None),
+                                              doc="The number of data loading workers (processes). When set to 0,"
+                                                  "data loading is running in the same process (no process startup "
+                                                  "cost, hence good for use in unit testing. However, it "
+                                                  "does not give the same result as running with 1 worker process)")
+    shuffle: bool = param.Boolean(True, doc="If true, the dataset will be shuffled randomly during training.")
+    train_batch_size: int = param.Integer(4, bounds=(0, None),
+                                          doc="The number of crops that make up one minibatch during training.")
     use_model_parallel: bool = param.Boolean(False, doc="If true, neural network model is partitioned across all "
                                                         "available GPUs to fit in a large model. It shall not be used "
                                                         "together with data parallel.")
-    monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
-                                                            "statistics. If 0 or less, do not log any resource "
-                                                            "statistics.")
-    number_of_cross_validation_splits: int = param.Integer(0, bounds=(0, None),
-                                                           doc="Number of cross validation splits for k-fold cross "
-                                                               "validation")
-    cross_validation_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
-                                                      doc="The index of the cross validation fold this model is "
-                                                          "associated with when performing k-fold cross validation")
-    file_system_config: DeepLearningFileSystemConfig = param.ClassSelector(default=DeepLearningFileSystemConfig(),
-                                                                           class_=DeepLearningFileSystemConfig,
-                                                                           instantiate=False,
-                                                                           doc="File system related configs")
     pin_memory: bool = param.Boolean(True, doc="Value of pin_memory argument to DataLoader")
-    _overrides: Dict[str, Any] = param.Dict(instantiate=True,
-                                            doc="Model config properties that were overridden from the commandline")
     restrict_subjects: Optional[str] = \
         param.String(doc="Use at most this number of subjects for train, val, or test set (must be > 0 or None). "
                          "If None, do not modify the train, val, or test sets. If a string of the form 'i,j,k' where "
@@ -295,14 +494,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                          "limit test set to 5. If any of i,j,k is '+', discarded members of the other sets are added "
                          "to that set.",
                      allow_None=True)
-    perform_training_set_inference: bool = \
-        param.Boolean(False,
-                      doc="If True, run full image inference on the training set at the end of training. If False and "
-                          "perform_validation_and_test_set_inference is True (default), only run inference on "
-                          "validation and test set. If both flags are False do not run inference.")
-    perform_validation_and_test_set_inference: bool = \
-        param.Boolean(True,
-                      doc="If True (default), run full image inference on validation and test set after training.")
     _dataset_data_frame: Optional[DataFrame] = \
         param.DataFrame(default=None,
                         doc="The dataframe that contains the dataset for the model. This is usually read from disk "
@@ -316,19 +507,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                         "on Linux, inference is currently disabled as the data loaders hang. "
                                         "If False, use the default data loader logic that starts new processes for "
                                         "each epoch.")
-    # The default multiprocessing start_method in both PyTorch and the Python standard library is "fork" for Linux and
-    # "spawn" (the only available method) for Windows. There is some evidence that using "forkserver" on Linux
-    # can reduce the chance of stuck jobs.
-    multiprocessing_start_method: MultiprocessingStartMethod = \
-        param.ClassSelector(class_=MultiprocessingStartMethod,
-                            default=(MultiprocessingStartMethod.spawn if is_windows()
-                                     else MultiprocessingStartMethod.fork),
-                            doc="Method to be used to start child processes in pytorch. Should be one of forkserver, "
-                                "fork or spawn. If not specified, fork is used on Linux and spawn on Windows. "
-                                "Set to forkserver as a possible remedy for stuck jobs.")
-    output_to: str = param.String(default="",
-                                  doc="If provided, the run outputs will be written to the given folder. If not "
-                                      "provided, outputs will go into a subfolder of the project root folder.")
     max_batch_grad_cam: int = param.Integer(default=0, doc="Max number of validation batches for which "
                                                            "to save gradCam images. By default "
                                                            "visualizations are saved for all images "
@@ -337,7 +515,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                               doc="Target smoothing value for label smoothing")
     log_to_parent_run: bool = param.Boolean(default=False, doc="If true, hyperdrive child runs will log their metrics"
                                                                "to their parent run.")
-
     use_imbalanced_sampler_for_training: bool = param.Boolean(default=False,
                                                               doc="If True, use an imbalanced sampler during training.")
     drop_last_batch_in_training: bool = param.Boolean(default=False,
@@ -359,28 +536,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                  "weights are updated using mean_teacher_"
                                                  "weight = alpha * (mean_teacher_weight) "
                                                  " + (1-alpha) * (current_student_weights). ")
-    weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
-                                        "initialization.")
-    local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
-                                                             default=None,
-                                                             allow_None=True,
-                                                             doc="The path to the weights to use for model "
-                                                                 "initialization, "
-                                                                 "when training is running outside Azure.")
-    max_num_gpus: int = param.Integer(default=-1, doc="The maximum number of GPUS to use. If set to a value < 0, use"
-                                                      "all available GPUs.")
-    generate_report: bool = param.Boolean(default=True,
-                                          doc="If True (default), write a modelling report in HTML format. If False,"
-                                              "do not write that report.")
-    pl_num_sanity_val_steps: int = \
-        param.Integer(default=0, doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
-                                     "steps to run before training, to identify possible problems")
-    pl_deterministic: bool = \
-        param.Integer(default=True,
-                      doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
-                          "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
-                          "you may see training speed increases.")
-
     #: Name of the csv file providing information on the dataset to be used.
     dataset_csv: str = param.String(
         DATASET_CSV_FILE_NAME,
@@ -396,48 +551,18 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         super().__init__(throw_if_unknown_param=True, **params)
         logging.info("Creating the default output folder structure.")
         self.create_filesystem(fixed_paths.repository_root_directory())
+        # Disable the PL progress bar because all InnerEye models have their own console output
+        self.pl_progress_bar_refresh_rate = 0
 
     def validate(self) -> None:
         """
         Validates the parameters stored in the present object.
         """
-        if len(self.adam_betas) < 2:
-            raise ValueError(
-                "The adam_betas parameter should be the coefficients used for computing running averages of "
-                "gradient and its square")
+        WorkflowParams.validate(self)
+        OptimizerParams.validate(self)
 
         if self.azure_dataset_id is None and self.local_dataset is None:
             raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
-
-        if self.weights_url and self.local_weights_path:
-            raise ValueError("Cannot specify both local_weights_path and weights_url.")
-
-        if self.number_of_cross_validation_splits == 1:
-            raise ValueError(f"At least two splits required to perform cross validation found "
-                             f"number_of_cross_validation_splits={self.number_of_cross_validation_splits}")
-        if 0 < self.number_of_cross_validation_splits <= self.cross_validation_split_index:
-            raise ValueError(f"Cross validation split index is out of bounds: {self.cross_validation_split_index}, "
-                             f"which is invalid for CV with {self.number_of_cross_validation_splits} splits.")
-        elif self.number_of_cross_validation_splits == 0 and self.cross_validation_split_index != -1:
-            raise ValueError(f"Cross validation split index must be -1 for a non cross validation run, "
-                             f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
-                             f"and cross_validation_split_index={self.cross_validation_split_index}")
-
-        if self.l_rate_scheduler == LRSchedulerType.MultiStep:
-            if not self.l_rate_multi_step_milestones:
-                raise ValueError("Must specify l_rate_multi_step_milestones to use LR scheduler MultiStep")
-            if sorted(set(self.l_rate_multi_step_milestones)) != self.l_rate_multi_step_milestones:
-                raise ValueError("l_rate_multi_step_milestones must be a strictly increasing list")
-            if self.l_rate_multi_step_milestones[0] <= 0:
-                raise ValueError("l_rate_multi_step_milestones cannot be negative or 0.")
-
-    @property
-    def model_name(self) -> str:
-        """
-        Gets the human readable name of the model (e.g., Liver). This is usually set from the class name.
-        :return: A model name as a string.
-        """
-        return self._model_name
 
     @property
     def model_category(self) -> ModelCategory:
@@ -466,48 +591,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         return self.max_batch_grad_cam > 0
 
     @property
-    def min_l_rate(self) -> float:
-        return self._min_l_rate
-
-    @min_l_rate.setter
-    def min_l_rate(self, value: float) -> None:
-        if value > self.l_rate:
-            raise ValueError("l_rate must be >= min_l_rate, found: {}, {}".format(self.l_rate, value))
-        self._min_l_rate = value
-
-    @property
-    def outputs_folder(self) -> Path:
-        """Gets the full path in which the model outputs should be stored."""
-        return self.file_system_config.outputs_folder
-
-    @property
-    def logs_folder(self) -> Path:
-        """Gets the full path in which the model logs should be stored."""
-        return self.file_system_config.logs_folder
-
-    @property
-    def checkpoint_folder(self) -> Path:
-        """Gets the full path in which the model checkpoints should be stored during training."""
-        return self.outputs_folder / CHECKPOINT_FOLDER
-
-    @property
-    def visualization_folder(self) -> Path:
-        """Gets the full path in which the visualizations notebooks should be saved during training."""
-        return self.outputs_folder / VISUALIZATION_FOLDER
-
-    @property
-    def perform_cross_validation(self) -> bool:
-        """
-        True if cross validation will be be performed as part of the training procedure.
-        :return:
-        """
-        return self.number_of_cross_validation_splits > 1
-
-    @property
-    def overrides(self) -> Optional[Dict[str, Any]]:
-        return self._overrides
-
-    @property
     def dataset_data_frame(self) -> Optional[DataFrame]:
         """
         Gets the pandas data frame that the model uses.
@@ -522,29 +605,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         :param data_frame: The data frame to set.
         """
         self._dataset_data_frame = data_frame
-
-    def set_output_to(self, output_to: PathOrString) -> None:
-        """
-        Adjusts the file system settings in the present object such that all outputs are written to the given folder.
-        :param output_to: The absolute path to a folder that should contain the outputs.
-        """
-        if isinstance(output_to, Path):
-            output_to = str(output_to)
-        self.output_to = output_to
-        self.create_filesystem()
-
-    def create_filesystem(self, project_root: Path = fixed_paths.repository_root_directory()) -> None:
-        """
-        Creates new file system settings (outputs folder, logs folder) based on the information stored in the
-        present object. If any of the folders do not yet exist, they are created.
-        :param project_root: The root folder for the codebase that triggers the training run.
-        """
-        self.file_system_config = DeepLearningFileSystemConfig.create(
-            project_root=project_root,
-            model_name=self.model_name,
-            is_offline_run=self.is_offline_run,
-            output_to=self.output_to
-        )
 
     def get_train_epochs(self) -> List[int]:
         """
@@ -566,34 +626,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         :return:
         """
         return self.get_total_number_of_training_epochs()
-
-    def get_path_to_checkpoint(self) -> Path:
-        """
-        Returns full path to a recovery checkpoint.
-        :return: path to a checkpoint given an epoch
-        """
-        return get_recovery_checkpoint_path(self.checkpoint_folder)
-
-    def get_path_to_best_checkpoint(self) -> Path:
-        """
-        Returns full path to a checkpoint given an epoch
-        :return: path to a checkpoint given an epoch
-        """
-        return get_best_checkpoint_path(self.checkpoint_folder)
-
-    def get_effective_random_seed(self) -> int:
-        """
-        Returns the random seed set as part of this configuration. If the configuration corresponds
-        to a cross validation split, then the cross validation fold index will be added to the
-        set random seed in order to return the effective random seed.
-        :return:
-        """
-        seed = self.random_seed
-        if self.perform_cross_validation:
-            # offset the random seed based on the cross validation split index so each
-            # fold has a different initial random state.
-            seed += self.cross_validation_split_index
-        return seed
 
     @property  # type: ignore
     def use_gpu(self) -> bool:  # type: ignore
@@ -619,30 +651,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                 raise ValueError("Can't set use_gpu to True if there is not CUDA capable GPU present.")
         self._use_gpu = value
 
-    def write_args_file(self) -> None:
-        """
-        Writes the current config to disk in the default output folder.
-        """
-        self.outputs_folder.mkdir(exist_ok=True, parents=True)
-        dst = self.outputs_folder / ARGS_TXT
-        dst.write_text(data=str(self))
-
-    def should_wait_for_other_cross_val_child_runs(self) -> bool:
-        """
-        Returns True if the current run is an online run and is the 0th cross validation split.
-        In this case, this will be the run that will wait for all other child runs to finish in order
-        to aggregate their results.
-        :return:
-        """
-        return (not self.is_offline_run) and self.cross_validation_split_index == 0
-
-    @property
-    def is_offline_run(self) -> bool:
-        """
-        Returns True if the run is executing outside AzureML, or False if inside AzureML.
-        """
-        return is_offline_run_context(RUN_CONTEXT)
-
     @property
     def compute_mean_teacher_model(self) -> bool:
         """
@@ -656,7 +664,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         # Avoid callable params, the bindings that are printed out can be humongous.
         # Avoid dataframes
         skip_params = {name for name, value in self.param.params().items()
-                       if isinstance(value, (param.Callable, DataFrame))}
+                       if isinstance(value, (param.Callable, param.DataFrame))}
         for key, value in self.param.get_param_values():
             if key not in skip_params:
                 arguments_str += f"\t{key:40}: {value}\n"
@@ -679,7 +687,6 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         See https://pytorch.org/tutorials/beginner/saving_loading_models.html#warmstarting-model-using-parameters
         -from-a-different-model
         for an explanation on why strict=False is useful when loading parameters from other models.
-
         :param path_to_checkpoint: Path to the checkpoint file.
         :return: Dictionary with model and optimizer state dicts. The dict should have at least the following keys:
         1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set to the model state dict.
@@ -687,7 +694,15 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         Other (optional) entries corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
         ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported.
         """
-        import torch
-        map_location = None if self.use_gpu else 'cpu'
-        checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
-        return checkpoint
+        return load_checkpoint(path_to_checkpoint=path_to_checkpoint, use_gpu=self.use_gpu)
+
+
+def load_checkpoint(path_to_checkpoint: Path, use_gpu: bool = True) -> Dict[str, Any]:
+    """
+    Loads a Torch checkpoint from the given file. If use_gpu==False, map all parameters to the GPU, otherwise
+    left the device of all parameters unchanged.
+    """
+    import torch
+    map_location = None if use_gpu else 'cpu'
+    checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
+    return checkpoint

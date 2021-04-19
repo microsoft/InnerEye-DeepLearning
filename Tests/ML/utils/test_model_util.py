@@ -15,7 +15,9 @@ from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, LAST_CHECK
     LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint, \
     find_latest_recovery_checkpoint
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.lightning_helpers import create_lightning_model, load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_base import InnerEyeContainer
+from InnerEye.ML.lightning_helpers import load_from_checkpoint_and_adjust_for_inference
+from InnerEye.ML.lightning_models import create_lightning_model
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training import create_lightning_trainer
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
@@ -34,7 +36,8 @@ def create_model_and_store_checkpoint(config: ModelConfigBase, checkpoint_path: 
     :param config: The model configuration.
     :param checkpoint_path: The path and filename of the checkpoint file.
     """
-    trainer, _ = create_lightning_trainer(config)
+    container = InnerEyeContainer(config)
+    trainer, _ = create_lightning_trainer(container)
     model = create_lightning_model(config)
     if machine_has_gpu:
         model = model.cuda()  # type: ignore

@@ -4,20 +4,25 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import numbers
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+import param
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.utilities import rank_zero_only
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
-from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME
+from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, logging_section
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.deep_learning_config import DatasetParams, DeepLearningConfig, WorkflowParams, OutputParams, \
+    TrainerParams
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.metrics import EpochTimers, MAX_ITEM_LOAD_TIME_SEC, store_epoch_metrics
 from InnerEye.ML.metrics_dict import DataframeLogger
@@ -25,20 +30,43 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
-from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed
+from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed, validate_dataset_paths
+from InnerEye.ML.utils.model_util import generate_and_print_model_summary
+from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 
 
-class TrainingAndValidationDataLightning(LightningDataModule):
+class TrainAndValDataLightning(LightningDataModule):
     """
     A class that wraps training and validation data from an InnerEye model configuration to a Lightning data module.
+    When doing inference on the trained models, we use InferenceDataLightning. This is particularly important for
+    segmentation models, where training and validation happens on equal sized patches, but inference is running on
+    images of arbitrary size.
     """
 
-    def _init__(self, config: ModelConfigBase) -> None:
+    def __init__(self, config: ModelConfigBase) -> None:
         super().__init__()
         self.config = config
         self.data_loaders: Dict[ModelExecutionMode, DataLoader] = {}
 
+    def prepare_data(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Writes the dataset files for later use in cross validation analysis. This is only executed once per
+        distributed training run.
+        """
+        # Save the dataset files for later use in cross validation analysis
+        self.config.write_dataset_files()
+
     def setup(self, stage: Optional[str] = None) -> None:
+        """
+        Checks if the dataset folder is present, and the dataset file exists. This is execute on each node in
+        distributed training.
+        """
+        # Check for existing dataset.csv file in the correct locations. Skip that if a dataset has already been
+        # loaded (typically only during tests)
+        if self.config.dataset_data_frame is None:
+            assert self.config.local_dataset is not None
+            validate_dataset_paths(self.config.local_dataset, self.config.dataset_csv)
+        self.config.read_dataset_if_needed()
         self.data_loaders = self.config.create_data_loaders()
 
     def train_dataloader(self) -> DataLoader:  # type: ignore
@@ -48,7 +76,91 @@ class TrainingAndValidationDataLightning(LightningDataModule):
         return self.data_loaders[ModelExecutionMode.VAL]
 
     def test_dataloader(self) -> DataLoader:  # type: ignore
-        raise NotImplementedError("For segmentation models, the test dataset should not be evaluated patch-wise.")
+        raise NotImplementedError("There is no test dataset stored here, because this object is only meant to be "
+                                  "used for training and validation.")
+
+
+class InferenceDataLightning(LightningDataModule):
+    """
+    A class that wraps data for running model inference on InnerEye models, as a Lightning data module.
+    Note that training and validation data is handled by TrainAndValDataLightning.
+    """
+
+    def __init__(self, config: ModelConfigBase) -> None:
+        super().__init__()
+        self.config = config
+        self.train_data: Dataset = Dataset()
+        self.val_data: Dataset = Dataset()
+        self.test_data: Dataset = Dataset()
+
+    def setup(self, stage: Optional[str] = None) -> None:
+        """
+        Initializes the datasets stored in the present object, by calling the config object to
+        prepare the torch Dataset objects for train/val/test.
+        """
+        self.train_data = self.config.get_torch_dataset_for_inference(ModelExecutionMode.TRAIN)
+        self.val_data = self.config.get_torch_dataset_for_inference(ModelExecutionMode.VAL)
+        self.test_data = self.config.get_torch_dataset_for_inference(ModelExecutionMode.TEST)
+
+    def train_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
+        return DataLoader(self.train_data)
+
+    def val_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
+        return DataLoader(self.val_data)
+
+    def test_dataloader(self, *args: Any, **kwargs: Any) -> DataLoader:
+        return DataLoader(self.test_data)
+
+    def prepare_data(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+
+class InnerEyeContainer(LightningContainer):
+    """
+    A container that wraps the creation of Lightning datasets for the built-in InnerEye models.
+    """
+
+    def __init__(self, config: ModelConfigBase):
+        super().__init__()
+        self.config = config
+        self._model_name = config.model_name
+        # Fields like cross validation index are defined at container level, but the InnerEye models define them
+        # at model level. Copy everything over.
+        for type_to_copy in [WorkflowParams, DatasetParams, TrainerParams, OutputParams]:
+            assert issubclass(type_to_copy, param.Parameterized)
+            self.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},  # type: ignore
+                                 should_validate=False)
+
+    def setup(self) -> None:
+        """
+        This hook reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
+        for categorical features, that need to be available before creating the model.
+        """
+        self.config.read_dataset_if_needed()
+
+    def create_model(self) -> LightningModule:  # type: ignore
+        from InnerEye.ML.lightning_models import create_lightning_model
+        return create_lightning_model(self.config)
+
+    def get_data_module(self) -> LightningDataModule:
+        return TrainAndValDataLightning(self.config)  # type: ignore
+
+    def get_inference_data_module(self) -> LightningDataModule:
+        return InferenceDataLightning(self.config)  # type: ignore
+
+    def before_training_on_rank_zero(self) -> None:
+        # Save the dataset files for later use in cross validation analysis
+        self.config.write_dataset_files()
+        if isinstance(self.config, SegmentationModelBase):
+            with logging_section("Visualizing the effect of sampling random crops for training"):
+                visualize_random_crops_for_dataset(self.config)
+
+        # Print out a detailed breakdown of layers, memory consumption and time.
+        assert isinstance(self.model, InnerEyeLightning)
+        generate_and_print_model_summary(self.config, self.model.model)
+
+    def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:
+        return self.config.load_checkpoint_and_modify(path_to_checkpoint=path_to_checkpoint)
 
 
 class InnerEyeLightning(LightningModule):
@@ -61,6 +173,7 @@ class InnerEyeLightning(LightningModule):
     def __init__(self, config: DeepLearningConfig, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.outputs_folder = config.outputs_folder
+        self.checkpoint_folder = config.checkpoint_folder
         self.model: DeviceAwareModule = DeviceAwareModule()
         # These two will be set later in set_optimizer_and_scheduler.
         # The ddp_spawn accelerator only works if the model configuration object is
@@ -85,20 +198,17 @@ class InnerEyeLightning(LightningModule):
                                                           fixed_columns=fixed_logger_columns)
         self.val_epoch_metrics_logger = DataframeLogger(self.val_metrics_folder / EPOCH_METRICS_FILE_NAME,
                                                         fixed_columns=fixed_logger_columns)
-        # Fields to store diagnostics for unit testing
-        self.train_diagnostics: List[Any] = []
-        self.val_diagnostics: List[Any] = []
         # Stores information the checkpoint that created this model, if any.
         self.checkpoint_loading_message = ""
 
     def set_optimizer_and_scheduler(self, config: DeepLearningConfig) -> None:
         self.optimizer = model_util.create_optimizer(config, self.model.parameters())
-        self.l_rate_scheduler = SchedulerWithWarmUp(config, self.optimizer)
+        self.l_rate_scheduler = SchedulerWithWarmUp(config, self.optimizer, num_epochs=config.num_epochs)
 
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         return [self.optimizer], [self.l_rate_scheduler]  # type: ignore
 
-    def close_all_loggers(self) -> None:
+    def on_fit_end(self) -> None:
         """
         Flushes all logger objects that the present object holds.
         """

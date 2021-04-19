@@ -276,19 +276,6 @@ class SourceConfig:
 
 
 @dataclass
-class ExperimentResultLocation:
-    """
-    Information that is need to recover where the results of an experiment reside.
-    """
-    results_container_name: Optional[str] = None
-    results_uri: Optional[str] = None
-    dataset_folder: Optional[str] = None
-    dataset_uri: Optional[str] = None
-    azure_job_name: Optional[str] = None
-    commandline_overrides: Optional[str] = None
-
-
-@dataclass
 class ParserResult:
     """
     Stores the results of running an argument parser, broken down into a argument-to-value dictionary,

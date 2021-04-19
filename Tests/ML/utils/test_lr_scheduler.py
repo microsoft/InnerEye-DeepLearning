@@ -131,7 +131,7 @@ def _create_lr_scheduler_and_optimizer(config: SegmentationModelBase, optimizer:
     if optimizer is None:
         optimizer = _create_dummy_optimizer(config)
     # create lr scheduler
-    lr_scheduler = SchedulerWithWarmUp(config, optimizer)
+    lr_scheduler = SchedulerWithWarmUp(config, optimizer, num_epochs=config.num_epochs)
     return lr_scheduler, optimizer
 
 
@@ -185,7 +185,7 @@ def test_lr_scheduler_with_warmup(warmup_epochs: int, expected_values: List[floa
                                 l_rate_warmup_epochs=warmup_epochs,
                                 l_rate_warmup=LRWarmUpType.Linear,
                                 should_validate=False)
-    scheduler = SchedulerWithWarmUp(config, optimizer)
+    scheduler = SchedulerWithWarmUp(config, optimizer, num_epochs=config.num_epochs)
     lrs = enumerate_scheduler(scheduler, 4)
     assert lrs == expected_values
 

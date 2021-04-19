@@ -8,29 +8,9 @@ from pathlib import Path
 import torch
 
 from InnerEye.ML.lightning_base import InnerEyeLightning
-from InnerEye.ML.lightning_models import ScalarLightning, SegmentationLightning
+from InnerEye.ML.lightning_models import create_lightning_model
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
-
-
-def create_lightning_model(config: ModelConfigBase, set_optimizer_and_scheduler: bool = True) -> InnerEyeLightning:
-    """
-    Creates a PyTorch Lightning model that matches the provided InnerEye model configuration object.
-    The `optimizer` and `l_rate_scheduler` object of the Lightning model will also be populated.
-    :param set_optimizer_and_scheduler: If True (default), initialize the optimizer and LR scheduler of the model.
-    If False, skip that step (this is only meant to be used for unit tests.)
-    :param config: An InnerEye model configuration object
-    :return: A PyTorch Lightning model object.
-    """
-    if config.is_segmentation_model:
-        model: InnerEyeLightning = SegmentationLightning(config)
-    elif config.is_scalar_model:
-        model = ScalarLightning(config)
-    else:
-        raise NotImplementedError(f"Don't know how to handle config of type {type(config)}")
-    if set_optimizer_and_scheduler:
-        model.set_optimizer_and_scheduler(config)
-    return model
 
 
 def load_from_lightning_checkpoint(config: ModelConfigBase, checkpoint_path: Path) -> InnerEyeLightning:

@@ -13,6 +13,9 @@ from azureml.core import Run
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, download_outputs_from_run, fetch_child_runs, tag_values_all_distinct
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, check_properties_are_not_none
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, \
+    create_recovery_checkpoint_path, get_best_checkpoint_path
+from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, OutputParams
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, get_best_checkpoint_path, \
     get_recovery_checkpoint_path
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig
@@ -26,7 +29,7 @@ class RunRecovery:
     checkpoints_roots: List[Path]
 
     @staticmethod
-    def download_best_checkpoints_from_child_runs(config: DeepLearningConfig, run: Run) -> RunRecovery:
+    def download_best_checkpoints_from_child_runs(config: OutputParams, run: Run) -> RunRecovery:
         """
         Downloads the best checkpoints from all child runs of the provided Hyperdrive parent run.
         The checkpoints for the sibling runs will go into folder 'OTHER_RUNS/<cross_validation_split>'
@@ -61,7 +64,7 @@ class RunRecovery:
         return RunRecovery(checkpoints_roots=child_runs_checkpoints_roots)
 
     @staticmethod
-    def download_all_checkpoints_from_run(config: DeepLearningConfig, run: Run) -> RunRecovery:
+    def download_all_checkpoints_from_run(config: OutputParams, run: Run) -> RunRecovery:
         """
         Downloads all checkpoints of the provided run inside the checkpoints folder.
         :param config: Model related configs.

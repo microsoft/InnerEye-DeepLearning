@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -12,62 +13,71 @@ from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
 from InnerEye.ML.runner import Runner
+from Tests.ML.configs.DummyModel import DummyModel
 
 
-@pytest.mark.parametrize("is_default_namespace", [True, False])
+@pytest.mark.parametrize("is_container", [True, False])
 @pytest.mark.parametrize("is_offline_run", [True, False])
 @pytest.mark.parametrize("set_output_to", [True, False])
-def test_create_ml_runner_args(is_default_namespace: bool,
+def test_create_ml_runner_args(is_container: bool,
                                test_output_dirs: OutputFolderForTests,
                                is_offline_run: bool,
                                set_output_to: bool) -> None:
     """Test round trip parsing of commandline arguments:
     From arguments to the Azure runner to the arguments of the ML runner, checking that
-    whatever is passed on can be correctly parsed."""
+    whatever is passed on can be correctly parsed. It also checks that the output files go into the right place
+    in local runs and in AzureML."""
     logging_to_stdout()
-    model_name = "Lung"
+    model_name = "DummyContainerWithPlainLightning" if is_container else "DummyModel"
+    if is_container:
+        dataset_folder = Path("download")
+    else:
+        local_dataset = DummyModel().local_dataset
+        assert local_dataset is not None
+        dataset_folder = local_dataset
     outputs_folder = test_output_dirs.root_dir
     project_root = fixed_paths.repository_root_directory()
-    if is_default_namespace:
-        model_configs_namespace = None
-    else:
-        model_configs_namespace = "Tests.ML.configs"
-        model_name = "DummyModel"
+    model_configs_namespace = "Tests.ML.configs"
 
     args_list = [f"--model={model_name}", "--train=True", "--l_rate=100.0",
-                 "--norm_method=Simple Norm", "--subscription_id", "Test1", "--tenant_id=Test2",
-                 "--application_id", "Test3", "--azureml_datastore", "Test5",
-                 "--pytest_mark", "gpu"]
+                 "--subscription_id", "Test1", "--tenant_id=Test2",
+                 "--application_id", "Test3", "--azureml_datastore", "Test5"]
 
     # toggle the output_to flag off only for online runs
     if set_output_to or is_offline_run:
         args_list.append(f"--output_to={outputs_folder}")
+    if not is_container:
+        args_list.append("--norm_method=Simple Norm")
 
-    if not is_default_namespace:
-        args_list.append(f"--model_configs_namespace={model_configs_namespace}")
+    args_list.append(f"--model_configs_namespace={model_configs_namespace}")
 
     with mock.patch("sys.argv", [""] + args_list):
         with mock.patch("InnerEye.ML.deep_learning_config.is_offline_run_context", return_value=is_offline_run):
-            runner = Runner(project_root=project_root, yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
-            runner.parse_and_load_model()
-            azure_config = runner.azure_config
-            model_config = runner.model_config
+            with mock.patch("InnerEye.ML.run_ml.MLRunner.run", return_value=None):
+                with mock.patch("InnerEye.ML.run_ml.MLRunner.mount_or_download_dataset", return_value=dataset_folder):
+                    runner = Runner(project_root=project_root, yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
+                    runner.parse_and_load_model()
+                    # Only when calling config.create_filesystem we expect to see the correct paths, and this happens
+                    # inside run_in_situ
+                    runner.run_in_situ()
+                    azure_config = runner.azure_config
+                    container_or_legacy_config = runner.lightning_container if is_container else runner.model_config
     assert azure_config.model == model_name
-    assert model_config.l_rate == 100.0
-    assert model_config.norm_method == PhotometricNormalizationMethod.SimpleNorm
+    if not is_container:
+        assert container_or_legacy_config.norm_method == PhotometricNormalizationMethod.SimpleNorm
     if set_output_to or is_offline_run:
         # The actual output folder must be a subfolder of the folder given on the commandline. The folder will contain
         # a timestamp, that will start with the year number, hence will start with 20...
-        assert str(model_config.outputs_folder).startswith(str(outputs_folder / "20"))
-        assert model_config.logs_folder == (model_config.outputs_folder / DEFAULT_LOGS_DIR_NAME)
+        assert str(container_or_legacy_config.outputs_folder).startswith(str(outputs_folder / "20"))
+        assert container_or_legacy_config.logs_folder == \
+               (container_or_legacy_config.outputs_folder / DEFAULT_LOGS_DIR_NAME)
     else:
         # For runs inside AzureML, the output folder is the project root (the root of the folders that are
         # included in the snapshot). The "outputs_to" argument will be ignored.
-        assert model_config.outputs_folder == (project_root / DEFAULT_AML_UPLOAD_DIR)
-        assert model_config.logs_folder == (project_root / DEFAULT_LOGS_DIR_NAME)
+        assert container_or_legacy_config.outputs_folder == (project_root / DEFAULT_AML_UPLOAD_DIR)
+        assert container_or_legacy_config.logs_folder == (project_root / DEFAULT_LOGS_DIR_NAME)
 
-    assert not hasattr(model_config, "azureml_datastore")
-    assert azure_config.pytest_mark == "gpu"
+    assert not hasattr(container_or_legacy_config, "azureml_datastore")
 
 
 def test_overridable_properties() -> None:
@@ -145,6 +155,7 @@ def test_parsing_with_custom_yaml(test_output_dirs: OutputFolderForTests) -> Non
                         yaml_config_file=yaml_file)
         loader_result = runner.parse_and_load_model()
     assert runner.azure_config is not None
+    assert runner.model_config is not None
     # This is only present in yaml
     # This is present in yaml and command line, and the latter should be used.
     assert runner.azure_config.tenant_id == "bar"

@@ -18,6 +18,7 @@ import torch
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, \
     METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, logging_to_stdout
+from InnerEye.Common.fixed_paths import LOG_FILE_NAME
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -26,6 +27,8 @@ from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT
     ModelExecutionMode, \
     RECOVERY_CHECKPOINT_FILE_NAME
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
+from InnerEye.ML import model_testing, runner
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
@@ -36,12 +39,13 @@ from InnerEye.ML.reports.notebook_report import generate_classification_multilab
     generate_classification_notebook, get_html_report_name, get_ipynb_report_name
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get_config_and_results_for_offline_runs, \
     unroll_aggregate_metrics
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler, machine_has_gpu
+from Tests.ML.util import get_default_azure_config, machine_has_gpu, \
+    model_train_unittest
 
 
 @pytest.mark.cpu_and_gpu
@@ -56,20 +60,20 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     config = ClassificationModelForTesting()
     config.class_names = [class_name]
     config.set_output_to(test_output_dirs.root_dir)
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=Path(test_output_dirs.root_dir))
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
-    model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
+    model_training_result, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
     expected_val_loss = [0.737061, 0.736691, 0.736321, 0.735952]
     # Ensure that all metrics are computed on both training and validation set
-    assert len(model_training_result.train_results_per_epoch) == config.num_epochs
-    assert len(model_training_result.val_results_per_epoch) == config.num_epochs
-    assert len(model_training_result.train_results_per_epoch[0]) >= 11
-    assert len(model_training_result.val_results_per_epoch[0]) >= 11
+    train_results_per_epoch = model_training_result.train_results_per_epoch()
+    val_results_per_epoch = model_training_result.val_results_per_epoch()
+    assert len(train_results_per_epoch) == config.num_epochs
+    assert len(val_results_per_epoch) == config.num_epochs
+    assert len(train_results_per_epoch[0]) >= 11
+    assert len(val_results_per_epoch[0]) >= 11
 
     for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
                    MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
@@ -80,10 +84,8 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
                    MetricType.SECONDS_PER_BATCH,
                    MetricType.SECONDS_PER_EPOCH,
                    MetricType.SUBJECT_COUNT]:
-        assert metric.value in model_training_result.train_results_per_epoch[0], \
-            f"{metric.value} not in training"
-        assert metric.value in model_training_result.val_results_per_epoch[0], \
-            f"{metric.value} not in validation"
+        assert metric.value in train_results_per_epoch[0], f"{metric.value} not in training"
+        assert metric.value in val_results_per_epoch[0], f"{metric.value} not in validation"
 
     actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS.value)
     actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS.value)
@@ -150,6 +152,7 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
 """
     check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
 
+
 @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 @pytest.mark.cpu_and_gpu
 def test_train_classification_multilabel_model(test_output_dirs: OutputFolderForTests) -> None:
@@ -161,35 +164,33 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     logging_to_stdout(logging.DEBUG)
     config = DummyMulticlassClassification()
     config.set_output_to(test_output_dirs.root_dir)
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=Path(test_output_dirs.root_dir))
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
-    model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
+    model_training_result, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     expected_train_loss = [0.699870228767395, 0.6239662170410156, 0.551329493522644, 0.4825132489204407]
     expected_val_loss = [0.6299371719360352, 0.5546272993087769, 0.4843321740627289, 0.41909298300743103]
     # Ensure that all metrics are computed on both training and validation set
-    assert len(model_training_result.train_results_per_epoch) == config.num_epochs
-    assert len(model_training_result.val_results_per_epoch) == config.num_epochs
-    assert len(model_training_result.train_results_per_epoch[0]) >= 11
-    assert len(model_training_result.val_results_per_epoch[0]) >= 11
+    train_results_per_epoch = model_training_result.train_results_per_epoch()
+    val_results_per_epoch = model_training_result.val_results_per_epoch()
+    assert len(train_results_per_epoch) == config.num_epochs
+    assert len(val_results_per_epoch) == config.num_epochs
+    assert len(train_results_per_epoch[0]) >= 11
+    assert len(val_results_per_epoch[0]) >= 11
     for class_name in config.class_names:
         for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
                        MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
                        MetricType.AREA_UNDER_PR_CURVE,
                        MetricType.AREA_UNDER_ROC_CURVE,
                        MetricType.CROSS_ENTROPY]:
-            assert f'{metric.value}/{class_name}' in model_training_result.train_results_per_epoch[
-                0], f"{metric.value} not in training"
-            assert f'{metric.value}/{class_name}' in model_training_result.val_results_per_epoch[
-                0], f"{metric.value} not in validation"
+            assert f'{metric.value}/{class_name}' in train_results_per_epoch[0], f"{metric.value} not in training"
+            assert f'{metric.value}/{class_name}' in val_results_per_epoch[0], f"{metric.value} not in validation"
     for metric in [MetricType.LOSS,
                    MetricType.SECONDS_PER_EPOCH,
                    MetricType.SUBJECT_COUNT]:
-        assert metric.value in model_training_result.train_results_per_epoch[0], f"{metric.value} not in training"
-        assert metric.value in model_training_result.val_results_per_epoch[0], f"{metric.value} not in validation"
+        assert metric.value in train_results_per_epoch[0], f"{metric.value} not in training"
+        assert metric.value in val_results_per_epoch[0], f"{metric.value} not in validation"
 
     actual_train_loss = model_training_result.get_metric(is_training=True, metric_type=MetricType.LOSS.value)
     actual_val_loss = model_training_result.get_metric(is_training=False, metric_type=MetricType.LOSS.value)
@@ -271,13 +272,12 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
     logging_to_stdout()
     azure_config = get_default_azure_config()
     azure_config.train = True
-    config: ScalarModelBase = ModelConfigLoader[ScalarModelBase]() \
-        .create_model_config_from_name(model_name)
+    config: ScalarModelBase = ModelConfigLoader().create_model_config_from_name(model_name)
     config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
     config.set_output_to(test_output_dirs.root_dir)
     # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
     config.max_num_gpus = 1
-    MLRunner(config, azure_config).run()
+    MLRunner(config, azure_config=azure_config).run()
     _check_offline_cross_validation_output_files(config)
 
     if config.perform_cross_validation:
@@ -312,7 +312,7 @@ def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) 
     config.set_output_to(test_output_dirs.root_dir)
     azure_config = get_default_azure_config()
     azure_config.train = True
-    MLRunner(config, azure_config).run()
+    MLRunner(config, azure_config=azure_config).run()
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
@@ -325,7 +325,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     set_from_commandline = 12345
     scalar1 = '["label"]'
     model_name = "DummyClassification"
-    initial_config = ModelConfigLoader[ScalarModelBase]().create_model_config_from_name(model_name)
+    initial_config = ModelConfigLoader().create_model_config_from_name(model_name)
     assert initial_config.non_image_feature_channels == []
     output_root = str(test_output_dirs.root_dir)
     args = ["",
@@ -490,7 +490,9 @@ def _compute_scalar_metrics(output_values_list: List[List[float]],
 def test_is_offline_cross_val_parent_run(offline_parent_cv_run: bool) -> None:
     train_config = DummyModel()
     train_config.number_of_cross_validation_splits = 2 if offline_parent_cv_run else 0
-    assert MLRunner(train_config).is_offline_cross_val_parent_run() == offline_parent_cv_run
+    runner = MLRunner(train_config)
+    runner.setup()
+    assert runner.is_offline_cross_val_parent_run() == offline_parent_cv_run
 
 
 def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) -> None:
@@ -521,12 +523,15 @@ def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) 
             _dataset_splits.train[train_config.subject_column].unique())
         _test_dataset_split_count = len(_dataset_splits.test[train_config.subject_column].unique())
         _aggregates_csv = pd.read_csv(aggregate_metrics_path)
-        _aggregates_csv_test = _aggregates_csv.loc[_aggregates_csv[LoggingColumns.DataSplit.value] == ModelExecutionMode.TEST.value]
-        _aggregates_csv_train_val = _aggregates_csv.loc[_aggregates_csv[LoggingColumns.DataSplit.value] != ModelExecutionMode.TEST.value]
+        _aggregates_csv_test = _aggregates_csv.loc[
+            _aggregates_csv[LoggingColumns.DataSplit.value] == ModelExecutionMode.TEST.value]
+        _aggregates_csv_train_val = _aggregates_csv.loc[
+            _aggregates_csv[LoggingColumns.DataSplit.value] != ModelExecutionMode.TEST.value]
         _counts_for_splits_train_val = list(_aggregates_csv_train_val[LoggingColumns.SubjectCount.value])
         _counts_for_splits_test = list(_aggregates_csv_test[LoggingColumns.SubjectCount.value])
         assert all([x == _val_dataset_split_count for x in _counts_for_splits_train_val])
-        assert all([x == _test_dataset_split_count * train_config.number_of_cross_validation_splits for x in _counts_for_splits_test])
+        assert all([x == _test_dataset_split_count * train_config.number_of_cross_validation_splits for x in
+                    _counts_for_splits_test])
         _epochs = list(_aggregates_csv_train_val[LoggingColumns.Epoch.value].astype(int))
         # Each epoch is recorded twice once for the training split and once for the validation
         # split
