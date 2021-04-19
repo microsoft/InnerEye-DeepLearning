@@ -4,14 +4,19 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import os
+import subprocess
 import sys
 from pathlib import Path
+from time import sleep
 from typing import Optional, Tuple, TypeVar
 
+import numpy as np
 import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.plugins import DDPPlugin
+from pytorch_lightning.utilities.exceptions import MisconfigurationException
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
@@ -63,7 +68,6 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
     upload_name = TEMP_PREFIX + str(file_path.relative_to(outputs_folder))
     RUN_CONTEXT.upload_file(upload_name, path_or_stream=str(file_path))
 
-
 def create_lightning_trainer(config: ModelConfigBase,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
@@ -102,6 +106,7 @@ def create_lightning_trainer(config: ModelConfigBase,
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
     # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if num_gpus * num_nodes > 1 else None
+    plugins = [InnerEyeDDPPlugin(num_nodes=num_nodes, sync_batchnorm=True)] if num_gpus * num_nodes > 1 else None
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
     storing_logger = StoringLogger()
     tensorboard_logger = TensorBoardLogger(save_dir=str(config.logs_folder), name="Lightning", version="")
@@ -140,7 +145,8 @@ def create_lightning_trainer(config: ModelConfigBase,
                       precision=precision,
                       sync_batchnorm=True,
                       terminate_on_nan=config.detect_anomaly,
-                      resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None
+                      resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
+                      plugins=plugins
                       )
     return trainer, storing_logger
 
@@ -302,3 +308,76 @@ def aggregate_and_create_subject_metrics_file(outputs_folder: Path) -> None:
                 # For all files but the first one, cut off the header line.
                 result_file.write(os.linesep + os.linesep.join(temp_file_contents.splitlines()[1:]))
         result_file.close()
+
+
+class InnerEyeDDPPlugin(DDPPlugin):
+    """
+    This is a temporary fix for the broken DDP plugin in Pytorch-Lightning v1.2.8
+    Hopefully we can remove it once it is fixed in Pytorch-Lightning.
+    """
+
+    def _call_children_scripts(self) -> None:
+        # This is the only line changed compared to DDPPlugin
+        assert self.local_rank == 0
+
+        # The code below is in the same as the original DDPPlugin
+        self._check_can_spawn_children()
+        self._has_spawned_children = True
+
+        # DDP Environment variables
+        os.environ["MASTER_ADDR"] = self.cluster_environment.master_address()  # type: ignore
+        os.environ["MASTER_PORT"] = str(self.cluster_environment.master_port())  # type: ignore
+
+        # allow the user to pass the node rank
+        os.environ["NODE_RANK"] = str(self.cluster_environment.node_rank())  # type: ignore
+        os.environ["LOCAL_RANK"] = str(self.cluster_environment.local_rank())  # type: ignore
+
+        path_lib = os.path.abspath
+
+        # pull out the commands used to run the script and resolve the abs file path
+        command = sys.argv
+        try:
+            full_path = path_lib(command[0])
+        except Exception:
+            full_path = os.path.abspath(command[0])
+
+        command[0] = full_path
+        # use the same python interpreter and actually running
+        command = [sys.executable] + command
+
+        # the visible devices tell us how many GPUs we want to use.
+        # when the trainer script was called the device has already been scoped by the time
+        # code reaches this point. so, to call the scripts, we need to leave cuda visible devices alone
+        # but forward the GPUs selected via environment variables
+        if self.parallel_devices is None:
+            raise MisconfigurationException("you selected (distribute_backend = ddp) but did not set Trainer(gpus=?)")
+
+        os.environ["PL_TRAINER_GPUS"] = ",".join([str(device.index) for device in self.parallel_devices])
+        os.environ["PL_IN_DDP_SUBPROCESS"] = "1"
+
+        if self.lightning_module.logger is not None:
+            os.environ["PL_EXP_VERSION"] = str(self.lightning_module.logger.version)
+
+        num_gpus = len(self.parallel_devices)
+        os.environ["WORLD_SIZE"] = f"{num_gpus * self.num_nodes}"
+
+        self.interactive_ddp_procs = []
+
+        for local_rank in range(1, self.num_processes):  # type: ignore
+            env_copy = os.environ.copy()
+            env_copy["LOCAL_RANK"] = f"{local_rank}"
+
+            # remove env var if global seed not set
+            if os.environ.get("PL_GLOBAL_SEED") is None and "PL_GLOBAL_SEED" in env_copy:
+                del env_copy["PL_GLOBAL_SEED"]
+
+            # start process
+            # if hydra is available and initialized, make sure to set the cwd correctly
+            cwd: Optional[str] = None
+            proc = subprocess.Popen(command, env=env_copy, cwd=cwd)
+            self.interactive_ddp_procs.append(proc)
+
+            # starting all processes at once can cause issues
+            # with dataloaders delay between 1-10 seconds
+            delay = np.random.uniform(1, 5, 1)[0]
+            sleep(delay)

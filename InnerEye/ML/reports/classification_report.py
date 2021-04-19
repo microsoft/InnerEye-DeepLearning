@@ -382,30 +382,33 @@ def print_metrics(predictions_to_set_optimal_threshold: LabelsAndPredictions,
     print_table(rows)
 
 
-def print_metrics_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
-                                             csv_to_compute_metrics: Path,
-                                             config: ScalarModelBase,
-                                             data_split_to_set_optimal_threshold: Optional[ModelExecutionMode] = None,
-                                             data_split_to_compute_metrics: Optional[ModelExecutionMode] = None,
-                                             is_thresholded: bool = False,
-                                             is_crossval_report: bool = False) -> None:
+def get_metrics_table_for_prediction_target(csv_to_set_optimal_threshold: Path,
+                                            csv_to_compute_metrics: Path,
+                                            config: ScalarModelBase,
+                                            prediction_target: str,
+                                            data_split_to_set_optimal_threshold: Optional[ModelExecutionMode] = None,
+                                            data_split_to_compute_metrics: Optional[ModelExecutionMode] = None,
+                                            is_thresholded: bool = False,
+                                            is_crossval_report: bool = False) -> Tuple[List[List[str]], List[str]]:
     """
-    Given csvs written during inference for the validation and test sets, print out metrics for every prediction target
-    in the config.
+    Given CSVs written during inference for the validation and test sets, compute and format metrics as a table.
 
-    :param csv_to_set_optimal_threshold: Csv written during inference time for the val set. This is used to determine
-    the optimal threshold for classification.
-    :param csv_to_compute_metrics: Csv written during inference time for the test set. Metrics are calculated for
-    this csv.
+    :param csv_to_set_optimal_threshold: CSV written during inference time for the val set. This is used to determine
+        the optimal threshold for classification.
+    :param csv_to_compute_metrics: CSV written during inference time for the test set. Metrics are calculated for
+        this CSV.
     :param config: Model config
+    :param prediction_target: The prediction target for which to compute metrics.
     :param data_split_to_set_optimal_threshold: Whether to filter the validation CSV file for Train, Val, or Test
-    results (default: no filtering).
+        results (default: no filtering).
     :param data_split_to_compute_metrics: Whether to filter the test CSV file for Train, Val, or Test results
-    (default: no filtering).
+        (default: no filtering).
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
-                           or are floating point numbers.
-    :param is_crossval_report: If True, assumes CSVs contain results for multiple cross-validation runs and prints the
-    metrics along with means and standard deviations. Otherwise, prints metrics for a single run.
+        or are floating point numbers.
+    :param is_crossval_report: If True, assumes CSVs contain results for multiple cross-validation runs and formats the
+        metrics along with means and standard deviations. Otherwise, collect metrics for a single run.
+    :return: Tuple of rows and header, where each row and the header are lists of strings of same length (2 if
+        `is_crossval_report` is False, `config.number_of_cross_validation_splits`+2 otherwise).
     """
     def get_metrics_for_crossval_split(prediction_target: str, crossval_split: Optional[int] = None) -> Dict[str, float]:
         predictions_to_set_optimal_threshold = get_labels_and_predictions(csv_to_set_optimal_threshold, prediction_target,
@@ -416,32 +419,68 @@ def print_metrics_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
                                                                     data_split=data_split_to_compute_metrics)
         return get_all_metrics(predictions_to_set_optimal_threshold, predictions_to_compute_metrics, is_thresholded)
 
+    # Compute metrics for all crossval splits or single run, and initialise table header
+    all_metrics: List[Dict[str, float]] = []
+    header = ["Metric"]
+    if is_crossval_report:
+        for crossval_split in range(config.number_of_cross_validation_splits):
+            all_metrics.append(get_metrics_for_crossval_split(prediction_target, crossval_split))
+            header.append(f"Split {crossval_split}")
+    else:
+        all_metrics.append(get_metrics_for_crossval_split(prediction_target))
+        header.append("Value")
+    computed_metrics = all_metrics[0].keys()
+
+    # Format table rows
+    rows = [[metric] + [f"{fold_metrics[metric]:.4f}" for fold_metrics in all_metrics]
+            for metric in computed_metrics]
+
+    # Add aggregation column and header
+    if is_crossval_report:
+        for row, metric in zip(rows, computed_metrics):
+            values = [fold_metrics[metric] for fold_metrics in all_metrics]
+            row.append(f"{np.mean(values):.4f} ({np.std(values):.4f})")
+        header.append("Mean (std)")
+
+    return rows, header
+
+
+def print_metrics_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
+                                             csv_to_compute_metrics: Path,
+                                             config: ScalarModelBase,
+                                             data_split_to_set_optimal_threshold: Optional[ModelExecutionMode] = None,
+                                             data_split_to_compute_metrics: Optional[ModelExecutionMode] = None,
+                                             is_thresholded: bool = False,
+                                             is_crossval_report: bool = False) -> None:
+    """
+    Given CSVs written during inference for the validation and test sets, print out metrics for every prediction target
+    in the config.
+
+    :param csv_to_set_optimal_threshold: CSV written during inference time for the val set. This is used to determine
+        the optimal threshold for classification.
+    :param csv_to_compute_metrics: CSV written during inference time for the test set. Metrics are calculated for
+        this CSV.
+    :param config: Model config
+    :param data_split_to_set_optimal_threshold: Whether to filter the validation CSV file for Train, Val, or Test
+        results (default: no filtering).
+    :param data_split_to_compute_metrics: Whether to filter the test CSV file for Train, Val, or Test results
+        (default: no filtering).
+    :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
+        or are floating point numbers.
+    :param is_crossval_report: If True, assumes CSVs contain results for multiple cross-validation runs and prints the
+        metrics along with means and standard deviations. Otherwise, prints metrics for a single run.
+    """
     for prediction_target in config.target_names:
         print_header(f"Class: {prediction_target}", level=3)
-
-        # Compute metrics for all crossval splits or single run, and initialise table header
-        all_metrics: List[Dict[str, float]] = []
-        header = ["Metric"]
-        if is_crossval_report:
-            for crossval_split in range(config.number_of_cross_validation_splits):
-                all_metrics.append(get_metrics_for_crossval_split(prediction_target, crossval_split))
-                header.append(f"Split {crossval_split}")
-        else:
-            all_metrics.append(get_metrics_for_crossval_split(prediction_target))
-            header.append("Value")
-        computed_metrics = all_metrics[0].keys()
-
-        # Format table rows
-        rows = [[metric] + [f"{fold_metrics[metric]:.4f}" for fold_metrics in all_metrics]
-                for metric in computed_metrics]
-
-        # Add aggregation column and header
-        if is_crossval_report:
-            for row, metric in zip(rows, computed_metrics):
-                values = [fold_metrics[metric] for fold_metrics in all_metrics]
-                row.append(f"{np.mean(values):.4f} ({np.std(values):.4f})")
-            header.append("Mean (std)")
-
+        rows, header = get_metrics_table_for_prediction_target(
+            csv_to_set_optimal_threshold=csv_to_set_optimal_threshold,
+            data_split_to_set_optimal_threshold=data_split_to_set_optimal_threshold,
+            csv_to_compute_metrics=csv_to_compute_metrics,
+            data_split_to_compute_metrics=data_split_to_compute_metrics,
+            config=config,
+            prediction_target=prediction_target,
+            is_thresholded=is_thresholded,
+            is_crossval_report=is_crossval_report)
         print_table(rows, header)
 
 

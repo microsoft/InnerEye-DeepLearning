@@ -279,8 +279,7 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
     assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [3], np.ubyte)
 
 
-# @pytest.mark.after_training_2node
-@pytest.mark.skip("2 nodes training hangs with PL 1.2.7")
+@pytest.mark.after_training_2node
 def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if a job running on 2 nodes trains correctly.
