@@ -16,7 +16,8 @@ from InnerEye.Common.common_util import is_windows
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.reports.classification_report import ReportedScalarMetrics, get_correct_and_misclassified_examples, \
     get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_labels_and_predictions, \
-    plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id
+    plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id, \
+    get_metrics_table_for_prediction_target
 from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
     generate_classification_notebook
 from InnerEye.ML.scalar_config import ScalarModelBase
@@ -230,6 +231,64 @@ def test_get_metric() -> None:
                              optimal_threshold=0.1)
 
     assert math.isclose(sensitivity, 5 / 6, abs_tol=1e-15)
+
+
+def check_table_equality(header, rows, expected_header, expected_rows) -> None:
+    assert all(cell == expected_cell for cell, expected_cell in zip(header, expected_header))
+    for row, expected_row in zip(rows, expected_rows):
+        assert all(cell == expected_cell for cell, expected_cell in zip(row, expected_row))
+
+
+def test_get_metrics_table_single_run() -> None:
+    reports_folder = Path(__file__).parent
+    test_metrics_file = reports_folder / "test_metrics_classification.csv"
+    val_metrics_file = reports_folder / "val_metrics_classification.csv"
+
+    config = ScalarModelBase(label_value_column="label",
+                             image_file_column="filePath",
+                             subject_column="subject")
+    rows, header = get_metrics_table_for_prediction_target(csv_to_set_optimal_threshold=val_metrics_file,
+                                                           data_split_to_set_optimal_threshold=ModelExecutionMode.VAL,
+                                                           csv_to_compute_metrics=test_metrics_file,
+                                                           data_split_to_compute_metrics=ModelExecutionMode.TEST,
+                                                           config=config, prediction_target=MetricsDict.DEFAULT_HUE_KEY,
+                                                           is_thresholded=False, is_crossval_report=False)
+    expected_header = "Metric	Value".split('\t')
+    expected_rows = [
+        "Area under PR Curve	0.5417".split('\t'),
+        "Area under ROC Curve	0.5000".split('\t'),
+        "Optimal threshold	0.6000".split('\t'),
+        "Accuracy at optimal threshold	0.5000".split('\t'),
+        "Sensitivity at optimal threshold	0.5000".split('\t'),
+        "Specificity at optimal threshold	0.5000".split('\t'),
+    ]
+    check_table_equality(header, rows, expected_header, expected_rows)
+
+
+def test_get_metrics_table_crossval() -> None:
+    reports_folder = Path(__file__).parent
+    crossval_metrics_file = reports_folder / "crossval_metrics_classification.csv"
+
+    config = ScalarModelBase(label_value_column="label",
+                             image_file_column="filePath",
+                             subject_column="subject",
+                             number_of_cross_validation_splits=3)
+    rows, header = get_metrics_table_for_prediction_target(csv_to_set_optimal_threshold=crossval_metrics_file,
+                                                           data_split_to_set_optimal_threshold=ModelExecutionMode.VAL,
+                                                           csv_to_compute_metrics=crossval_metrics_file,
+                                                           data_split_to_compute_metrics=ModelExecutionMode.TEST,
+                                                           config=config, prediction_target=MetricsDict.DEFAULT_HUE_KEY,
+                                                           is_thresholded=False, is_crossval_report=True)
+    expected_header = "Metric	Split 0	Split 1	Split 2	Mean (std)".split('\t')
+    expected_rows = [
+        "Area under PR Curve	0.5417	0.4481	0.6889	0.5595 (0.0991)".split('\t'),
+        "Area under ROC Curve	0.5000	0.2778	0.7222	0.5000 (0.1814)".split('\t'),
+        "Optimal threshold	0.6000	0.6000	0.6000	0.6000 (0.0000)".split('\t'),
+        "Accuracy at optimal threshold	0.5000	0.2500	0.7500	0.5000 (0.2041)".split('\t'),
+        "Sensitivity at optimal threshold	0.5000	0.1667	0.8333	0.5000 (0.2722)".split('\t'),
+        "Specificity at optimal threshold	0.5000	0.1667	0.8333	0.5000 (0.2722)".split('\t')
+    ]
+    check_table_equality(header, rows, expected_header, expected_rows)
 
 
 def test_get_correct_and_misclassified_examples() -> None:
