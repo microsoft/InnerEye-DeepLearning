@@ -12,7 +12,7 @@ created.
 ## Upcoming
 
 ### Added
-
+- ([#438](https://github.com/microsoft/InnerEye-DeepLearning/pull/438)) Add links and small docs to InnerEye-Gateway and InnerEye-Inference
 - ([#430](https://github.com/microsoft/InnerEye-DeepLearning/pull/430)) Update conversion to 1.0.1 InnerEye-DICOM-RT to
   add:  manufacturer, SoftwareVersions, Interpreter and ROIInterpretedTypes.
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Add the ability to train a model on multiple
