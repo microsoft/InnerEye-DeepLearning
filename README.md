@@ -100,6 +100,8 @@ Further detailed instructions, including setup in Azure, are here:
 1. [Model diagnostics](docs/model_diagnostics.md)
 1. [Deployment](docs/deploy_on_aml.md)
 
+![img.png](docs/deployment.png)
+
 ## More information
 
 1. [Project InnerEye](https://www.microsoft.com/en-us/research/project/medical-image-analysis/)
