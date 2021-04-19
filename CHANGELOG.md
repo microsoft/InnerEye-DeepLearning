@@ -57,6 +57,7 @@ created.
 - ([#432](https://github.com/microsoft/InnerEye-DeepLearning/pull/432)) Upgraded to PyTorch-Lightning 1.2.7. Add
   end-to-end test for classification cross-validation. WARNING: upgrade PL version causes hanging of multi-node
   training.
+- ([#437])(https://github.com/microsoft/InnerEye-DeepLearning/pull/437)) Upgrade to PyTorch-Lightning 1.2.8.
 
 ### Fixed
 - ([#422](https://github.com/microsoft/InnerEye-DeepLearning/pull/422)) Documentation - clarified `setting_up_aml.md`
@@ -64,8 +65,10 @@ created.
 - ([#432](https://github.com/microsoft/InnerEye-DeepLearning/pull/432)) Fixed cross-validation for classification
   models. Fixed multi-gpu metrics aggregation. Add end-to-end test for classification cross-validation. Add fix to bug
   in ddp setting when running multi-node with 1 gpu per node.
-- ([#435](https://github.com/microsoft/InnerEye-DeepLearning/pull/435)) If parameter `model` in `AzureConfig` is not set, display an error message and terminate the run.
-
+- ([#435](https://github.com/microsoft/InnerEye-DeepLearning/pull/435)) If parameter `model` in `AzureConfig` is not
+  set, display an error message and terminate the run.
+- ([#437](https://github.com/microsoft/InnerEye-DeepLearning/pull/437)) Fixed multi-node DDP bug in PL v1.2.8. Re-add
+  end-to-end test for multi-node.
 ### Removed
 
 ### Deprecated
