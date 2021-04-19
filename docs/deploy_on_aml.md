@@ -2,7 +2,7 @@
 
 ![deployment.png](deployment.png)
 
-InnerEye segmentation models using a single DICOM series can be integrated with DICOM networks using the 
+InnerEye segmentation models using a single DICOM series as input and producing DICOM-RT can be integrated with DICOM networks using the 
 [InnerEye-Gateway](https://github.com/microsoft/InnerEye-Gateway) and the [InnerEye-Inference](https://github.com/microsoft/InnerEye-Inference).
 
 For deployment of a segmentation model, all code that was used in training, plus the checkpoint(s) of the model,
