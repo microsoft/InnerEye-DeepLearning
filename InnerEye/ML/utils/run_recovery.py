@@ -13,12 +13,9 @@ from azureml.core import Run
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, download_outputs_from_run, fetch_child_runs, tag_values_all_distinct
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, check_properties_are_not_none
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, \
-    create_recovery_checkpoint_path, get_best_checkpoint_path
-from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, OutputParams
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, get_best_checkpoint_path, \
     get_recovery_checkpoint_path
-from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig
+from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, OutputParams
 
 
 @dataclass(frozen=True)

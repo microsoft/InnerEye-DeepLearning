@@ -100,8 +100,7 @@ def test_keep_latest(test_output_dirs: OutputFolderForTests) -> None:
     Test if the logic to keep only the most recently modified file works.
     """
     folder = test_output_dirs.root_dir
-    prefix = "foo"
-    pattern = RECOVERY_CHECKPOINT_FILE_NAME + "*"
+    prefix = RECOVERY_CHECKPOINT_FILE_NAME + "*"
     file1 = folder / (prefix + ".txt")
     file2 = folder / (prefix + "2.txt")
     # No file present yet
