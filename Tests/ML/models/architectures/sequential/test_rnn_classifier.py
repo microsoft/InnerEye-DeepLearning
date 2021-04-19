@@ -21,7 +21,6 @@ from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.lightning_models import transfer_batch_to_device
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_testing import create_metrics_dict_for_scalar_models
-from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoder, ImagingFeatureType
 from InnerEye.ML.models.architectures.sequential.rnn_classifier import RNNClassifier, RNNClassifierWithEncoder
 from InnerEye.ML.run_ml import MLRunner
@@ -34,7 +33,7 @@ from InnerEye.ML.utils.io_util import ImageAndSegmentations
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
-from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler
+from Tests.ML.util import get_default_azure_config, model_train_unittest
 
 SCAN_SIZE = (6, 64, 60)
 
@@ -213,8 +212,7 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, SCAN_SIZE),
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
-        model_train(config, get_default_checkpoint_handler(model_config=config,
-                                                           project_root=test_output_dirs.root_dir))
+        model_train_unittest(config, dirs=test_output_dirs)
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
@@ -247,7 +245,7 @@ def test_run_ml_with_sequence_model(use_combined_model: bool,
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         azure_config = get_default_azure_config()
         azure_config.train = True
-        MLRunner(config, azure_config).run()
+        MLRunner(config, azure_config=azure_config).run()
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -379,8 +377,7 @@ def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> 
     config.num_epochs = 2
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset(dataset_contents)
-    results = model_train(config, get_default_checkpoint_handler(model_config=config,
-                                                                 project_root=test_output_dirs.root_dir))
+    results, _ = model_train_unittest(config, dirs=test_output_dirs)
 
     actual_train_loss = results.get_metric(is_training=True, metric_type=MetricType.LOSS.value)[-1]
     actual_val_loss = results.get_metric(is_training=False, metric_type=MetricType.LOSS.value)[-1]
@@ -455,7 +452,7 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: OutputFolderFo
     config.max_batch_grad_cam = 1
     azure_config = get_default_azure_config()
     azure_config.train = True
-    MLRunner(config, azure_config).run()
+    MLRunner(config, azure_config=azure_config).run()
     # The metrics file should have one entry per epoch per subject per prediction target,
     # for all the 3 prediction targets.
     metrics_file = config.outputs_folder / "Train" / SUBJECT_METRICS_FILE_NAME

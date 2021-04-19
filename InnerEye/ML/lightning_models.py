@@ -21,6 +21,7 @@ from InnerEye.ML.lightning_metrics import Accuracy05, AccuracyAtOptimalThreshold
     OptimalThreshold, ScalarMetricsBase
 from InnerEye.ML.metrics import compute_dice_across_patches
 from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, SequenceMetricsDict
+from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
@@ -129,9 +130,9 @@ class SegmentationLightning(InnerEyeLightning):
         if isinstance(center_indices, torch.Tensor):
             center_indices = center_indices.cpu().numpy()
         if is_training:
-            self.train_diagnostics.append(center_indices)
+            self.storing_logger.train_diagnostics.append(center_indices)
         else:
-            self.val_diagnostics.append(center_indices)
+            self.storing_logger.val_diagnostics.append(center_indices)
         # if self.train_val_params.in_training_mode:
         #     # store the sample train patch from this epoch for visualization
         #     if batch_index == self.example_to_save and self.config.store_dataset_sample:
@@ -382,3 +383,23 @@ def transfer_batch_to_device(batch: Any, device: torch.device) -> Any:
         return batch
     else:
         return move_data_to_device(batch, device)
+
+
+def create_lightning_model(config: ModelConfigBase, set_optimizer_and_scheduler: bool = True) -> InnerEyeLightning:
+    """
+    Creates a PyTorch Lightning model that matches the provided InnerEye model configuration object.
+    The `optimizer` and `l_rate_scheduler` object of the Lightning model will also be populated.
+    :param set_optimizer_and_scheduler: If True (default), initialize the optimizer and LR scheduler of the model.
+    If False, skip that step (this is only meant to be used for unit tests.)
+    :param config: An InnerEye model configuration object
+    :return: A PyTorch Lightning model object.
+    """
+    if config.is_segmentation_model:
+        model: InnerEyeLightning = SegmentationLightning(config)
+    elif config.is_scalar_model:
+        model = ScalarLightning(config)
+    else:
+        raise NotImplementedError(f"Don't know how to handle config of type {type(config)}")
+    if set_optimizer_and_scheduler:
+        model.set_optimizer_and_scheduler(config)
+    return model

@@ -20,7 +20,6 @@ from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.lightning_models import transfer_batch_to_device
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
-from InnerEye.ML.model_training import model_train
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoderWithMlp, \
     ImagingFeatureType
 from InnerEye.ML.run_ml import MLRunner
@@ -34,7 +33,7 @@ from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, 
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from InnerEye.ML.visualizers.model_summary import ModelSummary
-from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler
+from Tests.ML.util import get_default_azure_config, model_train_unittest
 
 
 class ImageEncoder(ScalarModelBase):
@@ -222,8 +221,7 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
     summarizer.generate_summary(input_sizes=input_size)
     config.local_dataset = dataset_folder
     config.validate()
-    model_train(config, checkpoint_handler=get_default_checkpoint_handler(model_config=config,
-                                                                          project_root=Path(test_output_dirs.root_dir)))
+    model_train_unittest(config, dirs=test_output_dirs)
     # No further asserts here because the models are still in experimental state. Most errors would come
     # from having invalid model architectures, which would throw runtime errors during training.
 
@@ -231,13 +229,13 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.gpu
 @pytest.mark.parametrize(["encode_channels_jointly", "aggregation_type", "imaging_feature_type"],
-    [(False, AggregationType.Average, ImagingFeatureType.Segmentation),
-     (True, AggregationType.Average, ImagingFeatureType.Segmentation),
-     (False, AggregationType.Average, ImagingFeatureType.ImageAndSegmentation),
-     (True, AggregationType.Average, ImagingFeatureType.ImageAndSegmentation),
-     (True, AggregationType.GatedPooling, ImagingFeatureType.ImageAndSegmentation),
-     (True, AggregationType.MixPooling, ImagingFeatureType.ImageAndSegmentation),
-     (True, AggregationType.ZAdaptive3dAvg, ImagingFeatureType.ImageAndSegmentation)])
+                         [(False, AggregationType.Average, ImagingFeatureType.Segmentation),
+                          (True, AggregationType.Average, ImagingFeatureType.Segmentation),
+                          (False, AggregationType.Average, ImagingFeatureType.ImageAndSegmentation),
+                          (True, AggregationType.Average, ImagingFeatureType.ImageAndSegmentation),
+                          (True, AggregationType.GatedPooling, ImagingFeatureType.ImageAndSegmentation),
+                          (True, AggregationType.MixPooling, ImagingFeatureType.ImageAndSegmentation),
+                          (True, AggregationType.ZAdaptive3dAvg, ImagingFeatureType.ImageAndSegmentation)])
 def test_image_encoder_with_segmentation(test_output_dirs: OutputFolderForTests,
                                          encode_channels_jointly: bool,
                                          aggregation_type: AggregationType,
@@ -274,7 +272,7 @@ def test_image_encoder_with_segmentation(test_output_dirs: OutputFolderForTests,
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
         azure_config = get_default_azure_config()
         azure_config.train = True
-        MLRunner(config, azure_config).run()
+        MLRunner(config, azure_config=azure_config).run()
         # No further asserts here because the models are still in experimental state. Most errors would come
         # from having invalid model architectures, which would throw runtime errors during training.
         # Verified manually that the cross entropy on the Val set that appears during training, and the

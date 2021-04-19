@@ -45,6 +45,13 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         if: always()
 
+      - name: Run HelloContainer model
+        run: |
+          $CONDA/envs/InnerEye/bin/python ./InnerEye/ML/runner.py --model=HelloContainer
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        if: always()
+
   windows:
     runs-on: windows-latest
     steps:
