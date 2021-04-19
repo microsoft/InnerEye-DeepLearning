@@ -35,7 +35,6 @@ class BasicModel2Epochs(SegmentationModelBase):
             class_weights=equally_weighted_classes(fg_classes),
             num_dataload_workers=1,
             train_batch_size=8,
-            start_epoch=0,
             num_epochs=2,
             recovery_checkpoint_save_interval=1,
             use_mixed_precision=True,

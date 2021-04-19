@@ -47,7 +47,6 @@ class Lung(SegmentationModelBase):
             train_batch_size=8,
             inference_batch_size=1,
             inference_stride_size=(64, 256, 256),
-            start_epoch=0,
             num_epochs=140,
             l_rate=1e-3,
             min_l_rate=1e-5,
