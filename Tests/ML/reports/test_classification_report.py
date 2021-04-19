@@ -5,6 +5,7 @@
 import math
 import shutil
 from pathlib import Path
+from typing import Iterable
 
 import numpy as np
 import pandas as pd
@@ -233,7 +234,8 @@ def test_get_metric() -> None:
     assert math.isclose(sensitivity, 5 / 6, abs_tol=1e-15)
 
 
-def check_table_equality(header, rows, expected_header, expected_rows) -> None:
+def check_table_equality(header: Iterable[str], rows: Iterable[Iterable[str]],
+                         expected_header: Iterable[str], expected_rows: Iterable[Iterable[str]]) -> None:
     assert all(cell == expected_cell for cell, expected_cell in zip(header, expected_header))
     for row, expected_row in zip(rows, expected_rows):
         assert all(cell == expected_cell for cell, expected_cell in zip(row, expected_row))
