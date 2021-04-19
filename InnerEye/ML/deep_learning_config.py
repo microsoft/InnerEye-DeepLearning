@@ -19,9 +19,8 @@ from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, \
-    create_recovery_checkpoint_path, create_unique_timestamp_id, \
-    get_best_checkpoint_path
+from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, create_unique_timestamp_id, \
+    get_best_checkpoint_path, get_recovery_checkpoint_path
 
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
 FINAL_MODEL_FOLDER = "final_model"
@@ -260,6 +259,10 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                            doc="Save epoch checkpoints when epoch number is a multiple "
                                                                "of recovery_checkpoint_save_interval. The intended use "
                                                                "is to allow restore training from failed runs.")
+    save_last_k_recovery_checkpoints: int = param.Integer(default=1, bounds=(0, None),
+                                                          doc="Number of recovery checkpoints to keep. Recovery "
+                                                              "checkpoints will be stored as recovery_epoch:{"
+                                                              "epoch}.ckpt")
     train_batch_size: int = param.Integer(4, bounds=(0, None),
                                           doc="The number of crops that make up one minibatch during training.")
     detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "
@@ -570,7 +573,7 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
         Returns full path to a recovery checkpoint.
         :return: path to a checkpoint given an epoch
         """
-        return create_recovery_checkpoint_path(self.checkpoint_folder)
+        return get_recovery_checkpoint_path(self.checkpoint_folder)
 
     def get_path_to_best_checkpoint(self) -> Path:
         """
