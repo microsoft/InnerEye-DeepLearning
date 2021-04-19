@@ -248,6 +248,10 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         pass
 
+    def generate_custom_report(self, report_dir: Path, train_metrics: Path, val_metrics: Path,
+                               test_metrics: Path) -> Path:
+        pass
+
 
 class ModelTransformsPerExecutionMode:
     """
