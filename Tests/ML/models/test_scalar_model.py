@@ -372,7 +372,7 @@ def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
                                                              project_root=test_output_dirs.root_dir))
     # The start epoch is expected to have been updated when we picked up the recovery checkpoint
     assert model_config.start_epoch == 3
-    # We expect to have 3 checkpoints, epoch 3, epoch 5 and best
+    # We expect to have 3 checkpoints, epoch 3, epoch 5 and best.
     assert len(os.listdir(model_config.checkpoint_folder)) == 3
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
