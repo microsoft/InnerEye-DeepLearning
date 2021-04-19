@@ -18,6 +18,7 @@ import torch
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, \
     METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, logging_to_stdout
+from InnerEye.Common.fixed_paths import LOG_FILE_NAME
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -30,7 +31,6 @@ from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
 from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
-from InnerEye.ML.model_training import model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook, \
     generate_classification_notebook, get_html_report_name, get_ipynb_report_name
 from InnerEye.ML.run_ml import MLRunner
@@ -40,7 +40,7 @@ from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get
     unroll_aggregate_metrics
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_azure_config, get_default_checkpoint_handler, machine_has_gpu, \
+from Tests.ML.util import get_default_azure_config, machine_has_gpu, \
     model_train_unittest
 
 
@@ -343,7 +343,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     assert config.get_effective_random_seed() == set_from_commandline
     assert config.non_image_feature_channels == ["label"]
     assert str(config.outputs_folder).startswith(output_root)
-    assert (config.logs_folder / runner.LOG_FILE_NAME).exists()
+    assert (config.logs_folder / LOG_FILE_NAME).exists()
     # Check that we saved one checkpoint every second epoch and that we kept only that last 2 and that last.ckpt has
     # been renamed to best.ckpt
     assert len(os.listdir(config.checkpoint_folder)) == 3
@@ -364,10 +364,7 @@ def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     model_config.recovery_checkpoint_save_interval = 2
     model_config.save_last_k_recovery_checkpoints = -1
     shutil.copytree(full_ml_test_data_path("recovery_dummy_checkpoints"), model_config.checkpoint_folder)
-    model_train(model_config, get_default_checkpoint_handler(model_config=model_config,
-                                                             project_root=test_output_dirs.root_dir))
-    # The start epoch is expected to have been updated when we picked up the recovery checkpoint
-    assert model_config._start_epoch == 3
+    model_train_unittest(model_config, test_output_dirs)
     # We expect to have 3 checkpoints, epoch 3, epoch 5 and best.
     assert len(os.listdir(model_config.checkpoint_folder)) == 3
 
