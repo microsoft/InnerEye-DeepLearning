@@ -13,8 +13,8 @@ from azureml.core import Run
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, download_outputs_from_run, fetch_child_runs, tag_values_all_distinct
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, check_properties_are_not_none
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, \
-    create_recovery_checkpoint_path, get_best_checkpoint_path
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, get_best_checkpoint_path, \
+    get_recovery_checkpoint_path
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig
 
 
@@ -24,6 +24,7 @@ class RunRecovery:
     Class to encapsulate information relating to run recovery (eg: check point paths for parent and child runs)
     """
     checkpoints_roots: List[Path]
+    recovery_checkpoint_filename: str
 
     @staticmethod
     def download_best_checkpoints_from_child_runs(config: DeepLearningConfig, run: Run) -> RunRecovery:
@@ -78,10 +79,12 @@ class RunRecovery:
             destination=root_output_dir,
             run=run
         )
-        return RunRecovery(checkpoints_roots=[root_output_dir])
+        return RunRecovery(checkpoints_roots=[root_output_dir],
+                           recovery_checkpoint_filename=[config.recovery_checkpoint_filename])
 
     def get_recovery_checkpoint_paths(self) -> List[Path]:
-        return [create_recovery_checkpoint_path(x) for x in self.checkpoints_roots]
+        return [get_recovery_checkpoint_path(x, f) for x, f in
+                zip(self.checkpoints_roots, self.recovery_checkpoint_filename)]
 
     def get_best_checkpoint_paths(self) -> List[Path]:
         return [get_best_checkpoint_path(x) for x in self.checkpoints_roots]
