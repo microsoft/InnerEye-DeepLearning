@@ -121,6 +121,7 @@ class InnerEyeLightning(LightningModule):
         # Metrics for the very last epoch are written in on_train_end
         self.read_epoch_results_from_logger_and_store(epoch=self.current_epoch - 1)
         self.training_or_validation_epoch_end(is_training=True)
+        self.log("epoch", self.current_epoch)
 
     def on_validation_epoch_start(self) -> None:
         """
