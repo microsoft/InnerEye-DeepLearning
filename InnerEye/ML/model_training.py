@@ -22,7 +22,7 @@ from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_section
 from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.resource_monitor import ResourceMonitor
-from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, cleanup_checkpoint_folder
+from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import TrainingAndValidationDataLightning
@@ -68,6 +68,7 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
     upload_name = TEMP_PREFIX + str(file_path.relative_to(outputs_folder))
     RUN_CONTEXT.upload_file(upload_name, path_or_stream=str(file_path))
 
+
 def create_lightning_trainer(config: ModelConfigBase,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
@@ -90,13 +91,14 @@ def create_lightning_trainer(config: ModelConfigBase,
                                                # save_top_k=1,
                                                save_last=True)
     # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
-    # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs. Due to a bug in Lightning, this
-    # will still write alternate files recovery.ckpt and recovery-v0.ckpt, which are cleaned up later in
-    # cleanup_checkpoint_folder
+    # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
+    # save_last_k_recovery_checkpoints.
     recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(config.checkpoint_folder),
-                                                   filename=RECOVERY_CHECKPOINT_FILE_NAME,
-                                                   period=config.recovery_checkpoint_save_interval
-                                                   )
+                                                   monitor="epoch",
+                                                   filename=RECOVERY_CHECKPOINT_FILE_NAME + "_{epoch}",
+                                                   period=config.recovery_checkpoint_save_interval,
+                                                   save_top_k=config.save_last_k_recovery_checkpoints,
+                                                   mode="max")
 
     num_gpus = torch.cuda.device_count() if config.use_gpu else 0
     logging.info(f"Number of available GPUs: {num_gpus}")
@@ -239,7 +241,7 @@ def model_train(config: ModelConfigBase,
         sys.exit()
 
     logging.info("Choosing the best checkpoint and removing redundant files.")
-    cleanup_checkpoint_folder(config.checkpoint_folder)
+    create_best_checkpoint(config.checkpoint_folder)
     # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
     # those environment variables will mislead the training runs in the test suite, and make them crash.
     # Hence, restore the original environment after training.
