@@ -259,10 +259,11 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                            doc="Save epoch checkpoints when epoch number is a multiple "
                                                                "of recovery_checkpoint_save_interval. The intended use "
                                                                "is to allow restore training from failed runs.")
-    save_last_k_recovery_checkpoints: int = param.Integer(default=1, bounds=(0, None),
+    save_last_k_recovery_checkpoints: int = param.Integer(default=1, bounds=(-1, None),
                                                           doc="Number of recovery checkpoints to keep. Recovery "
                                                               "checkpoints will be stored as recovery_epoch:{"
-                                                              "epoch}.ckpt")
+                                                              "epoch}.ckpt. If set to -1 keep all recovery "
+                                                              "checkpoints.")
     train_batch_size: int = param.Integer(4, bounds=(0, None),
                                           doc="The number of crops that make up one minibatch during training.")
     detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "

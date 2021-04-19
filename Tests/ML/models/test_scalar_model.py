@@ -5,6 +5,7 @@
 import io
 import logging
 import os
+import shutil
 from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -24,11 +25,13 @@ from InnerEye.ML import model_testing, model_training, runner
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_SUFFIX, \
     ModelExecutionMode, \
     RECOVERY_CHECKPOINT_FILE_NAME
+from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
 from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
+from InnerEye.ML.model_training import model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook, \
     generate_classification_notebook, get_html_report_name, get_ipynb_report_name
 from InnerEye.ML.run_ml import MLRunner
@@ -352,6 +355,25 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     assert (config.checkpoint_folder / str(RECOVERY_CHECKPOINT_FILE_NAME + "_epoch=5" + CHECKPOINT_SUFFIX)).exists()
     assert (config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).exists()
 
+
+@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
+def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if starting training from a folder where the checkpoints folder already has recovery checkpoints picks up
+    that it is a recovery run. Also checks that we update the start epoch in the config at loading time.
+    """
+    model_config = DummyClassification()
+    model_config.set_output_to(test_output_dirs.root_dir)
+    model_config.num_epochs = 6
+    model_config.recovery_checkpoint_save_interval = 2
+    model_config.save_last_k_recovery_checkpoints = -1
+    shutil.copytree(full_ml_test_data_path("recovery_dummy_checkpoints"), model_config.checkpoint_folder)
+    model_train(model_config, get_default_checkpoint_handler(model_config=model_config,
+                                                             project_root=test_output_dirs.root_dir))
+    # The start epoch is expected to have been updated when we picked up the recovery checkpoint
+    assert model_config.start_epoch == 3
+    # We expect to have 3 checkpoints, epoch 3, epoch 5 and best
+    assert len(os.listdir(model_config.checkpoint_folder)) == 3
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner2(test_output_dirs: OutputFolderForTests) -> None:

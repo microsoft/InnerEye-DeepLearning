@@ -99,8 +99,8 @@ class CheckpointHandler:
         local_recovery = find_latest_checkpoint(self.model_config.checkpoint_folder,
                                                 RECOVERY_CHECKPOINT_FILE_NAME + "*")
         if local_recovery is not None:
-            recovery_epoch = re.findall(r"[\d]+", str(local_recovery))
-            self.model_config.start_epoch = recovery_epoch
+            recovery_epoch = re.findall(r"[\d]+", local_recovery.stem)[0]
+            self.model_config.start_epoch = int(recovery_epoch)
             return local_recovery
 
         elif self.local_weights_path:
