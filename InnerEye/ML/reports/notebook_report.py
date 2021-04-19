@@ -3,13 +3,13 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Sequence, Union
 
 import codecs
 import nbformat
 import papermill
 import pickle
-from IPython.display import Markdown, display
+from IPython.display import HTML, Markdown, display
 from nbconvert import HTMLExporter
 from nbconvert.writers import FilesWriter
 
@@ -54,6 +54,21 @@ def print_header(message: str, level: int = 2) -> None:
     """
     prefix = "#" * level
     display(Markdown(f"{prefix} {message}"))
+
+
+def print_table(rows: Sequence[Sequence[str]], header: Optional[Sequence[str]] = None) -> None:
+    """
+    Displays the provided content in a formatted HTML table, with optional column headers.
+    :param rows: List of rows, where each row is a list of string-valued cell contents.
+    :param header: List of column headers. If given, this special first row is rendered with emphasis.
+    """
+    if any(len(row) != len(rows[0]) for row in rows[1:]):
+        raise ValueError("All rows in the table should have the same length")
+    if header and len(header) != len(rows[0]):
+        raise ValueError("Table header and rows should have the same length")
+    import pandas as pd
+    df = pd.DataFrame(data=rows, columns=header)
+    display(HTML(df.to_html(index=False)))
 
 
 def generate_notebook(template_notebook: Path, notebook_params: Dict, result_notebook: Path) -> Path:
@@ -133,9 +148,33 @@ def generate_classification_notebook(result_notebook: Path,
             'train_metrics_csv': str_or_empty(train_metrics),
             'val_metrics_csv': str_or_empty(val_metrics),
             'test_metrics_csv': str_or_empty(test_metrics),
-            "config": codecs.encode(pickle.dumps(config), "base64").decode()
+            "config": codecs.encode(pickle.dumps(config), "base64").decode(),
+            "is_crossval_report": False
         }
-    template = Path(__file__).absolute().parent / "classification_report.ipynb"
+    template = Path(__file__).absolute().parent / "classification_crossval_report.ipynb"
+    return generate_notebook(template,
+                             notebook_params=notebook_params,
+                             result_notebook=result_notebook)
+
+
+def generate_classification_crossval_notebook(result_notebook: Path,
+                                              config: ScalarModelBase,
+                                              crossval_metrics: Path) -> Path:
+    """
+    Creates a reporting notebook for a classification model, using the given training, validation, and test set metrics.
+    Returns the report file after HTML conversion.
+    """
+
+    notebook_params = \
+        {
+            'innereye_path': str(fixed_paths.repository_root_directory()),
+            'train_metrics_csv': "",
+            'val_metrics_csv': str_or_empty(crossval_metrics),
+            'test_metrics_csv': str_or_empty(crossval_metrics),
+            "config": codecs.encode(pickle.dumps(config), "base64").decode(),
+            "is_crossval_report": True
+        }
+    template = Path(__file__).absolute().parent / "classification_crossval_report.ipynb"
     return generate_notebook(template,
                              notebook_params=notebook_params,
                              result_notebook=result_notebook)

@@ -33,7 +33,8 @@ from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
-from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
+from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, ModelCategory
+from InnerEye.ML.reports.notebook_report import get_html_report_name
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import zip_random_dicom_series
 from InnerEye.Scripts import submit_for_inference
@@ -197,6 +198,9 @@ def test_expected_cv_files_classification(test_output_dirs: OutputFolderForTests
     # We should not have any ensemble metrics in CV folder
     for mode in [ModelExecutionMode.TEST, ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
         assert not _check_presence_cross_val_metrics_file(ENSEMBLE_SPLIT_NAME, mode, available_files)
+    crossval_report_name = f"{ModelCategory.Classification.value}_crossval"
+    crossval_report_file = f"{CROSSVAL_RESULTS_FOLDER}/{get_html_report_name(crossval_report_name)}"
+    assert crossval_report_file in available_files
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
