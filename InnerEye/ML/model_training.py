@@ -103,9 +103,10 @@ def create_lightning_trainer(container: LightningContainer,
                                                    filename=RECOVERY_CHECKPOINT_FILE_NAME,
                                                    period=container.recovery_checkpoint_save_interval
                                                    )
-
-    num_gpus = torch.cuda.device_count() if container.use_gpu else 0
-    logging.info(f"Number of available GPUs: {num_gpus}")
+    available_gpus = torch.cuda.device_count()
+    num_gpus = available_gpus if container.use_gpu else 0
+    no_gpu_message = "" if container.use_gpu else ". Not using any GPU because the use_gpu flag is set to False."
+    logging.info(f"Number of available GPUs: {available_gpus}{no_gpu_message}")
     if 0 <= container.max_num_gpus < num_gpus:
         num_gpus = container.max_num_gpus
         logging.info(f"Restricting the number of GPUs to {num_gpus}")
