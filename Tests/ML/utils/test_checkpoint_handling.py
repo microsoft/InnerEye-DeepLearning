@@ -270,8 +270,7 @@ def test_get_checkpoints_to_test_single_run(test_output_dirs: OutputFolderForTes
 
     assert checkpoint_and_paths
     assert len(checkpoint_and_paths) == 1
-    assert checkpoint_and_paths[0] == config.checkpoint_folder / run_recovery_id.split(":")[1] / \
-           BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    assert checkpoint_and_paths[0] == config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 
     # Copy checkpoint to make it seem like training has happened
     expected_checkpoint = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
