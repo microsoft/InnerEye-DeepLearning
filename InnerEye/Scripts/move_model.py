@@ -64,10 +64,10 @@ def download_model(config: MoveModelConfig) -> None:
     model_path, environment_path = get_paths(config.path, config.model_id)
     with open(model_path / MODEL_JSON, 'w') as f:
         json.dump(model.serialize(), f)
-    # model.download(target_dir=str(model_path))
+    model.download(target_dir=str(model_path))
     env_name = model.tags.get(PYTHON_ENVIRONMENT_NAME)
     environment = ws.environments.get(env_name)
-    # environment.save_to_directory(str(environment_path), overwrite=True)
+    environment.save_to_directory(str(environment_path), overwrite=True)
 
 
 def upload_model(config: MoveModelConfig) -> None:
