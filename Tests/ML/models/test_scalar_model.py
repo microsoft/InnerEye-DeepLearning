@@ -5,7 +5,6 @@
 import io
 import logging
 import os
-import shutil
 from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -44,6 +43,7 @@ from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelFo
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_azure_config, machine_has_gpu, \
     model_train_unittest
+from Tests.ML.utils.test_model_util import FIXED_EPOCH, create_model_and_store_checkpoint
 
 
 @pytest.mark.cpu_and_gpu
@@ -334,7 +334,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
             "--output_to", output_root,
             "--max_num_gpus", "1",
             "--recovery_checkpoint_save_interval", "2",
-            "--save_last_k_recovery_checkpoints", "2",
+            "--recovery_checkpoints_save_last_k", "2",
             "--num_epochs", "6",
             ]
     with mock.patch("sys.argv", args):
@@ -354,7 +354,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     assert (config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).exists()
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
+# @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if starting training from a folder where the checkpoints folder already has recovery checkpoints picks up
@@ -362,20 +362,35 @@ def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     """
     model_config = DummyClassification()
     model_config.set_output_to(test_output_dirs.root_dir)
-    model_config.num_epochs = 6
-    model_config.recovery_checkpoint_save_interval = 2
-    model_config.save_last_k_recovery_checkpoints = -1
+    model_config.num_epochs = FIXED_EPOCH + 2
+    # We save all checkpoints - if recovery works as expected we should have a new checkpoint for epoch 4, 5.
+    model_config.recovery_checkpoint_save_interval = 1
+    model_config.recovery_checkpoints_save_last_k = -1
     runner = MLRunner(model_config=model_config)
     runner.setup(use_mount_or_download_dataset=False)
-    shutil.copytree(full_ml_test_data_path("recovery_dummy_checkpoints"), runner.container.checkpoint_folder)
+    # Epochs are 0 based for saving
+    create_model_and_store_checkpoint(model_config,
+                                      runner.container.checkpoint_folder / f"recovery_epoch={FIXED_EPOCH - 1}.ckpt",
+                                      weights_only=False)
     azure_config = get_default_azure_config()
     checkpoint_handler = CheckpointHandler(azure_config=azure_config,
                                            container=runner.container,
                                            project_root=test_output_dirs.root_dir)
-    _, storing_logger = model_train(checkpoint_handler=checkpoint_handler,
-                                    container=runner.container)
-    # We expect to have 3 checkpoints, epoch 3, epoch 5 and best.
-    assert len(os.listdir(runner.container.checkpoint_folder)) == 3
+    model_config, storing_logger = model_train(checkpoint_handler=checkpoint_handler,
+                                               container=runner.container)
+    # We expect to have 4 checkpoints, FIXED_EPOCH (recovery), FIXED_EPOCH+1, FIXED_EPOCH and best.
+    assert len(os.listdir(runner.container.checkpoint_folder)) == 4
+    assert (
+                runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch="
+                                                     f"{FIXED_EPOCH - 1}.ckpt").exists()
+    assert (runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch={FIXED_EPOCH}.ckpt").exists()
+    assert (
+                runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch={FIXED_EPOCH +
+    1}.ckpt").exists()
+    assert (runner.container.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).exists()
+    # Check that we really restarted epoch from epoch FIXED_EPOCH.
+    assert list(storing_logger.epochs) == [FIXED_EPOCH, FIXED_EPOCH + 1]
+
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner2(test_output_dirs: OutputFolderForTests) -> None:

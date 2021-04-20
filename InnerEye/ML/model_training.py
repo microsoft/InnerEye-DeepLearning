@@ -72,12 +72,19 @@ def write_args_file(config: Any, outputs_folder: Path) -> None:
 
 
 class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
+    """
+    This callback is used to save recovery checkpoints.
+    In particular, it makes sure we are logging "epoch", this is needed to the last k
+    checkpoints (here save_top_k is based on the epoch number instead of validation loss,
+    PL only allows to save_top_k for logged quantities).
+    """
+
     def __init__(self, container: LightningContainer):
         super().__init__(dirpath=str(container.checkpoint_folder),
                          monitor="epoch",
                          filename=RECOVERY_CHECKPOINT_FILE_NAME + "_{epoch}",
                          period=container.recovery_checkpoint_save_interval,
-                         save_top_k=container.save_last_k_recovery_checkpoints,
+                         save_top_k=container.recovery_checkpoints_save_last_k,
                          mode="max")
 
     def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any) -> None:
@@ -111,7 +118,7 @@ def create_lightning_trainer(container: LightningContainer,
 
     # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
     # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
-    # save_last_k_recovery_checkpoints.
+    # recovery_checkpoints_save_last_k.
     recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
 
     num_gpus = torch.cuda.device_count() if container.use_gpu else 0

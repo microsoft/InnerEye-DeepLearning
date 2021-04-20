@@ -434,7 +434,7 @@ class TrainerParams(CudaAwareConfig):
                                                            doc="Save epoch checkpoints when epoch number is a multiple "
                                                                "of recovery_checkpoint_save_interval. The intended use "
                                                                "is to allow restore training from failed runs.")
-    save_last_k_recovery_checkpoints: int = param.Integer(default=1, bounds=(-1, None),
+    recovery_checkpoints_save_last_k: int = param.Integer(default=1, bounds=(-1, None),
                                                           doc="Number of recovery checkpoints to keep. Recovery "
                                                               "checkpoints will be stored as recovery_epoch:{"
                                                               "epoch}.ckpt. If set to -1 keep all recovery "
@@ -547,7 +547,7 @@ class DeepLearningConfig(WorkflowParams,
         # This should be annotated as torch.utils.data.Dataset, but we don't want to import torch here.
         self._datasets_for_training: Optional[Dict[ModelExecutionMode, Any]] = None
         self._datasets_for_inference: Optional[Dict[ModelExecutionMode, Any]] = None
-        self._start_epoch = 0
+        self.recovery_start_epoch = 0
         super().__init__(throw_if_unknown_param=True, **params)
         logging.info("Creating the default output folder structure.")
         self.create_filesystem(fixed_paths.repository_root_directory())
@@ -611,7 +611,7 @@ class DeepLearningConfig(WorkflowParams,
         Returns the epochs for which training will be performed.
         :return:
         """
-        return list(range(self._start_epoch + 1, self.num_epochs + 1))
+        return list(range(self.recovery_start_epoch + 1, self.num_epochs + 1))
 
     def get_total_number_of_training_epochs(self) -> int:
         """

@@ -13,7 +13,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, LAST_CHECKPOINT_FILE_NAME, \
     LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint, \
-    find_recovery_checkpoint_and_epoch
+    extract_latest_checkpoint_and_epoch, find_all_recovery_checkpoints, find_recovery_checkpoint_and_epoch
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_helpers import load_from_checkpoint_and_adjust_for_inference
@@ -28,7 +28,8 @@ FIXED_EPOCH = 42
 FIXED_GLOBAL_STEP = 4242
 
 
-def create_model_and_store_checkpoint(config: ModelConfigBase, checkpoint_path: Path) -> None:
+def create_model_and_store_checkpoint(config: ModelConfigBase, checkpoint_path: Path,
+                                      weights_only: bool = True) -> None:
     """
     Creates a Lightning model for the given model configuration, and stores it as a checkpoint file.
     If a GPU is available, the model is moved to the GPU before storing.
@@ -48,7 +49,7 @@ def create_model_and_store_checkpoint(config: ModelConfigBase, checkpoint_path: 
     trainer.global_step = FIXED_GLOBAL_STEP - 1
     # In PL, it is the Trainer's responsibility to save the model. Checkpoint handling refers back to the trainer
     # to get a save_func. Mimicking that here.
-    trainer.save_checkpoint(checkpoint_path, weights_only=True)
+    trainer.save_checkpoint(checkpoint_path, weights_only=weights_only)
 
 
 @pytest.mark.cpu_and_gpu
@@ -95,7 +96,28 @@ def test_checkpoint_path() -> None:
     assert LAST_CHECKPOINT_FILE_NAME == ModelCheckpoint.CHECKPOINT_NAME_LAST
 
 
-def test_keep_latest(test_output_dirs: OutputFolderForTests) -> None:
+def test_find_all_recovery_checkpoints(test_output_dirs: OutputFolderForTests):
+    checkpoint_folder = test_output_dirs.root_dir
+    # No recovery yet available
+    (checkpoint_folder / "epoch=2.ckpt").touch()
+    assert find_all_recovery_checkpoints(checkpoint_folder) is None
+    # Add recovery file to fake folder
+    file_list = ["recovery_epoch=1.ckpt", "recovery.ckpt"]
+    for f in file_list:
+        (checkpoint_folder / f).touch()
+    found_file_names = set([f.stem for f in find_all_recovery_checkpoints(checkpoint_folder)])
+    assert len(found_file_names.difference(found_file_names)) == 0
+
+
+def test_find_latest_checkpoint_and_epoch():
+    file_list = [Path("epoch=1.ckpt"), Path("epoch=3.ckpt"), Path("epoch=2.ckpt")]
+    assert Path("epoch=3.ckpt"), 3 == extract_latest_checkpoint_and_epoch(file_list)
+    invalid_file_list = [Path("epoch.ckpt"), Path("epoch=3.ckpt"), Path("epoch=2.ckpt")]
+    with pytest.raises(IndexError):
+        extract_latest_checkpoint_and_epoch(invalid_file_list)
+
+
+def test_find_recovery_checkpoint(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if the logic to keep only the most recently modified file works.
     """

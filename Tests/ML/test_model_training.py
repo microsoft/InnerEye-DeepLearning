@@ -43,7 +43,10 @@ base_path = full_ml_test_data_path()
 def test_get_total_number_of_training_epochs() -> None:
     c = DeepLearningConfig(num_epochs=2, should_validate=False)
     assert c.get_total_number_of_training_epochs() == 2
-
+    c = DeepLearningConfig(num_epochs=10, should_validate=False)
+    # Fake recovering training
+    c.recovery_start_epoch = 2
+    assert c.get_total_number_of_training_epochs() == 8
 
 @pytest.mark.parametrize("image_channels", [["region"], ["random_123"]])
 @pytest.mark.parametrize("ground_truth_ids", [["region", "region"], ["region", "other_region"]])

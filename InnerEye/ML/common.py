@@ -86,7 +86,33 @@ def get_best_checkpoint_path(path: Path) -> Path:
     return path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 
 
-def find_recovery_checkpoint_and_epoch(path: Path) -> Optional[Tuple[Path, int]]:
+def find_all_recovery_checkpoints(path: Path) -> Optional[List[Path]]:
+    """
+    Extracts all file starting with RECOVERY_CHECKPOINT_FILE_NAME in path
+    :param path:
+    :return:
+    """
+    all_recovery_files = [f for f in path.glob(RECOVERY_CHECKPOINT_FILE_NAME + "*")]
+    if len(all_recovery_files) == 0:
+        return None
+    return all_recovery_files
+
+
+PathAndEpoch = Tuple[Path, int]
+
+
+def extract_latest_checkpoint_and_epoch(available_files: List[Path]) -> PathAndEpoch:
+    """
+     Checkpoints are saved as recovery_epoch={epoch}.ckpt, find the latest ckpt and epoch number.
+    :param available_files: all available checkpoints
+    :return: path the checkpoint from latest epoch and epoch number
+    """
+    recovery_epochs = [int(re.findall(r"[\d]+", f.stem)[0]) for f in available_files]
+    idx_max_epoch = int(np.argmax(recovery_epochs))
+    return available_files[idx_max_epoch], recovery_epochs[idx_max_epoch]
+
+
+def find_recovery_checkpoint_and_epoch(path: Path) -> Optional[PathAndEpoch]:
     """
     Looks at all the recovery files, extracts the epoch number for all of them and returns the most recent (latest
     epoch)
@@ -95,14 +121,10 @@ def find_recovery_checkpoint_and_epoch(path: Path) -> Optional[Tuple[Path, int]]
     :return: None if there is no file matching the search pattern, or a Tuple with Path object and integer pointing to
     recovery checkpoint path and recovery epoch.
     """
-    filenames = [f for f in path.glob(RECOVERY_CHECKPOINT_FILE_NAME + "*")]
-    if len(filenames) == 0:
-        return None
-    # Checkpoints are saved as recovery_epoch={epoch}.ckpt, find the latest ckpt.
-    recovery_epochs = [int(re.findall(r"[\d]+", f.stem)[0]) for f in filenames]
-    idx_max_epoch = int(np.argmax(recovery_epochs))
-    return filenames[idx_max_epoch], recovery_epochs[idx_max_epoch]
-
+    available_checkpoints = find_all_recovery_checkpoints(path)
+    if available_checkpoints is not None:
+        return extract_latest_checkpoint_and_epoch(available_checkpoints)
+    return None
 
 def create_best_checkpoint(path: Path) -> Path:
     """
@@ -111,7 +133,7 @@ def create_best_checkpoint(path: Path) -> Path:
     The best checkpoint will be renamed to `best_checkpoint.ckpt`.
     :param path: The folder that contains all checkpoint files.
     """
-    logging.info(f"Files in checkpoint folder: {' '.join(p.name for p in path.glob('*'))}")
+    logging.debug(f"Files in checkpoint folder: {' '.join(p.name for p in path.glob('*'))}")
     last_ckpt = path / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     all_files = f"Existing files: {' '.join(p.name for p in path.glob('*'))}"
     if not last_ckpt.is_file():
