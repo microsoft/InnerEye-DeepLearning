@@ -65,7 +65,7 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
             agg_repr = agg_repr.reshape(agg_repr.size(0), -1)
         return self.classifier_head(agg_repr)
 
-    def shared_step(self, batch, batch_id, is_training: bool) -> Any:
+    def shared_step(self, batch: Any, is_training: bool) -> Any:
         _, x, y = batch
         mlp_preds = self.forward(x)
         weights = None if self.class_weights is None else self.class_weights.to(device=self.device)
@@ -78,13 +78,13 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
         return mlp_loss
 
     def training_step(self, batch, batch_id, *args: Any, **kwargs: Any) -> Any:
-        loss = self.shared_step(batch, batch_id, True)
+        loss = self.shared_step(batch, True)
         self.log("loss/train", loss)
         for metric in self.train_metrics:
             self.log(f"train_{metric.name}", metric, on_epoch=True, on_step=False)
 
     def validation_step(self, batch, batch_id, *args, **kwargs):
-        loss = self.shared_step(batch, batch_id, is_training=False)
+        loss = self.shared_step(batch, is_training=False)
         self.log('val_loss', loss, on_step=False, on_epoch=True, sync_dist=False)
         for metric in self.val_metrics:
             self.log(f"val_{metric.name}", metric, on_epoch=True, on_step=False)
