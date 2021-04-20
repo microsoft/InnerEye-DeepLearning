@@ -106,7 +106,7 @@ class SSLClassifierContainer(SSLContainer):
     freeze_encoder = param.Boolean(default=True, doc="Whether to freeze the pretrained encoder or not.")
     local_ssl_weights_path = param.ClassSelector(class_=Path, default=None, doc="Local path to SSL weights")
 
-    def create_model(self) -> LightningWithInference:
+    def create_model(self) -> LightningModuleWithOptimizer:
         """
         This method must create the actual Lightning model that will be trained.
         """
