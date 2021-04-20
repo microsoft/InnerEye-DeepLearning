@@ -109,14 +109,18 @@ def test_keep_latest(test_output_dirs: OutputFolderForTests) -> None:
     file1.touch()
     # Without sleeping, the test can fail in Azure build agents
     time.sleep(0.1)
-    latest_checkpoint, latest_epoch = find_recovery_checkpoint_and_epoch(folder)
+    recovery = find_recovery_checkpoint_and_epoch(folder)
+    assert recovery is not None
+    latest_checkpoint, latest_epoch = recovery
     assert latest_checkpoint == file1
     assert latest_epoch == 1
     assert latest_checkpoint.is_file()
     # Two files present: keep file2 should be returned
     file2.touch()
     time.sleep(0.1)
-    latest_checkpoint, latest_epoch = find_recovery_checkpoint_and_epoch(folder)
+    recovery = find_recovery_checkpoint_and_epoch(folder)
+    assert recovery is not None
+    latest_checkpoint, latest_epoch = recovery
     assert latest_checkpoint == file2
     assert latest_checkpoint.is_file()
     assert latest_epoch == 2
@@ -124,7 +128,9 @@ def test_keep_latest(test_output_dirs: OutputFolderForTests) -> None:
     # highest epoch number
     file1.touch()
     time.sleep(0.1)
-    latest_checkpoint, latest_epoch = find_recovery_checkpoint_and_epoch(folder)
+    recovery = find_recovery_checkpoint_and_epoch(folder)
+    assert recovery is not None
+    latest_checkpoint, latest_epoch = recovery
     assert latest_checkpoint == file2
     assert latest_checkpoint.is_file()
     assert latest_epoch == 2
