@@ -3,26 +3,28 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import math
-import torch
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import torch
 from IPython.display import display
 from PIL import Image
 from matplotlib.axes import Axes
 from sklearn.metrics import auc, precision_recall_curve, recall_score, roc_auc_score, roc_curve
 
+from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME
 from InnerEye.Common.metrics_constants import LoggingColumns
-from InnerEye.ML.metrics_dict import MetricsDict, binary_classification_accuracy
-from InnerEye.ML.reports.notebook_report import print_header
-from InnerEye.ML.utils.io_util import load_image_in_known_formats
-from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
+from InnerEye.ML.metrics_dict import MetricsDict, binary_classification_accuracy
+from InnerEye.ML.reports.notebook_report import print_header, print_table
+from InnerEye.ML.scalar_config import ScalarModelBase
+from InnerEye.ML.utils.io_util import load_image_in_known_formats
 
 
 @dataclass
@@ -40,220 +42,449 @@ class Results:
     false_negatives: pd.DataFrame
 
 
-class ReportedMetrics(Enum):
+class ReportedScalarMetrics(Enum):
     """
     Different metrics displayed in the report.
     """
-    OptimalThreshold = "optimal_threshold"
-    AUC_PR = "auc_pr"
-    AUC_ROC = "auc_roc"
-    Accuracy = "accuracy"
-    FalsePositiveRate = "false_positive_rate"
-    FalseNegativeRate = "false_negative_rate"
+    AUC_PR = "Area under PR Curve", False
+    AUC_ROC = "Area under ROC Curve", False
+    OptimalThreshold = "Optimal threshold", False
+    Accuracy = "Accuracy at optimal threshold", True
+    Sensitivity = "Sensitivity at optimal threshold", True
+    Specificity = "Specificity at optimal threshold", True
+
+    def __init__(self, description: str, requires_threshold: bool) -> None:
+        self.description = description
+        self.requires_threshold = requires_threshold
 
 
-def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str) -> pd.DataFrame:
+def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str,
+                                          crossval_split_index: Optional[int] = None,
+                                          data_split: Optional[ModelExecutionMode] = None,
+                                          epoch: Optional[int] = None) -> pd.DataFrame:
     """
-    Given one of the csv files written during inference time, read it and select only those rows which belong to the
-    given prediction_target. Also check that there is only a single entry per prediction_target per subject in the file.
-    The csv must have at least the following columns (defined in the LoggingColumns enum):
-    LoggingColumns.Hue, LoggingColumns.Patient.
+    Given one of the CSV files written during inference time, read it and select only those rows which belong to the
+    given prediction_target. Also check that the final subject IDs are unique.
+
+    :param csv: Path to the metrics CSV file. Must contain at least the following columns (defined in the LoggingColumns
+        enum): LoggingColumns.Patient, LoggingColumns.Hue.
+    :param prediction_target: Target ("hue") by which to filter.
+    :param crossval_split_index: If specified, filter rows only for the respective run (requires
+        LoggingColumns.CrossValidationSplitIndex).
+    :param data_split: If specified, filter rows by Train/Val/Test (requires LoggingColumns.DataSplit).
+    :param epoch: If specified, filter rows for given epoch (default: last epoch only; requires LoggingColumns.Epoch).
+    :return: Filtered dataframe.
     """
+    def check_column_present(dataframe: pd.DataFrame, column: LoggingColumns) -> None:
+        if column.value not in dataframe:
+            raise ValueError(f"Missing {column.value} column.")
+
     df = pd.read_csv(csv)
     df = df[df[LoggingColumns.Hue.value] == prediction_target]  # Filter by prediction target
+
+    # Filter by crossval split index
+    if crossval_split_index is not None:
+        check_column_present(df, LoggingColumns.CrossValidationSplitIndex)
+        df = df[df[LoggingColumns.CrossValidationSplitIndex.value] == crossval_split_index]
+
+    # Filter by Train/Val/Test
+    if data_split is not None:
+        check_column_present(df, LoggingColumns.DataSplit)
+        df = df[df[LoggingColumns.DataSplit.value] == data_split.value]
+
+    # Filter by epoch
+    if LoggingColumns.Epoch.value in df:
+        # In a FULL_METRICS_DATAFRAME_FILE, the epoch column will be BEST_EPOCH_FOLDER_NAME (string) for the Test split.
+        # Here we cast the whole column to integer, mapping BEST_EPOCH_FOLDER_NAME to -1.
+        epochs = df[LoggingColumns.Epoch.value].apply(lambda e: -1 if e == BEST_EPOCH_FOLDER_NAME else int(e))
+        if epoch is None:
+            epoch = epochs.max()  # Take last epoch if unspecified
+        df = df[epochs == epoch]
+    elif epoch is not None:
+        raise ValueError(f"Specified epoch {epoch} but missing {LoggingColumns.Epoch.value} column.")
+
     if not df[LoggingColumns.Patient.value].is_unique:
         raise ValueError(f"Subject IDs should be unique, but found duplicate entries "
                          f"in column {LoggingColumns.Patient.value} in the csv file.")
     return df
 
 
-def get_labels_and_predictions(csv: Path, prediction_target: str) -> LabelsAndPredictions:
+def get_labels_and_predictions(csv: Path, prediction_target: str,
+                               crossval_split_index: Optional[int] = None,
+                               data_split: Optional[ModelExecutionMode] = None,
+                               epoch: Optional[int] = None) -> LabelsAndPredictions:
     """
     Given a CSV file, reads the subject IDs, ground truth labels and model outputs for each subject
     for the given prediction target.
-    NOTE: This CSV file should have results from a single epoch, as in the metrics files written during inference, not
+
+    :param csv: Path to the metrics CSV file. Must contain at least the following columns (defined in the LoggingColumns
+        enum): LoggingColumns.Patient, LoggingColumns.Hue.
+    :param prediction_target: Target ("hue") by which to filter.
+    :param crossval_split_index: If specified, filter rows only for the respective run (requires
+        LoggingColumns.CrossValidationSplitIndex).
+    :param data_split: If specified, filter rows by Train/Val/Test (requires LoggingColumns.DataSplit).
+    :param epoch: If specified, filter rows for given epoch (default: last epoch only; requires LoggingColumns.Epoch).
+    :return: Filtered labels and model outputs.
+    """
+    df = read_csv_and_filter_prediction_target(csv, prediction_target, crossval_split_index, data_split, epoch)
+    return get_labels_and_predictions_from_dataframe(df)
+
+
+def get_labels_and_predictions_from_dataframe(df: pd.DataFrame) -> LabelsAndPredictions:
+    """
+    Given a dataframe, reads the subject IDs, ground truth labels and model outputs for each subject.
+    NOTE: This dataframe should have results from a single epoch, as in the metrics files written during inference, not
     like the ones written while training. It must have at least the following columns (defined in the LoggingColumns
     enum):
-    LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
-
+    LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
     """
-    df = read_csv_and_filter_prediction_target(csv, prediction_target)
     labels = df[LoggingColumns.Label.value].to_numpy()
     model_outputs = df[LoggingColumns.ModelOutput.value].to_numpy()
     subjects = df[LoggingColumns.Patient.value].to_numpy()
     return LabelsAndPredictions(subject_ids=subjects, labels=labels, model_outputs=model_outputs)
 
 
-def plot_auc(x_values: np.ndarray, y_values: np.ndarray, title: str, ax: Axes, print_coords: bool = False) -> None:
+def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
     """
-    Plot a curve given the x and y values of each point.
-    :param x_values: x coordinate of each data point to be plotted
-    :param y_values: y coordinate of each data point to be plotted
-    :param title: Title of the plot
-    :param ax: matplotlib.axes.Axes object for plotting
-    :param print_coords: If true, prints out the coordinates of each point on the graph.
+    Format PR or ROC plot with appropriate title, axis labels, limits, and grid.
+    :param plot_type: Either 'pr' or 'roc'.
+    :param ax: Axes object to format.
     """
-    ax.plot(x_values, y_values)
-    ax.set_xlim(left=0, right=1)
-    ax.set_ylim(bottom=0, top=1)
+    if plot_type == 'pr':
+        title, xlabel, ylabel = "PR Curve", "Recall", "Precision"
+    elif plot_type == 'roc':
+        title, xlabel, ylabel = "ROC Curve", "False positive rate", "True positive rate"
+    else:
+        raise ValueError(f"Plot type must be either 'pr' or 'roc' (received '{plot_type}')")
     ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.grid(lw=1, color='lightgray')
 
-    if print_coords:
-        # write values of points
-        for x, y in zip(x_values, y_values):
-            ax.annotate(f"{x:0.3f}, {y:0.3f}", xy=(x, y), xytext=(15, 0), textcoords='offset points')
 
-
-def plot_pr_and_roc_curves(labels_and_model_outputs: LabelsAndPredictions) -> None:
+def plot_pr_and_roc_curves(labels_and_model_outputs: LabelsAndPredictions, axs: Optional[Sequence[Axes]] = None,
+                           plot_kwargs: Optional[Dict[str, Any]] = None) -> None:
     """
-    Given a LabelsAndPredictions object, plot the ROC and PR curves.
+    Given labels and model outputs, plot the ROC and PR curves.
+    :param labels_and_model_outputs:
+    :param axs: Pair of axes objects onto which to plot the ROC and PR curves, respectively. New axes are created by
+    default.
+    :param plot_kwargs: Plotting options to be passed to both `ax.plot(...)` calls.
     """
-    print_header("ROC and PR curves", level=3)
-    _, ax = plt.subplots(1, 2)
+    if axs is None:
+        _, axs = plt.subplots(1, 2)
+    if plot_kwargs is None:
+        plot_kwargs = {}
 
     fpr, tpr, thresholds = roc_curve(labels_and_model_outputs.labels, labels_and_model_outputs.model_outputs)
+    axs[0].plot(fpr, tpr, **plot_kwargs)
+    format_pr_or_roc_axes('roc', axs[0])
 
-    plot_auc(fpr, tpr, "ROC Curve", ax[0])
     precision, recall, thresholds = precision_recall_curve(labels_and_model_outputs.labels,
                                                            labels_and_model_outputs.model_outputs)
-    plot_auc(recall, precision, "PR Curve", ax[1])
+    axs[1].plot(recall, precision, **plot_kwargs)
+    format_pr_or_roc_axes('pr', axs[1])
 
     plt.show()
 
 
-def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase) -> None:
+def plot_scores_and_summary(all_labels_and_model_outputs: Sequence[LabelsAndPredictions],
+                            scoring_fn: Callable[[LabelsAndPredictions], Tuple[np.ndarray, np.ndarray]],
+                            interval_width: float = .8,
+                            ax: Optional[Axes] = None) -> Tuple[List, Any]:
     """
-    Given the csv written during inference time and the model config,
-    plot the ROC and PR curves for all prediction targets.
+    Plot a collection of score curves along with the (vertical) median and confidence interval (CI).
+
+    Each plotted curve is interpolated onto a common horizontal grid, and the median and CI are computed vertically
+    at each horizontal location.
+    :param all_labels_and_model_outputs: Collection of ground-truth labels and model predictions (e.g. for various
+    cross-validation runs).
+    :param scoring_fn: A scoring function mapping a `LabelsAndPredictions` object to X and Y coordinates for plotting.
+    :param interval_width: A value in [0, 1] representing what fraction of the data should be contained in
+    the shaded area. The edges of the interval are `median +/- interval_width/2`.
+    :param ax: Axes object onto which to plot (default: use current axes).
+    :return: A tuple of `(line_handles, summary_handle)` to use in setting a legend for the plot: `line_handles` is a
+    list corresponding to the curves for each `LabelsAndPredictions`, and `summary_handle` references the median line
+    and shaded CI area.
+    """
+    if ax is None:
+        ax = plt.gca()
+    x_grid = np.linspace(0, 1, 101)
+    interp_ys = []
+    line_handles = []
+    for index, labels_and_model_outputs in enumerate(all_labels_and_model_outputs):
+        x_values, y_values = scoring_fn(labels_and_model_outputs)
+        interp_ys.append(np.interp(x_grid, x_values, y_values))
+        handle, = ax.plot(x_values, y_values, lw=1)
+        line_handles.append(handle)
+
+    interval_quantiles = [.5 - interval_width / 2, .5, .5 + interval_width / 2]
+    y_lo, y_mid, y_hi = np.quantile(interp_ys, interval_quantiles, axis=0)
+    h1 = ax.fill_between(x_grid, y_lo, y_hi, color='k', alpha=.2, lw=0)
+    h2, = ax.plot(x_grid, y_mid, 'k', lw=2)
+    summary_handle = (h1, h2)
+    return line_handles, summary_handle
+
+
+def plot_pr_and_roc_curves_crossval(all_labels_and_model_outputs: Sequence[LabelsAndPredictions],
+                                    axs: Optional[Sequence[Axes]] = None) -> None:
+    """
+    Given a list of LabelsAndPredictions objects, plot the corresponding ROC and PR curves, along with median line and
+    shaded 80% confidence interval (computed over TPRs and precisions for each fixed FPR and recall value).
+    :param all_labels_and_model_outputs: Collection of ground-truth labels and model predictions (e.g. for various
+    cross-validation runs).
+    :param axs: Pair of axes objects onto which to plot the ROC and PR curves, respectively. New axes are created by
+    default.
+    """
+    if axs is None:
+        _, axs = plt.subplots(1, 2)
+
+    def get_roc_xy(labels_and_model_outputs: LabelsAndPredictions) -> Tuple[np.ndarray, np.ndarray]:
+        fpr, tpr, thresholds = roc_curve(labels_and_model_outputs.labels, labels_and_model_outputs.model_outputs)
+        return fpr, tpr
+
+    def get_pr_xy(labels_and_model_outputs: LabelsAndPredictions) -> Tuple[np.ndarray, np.ndarray]:
+        precision, recall, thresholds = precision_recall_curve(labels_and_model_outputs.labels,
+                                                               labels_and_model_outputs.model_outputs)
+        return recall[::-1], precision[::-1]  # inverted to be in ascending order
+
+    interval_width = .8
+    line_handles, summary_handle = plot_scores_and_summary(all_labels_and_model_outputs,
+                                                           scoring_fn=get_roc_xy, ax=axs[0],
+                                                           interval_width=interval_width)
+    plot_scores_and_summary(all_labels_and_model_outputs, scoring_fn=get_pr_xy, ax=axs[1],
+                            interval_width=interval_width)
+
+    line_labels = [f"Split {split_index}" for split_index in range(len(all_labels_and_model_outputs))]
+    axs[0].legend(line_handles + [summary_handle],
+                  line_labels + [f"Median \u00b1 {50 * interval_width:g}%"])
+
+    format_pr_or_roc_axes('roc', axs[0])
+    format_pr_or_roc_axes('pr', axs[1])
+
+    plt.show()
+
+
+def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase,
+                                    data_split: Optional[ModelExecutionMode] = None,
+                                    is_crossval_report: bool = False) -> None:
+    """
+    Given the CSV written during inference time and the model config, plot the ROC and PR curves for all prediction
+    targets.
+    :param metrics_csv: Path to the metrics CSV file.
+    :param config: Model config.
+    :param data_split: Whether to filter the CSV file for Train, Val, or Test results (default: no filtering).
+    :param is_crossval_report: If True, assumes CSV contains results for multiple cross-validation runs and plots the
+    curves with median and confidence intervals. Otherwise, plots curves for a single run.
     """
     for prediction_target in config.class_names:
-        print_header(f"Class {prediction_target}", level=3)
-        metrics = get_labels_and_predictions(metrics_csv, prediction_target)
-        plot_pr_and_roc_curves(metrics)
+        print_header(f"Class: {prediction_target}", level=3)
+        if is_crossval_report:
+            all_metrics = [get_labels_and_predictions(metrics_csv, prediction_target,
+                                                      crossval_split_index=crossval_split, data_split=data_split)
+                           for crossval_split in range(config.number_of_cross_validation_splits)]
+            plot_pr_and_roc_curves_crossval(all_metrics)
+        else:
+            metrics = get_labels_and_predictions(metrics_csv, prediction_target, data_split=data_split)
+            plot_pr_and_roc_curves(metrics)
 
 
-def get_metric(val_labels_and_predictions: LabelsAndPredictions,
-               test_labels_and_predictions: LabelsAndPredictions,
-               metric: ReportedMetrics,
+def get_metric(predictions_to_set_optimal_threshold: LabelsAndPredictions,
+               predictions_to_compute_metrics: LabelsAndPredictions,
+               metric: ReportedScalarMetrics,
                optimal_threshold: Optional[float] = None) -> float:
     """
     Given LabelsAndPredictions objects for the validation and test sets, return the specified metric.
-    :param val_labels_and_predictions: This set of ground truth labels and model predictions is used to determine the
-    optimal threshold for classification.
-    :param test_labels_and_predictions: The set of labels and model outputs to calculate metrics for.
+    :param predictions_to_set_optimal_threshold: This set of ground truth labels and model predictions is used to
+    determine the optimal threshold for classification.
+    :param predictions_to_compute_metrics: The set of labels and model outputs to calculate metrics for.
     :param metric: The name of the metric to calculate.
     :param optimal_threshold: If provided, use this threshold instead of calculating an optimal threshold.
     """
     if not optimal_threshold:
-        fpr, tpr, thresholds = roc_curve(val_labels_and_predictions.labels, val_labels_and_predictions.model_outputs)
+        fpr, tpr, thresholds = roc_curve(predictions_to_set_optimal_threshold.labels,
+                                         predictions_to_set_optimal_threshold.model_outputs)
         optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
         optimal_threshold = thresholds[optimal_idx]
 
     assert optimal_threshold  # for mypy, we have already calculated optimal threshold if it was set to None
 
-    if metric is ReportedMetrics.OptimalThreshold:
+    if metric is ReportedScalarMetrics.OptimalThreshold:
         return optimal_threshold
 
-    only_one_class_present = len(set(test_labels_and_predictions.labels)) < 2
+    only_one_class_present = len(set(predictions_to_compute_metrics.labels)) < 2
 
-    if metric is ReportedMetrics.AUC_ROC:
-        return math.nan if only_one_class_present else roc_auc_score(test_labels_and_predictions.labels, test_labels_and_predictions.model_outputs)
-    elif metric is ReportedMetrics.AUC_PR:
+    if metric is ReportedScalarMetrics.AUC_ROC:
+        return math.nan if only_one_class_present else roc_auc_score(predictions_to_compute_metrics.labels,
+                                                                     predictions_to_compute_metrics.model_outputs)
+    elif metric is ReportedScalarMetrics.AUC_PR:
         if only_one_class_present:
             return math.nan
-        precision, recall, _ = precision_recall_curve(test_labels_and_predictions.labels, test_labels_and_predictions.model_outputs)
+        precision, recall, _ = precision_recall_curve(predictions_to_compute_metrics.labels,
+                                                      predictions_to_compute_metrics.model_outputs)
         return auc(recall, precision)
-    elif metric is ReportedMetrics.Accuracy:
-        return binary_classification_accuracy(model_output=test_labels_and_predictions.model_outputs,
-                                              label=test_labels_and_predictions.labels,
+    elif metric is ReportedScalarMetrics.Accuracy:
+        return binary_classification_accuracy(model_output=predictions_to_compute_metrics.model_outputs,
+                                              label=predictions_to_compute_metrics.labels,
                                               threshold=optimal_threshold)
-    elif metric is ReportedMetrics.FalsePositiveRate:
-        tnr = recall_score(test_labels_and_predictions.labels, test_labels_and_predictions.model_outputs >= optimal_threshold, pos_label=0)
-        return 1 - tnr
-    elif metric is ReportedMetrics.FalseNegativeRate:
-        return 1 - recall_score(test_labels_and_predictions.labels, test_labels_and_predictions.model_outputs >= optimal_threshold)
+    elif metric is ReportedScalarMetrics.Specificity:
+        return recall_score(predictions_to_compute_metrics.labels,
+                            predictions_to_compute_metrics.model_outputs >= optimal_threshold, pos_label=0)
+    elif metric is ReportedScalarMetrics.Sensitivity:
+        return recall_score(predictions_to_compute_metrics.labels,
+                            predictions_to_compute_metrics.model_outputs >= optimal_threshold)
     else:
         raise ValueError("Unknown metric")
 
 
-def print_metrics(val_labels_and_predictions: LabelsAndPredictions,
-                  test_labels_and_predictions: LabelsAndPredictions,
+def get_all_metrics(predictions_to_set_optimal_threshold: LabelsAndPredictions,
+                    predictions_to_compute_metrics: LabelsAndPredictions,
+                    is_thresholded: bool = False) -> Dict[str, float]:
+    """
+    Given LabelsAndPredictions objects for the validation and test sets, compute some metrics.
+    :param predictions_to_set_optimal_threshold: This is used to determine the optimal threshold for classification.
+    :param predictions_to_compute_metrics: Metrics are calculated for this set.
+    :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
+                           or are floating point numbers.
+    :return: Dictionary mapping metric descriptions to computed values.
+    """
+    optimal_threshold = 0.5 if is_thresholded else \
+        get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                   predictions_to_compute_metrics=predictions_to_compute_metrics,
+                   metric=ReportedScalarMetrics.OptimalThreshold)
+
+    metrics = {}
+    for metric in ReportedScalarMetrics:  # type: ReportedScalarMetrics
+        if is_thresholded and not metric.requires_threshold:
+            continue
+        metrics[metric.description] = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+                                                 predictions_to_compute_metrics=predictions_to_compute_metrics,
+                                                 metric=metric, optimal_threshold=optimal_threshold)
+
+    return metrics
+
+
+def print_metrics(predictions_to_set_optimal_threshold: LabelsAndPredictions,
+                  predictions_to_compute_metrics: LabelsAndPredictions,
                   is_thresholded: bool = False) -> None:
     """
     Given LabelsAndPredictions objects for the validation and test sets, print out some metrics.
-    :param val_labels_and_predictions: LabelsAndPredictions object for the val set. This is used to determine the
-    optimal threshold for classification.
-    :param test_labels_and_predictions: LabelsAndPredictions object for the test set. Metrics are calculated for this
-    set.
+    :param predictions_to_set_optimal_threshold: This is used to determine the optimal threshold for classification.
+    :param predictions_to_compute_metrics: Metrics are calculated for this set.
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
                            or are floating point numbers.
-    :return:
     """
-
-    optimal_threshold = 0.5 if is_thresholded else None
-
-    if not is_thresholded:
-        roc_auc = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                             test_labels_and_predictions=test_labels_and_predictions,
-                             metric=ReportedMetrics.AUC_ROC)
-        print_header(f"Area under ROC Curve: {roc_auc:.4f}", level=4)
-
-        pr_auc = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                            test_labels_and_predictions=test_labels_and_predictions,
-                            metric=ReportedMetrics.AUC_PR)
-        print_header(f"Area under PR Curve: {pr_auc:.4f}", level=4)
-
-        optimal_threshold = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                                       test_labels_and_predictions=test_labels_and_predictions,
-                                       metric=ReportedMetrics.OptimalThreshold)
-
-        print_header(f"Optimal threshold: {optimal_threshold: .4f}", level=4)
-
-    accuracy = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                          test_labels_and_predictions=test_labels_and_predictions,
-                          metric=ReportedMetrics.Accuracy,
-                          optimal_threshold=optimal_threshold)
-    print_header(f"Accuracy at optimal threshold: {accuracy:.4f}", level=4)
-
-    fpr = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                     test_labels_and_predictions=test_labels_and_predictions,
-                     metric=ReportedMetrics.FalsePositiveRate,
-                     optimal_threshold=optimal_threshold)
-    print_header(f"Specificity at optimal threshold: {1 - fpr:.4f}", level=4)
-
-    fnr = get_metric(val_labels_and_predictions=val_labels_and_predictions,
-                     test_labels_and_predictions=test_labels_and_predictions,
-                     metric=ReportedMetrics.FalseNegativeRate,
-                     optimal_threshold=optimal_threshold)
-    print_header(f"Sensitivity at optimal threshold: {1 - fnr:.4f}", level=4)
-    print_header("", level=4)
+    metrics = get_all_metrics(predictions_to_set_optimal_threshold, predictions_to_compute_metrics, is_thresholded)
+    rows = [[description, f"{value:.4f}"] for description, value in metrics.items()]
+    print_table(rows)
 
 
-def print_metrics_for_all_prediction_targets(val_metrics_csv: Path,
-                                             test_metrics_csv: Path,
+def get_metrics_table_for_prediction_target(csv_to_set_optimal_threshold: Path,
+                                            csv_to_compute_metrics: Path,
+                                            config: ScalarModelBase,
+                                            prediction_target: str,
+                                            data_split_to_set_optimal_threshold: Optional[ModelExecutionMode] = None,
+                                            data_split_to_compute_metrics: Optional[ModelExecutionMode] = None,
+                                            is_thresholded: bool = False,
+                                            is_crossval_report: bool = False) -> Tuple[List[List[str]], List[str]]:
+    """
+    Given CSVs written during inference for the validation and test sets, compute and format metrics as a table.
+
+    :param csv_to_set_optimal_threshold: CSV written during inference time for the val set. This is used to determine
+        the optimal threshold for classification.
+    :param csv_to_compute_metrics: CSV written during inference time for the test set. Metrics are calculated for
+        this CSV.
+    :param config: Model config
+    :param prediction_target: The prediction target for which to compute metrics.
+    :param data_split_to_set_optimal_threshold: Whether to filter the validation CSV file for Train, Val, or Test
+        results (default: no filtering).
+    :param data_split_to_compute_metrics: Whether to filter the test CSV file for Train, Val, or Test results
+        (default: no filtering).
+    :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
+        or are floating point numbers.
+    :param is_crossval_report: If True, assumes CSVs contain results for multiple cross-validation runs and formats the
+        metrics along with means and standard deviations. Otherwise, collect metrics for a single run.
+    :return: Tuple of rows and header, where each row and the header are lists of strings of same length (2 if
+        `is_crossval_report` is False, `config.number_of_cross_validation_splits`+2 otherwise).
+    """
+    def get_metrics_for_crossval_split(prediction_target: str, crossval_split: Optional[int] = None) -> Dict[str, float]:
+        predictions_to_set_optimal_threshold = get_labels_and_predictions(csv_to_set_optimal_threshold, prediction_target,
+                                                                          crossval_split_index=crossval_split,
+                                                                          data_split=data_split_to_set_optimal_threshold)
+        predictions_to_compute_metrics = get_labels_and_predictions(csv_to_compute_metrics, prediction_target,
+                                                                    crossval_split_index=crossval_split,
+                                                                    data_split=data_split_to_compute_metrics)
+        return get_all_metrics(predictions_to_set_optimal_threshold, predictions_to_compute_metrics, is_thresholded)
+
+    # Compute metrics for all crossval splits or single run, and initialise table header
+    all_metrics: List[Dict[str, float]] = []
+    header = ["Metric"]
+    if is_crossval_report:
+        for crossval_split in range(config.number_of_cross_validation_splits):
+            all_metrics.append(get_metrics_for_crossval_split(prediction_target, crossval_split))
+            header.append(f"Split {crossval_split}")
+    else:
+        all_metrics.append(get_metrics_for_crossval_split(prediction_target))
+        header.append("Value")
+    computed_metrics = all_metrics[0].keys()
+
+    # Format table rows
+    rows = [[metric] + [f"{fold_metrics[metric]:.4f}" for fold_metrics in all_metrics]
+            for metric in computed_metrics]
+
+    # Add aggregation column and header
+    if is_crossval_report:
+        for row, metric in zip(rows, computed_metrics):
+            values = [fold_metrics[metric] for fold_metrics in all_metrics]
+            row.append(f"{np.mean(values):.4f} ({np.std(values):.4f})")
+        header.append("Mean (std)")
+
+    return rows, header
+
+
+def print_metrics_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
+                                             csv_to_compute_metrics: Path,
                                              config: ScalarModelBase,
-                                             is_thresholded: bool = False) -> None:
+                                             data_split_to_set_optimal_threshold: Optional[ModelExecutionMode] = None,
+                                             data_split_to_compute_metrics: Optional[ModelExecutionMode] = None,
+                                             is_thresholded: bool = False,
+                                             is_crossval_report: bool = False) -> None:
     """
-    Given csvs written during inference for the validation and test sets, print out metrics for every prediction target
+    Given CSVs written during inference for the validation and test sets, print out metrics for every prediction target
     in the config.
 
-    :param val_metrics_csv: Csv written during inference time for the val set. This is used to determine the
-    optimal threshold for classification. 
-    :param test_metrics_csv: Csv written during inference time for the test set. Metrics are calculated for this csv.
+    :param csv_to_set_optimal_threshold: CSV written during inference time for the val set. This is used to determine
+        the optimal threshold for classification.
+    :param csv_to_compute_metrics: CSV written during inference time for the test set. Metrics are calculated for
+        this CSV.
     :param config: Model config
+    :param data_split_to_set_optimal_threshold: Whether to filter the validation CSV file for Train, Val, or Test
+        results (default: no filtering).
+    :param data_split_to_compute_metrics: Whether to filter the test CSV file for Train, Val, or Test results
+        (default: no filtering).
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
-                           or are floating point numbers.
+        or are floating point numbers.
+    :param is_crossval_report: If True, assumes CSVs contain results for multiple cross-validation runs and prints the
+        metrics along with means and standard deviations. Otherwise, prints metrics for a single run.
     """
-
     for prediction_target in config.class_names:
-        print_header(f"Class {prediction_target}", level=3)
-        val_metrics = get_labels_and_predictions(val_metrics_csv, prediction_target)
-        test_metrics = get_labels_and_predictions(test_metrics_csv, prediction_target)
-        print_metrics(val_labels_and_predictions=val_metrics, test_labels_and_predictions=test_metrics, is_thresholded=is_thresholded)
+        print_header(f"Class: {prediction_target}", level=3)
+        rows, header = get_metrics_table_for_prediction_target(
+            csv_to_set_optimal_threshold=csv_to_set_optimal_threshold,
+            data_split_to_set_optimal_threshold=data_split_to_set_optimal_threshold,
+            csv_to_compute_metrics=csv_to_compute_metrics,
+            data_split_to_compute_metrics=data_split_to_compute_metrics,
+            config=config,
+            prediction_target=prediction_target,
+            is_thresholded=is_thresholded,
+            is_crossval_report=is_crossval_report)
+        print_table(rows, header)
 
 
 def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path,
-                                           prediction_target: str = "Default") -> Results:
+                                           prediction_target: str = MetricsDict.DEFAULT_HUE_KEY) -> Results:
     """
     Given the paths to the metrics files for the validation and test sets, get a list of true positives,
     false positives, false negatives and true negatives.
@@ -261,7 +492,6 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
     label predictions.
     The validation and test csvs must have at least the following columns (defined in the LoggingColumns enum):
     LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
-
     """
     df_val = read_csv_and_filter_prediction_target(val_metrics_csv, prediction_target)
 
@@ -316,8 +546,8 @@ def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: P
                             performing subjects will not be printed out for this csv.
     :param test_metrics_csv: Path to one of the metrics csvs written during inference. This is the csv for which
                             best and worst performing subjects will be printed out.
-   :param k: Number of subjects of each category to print out.
-   :param prediction_target: The class label to filter on
+    :param k: Number of subjects of each category to print out.
+    :param prediction_target: The class label to filter on
     """
     results = get_k_best_and_worst_performing(val_metrics_csv=val_metrics_csv,
                                               test_metrics_csv=test_metrics_csv,
@@ -494,7 +724,6 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
     :param k: Number of subjects of each category to print out.
     :param prediction_target: The class label to filter on
     :param config: scalar model config object
-
     """
     results = get_k_best_and_worst_performing(val_metrics_csv=val_metrics_csv,
                                               test_metrics_csv=test_metrics_csv,

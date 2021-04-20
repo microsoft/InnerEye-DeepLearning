@@ -16,7 +16,7 @@ be used for training and testing.
 `python InnerEye/ML/runner.py --model=MyContainer`. To train in AzureML, just add a `--azureml=True` flag.
 
 There is a fully working example [HelloContainer](../InnerEye/ML/configs/other/HelloContainer.py), that implements
-a very simple 1-dimensional regression model off CSV data. You can run that
+a simple 1-dimensional regression model from data stored in a CSV file. You can run that
 from the command line by `python InnerEye/ML/runner.py --model=HelloContainer`.
 
 ## Setup
@@ -188,15 +188,15 @@ from InnerEye.ML.lightning_container import LightningContainer
 class Container1(LightningContainer):
     def __init__(self):
         super().__init__()
-        self.azure_dataset_id = "azure_dataset"
+        self.azure_dataset_id = "some_folder_in_azure"
         self.num_epochs = 20
 
     def create_model(self) -> LightningModule:
         return MyLightningModel()
 
     def get_data_module(self) -> LightningDataModule:
-        # This should read data from self.local_dataset. Before training, the data folder "azure_dataset
-        # (given by self.azure_dataset_id) will be downloaded for mounted, and its local path set in
+        # This should read data from self.local_dataset. Before training, the data folder "some_folder_in_azure"
+        # (given by self.azure_dataset_id) will be downloaded or mounted, and its local path set in
         # self.local_dataset
         return MyDataModule(root_folder=self.local_dataset) 
 ```
@@ -210,15 +210,15 @@ from InnerEye.ML.lightning_container import LightningContainer
 class Container2(LightningContainer):
     def __init__(self):
         super().__init__()
-        self.azure_dataset_id = "azure_dataset"
+        self.azure_dataset_id = "some_folder_in_azure"
         self.num_epochs = 20
 
     def create_model(self) -> LightningModule:
         return MyLightningModel()
 
     def get_data_module(self) -> LightningDataModule:
-        # This should read data from self.local_dataset. Before training, the data folder "azure_dataset
-        # (given by self.azure_dataset_id) will be downloaded for mounted, and its local path set in
+        # This should read data from self.local_dataset. Before training, the data folder "some_folder_in_azure"
+        # (given by self.azure_dataset_id) will be downloaded or mounted, and its local path set in
         # self.local_dataset
         return MyDataModule(root_folder=self.local_dataset) 
 

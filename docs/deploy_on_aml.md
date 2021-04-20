@@ -1,7 +1,10 @@
 # Model Deployment
 
-Note: At present, only segmentation model have a clearly defined deployment path. If you have a deployment
-path for classification model that you would like to see supported, please file an issue on Github.
+![deployment.png](deployment.png)
+
+InnerEye segmentation models using a single DICOM series as input and producing DICOM-RT can be integrated with DICOM networks using: 
+- [InnerEye-Gateway](https://github.com/microsoft/InnerEye-Gateway): a Windows service that provides DICOM AETs to run InnerEye-DeepLearning models
+- [InnerEye-Inference](https://github.com/microsoft/InnerEye-Inference): a REST API for the InnnEye-Gateway to run inference on InnerEye-DeepLearning models
 
 For deployment of a segmentation model, all code that was used in training, plus the checkpoint(s) of the model,
 are packaged up into a folder and then registered in AzureML for later use. The checkpoints are chosen from
@@ -62,3 +65,6 @@ from a parent run, with a child run for each individual fold. Each of those chil
 that was built on its specific subset of data. Then the ensemble model is built using the checkpoints from all, say,
 5 crossvalidation folds, and registered on the parent run - even though the work of registering is done by the
 child run with index 0.
+
+Note: At present, only segmentation model have a clearly defined deployment path. If you have a deployment
+path for classification model that you would like to see supported, please file an issue on Github.

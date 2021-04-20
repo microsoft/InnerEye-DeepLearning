@@ -285,7 +285,6 @@ class DatasetParams(param.Parameterized):
     local_dataset: Optional[Path] = \
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="The path of the dataset to use, when training is running outside Azure.")
-
     extra_azure_dataset_ids: List[str] = param.List(default=None,
                                                     allow_None=True,
                                                     doc="This can be used to feed in additional datasets "
@@ -467,11 +466,9 @@ class TrainerParams(CudaAwareConfig):
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
                           "you may see training speed increases.")
-    start_epoch: int = param.Integer(0, bounds=(0, None),
-                                     doc="The first epoch to train. Set to 0 to start a new "
-                                         "training. Set to a value larger than zero for starting"
-                                         " from a checkpoint.")
-
+    start_epoch: int = param.Integer(0, bounds=(0, None), doc="The first epoch to train. Set to 0 to start a new "
+                                                              "training. Set to a value larger than zero for starting"
+                                                              " from a checkpoint.")
     def get_num_gpus_to_use(self):
         num_gpus = torch.cuda.device_count() if self.use_gpu else 0
         logging.info(f"Number of available GPUs: {num_gpus}")
@@ -645,6 +642,30 @@ class DeepLearningConfig(WorkflowParams,
         :return:
         """
         return self.get_total_number_of_training_epochs()
+
+    @property  # type: ignore
+    def use_gpu(self) -> bool:  # type: ignore
+        """
+        Returns True if a CUDA capable GPU is present and should be used, False otherwise.
+        """
+        if self._use_gpu is None:
+            # Use a local import here because we don't want the whole file to depend on pytorch.
+            from InnerEye.ML.utils.ml_util import is_gpu_available
+            self._use_gpu = is_gpu_available()
+        return self._use_gpu
+
+    @use_gpu.setter
+    def use_gpu(self, value: bool) -> None:
+        """
+        Sets the flag that controls the use of the GPU. Raises a ValueError if the value is True, but no GPU is
+        present.
+        """
+        if value:
+            # Use a local import here because we don't want the whole file to depend on pytorch.
+            from InnerEye.ML.utils.ml_util import is_gpu_available
+            if not is_gpu_available():
+                raise ValueError("Can't set use_gpu to True if there is not CUDA capable GPU present.")
+        self._use_gpu = value
 
     @property
     def compute_mean_teacher_model(self) -> bool:

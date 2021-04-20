@@ -24,8 +24,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME, \
-    RUN_RECOVERY_ID_KEY_NAME, \
-    is_offline_run_context, merge_conda_dependencies
+    RUN_RECOVERY_ID_KEY_NAME, is_offline_run_context, merge_conda_dependencies
 from InnerEye.Azure.secrets_handling import read_all_settings
 from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
 from InnerEye.Common.generic_parsing import GenericConfig
