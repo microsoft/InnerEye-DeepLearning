@@ -100,9 +100,9 @@ def test_keep_latest(test_output_dirs: OutputFolderForTests) -> None:
     Test if the logic to keep only the most recently modified file works.
     """
     folder = test_output_dirs.root_dir
-    prefix = RECOVERY_CHECKPOINT_FILE_NAME + "*"
-    file1 = folder / (prefix + ".txt")
-    file2 = folder / (prefix + "2.txt")
+    prefix = RECOVERY_CHECKPOINT_FILE_NAME
+    file1 = folder / (prefix + "epoch=1.txt")
+    file2 = folder / (prefix + "epoch=2.txt")
     # No file present yet
     assert find_latest_recovery_checkpoint(folder) is None
     # Single file present: This should be returned.
@@ -118,11 +118,12 @@ def test_keep_latest(test_output_dirs: OutputFolderForTests) -> None:
     latest = find_latest_recovery_checkpoint(folder)
     assert latest == file2
     assert latest.is_file()
-    # Add file1 again: Now this one should be the most recent one
+    # Add file1 again: file should should still be returned as it has the
+    # highest epoch number
     file1.touch()
     time.sleep(0.1)
     latest = find_latest_recovery_checkpoint(folder)
-    assert latest == file1
+    assert latest == file2
     assert latest.is_file()
 
 
