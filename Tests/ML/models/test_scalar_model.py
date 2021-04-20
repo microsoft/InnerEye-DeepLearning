@@ -31,10 +31,12 @@ from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
 from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
+from InnerEye.ML.model_training import model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook, \
     generate_classification_notebook, get_html_report_name, get_ipynb_report_name
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get_config_and_results_for_offline_runs, \
     unroll_aggregate_metrics
@@ -352,7 +354,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     assert (config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).exists()
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
+# @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if starting training from a folder where the checkpoints folder already has recovery checkpoints picks up
@@ -363,10 +365,17 @@ def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     model_config.num_epochs = 6
     model_config.recovery_checkpoint_save_interval = 2
     model_config.save_last_k_recovery_checkpoints = -1
-    shutil.copytree(full_ml_test_data_path("recovery_dummy_checkpoints"), model_config.checkpoint_folder)
-    model_train_unittest(model_config, test_output_dirs)
+    runner = MLRunner(model_config=model_config)
+    runner.setup(use_mount_or_download_dataset=False)
+    shutil.copytree(full_ml_test_data_path("recovery_dummy_checkpoints"), runner.container.checkpoint_folder)
+    azure_config = get_default_azure_config()
+    checkpoint_handler = CheckpointHandler(azure_config=azure_config,
+                                           container=runner.container,
+                                           project_root=test_output_dirs.root_dir)
+    _, storing_logger = model_train(checkpoint_handler=checkpoint_handler,
+                                    container=runner.container)
     # We expect to have 3 checkpoints, epoch 3, epoch 5 and best.
-    assert len(os.listdir(model_config.checkpoint_folder)) == 3
+    assert len(os.listdir(runner.container.checkpoint_folder)) == 3
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner2(test_output_dirs: OutputFolderForTests) -> None:
