@@ -55,7 +55,7 @@ class InnerEyeVisionDataModule(VisionDataModule):
                          *args,
                          **kwargs)
         self.dataset_cls = dataset_cls
-        self.class_weights = None
+        self.class_weights: Optional[torch.Tensor] = None
         self.EXTRA_ARGS = {"return_index": return_index}
 
     def _split_dataset(self, dataset: Dataset, train: bool = True) -> Dataset:
@@ -65,13 +65,13 @@ class InnerEyeVisionDataModule(VisionDataModule):
         if hasattr(dataset, "_split_dataset"):
             # If the dataset implements a more complex logic than just splitting randomly by index.
             # The dataset class can implements its own _split_dataset function.
-            dataset_train, dataset_val = dataset._split_dataset(val_split=self.val_split,
+            dataset_train, dataset_val = dataset._split_dataset(val_split=self.val_split,  # type: ignore
                                                                 seed=self.seed)
             return dataset_train if train else dataset_val
         else:
             return super()._split_dataset(dataset, train)
 
-    def compute_class_weights(self):
+    def compute_class_weights(self) -> Optional[torch.Tensor]:
         dataset = self.dataset_train.dataset
         class_weights = None
         if hasattr(dataset, "targets"):
@@ -122,7 +122,7 @@ class CombinedDataModule(LightningDataModule):
             SSLModule.LINEAR_HEAD: self.linear_head_module.train_dataloader()}
         return dataloaders
 
-    def val_dataloader(self, *args: Any, **kwargs: Any) -> CombinedLoader:
+    def val_dataloader(self, *args: Any, **kwargs: Any) -> CombinedLoader:  # type: ignore
         """
         The val dataloader
         """
@@ -142,3 +142,7 @@ class CombinedDataModule(LightningDataModule):
     @property
     def num_classes(self) -> int:
         return self.linear_head_module.dataset_train.dataset.num_classes
+
+    def setup(self, stage: Optional[str] = None) -> None:
+        self.encoder_module.setup(stage)
+        self.linear_head_module.setup(stage)

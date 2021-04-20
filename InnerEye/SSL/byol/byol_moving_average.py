@@ -1,7 +1,12 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 import math
-import torch
 
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning import Callback
 
 
@@ -28,12 +33,12 @@ class BYOLMAWeightUpdate(Callback):
         self.initial_tau = initial_tau
         self.current_tau = initial_tau
 
-    def on_before_zero_grad(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+    def on_before_zero_grad(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:  # type: ignore
         # get networks
         online_net = pl_module.online_network
         target_net = pl_module.target_network
-        assert(isinstance(online_net, torch.nn.Module))
-        assert(isinstance(target_net, torch.nn.Module))
+        assert (isinstance(online_net, torch.nn.Module))
+        assert (isinstance(target_net, torch.nn.Module))
 
         # update weights
         self.update_weights(online_net, target_net)

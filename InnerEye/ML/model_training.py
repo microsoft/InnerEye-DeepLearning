@@ -133,7 +133,7 @@ def create_lightning_trainer(container: LightningContainer,
     # containers
     callbacks = [best_checkpoint_callback, recovery_checkpoint_callback]
     if "callbacks" in kwargs:
-        callbacks.append(kwargs.pop("callbacks"))
+        callbacks.append(kwargs.pop("callbacks"))  # type: ignore
     # Read out additional model-specific args here.
     # We probably want to keep essential ones like numgpu and logging.
     trainer = Trainer(default_root_dir=str(container.outputs_folder),

@@ -159,7 +159,7 @@ class DualViewTransformWrapper:
         return xi, xj
 
 
-def get_cxr_ssl_transforms(config: ConfigNode, linear_head_module: bool) -> Tuple[Callable, Callable]:
+def get_cxr_ssl_transforms(config: ConfigNode, linear_head_module: bool) -> Tuple[Any, Any]:
     """
     Applies wrapper around transforms to return two augmented versions of the
     same image

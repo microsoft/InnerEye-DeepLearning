@@ -11,6 +11,7 @@ import pandas as pd
 from PIL import Image
 from torchvision.datasets import VisionDataset
 
+from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.utils.io_util import load_dicom_image
 from InnerEye.SSL.datamodules.cifar_datasets import OptionalIndexInputAndLabel
 
@@ -45,7 +46,7 @@ class InnerEyeCXRDatasetBase(VisionDataset):
 
     def _prepare_dataset(self) -> None:
         self.indices: List[int] = []
-        self.filenames: List[str] = []
+        self.filenames: List[PathOrString] = []
         self.targets: Optional[List[int]] = None
         raise NotImplementedError("_prepare_dataset needs to be implemented by the child classes.")
 

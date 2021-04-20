@@ -7,7 +7,7 @@ from InnerEye.SSL.lightning_containers.ssl_image_classifier import SSLClassifier
 
 
 class SSLClassifierCIFAR(SSLClassifierContainer):
-    def __init__(self, **kwargs):
+    def __init__(self) -> None:
         super().__init__(
             classifier_dataset_name=SSLDatasetName.CIFAR10,
             random_seed=1,

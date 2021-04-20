@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import param
 import torch
@@ -12,10 +12,11 @@ from torch.nn import functional as F
 
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
-from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
+from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve, \
+    ScalarMetricsBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.SSL.datamodules.datamodules import InnerEyeVisionDataModule
-from InnerEye.SSL.lightning_containers.ssl_container import SSLContainer
+from InnerEye.SSL.lightning_containers.ssl_container import InnerEyeDataModuleTypes, SSLContainer
 from InnerEye.SSL.ssl_online_evaluator import get_encoder_output_dim
 from InnerEye.SSL.utils import create_ssl_image_classifier
 
@@ -40,14 +41,16 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
                                             n_hidden=None,
                                             n_classes=num_classes,
                                             p=0.20)
-        self.train_metrics = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()] \
+        self.train_metrics: List[ScalarMetricsBase] = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(),
+                                                       Accuracy05()] \
             if self.num_classes == 2 else [Accuracy05()]
-        self.val_metrics = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()] \
+        self.val_metrics: List[ScalarMetricsBase] = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(),
+                                                     Accuracy05()] \
             if self.num_classes == 2 else [Accuracy05()]
 
     def on_train_start(self) -> None:
         for metric in [*self.train_metrics, *self.val_metrics]:
-            metric.to(device=self.device)  # type: ignore
+            metric.to(device=self.device)
 
     def train(self, mode: bool = True) -> Any:
         self.classifier_head.train(mode)
@@ -56,7 +59,7 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
         self.encoder.train(mode)
         return self
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
         assert isinstance(self.encoder.avgpool, torch.nn.Module)
         if self.freeze_encoder:
             with torch.no_grad():
@@ -81,13 +84,13 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
                 metric(posteriors, y)
         return mlp_loss
 
-    def training_step(self, batch, batch_id, *args: Any, **kwargs: Any) -> Any:
+    def training_step(self, batch: Any, batch_id: int, *args: Any, **kwargs: Any) -> None:  # type: ignore
         loss = self.shared_step(batch, True)
         self.log("loss/train", loss)
         for metric in self.train_metrics:
             self.log(f"train_{metric.name}", metric, on_epoch=True, on_step=False)
 
-    def validation_step(self, batch, batch_id, *args, **kwargs):
+    def validation_step(self, batch: Any, batch_id: int, *args: Any, **kwargs: Any) -> None:  # type: ignore
         loss = self.shared_step(batch, is_training=False)
         self.log('val_loss', loss, on_step=False, on_epoch=True, sync_dist=False)
         for metric in self.val_metrics:
@@ -120,10 +123,10 @@ class SSLClassifierContainer(SSLContainer):
                 path_to_checkpoint = self.extra_downloaded_run_id.get_best_checkpoint_paths()
             except FileNotFoundError:
                 path_to_checkpoint = self.extra_downloaded_run_id.get_recovery_checkpoint_paths()
-            path_to_checkpoint = path_to_checkpoint[0]
+            path_to_checkpoint = path_to_checkpoint[0]  # type: ignore
         else:
             path_to_checkpoint = self.local_ssl_weights_path
-
+        assert isinstance(self.data_module, InnerEyeVisionDataModule)
         model = create_ssl_image_classifier(num_classes=self.data_module.dataset_train.dataset.num_classes,
                                             pl_checkpoint_path=str(path_to_checkpoint),
                                             freeze_encoder=self.freeze_encoder,
@@ -131,7 +134,7 @@ class SSLClassifierContainer(SSLContainer):
 
         return model
 
-    def get_data_module(self) -> InnerEyeVisionDataModule:
+    def get_data_module(self) -> InnerEyeDataModuleTypes:
         """
         Gets the data that is used for the training and validation steps.
         Here we use different data loader for training of linear head and training of SSL model.
@@ -143,7 +146,7 @@ class SSLClassifierContainer(SSLContainer):
             self.data_module.class_weights = self.data_module.compute_class_weights()
         return self.data_module
 
-    def get_trainer_arguments(self):
+    def get_trainer_arguments(self) -> Dict[str, Any]:
         trained_kwargs = {}
         if self.debug:
             trained_kwargs.update({"limit_train_batches": 2, "limit_val_batches": 2})

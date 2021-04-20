@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Set, Tuple, Union
 
 import pytorch_lightning as pl
 import torch
@@ -58,7 +58,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                                           weight_decay=self.weight_decay)
 
     @staticmethod
-    def to_device(batch: BatchType, device: Union[str, torch.device]) -> Tuple[T, T]:
+    def to_device(batch: Any, device: Union[str, torch.device]) -> Tuple[T, T]:
         """
         Moves batch to device.
         :param device: device to move the batch to.
@@ -66,10 +66,10 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         _, x, y = batch
         return x.to(device), y.to(device)
 
-    def on_train_epoch_start(self, trainer, pl_module: pl.LightningModule) -> None:
-        self.visited_ids = set()
+    def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        self.visited_ids: Set[Any] = set()
 
-    def on_validation_epoch_start(self, trainer, pl_module: pl.LightningModule) -> None:
+    def on_validation_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         self.visited_ids = set()
 
     def shared_step(self, batch: BatchType, pl_module: pl.LightningModule, is_training: bool) -> T:
@@ -93,11 +93,16 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         with torch.no_grad():
             posteriors = F.softmax(mlp_preds, dim=-1)
             for metric in (self.train_metrics if is_training else self.val_metrics):
-                metric(posteriors, y)
+                metric(posteriors, y)  # type: ignore
 
         return mlp_loss
 
-    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):  # type: ignore
+    def on_validation_batch_end(self, trainer: pl.Trainer,
+                                pl_module: pl.LightningModule,
+                                outputs: Any,
+                                batch: BatchType,
+                                batch_idx: int,
+                                dataloader_idx: int) -> None:  # type: ignore
         """
         Get and log validation metrics.
         """
@@ -107,7 +112,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             loss = self.shared_step(batch, pl_module, is_training=False)
             pl_module.log('ssl/online_val_loss', loss, on_step=False, on_epoch=True, sync_dist=False)
             for metric in self.val_metrics:
-                pl_module.log(f"ssl/online_val_{metric.name}", metric, on_epoch=True, on_step=False)
+                pl_module.log(f"ssl/online_val_{metric.name}", metric, on_epoch=True, on_step=False)  # type: ignore
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
         """
@@ -117,7 +122,6 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         if ids_linear_head not in self.visited_ids:
             self.visited_ids.add(ids_linear_head)
             loss = self.shared_step(batch, pl_module, is_training=True)
-            # update finetune weights
             loss.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
@@ -126,7 +130,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             # log metrics
             pl_module.log('ssl/online_train_loss', loss)
             for metric in self.train_metrics:
-                pl_module.log(f"ssl/online_train_{metric.name}", metric, on_epoch=True, on_step=False)
+                pl_module.log(f"ssl/online_train_{metric.name}", metric, on_epoch=True, on_step=False)  # type: ignore
 
 
 def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module],

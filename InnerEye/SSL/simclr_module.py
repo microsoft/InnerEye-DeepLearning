@@ -50,7 +50,7 @@ class SimCLRInnerEye(SimCLR):
         self.encoder = SSLEncoder(encoder_name, dataset_name)
         self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)
 
     def shared_step(self, batch: BatchType) -> T:

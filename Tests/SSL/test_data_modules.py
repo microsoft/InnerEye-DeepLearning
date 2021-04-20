@@ -23,5 +23,6 @@ def test_weights_innereye_module() -> None:
                                            batch_size=25,
                                            seed=1)
     data_module.setup()
-    assert torch.isclose(data_module.compute_class_weights(), torch.tensor([0.20, 0.80], dtype=torch.float32),
-                         atol=1e-3).all()
+    class_weights = data_module.compute_class_weights()
+    assert class_weights is not None
+    assert torch.isclose(class_weights, torch.tensor([0.20, 0.80], dtype=torch.float32), atol=1e-3).all()

@@ -197,17 +197,23 @@ class MLRunner:
                 if self.is_offline_run and self.container.extra_local_dataset_paths is not None:
                     if self.container.extra_azure_dataset_ids is None:
                         for local in self.container.extra_local_dataset_paths:
-                            extra_locals.append(self.mount_or_download_dataset(None, local))
+                            extra_local_dataset = self.mount_or_download_dataset(None, local)
+                            assert extra_local_dataset is not None  # for mypy
+                            extra_locals.append(extra_local_dataset)
                     elif len(self.container.extra_azure_dataset_ids) == len(self.container.extra_local_dataset_paths):
                         for azure_id, local in zip(self.container.extra_azure_dataset_ids,
                                                    self.container.extra_local_dataset_paths):
-                            extra_locals.append(self.mount_or_download_dataset(azure_id, local))
+                            extra_local_dataset = self.mount_or_download_dataset(azure_id, local)
+                            assert extra_local_dataset is not None  # for mypy
+                            extra_locals.append(extra_local_dataset)
                     else:
                         raise ValueError("The values of extra_local_dataset_paths and extra_azure_dataset_ids are "
                                          "incompatible, you provided two non-empty lists of different length.")
                 elif self.container.extra_azure_dataset_ids is not None:
                     for i, azure_id in enumerate(self.container.extra_azure_dataset_ids, 1):
-                        extra_locals.append(self.mount_or_download_dataset(azure_id, None, idx=i))
+                        extra_local_dataset = self.mount_or_download_dataset(azure_id, None, idx=i)
+                        assert extra_local_dataset is not None  # for mypy
+                        extra_locals.append(extra_local_dataset)
                 self.container.extra_local_dataset_paths = extra_locals
 
         # Ensure that we use fixed seeds before initializing the PyTorch models
@@ -475,7 +481,9 @@ class MLRunner:
             activation_maps.extract_activation_maps(self.innereye_config)  # type: ignore
             logging.info("Successfully extracted and saved activation maps")
 
-    def mount_or_download_dataset(self, azure_dataset_id, local_dataset, idx: int = 0) -> Optional[Path]:
+    def mount_or_download_dataset(self, azure_dataset_id: Optional[str],
+                                  local_dataset: Optional[Path],
+                                  idx: int = 0) -> Optional[Path]:
         """
         Makes the dataset that the model uses available on the executing machine. If the present training run is outside
         of AzureML, it expects that either the model has a `local_dataset` field set, in which case no action will be
@@ -485,8 +493,6 @@ class MLRunner:
         mounted or downloaded.
         Returns the path of the dataset on the executing machine.
         """
-        azure_dataset_id = self.container.azure_dataset_id
-        local_dataset = self.container.local_dataset
         if self.is_offline_run:
             # A dataset, either local or in Azure, is required for the built-in InnerEye models. When models are
             # specified via a LightningContainer, these dataset fields are optional, because the container datasets

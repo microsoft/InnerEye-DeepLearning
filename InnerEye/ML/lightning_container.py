@@ -18,6 +18,7 @@ from InnerEye.ML.deep_learning_config import DatasetParams, OptimizerParams, Out
     WorkflowParams, load_checkpoint
 from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
+from InnerEye.ML.utils.run_recovery import RunRecovery
 
 
 class InnerEyeInference(abc.ABC):
@@ -145,7 +146,7 @@ class LightningContainer(GenericConfig,
         super().__init__(**kwargs)
         self._model: Optional[LightningModule] = None
         self._model_name = type(self).__name__
-        self.extra_downloaded_run_id = None
+        self.extra_downloaded_run_id: Optional[RunRecovery] = None
 
     def validate(self) -> None:
         WorkflowParams.validate(self)

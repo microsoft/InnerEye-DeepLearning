@@ -23,7 +23,7 @@ class RSNA_RSNA_BYOL(SSLContainer):
     linear head on top,
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self) -> None:
         super().__init__(ssl_training_dataset_name=SSLDatasetName.RSNAKaggle,
                          classifier_dataset_name=SSLDatasetName.RSNAKaggle,
                          azure_dataset_id=RSNA_AZURE_DATASET_ID,
@@ -43,7 +43,7 @@ class NIH_RSNA_BYOL(SSLContainer):
     finetune the linear head on top for performance monitoring.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self) -> None:
         super().__init__(ssl_training_dataset_name=SSLDatasetName.NIH,
                          classifier_dataset_name=SSLDatasetName.RSNAKaggle,
                          azure_dataset_id=NIH_AZURE_DATASET_ID,
@@ -60,7 +60,7 @@ class NIH_RSNA_BYOL(SSLContainer):
 
 
 class NIH_RSNA_SimCLR(SSLContainer):
-    def __init__(self, **kwargs):
+    def __init__(self) -> None:
         super().__init__(ssl_training_dataset_name=SSLDatasetName.NIH,
                          classifier_dataset_name=SSLDatasetName.RSNAKaggle,
                          azure_dataset_id=NIH_AZURE_DATASET_ID,
@@ -77,7 +77,7 @@ class NIH_RSNA_SimCLR(SSLContainer):
 
 
 class CXRImageClassifier(SSLClassifierContainer):
-    def __init__(self, **kwargs):
+    def __init__(self) -> None:
         super().__init__(classifier_dataset_name=SSLDatasetName.RSNAKaggle,
                          random_seed=1,
                          recovery_checkpoint_save_interval=10,

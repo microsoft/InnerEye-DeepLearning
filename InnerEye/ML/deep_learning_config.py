@@ -25,6 +25,7 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, \
     get_best_checkpoint_path
 
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
+
 FINAL_MODEL_FOLDER = "final_model"
 FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
 
@@ -285,14 +286,15 @@ class DatasetParams(param.Parameterized):
     local_dataset: Optional[Path] = \
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="The path of the dataset to use, when training is running outside Azure.")
-    extra_azure_dataset_ids: List[str] = param.List(default=None,
-                                                    allow_None=True,
-                                                    doc="This can be used to feed in additional datasets "
-                                                        "to your custom datamodules. These datasets will be mounted "
-                                                        "and made available as a list of paths in "
-                                                        "'extra_local_datasets' "
-                                                        "when running in AzureML.")
-    extra_local_dataset_paths: List[Path] = param.List(class_=Path, default=None, allow_None=True,
+    extra_azure_dataset_ids: Optional[List[str]] = param.List(default=None,
+                                                              allow_None=True,
+                                                              doc="This can be used to feed in additional datasets "
+                                                                  "to your custom datamodules. These datasets will be "
+                                                                  "mounted "
+                                                                  "and made available as a list of paths in "
+                                                                  "'extra_local_datasets' "
+                                                                  "when running in AzureML.")
+    extra_local_dataset_paths: List[Path] = param.List(class_=Path, default=[], allow_None=False,
                                                        doc="This can be used to feed in additional datasets "
                                                            "to your custom datamodules when running outside of Azure "
                                                            "AML.")
@@ -569,7 +571,7 @@ class DeepLearningConfig(WorkflowParams,
         self.create_filesystem(fixed_paths.repository_root_directory())
         # Disable the PL progress bar because all InnerEye models have their own console output
         self.pl_progress_bar_refresh_rate = 0
-        self.extra_downloaded_run_id = None
+        self.extra_downloaded_run_id: Optional[Any] = None
 
     def validate(self) -> None:
         """
