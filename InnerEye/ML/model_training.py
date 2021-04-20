@@ -71,6 +71,19 @@ def write_args_file(config: Any, outputs_folder: Path) -> None:
     logging.info(output)
 
 
+class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
+    def __init__(self, container: LightningContainer):
+        super().__init__(dirpath=str(container.checkpoint_folder),
+                         monitor="epoch",
+                         filename=RECOVERY_CHECKPOINT_FILE_NAME + "_{epoch}",
+                         period=container.recovery_checkpoint_save_interval,
+                         save_top_k=container.save_last_k_recovery_checkpoints,
+                         mode="max")
+
+    def on_validation_end(self, trainer, pl_module):
+        pl_module.log("epoch", trainer.current_epoch)
+
+
 def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1,
@@ -95,15 +108,11 @@ def create_lightning_trainer(container: LightningContainer,
                                                # monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
                                                # save_top_k=1,
                                                save_last=True)
+
     # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
     # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
     # save_last_k_recovery_checkpoints.
-    recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
-                                                   monitor="epoch",
-                                                   filename=RECOVERY_CHECKPOINT_FILE_NAME + "_{epoch}",
-                                                   period=container.recovery_checkpoint_save_interval,
-                                                   save_top_k=container.save_last_k_recovery_checkpoints,
-                                                   mode="max")
+    recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
 
     num_gpus = torch.cuda.device_count() if container.use_gpu else 0
     logging.info(f"Number of available GPUs: {num_gpus}")
