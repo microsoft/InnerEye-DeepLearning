@@ -2,9 +2,9 @@
 
 ![deployment.png](deployment.png)
 
-InnerEye segmentation models using a single DICOM series as input and producing DICOM-RT can be integrated with DICOM networks using the 
-- [InnerEye-Gateway](https://github.com/microsoft/InnerEye-Gateway): a Windows service that provides a DICOM endpoint
-- and the [InnerEye-Inference](https://github.com/microsoft/InnerEye-Inference)  web services: these services receive anonymized DICOM files from the InnnEye-Gateway and send them to a trained segmentation model in AzureML
+InnerEye segmentation models using a single DICOM series as input and producing DICOM-RT can be integrated with DICOM networks using: 
+- [InnerEye-Gateway](https://github.com/microsoft/InnerEye-Gateway): a Windows service that provides DICOM AETs to run InnerEye-DeepLearning models
+- [InnerEye-Inference](https://github.com/microsoft/InnerEye-Inference): a REST API for the InnnEye-Gateway to run inference on InnerEye-DeepLearning models
 
 For deployment of a segmentation model, all code that was used in training, plus the checkpoint(s) of the model,
 are packaged up into a folder and then registered in AzureML for later use. The checkpoints are chosen from
