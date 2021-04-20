@@ -175,7 +175,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     actual_checkpoints = list(train_config.checkpoint_folder.rglob("*.ckpt"))
     assert len(actual_checkpoints) == 2, f"Actual checkpoints: {actual_checkpoints}"
     assert (train_config.checkpoint_folder / str(
-        RECOVERY_CHECKPOINT_FILE_NAME + "_epoch=2" + CHECKPOINT_SUFFIX)).is_file()
+        RECOVERY_CHECKPOINT_FILE_NAME + f"_epoch={train_config.num_epochs - 1}" + CHECKPOINT_SUFFIX)).is_file()
     assert (train_config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()
