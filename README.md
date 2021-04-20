@@ -11,6 +11,7 @@ On the modelling side, this toolbox supports
 - Segmentation models
 - Classification and regression models
 - Sequence models
+- Adding cloud support to any PyTorch Lightning model, via a [bring-your-own-model setup](docs/bring_your_own_model.md) 
 
 Classification, regression, and sequence models can be built with only images as inputs, or a combination of images
 and non-imaging data as input. This supports typical use cases on medical data where measurements, biomarkers, 

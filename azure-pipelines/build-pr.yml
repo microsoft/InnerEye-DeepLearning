@@ -148,3 +148,18 @@ jobs:
         parameters:
           pytest_mark: after_training_glaucoma_cv_run
           test_run_title: tests_after_training_glaucoma_cv_run
+
+  - job: TrainHelloWorld
+    variables:
+      - name: model
+        value: 'HelloWorld'
+      - name: tag
+        value: 'HelloWorldPR'
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          pytest_mark: ''
+          max_run_duration: '1h'

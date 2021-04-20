@@ -17,7 +17,7 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.plotting import segmentation_and_groundtruth_plot, surface_distance_ground_truth_plot
 from InnerEye.ML.utils import surface_distance_utils as sd_util
-from InnerEye.ML.utils.config_util import ModelConfigLoader
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.csv_util import get_worst_performing_outliers, load_csv
 from InnerEye.ML.utils.image_util import multi_label_array_to_binary
 from InnerEye.ML.utils.io_util import load_nifti_image
@@ -105,10 +105,8 @@ def main() -> None:
     if config_model is None:
         raise ValueError("The name of the model to train must be given in the --model argument.")
 
-    model_config = ModelConfigLoader[SegmentationModelBase]().create_model_config_from_name(
-        config_model,
-        overrides=parser_result.overrides
-    )
+    model_config = ModelConfigLoader().create_model_config_from_name(config_model)
+    model_config.apply_overrides(parser_result.overrides, should_validate=True)
     execution_mode = surface_distance_config.execution_mode
 
     run_mode = surface_distance_config.run_mode

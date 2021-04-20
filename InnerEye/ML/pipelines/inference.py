@@ -449,7 +449,7 @@ class InferenceBatch(CTImagesMaskedBatch):
 
     @inbatch_parallel(init='indices', post='_post_custom_components', target='threads')
     def set_component(self, batch_idx: int, component: InferenceBatch.Components, data: np.ndarray) \
-            -> Dict[InferenceBatch.Components, Any]:
+            -> Dict[str, Any]:
         logging.debug("Updated data in pipeline component: {}, for batch: {}.".format(component.value, batch_idx))
         return {
             component.value: {'type': component.value, 'data': data}

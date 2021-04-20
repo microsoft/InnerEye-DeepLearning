@@ -19,7 +19,6 @@ from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, is_windows, l
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML import model_training
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode, \
     RECOVERY_CHECKPOINT_FILE_NAME_WITH_SUFFIX, \
     STORED_CSV_FILE_NAMES
@@ -27,15 +26,15 @@ from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.model_training import aggregate_and_create_subject_metrics_file, model_train
+from InnerEye.ML.lightning_loggers import StoringLogger
+from InnerEye.ML.model_training import aggregate_and_create_subject_metrics_file
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.utils.io_util import load_nifti_image
 from InnerEye.ML.utils.model_util import create_segmentation_loss_function
 from InnerEye.ML.utils.run_recovery import RunRecovery
-from InnerEye.ML.utils.training_util import ModelTrainingResults
 from InnerEye.ML.visualizers.patch_sampling import PATCH_SAMPLING_FOLDER
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_checkpoint_handler, machine_has_gpu
+from Tests.ML.util import get_default_checkpoint_handler, machine_has_gpu, model_train_unittest
 
 config_path = full_ml_test_data_path()
 base_path = full_ml_test_data_path()
@@ -102,22 +101,24 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.recovery_checkpoint_save_interval = 1
 
     if machine_has_gpu:
-        expected_train_losses = [0.4553468, 0.454904]
-        expected_val_losses = [0.4553881, 0.4553041]
+        expected_train_losses = [0.4552919, 0.4548529]
+        expected_val_losses = [0.455389, 0.455306]
     else:
-        expected_train_losses = [0.4553469, 0.4548947]
-        expected_val_losses = [0.4553880, 0.4553041]
+        expected_train_losses = [0.4552919, 0.4548538]
+        expected_val_losses = [0.4553891, 0.4553060]
     loss_absolute_tolerance = 1e-6
     expected_learning_rates = [train_config.l_rate, 5.3589e-4]
 
-    checkpoint_handler = get_default_checkpoint_handler(model_config=train_config,
-                                                        project_root=Path(output_dirs.root_dir))
-    model_training_result = model_training.model_train(train_config,
-                                                       checkpoint_handler=checkpoint_handler)
-    assert isinstance(model_training_result, ModelTrainingResults)
+    model_training_result, _ = model_train_unittest(train_config, dirs=output_dirs)
+    assert isinstance(model_training_result, StoringLogger)
+
+    actual_train_losses = model_training_result.get_train_metric(MetricType.LOSS.value)
+    actual_val_losses = model_training_result.get_val_metric(MetricType.LOSS.value)
+    print("actual_train_losses = {}".format(actual_train_losses))
+    print("actual_val_losses = {}".format(actual_val_losses))
 
     def assert_all_close(metric: str, expected: List[float], **kwargs: Any) -> None:
-        actual = model_training_result.get_training_metric(metric)
+        actual = model_training_result.get_train_metric(metric)
         assert np.allclose(actual, expected, **kwargs), f"Mismatch for {metric}: Got {actual}, expected {expected}"
 
     # check to make sure training batches are NOT all the same across epochs
@@ -135,28 +136,24 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # and be the same across 'region' and 'region_1' because they derive from the same Nifti files.
     # The following values are read off directly from the results of compute_dice_across_patches in the training loop
     # This checks that averages are computed correctly, and that metric computers are reset after each epoch.
-    train_voxels = [[83092.0, 83212.0, 82946.0], [83000.0, 82881.0, 83309.0]]
+    train_voxels = [[82860.0, 83212.0, 83087.0], [82831.0, 82900.0, 83212.0]]
     val_voxels = [[82765.0, 83212.0], [82765.0, 83212.0]]
-    _check_voxel_count(model_training_result.train_results_per_epoch, _mean_list(train_voxels), "Train")
-    _check_voxel_count(model_training_result.val_results_per_epoch, _mean_list(val_voxels), "Val")
+    _check_voxel_count(model_training_result.train_results_per_epoch(), _mean_list(train_voxels), "Train")
+    _check_voxel_count(model_training_result.val_results_per_epoch(), _mean_list(val_voxels), "Val")
 
-    actual_train_losses = model_training_result.get_training_metric(MetricType.LOSS.value)
-    actual_val_losses = model_training_result.get_validation_metric(MetricType.LOSS.value)
-    print("actual_train_losses = {}".format(actual_train_losses))
-    print("actual_val_losses = {}".format(actual_val_losses))
     assert np.allclose(actual_train_losses, expected_train_losses, atol=loss_absolute_tolerance), "Train losses"
     assert np.allclose(actual_val_losses, expected_val_losses, atol=loss_absolute_tolerance), "Val losses"
     # Check that the metric we track for Hyperdrive runs is actually written.
     assert TrackedMetrics.Val_Loss.value.startswith(VALIDATION_PREFIX)
     tracked_metric = TrackedMetrics.Val_Loss.value[len(VALIDATION_PREFIX):]
-    for val_result in model_training_result.val_results_per_epoch:
+    for val_result in model_training_result.val_results_per_epoch():
         assert tracked_metric in val_result
 
     # The following values are read off directly from the results of compute_dice_across_patches in the
-    # training loop. Results are slightly different for CPU, hence use a larger tolerance there.
-    dice_tolerance = 1e-4 if machine_has_gpu else 4.5e-4
-    train_dice_region = [[0.0, 0.0, 4.0282e-04], [0.0309, 0.0334, 0.0961]]
-    train_dice_region1 = [[0.4806, 0.4800, 0.4832], [0.4812, 0.4842, 0.4663]]
+    # training loop. Results are slightly different for GPU, hence use a larger tolerance there.
+    dice_tolerance = 1e-3 if machine_has_gpu else 4.5e-4
+    train_dice_region = [[0.0, 0.0, 4.0282e-04], [0.0372, 0.0388, 0.1091]]
+    train_dice_region1 = [[0.4785, 0.4807, 0.4834], [0.4832, 0.4800, 0.4628]]
     # There appears to be some amount of non-determinism here: When using a tolerance of 1e-4, we get occasional
     # test failures on Linux in the cloud (not on Windows, not on AzureML) Unclear where it comes from. Even when
     # failing here, the losses match up to the expected tolerance.
@@ -192,10 +189,10 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert len(list(sampling_folder.rglob("*.png"))) == 3 * train_config.show_patch_sampling
 
     # Time per epoch: Test that we have all these times logged.
-    model_training_result.get_training_metric(MetricType.SECONDS_PER_EPOCH.value)
-    model_training_result.get_validation_metric(MetricType.SECONDS_PER_EPOCH.value)
-    model_training_result.get_validation_metric(MetricType.SECONDS_PER_BATCH.value)
-    model_training_result.get_training_metric(MetricType.SECONDS_PER_BATCH.value)
+    model_training_result.get_train_metric(MetricType.SECONDS_PER_EPOCH.value)
+    model_training_result.get_val_metric(MetricType.SECONDS_PER_EPOCH.value)
+    model_training_result.get_val_metric(MetricType.SECONDS_PER_BATCH.value)
+    model_training_result.get_train_metric(MetricType.SECONDS_PER_BATCH.value)
 
     # Issue #372
     # # Test for saving of example images
@@ -323,9 +320,7 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
 
     # First round of training
     config.num_epochs = 2
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=test_output_dirs.root_dir)
-    model_train(config, checkpoint_handler=checkpoint_handler)
+    model_train_unittest(config, dirs=test_output_dirs)
     assert len(list(config.checkpoint_folder.glob("*.*"))) == 2
 
     # Restart training from previous run
@@ -336,9 +331,13 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
     # make if seem like run recovery objects have been downloaded
     checkpoint_root = config.checkpoint_folder / "old_run"
     shutil.copytree(str(original_checkpoint_folder), str(checkpoint_root))
+
+    # Create a new checkpoint handler and set run_recovery to the copied checkpoints
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
     checkpoint_handler.run_recovery = RunRecovery([checkpoint_root])
 
-    model_train(config, checkpoint_handler=checkpoint_handler)
+    model_train_unittest(config, dirs=test_output_dirs, checkpoint_handler=checkpoint_handler)
     # remove recovery checkpoints
     shutil.rmtree(checkpoint_root)
     assert len(list(config.checkpoint_folder.glob("*.*"))) == 2

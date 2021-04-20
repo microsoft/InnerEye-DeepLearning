@@ -9,16 +9,17 @@ from dataclasses import dataclass
 from enum import Enum, unique
 from math import isclose
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import param
-from azureml.core import ScriptRunConfig
+from azureml.core import Model, ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 from pandas import DataFrame
 
-from InnerEye.Common.common_util import any_pairwise_larger, any_smaller_or_equal_than, check_is_any_of
+from InnerEye.Azure.azure_config import AzureConfig
+from InnerEye.Common.common_util import ModelProcessing, any_pairwise_larger, any_smaller_or_equal_than, check_is_any_of
 from InnerEye.Common.generic_parsing import IntTuple
 from InnerEye.Common.type_annotations import TupleFloat2, TupleFloat3, TupleInt3, TupleStringOptionalFloat
 from InnerEye.ML.common import ModelExecutionMode
@@ -264,7 +265,9 @@ class SegmentationModelBase(ModelConfigBase):
 
     #: The number of image levels used in Unet (in encoding and decoding paths).
     num_downsampling_paths: int = param.Integer(4, bounds=(1, None),
-        instantiate=False, doc="The number of levels used in a UNet architecture in encoding and decoding paths.")
+                                                instantiate=False,
+                                                doc="The number of levels used in a UNet architecture in encoding and "
+                                                    "decoding paths.")
 
     #: The size of the random crops that will be drawn from the input images during training. This is also the
     #: input size of the model.
@@ -666,7 +669,7 @@ class SegmentationModelBase(ModelConfigBase):
         """
         Loads a dataset from the dataset_csv file, and stores it in the present object.
         """
-        assert self.local_dataset is not None  # for mypy
+        assert self.local_dataset is not None, "The dataset must be provided in self.local_dataset"
         self.dataset_data_frame = pd.read_csv(self.local_dataset / self.dataset_csv,
                                               dtype=str,
                                               converters=self.col_type_converters,
@@ -793,3 +796,7 @@ class SegmentationModelBase(ModelConfigBase):
         By default no transformation is performed.
         """
         return ModelTransformsPerExecutionMode()
+
+
+PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
+ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, ModelProcessing], Any]

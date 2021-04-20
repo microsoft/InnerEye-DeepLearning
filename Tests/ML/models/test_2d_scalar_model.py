@@ -4,18 +4,17 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
-from pathlib import Path
 
 import pytest
 
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.metrics_constants import MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML import model_testing, model_training
+from InnerEye.ML import model_testing
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.metrics import InferenceMetricsForClassification
 from Tests.ML.configs.ClassificationModelForTesting2D import ClassificationModelForTesting2D
-from Tests.ML.util import get_default_checkpoint_handler
+from Tests.ML.util import model_train_unittest
 
 
 @pytest.mark.parametrize("use_mixed_precision", [False])
@@ -31,10 +30,7 @@ def test_train_2d_classification_model(test_output_dirs: OutputFolderForTests,
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
     config.use_mixed_precision = use_mixed_precision
-
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=Path(test_output_dirs.root_dir))
-    model_training_result = model_training.model_train(config, checkpoint_handler=checkpoint_handler)
+    model_training_result, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
 

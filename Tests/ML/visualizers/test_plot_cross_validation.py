@@ -397,7 +397,7 @@ def test_run_ml_with_multi_label_sequence_in_crossval(test_output_dirs: OutputFo
     config.number_of_cross_validation_splits = 2
     azure_config = get_default_azure_config()
     azure_config.train = True
-    MLRunner(config, azure_config).run()
+    MLRunner(config, azure_config=azure_config).run()
 
 
 def test_load_files_with_prediction_target() -> None:
