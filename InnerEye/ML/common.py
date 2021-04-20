@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -71,7 +71,7 @@ def get_recovery_checkpoint_path(path: Path) -> Path:
     recovery checkpoint file is present.
     :param path: Path to checkpoint folder
     """
-    recovery_checkpoint = find_latest_recovery_checkpoint(path)
+    recovery_checkpoint, _ = find_recovery_checkpoint_and_epoch(path)
     if recovery_checkpoint.is_file():
         return recovery_checkpoint
     files = list(path.glob("*"))
@@ -86,13 +86,14 @@ def get_best_checkpoint_path(path: Path) -> Path:
     return path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 
 
-def find_latest_recovery_checkpoint(path: Path) -> Optional[Path]:
+def find_recovery_checkpoint_and_epoch(path: Path) -> Optional[Tuple[Path, int]]:
     """
-    Looks at all the recovery files, extracts the epoch number for all of them. Returns the most recent (latest epoch)
-    checkpoint path. If no recovery checkpoint are found, return None.
+    Looks at all the recovery files, extracts the epoch number for all of them and returns the most recent (latest
+    epoch)
+    checkpoint path along with the corresponding epoch number. If no recovery checkpoint are found, return None.
     :param path: The folder to start searching in.
-    :return: None if there is no file matching the search pattern, or a Path object that has the latest file matching
-    the pattern.
+    :return: None if there is no file matching the search pattern, or a Tuple with Path object and integer pointing to
+    recovery checkpoint path and recovery epoch.
     """
     filenames = [f for f in path.glob(RECOVERY_CHECKPOINT_FILE_NAME + "*")]
     if len(filenames) == 0:
@@ -100,7 +101,7 @@ def find_latest_recovery_checkpoint(path: Path) -> Optional[Path]:
     # Checkpoints are saved as recovery_epoch={epoch}.ckpt, find the latest ckpt.
     recovery_epochs = [int(re.findall(r"[\d]+", f.stem)[0]) for f in filenames]
     idx_max_epoch = int(np.argmax(recovery_epochs))
-    return filenames[idx_max_epoch]
+    return filenames[idx_max_epoch], recovery_epochs[idx_max_epoch]
 
 
 def create_best_checkpoint(path: Path) -> Path:

@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import os
-import re
 import uuid
 from builtins import property
 from pathlib import Path
@@ -17,7 +16,7 @@ from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
-from InnerEye.ML.common import find_latest_recovery_checkpoint
+from InnerEye.ML.common import find_recovery_checkpoint_and_epoch
 from InnerEye.ML.deep_learning_config import OutputParams, WEIGHTS_FILE
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.utils.run_recovery import RunRecovery
@@ -87,11 +86,11 @@ class CheckpointHandler:
         the latest checkpoint will be present in this folder too.
         :return: Constructed checkpoint path to recover from.
         """
-        local_recovery = find_latest_recovery_checkpoint(self.container.checkpoint_folder)
-        if local_recovery is not None:
-            recovery_epoch = re.findall(r"[\d]+", local_recovery.stem)[0]
-            self.container._start_epoch = int(recovery_epoch)
-            return local_recovery
+        recovery = find_recovery_checkpoint_and_epoch(self.container.checkpoint_folder)
+        if recovery is not None:
+            local_recovery_path, recovery_epoch = recovery
+            self.container._start_epoch = recovery_epoch
+            return local_recovery_path
 
         elif self.local_weights_path:
             return self.local_weights_path

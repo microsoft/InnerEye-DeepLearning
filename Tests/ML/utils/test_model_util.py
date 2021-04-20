@@ -13,7 +13,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, LAST_CHECKPOINT_FILE_NAME, \
     LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint, \
-    find_latest_recovery_checkpoint
+    find_recovery_checkpoint_and_epoch
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_helpers import load_from_checkpoint_and_adjust_for_inference
@@ -104,27 +104,30 @@ def test_keep_latest(test_output_dirs: OutputFolderForTests) -> None:
     file1 = folder / (prefix + "epoch=1.txt")
     file2 = folder / (prefix + "epoch=2.txt")
     # No file present yet
-    assert find_latest_recovery_checkpoint(folder) is None
+    assert find_recovery_checkpoint_and_epoch(folder) is None
     # Single file present: This should be returned.
     file1.touch()
     # Without sleeping, the test can fail in Azure build agents
     time.sleep(0.1)
-    latest = find_latest_recovery_checkpoint(folder)
-    assert latest == file1
-    assert latest.is_file()
+    latest_checkpoint, latest_epoch = find_recovery_checkpoint_and_epoch(folder)
+    assert latest_checkpoint == file1
+    assert latest_epoch == 1
+    assert latest_checkpoint.is_file()
     # Two files present: keep file2 should be returned
     file2.touch()
     time.sleep(0.1)
-    latest = find_latest_recovery_checkpoint(folder)
-    assert latest == file2
-    assert latest.is_file()
+    latest_checkpoint, latest_epoch = find_recovery_checkpoint_and_epoch(folder)
+    assert latest_checkpoint == file2
+    assert latest_checkpoint.is_file()
+    assert latest_epoch == 2
     # Add file1 again: file should should still be returned as it has the
     # highest epoch number
     file1.touch()
     time.sleep(0.1)
-    latest = find_latest_recovery_checkpoint(folder)
-    assert latest == file2
-    assert latest.is_file()
+    latest_checkpoint, latest_epoch = find_recovery_checkpoint_and_epoch(folder)
+    assert latest_checkpoint == file2
+    assert latest_checkpoint.is_file()
+    assert latest_epoch == 2
 
 
 def test_keep_best_checkpoint(test_output_dirs: OutputFolderForTests) -> None:
