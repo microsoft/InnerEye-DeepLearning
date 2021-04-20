@@ -83,7 +83,7 @@ def test_download_checkpoints_from_single_run(test_output_dirs: OutputFolderForT
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.run_recovery
 
-    expected_checkpoint_root = config.checkpoint_folder / run_recovery_id.split(":")[1]
+    expected_checkpoint_root = config.checkpoint_folder
     expected_paths = [get_recovery_checkpoint_path(path=expected_checkpoint_root),
                       expected_checkpoint_root / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX]
     assert checkpoint_handler.run_recovery.checkpoints_roots == [expected_checkpoint_root]
@@ -146,8 +146,7 @@ def test_get_recovery_path_train_single_run(test_output_dirs: OutputFolderForTes
     checkpoint_handler.download_recovery_checkpoints_or_weights()
 
     # Run recovery with start epoch provided should succeed
-    # TODO expected path is now different
-    expected_path = get_recovery_checkpoint_path(path=config.checkpoint_folder / run_recovery_id.split(":")[1])
+    expected_path = get_recovery_checkpoint_path(path=config.checkpoint_folder)
     assert checkpoint_handler.get_recovery_path_train() == expected_path
 
 
@@ -169,8 +168,7 @@ def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) 
     # in the run, into a subfolder of the checkpoint folder
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
     checkpoint_handler.download_recovery_checkpoints_or_weights()
-    expected_checkpoint = config.checkpoint_folder / run_recovery_id.split(":")[1] \
-                          / f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}"
+    expected_checkpoint = config.checkpoint_folder / f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}"
     checkpoint_paths = checkpoint_handler.get_best_checkpoint()
     assert checkpoint_paths
     assert len(checkpoint_paths) == 1
@@ -186,8 +184,7 @@ def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) 
 
     # There is no checkpoint in the current run - use the one from run_recovery
     checkpoint_paths = checkpoint_handler.get_best_checkpoint()
-    expected_checkpoint = config.checkpoint_folder / run_recovery_id.split(":")[1] \
-                          / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    expected_checkpoint = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     assert checkpoint_paths
     assert len(checkpoint_paths) == 1
     assert checkpoint_paths[0] == expected_checkpoint
