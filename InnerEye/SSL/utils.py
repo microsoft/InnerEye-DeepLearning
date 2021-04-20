@@ -1,3 +1,8 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 import logging
 from enum import Enum
 from pathlib import Path
@@ -5,7 +10,7 @@ from typing import Optional
 
 import torch
 
-from InnerEye.ML.lightning_container import LightningWithInference
+from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
 from InnerEye.SSL import ssl_augmentation_config
 from InnerEye.SSL.config_node import ConfigNode
 from InnerEye.SSL.encoders import DenseNet121Encoder
@@ -59,7 +64,7 @@ def create_ssl_encoder(encoder_name: str, dataset_name: Optional[str] = None) ->
 
 
 def create_ssl_image_classifier(num_classes: int, freeze_encoder: bool, pl_checkpoint_path: str,
-                                class_weights: Optional[torch.Tensor] = None) -> LightningWithInference:
+                                class_weights: Optional[torch.Tensor] = None) -> LightningModuleWithOptimizer:
     """
     Creates a SSL image classifier from a frozen encoder trained on in an unsupervised manner.
     """

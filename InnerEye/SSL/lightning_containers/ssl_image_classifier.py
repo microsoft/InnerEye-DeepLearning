@@ -10,9 +10,8 @@ import torch
 from pl_bolts.models.self_supervised import SSLEvaluator
 from torch.nn import functional as F
 
-from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
-from InnerEye.ML.lightning_container import LightningWithInference
+from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.SSL.datamodules.datamodules import InnerEyeVisionDataModule
@@ -21,7 +20,7 @@ from InnerEye.SSL.ssl_online_evaluator import get_encoder_output_dim
 from InnerEye.SSL.utils import create_ssl_image_classifier
 
 
-class SSLClassifier(LightningWithInference, DeviceAwareModule):
+class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
     """
     SSL Image classifier that combines pre-trained SSL encoder with a trainable linear-head.
     """
@@ -89,15 +88,6 @@ class SSLClassifier(LightningWithInference, DeviceAwareModule):
         self.log('val_loss', loss, on_step=False, on_epoch=True, sync_dist=False)
         for metric in self.val_metrics:
             self.log(f"val_{metric.name}", metric, on_epoch=True, on_step=False)
-
-    def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor) -> None:
-        pass
-
-    def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
-        pass
-
-    def on_inference_epoch_end(self) -> None:
-        pass
 
     def get_input_tensors(self, item: ScalarItem) -> List[torch.Tensor]:
         """

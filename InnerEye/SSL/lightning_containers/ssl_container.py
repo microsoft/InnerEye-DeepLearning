@@ -6,16 +6,17 @@ from enum import Enum
 from pathlib import Path
 
 import param
+from pytorch_lightning import LightningModule
 
-from InnerEye.ML.lightning_container import LightningContainer, LightningWithInference
-from InnerEye.SSL.byol.byol_module import WrapBYOLInnerEye
+from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.SSL.byol.byol_module import BYOLInnerEye
 from InnerEye.SSL.config_node import ConfigNode
 from InnerEye.SSL.datamodules.cifar_datasets import InnerEyeCIFAR10, InnerEyeCIFAR100
 from InnerEye.SSL.datamodules.cxr_datasets import NIH, RSNAKaggleCXR
 from InnerEye.SSL.datamodules.datamodules import CombinedDataModule, InnerEyeVisionDataModule
 from InnerEye.SSL.datamodules.transforms_utils import InnerEyeCIFARLinearHeadTransform, InnerEyeCIFARTrainTransform, \
     InnerEyeCIFARValTransform, get_cxr_ssl_transforms
-from InnerEye.SSL.simclr_module import WrapSimCLRInnerEye
+from InnerEye.SSL.simclr_module import SimCLRInnerEye
 from InnerEye.SSL.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye, get_encoder_output_dim
 from InnerEye.SSL.utils import SSLModule, SSLType, load_ssl_model_config
 
@@ -101,26 +102,26 @@ class SSLContainer(LightningContainer):
             self.classifier_augmentations_path) if self.classifier_augmentations_path is not None else \
             self.yaml_config
 
-    def create_model(self) -> LightningWithInference:
+    def create_model(self) -> LightningModule:
         """
         This method must create the actual Lightning model that will be trained.
         """
         if self.ssl_training_type == SSLType.SimCLR:
-            model = WrapSimCLRInnerEye(dataset_name=self.ssl_training_dataset_name.value,
-                                       gpus=self.get_num_gpus_to_use(),
-                                       encoder_name=self.ssl_encoder.value,
-                                       num_samples=self.data_module.num_samples,
-                                       batch_size=self.data_module.batch_size,
-                                       lr=self.l_rate,
-                                       max_epochs=self.num_epochs)
+            model = SimCLRInnerEye(dataset_name=self.ssl_training_dataset_name.value,
+                                   gpus=self.get_num_gpus_to_use(),
+                                   encoder_name=self.ssl_encoder.value,
+                                   num_samples=self.data_module.num_samples,
+                                   batch_size=self.data_module.batch_size,
+                                   lr=self.l_rate,
+                                   max_epochs=self.num_epochs)
         # Create BYOL model
         else:
-            model = WrapBYOLInnerEye(dataset_name=self.ssl_training_dataset_name.value,
-                                     encoder_name=self.ssl_encoder.value,
-                                     num_samples=self.data_module.num_samples,
-                                     batch_size=self.data_module.batch_size,
-                                     learning_rate=self.l_rate,
-                                     warmup_epochs=10)
+            model = BYOLInnerEye(dataset_name=self.ssl_training_dataset_name.value,
+                                 encoder_name=self.ssl_encoder.value,
+                                 num_samples=self.data_module.num_samples,
+                                 batch_size=self.data_module.batch_size,
+                                 learning_rate=self.l_rate,
+                                 warmup_epochs=10)
         model.hparams.update({'ssl_type': self.ssl_training_type.value,
                               "num_classes": self.data_module.num_classes})
         self.encoder_output_dim = get_encoder_output_dim(model, self.data_module)

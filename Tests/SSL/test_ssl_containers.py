@@ -11,10 +11,10 @@ from pl_bolts.models.self_supervised.resnets import ResNet
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.ML.runner import Runner
-from InnerEye.SSL.byol.byol_module import WrapBYOLInnerEye
+from InnerEye.SSL.byol.byol_module import BYOLInnerEye
 from InnerEye.SSL.encoders import DenseNet121Encoder
 from InnerEye.SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
-from InnerEye.SSL.simclr_module import WrapSimCLRInnerEye
+from InnerEye.SSL.simclr_module import SimCLRInnerEye
 from InnerEye.SSL.utils import SSLModule, SSLType
 
 
@@ -44,7 +44,7 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
         loaded_config, actual_run = default_runner().run()
     assert loaded_config.encoder_output_dim == 2048
     assert loaded_config.l_rate == 1e-4
-    assert isinstance(loaded_config.model, WrapSimCLRInnerEye)
+    assert isinstance(loaded_config.model, SimCLRInnerEye)
     assert loaded_config.num_epochs == 1
     assert loaded_config.recovery_checkpoint_save_interval == 200
     assert loaded_config.ssl_training_type == SSLType.SimCLR
@@ -60,7 +60,7 @@ def test_innereye_ssl_container_cifar10_resnet_byol() -> None:
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = default_runner().run()
     assert loaded_config.ssl_training_type == SSLType.BYOL
-    assert isinstance(loaded_config.model, WrapBYOLInnerEye)
+    assert isinstance(loaded_config.model, BYOLInnerEye)
     assert loaded_config.online_eval.num_classes == 10
     assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10

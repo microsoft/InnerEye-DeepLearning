@@ -11,8 +11,6 @@ import torch.nn.functional as F
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
 from torch import Tensor as T
 
-from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.lightning_container import LightningWithInference
 from InnerEye.SSL.byol.byol_models import SSLEncoder
 from InnerEye.SSL.utils import SSLModule
 
@@ -72,12 +70,4 @@ class SimCLRInnerEye(SimCLR):
         return loss
 
 
-class WrapSimCLRInnerEye(SimCLRInnerEye, LightningWithInference):
-    def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
-        pass
 
-    def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor):
-        pass
-
-    def on_inference_epoch_end(self) -> None:
-        pass
