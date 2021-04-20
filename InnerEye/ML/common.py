@@ -71,9 +71,9 @@ def get_recovery_checkpoint_path(path: Path) -> Path:
     recovery checkpoint file is present.
     :param path: Path to checkpoint folder
     """
-    recovery_checkpoint, _ = find_recovery_checkpoint_and_epoch(path)
-    if recovery_checkpoint.is_file():
-        return recovery_checkpoint
+    recovery_ckpt_and_epoch = find_recovery_checkpoint_and_epoch(path)
+    if recovery_ckpt_and_epoch is not None:
+        return recovery_ckpt_and_epoch[0]
     files = list(path.glob("*"))
     raise FileNotFoundError(f"No checkpoint files found in {path}. Existing files: {' '.join(p.name for p in files)}")
 

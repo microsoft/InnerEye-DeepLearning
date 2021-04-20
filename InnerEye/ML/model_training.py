@@ -80,7 +80,7 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
                          save_top_k=container.save_last_k_recovery_checkpoints,
                          mode="max")
 
-    def on_train_epoch_end(self, trainer, pl_module: LightningModule, outputs: Any) -> None:
+    def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any) -> None:
         pl_module.log(name="epoch", value=trainer.current_epoch)
 
 
