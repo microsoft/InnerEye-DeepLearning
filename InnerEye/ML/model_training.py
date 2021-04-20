@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional, Tuple, TypeVar
 
 import numpy as np
 import torch
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
@@ -80,8 +80,8 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
                          save_top_k=container.save_last_k_recovery_checkpoints,
                          mode="max")
 
-    def on_validation_end(self, trainer, pl_module):
-        pl_module.log("epoch", trainer.current_epoch)
+    def on_validation_epoch_end(self, trainer, pl_module: LightningModule) -> None:
+        pl_module.log(name="epoch", value=trainer.current_epoch, on_epoch=True, on_step=False)
 
 
 def create_lightning_trainer(container: LightningContainer,
