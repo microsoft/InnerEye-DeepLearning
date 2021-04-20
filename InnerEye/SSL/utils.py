@@ -91,7 +91,9 @@ def create_ssl_image_classifier(num_classes: int, freeze_encoder: bool, pl_check
     else:
         raise NotImplementedError(f"Unknown unsupervised model: {ssl_type}")
 
-    model = SSLClassifier(num_classes=num_classes, encoder=encoder,
-                          freeze_encoder=freeze_encoder, class_weights=class_weights)
+    model = SSLClassifier(num_classes=num_classes,
+                          encoder=encoder,
+                          freeze_encoder=freeze_encoder,
+                          class_weights=class_weights)
 
     return model

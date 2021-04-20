@@ -141,7 +141,7 @@ class LightningContainer(GenericConfig,
     a LightningDataModule, by the `get_data_module` method.
     """
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._model: Optional[LightningModule] = None
         self._model_name = type(self).__name__

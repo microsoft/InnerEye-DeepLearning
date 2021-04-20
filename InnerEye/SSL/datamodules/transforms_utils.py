@@ -159,7 +159,7 @@ class DualViewTransformWrapper:
         return xi, xj
 
 
-def get_cxr_ssl_transforms(config: ConfigNode, linear_head_module: bool):
+def get_cxr_ssl_transforms(config: ConfigNode, linear_head_module: bool) -> Tuple[Callable, Callable]:
     """
     Applies wrapper around transforms to return two augmented versions of the
     same image
@@ -214,7 +214,7 @@ class InnerEyeCIFARTrainTransform(SimCLRTrainDataTransform):
     Overload lightning-bolts SimCLRTrainDataTransform, to avoid return unused eval transform.
     """
 
-    def __call__(self, sample):
+    def __call__(self, sample: Any) -> Tuple[Any, Any]:
         transform = self.train_transform
         xi = transform(sample)
         xj = transform(sample)
@@ -226,12 +226,12 @@ class InnerEyeCIFARLinearHeadTransform(SimCLRTrainDataTransform):
     Overload lightning-bolts SimCLRTrainDataTransform, to avoid return unused eval transform.
     """
 
-    def __call__(self, sample):
+    def __call__(self, sample: Any) -> Any:
         return self.online_transform(sample)
 
 
 class InnerEyeCIFARValTransform(SimCLREvalDataTransform):
-    def __call__(self, sample):
+    def __call__(self, sample: Any) -> Tuple[Any, Any]:
         transform = self.train_transform
         xi = transform(sample)
         xj = transform(sample)

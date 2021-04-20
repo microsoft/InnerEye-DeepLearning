@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import pytorch_lightning as pl
 import torch
@@ -15,8 +15,7 @@ from torch.nn import functional as F
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 from InnerEye.SSL.utils import SSLModule
 
-SingleBatchType = Tuple[List, T]
-BatchType = Union[Dict[SSLModule, SingleBatchType], SingleBatchType]
+BatchType = Union[Dict[SSLModule, Any], Any]
 
 
 class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):

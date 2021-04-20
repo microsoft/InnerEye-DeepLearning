@@ -4,15 +4,15 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from pathlib import Path
-from typing import Callable, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional
 
-import PIL
 import numpy as np
 import pandas as pd
 from PIL import Image
 from torchvision.datasets import VisionDataset
 
 from InnerEye.ML.utils.io_util import load_dicom_image
+from InnerEye.SSL.datamodules.cifar_datasets import OptionalIndexInputAndLabel
 
 
 class InnerEyeCXRDatasetBase(VisionDataset):
@@ -26,9 +26,9 @@ class InnerEyeCXRDatasetBase(VisionDataset):
                  seed: int = 1234,
                  transform: Optional[Callable] = None,
                  return_index: bool = False,
-                 **kwargs) -> None:
+                 **kwargs: Any) -> None:
         super().__init__(root=data_directory, transforms=transform)
-        self.root = Path(self.root)
+        self.root = Path(self.root)  # type: ignore
         if not self.root.exists():
             logging.error(
                 f"The data directory {self.root} does not exist. Make sure to download the data first for the Kaggle "
@@ -43,13 +43,13 @@ class InnerEyeCXRDatasetBase(VisionDataset):
         if self.targets is not None:
             logging.info(f"Proportion of positive labels {dataset_type}: {np.mean(self.targets)}")
 
-    def _prepare_dataset(self):
-        self.indices = None
-        self.filenames = None
-        self.targets = None
+    def _prepare_dataset(self) -> None:
+        self.indices: List[int] = []
+        self.filenames: List[str] = []
+        self.targets: Optional[List[int]] = None
         raise NotImplementedError("_prepare_dataset needs to be implemented by the child classes.")
 
-    def __getitem__(self, index: int) -> Union[Tuple[PIL.Image.Image, int], Tuple[int, PIL.Image.Image, int]]:
+    def __getitem__(self, index: int) -> OptionalIndexInputAndLabel:
         """
         :param index: The index of the sample to be fetched
         :return: The image and (fake) label tensors
@@ -84,7 +84,7 @@ class NIH(InnerEyeCXRDatasetBase):
     the official test set).
     """
 
-    def _prepare_dataset(self):
+    def _prepare_dataset(self) -> None:
         self.dataset_dataframe = pd.read_csv(self.root / "Data_Entry_2017.csv")
         self.indices = np.arange(len(self.dataset_dataframe))
         self.subject_ids = self.dataset_dataframe["Image Index"].values
@@ -104,7 +104,7 @@ class RSNAKaggleCXR(InnerEyeCXRDatasetBase):
     implemented.
     """
 
-    def _prepare_dataset(self):
+    def _prepare_dataset(self) -> None:
         if self.train:
             self.dataset_dataframe = pd.read_csv(self.root / "dataset.csv")
             self.targets = self.dataset_dataframe.label.values.astype(np.int64)

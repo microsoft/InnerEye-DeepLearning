@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Optional
 
 import param
 import torch
@@ -25,7 +25,11 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
     SSL Image classifier that combines pre-trained SSL encoder with a trainable linear-head.
     """
 
-    def __init__(self, num_classes: int, encoder: torch.nn.Module, freeze_encoder: bool, class_weights: torch.Tensor):
+    def __init__(self,
+                 num_classes: int,
+                 encoder: torch.nn.Module,
+                 freeze_encoder: bool,
+                 class_weights: Optional[torch.Tensor]):
         super().__init__()
         self.num_classes = num_classes
         self.encoder = encoder
