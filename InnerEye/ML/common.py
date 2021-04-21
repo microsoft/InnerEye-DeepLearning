@@ -126,6 +126,7 @@ def find_recovery_checkpoint_and_epoch(path: Path) -> Optional[PathAndEpoch]:
         return extract_latest_checkpoint_and_epoch(available_checkpoints)
     return None
 
+
 def create_best_checkpoint(path: Path) -> Path:
     """
     Creates the best checkpoint file. "Best" is at the moment defined as being the last checkpoint, but could be
@@ -143,6 +144,7 @@ def create_best_checkpoint(path: Path) -> Path:
     best = path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     last_ckpt.rename(best)
     return best
+
 
 def create_unique_timestamp_id() -> str:
     """
