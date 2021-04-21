@@ -59,7 +59,7 @@ class SSLContainer(LightningContainer):
                              SSLDatasetName.NIH.value: NIH,
                              SSLDatasetName.CIFAR10.value: InnerEyeCIFAR10,
                              SSLDatasetName.CIFAR100.value: InnerEyeCIFAR100,
-                             SSLDatasetName.CheXpert: CheXpert}
+                             SSLDatasetName.CheXpert.value: CheXpert}
 
     ssl_training_path_augmentation_config = param.ClassSelector(class_=Path, allow_None=True,
                                                                 doc="The path to the yaml config defining the "
