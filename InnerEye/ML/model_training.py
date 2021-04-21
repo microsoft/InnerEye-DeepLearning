@@ -11,7 +11,7 @@ from time import sleep
 from typing import Any, Dict, Optional, Tuple, TypeVar
 
 import numpy as np
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin

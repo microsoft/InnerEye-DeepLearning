@@ -86,8 +86,9 @@ def test_innereye_ssl_container_rsna() -> None:
     """
     runner = default_runner()
     path_to_test_dataset = str(repository_root_directory() / "Tests" / "SSL" / "test_dataset")
-    args = common_test_args + ["--model=RSNA_RSNA_BYOL",
+    args = common_test_args + ["--model=NIH_RSNA_BYOL",
                                f"--local_dataset={path_to_test_dataset}",
+                               f"--extra_local_dataset_paths={path_to_test_dataset}",
                                f"--use_balanced_binary_loss_for_linear_head=True",
                                f"--ssl_encoder={EncoderName.densenet121.value}"]
     with mock.patch("sys.argv", args), mock.patch('InnerEye.ML.utils.io_util.load_dicom_image',
@@ -96,7 +97,7 @@ def test_innereye_ssl_container_rsna() -> None:
     assert loaded_config is not None
     assert isinstance(loaded_config.model, BYOLInnerEye)
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
-    args = common_test_args + ["--model=CXRImageClassifier", f"--extra_local_dataset_paths={path_to_test_dataset}",
+    args = common_test_args + ["--model=CXRImageClassifier", f"--local_dataset={path_to_test_dataset}",
                                f"--use_balanced_binary_loss_for_linear_head=True",
                                f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args), mock.patch(
