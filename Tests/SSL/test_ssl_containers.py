@@ -79,7 +79,7 @@ def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     assert loaded_config.ssl_training_type == SSLType.BYOL
 
 
-@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
+# @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_innereye_ssl_container_rsna() -> None:
     """
     Test if we can get the config loader to load a Lightning container model, and then train locally.
@@ -91,19 +91,18 @@ def test_innereye_ssl_container_rsna() -> None:
                                f"--extra_local_dataset_paths={path_to_test_dataset}",
                                "--use_balanced_binary_loss_for_linear_head=True",
                                f"--ssl_encoder={EncoderName.densenet121.value}"]
-    with mock.patch("sys.argv", args), mock.patch('InnerEye.ML.utils.io_util.load_dicom_image',
-                                                  return_value=np.ones([256, 256])):
-        loaded_config, actual_run = runner.run()
+    with mock.patch("sys.argv", args):
+        with mock.patch('InnerEye.ML.utils.io_util.load_dicom_image', return_value=np.ones([256, 256])):
+            loaded_config, actual_run = runner.run()
     assert loaded_config is not None
     assert isinstance(loaded_config.model, BYOLInnerEye)
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
     args = common_test_args + ["--model=CXRImageClassifier", f"--local_dataset={path_to_test_dataset}",
                                "--use_balanced_binary_loss_for_linear_head=True",
                                f"--local_ssl_weights_path={checkpoint_path}"]
-    with mock.patch("sys.argv", args), mock.patch(
-            'InnerEye.ML.SSL.datamodules.cxr_datasets.InnerEyeCXRDatasetBase.read_dicom',
-            return_value=np.ones([256, 256])):
-        loaded_config, actual_run = runner.run()
+    with mock.patch("sys.argv", args):
+        with mock.patch('InnerEye.ML.utils.io_util.load_dicom_image', return_value=np.ones([256, 256])):
+            loaded_config, actual_run = runner.run()
     assert loaded_config is not None
     assert isinstance(loaded_config, SSLClassifier)
     assert loaded_config.online_eval.dataset == SSLDatasetName.RSNAKaggle.value
