@@ -251,6 +251,7 @@ class ScalarModelBase(ModelConfigBase):
         return len(self.image_channels) == 0
 
     def should_generate_multilabel_report(self) -> bool:
+        """Determines whether to produce a multilabel report. Override this to implement custom behaviour."""
         return len(self.class_names) > 1
 
     def get_total_number_of_non_imaging_features(self) -> int:
@@ -428,6 +429,7 @@ class ScalarModelBase(ModelConfigBase):
         pass
 
     def get_loss_function(self) -> Callable:
+        """Returns a custom loss function to be used with ScalarLoss.CustomClassification or CustomRegression."""
         assert self.loss_type in {ScalarLoss.CustomClassification, ScalarLoss.CustomRegression}, \
             f"get_loss_function() should be called only for custom loss types (received {self.loss_type})"
         raise NotImplementedError(f"get_loss_function() must be implemented for loss type {self.loss_type}")
