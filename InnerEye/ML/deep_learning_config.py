@@ -505,6 +505,9 @@ class DeepLearningConfig(WorkflowParams,
     use_model_parallel: bool = param.Boolean(False, doc="If true, neural network model is partitioned across all "
                                                         "available GPUs to fit in a large model. It shall not be used "
                                                         "together with data parallel.")
+    _use_gpu: Optional[bool] = param.Boolean(None,
+                                             doc="If true, a CUDA capable GPU with at least 1 device is "
+                                                 "available. If None, the use_gpu property has not yet been called.")
     pin_memory: bool = param.Boolean(True, doc="Value of pin_memory argument to DataLoader")
     restrict_subjects: Optional[str] = \
         param.String(doc="Use at most this number of subjects for train, val, or test set (must be > 0 or None). "
