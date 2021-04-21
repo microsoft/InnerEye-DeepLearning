@@ -202,5 +202,5 @@ class SSLContainer(LightningContainer):
                                                       learning_rate=self.online_evaluator_lr)
         trained_kwargs: Dict[str, Any] = {"callbacks": self.online_eval}
         if self.debug:
-            trained_kwargs.update({"limit_train_batches": 2, "limit_val_batches": 2})
+            trained_kwargs.update({"limit_train_batches": 1, "limit_val_batches": 1})
         return trained_kwargs

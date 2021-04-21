@@ -12,7 +12,6 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.ML.SSL.byol.byol_module import BYOLInnerEye
-from InnerEye.ML.SSL.encoders import DenseNet121Encoder
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
 from InnerEye.ML.SSL.lightning_containers.ssl_image_classifier import SSLClassifier
 from InnerEye.ML.SSL.simclr_module import SimCLRInnerEye
@@ -56,6 +55,7 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
     assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value
     assert not loaded_config.use_balanced_binary_loss_for_linear_head
+    assert isinstance(loaded_config.model.online_network.encoder.cnn_model, ResNet)
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
     args = common_test_args + ["--model=SSLClassifierCIFAR", f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args):
@@ -63,36 +63,20 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
 
 
 @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
-def test_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
+def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     """
     Tests that the parameters feed into the BYOL model and online evaluator are
     indeed the one we fed through our command line args
     """
     args = common_test_args + ["--model=CIFAR10CIFAR100BYOL"]
+    runner = default_runner()
     with mock.patch("sys.argv", args):
-        loaded_config, actual_run = default_runner().run()
+        runner.parse_and_load_model()
+    loaded_config = runner.lightning_container
     assert loaded_config is not None
-    assert isinstance(loaded_config.model, BYOLInnerEye)
-    assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR100.value
-    assert loaded_config.online_eval.num_classes == 100
+    assert loaded_config.classifier_dataset_name == SSLDatasetName.CIFAR100
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
     assert loaded_config.ssl_training_type == SSLType.BYOL
-    assert loaded_config.model.hparams["batch_size"] == 10  # type: ignore
-    assert loaded_config.model.hparams["dataset_name"] == SSLDatasetName.CIFAR10.value  # type: ignore
-    assert loaded_config.model.hparams["encoder_name"] == EncoderName.resnet50.value  # type: ignore
-    assert loaded_config.model.hparams["learning_rate"] == 1e-4  # type: ignore
-    assert isinstance(loaded_config.model.online_network.encoder.cnn_model, ResNet)
-
-
-def test_innereye_ssl_container_cifar10_densenet() -> None:
-    args = common_test_args + ["--model=CIFAR10BYOL", f"--ssl_encoder={EncoderName.densenet121.value}"]
-    with mock.patch("sys.argv", args):
-        loaded_config, actual_run = default_runner().run()
-    assert loaded_config is not None
-    assert isinstance(loaded_config.model, BYOLInnerEye)
-    assert isinstance(loaded_config.model.online_network.encoder.cnn_model, DenseNet121Encoder)
-    checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
-    assert checkpoint_path.exists()
 
 
 @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
@@ -102,8 +86,10 @@ def test_innereye_ssl_container_rsna() -> None:
     """
     runner = default_runner()
     path_to_test_dataset = str(repository_root_directory() / "Tests" / "SSL" / "test_dataset")
-    args = common_test_args + ["--model=RSNA_RSNA_BYOL", f"--local_dataset={path_to_test_dataset}",
-                               f"--use_balanced_binary_loss_for_linear_head=True"]
+    args = common_test_args + ["--model=RSNA_RSNA_BYOL",
+                               f"--local_dataset={path_to_test_dataset}",
+                               f"--use_balanced_binary_loss_for_linear_head=True",
+                               f"--ssl_encoder={EncoderName.densenet121.value}"]
     with mock.patch("sys.argv", args), mock.patch('InnerEye.ML.utils.io_util.load_dicom_image',
                                                   return_value=np.ones([256, 256])):
         loaded_config, actual_run = runner.run()
@@ -127,7 +113,7 @@ def test_innereye_ssl_container_rsna() -> None:
     # Check model params
     assert loaded_config.model.hparams["batch_size"] == 10
     assert loaded_config.model.hparams["dataset_name"] == SSLDatasetName.RSNAKaggle.value
-    assert loaded_config.model.hparams["encoder_name"] == EncoderName.resnet50.value
+    assert loaded_config.model.hparams["encoder_name"] == EncoderName.densenet121.value
     assert loaded_config.model.hparams["learning_rate"] == 1e-4
     assert loaded_config.model.hparams["num_samples"] == 240
     # Check some augmentation params
