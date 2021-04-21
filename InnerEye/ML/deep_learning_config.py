@@ -473,7 +473,7 @@ class TrainerParams(CudaAwareConfig):
     _use_gpu: Optional[bool] = param.Boolean(None,
                                              doc="If true, a CUDA capable GPU with at least 1 device is "
                                                  "available. If None, the use_gpu property has not yet been called.")
-    _num_gpus: int = param.Integer(0, doc="Number of gpus to use")
+    _num_gpus: Optional[int] = param.Integer(None, doc="Number of gpus to use")
 
     @property  # type: ignore
     def use_gpu(self) -> bool:  # type: ignore
