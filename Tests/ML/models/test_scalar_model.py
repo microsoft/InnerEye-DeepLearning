@@ -354,7 +354,7 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     assert (config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).exists()
 
 
-# @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
+@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
 def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if starting training from a folder where the checkpoints folder already has recovery checkpoints picks up
@@ -370,7 +370,8 @@ def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     runner.setup(use_mount_or_download_dataset=False)
     # Epochs are 0 based for saving
     create_model_and_store_checkpoint(model_config,
-                                      runner.container.checkpoint_folder / f"recovery_epoch={FIXED_EPOCH - 1}.ckpt",
+                                      runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch="
+                                                                           f"{FIXED_EPOCH - 1}{CHECKPOINT_SUFFIX}",
                                       weights_only=False)
     azure_config = get_default_azure_config()
     checkpoint_handler = CheckpointHandler(azure_config=azure_config,
@@ -381,12 +382,14 @@ def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     # We expect to have 4 checkpoints, FIXED_EPOCH (recovery), FIXED_EPOCH+1, FIXED_EPOCH and best.
     assert len(os.listdir(runner.container.checkpoint_folder)) == 4
     assert (
-                runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch="
-                                                     f"{FIXED_EPOCH - 1}.ckpt").exists()
-    assert (runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch={FIXED_EPOCH}.ckpt").exists()
+            runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch="
+                                                 f"{FIXED_EPOCH - 1}{CHECKPOINT_SUFFIX}").exists()
     assert (
-                runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch={FIXED_EPOCH +
-    1}.ckpt").exists()
+            runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch="
+                                                 f"{FIXED_EPOCH}{CHECKPOINT_SUFFIX}").exists()
+    assert (
+            runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch="
+                                                 f"{FIXED_EPOCH + 1}{CHECKPOINT_SUFFIX}").exists()
     assert (runner.container.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).exists()
     # Check that we really restarted epoch from epoch FIXED_EPOCH.
     assert list(storing_logger.epochs) == [FIXED_EPOCH, FIXED_EPOCH + 1]
