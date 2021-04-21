@@ -9,6 +9,7 @@ import pytest
 from pl_bolts.models.self_supervised.resnets import ResNet
 
 from InnerEye.Common import fixed_paths
+from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.ML.runner import Runner
 from InnerEye.SSL.byol.byol_module import BYOLInnerEye
@@ -32,6 +33,7 @@ common_test_args = ["", "--debug=True", "--num_epochs=1", "--ssl_training_batch_
                     "--num_workers=0"]
 
 
+@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     """
     Tests:
@@ -50,6 +52,9 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.num_epochs == 1
     assert loaded_config.recovery_checkpoint_save_interval == 200
     assert loaded_config.ssl_training_type == SSLType.SimCLR
+    assert loaded_config.online_eval.num_classes == 10
+    assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
+    assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value
     assert not loaded_config.use_balanced_binary_loss_for_linear_head
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
     args = common_test_args + ["--model=SSLClassifierCIFAR", f"--local_ssl_weights_path={checkpoint_path}"]
@@ -57,18 +62,7 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
         loaded_config, actual_run = default_runner().run()
 
 
-def test_innereye_ssl_container_cifar10_resnet_byol() -> None:
-    args = common_test_args + ["--model=CIFAR10BYOL"]
-    with mock.patch("sys.argv", args):
-        loaded_config, actual_run = default_runner().run()
-    assert loaded_config is not None
-    assert isinstance(loaded_config.model, BYOLInnerEye)
-    assert loaded_config.ssl_training_type == SSLType.BYOL
-    assert loaded_config.online_eval.num_classes == 10
-    assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value
-    assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
-
-
+@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     """
     Tests that the parameters feed into the BYOL model and online evaluator are
@@ -101,15 +95,15 @@ def test_innereye_ssl_container_cifar10_densenet() -> None:
     assert checkpoint_path.exists()
 
 
-@pytest.mark.parametrize("use_binary_loss_linear_head", [True, False])
-def test_innereye_ssl_container_rsna(use_binary_loss_linear_head: bool) -> None:
+@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
+def test_innereye_ssl_container_rsna() -> None:
     """
     Test if we can get the config loader to load a Lightning container model, and then train locally.
     """
     runner = default_runner()
     path_to_test_dataset = str(repository_root_directory() / "Tests" / "SSL" / "test_dataset")
     args = common_test_args + ["--model=RSNA_RSNA_BYOL", f"--local_dataset={path_to_test_dataset}",
-                               f"--use_balanced_binary_loss_for_linear_head={use_binary_loss_linear_head}"]
+                               f"--use_balanced_binary_loss_for_linear_head=True"]
     with mock.patch("sys.argv", args), mock.patch('InnerEye.ML.utils.io_util.load_dicom_image',
                                                   return_value=np.ones([256, 256])):
         loaded_config, actual_run = runner.run()
@@ -117,7 +111,7 @@ def test_innereye_ssl_container_rsna(use_binary_loss_linear_head: bool) -> None:
     assert isinstance(loaded_config.model, BYOLInnerEye)
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
     args = common_test_args + ["--model=CXRImageClassifier", f"--extra_local_dataset_paths={path_to_test_dataset}",
-                               f"--use_balanced_binary_loss_for_linear_head={use_binary_loss_linear_head}",
+                               f"--use_balanced_binary_loss_for_linear_head=True",
                                f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args), mock.patch(
             'InnerEye.SSL.datamodules.cxr_datasets.InnerEyeCXRDatasetBase.read_dicom',
