@@ -16,27 +16,6 @@ path_encoder_augmentation_cxr = repository_root_directory() / "InnerEye" / "ML" 
 path_linear_head_augmentation_cxr = repository_root_directory() / "InnerEye" / "ML" / "configs" / \
                                                         "ssl" / "cxr_linear_head.yaml"
 
-
-class RSNA_RSNA_BYOL(SSLContainer):
-    """
-    Config to train SSL model on RSNA Pneumonia detection Challenge dataset and use the same dataset to finetune
-    linear head on top,
-    """
-
-    def __init__(self) -> None:
-        super().__init__(ssl_training_dataset_name=SSLDatasetName.RSNAKaggle,
-                         classifier_dataset_name=SSLDatasetName.RSNAKaggle,
-                         azure_dataset_id=RSNA_AZURE_DATASET_ID,
-                         random_seed=1,
-                         recovery_checkpoint_save_interval=200,
-                         num_epochs=2000,
-                         ssl_training_batch_size=1200,
-                         ssl_encoder=EncoderName.resnet50,
-                         ssl_training_type=SSLType.BYOL,
-                         use_balanced_binary_loss_for_linear_head=True,
-                         ssl_training_path_augmentation_config=path_encoder_augmentation_cxr)
-
-
 class NIH_RSNA_BYOL(SSLContainer):
     """
     Config to train SSL model on NIH ChestXray dataset and use the RSNA Pneumonia detection Challenge dataset to
@@ -49,7 +28,7 @@ class NIH_RSNA_BYOL(SSLContainer):
                          azure_dataset_id=NIH_AZURE_DATASET_ID,
                          random_seed=1,
                          recovery_checkpoint_save_interval=200,
-                         num_epochs=2000,
+                         num_epochs=1000,
                          ssl_training_batch_size=1200,
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLType.BYOL,
@@ -66,7 +45,7 @@ class NIH_RSNA_SimCLR(SSLContainer):
                          azure_dataset_id=NIH_AZURE_DATASET_ID,
                          random_seed=1,
                          recovery_checkpoint_save_interval=200,
-                         num_epochs=2000,
+                         num_epochs=1000,
                          ssl_training_batch_size=1200,
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLType.SimCLR,
