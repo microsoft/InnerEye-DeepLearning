@@ -47,6 +47,9 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
 - ([#405](https://github.com/microsoft/InnerEye-DeepLearning/pull/405)) Cross-validation runs for classification models
   now also generate a report notebook summarising the metrics from the individual splits. Also includes minor formatting
   improvements for standard classification reports.
+- ([#442](https://github.com/microsoft/InnerEye-DeepLearning/pull/442)) Enable custom scalar loss, prediction targets,
+  and reporting in scalar configs, providing more flexibility for defining model configs with custom behaviour while
+  leveraging the existing InnerEye workflows.
 
 ### Changed
 
