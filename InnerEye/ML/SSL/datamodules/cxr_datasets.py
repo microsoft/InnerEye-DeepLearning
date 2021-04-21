@@ -94,6 +94,21 @@ class NIH(InnerEyeCXRDatasetBase):
         # self.indices = np.where(is_train_val_ids)[0] if self.train else np.where(~is_train_val_ids)[0]
         # self.indices = self.random_state.permutation(self.indices)
 
+class CheXpert(InnerEyeCXRDatasetBase):
+    def _prepare_dataset(self) -> None:
+        if self.train:  # for train AND val
+            self.dataset_dataframe = pd.read_csv(self.root / "train.csv")
+        else:  # test set (unused in SSL training)
+            self.dataset_dataframe = pd.read_csv(self.root / "valid.csv")
+        # Remove lateral shots
+        self.dataset_dataframe = self.dataset_dataframe.loc[self.dataset_dataframe["Frontal/Lateral"] == "Frontal"]
+        # Strip away the name of the folder that is included in the path column
+        strip_n = len("CheXpert-v1.0-small/")
+        self.dataset_dataframe.Path = self.dataset_dataframe.Path.apply(lambda x: x[strip_n:])
+
+        self.indices = np.arange(len(self.dataset_dataframe))
+        self.targets = None
+        self.filenames = [self.root / p for p in self.dataset_dataframe.Path.values]
 
 class RSNAKaggleCXR(InnerEyeCXRDatasetBase):
     """

@@ -13,7 +13,7 @@ from pytorch_lightning import LightningModule
 from InnerEye.ML.SSL.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.config_node import ConfigNode
 from InnerEye.ML.SSL.datamodules.cifar_datasets import InnerEyeCIFAR10, InnerEyeCIFAR100
-from InnerEye.ML.SSL.datamodules.cxr_datasets import NIH, RSNAKaggleCXR
+from InnerEye.ML.SSL.datamodules.cxr_datasets import CheXpert, NIH, RSNAKaggleCXR
 from InnerEye.ML.SSL.datamodules.datamodules import CombinedDataModule, InnerEyeVisionDataModule
 from InnerEye.ML.SSL.datamodules.transforms_utils import InnerEyeCIFARLinearHeadTransform, \
     InnerEyeCIFARTrainTransform, \
@@ -44,6 +44,7 @@ class SSLDatasetName(Enum):
     NIH = "NIH"
     CIFAR10 = "CIFAR10"
     CIFAR100 = "CIFAR100"
+    CheXpert = "CheXpert"
 
 
 InnerEyeDataModuleTypes = Union[InnerEyeVisionDataModule, CombinedDataModule]
@@ -57,7 +58,8 @@ class SSLContainer(LightningContainer):
     _SSLDataClassMappings = {SSLDatasetName.RSNAKaggle.value: RSNAKaggleCXR,
                              SSLDatasetName.NIH.value: NIH,
                              SSLDatasetName.CIFAR10.value: InnerEyeCIFAR10,
-                             SSLDatasetName.CIFAR100.value: InnerEyeCIFAR100}
+                             SSLDatasetName.CIFAR100.value: InnerEyeCIFAR100,
+                             SSLDatasetName.CheXpert: CheXpert}
 
     ssl_training_path_augmentation_config = param.ClassSelector(class_=Path, allow_None=True,
                                                                 doc="The path to the yaml config defining the "
