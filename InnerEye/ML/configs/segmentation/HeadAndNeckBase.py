@@ -99,7 +99,6 @@ class HeadAndNeckBase(SegmentationModelBase):
             norm_method=PhotometricNormalizationMethod.CtWindow,
             level=50,
             window=600,
-            start_epoch=0,
             l_rate=1e-3,
             min_l_rate=1e-5,
             l_rate_polynomial_gamma=0.9,

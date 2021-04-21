@@ -76,7 +76,6 @@ class ProstateBase(SegmentationModelBase):
             num_epochs=120,
             opt_eps=1e-4,
             optimizer_type=OptimizerType.Adam,
-            start_epoch=0,
             test_crop_size=(128, 512, 512),
             train_batch_size=2,
             use_mixed_precision=True,
