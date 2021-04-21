@@ -42,7 +42,7 @@ def test_update_tau() -> None:
                                batch_size=4,
                                encoder_name="resnet50",
                                warmup_epochs=10)
-    with mock.patch("InnerEye.SSL.byol.byol_module.BYOLInnerEye.global_step", 15):
+    with mock.patch("InnerEye.ML.SSL.byol.byol_module.BYOLInnerEye.global_step", 15):
         new_tau = byol_weight_update.update_tau(pl_module=byol_module, trainer=trainer)
     assert new_tau == 1 - 0.01 * (math.cos(math.pi * 15 / total_steps) + 1) / 2
 

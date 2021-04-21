@@ -6,7 +6,7 @@
 import pytest
 import torch
 
-from InnerEye.SSL.byol.byol_module import BYOLInnerEye
+from InnerEye.ML.SSL.byol.byol_module import BYOLInnerEye
 
 
 # Test cosine loss

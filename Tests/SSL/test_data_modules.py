@@ -6,8 +6,8 @@ from pathlib import Path
 
 import torch
 
-from InnerEye.SSL.datamodules.cxr_datasets import RSNAKaggleCXR
-from InnerEye.SSL.datamodules.datamodules import InnerEyeVisionDataModule
+from InnerEye.ML.SSL.datamodules.cxr_datasets import RSNAKaggleCXR
+from InnerEye.ML.SSL.datamodules.datamodules import InnerEyeVisionDataModule
 
 
 def test_weights_innereye_module() -> None:

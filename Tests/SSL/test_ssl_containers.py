@@ -114,7 +114,7 @@ def test_innereye_ssl_container_rsna() -> None:
                                f"--use_balanced_binary_loss_for_linear_head=True",
                                f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args), mock.patch(
-            'InnerEye.SSL.datamodules.cxr_datasets.InnerEyeCXRDatasetBase.read_dicom',
+            'InnerEye.ML.SSL.datamodules.cxr_datasets.InnerEyeCXRDatasetBase.read_dicom',
             return_value=np.ones([256, 256])):
         loaded_config, actual_run = runner.run()
     assert loaded_config is not None

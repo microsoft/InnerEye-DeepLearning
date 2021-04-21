@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from InnerEye.SSL.config_node import ConfigNode
+from InnerEye.ML.SSL.config_node import ConfigNode
 
 config = ConfigNode()
 
