@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import param
-import torch
 from pandas import DataFrame
 from param import Parameterized
 
@@ -473,6 +472,7 @@ class TrainerParams(CudaAwareConfig):
                                                               " from a checkpoint.")
 
     def get_num_gpus_to_use(self) -> int:
+        import torch
         num_gpus = torch.cuda.device_count() if self.use_gpu else 0
         logging.info(f"Number of available GPUs: {num_gpus}")
         if 0 <= self.max_num_gpus < num_gpus:
