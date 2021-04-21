@@ -470,6 +470,33 @@ class TrainerParams(CudaAwareConfig):
     start_epoch: int = param.Integer(0, bounds=(0, None), doc="The first epoch to train. Set to 0 to start a new "
                                                               "training. Set to a value larger than zero for starting"
                                                               " from a checkpoint.")
+    _use_gpu: Optional[bool] = param.Boolean(None,
+                                             doc="If true, a CUDA capable GPU with at least 1 device is "
+                                                 "available. If None, the use_gpu property has not yet been called.")
+
+    @property  # type: ignore
+    def use_gpu(self) -> bool:  # type: ignore
+        """
+        Returns True if a CUDA capable GPU is present and should be used, False otherwise.
+        """
+        if self._use_gpu is None:  # type: ignore
+            # Use a local import here because we don't want the whole file to depend on pytorch.
+            from InnerEye.ML.utils.ml_util import is_gpu_available
+            self._use_gpu = is_gpu_available()
+        return self._use_gpu
+
+    @use_gpu.setter
+    def use_gpu(self, value: bool) -> None:
+        """
+        Sets the flag that controls the use of the GPU. Raises a ValueError if the value is True, but no GPU is
+        present.
+        """
+        if value:
+            # Use a local import here because we don't want the whole file to depend on pytorch.
+            from InnerEye.ML.utils.ml_util import is_gpu_available
+            if not is_gpu_available():
+                raise ValueError("Can't set use_gpu to True if there is not CUDA capable GPU present.")
+        self._use_gpu = value
 
     def get_num_gpus_to_use(self) -> int:
         import torch
@@ -479,7 +506,6 @@ class TrainerParams(CudaAwareConfig):
             num_gpus = self.max_num_gpus
             logging.info(f"Restricting the number of GPUs to {num_gpus}")
         return num_gpus
-
 
 class DeepLearningConfig(WorkflowParams,
                          DatasetParams,
@@ -505,9 +531,6 @@ class DeepLearningConfig(WorkflowParams,
     use_model_parallel: bool = param.Boolean(False, doc="If true, neural network model is partitioned across all "
                                                         "available GPUs to fit in a large model. It shall not be used "
                                                         "together with data parallel.")
-    _use_gpu: Optional[bool] = param.Boolean(None,
-                                             doc="If true, a CUDA capable GPU with at least 1 device is "
-                                                 "available. If None, the use_gpu property has not yet been called.")
     pin_memory: bool = param.Boolean(True, doc="Value of pin_memory argument to DataLoader")
     restrict_subjects: Optional[str] = \
         param.String(doc="Use at most this number of subjects for train, val, or test set (must be > 0 or None). "
@@ -648,30 +671,6 @@ class DeepLearningConfig(WorkflowParams,
         :return:
         """
         return self.get_total_number_of_training_epochs()
-
-    @property  # type: ignore
-    def use_gpu(self) -> bool:  # type: ignore
-        """
-        Returns True if a CUDA capable GPU is present and should be used, False otherwise.
-        """
-        if self._use_gpu is None:  # type: ignore
-            # Use a local import here because we don't want the whole file to depend on pytorch.
-            from InnerEye.ML.utils.ml_util import is_gpu_available
-            self._use_gpu = is_gpu_available()
-        return self._use_gpu
-
-    @use_gpu.setter
-    def use_gpu(self, value: bool) -> None:
-        """
-        Sets the flag that controls the use of the GPU. Raises a ValueError if the value is True, but no GPU is
-        present.
-        """
-        if value:
-            # Use a local import here because we don't want the whole file to depend on pytorch.
-            from InnerEye.ML.utils.ml_util import is_gpu_available
-            if not is_gpu_available():
-                raise ValueError("Can't set use_gpu to True if there is not CUDA capable GPU present.")
-        self._use_gpu = value
 
     @property
     def compute_mean_teacher_model(self) -> bool:
