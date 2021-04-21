@@ -96,7 +96,7 @@ def test_checkpoint_path() -> None:
     assert LAST_CHECKPOINT_FILE_NAME == ModelCheckpoint.CHECKPOINT_NAME_LAST
 
 
-def test_find_all_recovery_checkpoints(test_output_dirs: OutputFolderForTests):
+def test_find_all_recovery_checkpoints(test_output_dirs: OutputFolderForTests) -> None:
     checkpoint_folder = test_output_dirs.root_dir
     # No recovery yet available
     (checkpoint_folder / "epoch=2.ckpt").touch()
@@ -105,11 +105,11 @@ def test_find_all_recovery_checkpoints(test_output_dirs: OutputFolderForTests):
     file_list = ["recovery_epoch=1.ckpt", "recovery.ckpt"]
     for f in file_list:
         (checkpoint_folder / f).touch()
-    found_file_names = set([f.stem for f in find_all_recovery_checkpoints(checkpoint_folder)])
+    found_file_names = set([f.stem for f in find_all_recovery_checkpoints(checkpoint_folder)])  # type: ignore
     assert len(found_file_names.difference(found_file_names)) == 0
 
 
-def test_find_latest_checkpoint_and_epoch():
+def test_find_latest_checkpoint_and_epoch() -> None:
     file_list = [Path("epoch=1.ckpt"), Path("epoch=3.ckpt"), Path("epoch=2.ckpt")]
     assert Path("epoch=3.ckpt"), 3 == extract_latest_checkpoint_and_epoch(file_list)
     invalid_file_list = [Path("epoch.ckpt"), Path("epoch=3.ckpt"), Path("epoch=2.ckpt")]

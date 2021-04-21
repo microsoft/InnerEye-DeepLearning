@@ -377,8 +377,8 @@ def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     checkpoint_handler = CheckpointHandler(azure_config=azure_config,
                                            container=runner.container,
                                            project_root=test_output_dirs.root_dir)
-    model_config, storing_logger = model_train(checkpoint_handler=checkpoint_handler,
-                                               container=runner.container)
+    _, storing_logger = model_train(checkpoint_handler=checkpoint_handler,
+                                    container=runner.container)
     # We expect to have 4 checkpoints, FIXED_EPOCH (recovery), FIXED_EPOCH+1, FIXED_EPOCH and best.
     assert len(os.listdir(runner.container.checkpoint_folder)) == 4
     assert (
@@ -392,7 +392,7 @@ def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
                                                  f"{FIXED_EPOCH + 1}{CHECKPOINT_SUFFIX}").exists()
     assert (runner.container.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).exists()
     # Check that we really restarted epoch from epoch FIXED_EPOCH.
-    assert list(storing_logger.epochs) == [FIXED_EPOCH, FIXED_EPOCH + 1]
+    assert list(storing_logger.epochs) == [FIXED_EPOCH, FIXED_EPOCH + 1]  # type: ignore
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
