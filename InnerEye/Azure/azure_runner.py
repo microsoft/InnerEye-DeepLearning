@@ -243,6 +243,8 @@ def get_or_create_python_environment(azure_config: AzureConfig,
         conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
     env_variables = {
         "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": str(source_config.upload_timeout_seconds),
+        # Occasionally uploading data during the run takes too long, and makes the job fail. Default is 300.
+        "AZUREML_RUN_KILL_SIGNAL_TIMEOUT_SEC": "900",
         "MKL_SERVICE_FORCE_INTEL": "1",
         **(source_config.environment_variables or {})
     }
