@@ -80,8 +80,6 @@ DEFAULT_TEST_ZIP_NAME = "test.zip"
 # The property in the model registry that holds the name of the Python environment
 PYTHON_ENVIRONMENT_NAME = "python_environment_name"
 
-# Output folder for SSL
-SSL_EXPERIMENT_DIR = repository_root_directory() / "experiments"
 
 def get_environment_yaml_file() -> Path:
     """
