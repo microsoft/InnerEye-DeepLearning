@@ -39,10 +39,6 @@ class InnerEyeCXRDatasetBase(VisionDataset):
         self.seed = seed
         self.random_state = np.random.RandomState(seed)
         self._prepare_dataset()
-        dataset_type = "train + val" if self.train else "test"
-        logging.info(f"Number samples - {dataset_type}: {len(self)}")
-        if self.targets is not None:
-            logging.info(f"Proportion of positive labels {dataset_type}: {np.mean(self.targets)}")
 
     def _prepare_dataset(self) -> None:
         self.indices: List[int] = []
