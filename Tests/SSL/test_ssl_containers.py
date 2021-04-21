@@ -32,7 +32,7 @@ common_test_args = ["", "--debug=True", "--num_epochs=1", "--ssl_training_batch_
                     "--num_workers=0"]
 
 
-@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
+# @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     """
     Tests:
@@ -55,7 +55,7 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
     assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value
     assert not loaded_config.use_balanced_binary_loss_for_linear_head
-    assert isinstance(loaded_config.model.online_network.encoder.cnn_model, ResNet)
+    assert isinstance(loaded_config.model.encoder.cnn_model, ResNet)
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
     args = common_test_args + ["--model=SSLClassifierCIFAR", f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args):
