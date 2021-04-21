@@ -15,7 +15,8 @@ from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.common_util import is_windows
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.reports.classification_report import ReportedScalarMetrics, get_correct_and_misclassified_examples, \
+from InnerEye.ML.reports.classification_report import ReportedScalarMetrics, Results, \
+    get_correct_and_misclassified_examples, \
     get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_labels_and_predictions, \
     plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id, \
     get_metrics_table_for_prediction_target
@@ -301,7 +302,7 @@ def test_get_correct_and_misclassified_examples() -> None:
     results = get_correct_and_misclassified_examples(val_metrics_csv=val_metrics_file,
                                                      test_metrics_csv=test_metrics_file)
 
-    assert results is not None  # for mypy
+    assert isinstance(results, Results)  # for mypy
 
     true_positives = [item[LoggingColumns.Patient.value] for _, item in results.true_positives.iterrows()]
     assert all([i in true_positives for i in [3, 4, 5]])
