@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
@@ -76,6 +77,7 @@ class RunRecovery:
             destination=config.checkpoint_folder,
             run=run
         )
+        time.sleep(60)  # Needed because AML is not fast enough to download
         return RunRecovery(checkpoints_roots=[config.checkpoint_folder])
 
     def get_recovery_checkpoint_paths(self) -> List[Path]:
