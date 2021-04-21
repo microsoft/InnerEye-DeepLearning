@@ -183,7 +183,7 @@ class SSLContainer(LightningContainer):
     def _get_transforms(self, augmentation_config: Optional[ConfigNode],
                         dataset_name: str,
                         linear_head_module: bool) -> Tuple[Any, Any]:
-        if dataset_name in [SSLDatasetName.RSNAKaggle.value, SSLDatasetName.NIH.value]:
+        if dataset_name in [SSLDatasetName.RSNAKaggle.value, SSLDatasetName.NIH.value, SSLDatasetName.CheXpert.value]:
             assert augmentation_config is not None
             train_transforms, val_transforms = get_cxr_ssl_transforms(augmentation_config, linear_head_module)
         elif dataset_name in [SSLDatasetName.CIFAR10.value, SSLDatasetName.CIFAR100.value]:
