@@ -42,7 +42,6 @@ class GbmBase(SegmentationModelBase):
             tail=[1.0],
             class_weights=equally_weighted_classes(fg_classes),
             train_batch_size=8,
-            start_epoch=0,
             num_epochs=200,
             l_rate=1e-3,
             l_rate_polynomial_gamma=0.9,

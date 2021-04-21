@@ -58,7 +58,6 @@ class HelloWorld(SegmentationModelBase):
             # and testing (ie: how many epochs to test)
             num_dataload_workers=0,
             train_batch_size=2,
-            start_epoch=0,
             num_epochs=2,
             recovery_checkpoint_save_interval=1,
             use_mixed_precision=True,

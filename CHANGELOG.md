@@ -14,10 +14,8 @@ created.
 ### Added
 
 - ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417)) Added a generic way of adding PyTorch Lightning
-  models to the toolbox. It is now possible to train almost any Lightning model with the InnerEye toolbox in AzureML,
-  with only minimum code changes required. See [the MD documentation](docs/bring_your_own_model.md) for details.
-- ([#438](https://github.com/microsoft/InnerEye-DeepLearning/pull/438)) Add links and small docs to InnerEye-Gateway and
-  InnerEye-Inference
+models to the toolbox. It is now possible to train almost any Lightning model with the InnerEye toolbox in AzureML,
+with only minimum code changes required. See [the MD documentation](docs/bring_your_own_model.md) for details.
 - ([#430](https://github.com/microsoft/InnerEye-DeepLearning/pull/430)) Update conversion to 1.0.1 InnerEye-DICOM-RT to
   add:  manufacturer, SoftwareVersions, Interpreter and ROIInterpretedTypes.
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Add the ability to train a model on multiple
@@ -49,6 +47,10 @@ created.
 - ([#405](https://github.com/microsoft/InnerEye-DeepLearning/pull/405)) Cross-validation runs for classification models
   now also generate a report notebook summarising the metrics from the individual splits. Also includes minor formatting
   improvements for standard classification reports.
+- ([#438](https://github.com/microsoft/InnerEye-DeepLearning/pull/438)) Add links and small docs to InnerEye-Gateway and InnerEye-Inference
+- ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Enable automatic job recovery from last recovery
+  checkpoint in case of job pre-emption on AML. Give the possibility to the user to keep more than one recovery
+  checkpoint.
 - ([#440](https://github.com/microsoft/InnerEye-DeepLearning/pull/440)) Added support for training of self-supervised
   models (BYOL and SimCLR) based on the bring-your-own-model framework.
   See [SSL doc](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/self_supervised_models.md) for more
@@ -67,6 +69,8 @@ created.
   end-to-end test for classification cross-validation. WARNING: upgrade PL version causes hanging of multi-node
   training.
 - ([#437](https://github.com/microsoft/InnerEye-DeepLearning/pull/437)) Upgrade to PyTorch-Lightning 1.2.8.
+- ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Recovery checkpoints are now
+  named `recovery_epoch=x.ckpt` instead of `recovery.ckpt` or `recovery-v0.ckpt`.
 
 ### Fixed
 
@@ -81,6 +85,7 @@ created.
   end-to-end test for multi-node.
 
 ### Removed
+- ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Deprecated `start_epoch` config argument.
 
 ### Deprecated
 

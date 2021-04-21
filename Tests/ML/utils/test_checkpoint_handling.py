@@ -14,7 +14,7 @@ import torch
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME
 from InnerEye.Common.fixed_paths import MODEL_WEIGHTS_DIR_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, create_recovery_checkpoint_path
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, get_recovery_checkpoint_path
 from InnerEye.ML.deep_learning_config import WEIGHTS_FILE
 from InnerEye.ML.model_config_base import ModelConfigBase
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLBACK_SINGLE_RUN, get_most_recent_run, \
@@ -83,8 +83,8 @@ def test_download_checkpoints_from_single_run(test_output_dirs: OutputFolderForT
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.run_recovery
 
-    expected_checkpoint_root = config.checkpoint_folder / run_recovery_id.split(":")[1]
-    expected_paths = [create_recovery_checkpoint_path(path=expected_checkpoint_root),
+    expected_checkpoint_root = config.checkpoint_folder
+    expected_paths = [get_recovery_checkpoint_path(path=expected_checkpoint_root),
                       expected_checkpoint_root / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX]
     assert checkpoint_handler.run_recovery.checkpoints_roots == [expected_checkpoint_root]
     for path in expected_paths:
@@ -121,13 +121,7 @@ def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None
     checkpoint_handler.container.weights_url = EXTERNAL_WEIGHTS_URL_EXAMPLE
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.local_weights_path == expected_path
-    checkpoint_handler.container.start_epoch = 0
     assert checkpoint_handler.get_recovery_path_train() == expected_path
-    # Can't resume training from an external checkpoint
-    checkpoint_handler.container.start_epoch = 20
-    with pytest.raises(ValueError) as ex:
-        checkpoint_handler.get_recovery_path_train()
-    assert ex.value.args[0] == "Start epoch is > 0, but no run recovery object has been provided to resume training."
 
     # Set a local_weights_path to get checkpoint from
     checkpoint_handler.container.weights_url = ""
@@ -136,13 +130,7 @@ def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None
     checkpoint_handler.container.local_weights_path = local_weights_path
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.local_weights_path == expected_path
-    checkpoint_handler.container.start_epoch = 0
     assert checkpoint_handler.get_recovery_path_train() == expected_path
-    # Can't resume training from an external checkpoint
-    checkpoint_handler.container.start_epoch = 20
-    with pytest.raises(ValueError) as ex:
-        checkpoint_handler.get_recovery_path_train()
-    assert ex.value.args[0] == "Start epoch is > 0, but no run recovery object has been provided to resume training."
 
 
 @pytest.mark.after_training_single_run
@@ -157,14 +145,8 @@ def test_get_recovery_path_train_single_run(test_output_dirs: OutputFolderForTes
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
     checkpoint_handler.download_recovery_checkpoints_or_weights()
 
-    # We have not set a start_epoch but we are trying to use run_recovery, this should fail
-    with pytest.raises(ValueError) as ex:
-        checkpoint_handler.get_recovery_path_train()
-        assert "Run recovery set, but start epoch is 0" in ex.value.args[0]
-
     # Run recovery with start epoch provided should succeed
-    checkpoint_handler.container.start_epoch = 20
-    expected_path = create_recovery_checkpoint_path(path=config.checkpoint_folder / run_recovery_id.split(":")[1])
+    expected_path = get_recovery_checkpoint_path(path=config.checkpoint_folder)
     assert checkpoint_handler.get_recovery_path_train() == expected_path
 
 
@@ -186,8 +168,7 @@ def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) 
     # in the run, into a subfolder of the checkpoint folder
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
     checkpoint_handler.download_recovery_checkpoints_or_weights()
-    expected_checkpoint = config.checkpoint_folder / run_recovery_id.split(":")[1] \
-                          / f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}"
+    expected_checkpoint = config.checkpoint_folder / f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}"
     checkpoint_paths = checkpoint_handler.get_best_checkpoint()
     assert checkpoint_paths
     assert len(checkpoint_paths) == 1
@@ -201,11 +182,9 @@ def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) 
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
     checkpoint_handler.download_recovery_checkpoints_or_weights()
 
-    checkpoint_handler.container.start_epoch = 1
     # There is no checkpoint in the current run - use the one from run_recovery
     checkpoint_paths = checkpoint_handler.get_best_checkpoint()
-    expected_checkpoint = config.checkpoint_folder / run_recovery_id.split(":")[1] \
-                          / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    expected_checkpoint = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     assert checkpoint_paths
     assert len(checkpoint_paths) == 1
     assert checkpoint_paths[0] == expected_checkpoint
@@ -254,7 +233,6 @@ def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None
     assert len(checkpoint_and_paths) == 1
     assert checkpoint_and_paths[0] == manage_recovery.output_params.outputs_folder / WEIGHTS_FILE
 
-    manage_recovery.container.start_epoch = 1
     manage_recovery.additional_training_done()
     manage_recovery.container.checkpoint_folder.mkdir()
 
@@ -281,7 +259,7 @@ def test_get_checkpoints_to_test_single_run(test_output_dirs: OutputFolderForTes
     # Now set a run recovery object and set the start epoch to 1, so we get one epoch from
     # run recovery and one from the training checkpoints
     manage_recovery.azure_config.run_recovery_id = run_recovery_id
-    config.start_epoch = 1
+
     manage_recovery.additional_training_done()
     manage_recovery.download_recovery_checkpoints_or_weights()
 
@@ -289,8 +267,7 @@ def test_get_checkpoints_to_test_single_run(test_output_dirs: OutputFolderForTes
 
     assert checkpoint_and_paths
     assert len(checkpoint_and_paths) == 1
-    assert checkpoint_and_paths[0] == config.checkpoint_folder / run_recovery_id.split(":")[1] / \
-           BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    assert checkpoint_and_paths[0] == config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 
     # Copy checkpoint to make it seem like training has happened
     expected_checkpoint = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
