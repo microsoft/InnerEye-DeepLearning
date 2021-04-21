@@ -168,6 +168,7 @@ class SSLContainer(LightningContainer):
         dm = InnerEyeVisionDataModule(dataset_cls=self._SSLDataClassMappings[datamodule_args.dataset_name],
                                       return_index=linear_head_module,
                                       train_transforms=train_transforms,
+                                      val_split=0.1,
                                       val_transforms=val_transforms,
                                       data_dir=str(datamodule_args.dataset_path),
                                       batch_size=datamodule_args.batch_size // num_devices,
