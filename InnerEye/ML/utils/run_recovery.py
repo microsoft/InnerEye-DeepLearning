@@ -13,8 +13,8 @@ from azureml.core import Run
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, download_outputs_from_run, fetch_child_runs, tag_values_all_distinct
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, check_properties_are_not_none
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, \
-    create_recovery_checkpoint_path, get_best_checkpoint_path
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, get_best_checkpoint_path, \
+    get_recovery_checkpoint_path
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, OutputParams
 
 
@@ -63,8 +63,7 @@ class RunRecovery:
     @staticmethod
     def download_all_checkpoints_from_run(config: OutputParams, run: Run) -> RunRecovery:
         """
-        Downloads all checkpoints of the provided run: The best checkpoint and the recovery checkpoint.
-        A single folder inside the checkpoints folder will be created that contains the downloaded checkpoints.
+        Downloads all checkpoints of the provided run inside the checkpoints folder.
         :param config: Model related configs.
         :param run: Run whose checkpoints should be recovered
         :return: run recovery information
@@ -72,16 +71,15 @@ class RunRecovery:
         if fetch_child_runs(run):
             raise ValueError(f"AzureML run {run.id} has child runs, this method does not support those.")
 
-        root_output_dir = config.checkpoint_folder / run.id
         download_outputs_from_run(
             blobs_path=Path(CHECKPOINT_FOLDER),
-            destination=root_output_dir,
+            destination=config.checkpoint_folder,
             run=run
         )
-        return RunRecovery(checkpoints_roots=[root_output_dir])
+        return RunRecovery(checkpoints_roots=[config.checkpoint_folder])
 
     def get_recovery_checkpoint_paths(self) -> List[Path]:
-        return [create_recovery_checkpoint_path(x) for x in self.checkpoints_roots]
+        return [get_recovery_checkpoint_path(x) for x in self.checkpoints_roots]
 
     def get_best_checkpoint_paths(self) -> List[Path]:
         return [get_best_checkpoint_path(x) for x in self.checkpoints_roots]
