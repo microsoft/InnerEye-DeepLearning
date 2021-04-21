@@ -15,8 +15,7 @@ from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.common_util import is_windows
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.reports.classification_report import ReportedScalarMetrics, Results, \
-    get_correct_and_misclassified_examples, \
+from InnerEye.ML.reports.classification_report import ReportedScalarMetrics, get_correct_and_misclassified_examples, \
     get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_labels_and_predictions, \
     plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id, \
     get_metrics_table_for_prediction_target
