@@ -223,8 +223,6 @@ class MLRunner:
                                                     project_root=self.project_root,
                                                     run_context=RUN_CONTEXT)
         self.checkpoint_handler.download_recovery_checkpoints_or_weights()
-        # Needed because AML is not fast enough to download
-        time.sleep(120)
 
         # A lot of the code for the built-in InnerEye models expects the output paths directly in the config files.
         if isinstance(self.container, InnerEyeContainer):
