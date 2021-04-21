@@ -301,6 +301,8 @@ def test_get_correct_and_misclassified_examples() -> None:
     results = get_correct_and_misclassified_examples(val_metrics_csv=val_metrics_file,
                                                      test_metrics_csv=test_metrics_file)
 
+    assert results is not None  # for mypy
+
     true_positives = [item[LoggingColumns.Patient.value] for _, item in results.true_positives.iterrows()]
     assert all([i in true_positives for i in [3, 4, 5]])
 
