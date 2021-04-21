@@ -563,7 +563,7 @@ def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: P
                                               k=k,
                                               prediction_target=prediction_target)
     if results is None:
-        print_header(f"Empty validation or test set", level=2)
+        print_header("Empty validation or test set", level=2)
         return
 
     print_header(f"Top {k} false positives", level=2)
@@ -742,7 +742,7 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                               k=k,
                                               prediction_target=prediction_target)
     if results is None:
-        print_header(f"Empty validation or test set", level=4)
+        print_header("Empty validation or test set", level=4)
         return
 
     test_metrics = pd.read_csv(test_metrics_csv, dtype=str)
