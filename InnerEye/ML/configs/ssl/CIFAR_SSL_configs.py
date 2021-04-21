@@ -3,8 +3,8 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from InnerEye.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
-from InnerEye.SSL.utils import SSLType
+from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
+from InnerEye.ML.SSL.utils import SSLType
 
 
 class CIFAR10SimCLR(SSLContainer):

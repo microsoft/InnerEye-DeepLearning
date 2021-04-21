@@ -103,7 +103,7 @@ def create_lightning_trainer(container: LightningContainer,
                                                    period=container.recovery_checkpoint_save_interval
                                                    )
 
-    num_gpus = container.get_num_gpus_to_use()
+    num_gpus = container.num_gpus_to_use
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
     # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if num_gpus * num_nodes > 1 else None

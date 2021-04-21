@@ -3,9 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from InnerEye.Common.fixed_paths import repository_root_directory
-from InnerEye.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
-from InnerEye.SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
-from InnerEye.SSL.utils import SSLType
+from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
+from InnerEye.ML.SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
+from InnerEye.ML.SSL.utils import SSLType
 
 RSNA_AZURE_DATASET_ID = "rsna_pneumonia_detection_kaggle_dataset"
 NIH_AZURE_DATASET_ID = "nih-training-set"
@@ -14,7 +14,7 @@ path_encoder_augmentation_cxr = repository_root_directory() / "InnerEye" / "ML" 
                                 "cxr_encoder_augmentations.yaml"
 
 path_linear_head_augmentation_cxr = repository_root_directory() / "InnerEye" / "ML" / "configs" / \
-                                                        "ssl" / "cxr_linear_head.yaml"
+                                    "ssl" / "cxr_linear_head.yaml"
 
 class NIH_RSNA_BYOL(SSLContainer):
     """

@@ -473,13 +473,14 @@ class TrainerParams(CudaAwareConfig):
     _use_gpu: Optional[bool] = param.Boolean(None,
                                              doc="If true, a CUDA capable GPU with at least 1 device is "
                                                  "available. If None, the use_gpu property has not yet been called.")
+    _num_gpus: int = param.Integer(0, doc="Number of gpus to use")
 
     @property  # type: ignore
     def use_gpu(self) -> bool:  # type: ignore
         """
         Returns True if a CUDA capable GPU is present and should be used, False otherwise.
         """
-        if self._use_gpu is None:  # type: ignore
+        if self._use_gpu is None:
             # Use a local import here because we don't want the whole file to depend on pytorch.
             from InnerEye.ML.utils.ml_util import is_gpu_available
             self._use_gpu = is_gpu_available()
@@ -498,14 +499,16 @@ class TrainerParams(CudaAwareConfig):
                 raise ValueError("Can't set use_gpu to True if there is not CUDA capable GPU present.")
         self._use_gpu = value
 
-    def get_num_gpus_to_use(self) -> int:
+    @property
+    def num_gpus_to_use(self) -> int:
         import torch
-        num_gpus = torch.cuda.device_count() if self.use_gpu else 0
-        logging.info(f"Number of available GPUs: {num_gpus}")
-        if 0 <= self.max_num_gpus < num_gpus:
-            num_gpus = self.max_num_gpus
-            logging.info(f"Restricting the number of GPUs to {num_gpus}")
-        return num_gpus
+        if self._num_gpus is None:
+            self._num_gpus = torch.cuda.device_count() if self.use_gpu else 0
+            logging.info(f"Number of available GPUs: {self._num_gpus}")
+            if 0 <= self.max_num_gpus < self._num_gpus:
+                self._num_gpus = self.max_num_gpus
+                logging.info(f"Restricting the number of GPUs to {self._num_gpus}")
+        return self._num_gpus
 
 class DeepLearningConfig(WorkflowParams,
                          DatasetParams,

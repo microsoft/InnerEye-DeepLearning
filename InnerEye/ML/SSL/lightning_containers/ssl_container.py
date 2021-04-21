@@ -10,17 +10,18 @@ from typing import Any, Dict, Optional, Tuple, Union
 import param
 from pytorch_lightning import LightningModule
 
-from InnerEye.ML.lightning_container import LightningContainer
-from InnerEye.SSL.byol.byol_module import BYOLInnerEye
-from InnerEye.SSL.config_node import ConfigNode
-from InnerEye.SSL.datamodules.cifar_datasets import InnerEyeCIFAR10, InnerEyeCIFAR100
-from InnerEye.SSL.datamodules.cxr_datasets import NIH, RSNAKaggleCXR
-from InnerEye.SSL.datamodules.datamodules import CombinedDataModule, InnerEyeVisionDataModule
-from InnerEye.SSL.datamodules.transforms_utils import InnerEyeCIFARLinearHeadTransform, InnerEyeCIFARTrainTransform, \
+from InnerEye.ML.SSL.byol.byol_module import BYOLInnerEye
+from InnerEye.ML.SSL.config_node import ConfigNode
+from InnerEye.ML.SSL.datamodules.cifar_datasets import InnerEyeCIFAR10, InnerEyeCIFAR100
+from InnerEye.ML.SSL.datamodules.cxr_datasets import NIH, RSNAKaggleCXR
+from InnerEye.ML.SSL.datamodules.datamodules import CombinedDataModule, InnerEyeVisionDataModule
+from InnerEye.ML.SSL.datamodules.transforms_utils import InnerEyeCIFARLinearHeadTransform, \
+    InnerEyeCIFARTrainTransform, \
     InnerEyeCIFARValTransform, get_cxr_ssl_transforms
-from InnerEye.SSL.simclr_module import SimCLRInnerEye
-from InnerEye.SSL.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye, get_encoder_output_dim
-from InnerEye.SSL.utils import SSLModule, SSLType, load_ssl_model_config
+from InnerEye.ML.SSL.simclr_module import SimCLRInnerEye
+from InnerEye.ML.SSL.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye, get_encoder_output_dim
+from InnerEye.ML.SSL.utils import SSLModule, SSLType, load_ssl_model_config
+from InnerEye.ML.lightning_container import LightningContainer
 
 
 @dataclass
@@ -121,7 +122,7 @@ class SSLContainer(LightningContainer):
         """
         if self.ssl_training_type == SSLType.SimCLR:
             model: LightningModule = SimCLRInnerEye(dataset_name=self.ssl_training_dataset_name.value,
-                                                    gpus=self.get_num_gpus_to_use(),
+                                                    gpus=self.num_gpus_to_use,
                                                     encoder_name=self.ssl_encoder.value,
                                                     num_samples=self.data_module.num_samples,
                                                     batch_size=self.data_module.batch_size,
@@ -156,7 +157,7 @@ class SSLContainer(LightningContainer):
         """
         Returns torch lightning data module for encoder or linear head
         """
-        num_devices = max(1, self.get_num_gpus_to_use())
+        num_devices = max(1, self.num_gpus_to_use)
         datamodule_args = self.datamodule_args[SSLModule.LINEAR_HEAD] if linear_head_module else self.datamodule_args[
             SSLModule.ENCODER]
 

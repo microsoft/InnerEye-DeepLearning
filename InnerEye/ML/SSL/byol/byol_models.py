@@ -1,12 +1,10 @@
-from typing import Tuple, Any
+from typing import Any, Tuple
 
+from torch import Tensor as T, nn
 
-from torch import Tensor as T
-from torch import nn
-
-from InnerEye.SSL.encoders import Lambda
-from InnerEye.SSL.ssl_online_evaluator import get_encoder_output_dim
-from InnerEye.SSL.utils import create_ssl_encoder
+from InnerEye.ML.SSL.encoders import Lambda
+from InnerEye.ML.SSL.ssl_online_evaluator import get_encoder_output_dim
+from InnerEye.ML.SSL.utils import create_ssl_encoder
 
 
 class _MLP(nn.Module):

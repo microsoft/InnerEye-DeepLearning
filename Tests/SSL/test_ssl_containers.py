@@ -11,13 +11,13 @@ from pl_bolts.models.self_supervised.resnets import ResNet
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import repository_root_directory
+from InnerEye.ML.SSL.byol.byol_module import BYOLInnerEye
+from InnerEye.ML.SSL.encoders import DenseNet121Encoder
+from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
+from InnerEye.ML.SSL.lightning_containers.ssl_image_classifier import SSLClassifier
+from InnerEye.ML.SSL.simclr_module import SimCLRInnerEye
+from InnerEye.ML.SSL.utils import SSLModule, SSLType
 from InnerEye.ML.runner import Runner
-from InnerEye.SSL.byol.byol_module import BYOLInnerEye
-from InnerEye.SSL.encoders import DenseNet121Encoder
-from InnerEye.SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
-from InnerEye.SSL.lightning_containers.ssl_image_classifier import SSLClassifier
-from InnerEye.SSL.simclr_module import SimCLRInnerEye
-from InnerEye.SSL.utils import SSLModule, SSLType
 
 
 def default_runner() -> Runner:

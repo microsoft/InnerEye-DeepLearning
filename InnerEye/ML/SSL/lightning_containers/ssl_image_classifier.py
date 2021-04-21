@@ -10,15 +10,15 @@ import torch
 from pl_bolts.models.self_supervised import SSLEvaluator
 from torch.nn import functional as F
 
+from InnerEye.ML.SSL.datamodules.datamodules import InnerEyeVisionDataModule
+from InnerEye.ML.SSL.lightning_containers.ssl_container import InnerEyeDataModuleTypes, SSLContainer
+from InnerEye.ML.SSL.ssl_online_evaluator import get_encoder_output_dim
+from InnerEye.ML.SSL.utils import create_ssl_image_classifier
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve, \
     ScalarMetricsBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
-from InnerEye.SSL.datamodules.datamodules import InnerEyeVisionDataModule
-from InnerEye.SSL.lightning_containers.ssl_container import InnerEyeDataModuleTypes, SSLContainer
-from InnerEye.SSL.ssl_online_evaluator import get_encoder_output_dim
-from InnerEye.SSL.utils import create_ssl_image_classifier
 
 
 class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):

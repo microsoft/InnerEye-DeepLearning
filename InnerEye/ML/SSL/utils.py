@@ -10,10 +10,10 @@ from typing import Optional
 
 import torch
 
+from InnerEye.ML.SSL import ssl_augmentation_config
+from InnerEye.ML.SSL.config_node import ConfigNode
+from InnerEye.ML.SSL.encoders import DenseNet121Encoder
 from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
-from InnerEye.SSL import ssl_augmentation_config
-from InnerEye.SSL.config_node import ConfigNode
-from InnerEye.SSL.encoders import DenseNet121Encoder
 
 
 class SSLModule(Enum):
@@ -68,10 +68,10 @@ def create_ssl_image_classifier(num_classes: int, freeze_encoder: bool, pl_check
     """
     Creates a SSL image classifier from a frozen encoder trained on in an unsupervised manner.
     """
-    from InnerEye.SSL.byol.byol_module import BYOLInnerEye
-    from InnerEye.SSL.simclr_module import SimCLRInnerEye
-    from InnerEye.SSL.ssl_online_evaluator import WrapSSL
-    from InnerEye.SSL.lightning_containers.ssl_image_classifier import SSLClassifier
+    from InnerEye.ML.SSL.byol.byol_module import BYOLInnerEye
+    from InnerEye.ML.SSL.simclr_module import SimCLRInnerEye
+    from InnerEye.ML.SSL.ssl_online_evaluator import WrapSSL
+    from InnerEye.ML.SSL.lightning_containers.ssl_image_classifier import SSLClassifier
 
     logging.info(f"Size of ckpt {Path(pl_checkpoint_path).stat().st_size}")
     loaded_params = torch.load(pl_checkpoint_path, map_location=lambda storage, loc: storage)["hyper_parameters"]

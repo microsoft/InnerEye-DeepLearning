@@ -14,9 +14,9 @@ from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from torch import Tensor as T
 from torch.optim import Adam
 
-from InnerEye.SSL.byol.byol_models import SiameseArm
-from InnerEye.SSL.byol.byol_moving_average import BYOLMAWeightUpdate
-from InnerEye.SSL.utils import SSLModule
+from InnerEye.ML.SSL.byol.byol_models import SiameseArm
+from InnerEye.ML.SSL.byol.byol_moving_average import BYOLMAWeightUpdate
+from InnerEye.ML.SSL.utils import SSLModule
 
 SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLModule, SingleBatchType], SingleBatchType]

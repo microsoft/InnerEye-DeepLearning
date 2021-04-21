@@ -12,8 +12,8 @@ from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
 from torch import Tensor as T
 from torch.nn import functional as F
 
+from InnerEye.ML.SSL.utils import SSLModule
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
-from InnerEye.SSL.utils import SSLModule
 
 BatchType = Union[Dict[SSLModule, Any], Any]
 

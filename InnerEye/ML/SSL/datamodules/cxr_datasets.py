@@ -12,8 +12,8 @@ from PIL import Image
 from torchvision.datasets import VisionDataset
 
 from InnerEye.Common.type_annotations import PathOrString
+from InnerEye.ML.SSL.datamodules.cifar_datasets import OptionalIndexInputAndLabel
 from InnerEye.ML.utils.io_util import load_dicom_image
-from InnerEye.SSL.datamodules.cifar_datasets import OptionalIndexInputAndLabel
 
 
 class InnerEyeCXRDatasetBase(VisionDataset):

@@ -13,7 +13,7 @@ from pytorch_lightning import LightningDataModule
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.utils.data import DataLoader, Dataset
 
-from InnerEye.SSL.utils import SSLModule
+from InnerEye.ML.SSL.utils import SSLModule
 
 
 class InnerEyeVisionDataModule(VisionDataModule):
