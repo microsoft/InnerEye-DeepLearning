@@ -14,9 +14,10 @@ created.
 ### Added
 
 - ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417)) Added a generic way of adding PyTorch Lightning
-models to the toolbox. It is now possible to train almost any Lightning model with the InnerEye toolbox in AzureML,
-with only minimum code changes required. See [the MD documentation](docs/bring_your_own_model.md) for details.
-- ([#438](https://github.com/microsoft/InnerEye-DeepLearning/pull/438)) Add links and small docs to InnerEye-Gateway and InnerEye-Inference
+  models to the toolbox. It is now possible to train almost any Lightning model with the InnerEye toolbox in AzureML,
+  with only minimum code changes required. See [the MD documentation](docs/bring_your_own_model.md) for details.
+- ([#438](https://github.com/microsoft/InnerEye-DeepLearning/pull/438)) Add links and small docs to InnerEye-Gateway and
+  InnerEye-Inference
 - ([#430](https://github.com/microsoft/InnerEye-DeepLearning/pull/430)) Update conversion to 1.0.1 InnerEye-DICOM-RT to
   add:  manufacturer, SoftwareVersions, Interpreter and ROIInterpretedTypes.
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Add the ability to train a model on multiple
@@ -48,6 +49,10 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
 - ([#405](https://github.com/microsoft/InnerEye-DeepLearning/pull/405)) Cross-validation runs for classification models
   now also generate a report notebook summarising the metrics from the individual splits. Also includes minor formatting
   improvements for standard classification reports.
+- ([#440](https://github.com/microsoft/InnerEye-DeepLearning/pull/440)) Added support for training of self-supervised
+  models (BYOL and SimCLR) based on the bring-your-own-model framework.
+  See [SSL doc](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/self_supervised_models.md) for more
+  details.
 
 ### Changed
 
@@ -64,6 +69,7 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
 - ([#437](https://github.com/microsoft/InnerEye-DeepLearning/pull/437)) Upgrade to PyTorch-Lightning 1.2.8.
 
 ### Fixed
+
 - ([#422](https://github.com/microsoft/InnerEye-DeepLearning/pull/422)) Documentation - clarified `setting_up_aml.md`
   datastore creation instructions and fixed small typos in `hello_world_model.md`
 - ([#432](https://github.com/microsoft/InnerEye-DeepLearning/pull/432)) Fixed cross-validation for classification
@@ -73,6 +79,7 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   set, display an error message and terminate the run.
 - ([#437](https://github.com/microsoft/InnerEye-DeepLearning/pull/437)) Fixed multi-node DDP bug in PL v1.2.8. Re-add
   end-to-end test for multi-node.
+
 ### Removed
 
 ### Deprecated
