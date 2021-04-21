@@ -323,12 +323,11 @@ def create_run_config(azure_config: AzureConfig,
                                                               environment_name=environment_name)
     run_config.target = azure_config.cluster
     run_config.max_run_duration_seconds = max_run_duration
-    if azure_config.num_nodes > 1:
-        distributed_job_config = MpiConfiguration(node_count=azure_config.num_nodes)
-        run_config.mpi = distributed_job_config
-        run_config.framework = "Python"
-        run_config.communicator = "IntelMpi"
-        run_config.node_count = distributed_job_config.node_count
+    distributed_job_config = MpiConfiguration(node_count=azure_config.num_nodes)
+    run_config.mpi = distributed_job_config
+    run_config.framework = "Python"
+    run_config.communicator = "IntelMpi"
+    run_config.node_count = distributed_job_config.node_count
     if dataset_consumption:
         run_config.data = {dataset_consumption.name: dataset_consumption}
     # Use blob storage for storing the source, rather than the FileShares section of the storage account.
