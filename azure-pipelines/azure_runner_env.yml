@@ -12,7 +12,7 @@ steps:
     condition: ne('${{ parameters.use_full_conda_environment }}', true)
 
   - bash: |
-      conda env create --file azure_runner.yml --name AzureRunner
+      conda env create --file environment.yml --name AzureRunner
       pip freeze
     failOnStderr: false
     displayName: Create full Conda environment and print package list
