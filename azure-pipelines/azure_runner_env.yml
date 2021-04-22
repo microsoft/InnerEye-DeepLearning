@@ -7,4 +7,13 @@ steps:
       conda env create --file azure_runner.yml --name AzureRunner
       pip freeze
     failOnStderr: false
-    displayName: Create conda environment and print package list
+    displayName: Create restricted Conda environment and print package list
+    condition: eq('${{ parameters.use_full_conda_environment }}', false)
+
+  - bash: |
+      conda env create --file azure_runner.yml --name AzureRunner
+      pip freeze
+    failOnStderr: false
+    displayName: Create full Conda environment and print package list
+    condition: eq('${{ parameters.use_full_conda_environment }}', true)
+
