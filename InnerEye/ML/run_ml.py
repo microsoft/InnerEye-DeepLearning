@@ -188,7 +188,9 @@ class MLRunner:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
             # This must happen before container setup because that could already read datasets.
-            self.container.local_dataset = self.mount_or_download_dataset()
+            mounted_dataset = self.mount_or_download_dataset()
+            if mounted_dataset is not None:
+                self.container.local_dataset = mounted_dataset
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
         # Creating the folder structure must happen before the LightningModule is created, because the output
