@@ -42,6 +42,13 @@ TARGET_FOLDER_UNCOMPRESSED = "fastmri_compressed"
 
 
 def get_msrest_auth(azure_config: AzureConfig) -> Union[InteractiveCredentials, ServicePrincipalCredentials]:
+    """
+    Returns the authentication objects from the msrestazure library, based on either the chosen Service Principal
+    (if set, and if the password was found), or the interactive browser authentication if not all Service Principal
+    is not set up.
+    :param azure_config: The object containing all Azure-related information.
+    :return: An msrestazure authentication object.
+    """
     secrets_handler = SecretsHandling(project_root=azure_config.project_root)
     application_key = secrets_handler.get_secret_from_environment(fixed_paths.SERVICE_PRINCIPAL_KEY,
                                                                   allow_missing=True)
@@ -58,6 +65,13 @@ def get_msrest_auth(azure_config: AzureConfig) -> Union[InteractiveCredentials, 
 
 
 def get_azure_identity_auth(azure_config: AzureConfig) -> Union[InteractiveBrowserCredential, ClientSecretCredential]:
+    """
+    Returns the authentication objects from the azure.identity library, based on either the chosen Service Principal
+    (if set, and if the password was found), or the interactive browser authentication if not all Service Principal
+    is not set up.
+    :param azure_config: The object containing all Azure-related information.
+    :return: An azure.identity authentication object.
+    """
     secrets_handler = SecretsHandling(project_root=azure_config.project_root)
     application_key = secrets_handler.get_secret_from_environment(fixed_paths.SERVICE_PRINCIPAL_KEY,
                                                                   allow_missing=True)
