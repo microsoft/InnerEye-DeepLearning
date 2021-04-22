@@ -178,3 +178,4 @@ jobs:
           wait_for_completion: 'True'
           pytest_mark: ''
           max_run_duration: '1h'
+          use_full_conda_environment: true

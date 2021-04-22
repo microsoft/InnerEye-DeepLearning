@@ -1,5 +1,9 @@
 steps:
   - template: azure_runner_env.yml
+    condition: eq('${{ parameters.use_full_conda_environment }}', false)
+
+  - template: environment.yml
+    condition: eq('${{ parameters.use_full_conda_environment }}', true)
 
   - bash: |
       set -e  # This makes the script fail if any command in it fails, not just the last one
