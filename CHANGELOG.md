@@ -55,6 +55,8 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   (`ScalarLoss.CustomClassification` and `CustomRegression`), prediction targets (`ScalarModelBase.target_names`),
   and reporting (`ModelConfigBase.generate_custom_report()`) in scalar configs, providing more flexibility for defining
   model configs with custom behaviour while leveraging the existing InnerEye workflows.
+- ([#445](https://github.com/microsoft/InnerEye-DeepLearning/pull/445)) Adding test coverage for the `HelloContainer`
+  model with multiple GPUs
 
 ### Changed
 
