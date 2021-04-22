@@ -8,7 +8,8 @@ steps:
       pip freeze
     failOnStderr: false
     displayName: Create restricted Conda environment and print package list
-    condition: eq('${{ parameters.use_full_conda_environment }}', false)
+    # If the parameter is not set at all, this will evaluate neq('', true)
+    condition: neq('${{ parameters.use_full_conda_environment }}', true)
 
   - bash: |
       conda env create --file azure_runner.yml --name AzureRunner
