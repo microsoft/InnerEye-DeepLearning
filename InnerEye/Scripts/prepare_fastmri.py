@@ -110,15 +110,15 @@ def create_datafactory_and_run(aws_access_token: str,
 
     # Create a linked service pointing to where the downloads come from
     if is_unittest:
-        http_service = LinkedServiceResource(properties=
-                                             HttpLinkedService(url="https://github.com",
-                                                               enable_server_certificate_validation=True,
-                                                               authentication_type="Anonymous"))
+        http_service = LinkedServiceResource(
+            properties=HttpLinkedService(url="https://github.com",
+                                         enable_server_certificate_validation=True,
+                                         authentication_type="Anonymous"))
     else:
-        http_service = LinkedServiceResource(properties=
-                                             HttpLinkedService(url="https://fastmri-dataset.s3.amazonaws.com/",
-                                                               enable_server_certificate_validation=True,
-                                                               authentication_type="Anonymous"))
+        http_service = LinkedServiceResource(
+            properties=HttpLinkedService(url="https://fastmri-dataset.s3.amazonaws.com/",
+                                         enable_server_certificate_validation=True,
+                                         authentication_type="Anonymous"))
     http_name = "AwsHttp"
     adf_client.linked_services.create_or_update(resource_group_name=azure_config.resource_group,
                                                 factory_name=data_factory_name,
