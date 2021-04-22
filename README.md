@@ -56,7 +56,7 @@ WSL here](docs/WSL.md).
 
 Clone the repository into a subfolder of the current directory:
 ```shell script
-git clone https://github.com/microsoft/InnerEye-DeepLearning
+git clone --recursive https://github.com/microsoft/InnerEye-DeepLearning
 cd InnerEye-DeepLearning
 git lfs install
 git lfs pull
@@ -100,6 +100,7 @@ Further detailed instructions, including setup in Azure, are here:
 1. [Debugging and monitoring models](docs/debugging_and_monitoring.md)
 1. [Model diagnostics](docs/model_diagnostics.md)
 1. [Deployment](docs/deploy_on_aml.md)
+1. [Working with FastMRI models](docs/fastmri.md)
 
 ## More information
 

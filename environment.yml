@@ -11,6 +11,7 @@ dependencies:
   - pip:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - azure-mgmt-resource==10.2.0
+      - azure-mgmt-datafactory==1.1.0
       - azureml-mlflow==1.23.0
       - azureml-sdk==1.23.0
       - azureml-tensorboard==1.23.0
