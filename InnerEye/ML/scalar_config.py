@@ -42,12 +42,15 @@ class ScalarLoss(Enum):
     BinaryCrossEntropyWithLogits = "BinaryCrossEntropyWithLogits"
     WeightedCrossEntropyWithLogits = "WeightedCrossEntropyWithLogits"
     MeanSquaredError = "MeanSquaredError"
+    CustomClassification = "CustomClassification"
+    CustomRegression = "CustomRegression"
 
     def is_classification_loss(self) -> bool:
-        return self == self.BinaryCrossEntropyWithLogits or self == self.WeightedCrossEntropyWithLogits
+        return self in {self.BinaryCrossEntropyWithLogits, self.WeightedCrossEntropyWithLogits,
+                        self.CustomClassification}
 
     def is_regression_loss(self) -> bool:
-        return self == self.MeanSquaredError
+        return self in {self.MeanSquaredError, self.CustomRegression}
 
 
 @unique
@@ -112,6 +115,14 @@ class ScalarModelBase(ModelConfigBase):
                                             "For binary classification, this field must be a list of size 1, and "
                                             "is by default ['Default'], but can optionally be set to a more descriptive "
                                             "name for the positive class.")
+    target_names: List[str] = param.List(class_=str,
+                                         default=None,
+                                         bounds=(1, None),
+                                         doc="The label names for each output target, used for logging metrics and "
+                                             "reporting results. If provided, the length of this list must match the "
+                                             "number of model outputs (and of transformed labels, if defined; see "
+                                             "get_posthoc_label_transform()). By default, this inherits the value of "
+                                             "class_names at initialisation.")
     aggregation_type: AggregationType = param.ClassSelector(default=AggregationType.Average, class_=AggregationType,
                                                             doc="The type of global pooling aggregation to use between"
                                                                 " the encoder and the classifier.")
@@ -214,6 +225,8 @@ class ScalarModelBase(ModelConfigBase):
                          "num_dataset_reader_workers to 0 as this is an AML run.")
         else:
             self.num_dataset_reader_workers = num_dataset_reader_workers
+        if self.target_names is None:
+            self.target_names = self.class_names
 
     def validate(self) -> None:
         if len(self.class_names) > 1 and not self.is_classification_model:
@@ -239,6 +252,10 @@ class ScalarModelBase(ModelConfigBase):
         Returns whether the model uses non image features only
         """
         return len(self.image_channels) == 0
+
+    def should_generate_multilabel_report(self) -> bool:
+        """Determines whether to produce a multilabel report. Override this to implement custom behaviour."""
+        return len(self.class_names) > 1
 
     def get_total_number_of_non_imaging_features(self) -> int:
         """Returns the total number of non imaging features expected in the input"""
@@ -338,6 +355,14 @@ class ScalarModelBase(ModelConfigBase):
         """
         return LabelTransformation.identity
 
+    def get_posthoc_label_transform(self) -> Callable:
+        """
+        Return a transformation to apply to the labels after they are loaded, for computing losses, metrics, and
+        reports. The transformed labels refer to the config's target_names, if defined (class_names, otherwise).
+        If not overriden, this method does not change the loaded labels.
+        """
+        return lambda x: x  # no-op by default
+
     def read_dataset_into_dataframe_and_pre_process(self) -> None:
         assert self.local_dataset is not None
         file_path = self.local_dataset / self.dataset_csv
@@ -407,6 +432,12 @@ class ScalarModelBase(ModelConfigBase):
 
     def create_model(self) -> Any:
         pass
+
+    def get_loss_function(self) -> Callable:
+        """Returns a custom loss function to be used with ScalarLoss.CustomClassification or CustomRegression."""
+        assert self.loss_type in {ScalarLoss.CustomClassification, ScalarLoss.CustomRegression}, \
+            f"get_loss_function() should be called only for custom loss types (received {self.loss_type})"
+        raise NotImplementedError(f"get_loss_function() must be implemented for loss type {self.loss_type}")
 
     def get_post_loss_logits_normalization_function(self) -> Callable:
         """

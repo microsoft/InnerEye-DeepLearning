@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional, Tuple, TypeVar
 
 import numpy as np
 import torch
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
@@ -21,7 +21,7 @@ from pytorch_lightning.utilities.exceptions import MisconfigurationException
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, change_working_directory
 from InnerEye.Common.resource_monitor import ResourceMonitor
-from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, cleanup_checkpoint_folder
+from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint
 from InnerEye.ML.deep_learning_config import ARGS_TXT, VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
 from InnerEye.ML.lightning_container import LightningContainer
@@ -71,6 +71,26 @@ def write_args_file(config: Any, outputs_folder: Path) -> None:
     logging.info(output)
 
 
+class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
+    """
+    This callback is used to save recovery checkpoints.
+    In particular, it makes sure we are logging "epoch", this is needed to the last k
+    checkpoints (here save_top_k is based on the epoch number instead of validation loss,
+    PL only allows to save_top_k for logged quantities).
+    """
+
+    def __init__(self, container: LightningContainer):
+        super().__init__(dirpath=str(container.checkpoint_folder),
+                         monitor="epoch",
+                         filename=RECOVERY_CHECKPOINT_FILE_NAME + "_{epoch}",
+                         period=container.recovery_checkpoint_save_interval,
+                         save_top_k=container.recovery_checkpoints_save_last_k,
+                         mode="max")
+
+    def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any) -> None:
+        pl_module.log(name="epoch", value=trainer.current_epoch)
+
+
 def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1,
@@ -95,14 +115,12 @@ def create_lightning_trainer(container: LightningContainer,
                                                # monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
                                                # save_top_k=1,
                                                save_last=True)
+
     # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
-    # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs. Due to a bug in Lightning, this
-    # will still write alternate files recovery.ckpt and recovery-v0.ckpt, which are cleaned up later in
-    # cleanup_checkpoint_folder
-    recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
-                                                   filename=RECOVERY_CHECKPOINT_FILE_NAME,
-                                                   period=container.recovery_checkpoint_save_interval
-                                                   )
+    # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
+    # recovery_checkpoints_save_last_k.
+    recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
+
     available_gpus = torch.cuda.device_count()
     num_gpus = available_gpus if container.use_gpu else 0
     no_gpu_message = "" if container.use_gpu else ". Not using any GPU because the use_gpu flag is set to False."
@@ -243,7 +261,7 @@ def model_train(checkpoint_handler: CheckpointHandler,
         sys.exit()
 
     logging.info("Choosing the best checkpoint and removing redundant files.")
-    cleanup_checkpoint_folder(container.checkpoint_folder)
+    create_best_checkpoint(container.checkpoint_folder)
     # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
     # those environment variables will mislead the training runs in the test suite, and make them crash.
     # Hence, restore the original environment after training.

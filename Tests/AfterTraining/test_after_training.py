@@ -40,10 +40,10 @@ from InnerEye.ML.utils.io_util import zip_random_dicom_series
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape
 
-FALLBACK_ENSEMBLE_RUN = "refs_pull_432_merge:HD_3af84e4a-0043-4260-8be2-04ce9ab09b1f"
-FALLBACK_SINGLE_RUN = "refs_pull_407_merge:refs_pull_407_merge_1614271518_cdbeb28e"
-FALLBACK_2NODE_RUN = "refs_pull_385_merge:refs_pull_385_merge_1612421371_ba12a007"
-FALLBACK_CV_GLAUCOMA = "refs_pull_432_merge_1618332810_b5d10d74"
+FALLBACK_ENSEMBLE_RUN = "refs_pull_439_merge:HD_403627fe-c564-4e36-8ba3-c2915d64e220"
+FALLBACK_SINGLE_RUN = "refs_pull_439_merge:refs_pull_439_merge_1618850856_cd910071"
+FALLBACK_2NODE_RUN = "refs_pull_439_merge:refs_pull_439_merge_1618850855_4d2356f9"
+FALLBACK_CV_GLAUCOMA = "refs_pull_439_merge:HD_252cdfa3-bce4-49c5-bf53-995ee3bcab4c"
 
 
 def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> str:

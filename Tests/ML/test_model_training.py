@@ -19,9 +19,9 @@ from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, is_windows, l
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode, \
-    RECOVERY_CHECKPOINT_FILE_NAME_WITH_SUFFIX, \
-    STORED_CSV_FILE_NAMES
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_SUFFIX, DATASET_CSV_FILE_NAME, \
+    ModelExecutionMode, \
+    RECOVERY_CHECKPOINT_FILE_NAME, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
@@ -43,9 +43,10 @@ base_path = full_ml_test_data_path()
 def test_get_total_number_of_training_epochs() -> None:
     c = DeepLearningConfig(num_epochs=2, should_validate=False)
     assert c.get_total_number_of_training_epochs() == 2
-    c = DeepLearningConfig(num_epochs=10, start_epoch=5, should_validate=False)
-    assert c.get_total_number_of_training_epochs() == 5
-
+    c = DeepLearningConfig(num_epochs=10, should_validate=False)
+    # Fake recovering training
+    c.recovery_start_epoch = 2
+    assert c.get_total_number_of_training_epochs() == 8
 
 @pytest.mark.parametrize("image_channels", [["region"], ["random_123"]])
 @pytest.mark.parametrize("ground_truth_ids", [["region", "region"], ["region", "other_region"]])
@@ -176,7 +177,8 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert train_config.checkpoint_folder.is_dir()
     actual_checkpoints = list(train_config.checkpoint_folder.rglob("*.ckpt"))
     assert len(actual_checkpoints) == 2, f"Actual checkpoints: {actual_checkpoints}"
-    assert (train_config.checkpoint_folder / RECOVERY_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
+    assert (train_config.checkpoint_folder / str(
+        RECOVERY_CHECKPOINT_FILE_NAME + f"_epoch={train_config.num_epochs - 1}" + CHECKPOINT_SUFFIX)).is_file()
     assert (train_config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()
@@ -324,7 +326,6 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
     assert len(list(config.checkpoint_folder.glob("*.*"))) == 2
 
     # Restart training from previous run
-    config.start_epoch = 2
     config.num_epochs = 3
     config.set_output_to(test_output_dirs.root_dir / "recovered")
     os.makedirs(str(config.outputs_folder))

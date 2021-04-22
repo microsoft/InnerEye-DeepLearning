@@ -301,6 +301,8 @@ def test_get_correct_and_misclassified_examples() -> None:
     results = get_correct_and_misclassified_examples(val_metrics_csv=val_metrics_file,
                                                      test_metrics_csv=test_metrics_file)
 
+    assert results is not None  # for mypy
+
     true_positives = [item[LoggingColumns.Patient.value] for _, item in results.true_positives.iterrows()]
     assert all([i in true_positives for i in [3, 4, 5]])
 
@@ -322,6 +324,8 @@ def test_get_k_best_and_worst_performing() -> None:
     results = get_k_best_and_worst_performing(val_metrics_csv=val_metrics_file,
                                               test_metrics_csv=test_metrics_file,
                                               k=2)
+
+    assert results is not None  # for mypy
 
     best_true_positives = [item[LoggingColumns.Patient.value] for _, item in results.true_positives.iterrows()]
     assert best_true_positives == [5, 4]

@@ -102,6 +102,8 @@ Further detailed instructions, including setup in Azure, are here:
 1. [Deployment](docs/deploy_on_aml.md)
 1. [Working with FastMRI models](docs/fastmri.md)
 
+![docs/deployment.png](docs/deployment.png)
+
 ## More information
 
 1. [Project InnerEye](https://www.microsoft.com/en-us/research/project/medical-image-analysis/)

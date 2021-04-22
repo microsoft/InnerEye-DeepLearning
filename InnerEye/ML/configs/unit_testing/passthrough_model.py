@@ -4,19 +4,19 @@
 #  ------------------------------------------------------------------------------------------
 import random
 from typing import Any, List
+
 import numpy as np
 import pandas as pd
 import torch
 from torch.nn.parameter import Parameter
 
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.config import equally_weighted_classes, ModelArchitectureConfig, SegmentationModelBase
+from InnerEye.ML.config import ModelArchitectureConfig, SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.configs.segmentation.Lung import AZURE_DATASET_ID
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.models.parallel.model_parallel import get_device_from_parameters, move_to_device
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-
 
 RANDOM_COLOUR_GENERATOR = random.Random(0)
 RECTANGLE_STROKE_THICKNESS = 3
@@ -48,7 +48,6 @@ class PassThroughModel(SegmentationModelBase):
             inference_batch_size=1,
             class_weights=equally_weighted_classes(fg_classes, background_weight=0.02),
             feature_channels=[1],
-            start_epoch=0,
             num_epochs=1,
             # Necessary to avoid https://github.com/pytorch/pytorch/issues/45324
             max_num_gpus=1,
