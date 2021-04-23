@@ -83,7 +83,7 @@ def create_inference_pipeline(model_config: SegmentationModelBase,
     :param full_path_to_checkpoints: Checkpoints to use for model inference.
     :param use_gpu: If GPU should be used or not.
     """
-    model_config.use_gpu = use_gpu
+    model_config.max_num_gpus = -1 if use_gpu else 0
     logging.info('test_config: ' + model_config.model_name)
 
     inference_pipeline: Optional[FullImageInferencePipelineBase]

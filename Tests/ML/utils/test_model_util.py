@@ -60,7 +60,7 @@ def test_create_model_from_lightning_checkpoint(test_output_dirs: OutputFolderFo
                                                 use_gpu: bool) -> None:
     config = config_cls()
     config.use_model_parallel = True
-    config.use_gpu = use_gpu
+    config.max_num_gpus = -1 if use_gpu else 0
     # Check that loading from an invalid checkpoint raises an error
     with pytest.raises(FileNotFoundError):
         checkpoint_path = test_output_dirs.root_dir / "nonexist.ckpt"

@@ -16,7 +16,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Run
 from azureml.core.model import Model
 from azureml.data import FileDataset
-from pytorch_lightning import LightningModule, Trainer, seed_everything
+from pytorch_lightning import LightningModule, seed_everything
 from pytorch_lightning.utilities.cloud_io import load as pl_load
 from torch.utils.data import DataLoader
 
@@ -188,7 +188,9 @@ class MLRunner:
             # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
             # and config.local_dataset was not already set.
             # This must happen before container setup because that could already read datasets.
-            self.container.local_dataset = self.mount_or_download_dataset()
+            mounted_dataset = self.mount_or_download_dataset()
+            if mounted_dataset is not None:
+                self.container.local_dataset = mounted_dataset
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
         # Creating the folder structure must happen before the LightningModule is created, because the output
@@ -319,16 +321,15 @@ class MLRunner:
                                                project_root=self.project_root,
                                                run_context=RUN_CONTEXT)
         checkpoint_handler.download_recovery_checkpoints_or_weights()
-        trainer: Optional[Trainer] = None
         # do training and inference, unless the "only register" switch is set (which requires a run_recovery
         # to be valid).
         if not self.azure_config.only_register_model:
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    trainer, _ = model_train(checkpoint_handler,
-                                             container=self.container,
-                                             num_nodes=self.azure_config.num_nodes)
+                    model_train(checkpoint_handler,
+                                container=self.container,
+                                num_nodes=self.azure_config.num_nodes)
                 # log the number of epochs used for model training
                 RUN_CONTEXT.log(name="Train epochs", value=self.container.num_epochs)
             elif isinstance(self.container, InnerEyeContainer):
@@ -354,14 +355,16 @@ class MLRunner:
                     self.create_ensemble_model_and_run_inference()
         else:
             # Inference for all models that are specified via LightningContainers.
-            self.run_inference_for_lightning_models(checkpoint_handler.get_checkpoints_to_test(), trainer)
+            with logging_section("Model inference"):
+                self.run_inference_for_lightning_models(checkpoint_handler.get_checkpoints_to_test())
             # We can't enforce that files are written to the output folder, hence change the working directory manually
             with change_working_directory(self.container.outputs_folder):
                 self.container.create_report()
 
-    def run_inference_for_lightning_models(self, checkpoint_paths: List[Path], trainer: Optional[Trainer]) -> None:
+    def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
         """
         Run inference on the test set for all models that are specified via a LightningContainer.
+        :param checkpoint_paths: The path to the checkpoint that should be used for inference.
         """
         if len(checkpoint_paths) != 1:
             raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
@@ -395,14 +398,16 @@ class MLRunner:
         elif type(lightning_model).test_step != LightningModule.test_step:
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
             logging.info("Running inference via the LightningModule.test_step method")
-            trainer = trainer or create_lightning_trainer(self.container)[0]
+            # Lightning does not cope with having two calls to .fit or .test in the same script. As a workaround for
+            # now, restrict number of GPUs to 1, meaning that it will not start DDP.
+            self.container.max_num_gpus = 1
+            trainer = create_lightning_trainer(self.container, num_nodes=1)[0]
             # When training models that are not built-in InnerEye models, we have no guarantee that they write
             # files to the right folder. Best guess is to change the current working directory to where files should go.
             with change_working_directory(self.container.outputs_folder):
                 trainer.test(self.container.model,
                              test_dataloaders=self.container.get_data_module().test_dataloader(),
                              ckpt_path=str(checkpoint_paths[0]))
-            logging.info("Finished inference.")
         else:
             logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
 

@@ -57,6 +57,8 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   model configs with custom behaviour while leveraging the existing InnerEye workflows.
 - ([#444](https://github.com/microsoft/InnerEye-DeepLearning/pull/444)) Added a Python script to onboard the FastMRI
 challenge datasets directly to Azure blob storage.
+- ([#445](https://github.com/microsoft/InnerEye-DeepLearning/pull/445)) Adding test coverage for the `HelloContainer`
+  model with multiple GPUs
 
 ### Changed
 
@@ -85,6 +87,8 @@ challenge datasets directly to Azure blob storage.
   set, display an error message and terminate the run.
 - ([#437](https://github.com/microsoft/InnerEye-DeepLearning/pull/437)) Fixed multi-node DDP bug in PL v1.2.8. Re-add
   end-to-end test for multi-node.
+- ([#445](https://github.com/microsoft/InnerEye-DeepLearning/pull/445)) Fixed a bug when running inference for
+ container models on machines with >1 GPU
 
 ### Removed
 - ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Deprecated `start_epoch` config argument.
