@@ -8,7 +8,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import List, Union
 
-from azure.identity import ClientSecretCredential, InteractiveBrowserCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.datafactory import DataFactoryManagementClient
 from azure.mgmt.datafactory.models import (AzureBlobStorageLinkedService,
                                            AzureBlobStorageLocation,
@@ -29,7 +29,6 @@ from azure.mgmt.datafactory.models import (AzureBlobStorageLinkedService,
                                            RunFilterParameters,
                                            SecureString)
 from azure.mgmt.resource import ResourceManagementClient
-from msrestazure.azure_active_directory import InteractiveCredentials, ServicePrincipalCredentials
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.secrets_handling import SecretsHandling
@@ -41,34 +40,11 @@ TARGET_CONTAINER = "datasets"
 TARGET_FOLDER_UNCOMPRESSED = "fastmri_compressed"
 
 
-def get_msrest_auth(azure_config: AzureConfig) -> Union[InteractiveCredentials, ServicePrincipalCredentials]:
-    """
-    Returns the authentication objects from the msrestazure library, based on either the chosen Service Principal
-    (if set, and if the password was found), or the interactive browser authentication if not all Service Principal
-    is not set up.
-    :param azure_config: The object containing all Azure-related information.
-    :return: An msrestazure authentication object.
-    """
-    secrets_handler = SecretsHandling(project_root=azure_config.project_root)
-    application_key = secrets_handler.get_secret_from_environment(fixed_paths.SERVICE_PRINCIPAL_KEY,
-                                                                  allow_missing=True)
-    if not application_key:
-        logging.warning("Unable to retrieve the key for the Service Principal authentication "
-                        f"(expected in environment variable '{fixed_paths.SERVICE_PRINCIPAL_KEY}' or YAML). "
-                        f"Switching to interactive login.")
-        return InteractiveCredentials()
-
-    return ServicePrincipalCredentials(
-        tenant=azure_config.tenant_id,
-        client_id=azure_config.application_id,
-        secret=application_key)
-
-
-def get_azure_identity_auth(azure_config: AzureConfig) -> Union[InteractiveBrowserCredential, ClientSecretCredential]:
+def get_azure_identity_auth(azure_config: AzureConfig) -> Union[DefaultAzureCredential, ClientSecretCredential]:
     """
     Returns the authentication objects from the azure.identity library, based on either the chosen Service Principal
-    (if set, and if the password was found), or the interactive browser authentication if not all Service Principal
-    is not set up.
+    (if that was set in the InnerEye setings.yml file, and if the password was found), or otherwise the
+    interactive browser authentication if not all Service Principal information was found.
     :param azure_config: The object containing all Azure-related information.
     :return: An azure.identity authentication object.
     """
@@ -78,8 +54,8 @@ def get_azure_identity_auth(azure_config: AzureConfig) -> Union[InteractiveBrows
     if not application_key:
         logging.warning("Unable to retrieve the key for the Service Principal authentication "
                         f"(expected in environment variable '{fixed_paths.SERVICE_PRINCIPAL_KEY}' or YAML). "
-                        f"Switching to interactive login.")
-        return InteractiveBrowserCredential()
+                        f"Switching to default authenticationlogin.")
+        return DefaultAzureCredential()
 
     return ClientSecretCredential(
         tenant_id=azure_config.tenant_id,
@@ -105,14 +81,13 @@ def create_datafactory_and_run(aws_access_token: str,
     data_factory_name = "fastmri-copy-data"
 
     # Get either the Service Principal authentication, if those are set already, or use interactive auth in the browser
-    msrest_auth = get_msrest_auth(azure_config)
+    azureid_auth = get_azure_identity_auth(azure_config)
 
     print(f"Retrieving resource group {azure_config.resource_group}")
-    resource_client = ResourceManagementClient(msrest_auth, azure_config.subscription_id)
+    resource_client = ResourceManagementClient(azureid_auth, azure_config.subscription_id)
     resource_group = resource_client.resource_groups.get(resource_group_name=azure_config.resource_group)
 
     # Create a data factory
-    azureid_auth = get_azure_identity_auth(azure_config)
     adf_client = DataFactoryManagementClient(azureid_auth, azure_config.subscription_id)
     df_resource = Factory(location=resource_group.location)
     print(f"Creating data factory {data_factory_name}")
