@@ -16,7 +16,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Run
 from azureml.core.model import Model
 from azureml.data import FileDataset
-from pytorch_lightning import LightningModule, Trainer, seed_everything
+from pytorch_lightning import LightningModule, seed_everything
 from pytorch_lightning.utilities.cloud_io import load as pl_load
 from torch.utils.data import DataLoader
 
