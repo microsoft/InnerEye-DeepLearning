@@ -4,9 +4,11 @@
 #  ------------------------------------------------------------------------------------------
 import argparse
 import logging
+import re
 import time
 from datetime import datetime, timedelta, timezone
-from typing import List, Union
+from pathlib import Path
+from typing import Dict, List, Union
 
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.datafactory import DataFactoryManagementClient
@@ -39,6 +41,31 @@ TARGET_CONTAINER = "datasets"
 # The folder in the TARGET_CONTAINER that holds all the uncompressed files that were downloaded.
 TARGET_FOLDER_UNCOMPRESSED = "fastmri_compressed"
 
+# Mapping different of the raw tar.gz files to separate dataset folders.
+# First tuple item is the target folder in blob storage, then comes a list of raw files to extract into that folder.
+files_to_download = [
+    ("knee_singlecoil", ["knee_singlecoil_train.tar.gz",
+                         "knee_singlecoil_val.tar.gz",
+                         "knee_singlecoil_test_v2.tar.gz",
+                         "knee_singlecoil_challenge.tar.gz"]),
+    ("knee_multicoil", ["multicoil_train.tar.gz",
+                        "multicoil_val.tar.gz",
+                        "knee_multicoil_test_v2.tar.gz",
+                        "knee_multicoil_challenge.tar.gz"]),
+    ("knee_DICOMs", [
+        "knee_mri_dicom_batch1.tar",
+        "knee_mri_dicom_batch2.tar"
+    ]),
+    ("brain_multicoil", ["brain_multicoil_train.tar.gz",
+                         "brain_multicoil_val.tar.gz",
+                         "brain_multicoil_test.tar.gz",
+                         "brain_multicoil_challenge.tar.gz",
+                         "brain_multicoil_challenge_transfer.tar.gz"]),
+    ("brain_DICOMs", [
+        "brain_fastMRI_DICOM.tar.gz"
+    ])
+]
+
 
 def get_azure_identity_auth(azure_config: AzureConfig) -> Union[DefaultAzureCredential, ClientSecretCredential]:
     """
@@ -63,14 +90,14 @@ def get_azure_identity_auth(azure_config: AzureConfig) -> Union[DefaultAzureCred
         client_secret=application_key)
 
 
-def create_datafactory_and_run(aws_access_token: str,
+def create_datafactory_and_run(files_and_tokens: Dict[str, str],
                                connection_string: str,
                                is_unittest: bool = False) -> None:
     """
     Builds an Azure Data Factory to download the FastMRI dataset from AWS, and places them in Azure Blob Storage.
+    :param files_and_tokens: A mapping from file name (like knee.tar.gz) to AWS access token.
     :param is_unittest: If True, download a small tar.gz file from github. If False, download the "real" fastMRI
     datafiles from AWS.
-    :param aws_access_token: The access token for accessing the FastMRI data on AWS.
     :param connection_string: The connection string of the Azure storage where the downloaded data should be stored.
     """
 
@@ -137,7 +164,7 @@ def create_datafactory_and_run(aws_access_token: str,
         if is_unittest:
             http_source = HttpServerLocation(relative_url="gulpjs/gulp/archive/v3.9.1.tar.gz")
         else:
-            http_source = HttpServerLocation(relative_url=f"{source_file}{aws_access_token}")
+            http_source = HttpServerLocation(relative_url=f"{source_file}{files_and_tokens[source_file]}")
         source_file_cleaned = source_file.replace(".", "_")
         # A dataset that reads the files from AWS as-is
         source_compressed = BinaryDataset(linked_service_name=linked_http,
@@ -205,37 +232,10 @@ def create_datafactory_and_run(aws_access_token: str,
                                               pipeline=PipelineResource(activities=[uncompress]))
         return [pipeline1, pipeline2]
 
-    # Mapping different of the raw tar.gz files to separate dataset folders.
-    # First tuple item is the target folder in blob storage, then comes a list of raw files to extract into that folder.
-    files_to_download = [
-        ("knee_singlecoil", ["knee_singlecoil_train.tar.gz",
-                             "knee_singlecoil_val.tar.gz",
-                             "knee_singlecoil_test_v2.tar.gz",
-                             "knee_singlecoil_challenge.tar.gz"]),
-        ("knee_multicoil", ["knee_multicoil_train.tar.gz",
-                            "knee_multicoil_val.tar.gz",
-                            "knee_multicoil_test_v2.tar.gz",
-                            "knee_multicoil_challenge.tar.gz"]),
-        ("knee_DICOMs", [
-            "knee_mri_dicom_batch1.tar",
-            "knee_mri_dicom_batch2.tar"
-        ]),
-        ("brain_multicoil", ["brain_multicoil_train.tar.gz",
-                             "brain_multicoil_val.tar.gz",
-                             "brain_multicoil_test.tar.gz",
-                             "brain_multicoil_challenge.tar.gz",
-                             "brain_multicoil_challenge_transfer.tar.gz"]),
-        ("brain_DICOMs", [
-            "brain_fastMRI_DICOM.tar.gz"
-        ])
-    ]
-
-    if is_unittest:
-        files_to_download = [("antonsctest", ["foo.tar.gz", "bar.tar"])]
-
+    file_list = [("antonsctest", ["foo.tar.gz", "bar.tar"])] if is_unittest else files_to_download
     all_pipelines = []
     print("Creating pipelines:")
-    for target_folder, files in files_to_download:
+    for target_folder, files in file_list:
         for file in files:
             pipelines = download_and_uncompress(file, target_folder=target_folder)
             for p in pipelines:
@@ -292,12 +292,30 @@ def create_datafactory_and_run(aws_access_token: str,
     adf_client.factories.delete(azure_config.resource_group, data_factory_name)
 
 
+def extract_access_tokens(text: str) -> Dict[str, str]:
+    """
+    Parses the given text for https URLs with an attached access token. Returns a dictionary mapping from
+    file to file with access token, like `knee.tar.gz` -> `keen.tar.gz?AWSAccessKeyId=...`
+    :param text: The text with https URLs
+    :return:
+    """
+    result: Dict[str, str] = {}
+    for match in re.finditer(r'(https://fastmri-dataset.s3.amazonaws.com/)([._a-zA-Z0-9]+)(\?[a-zA-Z0-9=&%]+)', text):
+        file = match.group(2)
+        token = match.group(3)
+        if file in result:
+            raise ValueError(f"Input file contains multiple entries for file {file}")
+        print(f"Found access token for {file}: {token}")
+        result[file] = token
+    return result
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Creates an Azure Data Factory to download FastMRI data and store in'
                                                  'Azure blob storage')
     parser.add_argument(
-        '--aws_token',
-        dest='aws_token',
+        '--curl',
+        dest='curl',
         action='store',
         type=str,
         required=True)
@@ -308,7 +326,18 @@ if __name__ == "__main__":
         type=str,
         required=True)
     known_args, unknown_args = parser.parse_known_args()
-    aws_access_token = known_args.aws_token
+    curl_file = Path(known_args.curl)
+    if not curl_file.is_file():
+        raise FileNotFoundError(f"File not found: {curl_file}")
+    files_and_tokens = extract_access_tokens(curl_file.read_text())
+    any_files_missing = False
+    for _, files in files_to_download:
+        for f in files:
+            if f not in files_and_tokens:
+                any_files_missing = True
+                print(f"No token found in the curl file for {f}")
+    if any_files_missing:
+        exit(1)
     connection_string = known_args.connection_string
-    create_datafactory_and_run(aws_access_token=aws_access_token,
+    create_datafactory_and_run(files_and_tokens=files_and_tokens,
                                connection_string=connection_string)

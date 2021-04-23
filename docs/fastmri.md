@@ -17,31 +17,32 @@ AWS into Azure blob storage.
 ## Registering for the challenge
 In order to download the dataset, you need to register [here](https://fastmri.org/dataset/).
 
-You will shortly receive an email with links to the dataset. In that email, there is a section containing 
-scripts to download, like this:
+You will shortly receive an email with links to the dataset. In that email, there are two sections containing  
+scripts to download the data, like this:
 ```
 To download Knee MRI files, we recommend using curl with recovery mode turned on:
 curl -C "https://....amazonaws.com/knee_singlecoil_train.tar.gz?AWSAccessKeyId=...Expires=1610309839" --output knee_singlecoil_train.tar.gz"
 ...
 ```
-You will later need the access token encoded in the URL, starting with the `?` and ending with the number, like 
-`?AWSAccessKeyId=...Expires=1610309839`
+There are two sections of that kind, one for the knee data and one for the brain data. Copy and paste all the line
+with `curl` commands into a text file, for example called `curl.txt`. In total, there should be 10 lines with `curl` 
+commands for the knee data, and 7 for the brain data (including the SHA256 file).
 
 ## Download the dataset directly to blob storage via Azure Data Factory
 
 We are providing a script that will bulk download all files in the FastMRI dataset from AWS to Azure blob storage.
 To start that script, you need
-- The AWS access token that was provided to you in the email from the challenge organizers, see above. It will look
-something like this `?AWSAccessKeyId=...Expires=1610309839`.
+- The file that contains all the `curl` commands to download the data, see above. The script will extract all the
+ AWS access tokens from the `curl` commands.
 - The connection string to the Azure storage account that stores your dataset. To get that, navigate to the 
 [Azure Portal](https://portal.azure.com), and search for the storage account that you created to hold your datasets
 (Step 4 in [AzureML setup](setting_up_aml.md)). On the left hand navigation, there is a section "Access Keys", select
 that and copy out the connection string (it will look something like 
 `DefaultEndpointsProtocol=....==;EndpointSuffix=core.windows.net`)
 
-Then run the script to download the dataset as follows, providing the access token and the connection string as 
-commandline arguments, enclosed in double quotes:
-`python InnerEye/Scripts/prepare_fastmri.py --aws_token "<your_AWS_token>" --connection_string "<your_connection_string"`
+Then run the script to download the dataset as follows, providing the path the the file with the curl commands
+and the connection string as commandline arguments, enclosed in double quotes:
+`python InnerEye/Scripts/prepare_fastmri.py --curl curl.txt --connection_string "<your_connection_string"`
 
 This script will
 - Authenticate against Azure either using the Service Principal credentials that you set up in Step 3 of the
