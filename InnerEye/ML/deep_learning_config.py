@@ -501,7 +501,7 @@ class TrainerParams(CudaAwareConfig):
         self._use_gpu = value
 
     @property
-    def num_gpus_to_use(self) -> int:
+    def num_gpus_per_node(self) -> int:
         import torch
         if self._num_gpus is None:
             self._num_gpus = torch.cuda.device_count() if self.use_gpu else 0

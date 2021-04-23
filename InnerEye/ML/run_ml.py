@@ -171,6 +171,7 @@ class MLRunner:
             container = InnerEyeContainer(model_config)
         self.container = container
         self.azure_config: AzureConfig = azure_config or AzureConfig()
+        self.container.num_nodes = self.azure_config.num_nodes
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
