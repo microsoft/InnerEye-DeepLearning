@@ -17,7 +17,7 @@ from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
-from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
+from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, create_unique_timestamp_id, \
     get_best_checkpoint_path, get_recovery_checkpoint_path
@@ -428,7 +428,7 @@ class OptimizerParams(param.Parameterized):
         self._min_l_rate = value
 
 
-class TrainerParams(CudaAwareConfig):
+class TrainerParams(param.Parameterized):
     num_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
     recovery_checkpoint_save_interval: int = param.Integer(10, bounds=(0, None),
                                                            doc="Save epoch checkpoints when epoch number is a multiple "
@@ -459,13 +459,23 @@ class TrainerParams(CudaAwareConfig):
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
                           "you may see training speed increases.")
 
+    @property
+    def use_gpu(self) -> bool:
+        """
+        Returns True if a GPU is available, and the self.max_num_gpus flag allows it to be used. Returns False
+        otherwise (i.e., if there is no GPU available, or self.max_num_gpus==0)
+        """
+        if self.max_num_gpus == 0:
+            return False
+        from InnerEye.ML.utils.ml_util import is_gpu_available
+        return is_gpu_available()
+
 
 class DeepLearningConfig(WorkflowParams,
                          DatasetParams,
                          OutputParams,
                          OptimizerParams,
                          TrainerParams,
-                         CudaAwareConfig,
                          GenericConfig):
     """
     A class that holds all settings that are shared across segmentation models and regression/classification models.
@@ -626,30 +636,6 @@ class DeepLearningConfig(WorkflowParams,
         :return:
         """
         return self.get_total_number_of_training_epochs()
-
-    @property  # type: ignore
-    def use_gpu(self) -> bool:  # type: ignore
-        """
-        Returns True if a CUDA capable GPU is present and should be used, False otherwise.
-        """
-        if self._use_gpu is None:
-            # Use a local import here because we don't want the whole file to depend on pytorch.
-            from InnerEye.ML.utils.ml_util import is_gpu_available
-            self._use_gpu = is_gpu_available()
-        return self._use_gpu
-
-    @use_gpu.setter
-    def use_gpu(self, value: bool) -> None:
-        """
-        Sets the flag that controls the use of the GPU. Raises a ValueError if the value is True, but no GPU is
-        present.
-        """
-        if value:
-            # Use a local import here because we don't want the whole file to depend on pytorch.
-            from InnerEye.ML.utils.ml_util import is_gpu_available
-            if not is_gpu_available():
-                raise ValueError("Can't set use_gpu to True if there is not CUDA capable GPU present.")
-        self._use_gpu = value
 
     @property
     def compute_mean_teacher_model(self) -> bool:
