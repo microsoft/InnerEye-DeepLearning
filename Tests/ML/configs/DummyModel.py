@@ -49,7 +49,6 @@ class DummyModel(SegmentationModelBase):
             trim_percentiles=(1, 99),
             inference_batch_size=1,
             train_batch_size=2,
-            start_epoch=0,
             num_epochs=2,
             l_rate=1e-3,
             l_rate_polynomial_gamma=0.9,

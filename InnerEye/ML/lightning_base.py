@@ -20,8 +20,8 @@ from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import DatasetParams, DeepLearningConfig, WorkflowParams, OutputParams, \
-    TrainerParams
+from InnerEye.ML.deep_learning_config import DatasetParams, DeepLearningConfig, OutputParams, TrainerParams, \
+    WorkflowParams
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.metrics import EpochTimers, MAX_ITEM_LOAD_TIME_SEC, store_epoch_metrics

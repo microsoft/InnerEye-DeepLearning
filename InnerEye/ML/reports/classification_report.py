@@ -81,6 +81,7 @@ def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str,
 
     df = pd.read_csv(csv)
     df = df[df[LoggingColumns.Hue.value] == prediction_target]  # Filter by prediction target
+    df = df[~df[LoggingColumns.Label.value].isna()]  # Filter missing labels
 
     # Filter by crossval split index
     if crossval_split_index is not None:
@@ -279,7 +280,7 @@ def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase,
     :param is_crossval_report: If True, assumes CSV contains results for multiple cross-validation runs and plots the
     curves with median and confidence intervals. Otherwise, plots curves for a single run.
     """
-    for prediction_target in config.class_names:
+    for prediction_target in config.target_names:
         print_header(f"Class: {prediction_target}", level=3)
         if is_crossval_report:
             all_metrics = [get_labels_and_predictions(metrics_csv, prediction_target,
@@ -469,7 +470,7 @@ def print_metrics_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
     :param is_crossval_report: If True, assumes CSVs contain results for multiple cross-validation runs and prints the
         metrics along with means and standard deviations. Otherwise, prints metrics for a single run.
     """
-    for prediction_target in config.class_names:
+    for prediction_target in config.target_names:
         print_header(f"Class: {prediction_target}", level=3)
         rows, header = get_metrics_table_for_prediction_target(
             csv_to_set_optimal_threshold=csv_to_set_optimal_threshold,
@@ -484,7 +485,7 @@ def print_metrics_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
 
 
 def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_csv: Path,
-                                           prediction_target: str = MetricsDict.DEFAULT_HUE_KEY) -> Results:
+                                           prediction_target: str = MetricsDict.DEFAULT_HUE_KEY) -> Optional[Results]:
     """
     Given the paths to the metrics files for the validation and test sets, get a list of true positives,
     false positives, false negatives and true negatives.
@@ -495,11 +496,17 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
     """
     df_val = read_csv_and_filter_prediction_target(val_metrics_csv, prediction_target)
 
+    if len(df_val) == 0:
+        return None
+
     fpr, tpr, thresholds = roc_curve(df_val[LoggingColumns.Label.value], df_val[LoggingColumns.ModelOutput.value])
     optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
     optimal_threshold = thresholds[optimal_idx]
 
     df_test = read_csv_and_filter_prediction_target(test_metrics_csv, prediction_target)
+
+    if len(df_test) == 0:
+        return None
 
     df_test["predicted"] = df_test.apply(lambda x: int(x[LoggingColumns.ModelOutput.value] >= optimal_threshold),
                                          axis=1)
@@ -516,7 +523,7 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
 
 
 def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int,
-                                    prediction_target: str = MetricsDict.DEFAULT_HUE_KEY) -> Results:
+                                    prediction_target: str = MetricsDict.DEFAULT_HUE_KEY) -> Optional[Results]:
     """
     Get the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
     top "k" worst predictions (i.e. misclassifications where the model was the most confident).
@@ -524,6 +531,8 @@ def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pat
     results = get_correct_and_misclassified_examples(val_metrics_csv=val_metrics_csv,
                                                      test_metrics_csv=test_metrics_csv,
                                                      prediction_target=prediction_target)
+    if results is None:
+        return None
 
     # sort by model_output
     sorted = Results(true_positives=results.true_positives.sort_values(by=LoggingColumns.ModelOutput.value,
@@ -553,6 +562,9 @@ def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: P
                                               test_metrics_csv=test_metrics_csv,
                                               k=k,
                                               prediction_target=prediction_target)
+    if results is None:
+        print_header("Empty validation or test set", level=2)
+        return
 
     print_header(f"Top {k} false positives", level=2)
     for index, (subject, model_output) in enumerate(zip(results.false_positives[LoggingColumns.Patient.value],
@@ -729,6 +741,9 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
                                               test_metrics_csv=test_metrics_csv,
                                               k=k,
                                               prediction_target=prediction_target)
+    if results is None:
+        print_header("Empty validation or test set", level=4)
+        return
 
     test_metrics = pd.read_csv(test_metrics_csv, dtype=str)
 
