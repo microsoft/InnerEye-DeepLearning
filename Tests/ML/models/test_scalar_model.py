@@ -56,7 +56,7 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     """
     logging_to_stdout(logging.DEBUG)
     config = ClassificationModelForTesting()
-    config.class_names = [class_name]
+    config.class_names = config.target_names = [class_name]
     config.set_output_to(test_output_dirs.root_dir)
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4

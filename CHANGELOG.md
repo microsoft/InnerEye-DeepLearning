@@ -51,10 +51,10 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
 - ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Enable automatic job recovery from last recovery
   checkpoint in case of job pre-emption on AML. Give the possibility to the user to keep more than one recovery
   checkpoint.
-- ([#440](https://github.com/microsoft/InnerEye-DeepLearning/pull/440)) Added support for training of self-supervised
-  models (BYOL and SimCLR) based on the bring-your-own-model framework.
-  See [SSL doc](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/self_supervised_models.md) for more
-  details.
+- ([#442](https://github.com/microsoft/InnerEye-DeepLearning/pull/442)) Enable defining custom scalar losses
+  (`ScalarLoss.CustomClassification` and `CustomRegression`), prediction targets (`ScalarModelBase.target_names`),
+  and reporting (`ModelConfigBase.generate_custom_report()`) in scalar configs, providing more flexibility for defining
+  model configs with custom behaviour while leveraging the existing InnerEye workflows.
 
 ### Changed
 
