@@ -401,7 +401,7 @@ class MLRunner:
             # Lightning does not cope with having two calls to .fit or .test in the same script. As a workaround for
             # now, restrict number of GPUs to 1, meaning that it will not start DDP.
             self.container.max_num_gpus = 1
-            trainer = create_lightning_trainer(self.container, num_nodes=1)[0]
+            trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
             # When training models that are not built-in InnerEye models, we have no guarantee that they write
             # files to the right folder. Best guess is to change the current working directory to where files should go.
             with change_working_directory(self.container.outputs_folder):
