@@ -1,5 +1,7 @@
 steps:
   - template: azure_runner_env.yml
+    parameters:
+      use_full_conda_environment: '${{ parameters.use_full_conda_environment }}'
 
   - bash: |
       set -e  # This makes the script fail if any command in it fails, not just the last one

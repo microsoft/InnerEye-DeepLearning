@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import argparse
 import logging
-from typing import Any, Callable, Dict, Generic, List, Optional, Set, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Type, Union
 
 import param
 
-from InnerEye.Common.common_util import is_gpu_tensor, is_private_field_name
+from InnerEye.Common.common_util import is_private_field_name
 from InnerEye.Common.type_annotations import T
 
 # Need this as otherwise a description of all the params in a class is added to the class docstring
@@ -43,36 +43,6 @@ class IntTuple(param.NumericTuple):
                 if not isinstance(n, int):
                     raise ValueError("{}: tuple element at index {} with value {} in {} is not an integer"
                                      .format(self.name, i, n, val))
-
-
-class CudaAwareConfig(param.Parameterized, Generic[T]):
-    use_gpu: bool = param.Boolean(False, doc="The use_gpu flag will be "
-                                             "set based upon the available GPU devices.")
-
-    def get_cuda_devices(self) -> List[Any]:
-        """
-        Get the number of available CUDA devices or return an empty list if they do not exist.
-        """
-        from torch.cuda import device_count
-        from torch import device
-        if self.use_gpu:
-            return [device(type='cuda', index=i) for i in list(range(device_count()))]
-        else:
-            return []
-
-    def get_gpu_tensor_if_possible(self, data: T) -> Any:
-        """"
-        Get a cuda tensor if this transform was cuda enabled and a GPU is available, otherwise
-        return the input.
-        """
-        import torch
-        if isinstance(data, torch.Tensor):
-            if self.use_gpu and not is_gpu_tensor(data):
-                return data.cuda()
-            else:
-                return data
-        else:
-            return data
 
 
 class GenericConfig(param.Parameterized):

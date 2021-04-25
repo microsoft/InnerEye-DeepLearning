@@ -126,10 +126,11 @@ def create_lightning_trainer(container: LightningContainer,
     if 0 <= container.max_num_gpus < num_gpus:
         num_gpus = container.max_num_gpus
         logging.info(f"Restricting the number of GPUs to {num_gpus}")
-    # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
-    # For unit tests, only "ddp_spawn" works
-    accelerator = "ddp" if num_gpus * num_nodes > 1 else None
-    plugins = [InnerEyeDDPPlugin(num_nodes=num_nodes, sync_batchnorm=True)] if num_gpus * num_nodes > 1 else None
+    effective_num_gpus = num_gpus * num_nodes
+    # Accelerator should be "ddp" when training large models in AzureML (when using DDP_spawn, we get out of GPU
+    # memory). For unit tests, only "ddp_spawn" works
+    accelerator = "ddp" if effective_num_gpus > 1 else None
+    plugins = [InnerEyeDDPPlugin(num_nodes=num_nodes, sync_batchnorm=True)] if effective_num_gpus > 1 else None
     logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger()]
