@@ -22,7 +22,7 @@ if (innereye_root / "InnerEye").is_dir():
         print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
         sys.path.insert(0, innereye_root_str)
 
-from InnerEye.Common.generic_parsing import GenericConfig # noqa: E402
+from InnerEye.Common.generic_parsing import GenericConfig  # noqa: E402
 
 # The property in the model registry that holds the name of the Python environment
 PYTHON_ENVIRONMENT_NAME = "python_environment_name"
