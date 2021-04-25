@@ -22,7 +22,7 @@ if (innereye_root / "InnerEye").is_dir():
         print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
         sys.path.insert(0, innereye_root_str)
 
-from InnerEye.Common.generic_parsing import GenericConfig
+from InnerEye.Common.generic_parsing import GenericConfig # noqa: E402
 
 # The property in the model registry that holds the name of the Python environment
 PYTHON_ENVIRONMENT_NAME = "python_environment_name"
@@ -87,8 +87,8 @@ def upload_model(ws: Workspace, config: MoveModelConfig) -> Model:
         model_dict = json.load(f)
 
     new_model = Model.register(ws, model_path=str(model_path / "final_model"), model_name=model_dict['name'],
-                   tags=model_dict['tags'], properties=model_dict['properties'],
-                   description=model_dict['description'])
+                               tags=model_dict['tags'], properties=model_dict['properties'],
+                               description=model_dict['description'])
     env = Environment.load_from_directory(str(environment_path))
     env.register(workspace=ws)
     print(f"Environment {env.name} registered")
