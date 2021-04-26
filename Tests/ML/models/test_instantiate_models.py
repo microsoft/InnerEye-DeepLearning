@@ -141,7 +141,6 @@ def test_submit_container_to_azureml(container_name: str) -> None:
             with mock.patch("azureml.core.Experiment.submit", return_value=mock_run):
                 loaded_config, actual_run = runner.run()
     assert actual_run == mock_run
-    assert loaded_config is None
     assert isinstance(runner.lightning_container, LightningContainer)
 
 
