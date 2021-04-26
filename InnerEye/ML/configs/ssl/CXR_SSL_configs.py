@@ -62,5 +62,5 @@ class CXRImageClassifier(SSLClassifierContainer):
                          recovery_checkpoint_save_interval=10,
                          num_epochs=200,
                          use_balanced_binary_loss_for_linear_head=True,
-                         extra_azure_dataset_ids=[RSNA_AZURE_DATASET_ID],
+                         azure_dataset_id=RSNA_AZURE_DATASET_ID,
                          classifier_augmentations_path=path_linear_head_augmentation_cxr)

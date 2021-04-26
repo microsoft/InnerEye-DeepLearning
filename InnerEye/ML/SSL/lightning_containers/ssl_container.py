@@ -86,15 +86,16 @@ class SSLContainer(LightningContainer):
     online_evaluator_lr = param.Number(default=1e-4, doc="Learning rate for linear head training during SSL training.")
 
     def setup(self) -> None:
+        from InnerEye.ML.SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
         self.total_num_gpus = self.num_gpus_per_node * self.num_nodes
         self._load_config()
-        # If you're using the same data for training and linear head you don't need to specify an extra dataset in the
-        # config.
-        if (self.classifier_dataset_name == self.ssl_training_dataset_name) and len(self.extra_local_dataset_paths) \
-                == 0 \
-                and self.local_dataset is not None:
+        # If you're using the same data for training and linear head, allow the user to specify the dataset only
+        # once. Or if you are doing just finetuning of linear head, the user should be able to specify dataset via
+        # azure_dataset_id/local_dataset instead of extra_dataset fields (as in this case we only use one dataset).
+        if ((self.classifier_dataset_name == self.ssl_training_dataset_name)
+            or isinstance(self, SSLClassifierContainer)) and len(
+            self.extra_local_dataset_paths) == 0 and self.local_dataset is not None:
             self.extra_local_dataset_paths = [self.local_dataset]
-
         self.datamodule_args = {SSLModule.LINEAR_HEAD:
                                     DataModuleArgs(augmentation_config=self.linear_head_yaml_config,
                                                    dataset_name=self.classifier_dataset_name.value,
