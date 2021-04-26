@@ -95,7 +95,7 @@ def upload_model(ws: Workspace, config: MoveModelConfig) -> Model:
     return new_model
 
 
-def get_workspace(config) -> Workspace:
+def get_workspace(config: MoveModelConfig) -> Workspace:
     return Workspace.get(name=config.workspace_name, subscription_id=config.subscription_id,
                          resource_group=config.resource_group)
 

@@ -6,7 +6,7 @@
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.Scripts.move_model import MoveModelConfig, PYTHON_ENVIRONMENT_NAME, get_paths, move
+from InnerEye.Scripts.move_model import MoveModelConfig, PYTHON_ENVIRONMENT_NAME, move
 
 MODEL_ID = "PassThroughModel:1"
 
