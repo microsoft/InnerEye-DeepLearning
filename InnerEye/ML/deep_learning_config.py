@@ -17,7 +17,7 @@ from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
-from InnerEye.Common.generic_parsing import CudaAwareConfig, GenericConfig
+from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, create_unique_timestamp_id, \
     get_best_checkpoint_path, get_recovery_checkpoint_path
@@ -441,7 +441,7 @@ class OptimizerParams(param.Parameterized):
         self._min_l_rate = value
 
 
-class TrainerParams(CudaAwareConfig):
+class TrainerParams(param.Parameterized):
     num_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
     recovery_checkpoint_save_interval: int = param.Integer(10, bounds=(0, None),
                                                            doc="Save epoch checkpoints when epoch number is a multiple "
@@ -471,34 +471,18 @@ class TrainerParams(CudaAwareConfig):
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
                           "you may see training speed increases.")
-    _use_gpu: Optional[bool] = param.Boolean(None,
-                                             doc="If true, a CUDA capable GPU with at least 1 device is "
-                                                 "available. If None, the use_gpu property has not yet been called.")
     _num_gpus: Optional[int] = param.Integer(None, doc="Number of gpus to use")
 
-    @property  # type: ignore
-    def use_gpu(self) -> bool:  # type: ignore
+    @property
+    def use_gpu(self) -> bool:
         """
-        Returns True if a CUDA capable GPU is present and should be used, False otherwise.
+        Returns True if a GPU is available, and the self.max_num_gpus flag allows it to be used. Returns False
+        otherwise (i.e., if there is no GPU available, or self.max_num_gpus==0)
         """
-        if self._use_gpu is None:
-            # Use a local import here because we don't want the whole file to depend on pytorch.
-            from InnerEye.ML.utils.ml_util import is_gpu_available
-            self._use_gpu = is_gpu_available()
-        return self._use_gpu
-
-    @use_gpu.setter
-    def use_gpu(self, value: bool) -> None:
-        """
-        Sets the flag that controls the use of the GPU. Raises a ValueError if the value is True, but no GPU is
-        present.
-        """
-        if value:
-            # Use a local import here because we don't want the whole file to depend on pytorch.
-            from InnerEye.ML.utils.ml_util import is_gpu_available
-            if not is_gpu_available():
-                raise ValueError("Can't set use_gpu to True if there is not CUDA capable GPU present.")
-        self._use_gpu = value
+        if self.max_num_gpus == 0:
+            return False
+        from InnerEye.ML.utils.ml_util import is_gpu_available
+        return is_gpu_available()
 
     @property
     def num_gpus_to_use(self) -> int:
@@ -516,7 +500,6 @@ class DeepLearningConfig(WorkflowParams,
                          OutputParams,
                          OptimizerParams,
                          TrainerParams,
-                         CudaAwareConfig,
                          GenericConfig):
     """
     A class that holds all settings that are shared across segmentation models and regression/classification models.
@@ -549,7 +532,6 @@ class DeepLearningConfig(WorkflowParams,
         param.DataFrame(default=None,
                         doc="The dataframe that contains the dataset for the model. This is usually read from disk "
                             "from dataset.csv")
-
     avoid_process_spawn_in_data_loaders: bool = \
         param.Boolean(is_windows(), doc="If True, use a data loader logic that avoid spawning new processes at the "
                                         "start of each epoch. This speeds up training on both Windows and Linux, but"

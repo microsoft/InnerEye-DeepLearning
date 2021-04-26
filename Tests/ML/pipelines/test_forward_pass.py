@@ -2,56 +2,39 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any
 
 import pytest
-import torch
 
 from InnerEye.Common import common_util
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
+from InnerEye.ML.deep_learning_config import DeepLearningConfig, TrainerParams
+from InnerEye.ML.lightning_container import LightningContainer
 from Tests.ML.util import machine_has_gpu
-
-
-class SimpleModel(BaseSegmentationModel):
-    def __init__(self, input_channels: int, channels: list, n_classes: int, kernel_size: int,
-                 crop_size_constraints: CropSizeConstraints = None):
-        super().__init__(input_channels=input_channels, name="SimpleModel", crop_size_constraints=crop_size_constraints)
-        self.channels = channels
-        self.n_classes = n_classes
-        self.kernel_size = kernel_size
-        self.model = torch.nn.Sequential(
-            torch.nn.Conv3d(input_channels, channels[0], kernel_size=self.kernel_size),
-            torch.nn.ConvTranspose3d(channels[0], n_classes, kernel_size=self.kernel_size)
-        )
-
-    def forward(self, x: Any) -> Any:  # type: ignore
-        x = self.model(x)
-        return x
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.cpu_and_gpu
-@pytest.mark.parametrize("use_gpu_override", [False, True])
-def test_use_gpu_flag(use_gpu_override: bool) -> None:
-    config = DeepLearningConfig(should_validate=False)
-    # On a model that does not have a use_gpu_override, the use_gpu flag should return True exactly when a GPU is
+@pytest.mark.parametrize("config", [DeepLearningConfig(), LightningContainer()])
+def test_use_gpu_flag(config: TrainerParams) -> None:
+    """
+    Test that the use_gpu flag is set correctly on both InnerEye configs and containers.
+    This checks for a bug in an earlier version where it was off for containers only.
+    """
+    # With the default settings, the use_gpu flag should return True exactly when a GPU is
     # actually present.
     assert config.use_gpu == machine_has_gpu
     if machine_has_gpu:
-        # If a GPU is present, the use_gpu flag should exactly return whatever the override says
-        # (we can run in CPU mode even on a GPU)
-        config.use_gpu = use_gpu_override
-        assert config.use_gpu == use_gpu_override
+        # If there is a GPU present, only setting max_num_gpus to 0 should make the use_gpu flag False.
+        config.max_num_gpus = -1
+        assert config.use_gpu
+        config.max_num_gpus = 1
+        assert config.use_gpu
+        config.max_num_gpus = 0
+        assert config.use_gpu is False
     else:
-        if use_gpu_override:
-            # We are on a machine without a GPU, but the override says we should use the GPU: fail.
-            with pytest.raises(ValueError) as ex:
-                config.use_gpu = use_gpu_override
-            assert "use_gpu to True if there is not CUDA capable GPU present" in str(ex)
-        else:
-            config.use_gpu = use_gpu_override
-            assert config.use_gpu == use_gpu_override
+        # If there is no GPU at all, changing max_num_gpus should not matter
+        for p in [-1, 1, 0]:
+            config.max_num_gpus = p
+            assert config.use_gpu is False
 
 # @pytest.mark.azureml
 # def test_mean_teacher_model(test_output_dirs: OutputFolderForTests) -> None:
