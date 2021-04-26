@@ -246,11 +246,6 @@ def test_extra_directory_available(test_output_dirs: OutputFolderForTests) -> No
     container = _create_container(extra_local_dataset_paths)
     assert container.extra_local_dataset_paths == [test_output_dirs.root_dir, test_output_dirs.root_dir]
 
-    # Should fail as azure_ids of length 1 and local paths of length 2
-    with pytest.raises(ValueError):
-        _create_container(extra_local_dataset_paths=[test_output_dirs.root_dir, test_output_dirs.root_dir],
-                          extra_azure_dataset_ids=["id1"])
-
-    # Check default behavior (no extra datasets)
+    # Check default behavior (no extra datasets provided)
     container = _create_container()
     assert container.extra_local_dataset_paths == []
