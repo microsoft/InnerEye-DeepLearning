@@ -31,6 +31,7 @@ FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
 # them before registration.
 CHECKPOINT_FOLDER = "checkpoints"
 VISUALIZATION_FOLDER = "visualizations"
+EXTRA_RUN_SUBFOLDER = "extra_run_id"
 
 ARGS_TXT = "args.txt"
 WEIGHTS_FILE = "weights.pth"

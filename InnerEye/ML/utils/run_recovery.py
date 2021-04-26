@@ -8,7 +8,7 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from azureml.core import Run
 
@@ -62,18 +62,21 @@ class RunRecovery:
         return RunRecovery(checkpoints_roots=child_runs_checkpoints_roots)
 
     @staticmethod
-    def download_all_checkpoints_from_run(config: OutputParams, run: Run) -> RunRecovery:
+    def download_all_checkpoints_from_run(config: OutputParams, run: Run,
+                                          subfolder: Optional[str] = None) -> RunRecovery:
         """
         Downloads all checkpoints of the provided run inside the checkpoints folder.
         :param config: Model related configs.
         :param run: Run whose checkpoints should be recovered
+        :param subfolder: optional subfolder name, if provided the checkpoints will be downloaded to
+        CHECKPOINT_FOLDER / subfolder. If None, the checkpoint are downloaded to CHECKPOINT_FOLDER of the current run.
         :return: run recovery information
         """
         if fetch_child_runs(run):
             raise ValueError(f"AzureML run {run.id} has child runs, this method does not support those.")
 
         download_outputs_from_run(
-            blobs_path=Path(CHECKPOINT_FOLDER),
+            blobs_path=Path(CHECKPOINT_FOLDER) / subfolder,
             destination=config.checkpoint_folder,
             run=run
         )

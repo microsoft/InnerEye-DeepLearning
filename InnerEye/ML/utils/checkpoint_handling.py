@@ -17,7 +17,7 @@ from azureml.core import Run
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.common import find_recovery_checkpoint_and_epoch
-from InnerEye.ML.deep_learning_config import OutputParams, WEIGHTS_FILE
+from InnerEye.ML.deep_learning_config import EXTRA_RUN_SUBFOLDER, OutputParams, WEIGHTS_FILE
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.utils.run_recovery import RunRecovery
 
@@ -71,7 +71,9 @@ class CheckpointHandler:
 
         if self.azure_config.extra_run_recovery_id is not None:
             run_to_recover = self.azure_config.fetch_run(self.azure_config.extra_run_recovery_id.strip())
-            run_recovery_object = RunRecovery.download_all_checkpoints_from_run(self.output_params, run_to_recover)
+            run_recovery_object = RunRecovery.download_all_checkpoints_from_run(self.output_params,
+                                                                                run_to_recover,
+                                                                                EXTRA_RUN_SUBFOLDER)
             self.container.extra_downloaded_run_id = run_recovery_object
         else:
             self.container.extra_downloaded_run_id = None
