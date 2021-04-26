@@ -49,11 +49,21 @@ This script will
  [AzureML setup](setting_up_aml.md), or your own credentials.
 - Create an Azure Data Factory in the same resource group as the AzureML workspace
 - Create pipelines to download the datasets in compressed form to the `datasets` container in the storage account
-you supplied, copying all of them into the `fastmri_compressed` folder
-- Create pipelines to download the datasets and uncompress them, going into the `datasets` container in the 
-storage account you supplied, with subfolders `knee_singlecoil`, `knee_multicoil`, and `brain_multicoil`.
+you supplied, and uncompress them.
 - Run all the pipelines and delete the Data Factory.
-This can take a few minutes to complete.
+
+This whole process can take a few hours to complete. It will print progress information every 30 seconds to the console.
+Alternatively, find the Data Factory "fastmri-copy-data" in your Azure portal, and click on the "Monitor" icon to 
+drill down into all running pipelines.
+
+Once the script is complete, you will have the following datasets in Azure blob storage:
+- `knee_singlecoil`, `knee_multicoil`, and `brain_multicoil` with all files unpacked
+- `knee_singlecoil_compressed`, `knee_multicoil_compressed`, and `brain_multicoil_compressed` with the `.tar` and 
+`.tar.gz` files as downloaded. NOTE: The raw challenge data files all have a `.tar.gz` extension, even though some
+of them are plain (uncompressed) `.tar` files. The pipeline corrects these mistakes and puts the files into blob storage
+with their corrected extension.
+- The DICOM files are stored in the folders `knee_DICOMs` and `brain_DICOMs` (uncompressed) and 
+`knee_DICOMs_compressed` and `brain_DICOMs_compressed` (as `.tar` files)
 
 
 # Troubleshooting

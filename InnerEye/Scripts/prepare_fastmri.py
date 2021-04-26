@@ -8,13 +8,16 @@ import re
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.datafactory import DataFactoryManagementClient
-from azure.mgmt.datafactory.models import (AzureBlobStorageLinkedService,
+from azure.mgmt.datafactory.models import (ActivityDependency,
+                                           AzureBlobStorageLinkedService,
                                            AzureBlobStorageLocation,
                                            BinaryDataset,
+                                           BinaryReadSettings,
+                                           BinarySource,
                                            BlobSink,
                                            CopyActivity,
                                            DatasetReference,
@@ -29,7 +32,9 @@ from azure.mgmt.datafactory.models import (AzureBlobStorageLinkedService,
                                            LinkedServiceResource,
                                            PipelineResource,
                                            RunFilterParameters,
-                                           SecureString)
+                                           SecureString,
+                                           TarGZipReadSettings,
+                                           TarReadSettings)
 from azure.mgmt.resource import ResourceManagementClient
 
 from InnerEye.Azure.azure_config import AzureConfig
@@ -38,19 +43,22 @@ from InnerEye.Common import fixed_paths
 
 # The Azure blob container that will hold all downloaded results
 TARGET_CONTAINER = "datasets"
-# The folder in the TARGET_CONTAINER that holds all the uncompressed files that were downloaded.
-TARGET_FOLDER_UNCOMPRESSED = "fastmri_compressed"
+# Datasets get downloaded in compressed and decompressed format. The compresed datasets have the same name as the
+# decompressed folder (for example, 'knee_singlecoil'), but with this suffix ('knee_singlecoil_compressed')
+COMPRESSED_DATASET_SUFFIX = "_compressed"
 
 # Mapping different of the raw tar.gz files to separate dataset folders.
 # First tuple item is the target folder in blob storage, then comes a list of raw files to extract into that folder.
+# If an any in the list of raw files is a tuple, then the file extension is misleading:
+# Some of the files that appear to be .tar.gz are actually plain .tar file.
 files_to_download = [
-    ("knee_singlecoil", ["knee_singlecoil_train.tar.gz",
-                         "knee_singlecoil_val.tar.gz",
-                         "knee_singlecoil_test_v2.tar.gz",
+    ("knee_singlecoil", [("knee_singlecoil_train.tar.gz", ".tar"),
+                         ("knee_singlecoil_val.tar.gz", ".tar"),
+                         ("knee_singlecoil_test_v2.tar.gz", ".tar"),
                          "knee_singlecoil_challenge.tar.gz"]),
-    ("knee_multicoil", ["multicoil_train.tar.gz",
-                        "multicoil_val.tar.gz",
-                        "knee_multicoil_test_v2.tar.gz",
+    ("knee_multicoil", [("multicoil_train.tar.gz", ".tar"),
+                        ("multicoil_val.tar.gz", ".tar"),
+                        ("knee_multicoil_test_v2.tar.gz", ".tar"),
                         "knee_multicoil_challenge.tar.gz"]),
     ("knee_DICOMs", [
         "knee_mri_dicom_batch1.tar",
@@ -152,53 +160,69 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
     linked_blob_storage = LinkedServiceReference(reference_name=blob_storage_name)
     linked_http = LinkedServiceReference(reference_name=http_name)
 
-    def download_and_uncompress(source_file: str, target_folder: str) -> List[str]:
+    def download_and_uncompress(source_file_or_tuple: Union[str, Tuple[str, str]], target_folder: str) -> List[str]:
         """
         Downloads a file from AWS and stores them in blob storage in its compressed form.
         Also, downloads the same file from AWS, uncompresses it, and writes the results to the given folder
         in blob storage.
-        :param source_file: The name of the .tar.gz or .tar file to download, without any access tokens.
+        :param source_file_or_tuple: The name of the .tar.gz or .tar file to download, without any access tokens.
+        If the name is a Tuple[str, str], the second tuple element is the "real" extension, for files where the
+        extension is misleading.
         :param target_folder: The folder in the target storage account
         :return:
         """
+        if isinstance(source_file_or_tuple, Tuple):
+            source_file, correct_extension = source_file_or_tuple
+            file_extension = "".join(Path(source_file).suffixes)
+        else:
+            source_file = source_file_or_tuple
+            file_extension = "".join(Path(source_file).suffixes)
+            correct_extension = file_extension
+        source_file_with_correct_extension = source_file[:source_file.rfind(file_extension)] + correct_extension
+        target_folder_compressed = target_folder + COMPRESSED_DATASET_SUFFIX
         if is_unittest:
             http_source = HttpServerLocation(relative_url="gulpjs/gulp/archive/v3.9.1.tar.gz")
         else:
             http_source = HttpServerLocation(relative_url=f"{source_file}{files_and_tokens[source_file]}")
         source_file_cleaned = source_file.replace(".", "_")
-        # A dataset that reads the files from AWS as-is
+        # A dataset that reads the files from AWS as-is, no decompression
         source_compressed = BinaryDataset(linked_service_name=linked_http,
                                           location=http_source)
-        source_compressed_name = f"read {source_file_cleaned}"
+        source_compressed_name = f"{source_file_cleaned} on AWS"
         adf_client.datasets.create_or_update(resource_group_name=azure_config.resource_group,
                                              factory_name=data_factory_name,
                                              dataset_name=source_compressed_name,
                                              dataset=DatasetResource(properties=source_compressed))
-        # A dataset that reads the files from AWS and uncompresses on-the-fly
-        if source_file.endswith(".tar.gz"):
+        # The sink for downloading the datasets as-is (compressed)
+        blob_storage_compressed = AzureBlobStorageLocation(file_name=source_file_with_correct_extension,
+                                                           container=TARGET_CONTAINER,
+                                                           folder_path=target_folder_compressed)
+        dest_compressed = BinaryDataset(linked_service_name=linked_blob_storage,
+                                        location=blob_storage_compressed)
+        dest_compressed_name = f"{source_file_cleaned} on Azure"
+        adf_client.datasets.create_or_update(resource_group_name=azure_config.resource_group,
+                                             factory_name=data_factory_name,
+                                             dataset_name=dest_compressed_name,
+                                             dataset=DatasetResource(properties=dest_compressed))
+        # A dataset that reads the files from blob storage and uncompresses on-the-fly
+        if correct_extension == ".tar.gz":
             compression = DatasetTarGZipCompression()
-        elif source_file.endswith(".tar"):
+            # By default, a folder gets created for each .tar.gzip file that is read. Disable that.
+            compression_properties = TarGZipReadSettings(preserve_compression_file_name_as_folder=False)
+        elif correct_extension == ".tar":
             compression = DatasetTarCompression()
+            # By default, a folder gets created for each .tar file that is read. Disable that.
+            compression_properties = TarReadSettings(preserve_compression_file_name_as_folder=False)
         else:
             raise ValueError(f"Unable to determine compression for file {source_file}")
-        source_uncompressed = BinaryDataset(linked_service_name=linked_http,
-                                            location=http_source,
+        source_uncompressed = BinaryDataset(linked_service_name=linked_blob_storage,
+                                            location=blob_storage_compressed,
                                             compression=compression)
         source_uncompressed_name = f"read {source_file_cleaned} and uncompress"
         adf_client.datasets.create_or_update(resource_group_name=azure_config.resource_group,
                                              factory_name=data_factory_name,
                                              dataset_name=source_uncompressed_name,
                                              dataset=DatasetResource(properties=source_uncompressed))
-        # The sink for downloading the datasets as-is (compressed)
-        dest_compressed = BinaryDataset(linked_service_name=linked_blob_storage,
-                                        location=AzureBlobStorageLocation(file_name=source_file,
-                                                                          container=TARGET_CONTAINER,
-                                                                          folder_path=TARGET_FOLDER_UNCOMPRESSED))
-        dest_compressed_name = f"save {source_file_cleaned} compressed"
-        adf_client.datasets.create_or_update(resource_group_name=azure_config.resource_group,
-                                             factory_name=data_factory_name,
-                                             dataset_name=dest_compressed_name,
-                                             dataset=DatasetResource(properties=dest_compressed))
         # The sink for downloading the datasets uncompressed
         final_dataset = BinaryDataset(linked_service_name=linked_blob_storage,
                                       location=AzureBlobStorageLocation(container=TARGET_CONTAINER,
@@ -208,29 +232,33 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
                                              factory_name=data_factory_name,
                                              dataset_name=final_name,
                                              dataset=DatasetResource(properties=final_dataset))
-        # Copying from compressed source to compressed destination
-        pipeline1 = f"download {source_file_cleaned}"
+        # Copying from compressed source to compressed destination on blob storage
         download = CopyActivity(name=f"download {source_file_cleaned}",
                                 inputs=[DatasetReference(reference_name=source_compressed_name)],
                                 outputs=[DatasetReference(reference_name=dest_compressed_name)],
                                 source=HttpSource(),
                                 sink=BlobSink())
-        adf_client.pipelines.create_or_update(resource_group_name=azure_config.resource_group,
-                                              factory_name=data_factory_name,
-                                              pipeline_name=pipeline1,
-                                              pipeline=PipelineResource(activities=[download]))
-        # Copying from compressed source to uncompressed destination
+        # Read the compressed file from blob storage and create an uncompressed dataset.
+        # This should not create extra folder structure beyond what is already in the tar file - this is specified
+        # in compression_properties
+        binary_source = BinarySource(format_settings=BinaryReadSettings(compression_properties=compression_properties))
         uncompress = CopyActivity(name=f"uncompress {source_file_cleaned}",
                                   inputs=[DatasetReference(reference_name=source_uncompressed_name)],
                                   outputs=[DatasetReference(reference_name=final_name)],
-                                  source=HttpSource(),
-                                  sink=BlobSink())
-        pipeline2 = f"uncompress {source_file_cleaned}"
+                                  source=binary_source,
+                                  sink=BlobSink(),
+                                  # Add a dependent activity: We first need to download
+                                  depends_on=[
+                                      ActivityDependency(activity=download.name, dependency_conditions=["Succeeded"])]
+                                  )
+        # Create a pipeline that first downloads from AWS to blob storage, and then decompresses from blob storage
+        # to another blob storage location
+        pipeline = f"download {source_file_cleaned} and uncompress"
         adf_client.pipelines.create_or_update(resource_group_name=azure_config.resource_group,
                                               factory_name=data_factory_name,
-                                              pipeline_name=pipeline2,
-                                              pipeline=PipelineResource(activities=[uncompress]))
-        return [pipeline1, pipeline2]
+                                              pipeline_name=pipeline,
+                                              pipeline=PipelineResource(activities=[download, uncompress]))
+        return [pipeline]
 
     file_list = [("antonsctest", ["foo.tar.gz", "bar.tar"])] if is_unittest else files_to_download
     all_pipelines = []
@@ -269,7 +297,7 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
         print(f"Remaining pipelines that are running: {remaining_runs}")
         if remaining_runs == 0:
             break
-        time.sleep(10)
+        time.sleep(30)
 
     utcnow = datetime.now(timezone.utc)
     filter_params = RunFilterParameters(last_updated_after=utcnow - timedelta(days=1),
@@ -333,9 +361,10 @@ if __name__ == "__main__":
     any_files_missing = False
     for _, files in files_to_download:
         for f in files:
-            if f not in files_and_tokens:
+            source_file = f[0] if isinstance(f, Tuple) else f
+            if source_file not in files_and_tokens:
                 any_files_missing = True
-                print(f"No token found in the curl file for {f}")
+                print(f"No token found in the curl file for {source_file}")
     if any_files_missing:
         exit(1)
     connection_string = known_args.connection_string
