@@ -75,13 +75,15 @@ class RunRecovery:
         if fetch_child_runs(run):
             raise ValueError(f"AzureML run {run.id} has child runs, this method does not support those.")
 
+        destination_folder = config.checkpoint_folder / subfolder if subfolder else config.checkpoint_folder
+
         download_outputs_from_run(
-            blobs_path=Path(CHECKPOINT_FOLDER) / subfolder,
-            destination=config.checkpoint_folder,
+            blobs_path=Path(CHECKPOINT_FOLDER),
+            destination=destination_folder,
             run=run
         )
         time.sleep(60)  # Needed because AML is not fast enough to download
-        return RunRecovery(checkpoints_roots=[config.checkpoint_folder])
+        return RunRecovery(checkpoints_roots=[destination_folder])
 
     def get_recovery_checkpoint_paths(self) -> List[Path]:
         return [get_recovery_checkpoint_path(x) for x in self.checkpoints_roots]
