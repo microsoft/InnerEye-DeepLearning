@@ -92,9 +92,9 @@ class SSLContainer(LightningContainer):
         # If you're using the same data for training and linear head, allow the user to specify the dataset only
         # once. Or if you are doing just finetuning of linear head, the user should be able to specify dataset via
         # azure_dataset_id/local_dataset instead of extra_dataset fields (as in this case we only use one dataset).
-        if ((self.classifier_dataset_name == self.ssl_training_dataset_name)
-            or isinstance(self, SSLClassifierContainer)) and len(
-            self.extra_local_dataset_paths) == 0 and self.local_dataset is not None:
+        if ((self.classifier_dataset_name == self.ssl_training_dataset_name) or isinstance(self,
+                                                                                           SSLClassifierContainer)) \
+                and len(self.extra_local_dataset_paths) == 0 and self.local_dataset is not None:
             self.extra_local_dataset_paths = [self.local_dataset]
         self.datamodule_args = {SSLModule.LINEAR_HEAD:
                                     DataModuleArgs(augmentation_config=self.linear_head_yaml_config,
