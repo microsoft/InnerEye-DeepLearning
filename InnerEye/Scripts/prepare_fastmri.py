@@ -256,7 +256,7 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
                                   )
         # Create a pipeline that first downloads from AWS to blob storage, and then decompresses from blob storage
         # to another blob storage location
-        pipeline = f"{source_file_cleaned}"
+        pipeline = f"{source_file_cleaned} to folder {target_folder}"
         adf_client.pipelines.create_or_update(resource_group_name=azure_config.resource_group,
                                               factory_name=data_factory_name,
                                               pipeline_name=pipeline,
