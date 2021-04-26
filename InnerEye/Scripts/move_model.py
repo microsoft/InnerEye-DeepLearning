@@ -41,14 +41,14 @@ class MoveModelConfig(GenericConfig):
                                doc="Import or export model from workspace. E.g. import or export")
 
 
-def get_paths(path: Path, model_id: str) -> Tuple[str, str]:
+def get_paths(path: Path, model_id: str) -> Tuple[Path, Path]:
     """
     Gets paths and creates folders if necessary
     :param path: Base path
     :param model_id: The model ID
     :return: model_path, environment_path
     """
-    model_id_path = Path(path) / model_id
+    model_id_path = Path(path) / model_id.replace(":", "_")
     model_id_path.mkdir(parents=True, exist_ok=True)
     model_path = model_id_path / MODEL_PATH
     model_path.mkdir(parents=True, exist_ok=True)
@@ -65,7 +65,7 @@ def download_model(ws: Workspace, config: MoveModelConfig) -> Model:
     :return: the exported Model
     """
     model = Model(ws, id=config.model_id)
-    model_path, environment_path = get_paths(config.path, config.model_id)
+    model_path, environment_path = get_paths(Path(config.path), config.model_id)
     with open(model_path / MODEL_JSON, 'w') as f:
         json.dump(model.serialize(), f)
     model.download(target_dir=str(model_path))
@@ -82,7 +82,7 @@ def upload_model(ws: Workspace, config: MoveModelConfig) -> Model:
     :param config: move config
     :return: imported Model
     """
-    model_path, environment_path = get_paths(config.path, config.model_id)
+    model_path, environment_path = get_paths(Path(config.path), config.model_id)
     with open(model_path / MODEL_JSON, 'r') as f:
         model_dict = json.load(f)
 
@@ -95,7 +95,7 @@ def upload_model(ws: Workspace, config: MoveModelConfig) -> Model:
     return new_model
 
 
-def get_workspace(config):
+def get_workspace(config) -> Workspace:
     return Workspace.get(name=config.workspace_name, subscription_id=config.subscription_id,
                          resource_group=config.resource_group)
 

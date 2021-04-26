@@ -6,7 +6,7 @@
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.Scripts.move_model import MoveModelConfig, PYTHON_ENVIRONMENT_NAME, move
+from InnerEye.Scripts.move_model import MoveModelConfig, PYTHON_ENVIRONMENT_NAME, get_paths, move
 
 MODEL_ID = "PassThroughModel:1"
 
@@ -18,10 +18,11 @@ def test_download_and_upload(test_output_dirs: OutputFolderForTests) -> None:
     azure_config = AzureConfig.from_yaml(yaml_file_path=fixed_paths.SETTINGS_YAML_FILE,
                                          project_root=fixed_paths.repository_root_directory())
     ws = azure_config.get_workspace()
-    config_download = MoveModelConfig(model_id=MODEL_ID, path=test_output_dirs.root_dir, action="export")
+    config_download = MoveModelConfig(model_id=MODEL_ID, path=str(test_output_dirs.root_dir), action="export")
     move(ws, config_download)
-    assert (test_output_dirs.root_dir / MODEL_ID).is_dir()
-    config_upload = MoveModelConfig(model_id=MODEL_ID, path=test_output_dirs.root_dir, action="import")
+    assert (test_output_dirs.root_dir / MODEL_ID.replace(":", "_")).is_dir()
+    config_upload = MoveModelConfig(model_id=MODEL_ID, path=str(test_output_dirs.root_dir), action="import")
     model = move(ws, config_upload)
     assert model is not None
     assert PYTHON_ENVIRONMENT_NAME in model.tags
+    assert model.description != ""
