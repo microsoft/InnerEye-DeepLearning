@@ -51,7 +51,8 @@ COMPRESSED_DATASET_SUFFIX = "_compressed"
 # First tuple item is the target folder in blob storage, then comes a list of raw files to extract into that folder.
 # If an any in the list of raw files is a tuple, then the file extension is misleading:
 # Some of the files that appear to be .tar.gz are actually plain .tar file.
-files_to_download = [
+FolderAndFileList = List[Tuple[str, List[Union[str, Tuple[str, str]]]]]
+files_to_download: FolderAndFileList = [
     ("knee_singlecoil", [("knee_singlecoil_train.tar.gz", ".tar"),
                          ("knee_singlecoil_val.tar.gz", ".tar"),
                          ("knee_singlecoil_test_v2.tar.gz", ".tar"),
@@ -171,13 +172,15 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
         :param target_folder: The folder in the target storage account
         :return:
         """
-        if isinstance(source_file_or_tuple, Tuple):
-            source_file, correct_extension = source_file_or_tuple
-            file_extension = "".join(Path(source_file).suffixes)
-        else:
+        if isinstance(source_file_or_tuple, str):
             source_file = source_file_or_tuple
             file_extension = "".join(Path(source_file).suffixes)
             correct_extension = file_extension
+        elif isinstance(source_file_or_tuple, tuple):
+            source_file, correct_extension = source_file_or_tuple
+            file_extension = "".join(Path(source_file).suffixes)
+        else:
+            raise ValueError(f"Type of source_file_or_tuple not recognized: {type(source_file_or_tuple)}")
         source_file_with_correct_extension = source_file[:source_file.rfind(file_extension)] + correct_extension
         target_folder_compressed = target_folder + COMPRESSED_DATASET_SUFFIX
         if is_unittest:
@@ -260,7 +263,8 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
                                               pipeline=PipelineResource(activities=[download, uncompress]))
         return [pipeline]
 
-    file_list = [("antonsctest", ["foo.tar.gz", "bar.tar"])] if is_unittest else files_to_download
+    file_list: FolderAndFileList = \
+        [("antonsctest", ["foo.tar.gz", "bar.tar"])] if is_unittest else files_to_download
     all_pipelines = []
     print("Creating pipelines:")
     for target_folder, files in file_list:
@@ -361,7 +365,7 @@ if __name__ == "__main__":
     any_files_missing = False
     for _, files in files_to_download:
         for f in files:
-            source_file = f[0] if isinstance(f, Tuple) else f
+            source_file = f[0] if isinstance(f, tuple) else f
             if source_file not in files_and_tokens:
                 any_files_missing = True
                 print(f"No token found in the curl file for {source_file}")
