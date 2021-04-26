@@ -2,16 +2,33 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Optional
+from typing import Any, Optional
 
 import pytest
+import torch
 
 from InnerEye.Common.type_annotations import IntOrTuple3, TupleInt3
 from InnerEye.ML.config import ModelArchitectureConfig, SegmentationModelBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.models.architectures.unet_3d import UNet3D
 from InnerEye.ML.utils.model_util import build_net
-from Tests.ML.pipelines.test_forward_pass import SimpleModel
+
+
+class SimpleModel(BaseSegmentationModel):
+    def __init__(self, input_channels: int, channels: list, n_classes: int, kernel_size: int,
+                 crop_size_constraints: CropSizeConstraints = None):
+        super().__init__(input_channels=input_channels, name="SimpleModel", crop_size_constraints=crop_size_constraints)
+        self.channels = channels
+        self.n_classes = n_classes
+        self.kernel_size = kernel_size
+        self.model = torch.nn.Sequential(
+            torch.nn.Conv3d(input_channels, channels[0], kernel_size=self.kernel_size),
+            torch.nn.ConvTranspose3d(channels[0], n_classes, kernel_size=self.kernel_size)
+        )
+
+    def forward(self, x: Any) -> Any:  # type: ignore
+        x = self.model(x)
+        return x
 
 
 def test_crop_size_constraints() -> None:

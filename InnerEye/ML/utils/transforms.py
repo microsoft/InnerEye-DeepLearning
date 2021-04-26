@@ -6,27 +6,36 @@ from __future__ import annotations
 
 import abc
 from functools import reduce
-from typing import Generic, List, Optional, Tuple, Union
+from typing import Any, Generic, List, Optional, Tuple, Union
 
 import numpy as np
 import param
 import torch
 
-from InnerEye.Common.generic_parsing import CudaAwareConfig
+from InnerEye.Common.common_util import is_gpu_tensor
 from InnerEye.Common.type_annotations import T, TupleFloat2
 
 
-class Transform3DBaseMeta(type(CudaAwareConfig), abc.ABCMeta):  # type: ignore
-    """
-    Metaclass to make the hierarchy explicit for Transform3D
-    """
-    pass
-
-
-class Transform3D(CudaAwareConfig[T], abc.ABC, metaclass=Transform3DBaseMeta):
+class Transform3D(param.Parameterized, Generic[T]):
     """
     Class that allows defining a transform function with the possibility of operating on the GPU.
     """
+    use_gpu: bool = param.Boolean(False, doc="The use_gpu flag will be "
+                                             "set based upon the available GPU devices.")
+
+    def get_gpu_tensor_if_possible(self, data: T) -> Any:
+        """"
+        Get a cuda tensor if this transform was CUDA enabled and a GPU is available, otherwise
+        return the input.
+        """
+        import torch
+        if isinstance(data, torch.Tensor):
+            if self.use_gpu and not is_gpu_tensor(data):
+                return data.cuda()
+            else:
+                return data
+        else:
+            return data
 
     @abc.abstractmethod
     def __call__(self, sample: T) -> T:
