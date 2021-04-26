@@ -18,6 +18,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
 
+from InnerEye.Azure.azure_runner import ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, change_working_directory
 from InnerEye.Common.resource_monitor import ResourceMonitor
@@ -41,11 +42,11 @@ def is_rank_zero() -> bool:
     by looking at environment variables.
     :return: True if the current process is global_rank 0.
     """
-    global_rank = os.getenv("GLOBAL_RANK")
-    local_rank = os.getenv("LOCAL_RANK")
+    global_rank = os.getenv(ENV_GLOBAL_RANK)
+    local_rank = os.getenv(ENV_LOCAL_RANK)
     # When doing multi-node training, this indicates which node the present job is on. This is set in
     # set_environment_variables_for_multi_node
-    node_rank = os.getenv("NODE_RANK", "0")
+    node_rank = os.getenv(ENV_NODE_RANK, "0")
     return global_rank is None and local_rank is None and node_rank == "0"
 
 
@@ -232,7 +233,7 @@ def model_train(checkpoint_handler: CheckpointHandler,
                                                        checkpoint_path,
                                                        num_nodes=num_nodes,
                                                        **container.get_trainer_arguments())
-    logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
+    logging.info(f"{ENV_GLOBAL_RANK}: {os.getenv(ENV_GLOBAL_RANK)}, {ENV_LOCAL_RANK} {os.getenv(ENV_LOCAL_RANK)}. "
                  f"trainer.global_rank: {trainer.global_rank}")
     # InnerEye models use this logger for diagnostics
     if isinstance(lightning_model, InnerEyeLightning):

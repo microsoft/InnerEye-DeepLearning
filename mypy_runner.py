@@ -23,7 +23,7 @@ def run_mypy(files: List[str], mypy_executable_path: str) -> int:
     :return: maximum return code from any of the mypy runs
     """
     return_code = 0
-    print(f"Running mypy on {len(files)} files")
+    print(f"Running mypy on {len(files)} files or directories")
     for index, file in enumerate(files):
         print(f"Processing {(index+1):2d} of {len(files)}: {file}")
         file_path = Path(file)

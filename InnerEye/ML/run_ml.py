@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import copy
 import logging
+import os
 import shutil
 import time
 from pathlib import Path
@@ -22,7 +23,10 @@ from torch.utils.data import DataLoader
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, INPUT_DATA_KEY, get_or_create_dataset
+from InnerEye.Azure.azure_runner import (ENVIRONMENT_VERSION,
+                                         ENV_OMPI_COMM_WORLD_RANK,
+                                         INPUT_DATA_KEY,
+                                         get_or_create_dataset)
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, \
     MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
@@ -401,6 +405,9 @@ class MLRunner:
             # Lightning does not cope with having two calls to .fit or .test in the same script. As a workaround for
             # now, restrict number of GPUs to 1, meaning that it will not start DDP.
             self.container.max_num_gpus = 1
+            # Without this, the trainer will think it should still operate in multi-node mode, and wrongly start
+            # searching for Horovod
+            del os.environ[ENV_OMPI_COMM_WORLD_RANK]
             trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
             # When training models that are not built-in InnerEye models, we have no guarantee that they write
             # files to the right folder. Best guess is to change the current working directory to where files should go.

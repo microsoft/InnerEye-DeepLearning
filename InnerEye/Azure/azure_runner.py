@@ -40,6 +40,16 @@ RUN_RECOVERY_FILE = "most_recent_run.txt"
 # name, hence version will always be fixed
 ENVIRONMENT_VERSION = "1"
 
+# Environment variables used for multi-node training
+ENV_AZ_BATCHAI_MPI_MASTER_NODE = "AZ_BATCHAI_MPI_MASTER_NODE"
+ENV_MASTER_ADDR = "MASTER_ADDR"
+ENV_MASTER_IP = "MASTER_IP"
+ENV_MASTER_PORT = "MASTER_PORT"
+ENV_OMPI_COMM_WORLD_RANK = "OMPI_COMM_WORLD_RANK"
+ENV_NODE_RANK = "NODE_RANK"
+ENV_GLOBAL_RANK = "GLOBAL_RANK"
+ENV_LOCAL_RANK = "LOCAL_RANK"
+
 
 def submit_to_azureml(azure_config: AzureConfig,
                       source_config: SourceConfig,
@@ -486,27 +496,21 @@ def set_environment_variables_for_multi_node() -> None:
     """
     Sets the environment variables that PyTorch Lightning needs for multi-node training.
     """
-    az_master_node = "AZ_BATCHAI_MPI_MASTER_NODE"
-    master_addr = "MASTER_ADDR"
-    master_ip = "MASTER_IP"
-    master_port = "MASTER_PORT"
-    world_rank = "OMPI_COMM_WORLD_RANK"
-    node_rank = "NODE_RANK"
 
-    if az_master_node in os.environ:
+    if ENV_AZ_BATCHAI_MPI_MASTER_NODE in os.environ:
         # For AML BATCHAI
-        os.environ[master_addr] = os.environ[az_master_node]
-    elif master_ip in os.environ:
+        os.environ[ENV_MASTER_ADDR] = os.environ[ENV_AZ_BATCHAI_MPI_MASTER_NODE]
+    elif ENV_MASTER_IP in os.environ:
         # AKS
-        os.environ[master_addr] = os.environ[master_ip]
+        os.environ[ENV_MASTER_ADDR] = os.environ[ENV_MASTER_IP]
     else:
         logging.info("No settings for the MPI central node found. Assuming that this is a single node training job.")
         return
 
-    if master_port not in os.environ:
-        os.environ[master_port] = "6105"
+    if ENV_MASTER_PORT not in os.environ:
+        os.environ[ENV_MASTER_PORT] = "6105"
 
-    if world_rank in os.environ:
-        os.environ[node_rank] = os.environ[world_rank]  # node rank is the world_rank from mpi run
-    for var in [master_addr, master_port, node_rank]:
+    if ENV_OMPI_COMM_WORLD_RANK in os.environ:
+        os.environ[ENV_NODE_RANK] = os.environ[ENV_OMPI_COMM_WORLD_RANK]  # node rank is the world_rank from mpi run
+    for var in [ENV_MASTER_ADDR, ENV_MASTER_PORT, ENV_NODE_RANK]:
         print(f"Distributed training: {var} = {os.environ[var]}")
