@@ -6,6 +6,8 @@
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
 # flake8: noqa
+import os
+from pathlib import Path
 from typing import Optional
 
 import param
@@ -13,7 +15,7 @@ import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from torch.utils.tensorboard import SummaryWriter
 
-from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed
+from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed, change_working_directory
 from InnerEye.ML.lightning_container import LightningContainer
 
 add_folder_to_sys_path_if_needed("fastMRI")
@@ -39,19 +41,31 @@ class VarNetWithImageLogging(VarNetModule):
 
 class FastMri(LightningContainer):
     # All fields that are declared here will be automatically available as commandline arguments.
-    challenge: str = param.String(default="multicoil", doc="Chooses between the singlecoil or multicoil"
-                                                           "acquisition setup.")
+    challenge: str = param.String(default="", doc="Chooses between the singlecoil or multicoil"
+                                                  "acquisition setup. If left empty, determine from dataset name.")
     sample_rate: Optional[float] = param.Number(default=None, doc="Fraction of slices of the training data split to "
                                                                   "use. Default: 1.0")
 
     def __init__(self) -> None:
         super().__init__()
-        self.azure_dataset_id = "fastmrimini_brain"
+        self.azure_dataset_id = "knee_singlecoil"
+        self.num_epochs = 1
 
     def create_model(self) -> LightningModule:
         return VarNetWithImageLogging()
 
     def get_data_module(self) -> LightningDataModule:
+        if not self.challenge:
+            if not self.azure_dataset_id:
+                raise ValueError("Field self.azure_dataset_id is empty, please manually set self.challenge.")
+            for challenge in ["multicoil", "singlecoil"]:
+                if challenge in self.azure_dataset_id:
+                    self.challenge = challenge
+                    break
+            else:
+                raise ValueError(f"Unable to determine the value for the challenge field for this "
+                                 f"dataset: {self.azure_dataset_id}")
+
         mask = create_mask_for_mask_type(mask_type_str="equispaced",
                                          center_fractions=[0.08],
                                          accelerations=[4])
@@ -61,8 +75,27 @@ class FastMri(LightningContainer):
         test_transform = VarNetDataTransform()
 
         return FastMriDataModule(data_path=self.local_dataset,
+                                 test_path=self.local_dataset / "singlecoil_test_v2",
                                  challenge=self.challenge,
                                  sample_rate=self.sample_rate,
                                  train_transform=train_transform,
                                  val_transform=val_transform,
                                  test_transform=test_transform)
+
+
+class FastMriOnCompressedData(FastMri):
+    def __init__(self) -> None:
+        super().__init__()
+        self.azure_dataset_id = "knee_singlecoil_compressed"
+
+    def before_training_on_rank_zero(self) -> None:
+        def unzip_folder(folder: Path) -> None:
+            with change_working_directory(folder):
+                for file in Path.cwd().glob("*.tar"):
+                    print(f"Unzipping {file}")
+                    os.system(f"tar xf {file}")
+                for file in Path.cwd().glob("*.tar.gz"):
+                    print(f"Unzipping {file}")
+                    os.system(f"tar xzf {file}")
+
+        unzip_folder(self.local_dataset)
