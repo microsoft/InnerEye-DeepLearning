@@ -123,6 +123,8 @@ def test_config_loader_on_lightning_container() -> None:
     model = model_loader_including_tests.create_model_config_from_name("DummyContainerWithParameters")
     assert model is not None
 
+class MockDatasetConsumption:
+    name = "dummy"
 
 @pytest.mark.parametrize("container_name", ["DummyContainerWithAzureDataset",
                                             "DummyContainerWithoutDataset",
@@ -137,7 +139,7 @@ def test_submit_container_to_azureml(container_name: str) -> None:
     mock_run = Run.get_context()
     args = ["", f"--model={container_name}", "--azureml=True", "--model_configs_namespace=Tests.ML.configs"]
     with mock.patch("sys.argv", args):
-        with mock.patch("InnerEye.Azure.azure_runner.get_dataset_consumption", return_value={"dummy": None}):
+        with mock.patch("InnerEye.Azure.azure_runner.get_dataset_consumption", return_value=MockDatasetConsumption):
             with mock.patch("azureml.core.Experiment.submit", return_value=mock_run):
                 loaded_config, actual_run = runner.run()
     assert actual_run == mock_run
