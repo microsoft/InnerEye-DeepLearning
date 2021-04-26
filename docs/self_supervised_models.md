@@ -2,8 +2,8 @@
 
 The code present in the SSL folder (link) allows you to train self-supervised models using
 [SimCLR](http://proceedings.mlr.press/v119/chen20j/chen20j.pdf) or
-[BYOL](https://proceedings.neurips.cc/paper/2020/file/f3ada80d5c4ee70142b17b8192b2958e-Paper.pdf). This code runs as a "bring-your-own-model" self-contained module (cf.
-doc add-link-here).
+[BYOL](https://proceedings.neurips.cc/paper/2020/file/f3ada80d5c4ee70142b17b8192b2958e-Paper.pdf). This code runs as a "
+bring-your-own-model" self-contained module (cf. doc add-link-here).
 
 Here, we provide implementations for four datasets to get you kickstarted with self-supervised models:
 
@@ -52,10 +52,13 @@ Prior to starting training a model on this dataset, you will need to download it
   [here](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge/data?select=stage_2_train_images). Make sure to
   download all images and the `dataset.csv` file to your data folder. Please note that the labels are here merely used
   for monitoring purposes.
-* To get the NIH dataset: please download from [here] https://www.kaggle.com/nih-chest-xrays/data. Make sure you include also the csv files in your data folder.
+* To get the NIH dataset: please download from [here] https://www.kaggle.com/nih-chest-xrays/data. Make sure you include
+  also the csv files in your data folder.
 
 #### If you run on AML
-In order to train models on AML you will need to upload and register the datasets listed above to your storage account and get their dataset_id to pass to your model config.
+
+In order to train models on AML you will need to upload and register the datasets listed above to your storage account
+and get their dataset_id to pass to your model config.
 
 #### Step 1: Update your model config
 
@@ -68,11 +71,13 @@ the dataset location fields:
 
 #### Step 2: Launch the training job
 
-Example to train a SSL model with BYOL on the NIH dataset and monitor the embeddings quality on the Kaggle RSNA Pneumonia Challenge classification task:
+Example to train a SSL model with BYOL on the NIH dataset and monitor the embeddings quality on the Kaggle RSNA
+Pneumonia Challenge classification task:
 
 ```
 python ML/runner.py --model=NIH_RSNA_BYOL
 ```
+
 ## Configuring your own SSL models:
 
 ### About SSLContainer(add-link-here) configuration
@@ -80,8 +85,8 @@ python ML/runner.py --model=NIH_RSNA_BYOL
 All SSL models are derived from the SSLcontainer class. See the config class in [ML/configs/ssl](link) for some examples
 of specific model configurations (all derived from this container).
 
-If you wish to create your own model config for SSL training, you will need to create a child class and parametrize it with the following
-available arguments:
+If you wish to create your own model config for SSL training, you will need to create a child class and parametrize it
+with the following available arguments:
 
 * `ssl_training_dataset_name`: the name of the dataset to train the SSL encoder on, a member of the SSLDatasetName
   class (don't forget to update this class if you're adding a new dataset ;)),
@@ -102,19 +107,70 @@ available arguments:
 * `num_epochs`: number of epochs to train for.
 
 ### Creating your own datamodules:
+
 To use this code with your own data, you will need to:
-1.  Create a dataset class that reads your new dataset, derived from `VisionDataset`. See for example how we constructed `InnerEyeCXRDatasetBase`(link). 
-2. Add a member to the `SSLDatasetName` Enum with your new dataset and update the `_SSLDataClassMappings` member of the class so that the code knows which data class to associate to your new dataset name. 
-3. Update the `_get_transforms` methods to add the transform specific to your new dataset. To simplify this step, we have defined a series of standard transforms parametrized by an augmentation yaml file in `SSL/transforms_utils.py` (see next paragraph for more details). You could for example construct a transform pipeline similar to the one created with `get_cxr_ssl_transforms` for our CXR examples. 
+
+1. Create a dataset class that reads your new dataset, derived from `VisionDataset`. See for example how we
+   constructed `InnerEyeCXRDatasetBase` class.
+2. Add a member to the `SSLDatasetName` Enum with your new dataset and update the `_SSLDataClassMappings` member of the
+   class so that the code knows which data class to associate to your new dataset name.
+3. Update the `_get_transforms` methods to add the transform specific to your new dataset. To simplify this step, we
+   have defined a series of standard transforms parametrized by an augmentation yaml file in `SSL/transforms_utils.py` (
+   see next paragraph for more details). You could for example construct a transform pipeline similar to the one created
+   with `get_cxr_ssl_transforms` for our CXR examples.
 4. Update all necessary parameters in the model config (cf. previous paragraph)
 
-Once all these steps are updated, the code in the base SSLContainer class will take care of creating the corresponding datamodules for SSL training and linear head monitoring.
+Once all these steps are updated, the code in the base SSLContainer class will take care of creating the corresponding
+datamodules for SSL training and linear head monitoring.
 
 ### About the augmentation configuration yaml file
+
 The augmentations used for SSL training for all Chest-X-rays models are parametrized via a yaml config file. The path to
 this config as to be passed in the model config (cf. section above). We provide two defaults
 configs: ``rsna_aumgentations.yaml`` is used to define the augmentations used for BYOL/SimCLR training;
 the ``linear_head.yaml`` config defines the augmentations to used for the training of the linear head (used for
-monitoring purposes). The meaning of each config argument is detailed in `ssl_model_config.py`(add-link)
+monitoring purposes). The meaning of each config argument is detailed in `ssl_model_config.py`
 
 WARNING: this file will be ignored for CIFAR examples where we use the default pl-bolts augmentations.
+
+## Finetuning a linear head on top of a pretrained SSL model.
+
+Alongside with the modules to train your SSL models, we also provide examplary modules that allow you to build a
+classifier on top of a pretrained SSL model. The base class for these modules is `SSLClassifierContainer`. It builds on
+top of the `SSLContainer` with additional command line arguments allowing you to specify where to find the checkpoint
+for your pretrained model. For this you have two options:
+
+- If you are running locally, you can provide the local path to your pretrained model checkpoint
+  via `--local_weights_path`.
+- If your are running on AML, use the `extra_run_recovery_id` field. Providing this field, will mean that AML will
+  automatically download the checkpoints to the current node, will pick the latest checkpoint to build the classifier on
+  top. Beware not to confuse `extra_run_recovery_id` with `run_recovery_id` as the latter is use to continue training on
+  the same model (which is not the case here).
+
+The code will then automatically extract the encoder part of the loaded SSL model to initialize your classifier. You can
+then also choose whether you want to freeze the weights of your encoder or not via the `--freeze_encoder=True/False`
+argument. By default, this is set to True.
+
+### Example for CIFAR
+
+We provide an example of such a classifier container for CIFAR named `SSLClassifierCIFAR`. To launch a finetuning run
+for this model on CIFAR10, just run
+
+```
+python ML/runner.py --model=SSLClassifierCIFAR --extra_run_recovery_id={THE_ID_TO_YOUR_SSL_TRAINING_JOB}
+```
+
+### Example for CXR
+
+Similarly, we provide class to allow you to simply start a finetuning job for CXR model in `CXRImageClassifier`. By
+default, this will launch a finetuning job on the RSNA Pneumonia dataset. To start the run:
+
+```
+python ML/runner.py --model=CXRImageClassifier --extra_run_recovery_id={THE_ID_TO_YOUR_SSL_TRAINING_JOB}
+```
+
+or for a local run
+
+```
+python ML/runner.py --model=CXRImageClassifier --local_weights_path={LOCAL_PATH_TO_YOUR_SSL_CHECKPOINT}
+```
