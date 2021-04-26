@@ -170,7 +170,7 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
         If the name is a Tuple[str, str], the second tuple element is the "real" extension, for files where the
         extension is misleading.
         :param target_folder: The folder in the target storage account
-        :return:
+        :return: A list of pipelines that this method created.
         """
         if isinstance(source_file_or_tuple, str):
             source_file = source_file_or_tuple
@@ -256,7 +256,7 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
                                   )
         # Create a pipeline that first downloads from AWS to blob storage, and then decompresses from blob storage
         # to another blob storage location
-        pipeline = f"download {source_file_cleaned} and uncompress"
+        pipeline = f"{source_file_cleaned}"
         adf_client.pipelines.create_or_update(resource_group_name=azure_config.resource_group,
                                               factory_name=data_factory_name,
                                               pipeline_name=pipeline,
