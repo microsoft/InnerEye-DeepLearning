@@ -120,7 +120,7 @@ def create_lightning_trainer(container: LightningContainer,
     # recovery_checkpoints_save_last_k.
     recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
 
-    num_gpus = container.num_gpus_to_use
+    num_gpus = container.num_gpus_per_node
     effective_num_gpus = num_gpus * num_nodes
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
     # For unit tests, only "ddp_spawn" works

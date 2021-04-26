@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -85,6 +86,7 @@ class SSLContainer(LightningContainer):
     online_evaluator_lr = param.Number(default=1e-4, doc="Learning rate for linear head training during SSL training.")
 
     def setup(self) -> None:
+        self.total_num_gpus = self.num_gpus_per_node * self.num_nodes
         self._load_config()
         # If you're using the same data for training and linear head you don't need to specify an extra dataset in the
         # config.
@@ -122,9 +124,10 @@ class SSLContainer(LightningContainer):
         """
         This method must create the actual Lightning model that will be trained.
         """
+
         if self.ssl_training_type == SSLType.SimCLR:
             model: LightningModule = SimCLRInnerEye(dataset_name=self.ssl_training_dataset_name.value,
-                                                    gpus=self.num_gpus_to_use,
+                                                    gpus=self.total_num_gpus,
                                                     encoder_name=self.ssl_encoder.value,
                                                     num_samples=self.data_module.num_samples,
                                                     batch_size=self.data_module.batch_size,
@@ -159,21 +162,22 @@ class SSLContainer(LightningContainer):
         """
         Returns torch lightning data module for encoder or linear head
         """
-        num_devices = max(1, self.num_gpus_to_use)
         datamodule_args = self.datamodule_args[SSLModule.LINEAR_HEAD] if linear_head_module else self.datamodule_args[
             SSLModule.ENCODER]
 
         train_transforms, val_transforms = self._get_transforms(datamodule_args.augmentation_config,
                                                                 datamodule_args.dataset_name,
                                                                 linear_head_module)
-
+        batch_size_per_gpu = datamodule_args.batch_size // self.total_num_gpus if self.total_num_gpus > 0 else \
+            datamodule_args.batch_size
+        logging.info(f"Batch size per gpu: {batch_size_per_gpu}")
         dm = InnerEyeVisionDataModule(dataset_cls=self._SSLDataClassMappings[datamodule_args.dataset_name],
                                       return_index=linear_head_module,
                                       train_transforms=train_transforms,
                                       val_split=0.1,
                                       val_transforms=val_transforms,
                                       data_dir=str(datamodule_args.dataset_path),
-                                      batch_size=datamodule_args.batch_size // num_devices,
+                                      batch_size=batch_size_per_gpu,
                                       num_workers=self.num_workers,
                                       seed=self.random_seed)
         dm.prepare_data()
