@@ -2,29 +2,15 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import sys
+from argparse import ArgumentParser
 from pathlib import Path
 from typing import Tuple
 
 import json
-import param
 from attr import dataclass
 from azureml.core import Environment, Model, Workspace
+from azureml.core.authentication import InteractiveLoginAuthentication
 
-from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Common import fixed_paths
-
-print(f"Starting runner at {sys.argv[0]}")
-innereye_root = Path(__file__).absolute().parent.parent.parent
-if (innereye_root / "InnerEye").is_dir():
-    innereye_root_str = str(innereye_root)
-    if innereye_root_str not in sys.path:
-        print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
-        sys.path.insert(0, innereye_root_str)
-
-from InnerEye.Common.generic_parsing import GenericConfig  # noqa: E402
-
-# The property in the model registry that holds the name of the Python environment
 PYTHON_ENVIRONMENT_NAME = "python_environment_name"
 MODEL_PATH = "MODEL"
 ENVIRONMENT_PATH = "ENVIRONMENT"
@@ -32,19 +18,13 @@ MODEL_JSON = "model.json"
 
 
 @dataclass
-class MoveModelConfig(GenericConfig):
-    workspace_name: str = param.String(default="workspace_name",
-                                       doc="AzureML workspace name")
-    subscription_id: str = param.String(default="subscription_id",
-                                        doc="AzureML subscription id")
-    resource_group: str = param.String(default="resource_group",
-                                       doc="AzureML resource group")
-    model_id: str = param.String(default="model_id",
-                                 doc="AzureML model_id")
-    path: str = param.String(default="path",
-                             doc="Path to import or export model")
-    action: str = param.String(default="action",
-                               doc="Import or export model from workspace. E.g. import or export")
+class MoveModelConfig:
+    workspace_name: str
+    subscription_id: str
+    resource_group: str
+    model_id: str
+    path: str
+    action: str
 
 
 def get_paths(path: Path, model_id: str) -> Tuple[Path, Path]:
@@ -107,12 +87,31 @@ def get_workspace(config: MoveModelConfig) -> Workspace:
     :param config: MoveModelConfig
     :return: an Azure ML workspace
     """
+    interactive_auth = InteractiveLoginAuthentication(tenant_id="72f988bf-86f1-41af-91ab-2d7cd011db47")
     return Workspace.get(name=config.workspace_name, subscription_id=config.subscription_id,
-                         resource_group=config.resource_group)
+                         resource_group=config.resource_group,
+                         auth=interactive_auth)
 
 
 def main() -> None:
-    config = MoveModelConfig.parse_args()
+    parser = ArgumentParser()
+    parser.add_argument("-a", "--action", type=str,
+                        help="Action (download or upload)")
+    parser.add_argument("-w", "--workspace_name", type=str, required=True,
+                        help="Azure ML workspace name")
+    parser.add_argument("-s", "--subscription_id", type=str, required=True,
+                        help="AzureML subscription id")
+    parser.add_argument("-r", "--resource_group", type=str, required=True,
+                        help="AzureML resource group")
+    parser.add_argument("-p", "--path", type=str, required=True,
+                        help="The path to download or upload model")
+    parser.add_argument("-m", "--model_id", type=str, required=True,
+                        help="The AzureML model ID")
+
+    args = parser.parse_args()
+    config = MoveModelConfig(workspace_name=args.workspace_name, subscription_id=args.subscription_id,
+                             resource_group=args.resource_group,
+                             path=args.path, action=args.action, model_id=args.model_id)
     ws = get_workspace(config)
     move(config, ws)
 
@@ -122,11 +121,11 @@ def move(ws: Workspace, config: MoveModelConfig) -> Model:
     Moves a model: downloads or uploads the model depending on the configs
     :param config: the move model config
     :param ws: The Azure ML workspace
-    :return: the import or exported model
+    :return: the download or upload model
     """
-    if config.action == "export":
+    if config.action == "download":
         return download_model(ws, config)
-    elif config.action == "import":
+    elif config.action == "upload":
         return upload_model(ws, config)
     else:
         raise ValueError(f'Invalid action {config.action}, allowed values: import or export')
