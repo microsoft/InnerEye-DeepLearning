@@ -91,7 +91,7 @@ def get_workspace(config: MoveModelConfig) -> Workspace:
 
 def main() -> None:
     parser = ArgumentParser()
-    parser.add_argument("-a", "--action", type=str,
+    parser.add_argument("-a", "--action", type=str, required=True,
                         help="Action (download or upload)")
     parser.add_argument("-w", "--workspace_name", type=str, required=True,
                         help="Azure ML workspace name")

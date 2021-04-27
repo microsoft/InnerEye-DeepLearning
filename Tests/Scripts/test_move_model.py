@@ -18,10 +18,10 @@ def test_download_and_upload(test_output_dirs: OutputFolderForTests) -> None:
     azure_config = AzureConfig.from_yaml(yaml_file_path=fixed_paths.SETTINGS_YAML_FILE,
                                          project_root=fixed_paths.repository_root_directory())
     ws = azure_config.get_workspace()
-    config_download = MoveModelConfig(model_id=MODEL_ID, path=str(test_output_dirs.root_dir), action="export")
+    config_download = MoveModelConfig(model_id=MODEL_ID, path=str(test_output_dirs.root_dir), action="download")
     move(ws, config_download)
     assert (test_output_dirs.root_dir / MODEL_ID.replace(":", "_")).is_dir()
-    config_upload = MoveModelConfig(model_id=MODEL_ID, path=str(test_output_dirs.root_dir), action="import")
+    config_upload = MoveModelConfig(model_id=MODEL_ID, path=str(test_output_dirs.root_dir), action="upload")
     model = move(ws, config_upload)
     assert model is not None
     assert PYTHON_ENVIRONMENT_NAME in model.tags
