@@ -90,12 +90,16 @@ cluster, this will use a different number of GPUs: For example, if your cluster 
 each VM has 4 Tesla P40 cards, training will use a total of 16 GPUs.
 
 As common with multiple nodes, training time will not scale linearly with increased number of nodes. The following
-table gives a rough overview of time to train the FastMri model in the InnerEye toolbox on our cluster (4 Tesla P40 
-cards per node):
+table gives a rough overview of time to train 1 epoch of the FastMri model in the InnerEye toolbox 
+on our cluster (4 Tesla P40 cards per node):
 
-| Step | 1 node | 4 nodes | 8 nodes |
+| Step | 1 node (4 GPUs) | 2 nodes (8 GPUs) | 4 nodes (16 GPUs) | 8 nodes (32 GPUs) |
 | --- | --- | --- | --- |
-| Download training data (1.25 TB) | 22min | 22min | 22min |
-| Train and validate 1 epoch | 4h 15min | 1h 6min | 34min |
-| Evaluate on test set | 30min | 30min | 30min |
-| Total time | 5h 7min | 1h 58min | 1h 26min |
+| Download training data (1.25 TB) | 22min | 22min | 22min | 22min |
+| Train and validate 1 epoch | 4h 15min | 2h 13min | 1h 6min | 34min |
+| Evaluate on test set | 30min | 30min | 30min | 30min |
+| Total time for 1 epoch | 5h 7min | 3h 5min | 1h 58min | 1h 26min |
+| Total time for 50 epochs | 8 days | 4.6 days | 2.3 days | 1.2 days|
+
+Note that the download times depend on the type of Azure storage account that your workspace is using. The numbers 
+above are with a Premium storage account.
