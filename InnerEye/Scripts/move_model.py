@@ -26,21 +26,20 @@ class MoveModelConfig:
     path: str
     action: str
 
-
-def get_paths(path: Path, model_id: str) -> Tuple[Path, Path]:
-    """
-    Gets paths and creates folders if necessary
-    :param path: Base path
-    :param model_id: The model ID
-    :return: model_path, environment_path
-    """
-    model_id_path = Path(path) / model_id.replace(":", "_")
-    model_id_path.mkdir(parents=True, exist_ok=True)
-    model_path = model_id_path / MODEL_PATH
-    model_path.mkdir(parents=True, exist_ok=True)
-    env_path = model_id_path / ENVIRONMENT_PATH
-    env_path.mkdir(parents=True, exist_ok=True)
-    return model_path, env_path
+    def get_paths(self) -> Tuple[Path, Path]:
+        """
+        Gets paths and creates folders if necessary
+        :param path: Base path
+        :param model_id: The model ID
+        :return: model_path, environment_path
+        """
+        model_id_path = Path(self.path) / self.model_id.replace(":", "_")
+        model_id_path.mkdir(parents=True, exist_ok=True)
+        model_path = model_id_path / MODEL_PATH
+        model_path.mkdir(parents=True)
+        env_path = model_id_path / ENVIRONMENT_PATH
+        env_path.mkdir(parents=True)
+        return model_path, env_path
 
 
 def download_model(ws: Workspace, config: MoveModelConfig) -> Model:
@@ -51,7 +50,7 @@ def download_model(ws: Workspace, config: MoveModelConfig) -> Model:
     :return: the exported Model
     """
     model = Model(ws, id=config.model_id)
-    model_path, environment_path = get_paths(Path(config.path), config.model_id)
+    model_path, environment_path = config.get_paths()
     with open(model_path / MODEL_JSON, 'w') as f:
         json.dump(model.serialize(), f)
     model.download(target_dir=str(model_path))
@@ -68,7 +67,7 @@ def upload_model(ws: Workspace, config: MoveModelConfig) -> Model:
     :param config: move config
     :return: imported Model
     """
-    model_path, environment_path = get_paths(Path(config.path), config.model_id)
+    model_path, environment_path = config.get_paths()
     with open(model_path / MODEL_JSON, 'r') as f:
         model_dict = json.load(f)
 
@@ -111,7 +110,7 @@ def main() -> None:
                              resource_group=args.resource_group,
                              path=args.path, action=args.action, model_id=args.model_id)
     ws = get_workspace(config)
-    move(config, ws)
+    move(ws, config)
 
 
 def move(ws: Workspace, config: MoveModelConfig) -> Model:
