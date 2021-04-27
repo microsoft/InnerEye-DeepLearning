@@ -83,7 +83,7 @@ def download_model(ws: Workspace, config: MoveModelConfig) -> Model:
 
 def upload_model(ws: Workspace, config: MoveModelConfig) -> Model:
     """
-    Uploads an InnerEye model from an AzureML workspace
+    Uploads an InnerEye model to an AzureML workspace
     :param ws: The AzureML workspace
     :param config: move config
     :return: imported Model
