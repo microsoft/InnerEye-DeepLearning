@@ -87,10 +87,8 @@ def get_workspace(config: MoveModelConfig) -> Workspace:
     :param config: MoveModelConfig
     :return: an Azure ML workspace
     """
-    interactive_auth = InteractiveLoginAuthentication(tenant_id="72f988bf-86f1-41af-91ab-2d7cd011db47")
     return Workspace.get(name=config.workspace_name, subscription_id=config.subscription_id,
-                         resource_group=config.resource_group,
-                         auth=interactive_auth)
+                         resource_group=config.resource_group)
 
 
 def main() -> None:
