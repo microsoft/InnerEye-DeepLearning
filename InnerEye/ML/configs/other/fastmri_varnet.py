@@ -6,8 +6,6 @@
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
 # flake8: noqa
-import os
-from pathlib import Path
 from typing import Optional
 
 import param
@@ -15,7 +13,7 @@ import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from torch.utils.tensorboard import SummaryWriter
 
-from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed, change_working_directory
+from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed
 from InnerEye.ML.lightning_container import LightningContainer
 
 add_folder_to_sys_path_if_needed("fastMRI")
