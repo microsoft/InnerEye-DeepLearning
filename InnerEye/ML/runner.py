@@ -246,6 +246,8 @@ class Runner:
         """
         # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
         logging.getLogger('adal-python').setLevel(logging.WARNING)
+        # Azure core prints full HTTP requests even in INFO mode
+        logging.getLogger('azure').setLevel(logging.WARNING)
         # PyJWT prints out warnings that are beyond our control
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         if isinstance(self.model_config, DeepLearningConfig) and not self.azure_dataset_id:
