@@ -48,8 +48,9 @@ class FastMri(LightningContainer):
 
     def __init__(self) -> None:
         super().__init__()
-        self.azure_dataset_id = "knee_singlecoil"
+        self.azure_dataset_id = "knee_multicoil"
         self.num_epochs = 1
+        self.pl_progress_bar_refresh_rate = 50
 
     def create_model(self) -> LightningModule:
         return VarNetWithImageLogging()
@@ -75,27 +76,9 @@ class FastMri(LightningContainer):
         test_transform = VarNetDataTransform()
 
         return FastMriDataModule(data_path=self.local_dataset,
-                                 test_path=self.local_dataset / "singlecoil_test_v2",
+                                 test_path=self.local_dataset / "multicoil_test_v2",
                                  challenge=self.challenge,
                                  sample_rate=self.sample_rate,
                                  train_transform=train_transform,
                                  val_transform=val_transform,
                                  test_transform=test_transform)
-
-
-class FastMriOnCompressedData(FastMri):
-    def __init__(self) -> None:
-        super().__init__()
-        self.azure_dataset_id = "knee_singlecoil_compressed"
-
-    def before_training_on_rank_zero(self) -> None:
-        def unzip_folder(folder: Path) -> None:
-            with change_working_directory(folder):
-                for file in Path.cwd().glob("*.tar"):
-                    print(f"Unzipping {file}")
-                    os.system(f"tar xf {file}")
-                for file in Path.cwd().glob("*.tar.gz"):
-                    print(f"Unzipping {file}")
-                    os.system(f"tar xzf {file}")
-
-        unzip_folder(self.local_dataset)
