@@ -472,7 +472,6 @@ class TrainerParams(param.Parameterized):
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
                           "you may see training speed increases.")
-    _num_gpus: Optional[int] = param.Integer(None, doc="Number of gpus to use")
 
     @property
     def use_gpu(self) -> bool:
@@ -488,13 +487,12 @@ class TrainerParams(param.Parameterized):
     @property
     def num_gpus_per_node(self) -> int:
         import torch
-        if self._num_gpus is None:
-            self._num_gpus = torch.cuda.device_count() if self.use_gpu else 0
-            logging.info(f"Number of available GPUs: {self._num_gpus}")
-            if 0 <= self.max_num_gpus < self._num_gpus:
-                self._num_gpus = self.max_num_gpus
-                logging.info(f"Restricting the number of GPUs to {self._num_gpus}")
-        return self._num_gpus
+        num_gpus = torch.cuda.device_count() if self.use_gpu else 0
+        logging.info(f"Number of available GPUs: {num_gpus}")
+        if 0 <= self.max_num_gpus < num_gpus:
+            num_gpus = self.max_num_gpus
+            logging.info(f"Restricting the number of GPUs to {num_gpus}")
+        return num_gpus
 
 class DeepLearningConfig(WorkflowParams,
                          DatasetParams,
