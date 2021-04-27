@@ -33,6 +33,12 @@ MODEL_JSON = "model.json"
 
 @dataclass
 class MoveModelConfig(GenericConfig):
+    workspace_name: str = param.String(default="workspace_name",
+                                       doc="AzureML workspace name")
+    subscription_id: str = param.String(default="subscription_id",
+                                        doc="AzureML subscription id")
+    resource_group: str = param.String(default="resource_group",
+                                       doc="AzureML resource group")
     model_id: str = param.String(default="model_id",
                                  doc="AzureML model_id")
     path: str = param.String(default="path",
@@ -94,11 +100,20 @@ def upload_model(ws: Workspace, config: MoveModelConfig) -> Model:
     print(f"Environment {env.name} registered")
     return new_model
 
+
+def get_workspace(config: MoveModelConfig) -> Workspace:
+    """
+    Get workspace based on command line input config
+    :param config: MoveModelConfig
+    :return: an Azure ML workspace
+    """
+    return Workspace.get(name=config.workspace_name, subscription_id=config.subscription_id,
+                         resource_group=config.resource_group)
+
+
 def main() -> None:
     config = MoveModelConfig.parse_args()
-    azure_config = AzureConfig.from_yaml(yaml_file_path=fixed_paths.SETTINGS_YAML_FILE,
-                                         project_root=fixed_paths.repository_root_directory())
-    ws = azure_config.get_workspace()
+    ws = get_workspace(config)
     move(config, ws)
 
 
