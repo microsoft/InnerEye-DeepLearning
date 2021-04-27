@@ -12,8 +12,8 @@ If you want to export a model from one Workspace to another you can use the foll
 from an AzureML workspace. This script does not use settings.yml, it uses interactive authentication, and the workspace specified in the
 parameters. The model will be written to the path in --path parameter with two folders one for the `MODEL` and one for the `ENVIRONMENT` files.
 
-- Export to
-  disk: `python InnerEye/Scripts/move_model.py -a download --path ./ --workspace_name "<name>" --resource_group "<name>" --subscription_id "<sub_id>" --model_id "name:version"`
+- Download to
+  path: `python InnerEye/Scripts/move_model.py -a download --path ./ --workspace_name "<name>" --resource_group "<name>" --subscription_id "<sub_id>" --model_id "name:version"`
 
-- Import from
-  disk: `python InnerEye/Scripts/move_model.py - upload --path ./ --workspace_name "<name>" --resource_group "<name>" --subscription_id "<sub_id>" --model_id "name:version"`
+- Upload from
+  path: `python InnerEye/Scripts/move_model.py - upload --path ./ --workspace_name "<name>" --resource_group "<name>" --subscription_id "<sub_id>" --model_id "name:version"`
