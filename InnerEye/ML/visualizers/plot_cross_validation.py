@@ -682,8 +682,9 @@ def save_outliers(config: PlotCrossValidationConfig,
                                                .describe()[metric_type][stats_columns]
                                                .sort_values(stats_columns, ascending=False))
                         f.write(outliers_summary)
-                        f.write("\n\n")
-                        f.write(create_portal_query_for_outliers(outliers))
+                        if CSV_INSTITUTION_HEADER in outliers.columns and CSV_SERIES_HEADER in outliers.columns:
+                            f.write("\n\n")
+                            f.write(create_portal_query_for_outliers(outliers))
                     else:
                         f.write("No outliers found")
 
@@ -693,7 +694,11 @@ def save_outliers(config: PlotCrossValidationConfig,
 def create_portal_query_for_outliers(df: pd.DataFrame) -> str:
     """
     Create a portal query string as a conjunction of the disjunctions of the unique InstitutionId and seriesId values.
+
+    The passed data frame must have CSV_INSTITUTION_HEADER and CSV_SERIES_HEADER columns
     """
+    if not CSV_INSTITUTION_HEADER in df.columns or not CSV_SERIES_HEADER in df.columns:
+        raise ValueError(f"Data frame must have columns {CSV_INSTITUTION_HEADER} and {CSV_SERIES_HEADER}")
     return PORTAL_QUERY_TEMPLATE.format(
         " OR ".join(map(lambda x: 'r.InstitutionId = "{}"'.format(x), df[CSV_INSTITUTION_HEADER].unique())),
         " OR ".join(map(lambda x: 'STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"{}")'.format(x),
