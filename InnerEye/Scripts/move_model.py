@@ -37,7 +37,7 @@ class MoveModelConfig:
         model_path = model_id_path / MODEL_PATH
         model_path.mkdir(parents=True, exist_ok=True)
         env_path = model_id_path / ENVIRONMENT_PATH
-        env_path.mkdir(parents=True)
+        env_path.mkdir(parents=True, exist_ok=True)
         return model_path, env_path
 
 
