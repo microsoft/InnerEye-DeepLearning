@@ -9,7 +9,6 @@ from typing import Tuple
 import json
 from attr import dataclass
 from azureml.core import Environment, Model, Workspace
-from azureml.core.authentication import InteractiveLoginAuthentication
 
 PYTHON_ENVIRONMENT_NAME = "python_environment_name"
 MODEL_PATH = "MODEL"
@@ -19,12 +18,12 @@ MODEL_JSON = "model.json"
 
 @dataclass
 class MoveModelConfig:
-    workspace_name: str
-    subscription_id: str
-    resource_group: str
     model_id: str
     path: str
     action: str
+    workspace_name: str = ""
+    subscription_id: str = ""
+    resource_group: str = ""
 
     def get_paths(self) -> Tuple[Path, Path]:
         """
