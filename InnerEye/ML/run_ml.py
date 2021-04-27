@@ -407,7 +407,8 @@ class MLRunner:
             self.container.max_num_gpus = 1
             # Without this, the trainer will think it should still operate in multi-node mode, and wrongly start
             # searching for Horovod
-            del os.environ[ENV_OMPI_COMM_WORLD_RANK]
+            if ENV_OMPI_COMM_WORLD_RANK in os.environ:
+                del os.environ[ENV_OMPI_COMM_WORLD_RANK]
             trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
             # When training models that are not built-in InnerEye models, we have no guarantee that they write
             # files to the right folder. Best guess is to change the current working directory to where files should go.
