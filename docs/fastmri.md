@@ -66,7 +66,36 @@ with their corrected extension.
 `knee_DICOMs_compressed` and `brain_DICOMs_compressed` (as `.tar` files)
 
 
-# Troubleshooting
+### Troubleshooting the data downloading
 If you see a runtime error saying "The subscription is not registered to use namespace 'Microsoft.DataFactory'", then 
 follow the steps described [here](https://stackoverflow.com/a/48419951/5979993), to enable DataFactory for your
 subscription.
+
+
+## Running a FastMri model with InnerEye
+
+The Azure Data Factory that downloaded the data has put it into the storage account you supplied on the commandline.
+If set up correctly, this is the Azure storage account that holds all datasets used in your AzureML workspace.
+Hence, after the downloading completes, you are ready to use the InnerEye toolbox to submit an AzureML job that uses
+the FastMRI data.
+
+There is an example model already included in the InnerEye toolbox, that uses the `knee_multicoil` dataset. Please
+check out [fastmri_varnet.py](../InnerEye/ML/configs/other/fastmri_varnet.py). As with all InnerEye models, you can
+start a training run by specifying the name of the class that defines the model, like this:
+```shell script
+python InnerEye/ML/runner.py --model FastMri --azureml=True --num_nodes=4
+```
+This will start an AzureML job with 4 nodes training at the same time. Depending on how you set up your compute
+cluster, this will use a different number of GPUs: For example, if your cluster uses ND24 virtual machines, where 
+each VM has 4 Tesla P40 cards, training will use a total of 16 GPUs.
+
+As common with multiple nodes, training time will not scale linearly with increased number of nodes. The following
+table gives a rough overview of time to train the FastMri model in the InnerEye toolbox on our cluster (4 Tesla P40 
+cards per node):
+
+| Step | 1 node | 4 nodes | 8 nodes |
+| --- | --- | --- | --- |
+| Download training data (1.25 TB) | 22min | 22min | 22min |
+| Train and validate 1 epoch | 4h 15min | 1h 6min | 34min |
+| Evaluate on test set | 30min | 30min | 30min |
+| Total time | 5h 7min | 1h 58min | 1h 26min |
