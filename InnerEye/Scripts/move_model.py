@@ -94,12 +94,6 @@ def upload_model(ws: Workspace, config: MoveModelConfig) -> Model:
     print(f"Environment {env.name} registered")
     return new_model
 
-
-def get_workspace(config: MoveModelConfig) -> Workspace:
-    return Workspace.get(name=config.workspace_name, subscription_id=config.subscription_id,
-                         resource_group=config.resource_group)
-
-
 def main() -> None:
     config = MoveModelConfig.parse_args()
     azure_config = AzureConfig.from_yaml(yaml_file_path=fixed_paths.SETTINGS_YAML_FILE,
