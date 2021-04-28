@@ -39,15 +39,19 @@ extract all the AWS access tokens from the `curl` commands.
   that you created to hold your datasets (Step 4 in [AzureML setup](setting_up_aml.md)). 
   - On the left hand navigation, there is a section "Access Keys", select that and copy out the connection string 
   (sanity check: it should look something like `DefaultEndpointsProtocol=....==;EndpointSuffix=core.windows.net`)
+- The Azure location where the Data Factory should be created (for example "westeurope"). The Data Factory should 
+  live in the same Azure location as your AzureML workspace and storage account. To check the location, 
+  find the workspace in the [Azure Portal](https://portal.azure.com), the location is shown on the overview page.
 
 Then run the script to download the dataset as follows, providing the path the the file with the curl commands
 and the connection string as commandline arguments, enclosed in quotes:
-`python InnerEye/Scripts/prepare_fastmri.py --curl curl.txt --connection_string "<your_connection_string"`
+`python InnerEye/Scripts/prepare_fastmri.py --curl curl.txt --connection_string "<your_connection_string"` --location westeurope
 
 This script will
 - Authenticate against Azure either using the Service Principal credentials that you set up in Step 3 of the
- [AzureML setup](setting_up_aml.md), or your own credentials.
-- Create an Azure Data Factory in the same resource group as the AzureML workspace
+ [AzureML setup](setting_up_aml.md), or your own credentials. To use the latter, you need to be logged in via the Azure
+ command line interface (CLI), available [here](https://docs.microsoft.com/en-us/cli/azure/) for all platforms.
+- Create an Azure Data Factory in the same resource group as the AzureML workspace.
 - Create pipelines to download the datasets in compressed form to the `datasets` container in the storage account
 you supplied, and uncompress them.
 - Run all the pipelines and delete the Data Factory.
@@ -94,12 +98,12 @@ table gives a rough overview of time to train 1 epoch of the FastMri model in th
 on our cluster (4 Tesla P40 cards per node):
 
 | Step | 1 node (4 GPUs) | 2 nodes (8 GPUs) | 4 nodes (16 GPUs) | 8 nodes (32 GPUs) |
-| --- | --- | --- | --- |
+| --- | --- | --- | --- | --- |
 | Download training data (1.25 TB) | 22min | 22min | 22min | 22min |
 | Train and validate 1 epoch | 4h 15min | 2h 13min | 1h 6min | 34min |
 | Evaluate on test set | 30min | 30min | 30min | 30min |
-| Total time for 1 epoch | 5h 7min | 3h 5min | 1h 58min | 1h 26min |
-| Total time for 50 epochs | 8 days | 4.6 days | 2.3 days | 1.2 days|
+| Total time for 1 epoch | 5h 5min | 3h 5min | 1h 58min | 1h 26min |
+| Total time for 50 epochs | 9 days | 4.6 days | 2.3 days | 1.2 days|
 
 Note that the download times depend on the type of Azure storage account that your workspace is using. We recommend 
 using Premium storage accounts for optimal performance.

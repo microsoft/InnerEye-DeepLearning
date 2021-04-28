@@ -35,8 +35,6 @@ from azure.mgmt.datafactory.models import (ActivityDependency,
                                            SecureString,
                                            TarGZipReadSettings,
                                            TarReadSettings)
-from azure.mgmt.resource import ResourceManagementClient
-from msrestazure.azure_active_directory import InteractiveCredentials, ServicePrincipalCredentials
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.secrets_handling import SecretsHandling
@@ -77,57 +75,38 @@ files_to_download: FolderAndFileList = [
 ]
 
 
-def get_msrest_auth(azure_config: AzureConfig) -> Union[InteractiveCredentials, ServicePrincipalCredentials]:
+def get_msrest_and_azure_auth(azure_config: AzureConfig) -> Union[DefaultAzureCredential, ClientSecretCredential]:
     """
-    Returns the authentication objects from the msrestazure library, based on either the chosen Service Principal
-    (if set, and if the password was found), or the interactive browser authentication if not all Service Principal
-    is not set up.
-    :param azure_config: The object containing all Azure-related information.
-    :return: An msrestazure authentication object.
-    """
-    secrets_handler = SecretsHandling(project_root=azure_config.project_root)
-    application_key = secrets_handler.get_secret_from_environment(fixed_paths.SERVICE_PRINCIPAL_KEY,
-                                                                  allow_missing=True)
-    if not application_key:
-        logging.warning("Unable to retrieve the key for the Service Principal authentication "
-                        f"(expected in environment variable '{fixed_paths.SERVICE_PRINCIPAL_KEY}' or YAML). "
-                        f"Switching to interactive login.")
-        return InteractiveCredentials()
-
-    return ServicePrincipalCredentials(
-        tenant=azure_config.tenant_id,
-        client_id=azure_config.application_id,
-        secret=application_key)
-
-
-def get_azure_identity_auth(azure_config: AzureConfig) -> Union[DefaultAzureCredential, ClientSecretCredential]:
-    """
-    Returns the authentication objects from the azure.identity library, based on either the chosen Service Principal
-    (if that was set in the InnerEye setings.yml file, and if the password was found), or otherwise the
-    interactive browser authentication if not all Service Principal information was found.
+    Returns the authentication object for the azure.identity library,
+    based on either the chosen Service Principal (if set, and if the password was found), or the
+    interactive browser authentication if not all Service Principal information is available.
     :param azure_config: The object containing all Azure-related information.
     :return: An azure.identity authentication object.
     """
     secrets_handler = SecretsHandling(project_root=azure_config.project_root)
     application_key = secrets_handler.get_secret_from_environment(fixed_paths.SERVICE_PRINCIPAL_KEY,
                                                                   allow_missing=True)
-    if not application_key:
-        logging.warning("Unable to retrieve the key for the Service Principal authentication "
-                        f"(expected in environment variable '{fixed_paths.SERVICE_PRINCIPAL_KEY}' or YAML). "
-                        f"Switching to default authenticationlogin.")
-        return DefaultAzureCredential()
+    if not azure_config.tenant_id:
+        raise ValueError("No tenant_id field was found. Please complete the Azure setup.")
+    if application_key and azure_config.application_id:
+        return ClientSecretCredential(
+            tenant_id=azure_config.tenant_id,
+            client_id=azure_config.application_id,
+            client_secret=application_key)
 
-    return ClientSecretCredential(
-        tenant_id=azure_config.tenant_id,
-        client_id=azure_config.application_id,
-        client_secret=application_key)
+    logging.warning("Unable to retrieve the key for the Service Principal authentication "
+                    f"(expected in environment variable '{fixed_paths.SERVICE_PRINCIPAL_KEY}' or YAML). "
+                    f"Switching to interactive login.")
+    return DefaultAzureCredential()
 
 
 def create_datafactory_and_run(files_and_tokens: Dict[str, str],
                                connection_string: str,
+                               location: str,
                                is_unittest: bool = False) -> None:
     """
     Builds an Azure Data Factory to download the FastMRI dataset from AWS, and places them in Azure Blob Storage.
+    :param location: The Azure location in which the Data Factory should be created (for example, "westeurope")
     :param files_and_tokens: A mapping from file name (like knee.tar.gz) to AWS access token.
     :param is_unittest: If True, download a small tar.gz file from github. If False, download the "real" fastMRI
     datafiles from AWS.
@@ -141,17 +120,11 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
     data_factory_name = "fastmri-copy-data"
 
     # Get either the Service Principal authentication, if those are set already, or use interactive auth in the browser
-    azureid_auth = get_azure_identity_auth(azure_config)
-    # Some AzureML packages require azure-mgmt-resource<15.0.0, and for that we need slightly different authentication
-    msrest_auth = get_msrest_auth(azure_config)
-
-    print(f"Retrieving resource group {azure_config.resource_group}")
-    resource_client = ResourceManagementClient(msrest_auth, azure_config.subscription_id)
-    resource_group = resource_client.resource_groups.get(resource_group_name=azure_config.resource_group)
+    azureid_auth = get_msrest_and_azure_auth(azure_config)
 
     # Create a data factory
     adf_client = DataFactoryManagementClient(azureid_auth, azure_config.subscription_id)
-    df_resource = Factory(location=resource_group.location)
+    df_resource = Factory(location=location)
     print(f"Creating data factory {data_factory_name}")
     df = adf_client.factories.create_or_update(azure_config.resource_group, data_factory_name, df_resource)
     while df.provisioning_state != 'Succeeded':
@@ -354,7 +327,7 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
 def extract_access_tokens(text: str) -> Dict[str, str]:
     """
     Parses the given text for https URLs with an attached access token. Returns a dictionary mapping from
-    file to file with access token, like `knee.tar.gz` -> `keen.tar.gz?AWSAccessKeyId=...`
+    file to file with access token, like `knee.tar.gz` -> `?AWSAccessKeyId=...`
     :param text: The text with https URLs
     :return:
     """
@@ -384,6 +357,12 @@ if __name__ == "__main__":
         action='store',
         type=str,
         required=True)
+    parser.add_argument(
+        '--location',
+        dest='location',
+        action='store',
+        type=str,
+        required=True)
     known_args, unknown_args = parser.parse_known_args()
     curl_file = Path(known_args.curl)
     if not curl_file.is_file():
@@ -398,6 +377,6 @@ if __name__ == "__main__":
                 print(f"No token found in the curl file for {source_file}")
     if any_files_missing:
         exit(1)
-    connection_string = known_args.connection_string
     create_datafactory_and_run(files_and_tokens=files_and_tokens,
-                               connection_string=connection_string)
+                               connection_string=known_args.connection_string,
+                               location=known_args.location)
