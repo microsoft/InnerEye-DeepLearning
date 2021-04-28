@@ -13,6 +13,8 @@ created.
 
 ### Added
 
+- ([#428](https://github.com/microsoft/InnerEye-DeepLearning/issues/428). Fixed bug #428: ensure that dataset.csv is checked
+  right at the start of training. This applies to segmentation models. 
 - ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417)) Added a generic way of adding PyTorch Lightning
 models to the toolbox. It is now possible to train almost any Lightning model with the InnerEye toolbox in AzureML,
 with only minimum code changes required. See [the MD documentation](docs/bring_your_own_model.md) for details.
