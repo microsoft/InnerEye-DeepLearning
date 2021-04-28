@@ -21,11 +21,11 @@ def test_weights_innereye_module() -> None:
     path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
     _create_test_cxr_data(path_to_test_dataset)
     data_module = InnerEyeVisionDataModule(dataset_cls=RSNAKaggleCXR,
-                                           return_index=False,
+                                           return_index=True,
                                            train_transforms=None,
                                            val_transforms=None,
                                            data_dir=str(path_to_test_dataset),
-                                           batch_size=25,
+                                           batch_size=1,
                                            seed=1)
     data_module.setup()
     class_weights = data_module.compute_class_weights()
@@ -33,7 +33,11 @@ def test_weights_innereye_module() -> None:
     assert torch.isclose(class_weights, torch.tensor([0.21, 0.79], dtype=torch.float32), atol=1e-3).all()
     assert len(data_module.dataset_train) == 240
     assert len(data_module.dataset_val) == 60
-
+    training_batch = next(iter(data_module.train_dataloader()))
+    # Assert we have two images and one label given the InnerEyeCIFARTrainTransform
+    images, labels = training_batch
+    images_v1, images_v2 = images
+    assert images_v1.shape == images_v2.shape == torch.Size([1, 3, 256, 256])
 
 def test_innereye_vision_module() -> None:
     """

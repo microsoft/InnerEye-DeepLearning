@@ -83,10 +83,11 @@ def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module]
 
     # Create a dummy input image
     if dm is not None:
+        from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye
         dataloader = dm.train_dataloader()
         dataloader = dataloader[SSLDataModuleType.LINEAR_HEAD] if isinstance(dataloader, dict) else dataloader
         batch = iter(dataloader).next()  # type: ignore
-        x = batch[1].to(device)
+        x, _ = SSLOnlineEvaluatorInnerEye.to_device(batch, device)
     else:
         x = torch.rand((1, 3, 256, 256)).to(device)
 

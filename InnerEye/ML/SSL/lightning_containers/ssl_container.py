@@ -202,7 +202,7 @@ class SSLContainer(LightningContainer):
                         linear_head_module: bool) -> Tuple[Any, Any]:
         if dataset_name in [SSLDatasetName.RSNAKaggle.value, SSLDatasetName.NIH.value, SSLDatasetName.CheXpert.value]:
             assert augmentation_config is not None
-            train_transforms, val_transforms = get_cxr_ssl_transforms(augmentation_config, linear_head_module)
+            train_transforms, val_transforms = get_cxr_ssl_transforms(augmentation_config, not linear_head_module)
         elif dataset_name in [SSLDatasetName.CIFAR10.value, SSLDatasetName.CIFAR100.value]:
             train_transforms = \
                 InnerEyeCIFARTrainTransform(32) if not linear_head_module else InnerEyeCIFARLinearHeadTransform(32)

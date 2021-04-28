@@ -189,9 +189,8 @@ def get_cxr_ssl_transforms(config: CfgNode, return_two_views_per_sample: bool) -
     train_transforms = create_chest_xray_transform(config, is_train=True)
     val_transforms = create_chest_xray_transform(config, is_train=False)
     if return_two_views_per_sample:
-        return train_transforms, val_transforms
-    train_transforms = DualViewTransformWrapper(train_transforms)
-    val_transforms = DualViewTransformWrapper(val_transforms)
+        train_transforms = DualViewTransformWrapper(train_transforms)
+        val_transforms = DualViewTransformWrapper(val_transforms)
     return train_transforms, val_transforms
 
 
