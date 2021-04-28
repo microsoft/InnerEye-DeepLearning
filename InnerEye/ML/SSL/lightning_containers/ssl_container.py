@@ -28,7 +28,7 @@ from InnerEye.ML.lightning_container import LightningContainer
 
 @dataclass
 class DataModuleArgs:
-    augmentation_config: Optional[ConfigNode]
+    augmentation_params: Optional[ConfigNode]
     dataset_name: str
     dataset_path: Optional[Path]
     batch_size: int
@@ -67,7 +67,10 @@ class SSLContainer(LightningContainer):
                                                   doc="The path to the yaml config defining the parameters of the "
                                                       "augmentations. Ignored for CIFAR10 example")
     ssl_training_dataset_name = param.ClassSelector(class_=SSLDatasetName, doc="The name of the dataset")
-    ssl_training_batch_size = param.Integer(doc="Total training batch size, splitted across the number of gpus.")
+    ssl_training_batch_size = param.Integer(
+        doc="Total training batch size, will be divided across the number of gpus used for training. For example: if "
+            "you specify ssl_training_batch_size=1600 and use 4 nodes with 4 gpus each (i.e. total of 16 GPUs), "
+            "the code will provide a per-gpu batch size of 100")
     ssl_training_type = param.ClassSelector(class_=SSLTrainingType, doc="Which algorithm to use for SSL training")
     ssl_encoder = param.ClassSelector(class_=EncoderName, doc="Which encoder to use for SSL")
     use_balanced_binary_loss_for_linear_head = param.Boolean(default=False,
@@ -97,16 +100,17 @@ class SSLContainer(LightningContainer):
                 and len(self.extra_local_dataset_paths) == 0 and self.local_dataset is not None:
             self.extra_local_dataset_paths = [self.local_dataset]
         self.datamodule_args = {SSLDataModuleType.LINEAR_HEAD:
-                                    DataModuleArgs(augmentation_config=self.linear_head_yaml_config,
+                                    DataModuleArgs(augmentation_config=self.classifier_augmentation_params,
                                                    dataset_name=self.classifier_dataset_name.value,
                                                    dataset_path=self.extra_local_dataset_paths[0] if len(
                                                        self.extra_local_dataset_paths) > 0 else None,
                                                    batch_size=self.classifier_batch_size)}
         if self.ssl_training_dataset_name is not None:
-            self.datamodule_args.update({SSLDataModuleType.ENCODER: DataModuleArgs(augmentation_config=self.yaml_config,
-                                                                                   dataset_name=self.ssl_training_dataset_name.value,
-                                                                                   dataset_path=self.local_dataset,
-                                                                                   batch_size=self.ssl_training_batch_size)})
+            self.datamodule_args.update(
+                {SSLDataModuleType.ENCODER: DataModuleArgs(augmentation_config=self.ssl_augmentation_params,
+                                                           dataset_name=self.ssl_training_dataset_name.value,
+                                                           dataset_path=self.local_dataset,
+                                                           batch_size=self.ssl_training_batch_size)})
         self.data_module: InnerEyeDataModuleTypes = self.get_data_module()
         self.perform_validation_and_test_set_inference = False
         if self.number_of_cross_validation_splits > 1:
@@ -114,12 +118,12 @@ class SSLContainer(LightningContainer):
 
     def _load_config(self) -> None:
         # For Chest-XRay you need to specify the parameters of the augmentations via a config file.
-        self.yaml_config = load_ssl_model_config(
+        self.ssl_augmentation_params = load_ssl_model_config(
             self.ssl_augmentation_config) if self.ssl_augmentation_config is not None \
             else None
-        self.linear_head_yaml_config = load_ssl_model_config(
+        self.classifier_augmentation_params = load_ssl_model_config(
             self.classifier_augmentation_config) if self.classifier_augmentation_config is not None else \
-            self.yaml_config
+            self.ssl_augmentation_params
 
     def create_model(self) -> LightningModule:
         """
@@ -171,10 +175,10 @@ class SSLContainer(LightningContainer):
         Returns torch lightning data module for encoder or linear head
         """
         datamodule_args = self.datamodule_args[SSLDataModuleType.LINEAR_HEAD] if linear_head_module else \
-        self.datamodule_args[
-            SSLDataModuleType.ENCODER]
+            self.datamodule_args[
+                SSLDataModuleType.ENCODER]
 
-        train_transforms, val_transforms = self._get_transforms(datamodule_args.augmentation_config,
+        train_transforms, val_transforms = self._get_transforms(datamodule_args.augmentation_params,
                                                                 datamodule_args.dataset_name,
                                                                 linear_head_module)
         batch_size_per_gpu = datamodule_args.batch_size // self.total_num_gpus if self.total_num_gpus > 0 else \
@@ -200,10 +204,10 @@ class SSLContainer(LightningContainer):
             assert augmentation_config is not None
             train_transforms, val_transforms = get_cxr_ssl_transforms(augmentation_config, linear_head_module)
         elif dataset_name in [SSLDatasetName.CIFAR10.value, SSLDatasetName.CIFAR100.value]:
-            train_transforms = InnerEyeCIFARTrainTransform(
-                32) if not linear_head_module else InnerEyeCIFARLinearHeadTransform(32)
-            val_transforms = InnerEyeCIFARValTransform(
-                32) if not linear_head_module else InnerEyeCIFARLinearHeadTransform(32)
+            train_transforms = \
+                InnerEyeCIFARTrainTransform(32) if not linear_head_module else InnerEyeCIFARLinearHeadTransform(32)
+            val_transforms = \
+                InnerEyeCIFARValTransform(32) if not linear_head_module else InnerEyeCIFARLinearHeadTransform(32)
         else:
             raise ValueError(f"Dataset {dataset_name} unknown.")
 

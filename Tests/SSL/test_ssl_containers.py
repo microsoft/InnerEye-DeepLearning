@@ -122,9 +122,9 @@ def test_innereye_ssl_container_rsna() -> None:
 
     # Check some augmentation params
     assert loaded_config.datamodule_args[
-               SSLDataModuleType.ENCODER].augmentation_config.preprocess.center_crop_size == 224
-    assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_config.augmentation.use_random_crop
-    assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_config.augmentation.use_random_affine
+               SSLDataModuleType.ENCODER].augmentation_params.preprocess.center_crop_size == 224
+    assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_crop
+    assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_affine
 
     # Check that we are able to load the checkpoint and create classifier model
     checkpoint_path = loaded_config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX

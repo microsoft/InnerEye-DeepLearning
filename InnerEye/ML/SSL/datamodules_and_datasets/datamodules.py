@@ -65,7 +65,8 @@ class InnerEyeVisionDataModule(VisionDataModule):
 
     def prepare_data(self) -> None:
         """
-        Saves files to data_dir
+        Initializes the dataset class, and in the case of CIFAR dataset, optionally downloads the data from URL to
+        local data_dir.
         """
         self.dataset_cls(self.data_dir, train=True, download=True, **self.EXTRA_ARGS)
         self.dataset_cls(self.data_dir, train=False, download=True, **self.EXTRA_ARGS)
@@ -103,10 +104,14 @@ class CombinedDataModule(LightningDataModule):
                  *args: Any,
                  **kwargs: Any) -> None:
         """
-        Combined data module to use different datasets for training SSL encoder and finetuning the linear head.
+        Combined data module to use different datamodules for training SSL encoder and finetuning the linear head.
+        Each batch returned by this data module, will be a dictionary of type Dict[SSLDataModuleType, Any]. If one
+        dataloader is shorter than the other, combined dataloader will start looping again from the start of the shorter
+        one until we looped through the longest one.
 
         :param encoder_module: datamodule to use for training of SSL.
-        :param linear_head_module: datamodule to use for training of linear head on top of frozen encoder.
+        :param linear_head_module: datamodule to use for training of linear head on top of frozen encoder. Can use a
+        different batch size than the encoder module. CombinedDataModule logic will take care of aggregation.
         """
         super().__init__(*args, **kwargs)
         self.encoder_module = encoder_module
