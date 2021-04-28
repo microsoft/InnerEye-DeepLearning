@@ -274,19 +274,20 @@ def get_or_create_python_environment(azure_config: AzureConfig,
     return env
 
 
-def get_dataset_consumption(azure_config: AzureConfig, azure_dataset_id: str, idx: int = 0) -> DatasetConsumptionConfig:
+def get_dataset_consumption(azure_config: AzureConfig, azure_dataset_id: str,
+                            dataset_index: int = 0) -> DatasetConsumptionConfig:
     """
     Creates a configuration for using an AzureML dataset inside of an AzureML run. This will make the AzureML
     dataset with given name available as a named input, using INPUT_DATA_KEY as the key.
     :param azure_config: azure related configurations to use for model scale-out behaviour
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run. This can be an empty
     string to not use any datasets.
-    :param idx suffix for the dataset name, name will be set to INPUT_DATA_KEY_idx
+    :param dataset_index: suffix for the dataset name, dataset name will be set to INPUT_DATA_KEY_idx
     """
     azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
     if not azureml_dataset:
         raise ValueError(f"AzureML dataset {azure_dataset_id} could not be found or created.")
-    named_input = azureml_dataset.as_named_input(f"{INPUT_DATA_KEY}_{idx}")
+    named_input = azureml_dataset.as_named_input(f"{INPUT_DATA_KEY}_{dataset_index}")
     return named_input.as_mount() if azure_config.use_dataset_mount else named_input.as_download()
 
 
