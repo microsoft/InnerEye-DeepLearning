@@ -15,6 +15,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader, Dataset
 
+import InnerEye.ML.common
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, logging_section
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.type_annotations import DictStrFloat
@@ -33,6 +34,8 @@ from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed, validate_dataset_paths
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
+from InnerEye.ML.utils.csv_util import CSV_SUBJECT_HEADER
+from InnerEye.ML.utils.dataset_util import validated_channel_ids
 
 
 class TrainAndValDataLightning(LightningDataModule):
@@ -136,6 +139,27 @@ class InnerEyeContainer(LightningContainer):
         This hook reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
         for categorical features, that need to be available before creating the model.
         """
+        # Following code validates segmentation training, validation and test data to ensure:
+        # 1) Files exist,
+        # 2) mask_id identifier is not empty,
+        # 3) consistency for input channels, ground_truth and mask_id,
+        # 4) ensures data is consistent with load_dataset_sources method prior running training, validation and testing.
+        if self.config.is_segmentation_model:
+            # Creates a list with all the channels of interest
+            all_channels = self.config.image_channels + self.config.ground_truth_ids
+            # Mask_id is an optional field. If non-empty in the config, will check dataframe.
+            if len(self.config.mask_id) > 0:
+                all_channels += [self.config.mask_id]
+            # Root directory where data is stored
+            local_dataset_root_folder = self.config.local_dataset
+            # Iterate over train, validation and test dataset
+            for split_data in [ self.config.get_dataset_splits().train, self.config.get_dataset_splits().val, self.config.get_dataset_splits().test]:
+                unique_ids = set(split_data[CSV_SUBJECT_HEADER])
+                for patient_id in unique_ids:
+                    rows = split_data.loc[split_data[CSV_SUBJECT_HEADER] == patient_id]
+                    # Validates condition so that data is consistent with
+                    __ = validated_channel_ids(all_channels, rows, local_dataset_root_folder, patient_id)
+
         self.config.read_dataset_if_needed()
 
     def create_model(self) -> LightningModule:  # type: ignore

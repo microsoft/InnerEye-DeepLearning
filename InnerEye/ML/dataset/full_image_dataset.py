@@ -22,6 +22,7 @@ from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_PATH_HEADER, \
     CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.transforms import Compose3D
+from InnerEye.ML.utils.dataset_util import validated_channel_ids
 
 COMPRESSION_EXTENSIONS = ['sz', 'gz']
 
@@ -298,19 +299,14 @@ def load_dataset_sources(dataframe: pd.DataFrame,
             return get_paths_for_channel_ids(channels=[mask_channel])[0]
 
     def get_paths_for_channel_ids(channels: List[str]) -> List[Path]:
+
         if len(set(channels)) < len(channels):
             raise ValueError(f"ids have duplicated entries: {channels}")
 
-        paths: List[Path] = []
         rows = dataframe.loc[dataframe[CSV_SUBJECT_HEADER] == patient_id]
-        for channel_id in channels:
-            row = rows.loc[rows[CSV_CHANNEL_HEADER] == channel_id]
-            if len(row) == 0:
-                raise ValueError(f"Patient {patient_id} does not have channel '{channel_id}'")
-            elif len(row) > 1:
-                raise ValueError(f"Patient {patient_id} has more than one entry for channel '{channel_id}'")
-            image_path = local_dataset_root_folder / row[CSV_PATH_HEADER].values[0]
-            paths.append(image_path)
+
+        paths: List[Path] = validated_channel_ids(channels, rows, local_dataset_root_folder, patient_id)
+
         return paths
 
     dataset_sources = {}

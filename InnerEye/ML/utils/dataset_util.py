@@ -21,7 +21,7 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import load_dataset_sources
 from InnerEye.ML.utils import image_util, io_util, metrics_util, ml_util
 from InnerEye.ML.utils.io_util import ImageHeader
-
+from InnerEye.ML.utils.csv_util import CSV_PATH_HEADER, CSV_CHANNEL_HEADER
 
 class CategoricalToOneHotEncoder(OneHotEncoderBase):
     """
@@ -212,3 +212,33 @@ def add_label_stats_to_dataframe(input_dataframe: pd.DataFrame,
                 input_dataframe.loc[input_dataframe.subject == subject_id, "channel"].map(col_stats)
 
     return input_dataframe
+
+
+def validated_channel_ids(channels: List[str],
+                          rows: pd.DataFrame,
+                          local_dataset_root_folder: Path,
+                          patient_id: str) -> List[Path]:
+    """
+    Returns the full path for files specified in the training, validation and testing datasets.
+    Ensures that: 1) given any channel type (e.g.,  image_channels or ground_truth_ids or mask_id) defined in the config file
+    there is associated row value for any given subject. 2) exits if there is no corresponding corresponding mapping from
+    subject to channel.  This function is called from InnerEyeContainer->setup (lighting_base.py) and
+    load_dataset_sources->get_paths_for_channel_ids (full_image_dataset.py)
+
+    :param channels: channel type defined in the configuration file
+    :param rows Input Pandas dataframe object containing subjectIds, path of local dataset, channel information
+    :param local_dataset_root_folder: Root directory which points to the local dataset
+    :param patient_id: string which contains subject identifier
+    """
+    paths: List[Path] = []
+    for channel_id in channels:
+        row = rows.loc[rows[CSV_CHANNEL_HEADER] == channel_id]
+        if len(row) == 0:
+            raise ValueError(f"Patient {patient_id} does not have channel '{channel_id}'")
+        elif len(row) > 1:
+            raise ValueError(f"Patient {patient_id} has more than one entry for channel '{channel_id}'")
+        image_path = local_dataset_root_folder / row[CSV_PATH_HEADER].values[0]
+        if not os.path.isfile(image_path):
+            raise ValueError(f"File: {image_path} does not exists")
+        paths.append(image_path)
+    return paths
