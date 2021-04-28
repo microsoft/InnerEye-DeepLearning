@@ -276,23 +276,15 @@ def test_save_outliers(test_config: PlotCrossValidationConfig,
     assert test_config.run_recovery_id
     dataset_split_metrics = {x: _get_metrics_df(test_config.run_recovery_id, x) for x in [ModelExecutionMode.VAL]}
     save_outliers(test_config, dataset_split_metrics, test_config.outputs_directory)
-    f = f"{ModelExecutionMode.VAL.value}_outliers.txt"
-    assert_text_files_match(full_file=test_config.outputs_directory / f, expected_file=full_ml_test_data_path(f))
-    # Now test without the CSV_INSTITUTION_HEADER and CSV_SERIES_HEADER columns
+    filename = f"{ModelExecutionMode.VAL.value}_outliers.txt"
+    assert_text_files_match(full_file=test_config.outputs_directory / filename, expected_file=full_ml_test_data_path(filename))
+    # Now test without the CSV_INSTITUTION_HEADER and CSV_SERIES_HEADER columns, which will be missing in institutions' environments
     dataset_split_metrics_pruned = {
         x: _get_metrics_df(test_config.run_recovery_id, x).drop(columns=[CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER], errors="ignore") 
         for x in [ModelExecutionMode.VAL]}
     save_outliers(test_config, dataset_split_metrics_pruned, test_config.outputs_directory)
-    actual_outliers_file_path = test_config.outputs_directory / f
-    expected_outliers_file_path = full_ml_test_data_path(f)
-    with actual_outliers_file_path.open() as actual_outliers_file, expected_outliers_file_path.open() as expected_outliers_file:
-        actual_outliers_lines = actual_outliers_file.readlines()
-        expected_outliers_lines = expected_outliers_file.readlines()[:-2]
-        assert len(actual_outliers_lines) == len(expected_outliers_lines)
-        for actual, expected in zip(actual_outliers_lines, expected_outliers_lines):
-            actual = actual.strip()
-            expected = expected.strip()
-            assert actual == expected, content_mismatch(actual, expected)
+    test_data_filename = f"{ModelExecutionMode.VAL.value}_outliers_pruned.txt"
+    assert_text_files_match(full_file=test_config.outputs_directory / filename, expected_file=full_ml_test_data_path(test_data_filename))
 
 
 def test_create_portal_query_for_outliers() -> None:
