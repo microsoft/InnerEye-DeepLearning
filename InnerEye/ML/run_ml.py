@@ -196,19 +196,18 @@ class MLRunner:
             if mounted_dataset is not None:
                 self.container.local_dataset = mounted_dataset
 
-            if not isinstance(self.container, InnerEyeContainer):
-                extra_locals = []
-                if self.is_offline_run and len(self.container.extra_local_dataset_paths) != 0:
-                    for local in self.container.extra_local_dataset_paths:
-                        extra_local_dataset = self.mount_or_download_dataset(None, local)
-                        assert extra_local_dataset is not None  # for mypy
-                        extra_locals.append(extra_local_dataset)
-                elif self.container.extra_azure_dataset_ids is not None:
-                    for i, azure_id in enumerate(self.container.extra_azure_dataset_ids, 1):
-                        extra_local_dataset = self.mount_or_download_dataset(azure_id, None, idx=i)
-                        assert extra_local_dataset is not None  # for mypy
-                        extra_locals.append(extra_local_dataset)
-                self.container.extra_local_dataset_paths = extra_locals
+            extra_locals = []
+            if self.is_offline_run and len(self.container.extra_local_dataset_paths) != 0:
+                for local in self.container.extra_local_dataset_paths:
+                    extra_local_dataset = self.mount_or_download_dataset(None, local)
+                    assert extra_local_dataset is not None  # for mypy
+                    extra_locals.append(extra_local_dataset)
+            elif len(self.container.extra_azure_dataset_ids) != 0:
+                for i, azure_id in enumerate(self.container.extra_azure_dataset_ids, 1):
+                    extra_local_dataset = self.mount_or_download_dataset(azure_id, None, idx=i)
+                    assert extra_local_dataset is not None  # for mypy
+                    extra_locals.append(extra_local_dataset)
+            self.container.extra_local_dataset_paths = extra_locals
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
         # Creating the folder structure must happen before the LightningModule is created, because the output

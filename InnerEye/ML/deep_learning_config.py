@@ -285,8 +285,8 @@ class DatasetParams(param.Parameterized):
     local_dataset: Optional[Path] = \
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="The path of the dataset to use, when training is running outside Azure.")
-    extra_azure_dataset_ids: Optional[List[str]] = param.List(default=None,
-                                                              allow_None=True,
+    extra_azure_dataset_ids: Optional[List[str]] = param.List(default=[],
+                                                              allow_None=False,
                                                               doc="This can be used to feed in additional datasets "
                                                                   "to your custom datamodules. These datasets will be "
                                                                   "mounted "

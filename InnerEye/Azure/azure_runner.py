@@ -274,7 +274,8 @@ def get_or_create_python_environment(azure_config: AzureConfig,
     return env
 
 
-def get_dataset_consumption(azure_config: AzureConfig, azure_dataset_id: str,
+def get_dataset_consumption(azure_config: AzureConfig,
+                            azure_dataset_id: str,
                             dataset_index: int = 0) -> DatasetConsumptionConfig:
     """
     Creates a configuration for using an AzureML dataset inside of an AzureML run. This will make the AzureML
@@ -294,7 +295,7 @@ def get_dataset_consumption(azure_config: AzureConfig, azure_dataset_id: str,
 def create_run_config(azure_config: AzureConfig,
                       source_config: SourceConfig,
                       azure_dataset_id: str = "",
-                      extra_azure_dataset_ids: Optional[List[str]] = None,
+                      extra_azure_dataset_ids: List[str] = [],
                       environment_name: str = "") -> ScriptRunConfig:
     """
     Creates a configuration to run the InnerEye training script in AzureML.
@@ -302,19 +303,18 @@ def create_run_config(azure_config: AzureConfig,
     :param source_config: configurations for model execution, such as name and execution mode
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run. This can be an empty
     string to not use any datasets.
+    :param extra_azure_dataset_ids: List of extra datasets in blob storage to be used for this run. This can be empty.
     :param environment_name: If specified, try to retrieve the existing Python environment with this name. If that
     is not found, create one from the Conda files provided in `source_config`. This parameter is meant to be used
     when running inference for an existing model.
     :return: The configured script run.
     """
     dataset_consumptions = {}
-    if azure_dataset_id:
-        dataset_consumption = get_dataset_consumption(azure_config, azure_dataset_id)
+    all_dataset_ids = [azure_dataset_id] + extra_azure_dataset_ids
+    for i, dataset_id in enumerate(all_dataset_ids):
+        dataset_consumption = get_dataset_consumption(azure_config, dataset_id, i)
         dataset_consumptions.update({dataset_consumption.name: dataset_consumption})
-    if extra_azure_dataset_ids is not None:
-        for i, dataset_id in enumerate(extra_azure_dataset_ids, 1):
-            dataset_consumption = get_dataset_consumption(azure_config, dataset_id, i)
-            dataset_consumptions.update({dataset_consumption.name: dataset_consumption})
+
     # AzureML seems to sometimes expect the entry script path in Linux format, hence convert to posix path
     entry_script_relative_path = source_config.entry_script.relative_to(source_config.root_folder).as_posix()
     logging.info(f"Entry script {entry_script_relative_path} ({source_config.entry_script} relative to "
