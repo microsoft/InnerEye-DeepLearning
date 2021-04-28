@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
 from torch import Tensor as T
 
-from InnerEye.ML.SSL.byol.byol_models import SSLEncoder
+from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.SSL.utils import SSLModule
 
 SingleBatchType = Tuple[List, T]

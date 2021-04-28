@@ -2,9 +2,7 @@ from typing import Any, Tuple
 
 from torch import Tensor as T, nn
 
-from InnerEye.ML.SSL.encoders import Lambda
-from InnerEye.ML.SSL.ssl_online_evaluator import get_encoder_output_dim
-from InnerEye.ML.SSL.utils import create_ssl_encoder
+from InnerEye.ML.SSL.encoders import Lambda, SSLEncoder
 
 
 class _MLP(nn.Module):
@@ -30,32 +28,6 @@ class _MLP(nn.Module):
     def forward(self, x: T) -> T:
         x = self.model(x)
         return x
-
-
-class SSLEncoder(nn.Module):
-    """
-    CNN image encoder that generates fixed size BYOL image embeddings.
-    Feature responses are pooled to generate a 1-D embedding vector.
-    """
-
-    def __init__(self, encoder_name: str, use_7x7_first_conv_in_resnet: bool = True):
-        """
-        :param encoder_name: Type of the image encoder: {'resnet18', 'resnet50', 'resnet101', 'densenet121'}.
-        :param use_7x7_first_conv_in_resnet: If True, use a 7x7 kernel (default) in the first layer of resnet.
-            If False, replace first layer by a 3x3 kernel. This is required for small CIFAR 32x32 images to not
-            shrink them.
-        """
-
-        super().__init__()
-        self.cnn_model = create_ssl_encoder(encoder_name=encoder_name,
-                                            use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet)
-
-    def forward(self, x: T) -> T:
-        x = self.cnn_model(x)
-        return x[-1] if isinstance(x, list) else x
-
-    def get_output_feature_dim(self) -> int:
-        return get_encoder_output_dim(self)
 
 
 class SiameseArm(nn.Module):

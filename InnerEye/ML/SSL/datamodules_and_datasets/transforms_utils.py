@@ -14,7 +14,7 @@ from pl_bolts.models.self_supervised.simclr import SimCLREvalDataTransform, SimC
 from scipy.ndimage import gaussian_filter, map_coordinates
 from torchvision.transforms import ToTensor
 
-from InnerEye.ML.SSL.config_node import ConfigNode
+from InnerEye.ML.SSL.augmentation_config_utils.config_node import ConfigNode
 
 
 class BaseTransform:

@@ -11,16 +11,17 @@ from typing import Any, Dict, Optional, Tuple, Union
 import param
 from pytorch_lightning import LightningModule
 
-from InnerEye.ML.SSL.byol.byol_module import BYOLInnerEye
-from InnerEye.ML.SSL.config_node import ConfigNode
+from InnerEye.ML.SSL.augmentation_config_utils.config_node import ConfigNode
 from InnerEye.ML.SSL.datamodules_and_datasets.cifar_datasets import InnerEyeCIFAR10, InnerEyeCIFAR100
 from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import CheXpert, NIH, RSNAKaggleCXR
 from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule, InnerEyeVisionDataModule
 from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import InnerEyeCIFARLinearHeadTransform, \
     InnerEyeCIFARTrainTransform, \
     InnerEyeCIFARValTransform, get_cxr_ssl_transforms
-from InnerEye.ML.SSL.simclr_module import SimCLRInnerEye
-from InnerEye.ML.SSL.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye, get_encoder_output_dim
+from InnerEye.ML.SSL.encoders import get_encoder_output_dim
+from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
+from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
+from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye
 from InnerEye.ML.SSL.utils import SSLModule, SSLType, load_ssl_model_config
 from InnerEye.ML.lightning_container import LightningContainer
 

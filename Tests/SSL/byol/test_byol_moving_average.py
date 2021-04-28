@@ -13,9 +13,9 @@ import torch
 from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 
-from InnerEye.ML.SSL.byol.byol_module import BYOLInnerEye
-from InnerEye.ML.SSL.byol.byol_moving_average import ByolMovingAverageWeightUpdate
 from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import RSNAKaggleCXR
+from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
+from InnerEye.ML.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
 
 
 def test_update_tau() -> None:

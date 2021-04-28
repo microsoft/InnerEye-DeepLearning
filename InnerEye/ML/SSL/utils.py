@@ -6,13 +6,12 @@
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import torch
 
-from InnerEye.ML.SSL import ssl_augmentation_config
-from InnerEye.ML.SSL.config_node import ConfigNode
-from InnerEye.ML.SSL.encoders import DenseNet121Encoder
+from InnerEye.ML.SSL.augmentation_config_utils import ssl_augmentation_config
+from InnerEye.ML.SSL.augmentation_config_utils.config_node import ConfigNode
 from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
 
 
@@ -45,6 +44,7 @@ def create_ssl_encoder(encoder_name: str, use_7x7_first_conv_in_resnet: bool = T
     If False, replace first layer by a 3x3 kernel. This is required for small CIFAR 32x32 images to not shrink them.
     """
     from pl_bolts.models.self_supervised.resnets import resnet18, resnet50, resnet101
+    from InnerEye.ML.SSL.encoders import DenseNet121Encoder
     if encoder_name == 'resnet18':
         encoder = resnet18(return_all_feature_maps=False, first_conv=use_7x7_first_conv_in_resnet)
     elif encoder_name == 'resnet50':
@@ -58,15 +58,16 @@ def create_ssl_encoder(encoder_name: str, use_7x7_first_conv_in_resnet: bool = T
     return encoder
 
 
-def create_ssl_image_classifier(num_classes: int, freeze_encoder: bool, pl_checkpoint_path: str,
+def create_ssl_image_classifier(num_classes: int,
+                                freeze_encoder: bool,
+                                pl_checkpoint_path: str,
                                 class_weights: Optional[torch.Tensor] = None) -> LightningModuleWithOptimizer:
     """
     Creates a SSL image classifier from a frozen encoder trained on in an unsupervised manner.
     """
-    from InnerEye.ML.SSL.byol.byol_module import BYOLInnerEye
-    from InnerEye.ML.SSL.simclr_module import SimCLRInnerEye
-    from InnerEye.ML.SSL.ssl_online_evaluator import WrapSSL
-    from InnerEye.ML.SSL.lightning_containers.ssl_image_classifier import SSLClassifier
+    from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
+    from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
+    from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
 
     logging.info(f"Size of ckpt {Path(pl_checkpoint_path).stat().st_size}")
     loaded_params = torch.load(pl_checkpoint_path, map_location=lambda storage, loc: storage)["hyper_parameters"]
@@ -92,3 +93,22 @@ def create_ssl_image_classifier(num_classes: int, freeze_encoder: bool, pl_check
                           class_weights=class_weights)
 
     return model
+
+
+def WrapSSL(ssl_class: Any, num_classes: int) -> Any:
+    """
+    Wraps a given SSL encoder and adds a non-linear evaluator to it. This is done to load pre-trained SSL checkpoints.
+    PL requires non_linear_evaluator to be included in pl_module at SSL training time.
+    :param num_classes: Number of target classes for the linear head.
+    :param ssl_class:   SSL object either BYOL or SimCLR.
+    """
+    from pl_bolts.models.self_supervised import SSLEvaluator
+    from InnerEye.ML.SSL.encoders import get_encoder_output_dim
+    class _wrap(ssl_class):  # type: ignore
+        def __init__(self, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.non_linear_evaluator = SSLEvaluator(n_input=get_encoder_output_dim(self),
+                                                     n_classes=num_classes,
+                                                     n_hidden=None)
+
+    return _wrap

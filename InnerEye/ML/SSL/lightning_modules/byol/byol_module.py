@@ -14,8 +14,8 @@ from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from torch import Tensor as T
 from torch.optim import Adam
 
-from InnerEye.ML.SSL.byol.byol_models import SiameseArm
-from InnerEye.ML.SSL.byol.byol_moving_average import ByolMovingAverageWeightUpdate
+from InnerEye.ML.SSL.lightning_modules.byol.byol_models import SiameseArm
+from InnerEye.ML.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
 from InnerEye.ML.SSL.utils import SSLModule
 
 SingleBatchType = Tuple[List, T]

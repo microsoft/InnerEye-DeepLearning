@@ -59,18 +59,18 @@ from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
 
 
-def try_to_mount_input_dataset(idx: int = 0) -> Optional[Path]:
+def try_to_mount_input_dataset(dataset_index: int = 0) -> Optional[Path]:
     """
     Checks if the AzureML run context has a field for input datasets. If yes, the dataset stored there is
     returned as a Path. Returns None if no input datasets was found.
 
-    :param idx, suffix of AML dataset name, return path to INPUT_DATA_KEY_idx dataset
+    :param dataset_index: suffix of AML dataset name, return path to INPUT_DATA_KEY_idx dataset
     """
     if hasattr(RUN_CONTEXT, "input_datasets"):
         try:
-            return Path(RUN_CONTEXT.input_datasets[f"{INPUT_DATA_KEY}_{idx}"])
+            return Path(RUN_CONTEXT.input_datasets[f"{INPUT_DATA_KEY}_{dataset_index}"])
         except KeyError:
-            logging.warning(f"Run context field input_datasets has no {INPUT_DATA_KEY}_{idx} entry.")
+            logging.warning(f"Run context field input_datasets has no {INPUT_DATA_KEY}_{dataset_index} entry.")
     return None
 
 
@@ -204,7 +204,7 @@ class MLRunner:
                     extra_locals.append(extra_local_dataset)
             elif len(self.container.extra_azure_dataset_ids) != 0:
                 for i, azure_id in enumerate(self.container.extra_azure_dataset_ids, 1):
-                    extra_local_dataset = self.mount_or_download_dataset(azure_id, None, idx=i)
+                    extra_local_dataset = self.mount_or_download_dataset(azure_id, None, dataset_index=i)
                     assert extra_local_dataset is not None  # for mypy
                     extra_locals.append(extra_local_dataset)
             self.container.extra_local_dataset_paths = extra_locals
@@ -474,9 +474,10 @@ class MLRunner:
             activation_maps.extract_activation_maps(self.innereye_config)  # type: ignore
             logging.info("Successfully extracted and saved activation maps")
 
-    def mount_or_download_dataset(self, azure_dataset_id: Optional[str],
+    def mount_or_download_dataset(self,
+                                  azure_dataset_id: Optional[str],
                                   local_dataset: Optional[Path],
-                                  idx: int = 0) -> Optional[Path]:
+                                  dataset_index: int = 0) -> Optional[Path]:
         """
         Makes the dataset that the model uses available on the executing machine. If the present training run is outside
         of AzureML, it expects that either the model has a `local_dataset` field set, in which case no action will be
@@ -484,7 +485,10 @@ class MLRunner:
         into the local repository, in the "datasets" folder.
         If the training run is inside of AzureML, the dataset that was specified at job submission time will be
         mounted or downloaded.
-        Returns the path of the dataset on the executing machine.
+        :param azure_dataset_id: id of the dataset in AML workspace
+        :param local_dataset: alternatively local path for this dataset
+        :param index of the dataset processed
+        :returns: the path of the dataset on the executing machine.
         """
         if self.is_offline_run:
             # A dataset, either local or in Azure, is required for the built-in InnerEye models. When models are
@@ -513,7 +517,7 @@ class MLRunner:
 
         # Inside of AzureML, datasets can be either mounted or downloaded.
         if azure_dataset_id:
-            mounted = try_to_mount_input_dataset(idx)
+            mounted = try_to_mount_input_dataset(dataset_index)
             if not mounted:
                 raise ValueError("Unable to mount or download input dataset.")
             return mounted

@@ -3,9 +3,14 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from collections import Callable
+from typing import Optional, Union
 
+import pytorch_lightning as pl
 import torch
+from torch import Tensor as T, nn
 from torchvision.models import densenet121
+
+from InnerEye.ML.SSL.utils import SSLModule, create_ssl_encoder
 
 
 class DenseNet121Encoder(torch.nn.Module):
@@ -36,3 +41,57 @@ class Lambda(torch.nn.Module):
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         return self.lambda_func(input)
+
+
+class SSLEncoder(nn.Module):
+    """
+    CNN image encoder that generates fixed size BYOL image embeddings.
+    Feature responses are pooled to generate a 1-D embedding vector.
+    """
+
+    def __init__(self, encoder_name: str, use_7x7_first_conv_in_resnet: bool = True):
+        """
+        :param encoder_name: Type of the image encoder: {'resnet18', 'resnet50', 'resnet101', 'densenet121'}.
+        :param use_7x7_first_conv_in_resnet: If True, use a 7x7 kernel (default) in the first layer of resnet.
+            If False, replace first layer by a 3x3 kernel. This is required for small CIFAR 32x32 images to not
+            shrink them.
+        """
+
+        super().__init__()
+        self.cnn_model = create_ssl_encoder(encoder_name=encoder_name,
+                                            use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet)
+
+    def forward(self, x: T) -> T:
+        x = self.cnn_model(x)
+        return x[-1] if isinstance(x, list) else x
+
+    def get_output_feature_dim(self) -> int:
+        return get_encoder_output_dim(self)
+
+
+def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module],
+                           dm: Optional[pl.LightningDataModule] = None) -> int:
+    """
+    Calculates the output dimension of ssl encoder by making a single forward pass.
+    :param pl_module: pl encoder module
+    :param dm: pl datamodule
+    """
+    # Target device
+    device = pl_module.device if isinstance(pl_module, pl.LightningDataModule) else \
+        next(pl_module.parameters()).device  # type: ignore
+    assert (isinstance(device, torch.device))
+
+    # Create a dummy input image
+    if dm is not None:
+        dataloader = dm.train_dataloader()
+        dataloader = dataloader[SSLModule.LINEAR_HEAD] if isinstance(dataloader, dict) else dataloader
+        batch = iter(dataloader).next()  # type: ignore
+        x = batch[1].to(device)
+    else:
+        x = torch.rand((1, 3, 256, 256)).to(device)
+
+    # Extract the number of output feature dimensions
+    with torch.no_grad():
+        representations = pl_module(x)
+
+    return representations.shape[1]
