@@ -9,7 +9,7 @@ from InnerEye.ML.SSL.utils import create_ssl_encoder
 
 class _MLP(nn.Module):
     """
-    Fully connected layers to map between image embeddings and project space where pairs of images are compared.
+    Fully connected layers to map between image embeddings and projection space where pairs of images are compared.
     """
 
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int) -> None:
@@ -31,34 +31,31 @@ class _MLP(nn.Module):
         x = self.model(x)
         return x
 
+
 class SSLEncoder(nn.Module):
     """
     CNN image encoder that generates fixed size BYOL image embeddings.
     Feature responses are pooled to generate a 1-D embedding vector.
     """
 
-    def __init__(self, encoder_name: str, dataset_name: str, use_output_pooling: bool = False):
+    def __init__(self, encoder_name: str, dataset_name: str):
         """
         :param encoder_name: Type of the image encoder: {'resnet18', 'resnet50', 'resnet101', 'densenet121'}.
         :param dataset_name: If CIFAR dataset is specified, the initial convolution kernels are reduced to 3x3
                              to reduce information loss.
-        :param use_output_pooling: If set to True, output embeddings in spatial grid are pooled to form
-                             a fixed size embedding vector.
         """
 
         super().__init__()
         self.cnn_model = create_ssl_encoder(encoder_name=encoder_name, dataset_name=dataset_name)
         self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
-        self.use_output_pooling = use_output_pooling
 
     def forward(self, x: T) -> T:
         x = self.cnn_model(x)
-        x = x[-1] if isinstance(x, list) else x
-        x = self.avgpool(x).view(x.size(0), -1) if self.use_output_pooling else x
-        return x
+        return x[-1] if isinstance(x, list) else x
 
     def get_output_feature_dim(self) -> int:
         return get_encoder_output_dim(self)
+
 
 class SiameseArm(nn.Module):
     """
