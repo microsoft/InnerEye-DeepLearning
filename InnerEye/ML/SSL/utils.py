@@ -9,9 +9,10 @@ from pathlib import Path
 from typing import Any, Optional
 
 import torch
+from pytorch_lightning import LightningModule
+from yacs.config import CfgNode
 
-from InnerEye.ML.SSL.augmentation_config_utils import ssl_augmentation_config
-from InnerEye.ML.SSL.augmentation_config_utils.config_node import ConfigNode
+from InnerEye.ML.SSL import ssl_augmentation_config
 from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
 
 
@@ -25,7 +26,7 @@ class SSLTrainingType(Enum):
     BYOL = "BYOL"
 
 
-def load_ssl_model_config(config_path: Path) -> ConfigNode:
+def load_ssl_model_config(config_path: Path) -> CfgNode:
     """
     Loads configs required for self supervised learning. Does not setup cudann as this is being
     taken care of by lightning.
@@ -81,10 +82,12 @@ def create_ssl_image_classifier(num_classes: int,
     if ssl_type == SSLTrainingType.BYOL.value or ssl_type == SSLTrainingType.BYOL:
         # Here we need to indicate how many classes where used for linear evaluator at training time, to load the
         # checkpoint (incl. linear evaluator) with strict = True
-        byol_module = WrapSSL(BYOLInnerEye, loaded_params["num_classes"]).load_from_checkpoint(pl_checkpoint_path)
+        byol_module = SSLModelLoader(BYOLInnerEye, loaded_params["num_classes"]).load_from_checkpoint(
+            pl_checkpoint_path)
         encoder = byol_module.target_network.encoder
     elif ssl_type == SSLTrainingType.SimCLR.value or ssl_type == SSLTrainingType.SimCLR:
-        simclr_module = WrapSSL(SimCLRInnerEye, loaded_params["num_classes"]).load_from_checkpoint(pl_checkpoint_path)
+        simclr_module = SSLModelLoader(SimCLRInnerEye, loaded_params["num_classes"]).load_from_checkpoint(
+            pl_checkpoint_path)
         encoder = simclr_module.encoder
     else:
         raise NotImplementedError(f"Unknown unsupervised model: {ssl_type}")
@@ -97,12 +100,16 @@ def create_ssl_image_classifier(num_classes: int,
     return model
 
 
-def WrapSSL(ssl_class: Any, num_classes: int) -> Any:
+def SSLModelLoader(ssl_class: LightningModule, num_classes: int) -> Any:
     """
-    Wraps a given SSL encoder and adds a non-linear evaluator to it. This is done to load pre-trained SSL checkpoints.
-    PL requires non_linear_evaluator to be included in pl_module at SSL training time.
-    :param num_classes: Number of target classes for the linear head.
+    This class is a helper class for SSL model loading from checkpoints with strict=True.
+    We cannot simply load the class directly via  do BYOLInnerEye().load_from_checkpoint("ckpt") with strict loading
+    because the checkpoint will contain the weights of the linear evaluator, but this one is defined outside of the
+    BYOLInnerEye class (as it is defined as a callback), hence we can only load the checkpoint if we manually re-add
+    the linear evaluator prior to loading.
+
     :param ssl_class:   SSL object either BYOL or SimCLR.
+    :param num_classes: Number of target classes for the linear head.
     """
     from pl_bolts.models.self_supervised import SSLEvaluator
     from InnerEye.ML.SSL.encoders import get_encoder_output_dim

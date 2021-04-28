@@ -19,7 +19,8 @@ BatchType = Union[Dict[SSLDataModuleType, Any], Any]
 
 
 class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
-    def __init__(self, learning_rate: float,
+    def __init__(self,
+                 learning_rate: float,
                  class_weights: Optional[torch.Tensor] = None,
                  **kwargs: Any) -> None:
         """

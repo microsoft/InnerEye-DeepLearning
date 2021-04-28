@@ -90,7 +90,6 @@ def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
     assert loaded_config.ssl_training_type == SSLTrainingType.BYOL
 
-
 def _create_test_cxr_data(path_to_test_dataset: Path) -> None:
     """
     Creates fake datasets dataframe and dicom images mimicking the expected structure of the datasets

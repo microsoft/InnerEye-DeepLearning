@@ -13,8 +13,7 @@ import torchvision
 from pl_bolts.models.self_supervised.simclr import SimCLREvalDataTransform, SimCLRTrainDataTransform
 from scipy.ndimage import gaussian_filter, map_coordinates
 from torchvision.transforms import ToTensor
-
-from InnerEye.ML.SSL.augmentation_config_utils.config_node import ConfigNode
+from yacs.config import CfgNode
 
 
 class BaseTransform:
@@ -26,13 +25,13 @@ class BaseTransform:
 
 
 class CenterCrop(BaseTransform):
-    def __init__(self, config: ConfigNode) -> None:
+    def __init__(self, config: CfgNode) -> None:
         super().__init__()
         self.transform = torchvision.transforms.CenterCrop(config.preprocess.center_crop_size)
 
 
 class RandomResizeCrop(BaseTransform):
-    def __init__(self, config: ConfigNode) -> None:
+    def __init__(self, config: CfgNode) -> None:
         super().__init__()
         self.transform = torchvision.transforms.RandomResizedCrop(
             size=config.preprocess.resize,
@@ -40,14 +39,14 @@ class RandomResizeCrop(BaseTransform):
 
 
 class RandomHorizontalFlip(BaseTransform):
-    def __init__(self, config: ConfigNode) -> None:
+    def __init__(self, config: CfgNode) -> None:
         super().__init__()
         self.transform = torchvision.transforms.RandomHorizontalFlip(
             config.augmentation.random_horizontal_flip.prob)
 
 
 class RandomAffine(BaseTransform):
-    def __init__(self, config: ConfigNode) -> None:
+    def __init__(self, config: CfgNode) -> None:
         super().__init__()
         self.transform = torchvision.transforms.RandomAffine(degrees=config.augmentation.random_affine.max_angle,
                                                              translate=(
@@ -57,13 +56,13 @@ class RandomAffine(BaseTransform):
 
 
 class Resize(BaseTransform):
-    def __init__(self, config: ConfigNode) -> None:
+    def __init__(self, config: CfgNode) -> None:
         super().__init__()
         self.transform = torchvision.transforms.Resize(config.preprocess.resize)
 
 
 class RandomColorJitter(BaseTransform):
-    def __init__(self, config: ConfigNode) -> None:
+    def __init__(self, config: CfgNode) -> None:
         super().__init__()
         self.transform = torchvision.transforms.ColorJitter(brightness=config.augmentation.random_color.brightness,
                                                             contrast=config.augmentation.random_color.contrast,
@@ -71,7 +70,7 @@ class RandomColorJitter(BaseTransform):
 
 
 class RandomErasing(BaseTransform):
-    def __init__(self, config: ConfigNode) -> None:
+    def __init__(self, config: CfgNode) -> None:
         super().__init__()
         self.transform = torchvision.transforms.RandomErasing(p=0.5,
                                                               scale=config.augmentation.random_erasing.scale,
@@ -79,7 +78,7 @@ class RandomErasing(BaseTransform):
 
 
 class RandomGamma(BaseTransform):
-    def __init__(self, config: ConfigNode) -> None:
+    def __init__(self, config: CfgNode) -> None:
         super().__init__()
 
         def gamma_transform(image: PIL.Image.Image) -> PIL.Image.Image:
@@ -101,7 +100,7 @@ class ExpandChannels(BaseTransform):
 
 
 class AddGaussianNoise(BaseTransform):
-    def __init__(self, config: ConfigNode) -> None:
+    def __init__(self, config: CfgNode) -> None:
         """
         Transformation to add Gaussian noise N(0, std) to an image. Where std is set with the
         config.augmentation.gaussian_noise.std argument. The transformation will be applied with probability
@@ -133,7 +132,7 @@ class ElasticTransform(BaseTransform):
         :param p_apply: probability of applying the transformation
     """
 
-    def __init__(self, config: ConfigNode) -> None:
+    def __init__(self, config: CfgNode) -> None:
         super().__init__()
         alpha = config.augmentation.elastic_transform.alpha
         sigma = config.augmentation.elastic_transform.sigma
@@ -170,7 +169,7 @@ class DualViewTransformWrapper:
         return xi, xj
 
 
-def get_cxr_ssl_transforms(config: ConfigNode, return_two_views_per_sample: bool) -> Tuple[Any, Any]:
+def get_cxr_ssl_transforms(config: CfgNode, return_two_views_per_sample: bool) -> Tuple[Any, Any]:
     """
     Returns training and validation transforms for CXR.
     Transformations are constructed in the following way:
@@ -195,7 +194,7 @@ def get_cxr_ssl_transforms(config: ConfigNode, return_two_views_per_sample: bool
     return train_transforms, val_transforms
 
 
-def create_chest_xray_transform(config: ConfigNode,
+def create_chest_xray_transform(config: CfgNode,
                                 is_train: bool) -> Callable:
     """
     Defines the image transformations pipeline used in Chest-Xray datasets.

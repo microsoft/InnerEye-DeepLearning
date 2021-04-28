@@ -2,16 +2,15 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from yacs.config import CfgNode
 
-from InnerEye.ML.SSL.augmentation_config_utils.config_node import ConfigNode
+config = CfgNode()
 
-config = ConfigNode()
-
-config.preprocess = ConfigNode()
+config.preprocess = CfgNode()
 config.preprocess.center_crop_size = 224
 config.preprocess.resize = 256
 
-config.augmentation = ConfigNode()
+config.augmentation = CfgNode()
 # Whether to apply random crop of scale config.augmentation.random_crop.scale,
 # final crop is then resized to config.preprocess.resize cf. torchvision
 # RandomCropResize function. If use_random_crop set to False,
@@ -42,44 +41,44 @@ config.augmentation.use_random_erasing = False
 # See ElasticTransform class for more details.
 config.augmentation.use_elastic_transform = False
 
-config.augmentation.random_crop = ConfigNode()
+config.augmentation.random_crop = CfgNode()
 config.augmentation.random_crop.scale = (0.9, 1.0)
 
-config.augmentation.elastic_transform = ConfigNode()
+config.augmentation.elastic_transform = CfgNode()
 config.augmentation.elastic_transform.sigma = 4
 config.augmentation.elastic_transform.alpha = 35
 config.augmentation.elastic_transform.p_apply = 0.5
 
-config.augmentation.gaussian_noise = ConfigNode()
+config.augmentation.gaussian_noise = CfgNode()
 config.augmentation.gaussian_noise.std = 0.01
 config.augmentation.gaussian_noise.p_apply = 0.5
 
-config.augmentation.random_horizontal_flip = ConfigNode()
+config.augmentation.random_horizontal_flip = CfgNode()
 config.augmentation.random_horizontal_flip.prob = 0.5
 
-config.augmentation.random_affine = ConfigNode()
+config.augmentation.random_affine = CfgNode()
 config.augmentation.random_affine.max_angle = 0
 config.augmentation.random_affine.max_horizontal_shift = 0.0
 config.augmentation.random_affine.max_vertical_shift = 0.0
 config.augmentation.random_affine.max_shear = 5
 
-config.augmentation.random_color = ConfigNode()
+config.augmentation.random_color = CfgNode()
 config.augmentation.random_color.brightness = 0.0
 config.augmentation.random_color.contrast = 0.1
 config.augmentation.random_color.saturation = 0.0
 
-config.augmentation.gamma = ConfigNode()
+config.augmentation.gamma = CfgNode()
 config.augmentation.gamma.scale = (0.5, 1.5)
 
-config.augmentation.label_smoothing = ConfigNode()
+config.augmentation.label_smoothing = CfgNode()
 config.augmentation.label_smoothing.epsilon = 0.1
 
-config.augmentation.random_erasing = ConfigNode()
+config.augmentation.random_erasing = CfgNode()
 config.augmentation.random_erasing.scale = (0.01, 0.1)
 config.augmentation.random_erasing.ratio = (0.3, 3.3)
 
 
-def get_default_model_config() -> ConfigNode:
+def get_default_model_config() -> CfgNode:
     """
     Returns copy of default model config
     """

@@ -15,10 +15,15 @@ from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
 
 class SSLClassifierContainer(SSLContainer):
     """
-    This module is usef to train a linear classifier on top of a frozen (or not) encoder.
+    This module is used to train a linear classifier on top of a frozen (or not) encoder.
 
-    You need to specify:
-        todo
+    If you are running on AML, you can specify the SSL training run id via the --extra_run_recovery_id flag. This
+    will automatically download the checkpoints for you and take the latest one as the starting weights of your
+    classifier.
+
+    If you are running locally, you can specify the path to your SSL weights via the --local_ssl_weights_path parameter.
+
+    See docs/self_supervised_models.md for more details.
     """
     freeze_encoder = param.Boolean(default=True, doc="Whether to freeze the pretrained encoder or not.")
     local_ssl_weights_path = param.ClassSelector(class_=Path, default=None, doc="Local path to SSL weights")
@@ -59,5 +64,5 @@ class SSLClassifierContainer(SSLContainer):
     def get_trainer_arguments(self) -> Dict[str, Any]:
         trained_kwargs = {}
         if self.is_debug_model:
-            trained_kwargs.update({"limit_train_batches": 2, "limit_val_batches": 2})
+            trained_kwargs.update({"limit_train_batches": 1, "limit_val_batches": 1})
         return trained_kwargs

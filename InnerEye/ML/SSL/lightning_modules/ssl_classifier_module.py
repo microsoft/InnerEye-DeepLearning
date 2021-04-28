@@ -43,10 +43,6 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
                                                      Accuracy05()] \
             if self.num_classes == 2 else [Accuracy05()]
 
-    def on_train_start(self) -> None:
-        for metric in [*self.train_metrics, *self.val_metrics]:
-            metric.to(device=self.device)
-
     def train(self, mode: bool = True) -> Any:
         self.classifier_head.train(mode)
         if self.freeze_encoder:
