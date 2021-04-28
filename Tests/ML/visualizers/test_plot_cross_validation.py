@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 import pytest
+from pytest import raises
 from azureml.core import Run
 from pandas.core.dtypes.common import is_string_dtype
 
@@ -289,8 +290,17 @@ def test_create_portal_query_for_outliers() -> None:
     expected = PORTAL_QUERY_TEMPLATE.format('r.InstitutionId = "0" OR r.InstitutionId = "1"',
                                             'STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"3") OR '
                                             'STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"4")')
-
     assert expected == create_portal_query_for_outliers(test_df)
+    with raises(ValueError) as institution_column_missing_error:
+        test_df_pruned = test_df.drop(columns=[CSV_INSTITUTION_HEADER])
+        create_portal_query_for_outliers(test_df_pruned)
+        error_message = str(institution_column_missing_error.value)
+        assert CSV_INSTITUTION_HEADER in error_message
+    with raises(ValueError) as series_column_missing_error:
+        test_df_pruned = test_df.drop(columns=[CSV_SERIES_HEADER])
+        create_portal_query_for_outliers(test_df_pruned)
+        error_message = str(series_column_missing_error.value)
+        assert CSV_SERIES_HEADER in error_message
 
 
 def test_create_summary(test_output_dirs: OutputFolderForTests) -> None:
