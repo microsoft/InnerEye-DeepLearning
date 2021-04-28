@@ -2,10 +2,12 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from pathlib import Path
 from typing import Dict
 from unittest import mock
 
 import numpy as np
+import pandas as pd
 import pytest
 import torch
 from pl_bolts.models.self_supervised.resnets import ResNet
@@ -22,6 +24,7 @@ from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
 from InnerEye.ML.runner import Runner
 from Tests.ML.utils.test_io_util import write_test_dicom
+from Tests.utils_for_tests import full_ml_test_data_path
 
 
 def default_runner() -> Runner:
@@ -88,14 +91,29 @@ def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     assert loaded_config.ssl_training_type == SSLTrainingType.BYOL
 
 
+def _create_test_cxr_data(path_to_test_dataset: Path) -> None:
+    """
+    Creates fake datasets dataframe and dicom images mimicking the expected structure of the datasets
+    of NIH and RSNAKaggle
+    :param path_to_test_dataset: folder to which we want to save the mock data.
+    """
+
+    path_to_test_dataset.mkdir(exist_ok=True)
+    df = pd.DataFrame({"Image Index": np.repeat("1.dcm", 200)})
+    df.to_csv(path_to_test_dataset / "Data_Entry_2017.csv", index=False)
+    df = pd.DataFrame({"subject": np.repeat("1", 300),
+                       "label": np.random.RandomState(42).binomial(n=1, p=0.2, size=300)})
+    df.to_csv(path_to_test_dataset / "dataset.csv", index=False)
+    write_test_dicom(array=np.ones([256, 256], dtype="uint16"), path=path_to_test_dataset / "1.dcm")
+
 # @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_innereye_ssl_container_rsna() -> None:
     """
     Test if we can get the config loader to load a Lightning container model, and then train locally.
     """
     runner = default_runner()
-    path_to_test_dataset = repository_root_directory() / "Tests" / "SSL" / "test_dataset"
-    write_test_dicom(array=np.ones([256, 256], dtype="uint16"), path=path_to_test_dataset / "1.dcm")
+    path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
+    _create_test_cxr_data(path_to_test_dataset)
 
     # Test training of SSL model
     args = common_test_args + ["--model=NIH_RSNA_BYOL",
@@ -115,10 +133,10 @@ def test_innereye_ssl_container_rsna() -> None:
     # Check model params
     assert isinstance(loaded_config.model.hparams, Dict)
     assert loaded_config.model.hparams["batch_size"] == 10
-    assert loaded_config.model.hparams["use_7x7_first_conv_in_resnet"] == SSLDatasetName.NIH.value
+    assert loaded_config.model.hparams["use_7x7_first_conv_in_resnet"]
     assert loaded_config.model.hparams["encoder_name"] == EncoderName.densenet121.value
     assert loaded_config.model.hparams["learning_rate"] == 1e-4
-    assert loaded_config.model.hparams["num_samples"] == 270
+    assert loaded_config.model.hparams["num_samples"] == 180
 
     # Check some augmentation params
     assert loaded_config.datamodule_args[
@@ -137,5 +155,5 @@ def test_innereye_ssl_container_rsna() -> None:
     assert loaded_config is not None
     assert isinstance(loaded_config, CXRImageClassifier)
     assert loaded_config.model.freeze_encoder
-    assert torch.isclose(loaded_config.model.class_weights, torch.tensor([0.2, 0.8]), atol=1e-6).all()  # type: ignore
+    assert torch.isclose(loaded_config.model.class_weights, torch.tensor([0.21, 0.79]), atol=1e-6).all()  # type: ignore
     assert loaded_config.model.num_classes == 2

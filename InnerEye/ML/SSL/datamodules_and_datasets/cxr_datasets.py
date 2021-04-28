@@ -26,9 +26,14 @@ class InnerEyeCXRDatasetBase(VisionDataset):
     def __init__(self,
                  root: str,
                  train: bool,
-                 seed: int = 1234,
                  transform: Optional[Callable] = None,
                  **kwargs: Any) -> None:
+        """
+
+        :param root: path to the data directory
+        :param train: if True returns the train + val dataset, if False returns the test set. See VisionDataset API.
+        :param transform: callable to be applied on the loaded image, has to take PIL Image as input
+        """
         super().__init__(root=root, transforms=transform)
         self.root = Path(self.root)  # type: ignore
         if not self.root.exists():
@@ -36,9 +41,7 @@ class InnerEyeCXRDatasetBase(VisionDataset):
                 f"The data directory {self.root} does not exist. Make sure to download the data first for the Kaggle "
                 f"page")
         self.train = train
-        self.seed = seed
         self.targets: Optional[List[int]] = None
-        self.random_state = np.random.RandomState(seed)
         self._prepare_dataset()
 
     def _prepare_dataset(self) -> None:
@@ -82,11 +85,16 @@ class RSNAKaggleCXR(InnerEyeDataClassBaseWithReturnIndex, InnerEyeCXRDatasetBase
     """
 
     def _prepare_dataset(self) -> None:
-        self.dataset_dataframe = pd.read_csv(self.root / "dataset.csv")
-        self.targets = self.dataset_dataframe.label.values.astype(np.int64)
-        self.subject_ids = self.dataset_dataframe.subject.values
-        self.indices = np.arange(len(self.dataset_dataframe))
-        self.filenames = [self.root / f"{subject_id}.dcm" for subject_id in self.subject_ids]
+        if self.train:
+            self.dataset_dataframe = pd.read_csv(self.root / "dataset.csv")
+            self.targets = self.dataset_dataframe.label.values.astype(np.int64)
+            self.subject_ids = self.dataset_dataframe.subject.values
+            self.indices = np.arange(len(self.dataset_dataframe))
+            self.filenames = [self.root / f"{subject_id}.dcm" for subject_id in self.subject_ids]
+        else:
+            # No test set implemented for this data class.
+            self.indices = []
+            self.filenames = []
 
     @property
     def num_classes(self) -> int:
@@ -96,7 +104,7 @@ class RSNAKaggleCXR(InnerEyeDataClassBaseWithReturnIndex, InnerEyeCXRDatasetBase
 class NIH(InnerEyeDataClassBaseWithReturnIndex, InnerEyeCXRDatasetBase):
     """
     Dataset class to load the NIH Chest-Xray dataset. Use the full data for training and validation (including
-    the official test set) by default.
+    the official test set by default).
     """
 
     def __init__(self,
@@ -110,7 +118,7 @@ class NIH(InnerEyeDataClassBaseWithReturnIndex, InnerEyeCXRDatasetBase):
         self.dataset_dataframe = pd.read_csv(self.root / "Data_Entry_2017.csv")
         # To use full dataset (incl. official test set for train & val of SSL models, no test set)
         if self.use_full_dataset_for_train_and_val:
-            self.subject_ids = self.dataset_dataframe["Image Index"].values
+            self.subject_ids = self.dataset_dataframe["Image Index"].values if self.train else []
         # To exclude official test set from train & val
         else:
             train_ids = pd.read_csv(self.root / "train_val_list.txt", header=None).values.reshape(-1)

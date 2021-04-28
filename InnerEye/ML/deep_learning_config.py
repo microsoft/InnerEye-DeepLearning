@@ -482,6 +482,10 @@ class TrainerParams(param.Parameterized):
 
     @property
     def num_gpus_per_node(self) -> int:
+        """
+        Computes the number of gpus to use for each node: either the number of gpus available on the device
+        or restrict it to max_num_gpu, whichever is smaller. Returns 0 if running on a CPU device.
+        """
         import torch
         num_gpus = torch.cuda.device_count() if self.use_gpu else 0
         logging.info(f"Number of available GPUs: {num_gpus}")

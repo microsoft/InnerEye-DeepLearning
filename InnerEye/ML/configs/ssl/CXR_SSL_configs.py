@@ -33,9 +33,9 @@ class NIH_RSNA_BYOL(SSLContainer):
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.BYOL,
                          use_balanced_binary_loss_for_linear_head=True,
-                         ssl_training_path_augmentation_config=path_encoder_augmentation_cxr,
+                         ssl_augmentation_config=path_encoder_augmentation_cxr,
                          extra_azure_dataset_ids=[RSNA_AZURE_DATASET_ID],
-                         classifier_augmentations_path=path_linear_head_augmentation_cxr)
+                         classifier_augmentation_config=path_linear_head_augmentation_cxr)
 
 
 class NIH_RSNA_SimCLR(SSLContainer):
@@ -50,9 +50,9 @@ class NIH_RSNA_SimCLR(SSLContainer):
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.SimCLR,
                          use_balanced_binary_loss_for_linear_head=True,
-                         ssl_training_path_augmentation_config=path_encoder_augmentation_cxr,
+                         ssl_augmentation_config=path_encoder_augmentation_cxr,
                          extra_azure_dataset_ids=[RSNA_AZURE_DATASET_ID],
-                         classifier_augmentations_path=path_linear_head_augmentation_cxr)
+                         classifier_augmentation_config=path_linear_head_augmentation_cxr)
 
 
 class CXRImageClassifier(SSLClassifierContainer):
@@ -63,4 +63,4 @@ class CXRImageClassifier(SSLClassifierContainer):
                          num_epochs=200,
                          use_balanced_binary_loss_for_linear_head=True,
                          azure_dataset_id=RSNA_AZURE_DATASET_ID,
-                         classifier_augmentations_path=path_linear_head_augmentation_cxr)
+                         classifier_augmentation_config=path_linear_head_augmentation_cxr)
