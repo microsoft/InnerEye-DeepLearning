@@ -77,7 +77,7 @@ class AzureConfig(GenericConfig):
                                             " to use for inference or recovering a model training run.")
     extra_run_recovery_id: str = param.String(default=None,
                                               allow_None=True,
-                                              doc="Extra run to download checkpoints from for custom modules (e.g. "
+                                              doc="Extra run to download checkpoints for custom modules (e.g. "
                                                   "for loading pretrained weights).")
     experiment_name: str = param.String(doc="If provided, use this string as the name of the AzureML experiment. "
                                             "If not provided, create the experiment off the git branch name.")
