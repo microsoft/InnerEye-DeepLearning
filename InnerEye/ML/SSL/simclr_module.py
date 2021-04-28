@@ -37,17 +37,21 @@ class _Projection(nn.Module):
 
 
 class SimCLRInnerEye(SimCLR):
-    def __init__(self, encoder_name: str, dataset_name: str, **kwargs: Any) -> None:
+    def __init__(self, encoder_name: str, dataset_name: str, use_7x7_first_conv_in_resnet: bool = True,
+                 **kwargs: Any) -> None:
         """
         Returns SimCLR pytorch-lightning module, based on lightning-bolts implementation.
-        :param encoder_name [str] Image encoder name (predefined models)
-        :param dataset_name [str] Image dataset name (e.g. cifar10, kaggle, etc.)
+        :param encoder_name: Image encoder name (predefined models)
+        :param dataset_name: Dataset name (e.g. cifar10, kaggle, etc.)
+        :param use_7x7_first_conv_in_resnet: If True, use a 7x7 kernel (default) in the first layer of resnet.
+            If False, replace first layer by a 3x3 kernel. This is required for small CIFAR 32x32 images to not
+            shrink them.
         """
         if "dataset" not in kwargs:  # needed for the new version of lightning-bolts
             kwargs.update({"dataset": dataset_name})
         super().__init__(**kwargs)
         self.save_hyperparameters()
-        self.encoder = SSLEncoder(encoder_name, dataset_name)
+        self.encoder = SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet)
         self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

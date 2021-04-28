@@ -60,16 +60,11 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
         return self
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
-        assert isinstance(self.encoder.avgpool, torch.nn.Module)
         if self.freeze_encoder:
             with torch.no_grad():
-                repr = self.encoder(x)
-                agg_repr = self.encoder.avgpool(repr) if repr.ndim > 2 else repr
-                agg_repr = agg_repr.reshape(agg_repr.size(0), -1).detach()
+                agg_repr = self.encoder(x).flatten(1).detach()
         else:
-            repr = self.encoder(x)
-            agg_repr = self.encoder.avgpool(repr) if repr.ndim > 2 else repr
-            agg_repr = agg_repr.reshape(agg_repr.size(0), -1)
+            agg_repr = self.encoder(x).flatten(1)
         return self.classifier_head(agg_repr)
 
     def shared_step(self, batch: Any, is_training: bool) -> Any:
@@ -148,6 +143,6 @@ class SSLClassifierContainer(SSLContainer):
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
         trained_kwargs = {}
-        if self.debug:
+        if self.is_debug_model:
             trained_kwargs.update({"limit_train_batches": 2, "limit_val_batches": 2})
         return trained_kwargs

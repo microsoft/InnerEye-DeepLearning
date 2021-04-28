@@ -62,10 +62,9 @@ class SSLContainer(LightningContainer):
                              SSLDatasetName.CIFAR100.value: InnerEyeCIFAR100,
                              SSLDatasetName.CheXpert.value: CheXpert}
 
-    ssl_training_path_augmentation_config = param.ClassSelector(class_=Path, allow_None=True,
-                                                                doc="The path to the yaml config defining the "
-                                                                    "parameters of the "
-                                                                    "augmentations. Ignored for CIFAR10 example")
+    ssl_augmentation_config = param.ClassSelector(class_=Path, allow_None=True,
+                                                  doc="The path to the yaml config defining the parameters of the "
+                                                      "augmentations. Ignored for CIFAR10 example")
     ssl_training_dataset_name = param.ClassSelector(class_=SSLDatasetName, doc="The name of the dataset")
     ssl_training_batch_size = param.Integer(doc="Total training batch size, splitted across the number of gpus.")
     ssl_training_type = param.ClassSelector(class_=SSLType, doc="Which algorithm to use for SSL training")
@@ -74,12 +73,12 @@ class SSLContainer(LightningContainer):
                                                              doc="Whether to use a balanced loss for the training of "
                                                                  "the linear head")
     num_workers = param.Integer(default=6, doc="Number of workers to use for dataloader processes.")
-    debug = param.Boolean(default=False,
-                          doc="If True, the training will be restricted to 2 batches per epoch. Used for debugging "
-                              "and tests.")
-    classifier_augmentations_path = param.ClassSelector(class_=Path,
-                                                        doc="The path to the yaml config for the linear head "
-                                                            "augmentations")
+    is_debug_model = param.Boolean(default=False,
+                                   doc="If True, the training will be restricted to 1 batch per epoch."
+                                       "Used for debugging and tests.")
+    classifier_augmentation_config = param.ClassSelector(class_=Path,
+                                                         doc="The path to the yaml config for the linear head "
+                                                             "augmentations")
     classifier_dataset_name = param.ClassSelector(class_=SSLDatasetName,
                                                   doc="Name of the dataset to use for the linear head training")
     classifier_batch_size = param.Integer(default=256, doc="Batch size for linear head tuning")
@@ -115,32 +114,34 @@ class SSLContainer(LightningContainer):
     def _load_config(self) -> None:
         # For Chest-XRay you need to specify the parameters of the augmentations via a config file.
         self.yaml_config = load_ssl_model_config(
-            self.ssl_training_path_augmentation_config) if self.ssl_training_path_augmentation_config is not None \
+            self.ssl_augmentation_config) if self.ssl_augmentation_config is not None \
             else None
         self.linear_head_yaml_config = load_ssl_model_config(
-            self.classifier_augmentations_path) if self.classifier_augmentations_path is not None else \
+            self.classifier_augmentation_config) if self.classifier_augmentation_config is not None else \
             self.yaml_config
 
     def create_model(self) -> LightningModule:
         """
         This method must create the actual Lightning model that will be trained.
         """
-
+        # For small images like CIFAR, if using a resnet encoder, switch the first conv layer to a 3x3 kernel instead
+        # of a 7x7 conv layer.
+        use_7x7_first_conv_in_resnet = False if self.ssl_training_dataset_name.value.startswith("CIFAR") else True
         if self.ssl_training_type == SSLType.SimCLR:
-            model: LightningModule = SimCLRInnerEye(dataset_name=self.ssl_training_dataset_name.value,
+            model: LightningModule = SimCLRInnerEye(encoder_name=self.ssl_encoder.value,
+                                                    dataset_name=self.ssl_training_dataset_name.value,
+                                                    use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
                                                     gpus=self.total_num_gpus,
-                                                    encoder_name=self.ssl_encoder.value,
                                                     num_samples=self.data_module.num_samples,
                                                     batch_size=self.data_module.batch_size,
                                                     lr=self.l_rate,
                                                     max_epochs=self.num_epochs)
-        # Create BYOL model
         else:
-            model = BYOLInnerEye(dataset_name=self.ssl_training_dataset_name.value,
-                                 encoder_name=self.ssl_encoder.value,
+            model = BYOLInnerEye(encoder_name=self.ssl_encoder.value,
                                  num_samples=self.data_module.num_samples,
                                  batch_size=self.data_module.batch_size,
                                  learning_rate=self.l_rate,
+                                 use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
                                  warmup_epochs=10)
         model.hparams.update({'ssl_type': self.ssl_training_type.value,
                               "num_classes": self.data_module.num_classes})
@@ -209,6 +210,6 @@ class SSLContainer(LightningContainer):
                                                       drop_p=0.2,
                                                       learning_rate=self.online_evaluator_lr)
         trained_kwargs: Dict[str, Any] = {"callbacks": self.online_eval}
-        if self.debug:
+        if self.is_debug_model:
             trained_kwargs.update({"limit_train_batches": 1, "limit_val_batches": 1})
         return trained_kwargs

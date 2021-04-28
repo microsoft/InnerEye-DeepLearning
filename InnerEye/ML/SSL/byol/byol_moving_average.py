@@ -10,7 +10,7 @@ import torch
 from pytorch_lightning import Callback
 
 
-class BYOLMAWeightUpdate(Callback):
+class ByolMovingAverageWeightUpdate(Callback):
     """
     Weight updates for BYOL moving average encoder (e.g. teacher). Pl_module is expected to contain three attributes:
         - ``pl_module.online_network``

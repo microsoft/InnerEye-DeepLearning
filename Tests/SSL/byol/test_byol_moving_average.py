@@ -14,7 +14,7 @@ from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 
 from InnerEye.ML.SSL.byol.byol_module import BYOLInnerEye
-from InnerEye.ML.SSL.byol.byol_moving_average import BYOLMAWeightUpdate
+from InnerEye.ML.SSL.byol.byol_moving_average import ByolMovingAverageWeightUpdate
 from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import RSNAKaggleCXR
 
 
@@ -32,7 +32,7 @@ def test_update_tau() -> None:
         num_workers=0,
         drop_last=True)
 
-    byol_weight_update = BYOLMAWeightUpdate(initial_tau=0.99)
+    byol_weight_update = ByolMovingAverageWeightUpdate(initial_tau=0.99)
     trainer = Trainer(max_epochs=5)
     trainer.train_dataloader = dummy_rsna_train_dataloader
     n_steps_per_epoch = len(trainer.train_dataloader)
@@ -50,7 +50,7 @@ def test_update_tau() -> None:
 def test_update_weights() -> None:
     online_network = torch.nn.Linear(in_features=3, out_features=1, bias=False)
     target_network = torch.nn.Linear(in_features=3, out_features=1, bias=False)
-    byol_weight_update = BYOLMAWeightUpdate(initial_tau=0.9)
+    byol_weight_update = ByolMovingAverageWeightUpdate(initial_tau=0.9)
     old_target_net_weight = target_network.weight.data.numpy().copy()
     byol_weight_update.update_weights(online_network, target_network)
     assert np.isclose(target_network.weight.data.numpy(),

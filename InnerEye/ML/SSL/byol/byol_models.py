@@ -38,16 +38,17 @@ class SSLEncoder(nn.Module):
     Feature responses are pooled to generate a 1-D embedding vector.
     """
 
-    def __init__(self, encoder_name: str, dataset_name: str):
+    def __init__(self, encoder_name: str, use_7x7_first_conv_in_resnet: bool = True):
         """
         :param encoder_name: Type of the image encoder: {'resnet18', 'resnet50', 'resnet101', 'densenet121'}.
-        :param dataset_name: If CIFAR dataset is specified, the initial convolution kernels are reduced to 3x3
-                             to reduce information loss.
+        :param use_7x7_first_conv_in_resnet: If True, use a 7x7 kernel (default) in the first layer of resnet.
+            If False, replace first layer by a 3x3 kernel. This is required for small CIFAR 32x32 images to not
+            shrink them.
         """
 
         super().__init__()
-        self.cnn_model = create_ssl_encoder(encoder_name=encoder_name, dataset_name=dataset_name)
-        self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
+        self.cnn_model = create_ssl_encoder(encoder_name=encoder_name,
+                                            use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet)
 
     def forward(self, x: T) -> T:
         x = self.cnn_model(x)

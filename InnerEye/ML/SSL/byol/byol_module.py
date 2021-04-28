@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 from copy import deepcopy
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Tuple, Union
 
 import pytorch_lightning as pl
 import torch
@@ -15,7 +15,7 @@ from torch import Tensor as T
 from torch.optim import Adam
 
 from InnerEye.ML.SSL.byol.byol_models import SiameseArm
-from InnerEye.ML.SSL.byol.byol_moving_average import BYOLMAWeightUpdate
+from InnerEye.ML.SSL.byol.byol_moving_average import ByolMovingAverageWeightUpdate
 from InnerEye.ML.SSL.utils import SSLModule
 
 SingleBatchType = Tuple[List, T]
@@ -33,27 +33,29 @@ class BYOLInnerEye(pl.LightningModule):
                  batch_size: int,
                  encoder_name: str,
                  warmup_epochs: int,
-                 dataset_name: Optional[str] = None,
+                 use_7x7_first_conv_in_resnet: bool = True,
                  weight_decay: float = 1e-6,
                  **kwargs: Any) -> None:
         """
         Args:
-            num_samples: Number of samples present in training dataset / dataloader.
-            learning_rate: Optimizer learning rate.
-            batch_size: Sample batch size used in gradient updates.
-            encoder_name: Type of CNN encoder used to extract image embeddings. The options are:
+            :param num_samples: Number of samples present in training dataset / dataloader.
+            :param learning_rate: Optimizer learning rate.
+            :param batch_size: Sample batch size used in gradient updates.
+            :param encoder_name: Type of CNN encoder used to extract image embeddings. The options are:
                           {'resnet18', 'resnet50', 'resnet101', 'densenet121'}.
-            warmup_epochs: Number of epochs for scheduler warm up (linear increase from 0 to base_lr).
-            dataset_name: Name of training dataset - If set to "CIFAR10" then the encoder is adjusted to image size.
-            weight_decay: L2-norm weight decay.
+            :param warmup_epochs: Number of epochs for scheduler warm up (linear increase from 0 to base_lr).
+            :param use_7x7_first_conv_in_resnet: If True, use a 7x7 kernel (default) in the first layer of resnet.
+            If False, replace first layer by a 3x3 kernel. This is required for small CIFAR 32x32 images to not
+            shrink them.
+            :param weight_decay: L2-norm weight decay.
         """
         super().__init__()
         self.save_hyperparameters()
 
         self.min_learning_rate = 1e-4
-        self.online_network = SiameseArm(encoder_name, dataset_name)
+        self.online_network = SiameseArm(encoder_name, use_7x7_first_conv_in_resnet)
         self.target_network = deepcopy(self.online_network)
-        self.weight_callback = BYOLMAWeightUpdate()
+        self.weight_callback = ByolMovingAverageWeightUpdate()
 
     def on_train_batch_end(self, *args: Any, **kwargs: Any) -> None:
         # Add callback for user automatically since it's key to BYOL weight update

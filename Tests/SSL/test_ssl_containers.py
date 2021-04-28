@@ -33,7 +33,8 @@ def default_runner() -> Runner:
                   yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
 
 
-common_test_args = ["", "--debug=True", "--num_epochs=1", "--ssl_training_batch_size=10", "--classifier_batch_size=5",
+common_test_args = ["", "--is_debug_model=True", "--num_epochs=1", "--ssl_training_batch_size=10",
+                    "--classifier_batch_size=5",
                     "--num_workers=0"]
 
 
@@ -114,7 +115,7 @@ def test_innereye_ssl_container_rsna() -> None:
     # Check model params
     assert isinstance(loaded_config.model.hparams, Dict)
     assert loaded_config.model.hparams["batch_size"] == 10
-    assert loaded_config.model.hparams["dataset_name"] == SSLDatasetName.NIH.value
+    assert loaded_config.model.hparams["use_7x7_first_conv_in_resnet"] == SSLDatasetName.NIH.value
     assert loaded_config.model.hparams["encoder_name"] == EncoderName.densenet121.value
     assert loaded_config.model.hparams["learning_rate"] == 1e-4
     assert loaded_config.model.hparams["num_samples"] == 270
