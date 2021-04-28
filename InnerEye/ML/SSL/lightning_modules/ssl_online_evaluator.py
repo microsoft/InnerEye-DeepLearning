@@ -12,10 +12,10 @@ from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
 from torch import Tensor as T
 from torch.nn import functional as F
 
-from InnerEye.ML.SSL.utils import SSLModule
+from InnerEye.ML.SSL.utils import SSLDataModuleType
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 
-BatchType = Union[Dict[SSLModule, Any], Any]
+BatchType = Union[Dict[SSLDataModuleType, Any], Any]
 
 
 class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
@@ -78,7 +78,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         detach from computation graph for this loss computation.
         Returns cross-entropy loss for the input batch.
         """
-        batch = batch[SSLModule.LINEAR_HEAD] if isinstance(batch, dict) else batch
+        batch = batch[SSLDataModuleType.LINEAR_HEAD] if isinstance(batch, dict) else batch
         x, y = self.to_device(batch, pl_module.device)
         with torch.no_grad():
             representations = self.get_representations(pl_module, x)
@@ -106,19 +106,20 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
         Get and log validation metrics.
         """
-        ids_linear_head = tuple(batch[SSLModule.LINEAR_HEAD][0].tolist())
+        ids_linear_head = tuple(batch[SSLDataModuleType.LINEAR_HEAD][0].tolist())
         if ids_linear_head not in self.visited_ids:
             self.visited_ids.add(ids_linear_head)
             loss = self.shared_step(batch, pl_module, is_training=False)
-            pl_module.log('ssl/online_val_loss', loss, on_step=False, on_epoch=True, sync_dist=False)
+            pl_module.log('ssl_online_evaluator/val/loss', loss, on_step=False, on_epoch=True, sync_dist=False)
             for metric in self.val_metrics:
-                pl_module.log(f"ssl/online_val_{metric.name}", metric, on_epoch=True, on_step=False)  # type: ignore
+                pl_module.log(f"ssl_online_evaluator/val/{metric.name}", metric, on_epoch=True,
+                              on_step=False)  # type: ignore
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
         """
         Get and log training metrics, perform network update.
         """
-        ids_linear_head = tuple(batch[SSLModule.LINEAR_HEAD][0].tolist())
+        ids_linear_head = tuple(batch[SSLDataModuleType.LINEAR_HEAD][0].tolist())
         if ids_linear_head not in self.visited_ids:
             self.visited_ids.add(ids_linear_head)
             loss = self.shared_step(batch, pl_module, is_training=True)
@@ -128,8 +129,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             self.training_step += 1
 
             # log metrics
-            pl_module.log('ssl/online_train_loss', loss)
+            pl_module.log('ssl_online_evaluator/train/loss', loss)
             for metric in self.train_metrics:
-                pl_module.log(f"ssl/online_train_{metric.name}", metric, on_epoch=True, on_step=False)  # type: ignore
-
-
+                pl_module.log(f"ssl_online_evaluator/train/online_{metric.name}", metric, on_epoch=True,
+                              on_step=False)  # type: ignore

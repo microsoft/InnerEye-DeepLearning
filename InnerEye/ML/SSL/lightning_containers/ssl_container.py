@@ -22,7 +22,7 @@ from InnerEye.ML.SSL.encoders import get_encoder_output_dim
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
 from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye
-from InnerEye.ML.SSL.utils import SSLModule, SSLType, load_ssl_model_config
+from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType, load_ssl_model_config
 from InnerEye.ML.lightning_container import LightningContainer
 
 
@@ -68,7 +68,7 @@ class SSLContainer(LightningContainer):
                                                       "augmentations. Ignored for CIFAR10 example")
     ssl_training_dataset_name = param.ClassSelector(class_=SSLDatasetName, doc="The name of the dataset")
     ssl_training_batch_size = param.Integer(doc="Total training batch size, splitted across the number of gpus.")
-    ssl_training_type = param.ClassSelector(class_=SSLType, doc="Which algorithm to use for SSL training")
+    ssl_training_type = param.ClassSelector(class_=SSLTrainingType, doc="Which algorithm to use for SSL training")
     ssl_encoder = param.ClassSelector(class_=EncoderName, doc="Which encoder to use for SSL")
     use_balanced_binary_loss_for_linear_head = param.Boolean(default=False,
                                                              doc="Whether to use a balanced loss for the training of "
@@ -96,17 +96,17 @@ class SSLContainer(LightningContainer):
                                                                                            SSLClassifierContainer)) \
                 and len(self.extra_local_dataset_paths) == 0 and self.local_dataset is not None:
             self.extra_local_dataset_paths = [self.local_dataset]
-        self.datamodule_args = {SSLModule.LINEAR_HEAD:
+        self.datamodule_args = {SSLDataModuleType.LINEAR_HEAD:
                                     DataModuleArgs(augmentation_config=self.linear_head_yaml_config,
                                                    dataset_name=self.classifier_dataset_name.value,
                                                    dataset_path=self.extra_local_dataset_paths[0] if len(
                                                        self.extra_local_dataset_paths) > 0 else None,
                                                    batch_size=self.classifier_batch_size)}
         if self.ssl_training_dataset_name is not None:
-            self.datamodule_args.update({SSLModule.ENCODER: DataModuleArgs(augmentation_config=self.yaml_config,
-                                                                           dataset_name=self.ssl_training_dataset_name.value,
-                                                                           dataset_path=self.local_dataset,
-                                                                           batch_size=self.ssl_training_batch_size)})
+            self.datamodule_args.update({SSLDataModuleType.ENCODER: DataModuleArgs(augmentation_config=self.yaml_config,
+                                                                                   dataset_name=self.ssl_training_dataset_name.value,
+                                                                                   dataset_path=self.local_dataset,
+                                                                                   batch_size=self.ssl_training_batch_size)})
         self.data_module: InnerEyeDataModuleTypes = self.get_data_module()
         self.perform_validation_and_test_set_inference = False
         if self.number_of_cross_validation_splits > 1:
@@ -128,7 +128,7 @@ class SSLContainer(LightningContainer):
         # For small images like CIFAR, if using a resnet encoder, switch the first conv layer to a 3x3 kernel instead
         # of a 7x7 conv layer.
         use_7x7_first_conv_in_resnet = False if self.ssl_training_dataset_name.value.startswith("CIFAR") else True
-        if self.ssl_training_type == SSLType.SimCLR:
+        if self.ssl_training_type == SSLTrainingType.SimCLR:
             model: LightningModule = SimCLRInnerEye(encoder_name=self.ssl_encoder.value,
                                                     dataset_name=self.ssl_training_dataset_name.value,
                                                     use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
@@ -137,13 +137,18 @@ class SSLContainer(LightningContainer):
                                                     batch_size=self.data_module.batch_size,
                                                     lr=self.l_rate,
                                                     max_epochs=self.num_epochs)
-        else:
+        elif self.ssl_training_type == SSLTrainingType.BYOL:
             model = BYOLInnerEye(encoder_name=self.ssl_encoder.value,
                                  num_samples=self.data_module.num_samples,
                                  batch_size=self.data_module.batch_size,
                                  learning_rate=self.l_rate,
                                  use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
                                  warmup_epochs=10)
+        else:
+            raise ValueError(
+                f"Unknown value for ssl_training_type, should be {SSLTrainingType.SimCLR.value} or "
+                f"{SSLTrainingType.BYOL.value}. "
+                f"Found {self.ssl_training_type.value}")
         model.hparams.update({'ssl_type': self.ssl_training_type.value,
                               "num_classes": self.data_module.num_classes})
         self.encoder_output_dim = get_encoder_output_dim(model, self.data_module)
@@ -165,8 +170,9 @@ class SSLContainer(LightningContainer):
         """
         Returns torch lightning data module for encoder or linear head
         """
-        datamodule_args = self.datamodule_args[SSLModule.LINEAR_HEAD] if linear_head_module else self.datamodule_args[
-            SSLModule.ENCODER]
+        datamodule_args = self.datamodule_args[SSLDataModuleType.LINEAR_HEAD] if linear_head_module else \
+        self.datamodule_args[
+            SSLDataModuleType.ENCODER]
 
         train_transforms, val_transforms = self._get_transforms(datamodule_args.augmentation_config,
                                                                 datamodule_args.dataset_name,
@@ -210,7 +216,7 @@ class SSLContainer(LightningContainer):
                                                       dataset=self.classifier_dataset_name.value,  # type: ignore
                                                       drop_p=0.2,
                                                       learning_rate=self.online_evaluator_lr)
-        trained_kwargs: Dict[str, Any] = {"callbacks": self.online_eval}
+        trainer_kwargs: Dict[str, Any] = {"callbacks": self.online_eval}
         if self.is_debug_model:
-            trained_kwargs.update({"limit_train_batches": 1, "limit_val_batches": 1})
-        return trained_kwargs
+            trainer_kwargs.update({"limit_train_batches": 1, "limit_val_batches": 1})
+        return trainer_kwargs

@@ -16,10 +16,10 @@ from torch.optim import Adam
 
 from InnerEye.ML.SSL.lightning_modules.byol.byol_models import SiameseArm
 from InnerEye.ML.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
-from InnerEye.ML.SSL.utils import SSLModule
+from InnerEye.ML.SSL.utils import SSLDataModuleType
 
 SingleBatchType = Tuple[List, T]
-BatchType = Union[Dict[SSLModule, SingleBatchType], SingleBatchType]
+BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]
 
 
 class BYOLInnerEye(pl.LightningModule):
@@ -82,7 +82,7 @@ class BYOLInnerEye(pl.LightningModule):
         :param batch_idx: index of the batch
         :return: BYOL loss
         """
-        batch = batch[SSLModule.ENCODER] if isinstance(batch, dict) else batch
+        batch = batch[SSLDataModuleType.ENCODER] if isinstance(batch, dict) else batch
         (img_1, img_2), _ = batch
 
         # Image 1 to image 2 loss
@@ -98,12 +98,12 @@ class BYOLInnerEye(pl.LightningModule):
 
     def training_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
-        self.log_dict({'byol/train_loss': loss, 'byol/tau': self.weight_callback.current_tau})
+        self.log_dict({'byol/train/loss': loss, 'byol/tau': self.weight_callback.current_tau})
         return loss
 
     def validation_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
-        self.log_dict({'byol/validation_loss': loss})
+        self.log_dict({'byol/val/loss': loss})
         return loss
 
     def setup(self, *args: Any, **kwargs: Any) -> None:

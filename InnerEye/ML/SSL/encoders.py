@@ -10,7 +10,7 @@ import torch
 from torch import Tensor as T, nn
 from torchvision.models import densenet121
 
-from InnerEye.ML.SSL.utils import SSLModule, create_ssl_encoder
+from InnerEye.ML.SSL.utils import SSLDataModuleType, create_ssl_encoder
 
 
 class DenseNet121Encoder(torch.nn.Module):
@@ -84,7 +84,7 @@ def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module]
     # Create a dummy input image
     if dm is not None:
         dataloader = dm.train_dataloader()
-        dataloader = dataloader[SSLModule.LINEAR_HEAD] if isinstance(dataloader, dict) else dataloader
+        dataloader = dataloader[SSLDataModuleType.LINEAR_HEAD] if isinstance(dataloader, dict) else dataloader
         batch = iter(dataloader).next()  # type: ignore
         x = batch[1].to(device)
     else:

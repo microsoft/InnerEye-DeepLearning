@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
-from InnerEye.ML.SSL.utils import SSLType
+from InnerEye.ML.SSL.utils import SSLTrainingType
 
 
 class CIFAR10SimCLR(SSLContainer):
@@ -17,7 +17,7 @@ class CIFAR10SimCLR(SSLContainer):
                          classifier_dataset_name=SSLDatasetName.CIFAR10,
                          ssl_training_batch_size=512,
                          ssl_encoder=EncoderName.resnet50,
-                         ssl_training_type=SSLType.SimCLR,
+                         ssl_training_type=SSLTrainingType.SimCLR,
                          random_seed=1,
                          recovery_checkpoint_save_interval=200,
                          num_epochs=2500,
@@ -34,7 +34,7 @@ class CIFAR10BYOL(SSLContainer):
                          classifier_dataset_name=SSLDatasetName.CIFAR10,
                          ssl_training_batch_size=512,
                          ssl_encoder=EncoderName.resnet50,
-                         ssl_training_type=SSLType.BYOL,
+                         ssl_training_type=SSLTrainingType.BYOL,
                          random_seed=1,
                          recovery_checkpoint_save_interval=200,
                          num_epochs=2500,
@@ -51,7 +51,7 @@ class CIFAR10CIFAR100BYOL(SSLContainer):
                          classifier_dataset_name=SSLDatasetName.CIFAR100,
                          ssl_training_batch_size=512,
                          ssl_encoder=EncoderName.resnet50,
-                         ssl_training_type=SSLType.BYOL,
+                         ssl_training_type=SSLTrainingType.BYOL,
                          random_seed=1,
                          recovery_checkpoint_save_interval=200,
                          num_epochs=2500,

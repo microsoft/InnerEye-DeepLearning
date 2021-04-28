@@ -5,7 +5,7 @@
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
 from InnerEye.ML.SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
-from InnerEye.ML.SSL.utils import SSLType
+from InnerEye.ML.SSL.utils import SSLTrainingType
 
 RSNA_AZURE_DATASET_ID = "rsna_pneumonia_detection_kaggle_dataset"
 NIH_AZURE_DATASET_ID = "nih-training-set"
@@ -31,7 +31,7 @@ class NIH_RSNA_BYOL(SSLContainer):
                          num_epochs=1000,
                          ssl_training_batch_size=1200,
                          ssl_encoder=EncoderName.resnet50,
-                         ssl_training_type=SSLType.BYOL,
+                         ssl_training_type=SSLTrainingType.BYOL,
                          use_balanced_binary_loss_for_linear_head=True,
                          ssl_training_path_augmentation_config=path_encoder_augmentation_cxr,
                          extra_azure_dataset_ids=[RSNA_AZURE_DATASET_ID],
@@ -48,7 +48,7 @@ class NIH_RSNA_SimCLR(SSLContainer):
                          num_epochs=1000,
                          ssl_training_batch_size=1200,
                          ssl_encoder=EncoderName.resnet50,
-                         ssl_training_type=SSLType.SimCLR,
+                         ssl_training_type=SSLTrainingType.SimCLR,
                          use_balanced_binary_loss_for_linear_head=True,
                          ssl_training_path_augmentation_config=path_encoder_augmentation_cxr,
                          extra_azure_dataset_ids=[RSNA_AZURE_DATASET_ID],

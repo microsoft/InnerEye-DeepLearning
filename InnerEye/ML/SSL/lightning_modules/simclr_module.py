@@ -12,10 +12,10 @@ from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
 from torch import Tensor as T
 
 from InnerEye.ML.SSL.encoders import SSLEncoder
-from InnerEye.ML.SSL.utils import SSLModule
+from InnerEye.ML.SSL.utils import SSLDataModuleType
 
 SingleBatchType = Tuple[List, T]
-BatchType = Union[Dict[SSLModule, SingleBatchType], SingleBatchType]
+BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]
 
 
 class _Projection(nn.Module):
@@ -58,7 +58,7 @@ class SimCLRInnerEye(SimCLR):
         return self.encoder(x)
 
     def shared_step(self, batch: BatchType) -> T:
-        batch = batch[SSLModule.ENCODER] if isinstance(batch, dict) else batch
+        batch = batch[SSLDataModuleType.ENCODER] if isinstance(batch, dict) else batch
 
         (img1, img2), y = batch
 

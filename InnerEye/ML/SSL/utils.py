@@ -15,12 +15,12 @@ from InnerEye.ML.SSL.augmentation_config_utils.config_node import ConfigNode
 from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
 
 
-class SSLModule(Enum):
+class SSLDataModuleType(Enum):
     ENCODER = 'encoder'
     LINEAR_HEAD = 'linear_head'
 
 
-class SSLType(Enum):
+class SSLTrainingType(Enum):
     SimCLR = "SimCLR"
     BYOL = "BYOL"
 
@@ -65,6 +65,8 @@ def create_ssl_image_classifier(num_classes: int,
     """
     Creates a SSL image classifier from a frozen encoder trained on in an unsupervised manner.
     """
+
+    # Use local imports to avoid circular imports
     from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
     from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
     from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
@@ -76,12 +78,12 @@ def create_ssl_image_classifier(num_classes: int,
     logging.info(f"Creating a {ssl_type} based image classifier")
     logging.info(f"Loading pretrained {ssl_type} weights from:\n {pl_checkpoint_path}")
 
-    if ssl_type == SSLType.BYOL.value or ssl_type == SSLType.BYOL:
+    if ssl_type == SSLTrainingType.BYOL.value or ssl_type == SSLTrainingType.BYOL:
         # Here we need to indicate how many classes where used for linear evaluator at training time, to load the
         # checkpoint (incl. linear evaluator) with strict = True
         byol_module = WrapSSL(BYOLInnerEye, loaded_params["num_classes"]).load_from_checkpoint(pl_checkpoint_path)
         encoder = byol_module.target_network.encoder
-    elif ssl_type == SSLType.SimCLR.value or ssl_type == SSLType.SimCLR:
+    elif ssl_type == SSLTrainingType.SimCLR.value or ssl_type == SSLTrainingType.SimCLR:
         simclr_module = WrapSSL(SimCLRInnerEye, loaded_params["num_classes"]).load_from_checkpoint(pl_checkpoint_path)
         encoder = simclr_module.encoder
     else:

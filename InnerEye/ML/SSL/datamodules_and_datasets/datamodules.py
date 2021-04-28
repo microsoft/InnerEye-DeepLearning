@@ -14,7 +14,7 @@ from pytorch_lightning import LightningDataModule
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.utils.data import DataLoader, Dataset
 
-from InnerEye.ML.SSL.utils import SSLModule
+from InnerEye.ML.SSL.utils import SSLDataModuleType
 
 
 class InnerEyeVisionDataModule(VisionDataModule):
@@ -125,13 +125,13 @@ class CombinedDataModule(LightningDataModule):
         logging.info(f"Len encoder train dataloader {len(self.encoder_module.train_dataloader())}")
         logging.info(f"Len total train dataloader {len(self.train_dataloader())}")
 
-    def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[SSLModule, DataLoader]:
+    def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[SSLDataModuleType, DataLoader]:
         """
         The train dataloaders
         """
         dataloaders = {
-            SSLModule.ENCODER: self.encoder_module.train_dataloader(),
-            SSLModule.LINEAR_HEAD: self.linear_head_module.train_dataloader()}
+            SSLDataModuleType.ENCODER: self.encoder_module.train_dataloader(),
+            SSLDataModuleType.LINEAR_HEAD: self.linear_head_module.train_dataloader()}
         return dataloaders
 
     def val_dataloader(self, *args: Any, **kwargs: Any) -> CombinedLoader:  # type: ignore
@@ -139,8 +139,8 @@ class CombinedDataModule(LightningDataModule):
         The val dataloader
         """
         dataloaders = {
-            SSLModule.ENCODER: self.encoder_module.val_dataloader(),
-            SSLModule.LINEAR_HEAD: self.linear_head_module.val_dataloader()}
+            SSLDataModuleType.ENCODER: self.encoder_module.val_dataloader(),
+            SSLDataModuleType.LINEAR_HEAD: self.linear_head_module.val_dataloader()}
 
         return CombinedLoader(dataloaders, mode="max_size_cycle")
 

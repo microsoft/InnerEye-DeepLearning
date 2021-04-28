@@ -17,7 +17,7 @@ from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLD
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
 from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
-from InnerEye.ML.SSL.utils import SSLModule, SSLType
+from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
 from InnerEye.ML.runner import Runner
@@ -56,7 +56,7 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.l_rate == 1e-4
     assert loaded_config.num_epochs == 1
     assert loaded_config.recovery_checkpoint_save_interval == 200
-    assert loaded_config.ssl_training_type == SSLType.SimCLR
+    assert loaded_config.ssl_training_type == SSLTrainingType.SimCLR
     assert loaded_config.online_eval.num_classes == 10
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
     assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value
@@ -85,7 +85,7 @@ def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     assert loaded_config is not None
     assert loaded_config.classifier_dataset_name == SSLDatasetName.CIFAR100
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
-    assert loaded_config.ssl_training_type == SSLType.BYOL
+    assert loaded_config.ssl_training_type == SSLTrainingType.BYOL
 
 
 # @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
@@ -110,7 +110,7 @@ def test_innereye_ssl_container_rsna() -> None:
     assert loaded_config.online_eval.dataset == SSLDatasetName.RSNAKaggle.value
     assert loaded_config.online_eval.num_classes == 2
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.NIH
-    assert loaded_config.ssl_training_type == SSLType.BYOL
+    assert loaded_config.ssl_training_type == SSLTrainingType.BYOL
     assert loaded_config.encoder_output_dim == 1024  # DenseNet output size
     # Check model params
     assert isinstance(loaded_config.model.hparams, Dict)
@@ -121,9 +121,10 @@ def test_innereye_ssl_container_rsna() -> None:
     assert loaded_config.model.hparams["num_samples"] == 270
 
     # Check some augmentation params
-    assert loaded_config.datamodule_args[SSLModule.ENCODER].augmentation_config.preprocess.center_crop_size == 224
-    assert loaded_config.datamodule_args[SSLModule.ENCODER].augmentation_config.augmentation.use_random_crop
-    assert loaded_config.datamodule_args[SSLModule.ENCODER].augmentation_config.augmentation.use_random_affine
+    assert loaded_config.datamodule_args[
+               SSLDataModuleType.ENCODER].augmentation_config.preprocess.center_crop_size == 224
+    assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_config.augmentation.use_random_crop
+    assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_config.augmentation.use_random_affine
 
     # Check that we are able to load the checkpoint and create classifier model
     checkpoint_path = loaded_config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
