@@ -699,7 +699,7 @@ def create_portal_query_for_outliers(df: pd.DataFrame) -> str:
 
     The passed data frame must have CSV_INSTITUTION_HEADER and CSV_SERIES_HEADER columns
     """
-    if not CSV_INSTITUTION_HEADER in df.columns or not CSV_SERIES_HEADER in df.columns:
+    if CSV_INSTITUTION_HEADER not in df.columns or CSV_SERIES_HEADER not in df.columns:
         raise ValueError(f"Data frame must have columns {CSV_INSTITUTION_HEADER} and {CSV_SERIES_HEADER}")
     return PORTAL_QUERY_TEMPLATE.format(
         " OR ".join(map(lambda x: 'r.InstitutionId = "{}"'.format(x), df[CSV_INSTITUTION_HEADER].unique())),
