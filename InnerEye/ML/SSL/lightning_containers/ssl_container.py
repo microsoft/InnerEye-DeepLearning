@@ -13,10 +13,10 @@ from pytorch_lightning import LightningModule
 
 from InnerEye.ML.SSL.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.config_node import ConfigNode
-from InnerEye.ML.SSL.datamodules.cifar_datasets import InnerEyeCIFAR10, InnerEyeCIFAR100
-from InnerEye.ML.SSL.datamodules.cxr_datasets import CheXpert, NIH, RSNAKaggleCXR
-from InnerEye.ML.SSL.datamodules.datamodules import CombinedDataModule, InnerEyeVisionDataModule
-from InnerEye.ML.SSL.datamodules.transforms_utils import InnerEyeCIFARLinearHeadTransform, \
+from InnerEye.ML.SSL.datamodules_and_datasets.cifar_datasets import InnerEyeCIFAR10, InnerEyeCIFAR100
+from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import CheXpert, NIH, RSNAKaggleCXR
+from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule, InnerEyeVisionDataModule
+from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import InnerEyeCIFARLinearHeadTransform, \
     InnerEyeCIFARTrainTransform, \
     InnerEyeCIFARValTransform, get_cxr_ssl_transforms
 from InnerEye.ML.SSL.simclr_module import SimCLRInnerEye

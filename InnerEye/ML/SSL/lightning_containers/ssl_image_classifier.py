@@ -10,7 +10,7 @@ import torch
 from pl_bolts.models.self_supervised import SSLEvaluator
 from torch.nn import functional as F
 
-from InnerEye.ML.SSL.datamodules.datamodules import InnerEyeVisionDataModule
+from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import InnerEyeVisionDataModule
 from InnerEye.ML.SSL.lightning_containers.ssl_container import InnerEyeDataModuleTypes, SSLContainer
 from InnerEye.ML.SSL.ssl_online_evaluator import get_encoder_output_dim
 from InnerEye.ML.SSL.utils import create_ssl_image_classifier

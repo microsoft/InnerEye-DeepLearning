@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import logging
+import os
 from typing import Any, Callable, Dict, Optional, Union
 
 import numpy as np
@@ -25,15 +26,16 @@ class InnerEyeVisionDataModule(VisionDataModule):
                  val_transforms: Optional[Callable],
                  data_dir: Optional[str] = None,
                  val_split: Union[int, float] = 0.2,
-                 num_workers: int = 16,
+                 num_workers: int = 6,
                  batch_size: int = 32,
                  seed: int = 42,
                  *args: Any, **kwargs: Any) -> None:
         """
         Wrapper around VisionDatamodule to load torchvision dataset into a pytorch-lightning module.
 
-        :param dataset_cls: class to load the dataset. Expected to inherit from VisionDataset as well
-        as taking return_index as __init__ argument. See InnerEyeCXRDatasetBase for an example.
+        :param dataset_cls: class to load the dataset. Expected to inherit from InnerEyeDataClassBaseWithReturnIndex and
+         VisionDataset. See InnerEyeCIFAR10 for an example.
+         BEWARE VisionDataModule expects the first positional argument of your class to be the data directory.
         :param return_index: whether the return the index in __get_item__, the dataset_cls is expected to implement
         this logic.
         :param train_transforms: transforms to use at training time
@@ -44,6 +46,7 @@ class InnerEyeVisionDataModule(VisionDataModule):
         :param batch_size: batch size for training & validation.
         :param seed: random seed for dataset splitting
         """
+        data_dir = data_dir if data_dir is not None else os.getcwd()
         super().__init__(data_dir=data_dir,
                          val_split=val_split,
                          num_workers=num_workers,
@@ -56,7 +59,16 @@ class InnerEyeVisionDataModule(VisionDataModule):
                          **kwargs)
         self.dataset_cls = dataset_cls
         self.class_weights: Optional[torch.Tensor] = None
+        # In setup() VisionDataModule expects the extra arguments to be passed to the dataset class init
+        # via the self.EXTRA_ARGS attribute
         self.EXTRA_ARGS = {"return_index": return_index}
+
+    def prepare_data(self) -> None:
+        """
+        Saves files to data_dir
+        """
+        self.dataset_cls(self.data_dir, train=True, download=True, **self.EXTRA_ARGS)
+        self.dataset_cls(self.data_dir, train=False, download=True, **self.EXTRA_ARGS)
 
     def _split_dataset(self, dataset: Dataset, train: bool = True) -> Dataset:
         """

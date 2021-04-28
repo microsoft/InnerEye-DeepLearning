@@ -110,8 +110,10 @@ with the following available arguments:
 
 To use this code with your own data, you will need to:
 
-1. Create a dataset class that reads your new dataset, derived from `VisionDataset`. See for example how we
-   constructed `InnerEyeCXRDatasetBase` class.
+1. Create a dataset class that reads your new dataset, inheriting from both `VisionDataset`
+   and `InnerEyeDataClassBaseWithReturnIndex`. See for example how we constructed `RSNAKaggleCXR`
+   class. WARNING: the first positional argument of your dataset class constructor MUST be the data directory ("root"),
+   as VisionDataModule expects this in the prepare_data step.
 2. Add a member to the `SSLDatasetName` Enum with your new dataset and update the `_SSLDataClassMappings` member of the
    class so that the code knows which data class to associate to your new dataset name.
 3. Update the `_get_transforms` methods to add the transform specific to your new dataset. To simplify this step, we
