@@ -43,7 +43,7 @@ ENVIRONMENT_VERSION = "1"
 def submit_to_azureml(azure_config: AzureConfig,
                       source_config: SourceConfig,
                       azure_dataset_id: str,
-                      extra_azure_dataset_ids: Optional[List[str]]) -> Run:
+                      extra_azure_dataset_ids: List[str]) -> Run:
     """
     The main entry point. It creates an AzureML workspace if needed, submits an experiment using the code
     as specified in source_config, and waits for completion if needed.
@@ -122,7 +122,7 @@ def create_and_submit_experiment(
         azure_config: AzureConfig,
         source_config: SourceConfig,
         azure_dataset_id: str,
-        extra_azure_dataset_ids: Optional[List[str]]) -> Run:
+        extra_azure_dataset_ids: List[str]) -> Run:
     """
     Creates an AzureML experiment in the workspace and submits it for execution.
     :param azure_config: azure related configurations to setup valid workspace

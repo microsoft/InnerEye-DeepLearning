@@ -4,16 +4,16 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional
 
 import numpy as np
 import pandas as pd
-import torch
 from PIL import Image
 from torchvision.datasets import VisionDataset
 
 from InnerEye.Common.type_annotations import PathOrString
-from InnerEye.ML.SSL.datamodules_and_datasets.dataset_cls_utils import InnerEyeDataClassBaseWithReturnIndex
+from InnerEye.ML.SSL.datamodules_and_datasets.dataset_cls_utils import InnerEyeDataClassBaseWithReturnIndex, \
+    OptionalIndexInputAndLabel
 from InnerEye.ML.utils.io_util import is_dicom_file_path, load_dicom_image
 
 
@@ -49,7 +49,7 @@ class InnerEyeCXRDatasetBase(VisionDataset):
         self.filenames: List[PathOrString] = []
         raise NotImplementedError("_prepare_dataset needs to be implemented by the child classes.")
 
-    def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]:
+    def __getitem__(self, index: int) -> OptionalIndexInputAndLabel:
         """
         :param index: The index of the sample to be fetched
         :return: The image and (fake) label tensors
@@ -110,7 +110,7 @@ class NIH(InnerEyeDataClassBaseWithReturnIndex, InnerEyeCXRDatasetBase):
     def __init__(self,
                  root: str,
                  use_full_dataset_for_train_and_val: bool = True,
-                 **kwargs):
+                 **kwargs: Any) -> None:
         self.use_full_dataset_for_train_and_val = use_full_dataset_for_train_and_val
         super().__init__(root=root, **kwargs)
 

@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, Optional
 
 import torch
-from pytorch_lightning import LightningModule
 from yacs.config import CfgNode
 
 from InnerEye.ML.SSL import ssl_augmentation_config
@@ -100,7 +99,7 @@ def create_ssl_image_classifier(num_classes: int,
     return model
 
 
-def SSLModelLoader(ssl_class: LightningModule, num_classes: int) -> Any:
+def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:
     """
     This class is a helper class for SSL model loading from checkpoints with strict=True.
     We cannot simply load the class directly via  do BYOLInnerEye().load_from_checkpoint("ckpt") with strict loading

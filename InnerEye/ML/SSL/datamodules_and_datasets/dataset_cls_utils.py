@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Tuple, Union
+from typing import Any, Tuple, Union
 
 import torch
 
@@ -16,12 +16,12 @@ class InnerEyeDataClassBaseWithReturnIndex:
     the index within the dataset.
     """
 
-    def __init__(self, root: str, return_index: bool, **kwargs):
+    def __init__(self, root: str, return_index: bool, **kwargs: Any) -> None:
         self.return_index = return_index
-        super().__init__(root=root, **kwargs)
+        super().__init__(root=root, **kwargs)  # type: ignore
 
     def __getitem__(self, index: int) -> OptionalIndexInputAndLabel:
-        img, target = super().__getitem__(index)
+        img, target = super().__getitem__(index)  # type: ignore
         if self.return_index:
             return index, img, target
         else:

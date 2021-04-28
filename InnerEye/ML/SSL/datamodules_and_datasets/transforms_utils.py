@@ -17,8 +17,9 @@ from yacs.config import CfgNode
 
 
 class BaseTransform:
-    def __init__(self, **kwargs) -> None:
-        self.transform = lambda x: NotImplementedError("Transform needs to be overridden in the child classes")
+    def __init__(self, **kwargs: Any) -> None:
+        self.transform: Callable = lambda x: NotImplementedError(
+            "Transform needs to be overridden in the child classes")
 
     def __call__(self, data: PIL.Image.Image) -> PIL.Image.Image:
         return self.transform(data)
@@ -94,7 +95,7 @@ class ExpandChannels(BaseTransform):
     the 0th dimension.
     """
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__()
         self.transform = lambda x: torch.repeat_interleave(x, 3, dim=0)
 
