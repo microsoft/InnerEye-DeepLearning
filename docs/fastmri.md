@@ -24,7 +24,7 @@ To download Knee MRI files, we recommend using curl with recovery mode turned on
 curl -C "https://....amazonaws.com/knee_singlecoil_train.tar.gz?AWSAccessKeyId=...Expires=1610309839" --output knee_singlecoil_train.tar.gz"
 ...
 ```
-There are two sections of that kind, one for the knee data and one for the brain data. Copy and paste all the line
+There are two sections of that kind, one for the knee data and one for the brain data. Copy and paste *all* the lines
 with `curl` commands into a text file, for example called `curl.txt`. In total, there should be 10 lines with `curl` 
 commands for the knee data, and 7 for the brain data (including the SHA256 file).
 
@@ -32,16 +32,16 @@ commands for the knee data, and 7 for the brain data (including the SHA256 file)
 
 We are providing a script that will bulk download all files in the FastMRI dataset from AWS to Azure blob storage.
 To start that script, you need
-- The file that contains all the `curl` commands to download the data, see above. The script will extract all the
- AWS access tokens from the `curl` commands.
-- The connection string to the Azure storage account that stores your dataset. To get that, navigate to the 
-[Azure Portal](https://portal.azure.com), and search for the storage account that you created to hold your datasets
-(Step 4 in [AzureML setup](setting_up_aml.md)). On the left hand navigation, there is a section "Access Keys", select
-that and copy out the connection string (it will look something like 
-`DefaultEndpointsProtocol=....==;EndpointSuffix=core.windows.net`)
+- The file that contains all the `curl` commands to download the data (see above). The downloading script will 
+extract all the AWS access tokens from the `curl` commands.
+- The connection string to the Azure storage account that stores your dataset. 
+  - To get that, navigate to the [Azure Portal](https://portal.azure.com), and search for the storage account 
+  that you created to hold your datasets (Step 4 in [AzureML setup](setting_up_aml.md)). 
+  - On the left hand navigation, there is a section "Access Keys", select that and copy out the connection string 
+  (sanity check: it should look something like `DefaultEndpointsProtocol=....==;EndpointSuffix=core.windows.net`)
 
 Then run the script to download the dataset as follows, providing the path the the file with the curl commands
-and the connection string as commandline arguments, enclosed in double quotes:
+and the connection string as commandline arguments, enclosed in quotes:
 `python InnerEye/Scripts/prepare_fastmri.py --curl curl.txt --connection_string "<your_connection_string"`
 
 This script will
@@ -101,5 +101,5 @@ on our cluster (4 Tesla P40 cards per node):
 | Total time for 1 epoch | 5h 7min | 3h 5min | 1h 58min | 1h 26min |
 | Total time for 50 epochs | 8 days | 4.6 days | 2.3 days | 1.2 days|
 
-Note that the download times depend on the type of Azure storage account that your workspace is using. The numbers 
-above are with a Premium storage account.
+Note that the download times depend on the type of Azure storage account that your workspace is using. We recommend 
+using Premium storage accounts for optimal performance.
