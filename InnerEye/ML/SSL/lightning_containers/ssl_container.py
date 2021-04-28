@@ -10,8 +10,8 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import param
 from pytorch_lightning import LightningModule
+from yacs.config import CfgNode
 
-from InnerEye.ML.SSL.augmentation_config_utils.config_node import ConfigNode
 from InnerEye.ML.SSL.datamodules_and_datasets.cifar_datasets import InnerEyeCIFAR10, InnerEyeCIFAR100
 from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import CheXpert, NIH, RSNAKaggleCXR
 from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule, InnerEyeVisionDataModule
@@ -28,7 +28,7 @@ from InnerEye.ML.lightning_container import LightningContainer
 
 @dataclass
 class DataModuleArgs:
-    augmentation_params: Optional[ConfigNode]
+    augmentation_params: Optional[CfgNode]
     dataset_name: str
     dataset_path: Optional[Path]
     batch_size: int
@@ -197,7 +197,7 @@ class SSLContainer(LightningContainer):
         dm.setup('fit')
         return dm
 
-    def _get_transforms(self, augmentation_config: Optional[ConfigNode],
+    def _get_transforms(self, augmentation_config: Optional[CfgNode],
                         dataset_name: str,
                         linear_head_module: bool) -> Tuple[Any, Any]:
         if dataset_name in [SSLDatasetName.RSNAKaggle.value, SSLDatasetName.NIH.value, SSLDatasetName.CheXpert.value]:
