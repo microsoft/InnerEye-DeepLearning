@@ -12,7 +12,7 @@ created.
 ## Upcoming
 
 ### Added
-
+- ([#441](https://github.com/microsoft/InnerEye-DeepLearning/pull/441)) Add script to move models from one AzureML workspace to another: `python InnerEye/Scripts/move_model.py`
 - ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417)) Added a generic way of adding PyTorch Lightning
 models to the toolbox. It is now possible to train almost any Lightning model with the InnerEye toolbox in AzureML,
 with only minimum code changes required. See [the MD documentation](docs/bring_your_own_model.md) for details.
