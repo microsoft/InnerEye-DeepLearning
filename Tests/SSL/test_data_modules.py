@@ -6,6 +6,7 @@ import PIL
 import numpy as np
 import torch
 
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.SSL.datamodules_and_datasets.cifar_datasets import InnerEyeCIFAR10
 from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import RSNAKaggleCXR
 from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import InnerEyeVisionDataModule
@@ -14,7 +15,6 @@ from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import InnerEyeCI
 from InnerEye.ML.SSL.lightning_containers.ssl_container import SSLContainer, SSLDatasetName
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import path_encoder_augmentation_cxr
 from Tests.SSL.test_ssl_containers import _create_test_cxr_data
-from Tests.utils_for_tests import full_ml_test_data_path
 
 path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
 _create_test_cxr_data(path_to_test_dataset)
