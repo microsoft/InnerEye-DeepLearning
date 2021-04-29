@@ -50,6 +50,9 @@ def submit_to_azureml(azure_config: AzureConfig,
     :param azure_config: azure related configurations to setup valid workspace
     :param source_config: The information about which code should be submitted, and which arguments should be used.
     :param azure_dataset_id: The name of the dataset on blob storage to be used for this run.
+    :param extra_azure_dataset_ids: A list of additional dataset names on blob storage to be used for this run. This
+    will be ignore for InnerEyeContainer models, may only be used by custom LightningContainer (see bring your own model
+    and self-supervised training documentation).
     """
     azure_run: Optional[Run] = None
 
@@ -128,6 +131,9 @@ def create_and_submit_experiment(
     :param azure_config: azure related configurations to setup valid workspace
     :param source_config: The information about which code should be submitted, and which arguments should be used.
     :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
+    :param extra_azure_dataset_ids: A list of additional dataset names on blob storage to be used for this run. This
+    will be ignore for InnerEyeContainer models, may only be used by custom LightningContainer (see bring your own model
+    and self-supervised training documentation).
     :returns: Run object for the submitted AzureML run
     """
     workspace = azure_config.get_workspace()
