@@ -38,8 +38,7 @@ class InnerEyeCXRDatasetBase(VisionDataset):
         self.root = Path(self.root)  # type: ignore
         if not self.root.exists():
             logging.error(
-                f"The data directory {self.root} does not exist. Make sure to download the data first for the Kaggle "
-                f"page")
+                f"The data directory {self.root} does not exist. Make sure to download the data first.")
         self.train = train
         self.targets: Optional[List[int]] = None
         self._prepare_dataset()
