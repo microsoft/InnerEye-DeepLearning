@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import os
 from abc import ABC
 from collections import Counter
 from pathlib import Path
@@ -22,7 +23,7 @@ from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_PATH_HEADER, \
     CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.transforms import Compose3D
-from InnerEye.ML.utils.dataset_util import validated_channel_ids
+
 
 COMPRESSION_EXTENSIONS = ['sz', 'gz']
 
@@ -263,6 +264,42 @@ class FullImageDataset(GeneralDataset):
                                     )
 
 
+def converts_channels_to_file_paths(channels: List[str],
+                          rows: pd.DataFrame,
+                          local_dataset_root_folder: Path,
+                          patient_id: str) -> List[Path]:
+    """
+    Returns: 1) The full path for files specified in the training, validation and testing datasets, and
+             2) Missing channels or missing files.
+
+    :param channels: channel type defined in the configuration file
+    :param rows: Input Pandas dataframe object containing subjectIds, path of local dataset, channel information
+    :param local_dataset_root_folder: Root directory which points to the local dataset
+    :param patient_id: string which contains subject identifier
+    """
+    paths: List[Path] = []
+    failed_channel_info: str = ''
+
+    for channel_id in channels:
+        row = rows.loc[rows[CSV_CHANNEL_HEADER] == channel_id]
+        channel_failure_flag: bool = False
+        if len(row) == 0:
+            failed_channel_info += f"Patient {patient_id} does not have channel '{channel_id}'" + "\n"
+            channel_failure_flag = True
+        elif len(row) > 1:
+            failed_channel_info += f"Patient {patient_id} has more than one entry for channel '{channel_id}'" + "\n"
+            channel_failure_flag = True
+
+        if not channel_failure_flag:
+            image_path = local_dataset_root_folder / row[CSV_PATH_HEADER].values[0]
+            if not os.path.isfile(image_path):
+                failed_channel_info += f"File: {image_path} does not exists" + "\n"
+            else:
+                paths.append(image_path)
+
+    return paths, failed_channel_info
+
+
 def load_dataset_sources(dataframe: pd.DataFrame,
                          local_dataset_root_folder: Path,
                          image_channels: List[str],
@@ -299,13 +336,16 @@ def load_dataset_sources(dataframe: pd.DataFrame,
             return get_paths_for_channel_ids(channels=[mask_channel])[0]
 
     def get_paths_for_channel_ids(channels: List[str]) -> List[Path]:
-
         if len(set(channels)) < len(channels):
             raise ValueError(f"ids have duplicated entries: {channels}")
-
         rows = dataframe.loc[dataframe[CSV_SUBJECT_HEADER] == patient_id]
+        # converts channels to paths and makes second sanity check for channel data
+        paths: List[Path] = []
+        failed_channel_info: str = ''
+        paths, failed_channel_info = converts_channels_to_file_paths(channels, rows, local_dataset_root_folder, patient_id)
 
-        paths: List[Path] = validated_channel_ids(channels, rows, local_dataset_root_folder, patient_id)
+        if failed_channel_info:
+            raise ValueError(failed_channel_info)
 
         return paths
 

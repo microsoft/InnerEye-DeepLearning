@@ -423,7 +423,7 @@ def test_get_all_metadata(default_config: ModelConfigBase) -> None:
 
 def test_converts_channels_to_file_paths(default_config: ModelConfigBase) -> None:
     """
-    Tests converts_channels_to_file_paths for missing channels and missing files.
+    Test unit for missing channels and missing files.
     """
     # Sets DummyModel config and container
     container = InnerEyeContainer(default_config)

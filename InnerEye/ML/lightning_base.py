@@ -15,7 +15,6 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader, Dataset
 
-import InnerEye.ML.common
 from InnerEye.Common.common_util import EPOCH_METRICS_FILE_NAME, logging_section
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.type_annotations import DictStrFloat
@@ -35,8 +34,7 @@ from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed, vali
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 from InnerEye.ML.utils.csv_util import CSV_SUBJECT_HEADER
-from InnerEye.ML.utils.dataset_util import validated_channel_ids
-
+from InnerEye.ML.dataset.full_image_dataset import converts_channels_to_file_paths
 
 class TrainAndValDataLightning(LightningDataModule):
     """
@@ -144,11 +142,14 @@ class InnerEyeContainer(LightningContainer):
         # 2) mask_id identifier is not empty,
         # 3) consistency for input channels, ground_truth and mask_id,
         # 4) ensures data is consistent with load_dataset_sources method prior running training, validation and testing.
+
+        full_failed_channel_info: str = ''
+
         if self.config.is_segmentation_model:
             # Creates a list with all the channels of interest
             all_channels = self.config.image_channels + self.config.ground_truth_ids
             # Mask_id is an optional field. If non-empty in the config, will check dataframe.
-            if len(self.config.mask_id) > 0:
+            if self.config.mask_id:
                 all_channels += [self.config.mask_id]
             # Root directory where data is stored
             local_dataset_root_folder = self.config.local_dataset
@@ -157,8 +158,15 @@ class InnerEyeContainer(LightningContainer):
                 unique_ids = set(split_data[CSV_SUBJECT_HEADER])
                 for patient_id in unique_ids:
                     rows = split_data.loc[split_data[CSV_SUBJECT_HEADER] == patient_id]
-                    # Validates condition so that data is consistent with
-                    __ = validated_channel_ids(all_channels, rows, local_dataset_root_folder, patient_id)
+                    # Converts channels from data frame to file paths and gets errors if any
+                    __, failed_channel_info = converts_channels_to_file_paths(all_channels,
+                                                                              rows,
+                                                                              local_dataset_root_folder,
+                                                                              patient_id)
+                    full_failed_channel_info += failed_channel_info
+
+        if full_failed_channel_info:
+            raise ValueError(full_failed_channel_info)
 
         self.config.read_dataset_if_needed()
 
