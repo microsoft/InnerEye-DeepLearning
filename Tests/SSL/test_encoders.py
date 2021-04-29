@@ -21,3 +21,13 @@ def test_get_encoder_dim_within_encoder_class() -> None:
     densenet121 = SSLEncoder(EncoderName.densenet121.value)
     assert isinstance(resnet18.cnn_model, DenseNet121Encoder)
     assert densenet121.get_output_feature_dim() == 1024
+
+
+def test_use7x7conv_flag_in_encoder() -> None:
+    """
+    Tests the use_7x7_first_conv_in_resnet flag effect on encoder definition
+    """
+    resnet18 = SSLEncoder(EncoderName.resnet18.value, use_7x7_first_conv_in_resnet=True)
+    assert resnet18.cnn_model.conv1.kernel_size == (7, 7)
+    resnet18_for_cifar = SSLEncoder(EncoderName.resnet18.value, use_7x7_first_conv_in_resnet=False)
+    assert resnet18_for_cifar.cnn_model.conv1.kernel_size == (3, 3)
