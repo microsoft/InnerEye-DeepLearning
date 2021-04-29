@@ -149,15 +149,27 @@ class CheXpert(InnerEyeCXRDatasetWithReturnIndex):
 
     For more details instructions about how to download the dataset and the expected data folder structure, please
     refer to the docs/self_supervised_models.md documentation.
+
+    Note: By default, we exclude lateral scans from the dataset, you can change this behavior by
+    setting remove_lateral_scans_from_dataset to False when you initialize your dataset class.
     """
+
+    def __init__(self,
+                 root: str,
+                 remove_lateral_scans_from_dataset: bool = True,
+                 **kwargs: Any) -> None:
+        self.remove_lateral_scans_from_dataset = remove_lateral_scans_from_dataset
+        super().__init__(root=root, **kwargs)
 
     def _prepare_dataset(self) -> None:
         if self.train:  # for train AND val
             self.dataset_dataframe = pd.read_csv(self.root / "train.csv")
         else:  # test set (unused in SSL training)
             self.dataset_dataframe = pd.read_csv(self.root / "valid.csv")
-        # Remove lateral shots
-        self.dataset_dataframe = self.dataset_dataframe.loc[self.dataset_dataframe["Frontal/Lateral"] == "Frontal"]
+
+        if self.remove_lateral_scans_from_dataset:  # Remove lateral shots
+            self.dataset_dataframe = self.dataset_dataframe.loc[self.dataset_dataframe["Frontal/Lateral"] == "Frontal"]
+
         # Strip away the name of the folder that is included in the path column of the dataset
         strip_n = len("CheXpert-v1.0-small/")
         self.dataset_dataframe.Path = self.dataset_dataframe.Path.apply(lambda x: x[strip_n:])
