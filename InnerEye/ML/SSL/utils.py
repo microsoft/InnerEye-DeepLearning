@@ -112,6 +112,7 @@ def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:
     """
     from pl_bolts.models.self_supervised import SSLEvaluator
     from InnerEye.ML.SSL.encoders import get_encoder_output_dim
+
     class _wrap(ssl_class):  # type: ignore
         def __init__(self, **kwargs: Any) -> None:
             super().__init__(**kwargs)
