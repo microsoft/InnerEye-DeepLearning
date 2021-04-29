@@ -132,3 +132,29 @@ def test_get_transforms_in_SSL_container_for_cxr_data() -> None:
     v1 = single_view_transform(test_img)
     # Images should be cropped to 224 x 224 and expanded to 3 channels according to config
     assert v1.shape == torch.Size([3, 224, 224])
+
+
+def test_get_transforms_in_SSL_container_for_cifar_data() -> None:
+    """
+    Tests that the internal _get_transforms function returns data of the expected type of CXR.
+    Tests that is_ssl_encoder_module induces the correct type of transform pipeline (dual vs single view).
+    """
+    test_container = SSLContainer()
+    dual_view_transform, _ = test_container._get_transforms(augmentation_config=None,
+                                                            dataset_name=SSLDatasetName.CIFAR10.value,
+                                                            is_ssl_encoder_module=True)
+    img_array_with_black_square = np.ones([32, 32, 3], dtype=np.uint8)
+    img_array_with_black_square[10:20, 10:20, :] = 255
+    test_img = PIL.Image.fromarray(img_array_with_black_square)
+    v1, v2 = dual_view_transform(test_img)
+    # Images not be resized
+    assert v1.shape == v2.shape == torch.Size([3, 32, 32])
+    # Two returned images should be different
+    assert (v1 != v2).any()
+
+    single_view_transform, _ = test_container._get_transforms(augmentation_config=None,
+                                                              dataset_name=SSLDatasetName.CIFAR10.value,
+                                                              is_ssl_encoder_module=False)
+    v1 = single_view_transform(test_img)
+    # Images should be cropped to 224 x 224 and expanded to 3 channels according to config
+    assert v1.shape == torch.Size([3, 32, 32])
