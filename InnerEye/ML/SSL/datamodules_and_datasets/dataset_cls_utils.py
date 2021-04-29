@@ -20,12 +20,12 @@ class InnerEyeDataClassBaseWithReturnIndex:
         self.return_index = return_index
         super().__init__(root=root, **kwargs)  # type: ignore
 
-    def __getitem__(self, index: int) -> OptionalIndexInputAndLabel:
-        img, target = super().__getitem__(index)  # type: ignore
+    def __getitem__(self, index: int) -> Any:
+        item = super().__getitem__(index)  # type: ignore
         if self.return_index:
-            return index, img, target
+            return (index, *item)
         else:
-            return img, target
+            return item
 
     @property
     def num_classes(self) -> int:
