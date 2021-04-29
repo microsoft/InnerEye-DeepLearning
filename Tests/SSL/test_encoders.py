@@ -28,6 +28,6 @@ def test_use7x7conv_flag_in_encoder() -> None:
     Tests the use_7x7_first_conv_in_resnet flag effect on encoder definition
     """
     resnet18 = SSLEncoder(EncoderName.resnet18.value, use_7x7_first_conv_in_resnet=True)
-    assert resnet18.cnn_model.conv1.kernel_size == (7, 7)
+    assert resnet18.cnn_model.conv1.kernel_size == (7, 7)  # type: ignore
     resnet18_for_cifar = SSLEncoder(EncoderName.resnet18.value, use_7x7_first_conv_in_resnet=False)
-    assert resnet18_for_cifar.cnn_model.conv1.kernel_size == (3, 3)
+    assert resnet18_for_cifar.cnn_model.conv1.kernel_size == (3, 3)  # type: ignore
