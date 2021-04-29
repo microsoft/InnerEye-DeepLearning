@@ -19,7 +19,7 @@ from InnerEye.ML.utils.io_util import is_dicom_file_path, load_dicom_image
 
 class InnerEyeCXRDatasetBase(VisionDataset):
     """
-    Base class for a dataset with Chest X-ray data.
+    Base class for a dataset with X-ray images and image-level target labels.
     Implements reading of dicom files as well as png.
     """
 
