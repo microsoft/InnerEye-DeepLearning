@@ -2,7 +2,8 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
+import PIL
+import numpy as np
 import torch
 
 from InnerEye.ML.SSL.datamodules_and_datasets.cifar_datasets import InnerEyeCIFAR10
@@ -10,16 +11,20 @@ from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import RSNAKaggleCXR
 from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import InnerEyeVisionDataModule
 from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import InnerEyeCIFARLinearHeadTransform, \
     InnerEyeCIFARTrainTransform
+from InnerEye.ML.SSL.lightning_containers.ssl_container import SSLContainer, SSLDatasetName
+from InnerEye.ML.configs.ssl.CXR_SSL_configs import path_encoder_augmentation_cxr
 from Tests.SSL.test_ssl_containers import _create_test_cxr_data
 from Tests.utils_for_tests import full_ml_test_data_path
+
+path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
+_create_test_cxr_data(path_to_test_dataset)
 
 
 def test_weights_innereye_module() -> None:
     """
     Tests if weights in CXR data module are correctly initialized
     """
-    path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
-    _create_test_cxr_data(path_to_test_dataset)
+
     data_module = InnerEyeVisionDataModule(dataset_cls=RSNAKaggleCXR,
                                            return_index=True,
                                            train_transforms=None,
@@ -38,6 +43,7 @@ def test_weights_innereye_module() -> None:
     images, labels = training_batch
     images_v1, images_v2 = images
     assert images_v1.shape == images_v2.shape == torch.Size([1, 3, 256, 256])
+
 
 def test_innereye_vision_module() -> None:
     """
@@ -74,7 +80,7 @@ def test_innereye_vision_module() -> None:
     assert labels.tolist() == [6, 0, 2, 3, 3]
 
 
-def test_innereye_vision_datamodule_with_return_index():
+def test_innereye_vision_datamodule_with_return_index() -> None:
     """
     Tests that the return index flag, modifies __getitem__ as expected i.e.
     returns the index on top of the transformed image and label.
@@ -95,3 +101,34 @@ def test_innereye_vision_datamodule_with_return_index():
     assert images.shape == torch.Size([5, 3, 32, 32])
     assert indices.tolist() == [45845, 11799, 43880, 43701, 41303]
     assert labels.tolist() == [0, 1, 6, 3, 6]
+
+
+def test_get_transforms_in_SSL_container_for_cxr_data() -> None:
+    """
+    Tests that the internal _get_transforms function returns data of the expected type of CXR.
+    Tests that is_ssl_encoder_module induces the correct type of transform pipeline (dual vs single view).
+    """
+    test_container = SSLContainer(classifier_dataset_name=SSLDatasetName.RSNAKaggle,
+                                  ssl_training_dataset_name=SSLDatasetName.NIH,
+                                  ssl_augmentation_config=path_encoder_augmentation_cxr)
+    test_container._load_config()
+    dual_view_transform, _ = test_container._get_transforms(augmentation_config=test_container.ssl_augmentation_params,
+                                                            dataset_name=SSLDatasetName.NIH.value,
+                                                            is_ssl_encoder_module=True)
+
+    test_img = PIL.Image.fromarray(np.ones([312, 312]) * 255.).convert("L")
+    v1, v2 = dual_view_transform(test_img)
+    # Images should be cropped to 224 x 224 and expanded to 3 channels according to config
+    assert v1.shape == v2.shape == torch.Size([3, 224, 224])
+    # The three channels should simply by duplicates
+    assert (v1[0] == v1[1]).all() and (v1[1] == v1[2]).all()
+    # Two returned images should be different
+    assert (v1 != v2).any()
+
+    single_view_transform, _ = test_container._get_transforms(
+        augmentation_config=test_container.ssl_augmentation_params,
+        dataset_name=SSLDatasetName.NIH.value,
+        is_ssl_encoder_module=False)
+    v1 = single_view_transform(test_img)
+    # Images should be cropped to 224 x 224 and expanded to 3 channels according to config
+    assert v1.shape == torch.Size([3, 224, 224])
