@@ -78,7 +78,15 @@ class InnerEyeCXRDatasetBase(VisionDataset):
         return len(self.indices)
 
 
-class RSNAKaggleCXR(InnerEyeDataClassBaseWithReturnIndex, InnerEyeCXRDatasetBase):
+class InnerEyeCXRDatasetWithReturnIndex(InnerEyeDataClassBaseWithReturnIndex, InnerEyeCXRDatasetBase):
+    """
+    Any dataset used in SSL needs to inherit from InnerEyeDataClassBaseWithReturnIndex as well as VisionData.
+    This class is just a shorthand notation for this double inheritance.
+    """
+    pass
+
+
+class RSNAKaggleCXR(InnerEyeCXRDatasetWithReturnIndex):
     """
     Dataset class to load the RSNA Chest-Xray training dataset. Use all the data for train and val. No test data
     implemented.
@@ -101,7 +109,7 @@ class RSNAKaggleCXR(InnerEyeDataClassBaseWithReturnIndex, InnerEyeCXRDatasetBase
         return 2
 
 
-class NIH(InnerEyeDataClassBaseWithReturnIndex, InnerEyeCXRDatasetBase):
+class NIH(InnerEyeCXRDatasetWithReturnIndex):
     """
     Dataset class to load the NIH Chest-Xray dataset. Use the full data for training and validation (including
     the official test set by default).
@@ -128,7 +136,7 @@ class NIH(InnerEyeDataClassBaseWithReturnIndex, InnerEyeCXRDatasetBase):
         self.filenames = [self.root / f"{subject_id}" for subject_id in self.subject_ids]
 
 
-class CheXpert(InnerEyeDataClassBaseWithReturnIndex, InnerEyeCXRDatasetBase):
+class CheXpert(InnerEyeCXRDatasetWithReturnIndex):
     """
     Dataset class to load the CheXpert dataset.
     """
