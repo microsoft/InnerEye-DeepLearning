@@ -26,6 +26,25 @@ from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
 from InnerEye.ML.runner import Runner
 from Tests.ML.utils.test_io_util import write_test_dicom
 
+path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
+
+
+def _create_test_cxr_data(path_to_test_dataset: Path) -> None:
+    """
+    Creates fake datasets dataframe and dicom images mimicking the expected structure of the datasets
+    of NIH and RSNAKaggle
+    :param path_to_test_dataset: folder to which we want to save the mock data.
+    """
+    if path_to_test_dataset.exists():
+        return
+    path_to_test_dataset.mkdir()
+    df = pd.DataFrame({"Image Index": np.repeat("1.dcm", 200)})
+    df.to_csv(path_to_test_dataset / "Data_Entry_2017.csv", index=False)
+    df = pd.DataFrame({"subject": np.repeat("1", 300),
+                       "label": np.random.RandomState(42).binomial(n=1, p=0.2, size=300)})
+    df.to_csv(path_to_test_dataset / "dataset.csv", index=False)
+    write_test_dicom(array=np.ones([256, 256], dtype="uint16"), path=path_to_test_dataset / "1.dcm")
+
 
 def default_runner() -> Runner:
     """
@@ -90,20 +109,7 @@ def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
     assert loaded_config.ssl_training_type == SSLTrainingType.BYOL
 
-def _create_test_cxr_data(path_to_test_dataset: Path) -> None:
-    """
-    Creates fake datasets dataframe and dicom images mimicking the expected structure of the datasets
-    of NIH and RSNAKaggle
-    :param path_to_test_dataset: folder to which we want to save the mock data.
-    """
 
-    path_to_test_dataset.mkdir(exist_ok=True)
-    df = pd.DataFrame({"Image Index": np.repeat("1.dcm", 200)})
-    df.to_csv(path_to_test_dataset / "Data_Entry_2017.csv", index=False)
-    df = pd.DataFrame({"subject": np.repeat("1", 300),
-                       "label": np.random.RandomState(42).binomial(n=1, p=0.2, size=300)})
-    df.to_csv(path_to_test_dataset / "dataset.csv", index=False)
-    write_test_dicom(array=np.ones([256, 256], dtype="uint16"), path=path_to_test_dataset / "1.dcm")
 
 # @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_innereye_ssl_container_rsna() -> None:
@@ -111,9 +117,7 @@ def test_innereye_ssl_container_rsna() -> None:
     Test if we can get the config loader to load a Lightning container model, and then train locally.
     """
     runner = default_runner()
-    path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
     _create_test_cxr_data(path_to_test_dataset)
-
     # Test training of SSL model
     args = common_test_args + ["--model=NIH_RSNA_BYOL",
                                f"--local_dataset={str(path_to_test_dataset)}",

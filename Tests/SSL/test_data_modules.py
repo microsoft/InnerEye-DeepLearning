@@ -2,33 +2,38 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from typing import Dict
+
 import PIL
 import numpy as np
 import torch
+from pytorch_lightning.trainer.supporters import CombinedLoader
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.SSL.datamodules_and_datasets.cifar_datasets import InnerEyeCIFAR10
 from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import RSNAKaggleCXR
-from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import InnerEyeVisionDataModule
+from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule, InnerEyeVisionDataModule
 from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import InnerEyeCIFARLinearHeadTransform, \
-    InnerEyeCIFARTrainTransform
+    InnerEyeCIFARTrainTransform, get_cxr_ssl_transforms
 from InnerEye.ML.SSL.lightning_containers.ssl_container import SSLContainer, SSLDatasetName
+from InnerEye.ML.SSL.utils import SSLDataModuleType, load_ssl_augmentation_config
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import path_encoder_augmentation_cxr
 from Tests.SSL.test_ssl_containers import _create_test_cxr_data
 
 path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
 _create_test_cxr_data(path_to_test_dataset)
-
+cxr_augmentation_config = load_ssl_augmentation_config(path_encoder_augmentation_cxr)
 
 def test_weights_innereye_module() -> None:
     """
     Tests if weights in CXR data module are correctly initialized
     """
-
+    transforms = get_cxr_ssl_transforms(cxr_augmentation_config,
+                                        return_two_views_per_sample=True)
     data_module = InnerEyeVisionDataModule(dataset_cls=RSNAKaggleCXR,
                                            return_index=True,
-                                           train_transforms=None,
-                                           val_transforms=None,
+                                           train_transforms=transforms[0],
+                                           val_transforms=transforms[1],
                                            data_dir=str(path_to_test_dataset),
                                            batch_size=1,
                                            seed=1)
@@ -158,3 +163,65 @@ def test_get_transforms_in_SSL_container_for_cifar_data() -> None:
     v1 = single_view_transform(test_img)
     # Images should be cropped to 224 x 224 and expanded to 3 channels according to config
     assert v1.shape == torch.Size([3, 32, 32])
+
+
+def test_combined_data_module() -> None:
+    """
+    Tests the behavior of CombinedDataModule
+    """
+    _, val_transform = get_cxr_ssl_transforms(cxr_augmentation_config,
+                                              return_two_views_per_sample=False)
+
+    # Datamodule expected to have 12 training batches - 3 val
+    long_data_module = InnerEyeVisionDataModule(dataset_cls=RSNAKaggleCXR,
+                                                val_split=0.2,
+                                                return_index=True,
+                                                train_transforms=None,
+                                                val_transforms=val_transform,
+                                                data_dir=str(path_to_test_dataset),
+                                                # 300 images in total in test dataset
+                                                batch_size=20,
+                                                shuffle=False)
+    long_data_module.setup()
+    # Datamodule expected to have 4 training batches - 1 val
+    short_data_module = InnerEyeVisionDataModule(dataset_cls=RSNAKaggleCXR,
+                                                 val_split=0.2,
+                                                 return_index=True,
+                                                 train_transforms=None,
+                                                 val_transforms=val_transform,
+                                                 data_dir=str(path_to_test_dataset),
+                                                 # 300 images in total in test dataset
+                                                 batch_size=60,
+                                                 shuffle=False)
+    short_data_module.setup()
+
+    combined_loader = CombinedDataModule(encoder_module=long_data_module,
+                                         linear_head_module=short_data_module,
+                                         use_balanced_loss_linear_head=False)
+
+    assert combined_loader.num_classes == 2
+    # num samples has to return number of training samples in encoder data.
+    assert combined_loader.num_samples == 240
+
+    # PyTorch Lightning expects a dictionary of loader at training time.
+    # It will take care of "filling in the gaps" automatically in the trainer
+    # (i.e. matching the length of the shortest dataloader to the length of the
+    # longest).
+    train_dataloaders = combined_loader.train_dataloader()
+    assert isinstance(train_dataloaders, Dict)
+    assert len(train_dataloaders[SSLDataModuleType.ENCODER]) == 12
+    assert len(train_dataloaders[SSLDataModuleType.LINEAR_HEAD]) == 4
+
+    # Weirdly, in PL the handling of combined loader is different in validation
+    # stage. There, it is expected to return an object of type "CombinedDataLoader" that
+    # takes care of the aggregation of batches.
+    indices_encoder_module_long = []
+    indices_classifier_module_short = []
+    val_dataloader = combined_loader.val_dataloader()
+    assert isinstance(val_dataloader, CombinedLoader)
+
+    for batch in val_dataloader:
+        indices_encoder_module_long.append(batch[SSLDataModuleType.ENCODER][0])
+        indices_classifier_module_short.append(batch[SSLDataModuleType.LINEAR_HEAD][0])
+
+    assert indices_encoder_module_long

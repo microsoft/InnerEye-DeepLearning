@@ -19,7 +19,7 @@ def test_get_encoder_dim_within_encoder_class() -> None:
     assert isinstance(resnet18.cnn_model, ResNet)
     assert resnet50.get_output_feature_dim() == 2048
     densenet121 = SSLEncoder(EncoderName.densenet121.value)
-    assert isinstance(resnet18.cnn_model, DenseNet121Encoder)
+    assert isinstance(densenet121.cnn_model, DenseNet121Encoder)
     assert densenet121.get_output_feature_dim() == 1024
 
 

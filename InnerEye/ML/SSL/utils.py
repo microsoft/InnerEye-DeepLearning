@@ -25,7 +25,7 @@ class SSLTrainingType(Enum):
     BYOL = "BYOL"
 
 
-def load_ssl_model_config(config_path: Path) -> CfgNode:
+def load_ssl_augmentation_config(config_path: Path) -> CfgNode:
     """
     Loads configs required for self supervised learning. Does not setup cudann as this is being
     taken care of by lightning.
