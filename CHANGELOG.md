@@ -61,8 +61,10 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
 - ([#445](https://github.com/microsoft/InnerEye-DeepLearning/pull/445)) Adding test coverage for the `HelloContainer`
   model with multiple GPUs
 - ([#440](https://github.com/microsoft/InnerEye-DeepLearning/pull/440)) Added support for training of self-supervised
-  models (BYOL and SimCLR) based on the bring-your-own-model framework.
-  See [SSL doc](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/self_supervised_models.md) for more
+  models (BYOL and SimCLR) based on the bring-your-own-model framework. Providing examples configurations for training
+  of SSL models on CIFAR10/100 datasets as well as for chest-x-ray datasets such as NIH CHest-Xray or RSNA Pneumonia
+  Detection Challenge datasets. See
+  [SSL doc](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/self_supervised_models.md) for more
   details.
 
 ### Changed
