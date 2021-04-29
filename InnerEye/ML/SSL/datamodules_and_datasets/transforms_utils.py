@@ -25,56 +25,81 @@ class BaseTransform:
 
 
 class CenterCrop(BaseTransform):
+    def transform(self, x: Any) -> Any:
+        return torchvision.transforms.CenterCrop(self.center_crop_size)(x)
+
     def __init__(self, config: CfgNode) -> None:
         super().__init__()
-        self.transform = torchvision.transforms.CenterCrop(config.preprocess.center_crop_size)
+        self.center_crop_size = config.preprocess.center_crop_size
 
 
 class RandomResizeCrop(BaseTransform):
     def __init__(self, config: CfgNode) -> None:
         super().__init__()
-        self.transform = torchvision.transforms.RandomResizedCrop(
-            size=config.preprocess.resize,
-            scale=config.augmentation.random_crop.scale)
+        self.resize_size = config.preprocess.resize
+        self.crop_scale = config.augmentation.random_crop.scale
+
+    def transform(self, x: Any) -> Any:
+        return torchvision.transforms.RandomResizedCrop(
+            size=self.resize_size,
+            scale=self.crop_scale)(x)
 
 
 class RandomHorizontalFlip(BaseTransform):
     def __init__(self, config: CfgNode) -> None:
         super().__init__()
-        self.transform = torchvision.transforms.RandomHorizontalFlip(
-            config.augmentation.random_horizontal_flip.prob)
+        self.p_apply = config.augmentation.random_horizontal_flip.prob
+
+    def transform(self, x: Any) -> Any:
+        return torchvision.transforms.RandomHorizontalFlip(self.p_apply)(x)
 
 
 class RandomAffine(BaseTransform):
     def __init__(self, config: CfgNode) -> None:
         super().__init__()
-        self.transform = torchvision.transforms.RandomAffine(degrees=config.augmentation.random_affine.max_angle,
-                                                             translate=(
-                                                                 config.augmentation.random_affine.max_horizontal_shift,
-                                                                 config.augmentation.random_affine.max_vertical_shift),
-                                                             shear=config.augmentation.random_affine.max_shear)
+        self.max_angle = config.augmentation.random_affine.max_angle
+        self.max_horizontal_shift = config.augmentation.random_affine.max_horizontal_shift
+        self.max_vertical_shift = config.augmentation.random_affine.max_vertical_shift
+        self.max_shear = config.augmentation.random_affine.max_shear
+
+    def transform(self, x: Any) -> Any:
+        return torchvision.transforms.RandomAffine(degrees=self.max_angle,
+                                                   translate=(self.max_horizontal_shift, self.max_vertical_shift),
+                                                   shear=self.max_shear)(x)
 
 
 class Resize(BaseTransform):
     def __init__(self, config: CfgNode) -> None:
         super().__init__()
-        self.transform = torchvision.transforms.Resize(config.preprocess.resize)
+        self.resize_size = config.preprocess.resize
+
+    def transform(self, x: Any) -> Any:
+        return torchvision.transforms.Resize(self.resize_size)(x)
 
 
 class RandomColorJitter(BaseTransform):
     def __init__(self, config: CfgNode) -> None:
         super().__init__()
-        self.transform = torchvision.transforms.ColorJitter(brightness=config.augmentation.random_color.brightness,
-                                                            contrast=config.augmentation.random_color.contrast,
-                                                            saturation=config.augmentation.random_color.saturation)
+        self.max_brightness = config.augmentation.random_color.brightness
+        self.max_contrast = config.augmentation.random_color.contrast
+        self.max_saturation = config.augmentation.random_color.saturation
+
+    def transform(self, x: Any) -> Any:
+        return torchvision.transforms.ColorJitter(brightness=self.max_brightness,
+                                                  contrast=self.max_contrast,
+                                                  saturation=self.max_saturation)(x)
 
 
 class RandomErasing(BaseTransform):
     def __init__(self, config: CfgNode) -> None:
         super().__init__()
-        self.transform = torchvision.transforms.RandomErasing(p=0.5,
-                                                              scale=config.augmentation.random_erasing.scale,
-                                                              ratio=config.augmentation.random_erasing.ratio)
+        self.scale = config.augmentation.random_erasing.scale
+        self.ratio = config.augmentation.random_erasing.ratio
+
+    def transform(self, x: Any) -> Any:
+        return torchvision.transforms.RandomErasing(p=0.5,
+                                                    scale=self.scale,
+                                                    ratio=self.ratio)(x)
 
 
 class RandomGamma(BaseTransform):
@@ -85,6 +110,7 @@ class RandomGamma(BaseTransform):
     def __init__(self, config: CfgNode) -> None:
         super().__init__()
         self.scale = config.augmentation.gamma.scale
+
 
 class ExpandChannels(BaseTransform):
     """
