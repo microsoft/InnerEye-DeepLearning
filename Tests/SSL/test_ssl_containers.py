@@ -37,7 +37,7 @@ def _create_test_cxr_data(path_to_test_dataset: Path) -> None:
     """
     if path_to_test_dataset.exists():
         return
-    path_to_test_dataset.mkdir()
+    path_to_test_dataset.mkdir(exist_ok=True)
     df = pd.DataFrame({"Image Index": np.repeat("1.dcm", 200)})
     df.to_csv(path_to_test_dataset / "Data_Entry_2017.csv", index=False)
     df = pd.DataFrame({"subject": np.repeat("1", 300),
