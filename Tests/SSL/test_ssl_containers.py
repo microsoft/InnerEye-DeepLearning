@@ -15,6 +15,7 @@ from pl_bolts.models.self_supervised.resnets import ResNet
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import repository_root_directory
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
@@ -24,7 +25,6 @@ from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
 from InnerEye.ML.runner import Runner
 from Tests.ML.utils.test_io_util import write_test_dicom
-from Tests.utils_for_tests import full_ml_test_data_path
 
 
 def default_runner() -> Runner:
