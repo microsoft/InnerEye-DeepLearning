@@ -31,7 +31,7 @@ def test_weights_innereye_module() -> None:
     transforms = get_cxr_ssl_transforms(cxr_augmentation_config,
                                         return_two_views_per_sample=True)
     data_module = InnerEyeVisionDataModule(dataset_cls=RSNAKaggleCXR,
-                                           return_index=True,
+                                           return_index=False,
                                            train_transforms=transforms[0],
                                            val_transforms=transforms[1],
                                            data_dir=str(path_to_test_dataset),
@@ -47,7 +47,7 @@ def test_weights_innereye_module() -> None:
     # Assert we have two images and one label given the InnerEyeCIFARTrainTransform
     images, labels = training_batch
     images_v1, images_v2 = images
-    assert images_v1.shape == images_v2.shape == torch.Size([1, 3, 256, 256])
+    assert images_v1.shape == images_v2.shape == torch.Size([1, 3, 224, 224])
 
 
 def test_innereye_vision_module() -> None:
