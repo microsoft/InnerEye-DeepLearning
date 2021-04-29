@@ -27,7 +27,7 @@ def test_update_tau() -> None:
 
     dataset_dir = str(Path(__file__).parent.parent / "test_dataset")
     dummy_rsna_train_dataloader: DataLoader = torch.utils.data.DataLoader(
-        DummyRSNADataset(dataset_dir, True),
+        DummyRSNADataset(root=dataset_dir, return_index=False, train=True),
         batch_size=20,
         num_workers=0,
         drop_last=True)
@@ -42,7 +42,7 @@ def test_update_tau() -> None:
                                batch_size=4,
                                encoder_name="resnet50",
                                warmup_epochs=10)
-    with mock.patch("InnerEye.ML.SSL.byol.byol_module.BYOLInnerEye.global_step", 15):
+    with mock.patch("InnerEye.ML.SSL.lightning_modules.byol.byol_module.BYOLInnerEye.global_step", 15):
         new_tau = byol_weight_update.update_tau(pl_module=byol_module, trainer=trainer)
     assert new_tau == 1 - 0.01 * (math.cos(math.pi * 15 / total_steps) + 1) / 2
 
