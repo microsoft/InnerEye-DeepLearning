@@ -11,8 +11,9 @@ Here, we provide implementations for four datasets to get you kickstarted with s
   and [CIFAR100](https://www.cs.toronto.edu/~kriz/cifar.html)
 * Medical Chest-Xray
   datasets: [RSNA Pneumonia Detection Challenge](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge/overview)
-  data (30k scans, labels indicating presence of pneumonia)
-  and [NIH Chest-Xray](https://www.kaggle.com/nih-chest-xrays/data) (112k Chest-Xray scans).
+  data (30k scans, labels indicating presence of pneumonia),
+  [NIH Chest-Xray](https://www.kaggle.com/nih-chest-xrays/data) (112k Chest-Xray scans) or
+  [CheXpert](https://stanfordmlgroup.github.io/competitions/chexpert/) (228k scans).
 
 ### Multi-dataset support
 
@@ -52,8 +53,12 @@ Prior to starting training a model on this dataset, you will need to download it
   [here](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge/data?select=stage_2_train_images). Make sure to
   download all images and the `dataset.csv` file to your data folder. Please note that the labels are here merely used
   for monitoring purposes.
-* To get the NIH dataset: please download from [here] https://www.kaggle.com/nih-chest-xrays/data. Make sure you include
-  also the csv files in your data folder.
+* To get the NIH dataset: please download from [here](https://www.kaggle.com/nih-chest-xrays/data). Make sure you
+  include also the csv files in your data folder, the code assumes the dataset files and all the images lie in your data
+  folder as downloaded from Kaggle. In particular, do not modify the original csv filenames (e.g. the code expects to
+  find the `Data_Entry_2017.csv` file within the data directory).
+* To get the CheXpert data: please download from [here](https://stanfordmlgroup.github.io/competitions/chexpert/), the
+  code assumes the dataset files and all the images lie in your data folder as downloaded.
 
 #### If you run on AML
 

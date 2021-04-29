@@ -87,8 +87,11 @@ class InnerEyeCXRDatasetWithReturnIndex(InnerEyeDataClassBaseWithReturnIndex, In
 
 class RSNAKaggleCXR(InnerEyeCXRDatasetWithReturnIndex):
     """
-    Dataset class to load the RSNA Chest-Xray training dataset. Use all the data for train and val. No test data
-    implemented.
+    Dataset class to load the RSNA Chest-Xray training dataset.
+    For more details instructions about how to download the dataset and the expected data folder structure, please
+    refer to the docs/self_supervised_models.md documentation.
+
+    Note we use all the data for train and val. No test data implemented.
     """
 
     def _prepare_dataset(self) -> None:
@@ -110,8 +113,13 @@ class RSNAKaggleCXR(InnerEyeCXRDatasetWithReturnIndex):
 
 class NIH(InnerEyeCXRDatasetWithReturnIndex):
     """
-    Dataset class to load the NIH Chest-Xray dataset. Use the full data for training and validation (including
-    the official test set by default).
+    Dataset class to load the NIH Chest-Xray dataset.
+    For more details instructions about how to download the dataset and the expected data folder structure, please
+    refer to the docs/self_supervised_models.md documentation.
+
+    Note: by default, the code uses the full data for training and validation (including
+    the official test set). You can change this behavior by setting `use_full_dataset_for_train_and_val` to
+    False when you initialize the class.
     """
 
     def __init__(self,
@@ -138,6 +146,9 @@ class NIH(InnerEyeCXRDatasetWithReturnIndex):
 class CheXpert(InnerEyeCXRDatasetWithReturnIndex):
     """
     Dataset class to load the CheXpert dataset.
+
+    For more details instructions about how to download the dataset and the expected data folder structure, please
+    refer to the docs/self_supervised_models.md documentation.
     """
 
     def _prepare_dataset(self) -> None:
