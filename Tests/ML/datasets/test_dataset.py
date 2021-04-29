@@ -23,7 +23,9 @@ from InnerEye.ML.utils.transforms import Compose3D
 from Tests.Common.test_util import full_ml_test_data_path
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import DummyPatientMetadata, load_train_and_test_data_channels
-
+from InnerEye.ML.lightning_base import InnerEyeContainer
+from InnerEye.ML.utils.csv_util import CSV_SUBJECT_HEADER
+from InnerEye.ML.dataset.full_image_dataset import converts_channels_to_file_paths
 crop_size = [55, 55, 55]
 
 @pytest.fixture
@@ -417,6 +419,51 @@ def test_get_all_metadata(default_config: ModelConfigBase) -> None:
     df = default_config.get_dataset_splits().train
     assert PatientMetadata.from_dataframe(df, '1') == PatientMetadata(patient_id='1', institution="1")
     assert PatientMetadata.from_dataframe(df, '2') == PatientMetadata(patient_id='2', institution="2")
+
+
+def test_converts_channels_to_file_paths(default_config: ModelConfigBase) -> None:
+    """
+    Tests converts_channels_to_file_paths for missing channels and missing files.
+    """
+    # Sets DummyModel config and container
+    container = InnerEyeContainer(default_config)
+
+    # 1 Should not return any errors given that no channels or files are missing
+    assert container.setup() is None
+
+    # 2 We test a split by deleting two channels and corrupting one file name
+    all_channels = default_config.image_channels + default_config.ground_truth_ids
+    if default_config.mask_id:
+        all_channels += [default_config.mask_id]
+    split_data = default_config.get_dataset_splits().train
+    patient_id = list(set(split_data[CSV_SUBJECT_HEADER]))[0]
+    rows = split_data.loc[split_data[CSV_SUBJECT_HEADER] == patient_id]
+    temp = rows[rows['channel'] == 'mask']
+    rows = rows.drop(temp.index.values[0])
+    temp = rows[rows['channel'] == 'channel1']
+    rows = rows.drop(temp.index.values[0])
+    temp = rows[rows['channel'] == 'channel2']
+    rows.loc[temp.index.values[0]]['filePath'] = 'IncorrectPath'
+    paths, failed_channel_info = converts_channels_to_file_paths(all_channels, rows, default_config.local_dataset, patient_id)
+    assert 'channel1' in failed_channel_info
+    assert 'mask' in failed_channel_info
+    assert 'IncorrectPath' in failed_channel_info
+    assert patient_id in failed_channel_info
+    assert len(paths) == 1
+
+    # 3 We corrupt original data frame and check that container.setup() should raise error
+    default_config.dataset_data_frame = default_config.dataset_data_frame.drop(0)
+    default_config.dataset_data_frame = default_config.dataset_data_frame.drop(1)
+    default_config.dataset_data_frame = default_config.dataset_data_frame.drop(2)
+    default_config.dataset_data_frame.loc[3]['filePath'] = 'IncorrectPath'
+    # Updates splits from datasets with corrupted data
+    split_data = default_config.get_dataset_splits()
+    with pytest.raises(ValueError) as e:
+        container.setup()
+    assert "Patient 1 does not have channel 'channel1'" in str(e)
+    assert "Patient 1 does not have channel 'channel2'" in str(e)
+    assert "Patient 1 does not have channel 'mask'" in str(e)
+    assert "IncorrectPath does not exists" in str(e)
 
 
 def test_sample_metadata_field() -> None:
