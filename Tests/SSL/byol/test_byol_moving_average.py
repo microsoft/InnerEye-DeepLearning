@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import math
-from pathlib import Path
 from random import randint
 from typing import Any
 from unittest import mock
@@ -16,6 +15,9 @@ from torch.utils.data import DataLoader
 from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import RSNAKaggleCXR
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
+from Tests.SSL.test_ssl_containers import _create_test_cxr_data, path_to_test_dataset
+
+_create_test_cxr_data(path_to_test_dataset)
 
 
 def test_update_tau() -> None:
@@ -25,7 +27,7 @@ def test_update_tau() -> None:
                     torch.rand([3, 224, 224], dtype=torch.float32)), \
                    randint(0, 1)
 
-    dataset_dir = str(Path(__file__).parent.parent / "test_dataset")
+    dataset_dir = str(path_to_test_dataset)
     dummy_rsna_train_dataloader: DataLoader = torch.utils.data.DataLoader(
         DummyRSNADataset(root=dataset_dir, return_index=False, train=True),
         batch_size=20,
