@@ -202,6 +202,16 @@ def test_combined_data_module() -> None:
     assert combined_loader.num_classes == 2
     # num samples has to return number of training samples in encoder data.
     assert combined_loader.num_samples == 240
+    # we don't want to compute the weights for balanced loss
+    assert combined_loader.class_weights is None
+
+    # Check the behavior if we want to compute the weights for balanced loss
+    combined_loader = CombinedDataModule(encoder_module=long_data_module,
+                                         linear_head_module=short_data_module,
+                                         use_balanced_loss_linear_head=True)
+    assert combined_loader.class_weights is not None
+    assert torch.isclose(combined_loader.class_weights,
+                         torch.tensor([0.21, 0.79], dtype=torch.float32), atol=1e-3).all()
 
     # PyTorch Lightning expects a dictionary of loader at training time.
     # It will take care of "filling in the gaps" automatically in the trainer
@@ -215,13 +225,13 @@ def test_combined_data_module() -> None:
     # Weirdly, in PL the handling of combined loader is different in validation
     # stage. There, it is expected to return an object of type "CombinedDataLoader" that
     # takes care of the aggregation of batches.
-    indices_encoder_module_long = []
     indices_classifier_module_short = []
     val_dataloader = combined_loader.val_dataloader()
     assert isinstance(val_dataloader, CombinedLoader)
-
     for batch in val_dataloader:
-        indices_encoder_module_long.append(batch[SSLDataModuleType.ENCODER][0])
-        indices_classifier_module_short.append(batch[SSLDataModuleType.LINEAR_HEAD][0])
-
-    assert indices_encoder_module_long
+        assert set(batch.keys()) == {SSLDataModuleType.ENCODER, SSLDataModuleType.LINEAR_HEAD}
+        indices_classifier_module_short.append(tuple(batch[SSLDataModuleType.LINEAR_HEAD][0].tolist()))
+    # Check that combined dataloader fills in the shorter datamodule to match the number of batches of the longest one
+    # by looping from the beginning again.
+    assert len(val_dataloader) == 3
+    assert len(set(indices_classifier_module_short)) == 1
