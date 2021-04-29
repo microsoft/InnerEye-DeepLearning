@@ -166,26 +166,31 @@ class SSLContainer(LightningContainer):
         """
         if hasattr(self, "data_module"):
             return self.data_module
-        encoder_module = self._create_ssl_data_modules(linear_head_module=False)
-        linear_head_module = self._create_ssl_data_modules(linear_head_module=True)
+        encoder_module = self._create_ssl_data_modules(is_ssl_encoder_module=True)
+        linear_head_module = self._create_ssl_data_modules(is_ssl_encoder_module=False)
         return CombinedDataModule(encoder_module, linear_head_module, self.use_balanced_binary_loss_for_linear_head)
 
-    def _create_ssl_data_modules(self, linear_head_module: bool) -> InnerEyeVisionDataModule:
+    def _create_ssl_data_modules(self, is_ssl_encoder_module: bool) -> InnerEyeVisionDataModule:
         """
         Returns torch lightning data module for encoder or linear head
+
+        :param is_ssl_encoder_module: whether to return the data module for SSL training or for linear heard. If true,
+        :return transforms with two views per sample (batch like (img_v1, img_v2, label)). If False, return only one
+        view per sample but also return the index of the sample in the dataset (to make sure we don't use twice the same
+        batch in one training epoch (batch like (index, img_v1, label), as classifier dataloader expected to be shorter
+        than SSL training, hence CombinedDataloader might loop over data several times per epoch).
         """
-        datamodule_args = self.datamodule_args[SSLDataModuleType.LINEAR_HEAD] if linear_head_module else \
-            self.datamodule_args[
-                SSLDataModuleType.ENCODER]
+        datamodule_args = self.datamodule_args[SSLDataModuleType.ENCODER] if is_ssl_encoder_module else \
+            self.datamodule_args[SSLDataModuleType.LINEAR_HEAD]
 
         train_transforms, val_transforms = self._get_transforms(datamodule_args.augmentation_params,
                                                                 datamodule_args.dataset_name,
-                                                                linear_head_module)
+                                                                is_ssl_encoder_module)
         batch_size_per_gpu = datamodule_args.batch_size // self.total_num_gpus if self.total_num_gpus > 0 else \
             datamodule_args.batch_size
         logging.info(f"Batch size per gpu: {batch_size_per_gpu}")
         dm = InnerEyeVisionDataModule(dataset_cls=self._SSLDataClassMappings[datamodule_args.dataset_name],
-                                      return_index=linear_head_module,
+                                      return_index=not is_ssl_encoder_module,  # index is only needed for linear head
                                       train_transforms=train_transforms,
                                       val_split=0.1,
                                       val_transforms=val_transforms,
@@ -199,15 +204,25 @@ class SSLContainer(LightningContainer):
 
     def _get_transforms(self, augmentation_config: Optional[CfgNode],
                         dataset_name: str,
-                        linear_head_module: bool) -> Tuple[Any, Any]:
+                        is_ssl_encoder_module: bool) -> Tuple[Any, Any]:
+        """
+        Returns the transformation pipeline for training and validation.
+        :param augmentation_config: optional yaml config defining strength of augmenentations. Ignored for CIFAR
+        examples.
+        :param dataset_name: name of the dataset, value has to be in SSLDatasetName, determines which transformation
+        pipeline to return.
+        :param is_ssl_encoder_module: if True the transformation pipeline will yield two version of the image it is
+        applied on. If False, return only one transformation.
+        :return: training transformation pipeline and validation transformation pipeline.
+        """
         if dataset_name in [SSLDatasetName.RSNAKaggle.value, SSLDatasetName.NIH.value, SSLDatasetName.CheXpert.value]:
             assert augmentation_config is not None
-            train_transforms, val_transforms = get_cxr_ssl_transforms(augmentation_config, not linear_head_module)
+            train_transforms, val_transforms = get_cxr_ssl_transforms(augmentation_config, is_ssl_encoder_module)
         elif dataset_name in [SSLDatasetName.CIFAR10.value, SSLDatasetName.CIFAR100.value]:
             train_transforms = \
-                InnerEyeCIFARTrainTransform(32) if not linear_head_module else InnerEyeCIFARLinearHeadTransform(32)
+                InnerEyeCIFARTrainTransform(32) if is_ssl_encoder_module else InnerEyeCIFARLinearHeadTransform(32)
             val_transforms = \
-                InnerEyeCIFARValTransform(32) if not linear_head_module else InnerEyeCIFARLinearHeadTransform(32)
+                InnerEyeCIFARValTransform(32) if is_ssl_encoder_module else InnerEyeCIFARLinearHeadTransform(32)
         else:
             raise ValueError(f"Dataset {dataset_name} unknown.")
 

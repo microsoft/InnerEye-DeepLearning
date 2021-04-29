@@ -56,7 +56,7 @@ class SSLClassifierContainer(SSLContainer):
         """
         if hasattr(self, "data_module"):
             return self.data_module
-        self.data_module = self._create_ssl_data_modules(linear_head_module=True)
+        self.data_module = self._create_ssl_data_modules(is_ssl_encoder_module=False)
         if self.use_balanced_binary_loss_for_linear_head:
             self.data_module.class_weights = self.data_module.compute_class_weights()
         return self.data_module
