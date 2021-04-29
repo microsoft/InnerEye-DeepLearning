@@ -69,8 +69,8 @@ class CheckpointHandler:
         else:
             self.run_recovery = None
 
-        if self.azure_config.extra_run_recovery_id is not None:
-            run_to_recover = self.azure_config.fetch_run(self.azure_config.extra_run_recovery_id.strip())
+        if self.azure_config.pretraining_run_recovery_id is not None:
+            run_to_recover = self.azure_config.fetch_run(self.azure_config.pretraining_run_recovery_id.strip())
             run_recovery_object = RunRecovery.download_all_checkpoints_from_run(self.output_params,
                                                                                 run_to_recover,
                                                                                 EXTRA_RUN_SUBFOLDER)

@@ -17,7 +17,7 @@ class SSLClassifierContainer(SSLContainer):
     """
     This module is used to train a linear classifier on top of a frozen (or not) encoder.
 
-    If you are running on AML, you can specify the SSL training run id via the --extra_run_recovery_id flag. This
+    If you are running on AML, you can specify the SSL training run id via the --pretraining_run_recovery_id flag. This
     will automatically download the checkpoints for you and take the latest one as the starting weights of your
     classifier.
 
