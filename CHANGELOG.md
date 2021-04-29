@@ -12,6 +12,9 @@ created.
 ## Upcoming
 
 ### Added
+
+- ([#446](https://github.com/microsoft/InnerEye-DeepLearning/pull/446)) Guarding `save_outlier` so that it works when 
+institution id and series id columns are missing.
 - ([#441](https://github.com/microsoft/InnerEye-DeepLearning/pull/441)) Add script to move models from one AzureML workspace to another: `python InnerEye/Scripts/move_model.py`
 - ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417)) Added a generic way of adding PyTorch Lightning
 models to the toolbox. It is now possible to train almost any Lightning model with the InnerEye toolbox in AzureML,
