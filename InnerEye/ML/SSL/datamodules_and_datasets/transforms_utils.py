@@ -17,9 +17,8 @@ from yacs.config import CfgNode
 
 
 class BaseTransform:
-    def __init__(self, **kwargs: Any) -> None:
-        self.transform: Callable = lambda x: NotImplementedError(
-            "Transform needs to be overridden in the child classes")
+    def transform(self, x: Any) -> Any:
+        raise NotImplementedError("Transform needs to be overridden in the child classes")
 
     def __call__(self, data: PIL.Image.Image) -> PIL.Image.Image:
         return self.transform(data)
@@ -79,15 +78,13 @@ class RandomErasing(BaseTransform):
 
 
 class RandomGamma(BaseTransform):
+    def transform(self, image: PIL.Image.Image) -> PIL.Image.Image:
+        gamma = random.uniform(*self.scale)
+        return torchvision.transforms.functional.adjust_gamma(image, gamma=gamma)
+
     def __init__(self, config: CfgNode) -> None:
         super().__init__()
-
-        def gamma_transform(image: PIL.Image.Image) -> PIL.Image.Image:
-            gamma = random.uniform(*config.augmentation.gamma.scale)
-            return torchvision.transforms.functional.adjust_gamma(image, gamma=gamma)
-
-        self.transform = gamma_transform
-
+        self.scale = config.augmentation.gamma.scale
 
 class ExpandChannels(BaseTransform):
     """
@@ -95,12 +92,19 @@ class ExpandChannels(BaseTransform):
     the 0th dimension.
     """
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__()
-        self.transform = lambda x: torch.repeat_interleave(x, 3, dim=0)
+    def transform(self, data: torch.Tensor) -> torch.Tensor:
+        return torch.repeat_interleave(data, 3, dim=0)
 
 
 class AddGaussianNoise(BaseTransform):
+
+    def transform(self, data: torch.Tensor) -> torch.Tensor:
+        if np.random.random(1) > self.p_apply:
+            return data
+        noise = torch.randn(size=data.shape) * self.std
+        data = torch.clamp(data + noise, 0, 1)
+        return data
+
     def __init__(self, config: CfgNode) -> None:
         """
         Transformation to add Gaussian noise N(0, std) to an image. Where std is set with the
@@ -108,15 +112,8 @@ class AddGaussianNoise(BaseTransform):
         config.augmentation.gaussian_noise.p_apply
         """
         super().__init__()
-
-        def add_gaussian_noise(data: torch.Tensor) -> torch.Tensor:
-            if np.random.random(1) > config.augmentation.gaussian_noise.p_apply:
-                return data
-            noise = torch.randn(size=data.shape) * config.augmentation.gaussian_noise.std
-            data = torch.clamp(data + noise, 0, 1)
-            return data
-
-        self.transform = add_gaussian_noise
+        self.p_apply = config.augmentation.gaussian_noise.p_apply
+        self.std = config.augmentation.gaussian_noise.std
 
 
 class ElasticTransform(BaseTransform):
@@ -135,25 +132,23 @@ class ElasticTransform(BaseTransform):
 
     def __init__(self, config: CfgNode) -> None:
         super().__init__()
-        alpha = config.augmentation.elastic_transform.alpha
-        sigma = config.augmentation.elastic_transform.sigma
-        p_apply = config.augmentation.elastic_transform.p_apply
+        self.alpha = config.augmentation.elastic_transform.alpha
+        self.sigma = config.augmentation.elastic_transform.sigma
+        self.p_apply = config.augmentation.elastic_transform.p_apply
 
-        def elastic_transform(image: PIL.Image) -> PIL.Image:
-            if np.random.random(1) > p_apply:
-                return image
-            image = np.asarray(image).squeeze()
-            assert len(image.shape) == 2
-            shape = image.shape
+    def transform(self, image: PIL.Image) -> PIL.Image:
+        if np.random.random(1) > self.p_apply:
+            return image
+        image = np.asarray(image).squeeze()
+        assert len(image.shape) == 2
+        shape = image.shape
 
-            dx = gaussian_filter((np.random.random(shape) * 2 - 1), sigma, mode="constant", cval=0) * alpha
-            dy = gaussian_filter((np.random.random(shape) * 2 - 1), sigma, mode="constant", cval=0) * alpha
+        dx = gaussian_filter((np.random.random(shape) * 2 - 1), self.sigma, mode="constant", cval=0) * self.alpha
+        dy = gaussian_filter((np.random.random(shape) * 2 - 1), self.sigma, mode="constant", cval=0) * self.alpha
 
-            x, y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]), indexing='ij')
-            indices = np.reshape(x + dx, (-1, 1)), np.reshape(y + dy, (-1, 1))
-            return PIL.Image.fromarray(map_coordinates(image, indices, order=1).reshape(shape))
-
-        self.transform = elastic_transform
+        x, y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]), indexing='ij')
+        indices = np.reshape(x + dx, (-1, 1)), np.reshape(y + dy, (-1, 1))
+        return PIL.Image.fromarray(map_coordinates(image, indices, order=1).reshape(shape))
 
 
 class DualViewTransformWrapper:
