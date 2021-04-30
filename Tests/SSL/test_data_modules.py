@@ -6,9 +6,11 @@ from typing import Dict
 
 import PIL
 import numpy as np
+import pytest
 import torch
 from pytorch_lightning.trainer.supporters import CombinedLoader
 
+from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.SSL.datamodules_and_datasets.cifar_datasets import InnerEyeCIFAR10
 from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import RSNAKaggleCXR
@@ -24,6 +26,8 @@ path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
 _create_test_cxr_data(path_to_test_dataset)
 cxr_augmentation_config = load_ssl_augmentation_config(path_encoder_augmentation_cxr)
 
+
+@pytest.mark.skipif(is_windows(), "Too slow on windows")
 def test_weights_innereye_module() -> None:
     """
     Tests if weights in CXR data module are correctly initialized
@@ -36,7 +40,8 @@ def test_weights_innereye_module() -> None:
                                            val_transforms=transforms[1],
                                            data_dir=str(path_to_test_dataset),
                                            batch_size=1,
-                                           seed=1)
+                                           seed=1,
+                                           num_workers=0)
     data_module.setup()
     class_weights = data_module.compute_class_weights()
     assert class_weights is not None
@@ -50,6 +55,7 @@ def test_weights_innereye_module() -> None:
     assert images_v1.shape == images_v2.shape == torch.Size([1, 3, 224, 224])
 
 
+@pytest.mark.skipif(is_windows(), "Too slow on windows")
 def test_innereye_vision_module() -> None:
     """
     Test properties of loaded CIFAR datasets via InnerEyeVisionDataModule.
@@ -63,8 +69,8 @@ def test_innereye_vision_module() -> None:
                                            val_transforms=InnerEyeCIFARLinearHeadTransform(32),
                                            data_dir=None,
                                            batch_size=5,
-                                           seed=1,
-                                           shuffle=False)
+                                           shuffle=False,
+                                           num_workers=0)
     data_module.prepare_data()
     data_module.setup()
     assert len(data_module.dataset_train) == 45000
@@ -85,6 +91,7 @@ def test_innereye_vision_module() -> None:
     assert labels.tolist() == [6, 0, 2, 3, 3]
 
 
+@pytest.mark.skipif(is_windows(), "Too slow on windows")
 def test_innereye_vision_datamodule_with_return_index() -> None:
     """
     Tests that the return index flag, modifies __getitem__ as expected i.e.
@@ -96,8 +103,8 @@ def test_innereye_vision_datamodule_with_return_index() -> None:
                                            val_transforms=None,
                                            data_dir=None,
                                            batch_size=5,
-                                           seed=1,
-                                           shuffle=False)
+                                           shuffle=False,
+                                           num_workers=0)
     data_module.prepare_data()
     data_module.setup()
     training_batch = next(iter(data_module.train_dataloader()))
@@ -108,6 +115,7 @@ def test_innereye_vision_datamodule_with_return_index() -> None:
     assert labels.tolist() == [0, 1, 6, 3, 6]
 
 
+@pytest.mark.skipif(is_windows(), "Too slow on windows")
 def test_get_transforms_in_SSL_container_for_cxr_data() -> None:
     """
     Tests that the internal _get_transforms function returns data of the expected type of CXR.
@@ -139,6 +147,7 @@ def test_get_transforms_in_SSL_container_for_cxr_data() -> None:
     assert v1.shape == torch.Size([3, 224, 224])
 
 
+@pytest.mark.skipif(is_windows(), "Too slow on windows")
 def test_get_transforms_in_SSL_container_for_cifar_data() -> None:
     """
     Tests that the internal _get_transforms function returns data of the expected type of CXR.
@@ -165,6 +174,7 @@ def test_get_transforms_in_SSL_container_for_cifar_data() -> None:
     assert v1.shape == torch.Size([3, 32, 32])
 
 
+@pytest.mark.skipif(is_windows(), "Too slow on windows")
 def test_combined_data_module() -> None:
     """
     Tests the behavior of CombinedDataModule
