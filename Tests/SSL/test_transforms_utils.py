@@ -4,7 +4,7 @@ import pytest
 import torch
 from scipy.ndimage import gaussian_filter, map_coordinates
 
-from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import AddGaussianNoise, ElasticTransform
+from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import AddGaussianNoise, ElasticTransform, ExpandChannels
 from Tests.SSL.test_data_modules import cxr_augmentation_config
 
 
@@ -14,12 +14,12 @@ def test_add_gaussian_noise() -> None:
     """
     np.random.seed(1)
     torch.manual_seed(10)
-    array = np.ones([256, 256]) * 255.
-    array[100:150, 100:200] = 1
+    array = np.ones([1, 256, 256]) * 255.
+    array[0, 100:150, 100:200] = 1
     tensor_img = torch.tensor(array / 255.)
     transformed = AddGaussianNoise(cxr_augmentation_config)(tensor_img)
     torch.manual_seed(10)
-    noise = torch.randn(size=(256, 256)) * 0.05
+    noise = torch.randn(size=(1, 256, 256)) * 0.05
     assert torch.isclose(torch.clamp(tensor_img + noise, 0, 1), transformed).all()
     with pytest.raises(AssertionError):
         AddGaussianNoise(cxr_augmentation_config)(tensor_img * 255.)
@@ -46,3 +46,11 @@ def test_elastic_transform():
     np.random.seed(7)
     transformed_image = np.asarray(ElasticTransform(cxr_augmentation_config)(PIL.Image.fromarray(image)))
     assert np.isclose(expected_array, transformed_image).all()
+
+
+def test_expand_channels():
+    image = np.ones([1, 256, 256]) * 255.
+    tensor_img = torch.tensor(image)
+    tensor_img = ExpandChannels()(tensor_img)
+    assert tensor_img.shape == torch.Size([3, 256, 256])
+    assert torch.isclose(tensor_img[0], tensor_img[1]).all() and torch.isclose(tensor_img[1], tensor_img[2]).all()
