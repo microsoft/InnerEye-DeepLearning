@@ -217,7 +217,9 @@ class SSLContainer(LightningContainer):
         """
         if dataset_name in [SSLDatasetName.RSNAKaggle.value, SSLDatasetName.NIH.value, SSLDatasetName.CheXpert.value]:
             assert augmentation_config is not None
-            train_transforms, val_transforms = get_cxr_ssl_transforms(augmentation_config, is_ssl_encoder_module)
+            train_transforms, val_transforms = get_cxr_ssl_transforms(augmentation_config,
+                                                                      return_two_views_per_sample=is_ssl_encoder_module,
+                                                                      use_training_augmentations_for_validation=is_ssl_encoder_module)
         elif dataset_name in [SSLDatasetName.CIFAR10.value, SSLDatasetName.CIFAR100.value]:
             train_transforms = \
                 InnerEyeCIFARTrainTransform(32) if is_ssl_encoder_module else InnerEyeCIFARLinearHeadTransform(32)

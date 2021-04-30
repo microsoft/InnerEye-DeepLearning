@@ -193,7 +193,9 @@ class DualViewTransformWrapper:
         return xi, xj
 
 
-def get_cxr_ssl_transforms(config: CfgNode, return_two_views_per_sample: bool) -> Tuple[Any, Any]:
+def get_cxr_ssl_transforms(config: CfgNode,
+                           return_two_views_per_sample: bool,
+                           use_training_augmentations_for_validation: bool = False) -> Tuple[Any, Any]:
     """
     Returns training and validation transforms for CXR.
     Transformations are constructed in the following way:
@@ -207,10 +209,13 @@ def get_cxr_ssl_transforms(config: CfgNode, return_two_views_per_sample: bool) -
 
     :param config: configuration defining which augmentations to apply as well as their intensities.
     :param return_two_views_per_sample: if True the resulting transforms will return two versions of each sample they
-    are called on. If False, simply returned one transformed version of the sample.
+    are called on. If False, simply return one transformed version of the sample.
+    :param use_training_augmentations_for_validation: If True, use augmentation at validation time too.
+    This is required for SSL validation loss to be meaningful. If False, only apply basic processing step
+    (no augmentations)
     """
     train_transforms = create_chest_xray_transform(config, is_train=True)
-    val_transforms = create_chest_xray_transform(config, is_train=False)
+    val_transforms = create_chest_xray_transform(config, is_train=use_training_augmentations_for_validation)
     if return_two_views_per_sample:
         train_transforms = DualViewTransformWrapper(train_transforms)
         val_transforms = DualViewTransformWrapper(val_transforms)
