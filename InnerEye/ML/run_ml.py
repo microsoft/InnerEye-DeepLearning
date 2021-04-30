@@ -889,10 +889,7 @@ class MLRunner:
                 else:
                     logging.info(f"Cannot create report for config of type {type(config)}.")
 
-            config.generate_custom_report(report_dir=reports_dir,
-                                          train_metrics=path_to_best_epoch_train,
-                                          val_metrics=path_to_best_epoch_val,
-                                          test_metrics=path_to_best_epoch_test)
+            config.generate_custom_report(report_dir=reports_dir, model_proc=model_proc)
         except Exception as ex:
             print_exception(ex, "Failed to generated reporting notebook.")
             raise

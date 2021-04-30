@@ -13,6 +13,7 @@ from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, Pr
 from pandas import DataFrame
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
+from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.Common.metrics_constants import TrackedMetrics
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
@@ -248,16 +249,12 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         pass
 
-    def generate_custom_report(self, report_dir: Path, train_metrics: Path, val_metrics: Path,
-                               test_metrics: Path) -> Path:
+    def generate_custom_report(self, report_dir: Path, model_proc: ModelProcessing) -> Path:
         """
         Enables creating a custom results report, given the metrics files written during model training and inference.
         By default, this method is a no-op.
 
         :param report_dir: The output directory where the generated report should be saved.
-        :param train_metrics: The CSV file with training metrics.
-        :param val_metrics: The CSV file with validation metrics.
-        :param test_metrics: The CSV file with test metrics.
         :return: The path to the generated report file.
         """
         pass

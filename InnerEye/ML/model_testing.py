@@ -17,7 +17,7 @@ from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARE
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
     SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
-from InnerEye.Common.metrics_constants import MetricType, MetricsFileColumns
+from InnerEye.Common.metrics_constants import MetricType, MetricsFileColumns, LoggingColumns
 from InnerEye.ML import metrics, plotting
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
@@ -43,6 +43,7 @@ from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
 
+MODEL_OUTPUT_CSV = "model_outputs.csv"
 
 def model_test(config: ModelConfigBase,
                data_split: ModelExecutionMode,
@@ -428,12 +429,24 @@ def classification_model_test(config: ScalarModelBase,
 
         logging.info(f"Starting to evaluate model on {data_split.value} set.")
         metrics_dict = create_metrics_dict_for_scalar_models(config)
+
+        results_folder = config.outputs_folder / get_best_epoch_results_path(data_split, model_proc)
+        csv_file = results_folder / MODEL_OUTPUT_CSV
+        os.makedirs(str(results_folder), exist_ok=True)
+        with open(csv_file, "w") as f:
+            f.write(f"{LoggingColumns.Patient.value},{LoggingColumns.Hue.value},{LoggingColumns.Label.value},"
+                    f"{LoggingColumns.ModelOutput.value},{LoggingColumns.CrossValidationSplitIndex.value}\n")
+
         for sample in ds:
             result = pipeline.predict(sample)
             model_output = result.posteriors
             label = result.labels.to(device=model_output.device)
             label = posthoc_label_transform(label)
             sample_id = result.subject_ids[0]
+            with open(csv_file, "a") as f:
+                for i in range(len(config.target_names)):
+                    f.write(f"{sample_id},{config.target_names[i]},{label[0][i].item()},{model_output[0][i].item()},"
+                            f"{cross_val_split_index}\n")
             compute_scalar_metrics(metrics_dict,
                                    subject_ids=[sample_id],
                                    model_output=model_output,
@@ -465,7 +478,7 @@ def classification_model_test(config: ScalarModelBase,
             # during train time. If this is not the case, or we are running on the test set, create the metrics
             # file.
             if not csv_file.exists():
-                os.makedirs(str(results_folder), exist_ok=False)
+                os.makedirs(str(results_folder), exist_ok=True)
                 df_logger = DataframeLogger(csv_file)
                 # For test if ensemble split should be default, else record which fold produced this prediction
                 cv_index = DEFAULT_CROSS_VALIDATION_SPLIT_INDEX if model_proc == ModelProcessing.ENSEMBLE_CREATION \
