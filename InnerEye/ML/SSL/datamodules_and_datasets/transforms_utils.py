@@ -214,8 +214,8 @@ def get_cxr_ssl_transforms(config: CfgNode,
     This is required for SSL validation loss to be meaningful. If False, only apply basic processing step
     (no augmentations)
     """
-    train_transforms = create_chest_xray_transform(config, is_train=True)
-    val_transforms = create_chest_xray_transform(config, is_train=use_training_augmentations_for_validation)
+    train_transforms = create_chest_xray_transform(config, apply_augmentations=True)
+    val_transforms = create_chest_xray_transform(config, apply_augmentations=use_training_augmentations_for_validation)
     if return_two_views_per_sample:
         train_transforms = DualViewTransformWrapper(train_transforms)
         val_transforms = DualViewTransformWrapper(val_transforms)
@@ -223,16 +223,17 @@ def get_cxr_ssl_transforms(config: CfgNode,
 
 
 def create_chest_xray_transform(config: CfgNode,
-                                is_train: bool) -> Callable:
+                                apply_augmentations: bool) -> Callable:
     """
     Defines the image transformations pipeline used in Chest-Xray datasets.
     Type of augmentation and strength are defined in the config.
     :param config: config yaml file fixing strength and type of augmentation to apply
-    :param is_train: if True return transformation pipeline with augmentations. Else, disable augmentations i.e.
+    :param apply_augmentations: if True return transformation pipeline with augmentations. Else,
+    disable augmentations i.e.
     only resize and center crop the image.
     """
     transforms: List[Any] = []
-    if is_train:
+    if apply_augmentations:
         if config.augmentation.use_random_affine:
             transforms.append(RandomAffine(config))
         if config.augmentation.use_random_crop:
