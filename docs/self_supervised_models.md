@@ -30,7 +30,7 @@ used to monitor embeddings quality during training.
 
 Here we described how to quickly start a training job with our ready made configs.
 
-### Example 1: training a SimCLR or BYOL model on CIFAR10 (TO UPDATE)
+### Example 1: training a SimCLR or BYOL model on CIFAR10
 
 To kick-off a training for a SimCLR and BYOL models on CIFAR10, simply run
 
