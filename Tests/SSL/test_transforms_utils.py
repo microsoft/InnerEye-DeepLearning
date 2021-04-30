@@ -1,10 +1,15 @@
+import random
+
 import PIL
 import numpy as np
 import pytest
 import torch
 from scipy.ndimage import gaussian_filter, map_coordinates
+from torchvision.transforms import ToTensor
 
-from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import AddGaussianNoise, ElasticTransform, ExpandChannels
+from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import AddGaussianNoise, CenterCrop, ElasticTransform, \
+    ExpandChannels, RandomAffine, RandomColorJitter, RandomErasing, RandomGamma, RandomHorizontalFlip, RandomResizeCrop, \
+    Resize, create_chest_xray_transform
 from Tests.SSL.test_data_modules import cxr_augmentation_config
 
 
@@ -54,3 +59,50 @@ def test_expand_channels():
     tensor_img = ExpandChannels()(tensor_img)
     assert tensor_img.shape == torch.Size([3, 256, 256])
     assert torch.isclose(tensor_img[0], tensor_img[1]).all() and torch.isclose(tensor_img[1], tensor_img[2]).all()
+
+
+def test_create_chest_xray_transform():
+    """
+    Tests that the pipeline returned by create_chest_xray_transform returns the expected transformation.
+    """
+    transform = create_chest_xray_transform(cxr_augmentation_config, apply_augmentations=True)
+    image = np.ones([256, 256]) * 255.
+    image[100:150, 100:200] = 1
+    image = PIL.Image.fromarray(image).convert("L")
+    np.random.seed(3)
+    torch.manual_seed(3)
+    random.seed(3)
+    transformed_image = transform(image)
+
+    # Expected pipeline
+    np.random.seed(3)
+    torch.manual_seed(3)
+    random.seed(3)
+    image = RandomAffine(cxr_augmentation_config)(image)
+    image = RandomResizeCrop(cxr_augmentation_config)(image)
+    image = Resize(cxr_augmentation_config)(image)
+    image = RandomHorizontalFlip(cxr_augmentation_config)(image)
+    image = RandomGamma(cxr_augmentation_config)(image)
+    image = RandomColorJitter(cxr_augmentation_config)(image)
+    image = ElasticTransform(cxr_augmentation_config)(image)
+    image = CenterCrop(cxr_augmentation_config)(image)
+    image = ToTensor()(image)
+    image = RandomErasing(cxr_augmentation_config)(image)
+    image = AddGaussianNoise(cxr_augmentation_config)(image)
+    image = ExpandChannels()(image)
+
+    assert torch.isclose(image, transformed_image).all()
+
+    # Test the evaluation pipeline
+    transform = create_chest_xray_transform(cxr_augmentation_config, apply_augmentations=False)
+    image = np.ones([256, 256]) * 255.
+    image[100:150, 100:200] = 1
+    image = PIL.Image.fromarray(image).convert("L")
+    transformed_image = transform(image)
+
+    # Expected pipeline
+    image = Resize(cxr_augmentation_config)(image)
+    image = CenterCrop(cxr_augmentation_config)(image)
+    image = ToTensor()(image)
+    image = ExpandChannels()(image)
+    assert torch.isclose(image, transformed_image).all()
