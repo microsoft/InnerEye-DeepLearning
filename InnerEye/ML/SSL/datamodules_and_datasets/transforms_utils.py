@@ -136,6 +136,7 @@ class AddGaussianNoise(BaseTransform):
         self.std = config.augmentation.gaussian_noise.std
 
     def transform(self, data: torch.Tensor) -> torch.Tensor:
+        assert data.max() <= 1 and data.min() >= 0
         if np.random.random(1) > self.p_apply:
             return data
         noise = torch.randn(size=data.shape) * self.std
