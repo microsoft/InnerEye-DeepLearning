@@ -10,7 +10,7 @@ import PIL
 import numpy as np
 import torch
 import torchvision
-from pl_bolts.models.self_supervised.simclr import SimCLREvalDataTransform, SimCLRTrainDataTransform
+from pl_bolts.models.self_supervised.simclr import SimCLRTrainDataTransform
 from scipy.ndimage import gaussian_filter, map_coordinates
 from torchvision.transforms import ToTensor
 from yacs.config import CfgNode
@@ -25,12 +25,12 @@ class BaseTransform:
 
 
 class CenterCrop(BaseTransform):
-    def transform(self, x: Any) -> Any:
-        return torchvision.transforms.CenterCrop(self.center_crop_size)(x)
-
     def __init__(self, config: CfgNode) -> None:
         super().__init__()
         self.center_crop_size = config.preprocess.center_crop_size
+
+    def transform(self, x: Any) -> Any:
+        return torchvision.transforms.CenterCrop(self.center_crop_size)(x)
 
 
 class RandomResizeCrop(BaseTransform):
@@ -103,13 +103,14 @@ class RandomErasing(BaseTransform):
 
 
 class RandomGamma(BaseTransform):
-    def transform(self, image: PIL.Image.Image) -> PIL.Image.Image:
-        gamma = random.uniform(*self.scale)
-        return torchvision.transforms.functional.adjust_gamma(image, gamma=gamma)
 
     def __init__(self, config: CfgNode) -> None:
         super().__init__()
         self.scale = config.augmentation.gamma.scale
+
+    def transform(self, image: PIL.Image.Image) -> PIL.Image.Image:
+        gamma = random.uniform(*self.scale)
+        return torchvision.transforms.functional.adjust_gamma(image, gamma=gamma)
 
 
 class ExpandChannels(BaseTransform):
@@ -124,13 +125,6 @@ class ExpandChannels(BaseTransform):
 
 class AddGaussianNoise(BaseTransform):
 
-    def transform(self, data: torch.Tensor) -> torch.Tensor:
-        if np.random.random(1) > self.p_apply:
-            return data
-        noise = torch.randn(size=data.shape) * self.std
-        data = torch.clamp(data + noise, 0, 1)
-        return data
-
     def __init__(self, config: CfgNode) -> None:
         """
         Transformation to add Gaussian noise N(0, std) to an image. Where std is set with the
@@ -140,6 +134,13 @@ class AddGaussianNoise(BaseTransform):
         super().__init__()
         self.p_apply = config.augmentation.gaussian_noise.p_apply
         self.std = config.augmentation.gaussian_noise.std
+
+    def transform(self, data: torch.Tensor) -> torch.Tensor:
+        if np.random.random(1) > self.p_apply:
+            return data
+        noise = torch.randn(size=data.shape) * self.std
+        data = torch.clamp(data + noise, 0, 1)
+        return data
 
 
 class ElasticTransform(BaseTransform):
@@ -253,7 +254,8 @@ def create_chest_xray_transform(config: CfgNode,
 
 class InnerEyeCIFARTrainTransform(SimCLRTrainDataTransform):
     """
-    Overload lightning-bolts SimCLRTrainDataTransform, to avoid return unused eval transform.
+    Overload lightning-bolts SimCLRTrainDataTransform, to avoid return unused eval transform. Used for training and
+    val of SSL models.
     """
 
     def __call__(self, sample: Any) -> Tuple[Any, Any]:
@@ -265,16 +267,8 @@ class InnerEyeCIFARTrainTransform(SimCLRTrainDataTransform):
 
 class InnerEyeCIFARLinearHeadTransform(SimCLRTrainDataTransform):
     """
-    Overload lightning-bolts SimCLRTrainDataTransform, to avoid return unused eval transform.
+    Overload lightning-bolts SimCLRTrainDataTransform, to only return linear head eval transform.
     """
 
     def __call__(self, sample: Any) -> Any:
         return self.online_transform(sample)
-
-
-class InnerEyeCIFARValTransform(SimCLREvalDataTransform):
-    def __call__(self, sample: Any) -> Tuple[Any, Any]:
-        transform = self.train_transform
-        xi = transform(sample)
-        xj = transform(sample)
-        return xi, xj

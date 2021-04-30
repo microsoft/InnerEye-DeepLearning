@@ -17,7 +17,7 @@ from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import CheXpert, NIH,
 from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule, InnerEyeVisionDataModule
 from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import InnerEyeCIFARLinearHeadTransform, \
     InnerEyeCIFARTrainTransform, \
-    InnerEyeCIFARValTransform, get_cxr_ssl_transforms
+    get_cxr_ssl_transforms
 from InnerEye.ML.SSL.encoders import get_encoder_output_dim
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
@@ -222,7 +222,7 @@ class SSLContainer(LightningContainer):
             train_transforms = \
                 InnerEyeCIFARTrainTransform(32) if is_ssl_encoder_module else InnerEyeCIFARLinearHeadTransform(32)
             val_transforms = \
-                InnerEyeCIFARValTransform(32) if is_ssl_encoder_module else InnerEyeCIFARLinearHeadTransform(32)
+                InnerEyeCIFARTrainTransform(32) if is_ssl_encoder_module else InnerEyeCIFARLinearHeadTransform(32)
         else:
             raise ValueError(f"Dataset {dataset_name} unknown.")
 
