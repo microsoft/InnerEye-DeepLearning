@@ -292,7 +292,7 @@ def converts_channels_to_file_paths(channels: List[str],
 
         if not channel_failure_flag:
             image_path = local_dataset_root_folder / row[CSV_PATH_HEADER].values[0]
-            if not image_path.isfile():
+            if not image_path.is_file():
                 failed_channel_info += f"Patient {patient_id}, file {image_path} does not exist" + os.linesep
             else:
                 paths.append(image_path)
