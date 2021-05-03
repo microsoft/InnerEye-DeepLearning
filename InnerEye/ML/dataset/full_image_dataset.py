@@ -284,16 +284,16 @@ def converts_channels_to_file_paths(channels: List[str],
         row = rows.loc[rows[CSV_CHANNEL_HEADER] == channel_id]
         channel_failure_flag: bool = False
         if len(row) == 0:
-            failed_channel_info += f"Patient {patient_id} does not have channel '{channel_id}'" + "\n"
+            failed_channel_info += f"Patient {patient_id} does not have channel '{channel_id}'" + os.linesep
             channel_failure_flag = True
         elif len(row) > 1:
-            failed_channel_info += f"Patient {patient_id} has more than one entry for channel '{channel_id}'" + "\n"
+            failed_channel_info += f"Patient {patient_id} has more than one entry for channel '{channel_id}'" + os.linesep
             channel_failure_flag = True
 
         if not channel_failure_flag:
             image_path = local_dataset_root_folder / row[CSV_PATH_HEADER].values[0]
-            if not os.path.isfile(image_path):
-                failed_channel_info += f"File: {image_path} does not exists" + "\n"
+            if not image_path.isfile():
+                failed_channel_info += f"Patient {patient_id}, file {image_path} does not exist" + os.linesep
             else:
                 paths.append(image_path)
 
