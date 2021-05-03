@@ -154,8 +154,8 @@ class InnerEyeContainer(LightningContainer):
             # Root directory where data is stored
             local_dataset_root_folder = self.config.local_dataset
             # Iterate over train, validation and test dataset
-            split_dataset = self.config.get_dataset_splits()
-            for split_data in [split_dataset.train, split_dataset.val, split_dataset.test]:
+            dataset_splits = self.config.get_dataset_splits()
+            for split_data in [dataset_splits.train, dataset_splits.val, dataset_splits.test]:
                 unique_ids = set(split_data[CSV_SUBJECT_HEADER])
                 for patient_id in unique_ids:
                     rows = split_data.loc[split_data[CSV_SUBJECT_HEADER] == patient_id]
