@@ -431,39 +431,62 @@ def test_converts_channels_to_file_paths(default_config: ModelConfigBase) -> Non
     # 1 Should not return any errors given that no channels or files are missing
     container.setup()
 
-    # 2 We test a split by deleting two channels and corrupting one file name
-    all_channels = default_config.image_channels + default_config.ground_truth_ids
-    if default_config.mask_id:
-        all_channels += [default_config.mask_id]
-    split_data = default_config.get_dataset_splits().train
-    patient_id = list(set(split_data[CSV_SUBJECT_HEADER]))[0]
-    rows = split_data.loc[split_data[CSV_SUBJECT_HEADER] == patient_id]
-    temp = rows[rows['channel'] == 'mask']
-    rows = rows.drop(temp.index.values[0])
-    temp = rows[rows['channel'] == 'channel1']
-    rows = rows.drop(temp.index.values[0])
-    temp = rows[rows['channel'] == 'channel2']
-    rows.loc[temp.index.values[0]]['filePath'] = 'IncorrectPath'
-    paths, failed_channel_info = converts_channels_to_file_paths(all_channels, rows, default_config.local_dataset, patient_id)
-    assert 'channel1' in failed_channel_info
-    assert 'mask' in failed_channel_info
-    assert 'IncorrectPath' in failed_channel_info
-    assert patient_id in failed_channel_info
-    assert len(paths) == 1
+    # 2 Creates InnerEyeContainer object with: 1) missing channels: "channel1", "channel2", 'mask'
+    # for patients 1 and 7; 2) Wrong file name for channel "mask", patient 2. Error report is generated with the
+    # corresponding information.
+    data_frame = [
+        # ["1",  "train_and_test_data/id1_channel1.nii.gz", "channel1",  "1"],  
+        # ["1",  "train_and_test_data/id1_channel1.nii.gz", "channel2",  "1"],
+        # ["1",  "train_and_test_data/id1_mask.nii.gz",     "mask",      "1"],
+        ["1",  "train_and_test_data/id1_region.nii.gz",   "region",    "1"],
+        ["1",  "train_and_test_data/id1_region.nii.gz",   "region_1",  "1"],
+        ["2",  "train_and_test_data/id2_channel1.nii.gz", "channel1",  "2"],
+        ["2",  "train_and_test_data/id2_channel1.nii.gz", "channel2",  "2"],
+        ["2",  "FILE_A",     "mask",      "2"],
+        ["2",  "train_and_test_data/id2_region.nii.gz",   "region",    "2"],
+        ["2",  "train_and_test_data/id2_region.nii.gz",   "region_1",  "2"],
+        ["3",  "train_and_test_data/id2_channel1.nii.gz", "channel1",  "3"],
+        ["3",  "train_and_test_data/id2_channel1.nii.gz", "channel2",  "3"],
+        ["3",  "train_and_test_data/id2_mask.nii.gz",     "mask",      "3"],
+        ["3",  "train_and_test_data/id2_region.nii.gz",   "region",    "3"],
+        ["3",  "train_and_test_data/id2_region.nii.gz",   "region_1",  "3"],
+        ["4",  "train_and_test_data/id2_channel1.nii.gz", "channel1",  "3"],
+        ["4",  "train_and_test_data/id2_channel1.nii.gz", "channel2",  "3"],
+        ["4",  "train_and_test_data/id2_mask.nii.gz",     "mask",      "3"],
+        ["4",  "train_and_test_data/id2_region.nii.gz",   "region",    "3"],
+        ["4",  "train_and_test_data/id2_region.nii.gz",   "region_1",  "3"],
+        ["5",  "train_and_test_data/id2_channel1.nii.gz", "channel1",  "3"],
+        ["5",  "train_and_test_data/id2_channel1.nii.gz", "channel2",  "3"],
+        ["5",  "train_and_test_data/id2_mask.nii.gz",     "mask",      "3"],
+        ["5",  "train_and_test_data/id2_region.nii.gz",   "region",    "3"],
+        ["5",  "train_and_test_data/id2_region.nii.gz",   "region_1",  "3"],
+        ["6",  "train_and_test_data/id2_channel1.nii.gz", "channel1",  "3"],
+        ["6",  "train_and_test_data/id2_channel1.nii.gz", "channel2",  "3"],
+        ["6",  "train_and_test_data/id2_mask.nii.gz",     "mask",      "3"],
+        ["6",  "train_and_test_data/id2_region.nii.gz",   "region",    "3"],
+        ["6",  "train_and_test_data/id2_region.nii.gz",   "region_1",  "3"],
+        # ["7",  "train_and_test_data/id2_channel1.nii.gz", "channel1",  "4"],
+        # ["7",  "train_and_test_data/id2_channel1.nii.gz", "channel2",  "4"],
+        # ["7",  "train_and_test_data/id2_mask.nii.gz",     "mask",      "4"],
+        ["7",  "train_and_test_data/id2_region.nii.gz",   "region",    "4"],
+        ["7",  "train_and_test_data/id2_region.nii.gz",   "region_1",  "4"]]
 
-    # 3 We corrupt original data frame and check that container.setup() should raise error
-    default_config.dataset_data_frame = default_config.dataset_data_frame.drop(0)
-    default_config.dataset_data_frame = default_config.dataset_data_frame.drop(1)
-    default_config.dataset_data_frame = default_config.dataset_data_frame.drop(2)
-    default_config.dataset_data_frame.loc[3]['filePath'] = 'IncorrectPath'
-    # Updates splits from datasets with corrupted data
-    split_data = default_config.get_dataset_splits()
+    config_missing_channels_and_files = DummyModel()
+    data_frame_with_missing_channels_and_files = pd.DataFrame(data_frame,
+                                                             columns=['subject','filePath','channel','institutionId'])
+    config_missing_channels_and_files._dataset_data_frame = data_frame_with_missing_channels_and_files
+    container_missing_files_channels = InnerEyeContainer(config_missing_channels_and_files)
     with pytest.raises(ValueError) as e:
-        container.setup()
-    assert "Patient 1 does not have channel 'channel1'" in str(e)
-    assert "Patient 1 does not have channel 'channel2'" in str(e)
-    assert "Patient 1 does not have channel 'mask'" in str(e)
-    assert "IncorrectPath does not exists" in str(e)
+        container_missing_files_channels.setup()
+        
+    assert "Patient 1 does not have channel 'channel1'" in str(e.value)
+    assert "Patient 1 does not have channel 'channel2'" in str(e.value)
+    assert "Patient 1 does not have channel 'mask'" in str(e.value)
+    assert "Patient 2" in str(e.value) and "FILE_A does not exist" in str(e.value)
+    assert "Patient 7 does not have channel 'channel1'" in str(e.value)
+    assert "Patient 7 does not have channel 'channel2'" in str(e.value)
+    assert "Patient 7 does not have channel 'mask'" in str(e.value)
+
 
 
 def test_sample_metadata_field() -> None:
