@@ -20,7 +20,7 @@ from InnerEye.ML.common import OneHotEncoderBase
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import load_dataset_sources
 from InnerEye.ML.utils import image_util, io_util, metrics_util, ml_util
-from InnerEye.ML.utils.io_util import ImageHeader  
+from InnerEye.ML.utils.io_util import ImageHeader
 
 
 class CategoricalToOneHotEncoder(OneHotEncoderBase):
