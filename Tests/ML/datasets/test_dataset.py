@@ -429,7 +429,7 @@ def test_converts_channels_to_file_paths(default_config: ModelConfigBase) -> Non
     container = InnerEyeContainer(default_config)
 
     # 1 Should not return any errors given that no channels or files are missing
-    assert container.setup() is None
+    container.setup()
 
     # 2 We test a split by deleting two channels and corrupting one file name
     all_channels = default_config.image_channels + default_config.ground_truth_ids
