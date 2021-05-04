@@ -61,6 +61,8 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
 - ([#445](https://github.com/microsoft/InnerEye-DeepLearning/pull/445)) Adding test coverage for the `HelloContainer`
   model with multiple GPUs
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Adds the metric "Accuracy at threshold 0.5" to the classification report (`classification_crossval_report.ipynb`). 
+- ([#451](https://github.com/microsoft/InnerEye-DeepLearning/pull/451)) Write a file `model_outputs.csv` with columns 
+  `subject`, `prediction_target`, `label`, `model_output` and `cross_validation_split_index`. This file is not written out for sequence models.
 
 ### Changed
 
@@ -77,6 +79,8 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
 - ([#437])(https://github.com/microsoft/InnerEye-DeepLearning/pull/437)) Upgrade to PyTorch-Lightning 1.2.8.
 - ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Recovery checkpoints are now
   named `recovery_epoch=x.ckpt` instead of `recovery.ckpt` or `recovery-v0.ckpt`.
+- ([#451](https://github.com/microsoft/InnerEye-DeepLearning/pull/451)) Change the signature for function `generate_custom_report` 
+  in `ModelConfigBase` to take only the path to the reports folder and a `ModelProcessing` object.
 
 ### Fixed
 
