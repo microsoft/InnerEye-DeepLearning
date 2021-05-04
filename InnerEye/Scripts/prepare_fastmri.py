@@ -75,7 +75,7 @@ files_to_download: FolderAndFileList = [
 ]
 
 
-def get_msrest_and_azure_auth(azure_config: AzureConfig) -> Union[DefaultAzureCredential, ClientSecretCredential]:
+def get_azure_auth(azure_config: AzureConfig) -> Union[DefaultAzureCredential, ClientSecretCredential]:
     """
     Returns the authentication object for the azure.identity library,
     based on either the chosen Service Principal (if set, and if the password was found), or the
@@ -120,7 +120,7 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
     data_factory_name = "fastmri-copy-data"
 
     # Get either the Service Principal authentication, if those are set already, or use interactive auth in the browser
-    azureid_auth = get_msrest_and_azure_auth(azure_config)
+    azureid_auth = get_azure_auth(azure_config)
 
     # Create a data factory
     adf_client = DataFactoryManagementClient(azureid_auth, azure_config.subscription_id)
