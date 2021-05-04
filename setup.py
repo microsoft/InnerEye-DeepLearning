@@ -118,11 +118,6 @@ if is_dev_package:
     print("\n ***** NOTE: This package is built for development purpose only. DO NOT RELEASE THIS! *****")
     print(f"\n ***** Will install dev package data: {package_data} *****\n")
 
-package_data[INNEREYE_PACKAGE_NAME] += [
-    str(INNEREYE_PACKAGE_ROOT / r"ML/reports/segmentation_report.ipynb"),
-    str(INNEREYE_PACKAGE_ROOT / r"ML/reports/classification_report.ipynb")
-]
-
 pre_processed_packages = _pre_process_packages()
 try:
     setuptools.setup(
