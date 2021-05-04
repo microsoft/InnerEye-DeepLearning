@@ -255,6 +255,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         By default, this method is a no-op.
 
         :param report_dir: The output directory where the generated report should be saved.
+        :param model_proc: The type of model that is registered (single or ensemble)
         :return: The path to the generated report file.
         """
         pass
